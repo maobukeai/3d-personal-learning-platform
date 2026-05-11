@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Element Plus variables override */
+:root {
+  --el-color-primary: #3b82f6; /* Blue 500 */
+  --el-color-primary-light-3: #93c5fd;
+  --el-color-primary-light-5: #bfdbfe;
+  --el-color-primary-light-7: #dbeafe;
+  --el-color-primary-light-8: #eff6ff;
+  --el-color-primary-light-9: #f8fafc;
+  --el-color-primary-dark-2: #2563eb;
+  --el-menu-active-color: var(--el-color-primary);
+  --el-menu-hover-bg-color: #f1f5f9;
+}
+
+body {
+  @apply text-slate-800 bg-white m-0 p-0 font-sans;
+}
+
+/* Custom scrollbar for modern feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

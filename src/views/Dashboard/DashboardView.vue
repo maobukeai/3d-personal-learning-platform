@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { 
-  LayoutDashboard, 
   BookOpen, 
   CheckCircle2, 
   Clock, 
@@ -14,7 +13,7 @@ import {
 } from 'lucide-vue-next'
 
 const stats = [
-  { label: '学习路线进度', value: '32%', trend: '+5%', color: 'text-blue-600', icon: TrendingUp },
+  { label: '学习路线进度', value: '32%', trend: '+5%', color: 'text-accent', icon: TrendingUp },
   { label: '待办任务', value: '12', trend: '-2', color: 'text-orange-600', icon: CheckCircle2 },
   { label: '资产库作品', value: '24', trend: '+3', color: 'text-emerald-600', icon: Box },
   { label: '社区互动', value: '156', trend: '+12', color: 'text-purple-600', icon: MessageSquare },
@@ -41,14 +40,14 @@ const selectedDate = ref('2026-05-11')
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto bg-[#f8fafc] p-8 scrollbar-hide">
+  <div class="flex-1 overflow-y-auto p-8 scrollbar-hide transition-colors duration-300" style="background-color: var(--bg-app)">
     <div class="max-w-7xl mx-auto space-y-8">
       
       <!-- Welcome Header -->
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">欢迎回来，设计师！👋</h1>
-          <p class="text-slate-500 text-sm mt-1">今天是你连续学习的第 12 天，保持住！</p>
+          <h1 class="text-2xl font-bold" style="color: var(--text-primary)">欢迎回来，设计师！👋</h1>
+          <p class="text-sm mt-1" style="color: var(--text-secondary)">今天是你连续学习的第 12 天，保持住！</p>
         </div>
         <div class="relative dashboard-date-picker">
           <el-date-picker
@@ -58,28 +57,29 @@ const selectedDate = ref('2026-05-11')
             format="YYYY年MM月DD日"
             value-format="YYYY-MM-DD"
             :clearable="false"
+            popper-class="rounded-date-picker"
             class="!absolute inset-0 opacity-0 cursor-pointer z-10"
           />
-          <div class="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-md transition-all cursor-pointer">
-            <Calendar class="w-4 h-4 text-blue-600" />
-            <span class="text-xs font-bold text-slate-700">{{ selectedDate.replace(/-/g, '年').replace(/年(\d{2})年/, '年$1月') + '日' }}</span>
+          <div class="flex items-center gap-3 px-4 py-2.5 rounded-xl border shadow-sm hover:border-accent hover:shadow-md transition-all cursor-pointer" style="background-color: var(--bg-card); border-color: var(--border-base)">
+            <Calendar class="w-4 h-4 text-accent" />
+            <span class="text-xs font-bold" style="color: var(--text-primary)">{{ selectedDate }}</span>
           </div>
         </div>
       </div>
 
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div v-for="stat in stats" :key="stat.label" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <div v-for="stat in stats" :key="stat.label" class="p-6 rounded-2xl border shadow-sm hover:shadow-md transition-shadow" style="background-color: var(--bg-card); border-color: var(--border-base)">
           <div class="flex items-center justify-between mb-4">
-            <div class="p-2 bg-slate-50 rounded-lg">
-              <component :is="stat.icon" class="w-5 h-5 text-slate-600" />
+            <div class="p-2 rounded-lg" style="background-color: var(--bg-app)">
+              <component :is="stat.icon" class="w-5 h-5" style="color: var(--text-secondary)" />
             </div>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" :class="stat.trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
               {{ stat.trend }}
             </span>
           </div>
-          <p class="text-xs font-medium text-slate-400 mb-1">{{ stat.label }}</p>
-          <p class="text-2xl font-bold text-slate-800">{{ stat.value }}</p>
+          <p class="text-xs font-medium mb-1" style="color: var(--text-muted)">{{ stat.label }}</p>
+          <p class="text-2xl font-bold" style="color: var(--text-primary)">{{ stat.value }}</p>
         </div>
       </div>
 
@@ -90,11 +90,11 @@ const selectedDate = ref('2026-05-11')
         <div class="lg:col-span-2 space-y-8">
           
           <!-- Continue Learning -->
-          <div class="bg-blue-600 rounded-2xl p-6 text-white relative overflow-hidden shadow-lg shadow-blue-200">
+          <div class="bg-accent rounded-2xl p-6 text-white relative overflow-hidden shadow-lg shadow-accent/20">
             <div class="relative z-10">
               <h2 class="text-lg font-bold mb-2">继续学习：Blender 进阶渲染</h2>
-              <p class="text-blue-100 text-sm mb-6 opacity-80">当前进度：3D 焦散效果实战 (第 4/12 课)</p>
-              <button class="bg-white text-blue-600 px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-blue-50 transition-colors flex items-center gap-2">
+              <p class="text-accent-subtle text-sm mb-6 opacity-80">当前进度：3D 焦散效果实战 (第 4/12 课)</p>
+              <button class="bg-white text-accent px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-accent-subtle transition-colors flex items-center gap-2">
                 立即开始 <ArrowUpRight class="w-3.5 h-3.5" />
               </button>
             </div>
@@ -102,21 +102,21 @@ const selectedDate = ref('2026-05-11')
           </div>
 
           <!-- Recent Tasks -->
-          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-slate-50 flex items-center justify-between">
-              <h3 class="font-bold text-slate-800">近期任务</h3>
-              <button class="text-xs font-bold text-blue-600 hover:underline">查看全部</button>
+          <div class="rounded-2xl border shadow-sm overflow-hidden" style="background-color: var(--bg-card); border-color: var(--border-base)">
+            <div class="p-6 border-b flex items-center justify-between" style="border-color: var(--border-base)">
+              <h3 class="font-bold" style="color: var(--text-primary)">近期任务</h3>
+              <RouterLink to="/team-tasks" class="text-xs font-bold text-accent hover:underline">查看全部</RouterLink>
             </div>
-            <div class="divide-y divide-slate-50">
-              <div v-for="task in recentTasks" :key="task.id" class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer">
+            <div>
+              <div v-for="task in recentTasks" :key="task.id" class="p-4 flex items-center justify-between cursor-pointer border-b last:border-b-0 transition-colors" style="border-color: var(--border-base)">
                 <div class="flex items-center gap-4">
-                  <div class="w-2 h-2 rounded-full" :class="task.status === '进行中' ? 'bg-blue-500' : task.status === '待评审' ? 'bg-orange-500' : 'bg-slate-300'"></div>
+                  <div class="w-2 h-2 rounded-full" :class="task.status === '进行中' ? 'bg-accent' : task.status === '待评审' ? 'bg-orange-500' : 'bg-slate-300'"></div>
                   <div>
-                    <p class="text-sm font-medium text-slate-700">{{ task.title }}</p>
-                    <p class="text-[10px] text-slate-400 mt-0.5">{{ task.time }}</p>
+                    <p class="text-sm font-medium" style="color: var(--text-primary)">{{ task.title }}</p>
+                    <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">{{ task.time }}</p>
                   </div>
                 </div>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500">{{ task.status }}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background-color: var(--bg-app); color: var(--text-secondary)">{{ task.status }}</span>
               </div>
             </div>
           </div>
@@ -124,17 +124,17 @@ const selectedDate = ref('2026-05-11')
           <!-- Recent Assets (3D Highlights) -->
           <div class="space-y-4">
             <div class="flex items-center justify-between px-1">
-              <h3 class="font-bold text-slate-800">最新创作资产</h3>
-              <button class="text-xs font-bold text-slate-400 hover:text-slate-600">管理作品集</button>
+              <h3 class="font-bold" style="color: var(--text-primary)">最新创作资产</h3>
+              <RouterLink to="/my-works" class="text-xs font-bold hover:underline" style="color: var(--text-secondary)">管理作品集</RouterLink>
             </div>
             <div class="grid grid-cols-2 gap-4">
-              <div v-for="asset in recentAssets" :key="asset.id" class="group bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex items-center gap-4">
-                <div class="w-16 h-16 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0">
-                  <img :src="asset.image" class="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform" />
+              <div v-for="asset in recentAssets" :key="asset.id" class="group p-4 rounded-2xl border shadow-sm hover:shadow-md transition-all flex items-center gap-4" style="background-color: var(--bg-card); border-color: var(--border-base)">
+                <div class="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center p-2 shrink-0" style="background-color: var(--bg-app)">
+                  <img :src="asset.image" class="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal group-hover:scale-110 transition-transform" />
                 </div>
                 <div class="min-w-0">
-                  <p class="text-sm font-bold text-slate-700 truncate">{{ asset.title }}</p>
-                  <span class="text-[10px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">{{ asset.format }}</span>
+                  <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ asset.title }}</p>
+                  <span class="text-[10px] font-bold text-accent bg-accent-subtle px-1.5 py-0.5 rounded">{{ asset.format }}</span>
                 </div>
               </div>
             </div>
@@ -145,44 +145,44 @@ const selectedDate = ref('2026-05-11')
         <div class="space-y-8">
           
           <!-- Activity Feed -->
-          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-slate-50">
-              <h3 class="font-bold text-slate-800">团队动态</h3>
+          <div class="rounded-2xl border shadow-sm overflow-hidden" style="background-color: var(--bg-card); border-color: var(--border-base)">
+            <div class="p-6 border-b" style="border-color: var(--border-base)">
+              <h3 class="font-bold" style="color: var(--text-primary)">团队动态</h3>
             </div>
-            <div class="p-6 space-y-6">
-              <div v-for="log in activityLog" :key="log.id" class="flex gap-4 relative last:after:hidden after:absolute after:left-[15px] after:top-[34px] after:bottom-[-26px] after:w-px after:bg-slate-100">
-                <img :src="`https://i.pravatar.cc/150?img=${log.id+20}`" class="w-8 h-8 rounded-full border border-slate-100 z-10" />
+            <div class="p-6 space-y-5">
+              <div v-for="log in activityLog" :key="log.id" class="flex gap-4">
+                <img :src="`https://i.pravatar.cc/150?img=${log.id+20}`" class="w-8 h-8 rounded-full border" style="border-color: var(--border-base)" />
                 <div class="flex-1">
-                  <p class="text-xs text-slate-500 leading-relaxed">
-                    <span class="font-bold text-slate-800">{{ log.user }}</span> 
+                  <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+                    <span class="font-bold" style="color: var(--text-primary)">{{ log.user }}</span> 
                     {{ log.action }} 
-                    <span class="text-blue-600 font-medium">#{{ log.target }}</span>
+                    <span class="text-accent font-medium">#{{ log.target }}</span>
                   </p>
-                  <p class="text-[10px] text-slate-300 mt-1">{{ log.time }}</p>
+                  <p class="text-[10px] mt-1" style="color: var(--text-muted)">{{ log.time }}</p>
                 </div>
               </div>
             </div>
-            <button class="w-full py-4 text-xs font-bold text-slate-400 hover:text-slate-600 border-t border-slate-50">
+            <RouterLink to="/team-tasks?view=activity" class="w-full py-4 text-xs font-bold border-t inline-block text-center transition-colors hover:text-accent" style="color: var(--text-secondary); border-color: var(--border-base)">
               查看更多动态
-            </button>
+            </RouterLink>
           </div>
 
           <!-- Team Invitation Card -->
-          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="p-6 rounded-2xl border shadow-sm" style="background-color: var(--bg-card); border-color: var(--border-base)">
             <div class="flex items-center gap-3 mb-4">
               <div class="p-2 bg-purple-50 rounded-lg">
                 <Users class="w-4 h-4 text-purple-600" />
               </div>
-              <h3 class="font-bold text-slate-800">团队协作</h3>
+              <h3 class="font-bold" style="color: var(--text-primary)">团队协作</h3>
             </div>
-            <p class="text-xs text-slate-500 leading-relaxed mb-4">邀请你的伙伴加入“3D 设计俱乐部”，一起制定学习计划并互相点评作品。</p>
+            <p class="text-xs leading-relaxed mb-4" style="color: var(--text-secondary)">邀请你的伙伴加入"3D 设计俱乐部"，一起制定学习计划并互相点评作品。</p>
             <div class="flex -space-x-2 mb-6">
-               <img v-for="i in 4" :key="i" :src="`https://i.pravatar.cc/150?img=${i+30}`" class="w-8 h-8 rounded-full border-2 border-white" />
-               <div class="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-400">+5</div>
+               <img v-for="i in 4" :key="i" :src="`https://i.pravatar.cc/150?img=${i+30}`" class="w-8 h-8 rounded-full border-2" style="border-color: var(--bg-card)" />
+               <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold" style="background-color: var(--bg-app); border-color: var(--bg-card); color: var(--text-secondary)">+5</div>
             </div>
-            <button class="w-full py-2.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-colors">
+            <RouterLink to="/members" class="w-full py-2.5 rounded-xl text-xs font-bold transition-colors inline-block text-center" style="background-color: var(--text-primary); color: var(--bg-card)">
               管理我的团队
-            </button>
+            </RouterLink>
           </div>
 
         </div>

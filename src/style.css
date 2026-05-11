@@ -1,26 +1,191 @@
 @import "tailwindcss";
 
-/* Element Plus variables override */
+/* ============================================================
+   Dark mode: class-based (adds .dark to <html>)
+   In Tailwind v4 this is done via the @variant directive
+   ============================================================ */
+@variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Design tokens — use static values in @theme (Tailwind v4)
+   ============================================================ */
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.08);
+}
+
+/* ============================================================
+   CSS Custom Properties (theme variables)
+   ============================================================ */
 :root {
-  --el-color-primary: #3b82f6; /* Blue 500 */
-  --el-color-primary-light-3: #93c5fd;
-  --el-color-primary-light-5: #bfdbfe;
-  --el-color-primary-light-7: #dbeafe;
-  --el-color-primary-light-8: #eff6ff;
-  --el-color-primary-light-9: #f8fafc;
-  --el-color-primary-dark-2: #2563eb;
-  --el-menu-active-color: var(--el-color-primary);
-  --el-menu-hover-bg-color: #f1f5f9;
+  color-scheme: light;
+
+  /* Layout backgrounds */
+  --bg-app:     #f8fafc;
+  --bg-card:    #ffffff;
+  --bg-sidebar: #f8fafc;
+
+  /* Text */
+  --text-primary:   #0f172a;
+  --text-secondary: #64748b;
+  --text-muted:     #94a3b8;
+
+  /* Borders */
+  --border-base:   #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Accent */
+  --accent:        #3b82f6;
+  --accent-hover:  #2563eb;
+  --accent-subtle: #eff6ff;
+
+  /* Element Plus overrides – Light */
+  --el-color-primary:          #3b82f6;
+  --el-color-primary-light-3:  #93c5fd;
+  --el-color-primary-light-5:  #bfdbfe;
+  --el-color-primary-light-7:  #dbeafe;
+  --el-color-primary-light-9:  #eff6ff;
+  --el-color-primary-dark-2:   #2563eb;
+
+  --el-bg-color:               #ffffff;
+  --el-bg-color-overlay:       #ffffff;
+  --el-bg-color-page:          #f8fafc;
+
+  --el-text-color-primary:     #0f172a;
+  --el-text-color-regular:     #334155;
+  --el-text-color-secondary:   #64748b;
+  --el-text-color-placeholder: #94a3b8;
+  --el-text-color-disabled:    #cbd5e1;
+
+  --el-border-color:           #e2e8f0;
+  --el-border-color-light:     #f1f5f9;
+  --el-border-color-lighter:   #f8fafc;
+  --el-border-color-extra-light: #f8fafc;
+  --el-border-color-dark:      #cbd5e1;
+  --el-border-color-darker:    #94a3b8;
+
+  --el-fill-color:             #f8fafc;
+  --el-fill-color-light:       #f1f5f9;
+  --el-fill-color-lighter:     #f8fafc;
+  --el-fill-color-extra-light: #ffffff;
+  --el-fill-color-blank:       #ffffff;
+  --el-fill-color-dark:        #e2e8f0;
+  --el-fill-color-darker:      #cbd5e1;
+
+  --el-box-shadow:             0 2px 8px rgba(0, 0, 0, 0.06);
+  --el-box-shadow-light:       0 1px 4px rgba(0, 0, 0, 0.04);
+  --el-border-radius-base:     8px;
+  --el-border-radius-small:    4px;
+  --el-border-radius-round:    20px;
+  --el-border-radius-circle:   50%;
+}
+
+/* ============================================================
+   Dark mode overrides
+   ============================================================ */
+.dark {
+  color-scheme: dark;
+
+  /* Layout backgrounds */
+  --bg-app:     #09090b;
+  --bg-card:    #18181b;
+  --bg-sidebar: #111113;
+
+  /* Text */
+  --text-primary:   #f4f4f5;
+  --text-secondary: #d4d4d8;
+  --text-muted:     #a1a1aa;
+
+  /* Borders */
+  --border-base:   #27272a;
+  --border-strong: #3f3f46;
+
+  /* Accent */
+  --accent-subtle: #1e3a5f;
+
+  /* Element Plus overrides – Dark */
+  --el-color-primary:          #3b82f6;
+  --el-color-primary-light-3:  #1d4ed8;
+  --el-color-primary-light-5:  #1e3a5f;
+  --el-color-primary-light-7:  #172554;
+  --el-color-primary-light-9:  #0f1b38;
+
+  --el-bg-color:               #18181b;
+  --el-bg-color-overlay:       #27272a;
+  --el-bg-color-page:          #09090b;
+
+  --el-text-color-primary:     #f4f4f5;
+  --el-text-color-regular:     #e4e4e7;
+  --el-text-color-secondary:   #d4d4d8;
+  --el-text-color-placeholder: #71717a;
+  --el-text-color-disabled:    #52525b;
+
+  --el-border-color:           #3f3f46;
+  --el-border-color-light:     #27272a;
+  --el-border-color-lighter:   #18181b;
+  --el-border-color-extra-light: #09090b;
+  --el-border-color-dark:      #52525b;
+  --el-border-color-darker:    #71717a;
+
+  --el-fill-color:             #27272a;
+  --el-fill-color-light:       #1f1f22;
+  --el-fill-color-lighter:     #18181b;
+  --el-fill-color-extra-light: #18181b;
+  --el-fill-color-blank:       #18181b;
+  --el-fill-color-dark:        #3f3f46;
+  --el-fill-color-darker:      #52525b;
+
+  --el-box-shadow:             0 4px 16px rgba(0, 0, 0, 0.4);
+  --el-box-shadow-light:       0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   Accent Color Utilities
+   ============================================================ */
+.bg-accent { background-color: var(--accent) !important; }
+.bg-accent-subtle { background-color: var(--accent-subtle) !important; }
+.text-accent { color: var(--accent) !important; }
+.border-accent { border-color: var(--accent) !important; }
+
+.hover\:bg-accent:hover { background-color: var(--accent) !important; opacity: 0.9; }
+.hover\:text-accent:hover { color: var(--accent) !important; opacity: 0.9; }
+
+/* ============================================================
+   Base styles
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
 body {
-  @apply text-slate-800 bg-white m-0 p-0 font-sans;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  line-height: 1.6;
 }
 
-/* Custom scrollbar for modern feel */
+/* ============================================================
+   Scrollbar
+   ============================================================ */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -31,4 +196,179 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* ============================================================
+   Scrollbar hide utility (used via class="scrollbar-hide")
+   ============================================================ */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================================
+   Element Plus – Global component tweaks
+   ============================================================ */
+
+/* Input */
+.el-input__wrapper {
+  background-color: var(--el-fill-color-blank) !important;
+  border-color: var(--el-border-color) !important;
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+  transition: box-shadow 0.2s ease !important;
+}
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--el-border-color-dark) inset !important;
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
+}
+.el-input__inner {
+  color: var(--el-text-color-primary) !important;
+  background-color: transparent !important;
+}
+.el-textarea__inner {
+  background-color: var(--el-fill-color-blank) !important;
+  color: var(--el-text-color-primary) !important;
+  border-color: var(--el-border-color) !important;
+}
+
+/* Select */
+.el-select .el-input__wrapper {
+  background-color: var(--el-fill-color-blank) !important;
+}
+
+/* Dropdown */
+.el-dropdown-menu {
+  background-color: var(--el-bg-color-overlay) !important;
+  border-color: var(--el-border-color-light) !important;
+}
+.el-dropdown-menu__item:hover,
+.el-dropdown-menu__item:focus {
+  background-color: var(--el-fill-color) !important;
+  color: var(--el-text-color-primary) !important;
+}
+
+/* Select Dropdown Popover */
+.el-select-dropdown {
+  background-color: var(--el-bg-color-overlay) !important;
+  border-color: var(--el-border-color) !important;
+}
+.el-select-dropdown__item {
+  color: var(--el-text-color-regular) !important;
+}
+.el-select-dropdown__item.is-selected {
+  color: var(--el-color-primary) !important;
+}
+.el-select-dropdown__item:hover {
+  background-color: var(--el-fill-color) !important;
+}
+
+/* Switch */
+.el-switch__core {
+  border-color: var(--el-border-color) !important;
+}
+
+/* Dialog */
+.el-dialog {
+  background-color: var(--el-bg-color-overlay) !important;
+  border: 1px solid var(--el-border-color-light) !important;
+  border-radius: 20px !important;
+}
+.el-dialog__header {
+  color: var(--el-text-color-primary) !important;
+  border-bottom: 1px solid var(--el-border-color-light) !important;
+}
+.el-dialog__title {
+  color: var(--el-text-color-primary) !important;
+}
+.el-dialog__body {
+  color: var(--el-text-color-regular) !important;
+}
+.el-overlay-dialog {
+  backdrop-filter: blur(4px);
+}
+
+/* Message / Notification */
+.el-message {
+  background-color: var(--el-bg-color-overlay) !important;
+  border-color: var(--el-border-color) !important;
+}
+
+/* DatePicker Popover */
+.el-picker-panel {
+  background-color: var(--el-bg-color-overlay) !important;
+  border-color: var(--el-border-color) !important;
+  color: var(--el-text-color-primary) !important;
+}
+.el-date-table th {
+  color: var(--el-text-color-secondary) !important;
+  border-bottom-color: var(--el-border-color-light) !important;
+}
+.el-date-table td .el-date-table-cell__text {
+  color: var(--el-text-color-regular) !important;
+}
+.el-date-table td.disabled .el-date-table-cell {
+  background-color: var(--el-fill-color-lighter) !important;
+}
+.el-date-picker__header-label {
+  color: var(--el-text-color-primary) !important;
+}
+.el-picker-panel__icon-btn {
+  color: var(--el-text-color-secondary) !important;
+}
+
+/* ============================================================
+   Custom component overrides
+   ============================================================ */
+
+/* Rounded Date Picker */
+.rounded-date-picker.el-picker__popper {
+  border-radius: 1.25rem !important;
+  overflow: hidden;
+  box-shadow: var(--el-box-shadow) !important;
+  border-color: var(--el-border-color) !important;
+}
+
+/* Rounded Dialogs */
+.custom-rounded-dialog.el-dialog {
+  border-radius: 24px !important;
+  overflow: hidden;
+  border: none !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.custom-rounded-dialog .el-dialog__header {
+  margin-right: 0;
+  padding: 28px 28px 16px !important;
+  border-bottom: 1px solid var(--el-border-color-light) !important;
+}
+
+.custom-rounded-dialog .el-dialog__title {
+  font-weight: 800 !important;
+  font-size: 1.125rem !important;
+  color: var(--el-text-color-primary) !important;
+}
+
+.custom-rounded-dialog .el-dialog__body {
+  padding: 24px 28px !important;
+}
+
+.custom-rounded-dialog .el-dialog__footer {
+  padding: 0 28px 28px !important;
+}
+
+.custom-rounded-dialog .el-dialog__headerbtn {
+  top: 28px !important;
+  right: 28px !important;
 }

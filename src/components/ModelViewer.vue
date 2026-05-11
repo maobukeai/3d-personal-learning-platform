@@ -51,7 +51,7 @@ const initScene = () => {
   // Mock Model (Colorful Torus Knot)
   const geometry = new THREE.TorusKnotGeometry(1, 0.4, 100, 16)
   const material = new THREE.MeshStandardMaterial({ 
-    color: 0x2563eb, // blue-600
+    color: 0x2563eb, // accent
     roughness: 0.3,
     metalness: 0.7 
   })

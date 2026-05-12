@@ -1,26 +1,28 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   BookOpen, 
-  CheckCircle2, 
-  Clock, 
-  ArrowUpRight, 
   Users, 
   Box, 
   MessageSquare,
   TrendingUp,
   Calendar,
   Layout,
-  Plus
+  Plus,
+  X
 } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+import { socketService } from '@/utils/socket'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const stats = ref([
-  { label: '整体学习进度', value: '0%', trend: '+5%', color: 'text-accent', icon: TrendingUp },
-  { label: '待办学习任务', value: '0', trend: '-2', color: 'text-amber-600', icon: Calendar },
+  { label: '整体学习进度', value: '0%', trend: '0%', color: 'text-accent', icon: TrendingUp },
+  { label: '待办学习任务', value: '0', trend: '0', color: 'text-amber-600', icon: Calendar },
   { label: '资产库作品', value: '0', trend: '0', color: 'text-emerald-600', icon: Box },
   { label: '反馈记录', value: '0', trend: '0', color: 'text-purple-600', icon: MessageSquare },
 ])
@@ -29,32 +31,80 @@ const activeEnrollment = ref<any>(null)
 const activityLog = ref<any[]>([])
 const recentAssets = ref<any[]>([])
 const recentTasks = ref<any[]>([])
+const selectedDate = ref(new Date())
+const isAddDialogOpen = ref(false)
+const newTask = ref({
+  title: '',
+  description: '',
+  status: 'TODO',
+  dueDate: ''
+})
+
+const disabledDate = (time: Date) => {
+  if (!authStore.user?.createdAt) return time.getTime() > Date.now()
+  const regDate = new Date(authStore.user.createdAt)
+  regDate.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+  return time.getTime() < regDate.getTime() || time.getTime() > today.getTime()
+}
 
 const fetchDashboardData = async () => {
   try {
+    const year = selectedDate.value.getFullYear()
+    const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0')
+    const day = String(selectedDate.value.getDate()).padStart(2, '0')
+    const dateParam = `${year}-${month}-${day}`
+    
     const [statsRes, enrollmentsRes, activityRes, assetsRes, tasksRes] = await Promise.all([
-      api.get('/api/auth/stats'),
+      api.get('/api/auth/stats', { params: { date: dateParam } }),
       api.get('/api/courses/my-enrollments'),
-      api.get('/api/auth/activity'),
-      api.get('/api/assets/public'),
-      api.get('/api/tasks')
+      api.get('/api/auth/activity', { params: { date: dateParam } }),
+      api.get('/api/assets/my'),
+      api.get('/api/tasks', { params: { date: dateParam } })
     ])
+    
+    // Also fetch overall pending tasks if specifically needed for "Recent Tasks"
+    const overallTasksRes = await api.get('/api/tasks')
     
     const data = statsRes.data
     stats.value[0].value = data.learningProgress
+    stats.value[0].trend = data.trends?.learning || '0%'
     stats.value[1].value = data.taskCount.toString()
+    stats.value[1].trend = data.trends?.tasks || '0'
     stats.value[2].value = data.assetCount.toString()
+    stats.value[2].trend = data.trends?.assets || '0'
     stats.value[3].value = data.feedbackCount.toString()
+    stats.value[3].trend = data.trends?.feedbacks || '0'
 
     if (enrollmentsRes.data.length > 0) {
       activeEnrollment.value = enrollmentsRes.data[0]
+    } else {
+      activeEnrollment.value = null
     }
 
     activityLog.value = activityRes.data
-    recentAssets.value = (assetsRes.data.assets || []).slice(0, 2)
-    recentTasks.value = tasksRes.data.slice(0, 3)
+    recentAssets.value = (assetsRes.data || []).slice(0, 2)
+    recentTasks.value = (tasksRes.data.length > 0 ? tasksRes.data : overallTasksRes.data).slice(0, 3)
   } catch (error) {
     console.error('Fetch dashboard data error:', error)
+  }
+}
+
+watch(selectedDate, () => {
+  fetchDashboardData()
+})
+
+const handleAddTask = async () => {
+  if (!newTask.value.title) return
+  try {
+    await api.post('/api/tasks', newTask.value)
+    ElMessage.success('任务已添加')
+    isAddDialogOpen.value = false
+    newTask.value = { title: '', description: '', status: 'TODO', dueDate: '' }
+    fetchDashboardData()
+  } catch (error) {
+    ElMessage.error('添加任务失败')
   }
 }
 
@@ -71,7 +121,34 @@ const formatTime = (date: string) => {
 
 onMounted(() => {
   fetchDashboardData()
+  
+  // Listen for real-time activity updates
+  socketService.on('new_activity', (activity: any) => {
+    // Check if activity matches current date filter
+    const year = selectedDate.value.getFullYear()
+    const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0')
+    const day = String(selectedDate.value.getDate()).padStart(2, '0')
+    const currentFilterStr = `${year}-${month}-${day}`
+    
+    const activityDate = new Date(activity.createdAt)
+    const actYear = activityDate.getFullYear()
+    const actMonth = String(activityDate.getMonth() + 1).padStart(2, '0')
+    const actDay = String(activityDate.getDate()).padStart(2, '0')
+    const activityDateStr = `${actYear}-${actMonth}-${actDay}`
+    
+    if (activityDateStr === currentFilterStr) {
+      activityLog.value.unshift(activity)
+      if (activityLog.value.length > 10) activityLog.value.pop()
+    }
+  })
 })
+
+const handleActivityClick = (log: any) => {
+  const [prefix] = log.id.split('-')
+  if (prefix === 'a') router.push('/assets')
+  else if (prefix === 'd') router.push('/discussions')
+  else if (prefix === 'e') router.push('/academy')
+}
 </script>
 
 <template>
@@ -83,11 +160,20 @@ onMounted(() => {
         <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">欢迎回来，今天准备学习什么新技能？</p>
       </div>
       <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 px-4 py-2 rounded-xl border transition-colors duration-300" style="background-color: var(--bg-app); border-color: var(--border-base)">
-          <Calendar class="w-4 h-4 text-slate-400" />
-          <span class="text-xs font-bold" style="color: var(--text-secondary)">{{ new Date().toLocaleDateString() }}</span>
-        </div>
-        <button @click="router.push('/tasks')" class="p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all">
+        <el-date-picker
+          v-model="selectedDate"
+          type="date"
+          class="!w-40 custom-date-picker"
+          placeholder="选择日期"
+          :clearable="false"
+          :disabled-date="disabledDate"
+          popper-class="custom-date-popper"
+        >
+          <template #prefix>
+            <Calendar class="w-4 h-4 text-slate-400" />
+          </template>
+        </el-date-picker>
+        <button @click="isAddDialogOpen = true" class="p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all">
           <Plus class="w-5 h-5" />
         </button>
       </div>
@@ -101,10 +187,13 @@ onMounted(() => {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div v-for="stat in stats" :key="stat.label" class="p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md" style="background-color: var(--bg-card); border-color: var(--border-base)">
             <div class="flex items-start justify-between mb-4">
-              <div class="p-3 rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
+              <div v-if="stat.trend && stat.trend !== '0' && stat.trend !== '0%'" class="p-3 rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
                 <component :is="stat.icon" class="w-6 h-6" />
               </div>
-              <span class="text-[10px] font-black px-2 py-1 bg-emerald-50 text-emerald-600 rounded-full">{{ stat.trend }}</span>
+              <div v-else class="p-3 rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
+                <component :is="stat.icon" class="w-6 h-6" />
+              </div>
+              <span v-if="stat.trend && stat.trend !== '0' && stat.trend !== '0%'" class="text-[10px] font-black px-2 py-1 rounded-full" :class="stat.trend.startsWith('-') ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'">{{ stat.trend }}</span>
             </div>
             <p class="text-xs font-bold uppercase tracking-wider mb-1" style="color: var(--text-muted)">{{ stat.label }}</p>
             <h2 class="text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
@@ -126,7 +215,7 @@ onMounted(() => {
                    <span class="text-[10px] font-bold uppercase tracking-widest opacity-80">继续学习</span>
                  </div>
                  <h2 class="text-2xl font-black mb-2">{{ activeEnrollment.course.title }}</h2>
-                 <p class="text-sm opacity-80 mb-8 max-w-md">还剩下 {{ activeEnrollment.course._count.lessons }} 个章节，保持专注！</p>
+                 <p class="text-sm opacity-80 mb-8 max-w-md">进度: {{ activeEnrollment.progress }}% | 还剩下 {{ activeEnrollment.course._count.lessons }} 个章节</p>
                  <button @click="router.push(`/academy/player/${activeEnrollment.courseId}`)" class="px-6 py-2.5 bg-white text-indigo-600 rounded-xl font-bold text-xs shadow-xl hover:scale-105 transition-all">开始学习</button>
                </div>
                <div class="absolute right-0 bottom-0 opacity-10 group-hover:scale-110 transition-transform duration-700">
@@ -134,11 +223,22 @@ onMounted(() => {
                </div>
             </div>
 
+            <!-- Empty Enrollment State -->
+            <div v-else class="relative overflow-hidden rounded-3xl p-8 border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-accent/50 transition-all" 
+                 @click="router.push('/academy')">
+              <div class="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <BookOpen class="w-8 h-8 text-slate-300 group-hover:text-accent" />
+              </div>
+              <h2 class="text-lg font-bold mb-1" style="color: var(--text-primary)">开启你的学习之旅</h2>
+              <p class="text-xs text-slate-400 mb-6 max-w-[240px]">您还没有加入任何课程。前往学院探索海量 3D 创作课程，提升您的技能。</p>
+              <button class="px-6 py-2 border-2 border-accent text-accent rounded-xl font-bold text-xs hover:bg-accent hover:text-white transition-all">浏览课程</button>
+            </div>
+
             <!-- Recent Tasks -->
             <div class="p-8 rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
               <div class="flex items-center justify-between mb-8">
                 <h3 class="font-bold text-lg" style="color: var(--text-primary)">待办学习任务</h3>
-                <button @click="router.push('/tasks')" class="text-xs font-bold text-accent hover:underline">查看全部任务</button>
+                <button @click="router.push('/work')" class="text-xs font-bold text-accent hover:underline">查看全部任务</button>
               </div>
               <div class="space-y-4">
                 <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-4 rounded-2xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5" style="border-color: var(--border-base)">
@@ -165,8 +265,12 @@ onMounted(() => {
               </div>
               <div class="grid grid-cols-2 gap-4">
                 <div v-for="asset in recentAssets" :key="asset.id" @click="router.push('/assets')" class="group p-4 rounded-3xl border shadow-sm hover:shadow-md transition-all flex items-center gap-4 cursor-pointer" style="background-color: var(--bg-card); border-color: var(--border-base)">
-                  <div class="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center p-1 shrink-0 bg-slate-50 dark:bg-white/5">
-                    <img :src="asset.thumbnail || '/asset_sofa.png'" class="w-full h-full object-cover rounded-xl group-hover:scale-110 transition-transform" />
+                  <div class="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center p-0.5 shrink-0 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <img v-if="asset.thumbnail" :src="asset.thumbnail" class="w-full h-full object-cover rounded-xl group-hover:scale-110 transition-transform" />
+                    <div v-else class="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-white/5 rounded-xl">
+                      <Box class="w-6 h-6 mb-1" />
+                      <span class="text-[8px] font-bold uppercase">NO THUMB</span>
+                    </div>
                   </div>
                   <div class="min-w-0">
                     <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ asset.title }}</p>
@@ -187,21 +291,24 @@ onMounted(() => {
                 <span class="text-[9px] font-black uppercase text-emerald-500 animate-pulse">实时</span>
               </div>
               <div class="p-6 space-y-6">
-                <div v-for="log in activityLog" :key="log.id" class="flex gap-4">
+                <div v-for="log in activityLog" :key="log.id" @click="handleActivityClick(log)" class="flex gap-4 group cursor-pointer">
                   <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/5 border-2 border-white dark:border-slate-800 shadow-sm overflow-hidden shrink-0">
                     <img :src="`https://ui-avatars.com/api/?name=${log.user}`" class="w-full h-full" />
                   </div>
                   <div class="flex-1 min-w-0">
                     <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
-                      <span class="font-bold" style="color: var(--text-primary)">{{ log.user }}</span> 
+                      <span class="font-bold group-hover:text-accent transition-colors" style="color: var(--text-primary)">{{ log.user }}</span> 
                       {{ log.action }} 
                       <span class="text-accent font-bold">#{{ log.target }}</span>
                     </p>
                     <p class="text-[10px] mt-1" style="color: var(--text-muted)">{{ formatTime(log.createdAt) }}</p>
                   </div>
                 </div>
+                <div v-if="activityLog.length === 0" class="py-12 text-center text-slate-400">
+                   <p class="text-sm font-bold">暂无动态</p>
+                </div>
               </div>
-              <button @click="router.push('/community')" class="w-full py-4 text-xs font-bold border-t transition-colors hover:bg-slate-50 dark:hover:bg-white/5" style="color: var(--text-secondary); border-color: var(--border-base)">
+              <button @click="router.push('/discussions')" class="w-full py-4 text-xs font-bold border-t transition-colors hover:bg-slate-50 dark:hover:bg-white/5" style="color: var(--text-secondary); border-color: var(--border-base)">
                 进入社区交流
               </button>
             </div>
@@ -228,6 +335,49 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Add Task Dialog -->
+    <Transition name="fade">
+      <div v-if="isAddDialogOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isAddDialogOpen = false"></div>
+        <div class="relative w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6" style="background-color: var(--bg-card)">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold" style="color: var(--text-primary)">新建学习任务</h3>
+            <button @click="isAddDialogOpen = false" style="color: var(--text-secondary)"><X class="w-5 h-5" /></button>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">任务标题</label>
+              <input v-model="newTask.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all" style="color: var(--text-primary)" placeholder="例如：学习 Blender 几何节点" />
+            </div>
+            
+            <div>
+              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">详细描述 (可选)</label>
+              <textarea v-model="newTask.description" rows="3" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none" style="color: var(--text-primary)" placeholder="这次任务的目标是什么？"></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">截止日期</label>
+              <el-date-picker
+                v-model="newTask.dueDate"
+                type="date"
+                placeholder="选择截止日期"
+                class="!w-full !rounded-2xl custom-date-picker"
+                popper-class="custom-date-popper"
+              />
+            </div>
+          </div>
+
+          <button 
+            @click="handleAddTask"
+            class="w-full py-4 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all"
+          >
+            创建任务
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -238,5 +388,29 @@ onMounted(() => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.custom-date-picker :deep(.el-input__wrapper) {
+  border-radius: 0.75rem !important;
+  padding: 0.5rem 1rem !important;
+  background-color: var(--bg-app) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-base) !important;
+}
+</style>
+
+<style>
+/* Global styles for the date picker popper */
+.custom-date-popper {
+  border-radius: 1.5rem !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+  border: 1px solid var(--border-base) !important;
+}
+.custom-date-popper .el-picker-panel {
+  border-radius: 1.5rem !important;
+  border: none !important;
 }
 </style>

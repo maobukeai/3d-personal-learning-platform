@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Users, Image as ImageIcon, Check } from 'lucide-vue-next'
+import { Plus, Users, Check } from 'lucide-vue-next'
 
 import api from '@/utils/api'
 
@@ -13,8 +13,11 @@ const emit = defineEmits(['update:visible', 'success'])
 
 const teamName = ref('')
 const teamDescription = ref('')
+const teamCategory = ref('建模')
 const teamType = ref('public')
 const loading = ref(false)
+
+const categories = ['建模', '渲染', '动画', '材质', '游戏引擎']
 
 const handleClose = () => {
   emit('update:visible', false)
@@ -28,13 +31,19 @@ const handleCreate = async () => {
   
   loading.value = true
   try {
-    await api.post('/api/teams', {
+    const { data: team } = await api.post('/api/teams', {
       name: teamName.value,
-      description: teamDescription.value
+      description: teamDescription.value,
+      category: teamCategory.value,
+      visibility: teamType.value === 'public' ? 'PUBLIC' : 'PRIVATE'
     })
     ElMessage.success('团队创建成功！')
-    emit('success')
+    emit('success', team)  // pass team object so caller can navigate to /team/:id
     handleClose()
+    // Reset form
+    teamName.value = ''
+    teamDescription.value = ''
+    teamType.value = 'public'
   } catch (error) {
     ElMessage.error('创建团队失败')
   } finally {
@@ -46,7 +55,7 @@ const handleCreate = async () => {
 <template>
   <el-dialog
     :model-value="visible"
-    @update:model-value="val => emit('update:visible', val)"
+    @update:model-value="(val: any) => emit('update:visible', val)"
     title="创建新团队"
     width="500px"
     class="custom-rounded-dialog"
@@ -71,6 +80,13 @@ const handleCreate = async () => {
           placeholder="简要介绍一下你的团队..."
           class="w-full px-5 py-3 rounded-2xl border-2 border-slate-100 focus:border-accent focus:ring-4 focus:ring-accent-subtle outline-none transition-all resize-none placeholder:text-slate-300"
         ></textarea>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">团队分类</label>
+        <el-select v-model="teamCategory" class="w-full custom-select" placeholder="选择团队分类">
+          <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+        </el-select>
       </div>
 
       <div class="space-y-2">

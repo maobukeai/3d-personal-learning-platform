@@ -5,12 +5,18 @@ import { ElMessage } from 'element-plus'
 import ModelViewer from '@/components/ModelViewer.vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail'
 
 const authStore = useAuthStore()
 const searchQuery = ref('')
 const activeCategory = ref('全部')
 
 watch(searchQuery, () => {
+  pagination.value.page = 1
+  fetchAssets()
+})
+
+watch(activeCategory, () => {
   pagination.value.page = 1
   fetchAssets()
 })
@@ -32,15 +38,35 @@ const isUploadDialogOpen = ref(false)
 const uploadForm = ref({
   title: '',
   description: '',
+  categoryId: '',
   file: null as File | null,
   thumbnail: null as File | null
 })
 const isUploading = ref(false)
-const categories = computed(() => [
-  { name: '全部', count: assets.value.length },
-  { name: 'GLB', count: assets.value.filter(a => a.type === 'GLB').length },
-  { name: 'GLTF', count: assets.value.filter(a => a.type === 'GLTF').length },
-])
+const assetCategories = ref<any[]>([])
+
+const categories = computed(() => {
+  const list = [
+    { id: 'all', name: '全部', count: pagination.value.total }
+  ]
+  assetCategories.value.forEach(cat => {
+    list.push({ 
+      id: cat.id, 
+      name: cat.name, 
+      count: cat._count?.assets || 0 
+    })
+  })
+  return list
+})
+
+const fetchCategories = async () => {
+  try {
+    const response = await api.get('/api/assets/categories')
+    assetCategories.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch categories')
+  }
+}
 
 const fetchAssets = async () => {
   isLoading.value = true
@@ -49,7 +75,8 @@ const fetchAssets = async () => {
       params: {
         page: pagination.value.page,
         limit: pagination.value.limit,
-        search: searchQuery.value
+        search: searchQuery.value,
+        categoryId: activeCategory.value === '全部' ? 'all' : (assetCategories.value.find(c => c.name === activeCategory.value)?.id || 'all')
       }
     })
     assets.value = response.data.assets
@@ -153,6 +180,11 @@ const handleUpload = async () => {
     return
   }
 
+  if (!uploadForm.value.categoryId) {
+    ElMessage.warning('请选择资源分类')
+    return
+  }
+
   isUploading.value = true
   const formData = new FormData()
   formData.append('asset', uploadForm.value.file)
@@ -161,6 +193,7 @@ const handleUpload = async () => {
   }
   formData.append('title', uploadForm.value.title)
   formData.append('description', uploadForm.value.description)
+  formData.append('categoryId', uploadForm.value.categoryId)
 
   try {
     await api.post('/api/assets/upload', formData, {
@@ -168,8 +201,9 @@ const handleUpload = async () => {
     })
     ElMessage.success('上传成功，请等待管理员审核')
     isUploadDialogOpen.value = false
-    uploadForm.value = { title: '', description: '', file: null, thumbnail: null }
+    uploadForm.value = { title: '', description: '', categoryId: '', file: null, thumbnail: null }
     fetchAssets()
+    fetchCategories()
   } catch (error) {
     ElMessage.error('上传失败')
   } finally {
@@ -190,6 +224,7 @@ const deleteAsset = async (id: string) => {
 
 onMounted(() => {
   fetchAssets()
+  fetchCategories()
 })
 </script>
 
@@ -268,7 +303,7 @@ onMounted(() => {
               <!-- Image/Icon -->
               <div class="flex-1 relative flex items-center justify-center overflow-hidden" style="background: linear-gradient(135deg, var(--bg-app), var(--bg-card))">
                 <img v-if="asset.thumbnail" :src="asset.thumbnail" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                <Box v-else class="w-12 h-12 text-accent/20 group-hover:scale-110 transition-transform duration-500" />
+                <img v-else :src="getDefaultThumbnailUrl(asset.type)" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 
                 <!-- Hover Overlay -->
                 <div class="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -280,7 +315,10 @@ onMounted(() => {
 
               <!-- Card Footer -->
               <div class="p-4 border-t" style="background-color: var(--bg-card); border-color: var(--border-base)">
-                <p class="text-xs font-bold truncate mb-1" style="color: var(--text-primary)">{{ asset.title }}</p>
+                <div class="flex items-center justify-between mb-1">
+                  <p class="text-xs font-bold truncate" style="color: var(--text-primary)">{{ asset.title }}</p>
+                  <span v-if="asset.category" class="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-white/5 rounded text-slate-400">{{ asset.category.name }}</span>
+                </div>
                 <div class="flex items-center justify-between text-[10px] font-medium" style="color: var(--text-secondary)">
                   <span>{{ new Date(asset.createdAt).toLocaleDateString() }}</span>
                   <span class="text-accent">{{ asset.type }}</span>
@@ -332,14 +370,22 @@ onMounted(() => {
             </div>
 
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">选择文件 (GLB/GLTF)</label>
+              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">资源分类</label>
+              <el-select v-model="uploadForm.categoryId" placeholder="请选择分类" class="w-full custom-select-v2">
+                <el-option v-for="cat in assetCategories" :key="cat.id" :label="cat.name" :value="cat.id" />
+              </el-select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">选择文件 (GLB/GLTF/FBX/OBJ/STL/DAE)</label>
               <div class="relative group">
-                <input type="file" @change="handleFileChange" accept=".glb,.gltf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <input type="file" @change="handleFileChange" accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                 <div class="w-full border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2 transition-all group-hover:border-accent group-hover:bg-accent/5" style="border-color: var(--border-base)">
                   <Box class="w-8 h-8 text-accent/40" />
                   <p class="text-xs font-medium" style="color: var(--text-secondary)">
                     {{ uploadForm.file ? uploadForm.file.name : '点击或拖拽模型文件到这里' }}
                   </p>
+                  <p class="text-[10px]" style="color: var(--text-secondary); opacity: 0.5">支持 GLB, GLTF, FBX, OBJ, STL, DAE, 3DS 格式</p>
                 </div>
               </div>
             </div>
@@ -426,6 +472,10 @@ onMounted(() => {
                   <div v-if="selectedAsset?.animations">
                     <p class="text-[10px]" style="color: var(--text-secondary)">动画</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">{{ selectedAsset.animations }} 个</p>
+                  </div>
+                  <div v-if="selectedAsset?.category">
+                    <p class="text-[10px]" style="color: var(--text-secondary)">分类</p>
+                    <p class="text-xs font-bold text-accent">{{ selectedAsset.category.name }}</p>
                   </div>
                 </div>
               </div>

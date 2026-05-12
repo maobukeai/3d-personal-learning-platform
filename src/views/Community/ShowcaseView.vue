@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { 
+import {
   Search,
   MonitorPlay,
   Heart,
@@ -9,46 +9,143 @@ import {
   Play,
   Trophy,
   Flame,
-  User,
   Eye,
   ChevronRight,
   Plus,
   X,
-  UploadCloud
+  UploadCloud,
+  Send,
+  Clock,
+  Tag,
+  Check,
+  Trash2,
+  Box,
+  Image,
+  Film,
+  File,
+  FileText,
+  ChevronLeft
 } from 'lucide-vue-next'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import { MdPreview } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
 
 const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 const searchQuery = ref('')
 const activeFilter = ref('热门')
+const activeTypeFilter = ref('全部')
 const showcases = ref<any[]>([])
 const isLoading = ref(false)
 
 const filters = ['热门', '最新']
+const typeFilters = ['全部', 'IMAGE', 'VIDEO', 'MODEL', 'OTHER', 'TEXT']
 
-// Publish related
+const typeFilterLabels: Record<string, string> = {
+  '全部': '全部',
+  'IMAGE': '图片',
+  'VIDEO': '视频',
+  'MODEL': '3D模型',
+  'OTHER': '其他',
+  'TEXT': '文本'
+}
+
+const getTypeIcon = (type: string) => {
+  switch (type) {
+    case 'MODEL': return Box
+    case 'VIDEO': return Film
+    case 'IMAGE': return Image
+    case 'TEXT': return FileText
+    default: return File
+  }
+}
+
+const getTypeLabel = (type: string) => {
+  switch (type) {
+    case 'MODEL': return '3D模型'
+    case 'VIDEO': return '视频'
+    case 'IMAGE': return '图片'
+    case 'TEXT': return '文本'
+    case 'OTHER': return '其他'
+    default: return '作品'
+  }
+}
+
+const getTypeBg = (type: string) => {
+  switch (type) {
+    case 'MODEL': return 'bg-blue-500/80'
+    case 'VIDEO': return 'bg-purple-500/80'
+    case 'IMAGE': return 'bg-emerald-500/80'
+    case 'TEXT': return 'bg-amber-500/80'
+    default: return 'bg-slate-500/80'
+  }
+}
+
 const isPublishDialogOpen = ref(false)
 const isPublishing = ref(false)
+const publishCategory = ref<'model' | 'asset' | 'work'>('work')
+const myApprovedAssets = ref<any[]>([])
+const selectedAssetId = ref('')
 const publishForm = ref({
   title: '',
+  description: '',
+  tags: '',
   videoUrl: '',
   isVideo: false,
-  thumbnail: null as File | null
+  type: 'IMAGE',
+  thumbnail: null as File | null,
+  images: [] as File[],
+  assetFile: null as File | null,
+  assetCategory: ''
 })
+
+const isDetailOpen = ref(false)
+const detailItem = ref<any>(null)
+const detailLoading = ref(false)
+const comments = ref<any[]>([])
+const commentsLoading = ref(false)
+const newComment = ref('')
+const isSubmittingComment = ref(false)
+const shareCopied = ref(false)
+const currentImageIndex = ref(0)
 
 const fetchShowcases = async () => {
   isLoading.value = true
   try {
     const response = await api.get('/api/showcase', {
-      params: { filter: activeFilter.value }
+      params: { filter: activeFilter.value, type: activeTypeFilter.value }
     })
     showcases.value = response.data
   } catch (error) {
     ElMessage.error('获取作品展示失败')
   } finally {
     isLoading.value = false
+  }
+}
+
+const fetchMyApprovedAssets = async () => {
+  try {
+    const response = await api.get('/api/assets/my')
+    myApprovedAssets.value = response.data.filter((a: any) => a.status === 'APPROVED')
+  } catch (error) {
+    console.error('Failed to fetch my assets')
+  }
+}
+
+const openPublishDialog = async () => {
+  isPublishDialogOpen.value = true
+  await fetchMyApprovedAssets()
+}
+
+const onAssetSelected = () => {
+  const asset = myApprovedAssets.value.find(a => a.id === selectedAssetId.value)
+  if (asset) {
+    publishForm.value.title = asset.title
+    publishForm.value.description = asset.description || ''
+    publishForm.value.type = 'MODEL'
   }
 }
 
@@ -59,36 +156,202 @@ const handleThumbnailChange = (e: any) => {
   }
 }
 
+const handleImagesChange = (e: any) => {
+  const files = Array.from(e.target.files) as File[]
+  publishForm.value.images = files
+}
+
+const handleAssetFileChange = (e: any) => {
+  const file = e.target.files[0]
+  if (file) {
+    publishForm.value.assetFile = file
+  }
+}
+
 const handlePublish = async () => {
   if (!publishForm.value.title) {
     ElMessage.warning('请输入作品标题')
     return
   }
-  if (!publishForm.value.thumbnail) {
-    ElMessage.warning('请上传作品封面图')
-    return
-  }
 
   isPublishing.value = true
-  const formData = new FormData()
-  formData.append('thumbnail', publishForm.value.thumbnail)
-  formData.append('title', publishForm.value.title)
-  formData.append('videoUrl', publishForm.value.videoUrl)
-  formData.append('isVideo', String(publishForm.value.isVideo))
 
   try {
-    await api.post('/api/showcase', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    ElMessage.success('作品已成功发布到展示墙')
+    if (publishCategory.value === 'model' && selectedAssetId.value) {
+      await api.post('/api/showcase/publish-asset', {
+        assetId: selectedAssetId.value,
+        title: publishForm.value.title,
+        description: publishForm.value.description,
+        tags: publishForm.value.tags
+      })
+    } else if (publishCategory.value === 'asset') {
+      if (!publishForm.value.assetFile) {
+        ElMessage.warning('请上传3D模型文件')
+        isPublishing.value = false
+        return
+      }
+
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', publishForm.value.assetFile)
+      uploadFormData.append('title', publishForm.value.title)
+      uploadFormData.append('description', publishForm.value.description)
+      if (publishForm.value.assetCategory) {
+        uploadFormData.append('category', publishForm.value.assetCategory)
+      }
+
+      const uploadRes = await api.post('/api/assets/upload', uploadFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      await api.post('/api/showcase/publish-asset', {
+        assetId: uploadRes.data.id,
+        title: publishForm.value.title,
+        description: publishForm.value.description,
+        tags: publishForm.value.tags
+      })
+    } else {
+      if (publishForm.value.type !== 'TEXT' && !publishForm.value.thumbnail) {
+        ElMessage.warning('请上传作品封面图')
+        isPublishing.value = false
+        return
+      }
+
+      const formData = new FormData()
+      if (publishForm.value.thumbnail) {
+        formData.append('thumbnail', publishForm.value.thumbnail)
+      }
+      publishForm.value.images.forEach(img => {
+        formData.append('images', img)
+      })
+      formData.append('title', publishForm.value.title)
+      formData.append('description', publishForm.value.description)
+      formData.append('tags', publishForm.value.tags)
+      formData.append('videoUrl', publishForm.value.videoUrl)
+      formData.append('isVideo', String(publishForm.value.isVideo))
+      formData.append('type', publishForm.value.type)
+
+      await api.post('/api/showcase', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+    }
+
+    ElMessage.success('作品已成功发布到展示墙，等待审核')
     isPublishDialogOpen.value = false
-    publishForm.value = { title: '', videoUrl: '', isVideo: false, thumbnail: null }
+    publishForm.value = { title: '', description: '', tags: '', videoUrl: '', isVideo: false, type: 'IMAGE', thumbnail: null, images: [], assetFile: null, assetCategory: '' }
+    selectedAssetId.value = ''
+    publishCategory.value = 'work'
     fetchShowcases()
-  } catch (error) {
-    ElMessage.error('发布失败')
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || '发布失败'
+    ElMessage.error(msg)
   } finally {
     isPublishing.value = false
   }
+}
+
+const openDetail = async (item: any) => {
+  isDetailOpen.value = true
+  detailLoading.value = true
+  currentImageIndex.value = 0
+  try {
+    const response = await api.get(`/api/showcase/${item.id}`)
+    detailItem.value = response.data
+    const idx = showcases.value.findIndex(s => s.id === item.id)
+    if (idx !== -1) {
+      showcases.value[idx] = { ...showcases.value[idx], views: response.data.views }
+    }
+  } catch (error) {
+    ElMessage.error('获取作品详情失败')
+    isDetailOpen.value = false
+    return
+  } finally {
+    detailLoading.value = false
+  }
+  await fetchComments(item.id)
+}
+
+const closeDetail = () => {
+  isDetailOpen.value = false
+  detailItem.value = null
+  comments.value = []
+  newComment.value = ''
+  currentImageIndex.value = 0
+}
+
+const getDetailImages = computed(() => {
+  if (!detailItem.value) return []
+  const images: string[] = [detailItem.value.thumbnailUrl]
+  if (detailItem.value.images) {
+    try {
+      const parsed = JSON.parse(detailItem.value.images)
+      images.push(...parsed)
+    } catch {}
+  }
+  return images
+})
+
+const nextImage = () => {
+  if (currentImageIndex.value < getDetailImages.value.length - 1) {
+    currentImageIndex.value++
+  }
+}
+
+const prevImage = () => {
+  if (currentImageIndex.value > 0) {
+    currentImageIndex.value--
+  }
+}
+
+const fetchComments = async (showcaseId: string) => {
+  commentsLoading.value = true
+  try {
+    const response = await api.get(`/api/showcase/${showcaseId}/comments`)
+    comments.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch comments')
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+const submitComment = async () => {
+  if (!newComment.value.trim()) return
+  if (!detailItem.value) return
+  isSubmittingComment.value = true
+  try {
+    const response = await api.post(`/api/showcase/${detailItem.value.id}/comment`, {
+      content: newComment.value
+    })
+    comments.value.unshift(response.data)
+    detailItem.value.commentsCount++
+    const idx = showcases.value.findIndex(s => s.id === detailItem.value.id)
+    if (idx !== -1) {
+      showcases.value[idx].commentsCount++
+    }
+    newComment.value = ''
+  } catch (error) {
+    ElMessage.error('评论失败')
+  } finally {
+    isSubmittingComment.value = false
+  }
+}
+
+const deleteComment = async (comment: any) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await api.delete(`/api/showcase/${detailItem.value.id}/comment/${comment.id}`)
+    comments.value = comments.value.filter(c => c.id !== comment.id)
+    detailItem.value.commentsCount--
+    const idx = showcases.value.findIndex(s => s.id === detailItem.value.id)
+    if (idx !== -1) {
+      showcases.value[idx].commentsCount--
+    }
+    ElMessage.success('评论已删除')
+  } catch {}
 }
 
 const toggleLike = async (item: any) => {
@@ -96,13 +359,47 @@ const toggleLike = async (item: any) => {
     const response = await api.post(`/api/showcase/${item.id}/like`)
     item.isLiked = response.data.liked
     item.likesCount += item.isLiked ? 1 : -1
+    if (detailItem.value && detailItem.value.id === item.id) {
+      detailItem.value.isLiked = response.data.liked
+      detailItem.value.likesCount += response.data.liked ? 1 : -1
+    }
   } catch (error) {
     ElMessage.error('操作失败')
   }
 }
 
+const handleShare = () => {
+  const url = `${window.location.origin}/showcase`
+  navigator.clipboard.writeText(url).then(() => {
+    shareCopied.value = true
+    setTimeout(() => { shareCopied.value = false }, 2000)
+    ElMessage.success('链接已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.error('复制失败')
+  })
+}
+
+const parseTags = (tags: string | null | undefined): string[] => {
+  if (!tags) return []
+  return tags.split(',').map(t => t.trim()).filter(Boolean)
+}
+
+const formatTime = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 30) return `${days}天前`
+  return date.toLocaleDateString()
+}
+
 const filteredShowcases = computed(() => {
-  return showcases.value.filter(s => 
+  return showcases.value.filter(s =>
     s.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
     (s.user.name || s.user.email).toLowerCase().includes(searchQuery.value.toLowerCase())
   )
@@ -121,25 +418,26 @@ onMounted(fetchShowcases)
         </div>
         <h1 class="text-xl font-bold" style="color: var(--text-primary)">作品展示</h1>
       </div>
-      
+
       <div class="flex items-center gap-4">
         <div class="relative">
           <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-muted)" />
-          <input 
+          <input
             v-model="searchQuery"
-            type="text" 
-            placeholder="搜索优秀作品..." 
+            type="text"
+            placeholder="搜索优秀作品..."
             class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
-        <button @click="isPublishDialogOpen = true" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center gap-2">
+        <button @click="openPublishDialog" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center gap-2">
+          <Plus class="w-4 h-4" />
           发布我的作品
         </button>
       </div>
     </div>
 
-    <!-- Featured Banner (Static for now) -->
+    <!-- Featured Banner -->
     <div class="px-8 py-6 shrink-0">
       <div class="relative h-48 rounded-3xl overflow-hidden bg-slate-900 group cursor-pointer">
         <img src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
@@ -150,25 +448,40 @@ onMounted(fetchShowcases)
               <Flame class="w-3 h-3 text-orange-500" /> 推荐作品
             </div>
           </div>
-          <h2 class="text-2xl font-bold text-white mb-2">展示你的 3D 创意</h2>
-          <p class="text-white/70 text-sm max-w-xl">发布你的渲染成品或动画短片，与全球创作者交流心得，获得专业点评。</p>
+          <h2 class="text-2xl font-bold text-white mb-2">展示你的创意作品</h2>
+          <p class="text-white/70 text-sm max-w-xl">发布你的渲染成品、3D模型、动画短片或任何创意作品，与全球创作者交流心得。</p>
         </div>
       </div>
     </div>
 
     <!-- Filter Bar -->
     <div class="px-8 mb-6 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <button 
-          v-for="f in filters" 
-          :key="f"
-          @click="activeFilter = f; fetchShowcases()"
-          class="px-5 py-1.5 rounded-full text-xs font-bold transition-all"
-          :class="activeFilter === f ? 'bg-indigo-600 text-white shadow-md' : 'hover:opacity-80'"
-          :style="activeFilter !== f ? 'color: var(--text-secondary); background-color: var(--bg-card)' : ''"
-        >
-          {{ f }}
-        </button>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <button
+            v-for="f in filters"
+            :key="f"
+            @click="activeFilter = f; fetchShowcases()"
+            class="px-5 py-1.5 rounded-full text-xs font-bold transition-all"
+            :class="activeFilter === f ? 'bg-indigo-600 text-white shadow-md' : 'hover:opacity-80'"
+            :style="activeFilter !== f ? 'color: var(--text-secondary); background-color: var(--bg-card)' : ''"
+          >
+            {{ f }}
+          </button>
+        </div>
+        <div class="w-px h-5" style="background-color: var(--border-base)"></div>
+        <div class="flex items-center gap-1.5">
+          <button
+            v-for="tf in typeFilters"
+            :key="tf"
+            @click="activeTypeFilter = tf; fetchShowcases()"
+            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all"
+            :class="activeTypeFilter === tf ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'hover:opacity-80'"
+            :style="activeTypeFilter !== tf ? 'color: var(--text-secondary); background-color: var(--bg-card)' : ''"
+          >
+            {{ typeFilterLabels[tf] || tf }}
+          </button>
+        </div>
       </div>
       <div class="flex items-center gap-2 text-xs font-bold" style="color: var(--text-muted)">
         <Trophy class="w-4 h-4 text-amber-500" />
@@ -181,31 +494,61 @@ onMounted(fetchShowcases)
     <div class="flex-1 overflow-y-auto p-8 pt-0 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <div v-if="filteredShowcases.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-          <div v-for="item in filteredShowcases" :key="item.id" 
-               class="group rounded-3xl border overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col"
+          <div v-for="item in filteredShowcases" :key="item.id"
+               @click="openDetail(item)"
+               class="group rounded-3xl border overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col cursor-pointer"
                style="background-color: var(--bg-card); border-color: var(--border-base)">
-            
+
             <!-- Cover -->
-            <div class="aspect-video relative overflow-hidden" style="background-color: var(--bg-app)">
+            <div v-if="item.type === 'TEXT' && !item.thumbnailUrl" class="aspect-video relative overflow-hidden flex items-center justify-center p-6" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+              <p class="text-white text-sm font-bold text-center line-clamp-3">{{ item.title }}</p>
+              <div class="absolute top-2 left-2">
+                <span class="backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" :class="getTypeBg(item.type)">
+                  {{ getTypeLabel(item.type) }}
+                </span>
+              </div>
+              <div class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white">
+                <Eye class="w-3 h-3" /> {{ item.views || 0 }}
+              </div>
+            </div>
+            <div v-else class="aspect-video relative overflow-hidden" style="background-color: var(--bg-app)">
               <img :src="item.thumbnailUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div v-if="item.isVideo" class="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
                 <Play class="w-2.5 h-2.5 fill-white" /> 视频
+              </div>
+              <div class="absolute top-2 left-2">
+                <span class="backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" :class="getTypeBg(item.type)">
+                  {{ getTypeLabel(item.type) }}
+                </span>
+              </div>
+              <div v-if="item.asset" class="absolute bottom-2 left-2 bg-blue-500/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
+                <Box class="w-2.5 h-2.5" /> 关联3D模型
+              </div>
+              <div class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white">
+                <Eye class="w-3 h-3" /> {{ item.views || 0 }}
               </div>
               <div class="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
 
             <!-- Content -->
             <div class="p-5 flex-1 flex flex-col">
-              <h3 class="text-sm font-bold mb-4 line-clamp-1 group-hover:text-indigo-600 transition-colors" style="color: var(--text-primary)">{{ item.title }}</h3>
-              
+              <h3 class="text-sm font-bold mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors" style="color: var(--text-primary)">{{ item.title }}</h3>
+
+              <div v-if="parseTags(item.tags).length" class="flex items-center gap-1.5 mb-3 flex-wrap">
+                <span v-for="tag in parseTags(item.tags).slice(0, 3)" :key="tag"
+                      class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
+                  {{ tag }}
+                </span>
+              </div>
+
               <div class="flex items-center justify-between mt-auto">
                 <div class="flex items-center gap-2">
                   <img :src="item.user.avatarUrl || `https://ui-avatars.com/api/?name=${item.user.name || item.user.email}`" class="w-6 h-6 rounded-full border" style="border-color: var(--border-base)" />
                   <span class="text-[11px] font-bold hover:opacity-80 cursor-pointer" style="color: var(--text-secondary)">{{ item.user.name || item.user.email }}</span>
                 </div>
-                
+
                 <div class="flex items-center gap-3">
-                  <button @click="toggleLike(item)" class="flex items-center gap-1 text-[10px] font-bold transition-all" :class="item.isLiked ? 'text-rose-500' : 'text-slate-400'">
+                  <button @click.stop="toggleLike(item)" class="flex items-center gap-1 text-[10px] font-bold transition-all" :class="item.isLiked ? 'text-rose-500' : 'text-slate-400'">
                     <Heart class="w-3 h-3" :class="item.isLiked ? 'fill-rose-500' : ''" /> {{ item.likesCount }}
                   </button>
                   <div class="flex items-center gap-1 text-[10px] font-bold text-slate-400">
@@ -218,56 +561,368 @@ onMounted(fetchShowcases)
         </div>
 
         <div v-else class="h-64 flex flex-col items-center justify-center text-slate-400">
-           <MonitorPlay class="w-12 h-12 mb-4 opacity-10" />
-           <p class="text-sm font-bold">还没有人发布作品，成为第一个吧！</p>
+          <MonitorPlay class="w-12 h-12 mb-4 opacity-10" />
+          <p class="text-sm font-bold">还没有人发布作品，成为第一个吧！</p>
         </div>
       </div>
     </div>
+
+    <!-- Detail Dialog -->
+    <Transition name="fade">
+      <div v-if="isDetailOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeDetail"></div>
+        <div class="relative w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="background-color: var(--bg-card)">
+          <!-- Close Button -->
+          <button @click="closeDetail" class="absolute top-4 right-4 z-10 p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors" style="color: var(--text-secondary)">
+            <X class="w-5 h-5" />
+          </button>
+
+          <div v-if="detailLoading" class="flex-1 flex items-center justify-center py-20">
+            <div class="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          </div>
+
+          <template v-else-if="detailItem">
+            <div class="flex-1 overflow-y-auto">
+              <!-- Cover Image / Image Gallery (skip for TEXT type without thumbnail) -->
+              <div v-if="!(detailItem.type === 'TEXT' && !detailItem.thumbnailUrl)" class="relative aspect-video w-full overflow-hidden" style="background-color: var(--bg-app)">
+                <img :src="getDetailImages[currentImageIndex]" class="w-full h-full object-cover" />
+                <div v-if="getDetailImages.length > 1" class="absolute inset-0 flex items-center justify-between px-4">
+                  <button v-if="currentImageIndex > 0" @click="prevImage" class="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all">
+                    <ChevronLeft class="w-5 h-5" />
+                  </button>
+                  <div v-else></div>
+                  <button v-if="currentImageIndex < getDetailImages.length - 1" @click="nextImage" class="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all">
+                    <ChevronRight class="w-5 h-5" />
+                  </button>
+                  <div v-else></div>
+                </div>
+                <div v-if="getDetailImages.length > 1" class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                  <span v-for="(_, idx) in getDetailImages" :key="idx"
+                        @click="currentImageIndex = idx"
+                        class="w-2 h-2 rounded-full cursor-pointer transition-all"
+                        :class="idx === currentImageIndex ? 'bg-white w-4' : 'bg-white/50'"></span>
+                </div>
+                <div v-if="detailItem.isVideo && detailItem.videoUrl" class="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <a :href="detailItem.videoUrl" target="_blank" class="p-5 rounded-full bg-white/20 backdrop-blur hover:bg-white/30 transition-all">
+                    <Play class="w-10 h-10 text-white fill-white" />
+                  </a>
+                </div>
+                <div class="absolute top-3 left-3">
+                  <span class="backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" :class="getTypeBg(detailItem.type)">
+                    {{ getTypeLabel(detailItem.type) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Detail Content -->
+              <div class="p-8">
+                <!-- Title & Author -->
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex-1">
+                    <h2 class="text-2xl font-bold mb-3" style="color: var(--text-primary)">{{ detailItem.title }}</h2>
+                    <div class="flex items-center gap-3">
+                      <img :src="detailItem.user.avatarUrl || `https://ui-avatars.com/api/?name=${detailItem.user.name || detailItem.user.email}`" class="w-8 h-8 rounded-full border" style="border-color: var(--border-base)" />
+                      <div>
+                        <p class="text-sm font-bold" style="color: var(--text-primary)">{{ detailItem.user.name || detailItem.user.email }}</p>
+                        <p v-if="detailItem.user.bio" class="text-xs" style="color: var(--text-muted)">{{ detailItem.user.bio }}</p>
+                      </div>
+                      <span class="text-xs" style="color: var(--text-muted)">·</span>
+                      <span class="text-xs flex items-center gap-1" style="color: var(--text-muted)">
+                        <Clock class="w-3 h-3" /> {{ formatTime(detailItem.createdAt) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tags -->
+                <div v-if="parseTags(detailItem.tags).length" class="flex items-center gap-2 mb-4 flex-wrap">
+                  <Tag class="w-3.5 h-3.5 text-indigo-500" />
+                  <span v-for="tag in parseTags(detailItem.tags)" :key="tag"
+                        class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
+                    {{ tag }}
+                  </span>
+                </div>
+
+                <!-- Description (Markdown rendered) -->
+                <div v-if="detailItem.description" class="mb-6">
+                  <MdPreview :model-value="detailItem.description" class="md-preview-showcase" />
+                </div>
+
+                <!-- Linked Asset -->
+                <div v-if="detailItem.asset" class="mb-6 p-4 rounded-xl border flex items-center gap-3" style="background-color: var(--bg-app); border-color: var(--border-base)">
+                  <Box class="w-8 h-8 text-blue-500 shrink-0" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold" style="color: var(--text-secondary)">关联3D模型</p>
+                    <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ detailItem.asset.title }}</p>
+                  </div>
+                  <a :href="detailItem.asset.url" download class="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shrink-0">
+                    下载模型
+                  </a>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="flex items-center gap-6 py-4 border-t border-b" style="border-color: var(--border-base)">
+                  <div class="flex items-center gap-2 text-sm" style="color: var(--text-secondary)">
+                    <Eye class="w-4 h-4" /> <span class="font-bold">{{ detailItem.views }}</span> 浏览
+                  </div>
+                  <button @click="toggleLike(detailItem)" class="flex items-center gap-2 text-sm transition-all" :class="detailItem.isLiked ? 'text-rose-500' : ''" style="color: var(--text-secondary)">
+                    <Heart class="w-4 h-4" :class="detailItem.isLiked ? 'fill-rose-500' : ''" /> <span class="font-bold">{{ detailItem.likesCount }}</span> 点赞
+                  </button>
+                  <div class="flex items-center gap-2 text-sm" style="color: var(--text-secondary)">
+                    <MessageCircle class="w-4 h-4" /> <span class="font-bold">{{ detailItem.commentsCount }}</span> 评论
+                  </div>
+                  <button @click="handleShare" class="flex items-center gap-2 text-sm ml-auto transition-all hover:text-indigo-600" style="color: var(--text-secondary)">
+                    <component :is="shareCopied ? Check : Share2" class="w-4 h-4" :class="shareCopied ? 'text-emerald-500' : ''" />
+                    {{ shareCopied ? '已复制' : '分享' }}
+                  </button>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="mt-6">
+                  <h3 class="text-sm font-bold mb-4" style="color: var(--text-primary)">评论 ({{ detailItem.commentsCount }})</h3>
+
+                  <!-- Comment Input -->
+                  <div class="flex items-start gap-3 mb-6">
+                    <img :src="authStore.user?.avatarUrl || `https://ui-avatars.com/api/?name=${authStore.user?.name || 'U'}`" class="w-8 h-8 rounded-full border shrink-0" style="border-color: var(--border-base)" />
+                    <div class="flex-1 flex items-center gap-2">
+                      <input
+                        v-model="newComment"
+                        type="text"
+                        placeholder="写下你的评论..."
+                        class="flex-1 px-4 py-2.5 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        style="background-color: var(--bg-app); color: var(--text-primary)"
+                        @keyup.enter="submitComment"
+                      />
+                      <button @click="submitComment" :disabled="isSubmittingComment || !newComment.trim()" class="p-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Send class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Comments List -->
+                  <div v-if="commentsLoading" class="py-8 text-center">
+                    <div class="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+                  </div>
+                  <div v-else-if="comments.length === 0" class="py-8 text-center">
+                    <p class="text-xs" style="color: var(--text-muted)">暂无评论，来说点什么吧</p>
+                  </div>
+                  <div v-else class="space-y-4">
+                    <div v-for="comment in comments" :key="comment.id" class="flex items-start gap-3 group">
+                      <img :src="comment.user.avatarUrl || `https://ui-avatars.com/api/?name=${comment.user.name || 'U'}`" class="w-7 h-7 rounded-full border shrink-0" style="border-color: var(--border-base)" />
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-0.5">
+                          <span class="text-xs font-bold" style="color: var(--text-primary)">{{ comment.user.name || '匿名用户' }}</span>
+                          <span class="text-[10px]" style="color: var(--text-muted)">{{ formatTime(comment.createdAt) }}</span>
+                          <button v-if="comment.user.id === authStore.user?.id || isAdmin" @click="deleteComment(comment)"
+                                  class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500">
+                            <Trash2 class="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p class="text-sm leading-relaxed" style="color: var(--text-secondary)">{{ comment.content }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Publish Dialog -->
     <Transition name="fade">
       <div v-if="isPublishDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isPublishDialogOpen = false"></div>
-        <div class="relative w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6" style="background-color: var(--bg-card)">
-          <div class="flex items-center justify-between">
+        <div class="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl" style="background-color: var(--bg-card)">
+          <div class="flex items-center justify-between mb-6">
             <h3 class="text-xl font-bold" style="color: var(--text-primary)">发布新作品</h3>
             <button @click="isPublishDialogOpen = false" style="color: var(--text-secondary)"><X class="w-5 h-5" /></button>
           </div>
 
-          <div class="space-y-4">
-            <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品标题</label>
-              <input v-model="publishForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="给作品起个响亮的名字" />
-            </div>
-
-            <div>
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">封面图</label>
-              <div class="relative group h-32">
-                <input type="file" @change="handleThumbnailChange" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5" style="border-color: var(--border-base)">
-                  <UploadCloud class="w-6 h-6 text-indigo-500/40" />
-                  <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                    {{ publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传高清渲染图' }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-3 py-2">
-              <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
-              <span class="text-xs font-bold" style="color: var(--text-secondary)">这是一个视频作品 (Unreal/Eevee 渲染)</span>
-            </div>
-
-            <div v-if="publishForm.isVideo">
-              <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">视频链接 (可选)</label>
-              <input v-model="publishForm.videoUrl" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="请输入外部视频平台链接" />
-            </div>
+          <!-- Category Tabs -->
+          <div class="flex items-center gap-2 p-1 rounded-xl mb-6" style="background-color: var(--bg-app)">
+            <button @click="publishCategory = 'model'" class="flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''"
+                    :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''">
+              <Box class="w-3.5 h-3.5" />
+              3D模型
+            </button>
+            <button @click="publishCategory = 'asset'" class="flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''"
+                    :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''">
+              <UploadCloud class="w-3.5 h-3.5" />
+              资产上传
+            </button>
+            <button @click="publishCategory = 'work'" class="flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''"
+                    :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''">
+              <Image class="w-3.5 h-3.5" />
+              创意作品
+            </button>
           </div>
 
-          <button 
+          <!-- Model Category: Select existing approved asset -->
+          <template v-if="publishCategory === 'model'">
+            <div class="space-y-5">
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">选择已有作品</label>
+                <el-select v-model="selectedAssetId" placeholder="请选择已审核通过的作品" class="w-full custom-select-v2" @change="onAssetSelected">
+                  <el-option v-for="asset in myApprovedAssets" :key="asset.id" :label="asset.title" :value="asset.id" />
+                </el-select>
+                <p v-if="myApprovedAssets.length === 0" class="text-[10px] text-slate-400 mt-1 ml-1">暂无已审核通过的作品，请先上传作品</p>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品标题 *</label>
+                <input v-model="publishForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="给作品起个响亮的名字" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品描述</label>
+                <MarkdownEditor v-model="publishForm.description" placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式" height="200px" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">标签</label>
+                <input v-model="publishForm.tags" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="用逗号分隔，如：Blender,3D渲染,角色建模" />
+                <p class="text-[10px] text-slate-400 mt-1 ml-1">最多5个标签，用逗号分隔</p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Asset Category: Upload a new 3D model file -->
+          <template v-if="publishCategory === 'asset'">
+            <div class="space-y-5">
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">3D模型文件 *</label>
+                <div class="relative group h-32">
+                  <input type="file" @change="handleAssetFileChange" accept=".glb,.gltf,.obj,.fbx,.stl,.blend" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                  <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5" style="border-color: var(--border-base)">
+                    <UploadCloud class="w-6 h-6 text-indigo-500/40" />
+                    <p class="text-xs font-medium" style="color: var(--text-secondary)">
+                      {{ publishForm.assetFile ? publishForm.assetFile.name : '点击上传3D模型文件' }}
+                    </p>
+                    <p class="text-[10px]" style="color: var(--text-muted)">支持 .glb, .gltf, .obj, .fbx, .stl, .blend</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品标题 *</label>
+                <input v-model="publishForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="给作品起个响亮的名字" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品描述</label>
+                <MarkdownEditor v-model="publishForm.description" placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式" height="200px" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">分类</label>
+                <input v-model="publishForm.assetCategory" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="如：角色、场景、道具" />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">标签</label>
+                <input v-model="publishForm.tags" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="用逗号分隔，如：Blender,3D渲染,角色建模" />
+                <p class="text-[10px] text-slate-400 mt-1 ml-1">最多5个标签，用逗号分隔</p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Work Category: Create a work showcase (two-column layout) -->
+          <template v-if="publishCategory === 'work'">
+            <div class="flex gap-6">
+              <!-- Left side: Form fields -->
+              <div class="w-[40%] space-y-5 shrink-0">
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品类型</label>
+                  <div class="flex items-center gap-2">
+                    <button v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" @click="publishForm.type = t"
+                            class="flex-1 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
+                            :class="publishForm.type === t ? 'bg-indigo-600 text-white shadow-md' : ''"
+                            :style="publishForm.type !== t ? 'color: var(--text-secondary); background-color: var(--bg-app)' : ''">
+                      <component :is="getTypeIcon(t)" class="w-3 h-3" />
+                      {{ getTypeLabel(t) }}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品标题 *</label>
+                  <input v-model="publishForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="给作品起个响亮的名字" />
+                </div>
+
+                <div v-if="publishForm.type !== 'TEXT'">
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">封面图 *</label>
+                  <div class="relative group h-32">
+                    <input type="file" @change="handleThumbnailChange" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5" style="border-color: var(--border-base)">
+                      <UploadCloud class="w-6 h-6 text-indigo-500/40" />
+                      <p class="text-xs font-medium" style="color: var(--text-secondary)">
+                        {{ publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传封面图' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else>
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">封面图 (可选)</label>
+                  <div class="relative group h-24">
+                    <input type="file" @change="handleThumbnailChange" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5" style="border-color: var(--border-base)">
+                      <UploadCloud class="w-5 h-5 text-indigo-500/40" />
+                      <p class="text-[10px] font-medium" style="color: var(--text-secondary)">
+                        {{ publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传封面图（可选）' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="publishForm.type !== 'TEXT'">
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">更多图片 (可选，最多9张)</label>
+                  <div class="relative group h-20">
+                    <input type="file" @change="handleImagesChange" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5" style="border-color: var(--border-base)">
+                      <UploadCloud class="w-4 h-4 text-indigo-500/40" />
+                      <p class="text-[10px] font-medium" style="color: var(--text-secondary)">
+                        {{ publishForm.images.length > 0 ? `已选择 ${publishForm.images.length} 张图片` : '点击上传更多图片' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="publishForm.type === 'VIDEO' || publishForm.isVideo" class="flex items-center gap-3 py-2">
+                  <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
+                  <span class="text-xs font-bold" style="color: var(--text-secondary)">这是一个视频作品</span>
+                </div>
+
+                <div v-if="publishForm.isVideo">
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">视频链接</label>
+                  <input v-model="publishForm.videoUrl" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="请输入外部视频平台链接" />
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">标签</label>
+                  <input v-model="publishForm.tags" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all" placeholder="用逗号分隔，如：Blender,3D渲染,角色建模" />
+                  <p class="text-[10px] text-slate-400 mt-1 ml-1">最多5个标签，用逗号分隔</p>
+                </div>
+              </div>
+
+              <!-- Right side: Markdown editor -->
+              <div class="w-[60%] min-w-0">
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">作品描述</label>
+                <MarkdownEditor v-model="publishForm.description" placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式" height="350px" />
+              </div>
+            </div>
+          </template>
+
+          <!-- Publish Button -->
+          <button
             @click="handlePublish"
             :disabled="isPublishing"
-            class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+            class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
           >
             <div v-if="isPublishing" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             {{ isPublishing ? '正在发布...' : '立即发布作品' }}
@@ -288,6 +943,27 @@ onMounted(fetchShowcases)
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+.custom-select-v2 :deep(.el-input__wrapper) {
+  border-radius: 1rem !important;
+  background-color: var(--bg-app) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-base);
+  height: 44px;
+}
+.md-preview-showcase {
+  background: transparent !important;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.md-preview-showcase :deep(.md-editor-preview-wrapper) {
+  padding: 0 !important;
+}
 </style>

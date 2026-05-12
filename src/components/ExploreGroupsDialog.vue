@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Search, Users, Star, ArrowRight } from 'lucide-vue-next'
+import { ref, computed, onMounted, watch } from 'vue'
+import { Search, Users, ArrowRight, Loader2 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue'
+import api from '@/utils/api'
 
 const props = defineProps<{
   visible: boolean
@@ -14,11 +15,43 @@ const searchQuery = ref('')
 const selectedCategory = ref('全部')
 const showDetail = ref(false)
 const selectedGroup = ref<any>(null)
+const isLoading = ref(false)
+const publicTeams = ref<any[]>([])
 
 const categories = ['全部', '建模', '渲染', '动画', '材质', '游戏引擎']
 
+const fetchPublicTeams = async () => {
+  isLoading.value = true
+  try {
+    const response = await api.get('/api/teams/public', {
+      params: { 
+        search: searchQuery.value,
+        category: selectedCategory.value
+      }
+    })
+    publicTeams.value = response.data
+  } catch (error) {
+    console.error('Fetch public teams error:', error)
+    ElMessage.error('获取小组失败')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+watch(() => props.visible, (newVal) => {
+  if (newVal) fetchPublicTeams()
+})
+
+watch(searchQuery, () => {
+  fetchPublicTeams()
+})
+
+watch(selectedCategory, () => {
+  fetchPublicTeams()
+})
+
 const handleJoinGroup = (groupName: string) => {
-  ElMessage.success(`申请加入小组 "${groupName}" 成功！`)
+  ElMessage.success(`申请加入小组 "${groupName}" 成功！请等待管理员审核。`)
 }
 
 const handleViewDetails = (group: any) => {
@@ -26,50 +59,19 @@ const handleViewDetails = (group: any) => {
   showDetail.value = true
 }
 
-const groups = [
-  {
-    id: 1,
-    name: '3D 建模大师班',
-    description: '深入探讨 Blender 和 ZBrush 建模技巧。',
-    members: 1250,
-    rating: 4.9,
-    category: '建模',
-    image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&auto=format&fit=crop&q=60'
-  },
-  {
-    id: 2,
-    name: 'UE5 开发者联盟',
-    description: '专注于 Unreal Engine 5 高级功能研究。',
-    members: 840,
-    rating: 4.8,
-    category: '游戏引擎',
-    image: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=400&auto=format&fit=crop&q=60'
-  },
-  {
-    id: 3,
-    name: '材质与渲染艺术',
-    description: '探索 Octane 和 Substance 的极致表现。',
-    members: 620,
-    rating: 4.7,
-    category: '渲染',
-    image: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=400&auto=format&fit=crop&q=60'
-  }
-]
-
 const filteredGroups = computed(() => {
-  return groups.filter(group => {
-    const matchesSearch = group.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                          group.description.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesCategory = selectedCategory.value === '全部' || group.category === selectedCategory.value
-    return matchesSearch && matchesCategory
-  })
+  return publicTeams.value
+})
+
+onMounted(() => {
+  if (props.visible) fetchPublicTeams()
 })
 </script>
 
 <template>
   <el-dialog
     :model-value="visible"
-    @update:model-value="val => emit('update:visible', val)"
+    @update:model-value="(val: any) => emit('update:visible', val)"
     title="探索学习小组"
     width="840px"
     class="custom-rounded-dialog"
@@ -97,7 +99,12 @@ const filteredGroups = computed(() => {
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
+        <Loader2 class="w-10 h-10 text-accent animate-spin mb-4" />
+        <p class="text-sm font-bold text-slate-400">正在搜寻优秀的小组...</p>
+      </div>
+
+      <div v-else-if="filteredGroups.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div 
           v-for="group in filteredGroups" 
           :key="group.id"
@@ -105,14 +112,14 @@ const filteredGroups = computed(() => {
           class="group bg-white rounded-[32px] border-2 border-slate-50 overflow-hidden hover:shadow-2xl hover:border-accent/10 hover:-translate-y-2 transition-all duration-500 cursor-pointer"
         >
           <div class="h-32 relative">
-            <img :src="group.image" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" :alt="group.name">
+            <img :src="group.avatarUrl || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&auto=format&fit=crop&q=60'" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" :alt="group.name">
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
           </div>
           
           <div class="p-5">
             <h3 class="font-black text-slate-900 group-hover:text-accent transition-colors truncate">{{ group.name }}</h3>
             <p class="text-xs text-slate-500 mt-2 line-clamp-1 italic font-medium">
-              {{ group.description }}
+              {{ group.description || '暂无小组描述' }}
             </p>
             
             <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-50">
@@ -120,7 +127,7 @@ const filteredGroups = computed(() => {
                 <div class="w-8 h-8 rounded-full bg-accent-subtle flex items-center justify-center">
                   <Users class="w-4 h-4 text-accent" />
                 </div>
-                <span class="text-xs font-black text-slate-700">{{ group.members }}</span>
+                <span class="text-xs font-black text-slate-700">{{ group._count?.members || 0 }}</span>
               </div>
               <button 
                 @click.stop="handleJoinGroup(group.name)"
@@ -131,6 +138,11 @@ const filteredGroups = computed(() => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div v-else class="flex flex-col items-center justify-center py-20 text-slate-400">
+        <Users class="w-12 h-12 mb-4 opacity-10" />
+        <p class="text-sm font-bold">暂无公开小组，试着创建一个吧！</p>
       </div>
     </div>
 

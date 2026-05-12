@@ -1,10 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useSystemStore } from '@/stores/system'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/maintenance',
+      name: 'Maintenance',
+      component: () => import('@/views/Support/MaintenanceView.vue')
+    },
     {
       path: '/login',
       name: 'Login',
@@ -18,10 +24,25 @@ const router = createRouter({
       meta: { guestOnly: true }
     },
     {
+      path: '/onboarding',
+      name: 'Onboarding',
+      component: () => import('@/views/Auth/OnboardingView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/forgot-password',
       name: 'ForgotPassword',
       component: () => import('@/views/Auth/ForgotPasswordView.vue'),
       meta: { guestOnly: true }
+    },
+    {
+      path: '/404',
+      name: 'NotFound',
+      component: () => import('@/views/Support/NotFoundView.vue')
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/404'
     },
     {
       path: '/',
@@ -55,7 +76,7 @@ const router = createRouter({
         {
           path: 'team-tasks',
           name: 'TeamTasks',
-          component: () => import('@/views/Tasks/TaskBoard.vue')
+          component: () => import('@/views/Tasks/TeamTasksView.vue')
         },
         {
           path: 'discussions',
@@ -73,6 +94,11 @@ const router = createRouter({
           component: () => import('@/views/Learning/AcademyView.vue')
         },
         {
+          path: 'academy/course/:id',
+          name: 'CourseDetail',
+          component: () => import('@/views/Learning/CourseDetailView.vue')
+        },
+        {
           path: 'members',
           name: 'Members',
           component: () => import('@/views/Community/MembersView.vue')
@@ -81,6 +107,11 @@ const router = createRouter({
           path: 'projects',
           name: 'Projects',
           component: () => import('@/views/Assets/ProjectsView.vue')
+        },
+        {
+          path: 'project/:id',
+          name: 'ProjectDetail',
+          component: () => import('@/views/Assets/ProjectDetailView.vue')
         },
         {
           path: 'team/:id',
@@ -98,6 +129,11 @@ const router = createRouter({
           component: () => import('@/views/Community/MessagesView.vue')
         },
         {
+          path: 'explore-teams',
+          name: 'ExploreTeams',
+          component: () => import('@/views/Community/ExploreTeamsView.vue')
+        },
+        {
           path: 'showcase',
           name: 'Showcase',
           component: () => import('@/views/Community/ShowcaseView.vue')
@@ -108,6 +144,11 @@ const router = createRouter({
           component: () => import('@/views/Settings/SettingsView.vue')
         },
         {
+          path: 'billing',
+          name: 'Billing',
+          component: () => import('@/views/Settings/BillingView.vue')
+        },
+        {
           path: 'report-bug',
           name: 'ReportBug',
           component: () => import('@/views/Support/ReportBugView.vue')
@@ -116,6 +157,11 @@ const router = createRouter({
           path: 'academy/player/:id',
           name: 'AcademyPlayer',
           component: () => import('@/views/Learning/AcademyPlayerView.vue')
+        },
+        {
+          path: 'notes',
+          name: 'Notes',
+          component: () => import('@/views/Learning/NotesView.vue')
         },
         // Admin Routes
         {
@@ -143,6 +189,12 @@ const router = createRouter({
           meta: { requiresAdmin: true }
         },
         {
+          path: 'admin/materials',
+          name: 'AdminMaterials',
+          component: () => import('@/views/Admin/AdminMaterialsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
           path: 'admin/roadmaps',
           name: 'AdminRoadmaps',
           component: () => import('@/views/Admin/AdminRoadmapsView.vue'),
@@ -158,6 +210,12 @@ const router = createRouter({
           path: 'admin/teams',
           name: 'AdminTeams',
           component: () => import('@/views/Admin/AdminTeamsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/subscriptions',
+          name: 'AdminSubscriptions',
+          component: () => import('@/views/Admin/AdminSubscriptionsView.vue'),
           meta: { requiresAdmin: true }
         },
         {
@@ -179,11 +237,30 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
+  const systemStore = useSystemStore()
   const token = localStorage.getItem('token')
+
+  // Fetch system settings if not already fetched
+  if (!systemStore.isInitialized) {
+    await systemStore.fetchSettings()
+  }
 
   // If we have a token but no user, or if we just want to ensure the session is fresh
   if (token && !authStore.user) {
     await authStore.fetchMe()
+  }
+
+  // Handle Maintenance Mode
+  if (systemStore.settings.MAINTENANCE_MODE && 
+      to.name !== 'Maintenance' && 
+      to.name !== 'Login' && 
+      authStore.user?.role !== 'ADMIN') {
+    return { name: 'Maintenance' }
+  }
+
+  // If maintenance mode is OFF but user is on Maintenance page, redirect to Dashboard
+  if (!systemStore.settings.MAINTENANCE_MODE && to.name === 'Maintenance') {
+    return { name: 'Dashboard' }
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {

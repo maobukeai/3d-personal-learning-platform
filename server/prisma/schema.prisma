@@ -20,6 +20,7 @@ model User {
   location      String?
   website       String?
   role          String       @default("USER") // 'USER' or 'ADMIN'
+  status        String       @default("ACTIVE") // 'ACTIVE' or 'BANNED'
   emailVerified Boolean      @default(false)
   twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
@@ -33,25 +34,49 @@ model User {
   trustedDevices TrustedDevice[]
   feedbacks     Feedback[]
   notifications Notification[]
+  notificationPreference NotificationPreference?
   tasks         Task[]
   roadmapProgress UserRoadmapProgress[]
   projects      ProjectMember[]
   materials     Material[]
+  materialFavorites MaterialFavorite[]
   showcases     Showcase[]
   showcaseLikes ShowcaseLike[]
   showcaseComments ShowcaseComment[]
+  discussionLikes DiscussionLike[]
+  commentLikes    CommentLike[]
+  projectDiscussions ProjectDiscussion[]
+  projectDiscussionReactions ProjectDiscussionReaction[]
+  projectInvitationsReceived ProjectInvitation[]
+  
+  // Course learning
+  courseReviews  CourseReview[]
+  lessonProgress LessonProgress[]
+  courseNotes    CourseNote[]
+  noteLikes      NoteLike[]
+  notes          Note[]
   
   // Messaging & Teams
   conversations Conversation[] @relation("UserConversations")
   messages      Message[]
   messageReads  MessageRead[]
+  messageReactions MessageReaction[]
   ownedTeams    Team[]         @relation("TeamOwner")
   teamMemberships TeamMember[]
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  taskParticipants TaskParticipant[]
+  teamApplications TeamApplication[]
+  
+  // Subscriptions & Billing
+  subscription  Subscription?
+  transactions  Transaction[]
+  userSettings  UserSetting[]
 }
 
 model Conversation {
   id           String       @id @default(uuid())
-  name         String?      // Optional group name
+  name         String?
+  avatarUrl    String?
   isGroup      Boolean      @default(false)
   participants User[]       @relation("UserConversations")
   messages     Message[]
@@ -62,12 +87,16 @@ model Conversation {
 model Message {
   id             String       @id @default(uuid())
   content        String
-  type           String       @default("TEXT") // 'TEXT', 'IMAGE', 'FILE'
+  type           String       @default("TEXT")
   senderId       String
-  sender         User         @relation(fields: [senderId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyToId      String?
+  replyTo        Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]    @relation("MessageReplies")
   readBy         MessageRead[]
+  reactions      MessageReaction[]
   createdAt      DateTime     @default(now())
 }
 
@@ -82,15 +111,40 @@ model MessageRead {
   @@unique([messageId, userId])
 }
 
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+}
+
 model Team {
   id          String       @id @default(uuid())
   name        String
   description String?
   avatarUrl   String?
+  type        String       @default("TEAM") // 'PERSONAL', 'TEAM'
+  visibility  String       @default("PRIVATE") // 'PUBLIC', 'PRIVATE'
+  category    String?
   ownerId     String
-  owner       User         @relation("TeamOwner", fields: [ownerId], references: [id])
+  owner       User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     TeamMember[]
   invitations TeamInvitation[]
+  applications TeamApplication[]
+  
+  // Associated data
+  assets      Asset[]
+  tasks       Task[]
+  projects    Project[]
+  materials   Material[]
+  showcases   Showcase[]
+  enrollments Enrollment[]
+  
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -132,6 +186,19 @@ model Notification {
   createdAt   DateTime @default(now())
 }
 
+model NotificationPreference {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailSystemUpdates   Boolean  @default(true)
+  emailTeamActivity    Boolean  @default(true)
+  emailMarketing       Boolean  @default(false)
+  pushMentions         Boolean  @default(true)
+  pushDirectMessages   Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
 model Broadcast {
   id            String         @id @default(uuid())
   title         String
@@ -149,9 +216,21 @@ model TrustedDevice {
   createdAt DateTime @default(now())
 }
 
+model UserSetting {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+}
+
 model SystemSetting {
   id        String   @id @default(uuid())
-  key       String   @unique // e.g., 'SMTP_HOST', 'SMTP_PORT', etc.
+  key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
 }
@@ -160,7 +239,7 @@ model Profile {
   id        String   @id @default(uuid())
   bio       String?
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Asset {
@@ -171,6 +250,7 @@ model Asset {
   thumbnail   String?
   type        String   // e.g., 'GLB', 'GLTF', 'FBX'
   status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  rejectReason String?
   
   // 3D Metadata
   vertices    Int?
@@ -181,10 +261,26 @@ model Asset {
   size        Float?   // in MB
   dimensions  String?  // e.g., "10x20x15"
   
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  showcases   Showcase[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  icon      String?
+  order     Int      @default(0)
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Course {
@@ -192,11 +288,25 @@ model Course {
   title       String
   description String?
   thumbnail   String?
+  difficulty  String       @default("BEGINNER") // 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'
+  status      String       @default("PUBLISHED") // 'DRAFT', 'PUBLISHED'
   lessons     Lesson[]
   enrollments Enrollment[]
   discussions Discussion[]
+  reviews     CourseReview[]
+  categoryId  String?
+  category    CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+model CourseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  order     Int      @default(0)
+  courses   Course[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Lesson {
@@ -205,9 +315,12 @@ model Lesson {
   content   String?  // Markdown or HTML
   videoUrl  String?
   hotspots  String?  // JSON string for 3D hotspots
+  duration  Int      @default(0) // Duration in minutes
   courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   order     Int
+  progress  LessonProgress[]
+  notes     CourseNote[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -215,64 +328,132 @@ model Lesson {
 model Enrollment {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   progress  Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, courseId])
+  @@unique([userId, courseId, teamId])
 }
 
 model Discussion {
   id        String    @id @default(uuid())
   title     String
   content   String
+  images    String?   // JSON array of image URLs
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String?   // Optional: link to a course
-  course    Course?   @relation(fields: [courseId], references: [id])
+  course    Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   comments  Comment[]
+  likes     DiscussionLike[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
 
-model Comment {
+model DiscussionLike {
   id           String     @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([discussionId, userId])
+}
+
+model Comment {
+  id           String      @id @default(uuid())
   content      String
   userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   discussionId String
-  discussion   Discussion @relation(fields: [discussionId], references: [id])
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  discussion   Discussion  @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       Comment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      Comment[]   @relation("CommentReplies")
+  likes        CommentLike[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model CommentLike {
+  id        String  @id @default(uuid())
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
 }
 
 model Task {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  status      String   // 'TODO', 'IN_PROGRESS', 'DONE'
-  dueDate     DateTime?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String             @id @default(uuid())
+  title        String
+  description  String?
+  status       String             // 'TODO', 'IN_PROGRESS', 'DONE'
+  priority     String             @default("MEDIUM") // 'LOW', 'MEDIUM', 'HIGH', 'URGENT'
+  tags         String?            // JSON string of tag names
+  dueDate      DateTime?
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assigneeId   String?
+  assignee     User?              @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  teamId       String?
+  team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  projectId    String?
+  project      Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participants TaskParticipant[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model TaskParticipant {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+
+  @@unique([taskId, userId])
+}
+
+model TeamApplication {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?
+  status    String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teamId, userId])
 }
 
 model Feedback {
-  id          String   @id @default(uuid())
-  type        String   // 'Bug', 'Feature', 'UI', 'Other'
-  title       String
-  description String
-  priority    String   // '低', '中', '高'
-  status      String   @default("OPEN") // 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'
+  id            String   @id @default(uuid())
+  type          String   // 'Bug', 'Feature', 'UI', 'Other'
+  title         String
+  description   String
+  priority      String   // '低', '中', '高'
+  status        String   @default("OPEN") // 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'
   attachmentUrl String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  adminReply    String?  // Admin's response
+  repliedAt     DateTime?
+  adminId       String?  // ID of the admin who replied
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model VerificationCode {
@@ -326,7 +507,14 @@ model Project {
   dueDate     DateTime?
   color       String   @default("bg-accent")
   tags        String?  // JSON string or comma separated
+  visibility  String   @default("PRIVATE") // 'PUBLIC', 'PRIVATE' (Team internal)
+  maxMembers  Int      @default(10)
   members     ProjectMember[]
+  tasks       Task[]
+  discussions ProjectDiscussion[]
+  invitations ProjectInvitation[]
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -338,37 +526,104 @@ model ProjectMember {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      String   @default("MEMBER") // 'OWNER', 'MEMBER'
-  createdAt DateTime @default(now())
+  joinedAt  DateTime @default(now())
 
   @@unique([projectId, userId])
+}
+
+model ProjectDiscussion {
+  id        String   @id @default(uuid())
+  content   String
+  type      String   @default("TEXT")
+  images    String?
+  fileUrl   String?
+  fileName  String?
+  fileSize  Float?
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions ProjectDiscussionReaction[]
+  createdAt DateTime @default(now())
+}
+
+model ProjectDiscussionReaction {
+  id          String            @id @default(uuid())
+  discussionId String
+  discussion  ProjectDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji       String
+  createdAt   DateTime          @default(now())
+
+  @@unique([discussionId, userId, emoji])
+}
+
+model ProjectInvitation {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  inviterId    String
+  inviteeId    String
+  invitee      User     @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+  status       String   @default("PENDING")
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Material {
   id          String   @id @default(uuid())
   title       String
+  description String?
   category    String
   resolution  String?  // '4K', '8K', '矢量', etc.
   previewUrl  String?
   fileUrl     String
+  fileSize    Float?   // in MB
   tags        String?
   isProcedural Boolean @default(false)
+  downloads   Int      @default(0)
   status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  rejectReason String?
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  favorites   MaterialFavorite[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model MaterialFavorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, materialId])
 }
 
 model Showcase {
   id          String   @id @default(uuid())
   title       String
+  description String?
+  tags        String?
+  type        String   @default("IMAGE") // 'IMAGE', 'VIDEO', 'MODEL', 'OTHER'
   thumbnailUrl String
+  images      String?  // JSON array of image URLs
   videoUrl    String?
   isVideo     Boolean  @default(false)
   views       Int      @default(0)
   status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  assetId     String?  // Optional link to Asset
+  asset       Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   likes       ShowcaseLike[]
   comments    ShowcaseComment[]
   createdAt   DateTime @default(now())
@@ -396,3 +651,124 @@ model ShowcaseComment {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+model SubscriptionPlan {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  displayName   String?
+  price         Float
+  yearlyPrice   Float?
+  interval      String   @default("MONTHLY")
+  features      String?
+  maxStorage    Float    @default(1)
+  maxTeams      Int      @default(1)
+  maxProjects   Int      @default(5)
+  maxAssets     Int      @default(50)
+  priority      Int      @default(0)
+  isPopular     Boolean  @default(false)
+  badgeColor    String?
+  subscriptions Subscription[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Subscription {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              SubscriptionPlan @relation(fields: [planId], references: [id])
+  status            String   @default("ACTIVE")
+  interval          String   @default("MONTHLY")
+  startDate         DateTime @default(now())
+  endDate           DateTime?
+  cancelAtPeriodEnd Boolean  @default(false)
+  autoRenew         Boolean  @default(true)
+  paymentMethod     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Float
+  currency      String   @default("CNY")
+  status        String   @default("COMPLETED") // 'PENDING', 'COMPLETED', 'FAILED'
+  paymentMethod String?  // 'ALIPAY', 'WECHAT', 'CARD'
+  description   String?
+  planName      String?
+  interval      String?
+  invoiceNo     String?
+  createdAt     DateTime @default(now())
+}
+
+model CourseReview {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId])
+}
+
+model LessonProgress {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId     String
+  lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed    Boolean  @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+}
+
+model CourseNote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  content   String
+  timestamp Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Note {
+  id          String     @id @default(uuid())
+  title       String
+  content     String
+  summary     String?
+  visibility  String     @default("PRIVATE")
+  tags        String?
+  category    String?
+  views       Int        @default(0)
+  isPinned    Boolean    @default(false)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes       NoteLike[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model NoteLike {
+  id        String   @id @default(uuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([noteId, userId])
+}
+

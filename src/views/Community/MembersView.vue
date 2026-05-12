@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { 
   Search, 
   Users, 
-  Mail, 
   MessageSquare, 
   MoreHorizontal, 
   UserPlus,
@@ -11,17 +10,27 @@ import {
   Circle
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/utils/api'
 import { useRouter } from 'vue-router'
-import { socketService } from '@/utils/socket'
 import { useAuthStore } from '@/stores/auth'
+import { useWorkspaceStore } from '@/stores/workspace'
 
+const workspaceStore = useWorkspaceStore()
 const authStore = useAuthStore()
 const router = useRouter()
 const searchQuery = ref('')
 const activeFilter = ref('全部')
 const members = ref<any[]>([])
 const isLoading = ref(false)
+
+onMounted(async () => {
+  if (workspaceStore.activeTeamId) {
+    router.replace(`/team/${workspaceStore.activeTeamId}`)
+  } else {
+    await fetchMembers()
+  }
+})
 
 const filters = ['全部', 'ADMIN', 'USER']
 const roleLabels: Record<string, string> = {
@@ -64,9 +73,7 @@ const handleChatWithMember = async (member: any) => {
   }
 }
 
-onMounted(() => {
-  fetchMembers()
-})
+// fetchMembers is now handled in the top-level onMounted for redirection logic
 </script>
 
 <template>
@@ -131,7 +138,7 @@ onMounted(() => {
             <tr v-for="member in filteredMembers" :key="member.id" class="hover:opacity-90 transition-colors group">
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
-                  <img :src="member.avatarUrl || `https://ui-avatars.com/api/?name=${member.name || member.email}`" class="w-10 h-10 rounded-full border transition-colors duration-300" style="border-color: var(--border-base)" />
+                  <UserAvatar :user="member" size="md" />
                   <div>
                     <p class="text-sm font-bold" style="color: var(--text-primary)">{{ member.name || '未设置昵称' }}</p>
                     <p class="text-xs" style="color: var(--text-muted)">{{ member.email }}</p>

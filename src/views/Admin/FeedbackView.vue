@@ -3,18 +3,13 @@ import { ref, onMounted, computed } from 'vue'
 import { 
   MessageSquare, 
   Search, 
-  Filter, 
   Clock, 
-  CheckCircle2, 
-  AlertCircle,
-  MoreVertical,
-  User as UserIcon,
-  Tag,
-  AlertTriangle,
+  CheckCircle2,
   ChevronRight,
   RefreshCw,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  Send
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
@@ -49,6 +44,36 @@ const filteredFeedbacks = computed(() => {
     return matchesSearch && matchesStatus
   })
 })
+
+// Reply functionality
+const replyDialogVisible = ref(false)
+const isSubmittingReply = ref(false)
+const currentFeedback = ref<any>(null)
+const replyText = ref('')
+
+const openReplyDialog = (item: any) => {
+  currentFeedback.value = item
+  replyText.value = item.adminReply || ''
+  replyDialogVisible.value = true
+}
+
+const handleReply = async () => {
+  if (!currentFeedback.value) return
+  
+  isSubmittingReply.value = true
+  try {
+    await api.put(`/api/admin/feedback/${currentFeedback.value.id}/status`, {
+      adminReply: replyText.value
+    })
+    ElMessage.success('已发送回复')
+    replyDialogVisible.value = false
+    fetchFeedbacks()
+  } catch (error) {
+    ElMessage.error('发送回复失败')
+  } finally {
+    isSubmittingReply.value = false
+  }
+}
 
 const updateStatus = async (id: string, status: string) => {
   try {
@@ -235,7 +260,23 @@ onMounted(fetchFeedbacks)
                   </div>
                 </div>
 
-                <div class="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800/50">
+                <!-- Admin Reply Display -->
+                <div v-if="item.adminReply" class="mt-4 p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="p-1 bg-indigo-100 dark:bg-indigo-900/40 rounded-md">
+                        <MessageSquare class="w-3 h-3 text-indigo-600" />
+                      </div>
+                      <span class="text-[10px] font-black uppercase text-indigo-600 tracking-wider">官方回复</span>
+                    </div>
+                    <span v-if="item.repliedAt" class="text-[9px] text-slate-400 font-bold">
+                      回复于 {{ formatDate(item.repliedAt) }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-600 dark:text-slate-300 italic">{{ item.adminReply }}</p>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800/50 mt-4">
                   <div class="flex items-center gap-4">
                     <el-tag :type="getStatusType(item.status)" size="small" effect="light" class="font-bold border-none px-3">
                       {{ getStatusLabel(item.status) }}
@@ -243,9 +284,17 @@ onMounted(fetchFeedbacks)
                   </div>
                   
                   <div class="flex items-center gap-2">
+                    <button 
+                      @click="openReplyDialog(item)"
+                      class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-md shadow-indigo-200 dark:shadow-none"
+                    >
+                      <MessageSquare class="w-3 h-3" />
+                      {{ item.adminReply ? '编辑回复' : '回复用户' }}
+                    </button>
+
                     <el-dropdown trigger="click">
                       <button class="px-4 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-xs font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center gap-2">
-                        修改状态 <ChevronRight class="w-3 h-3" />
+                        状态 <ChevronRight class="w-3 h-3" />
                       </button>
                       <template #dropdown>
                         <el-dropdown-menu>
@@ -279,6 +328,47 @@ onMounted(fetchFeedbacks)
         </template>
       </div>
     </div>
+
+    <!-- Reply Dialog -->
+    <el-dialog v-model="replyDialogVisible" title="回复用户反馈" width="500px" destroy-on-close>
+      <div v-if="currentFeedback" class="space-y-4">
+        <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">原始反馈</p>
+          <p class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{{ currentFeedback.title }}</p>
+          <p class="text-xs text-slate-500 line-clamp-3 italic">"{{ currentFeedback.description }}"</p>
+        </div>
+        
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">你的回复</label>
+          <el-input
+            v-model="replyText"
+            type="textarea"
+            :rows="6"
+            placeholder="输入你给用户的正式回复..."
+            maxlength="1000"
+            show-word-limit
+          />
+        </div>
+
+        <div class="flex items-center gap-2 py-2">
+          <p class="text-[10px] text-slate-400">提示: 发送回复后，用户将收到系统实时通知。</p>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex gap-3">
+          <button @click="replyDialogVisible = false" class="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-xs hover:bg-slate-50 transition-all">取消</button>
+          <button 
+            @click="handleReply" 
+            :disabled="isSubmittingReply || !replyText.trim()"
+            class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
+          >
+            <RefreshCw v-if="isSubmittingReply" class="w-3.5 h-3.5 animate-spin" />
+            <Send v-else class="w-3.5 h-3.5" />
+            {{ currentFeedback?.adminReply ? '更新回复' : '发送回复' }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- Image Preview Dialog -->
     <el-dialog v-model="previewVisible" title="图片预览" width="60%" destroy-on-close>

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToConversation, emitToUser } from '../services/socket.service';
+import { createNotification } from '../utils/notification';
 
 export const getConversations = async (req: AuthRequest, res: Response) => {
   const userId = req.userId as string;
@@ -20,7 +21,7 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
-            sender: { select: { name: true } }
+            sender: { select: { id: true, name: true } }
           }
         },
         _count: {
@@ -39,7 +40,6 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
       orderBy: { updatedAt: 'desc' }
     });
 
-    // Transform to include unreadCount at top level
     const formatted = conversations.map(c => ({
       ...c,
       unreadCount: c._count.messages
@@ -55,9 +55,10 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
 export const getMessages = async (req: AuthRequest, res: Response) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
+  const cursor = req.query.cursor as string | undefined;
+  const limit = parseInt(req.query.limit as string) || 50;
 
   try {
-    // Verify user is a participant in the conversation
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: conversationId,
@@ -72,16 +73,38 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     }
 
     const messages = await prisma.message.findMany({
-      where: { conversationId },
+      where: {
+        conversationId,
+        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {})
+      },
       include: {
         sender: {
           select: { id: true, name: true, avatarUrl: true }
         },
-        readBy: true
+        readBy: true,
+        reactions: {
+          include: {
+            user: { select: { id: true, name: true } }
+          }
+        },
+        replyTo: {
+          include: {
+            sender: { select: { id: true, name: true } }
+          }
+        }
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1
     });
-    res.json(messages);
+
+    const hasMore = messages.length > limit;
+    const items = hasMore ? messages.slice(0, -1) : messages;
+
+    res.json({
+      messages: items.reverse(),
+      hasMore,
+      nextCursor: hasMore ? items[0]?.createdAt : null
+    });
   } catch (error) {
     console.error('Get messages error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -89,19 +112,18 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
 };
 
 export const createConversation = async (req: AuthRequest, res: Response) => {
-  const { participantIds, name, isGroup } = req.body;
+  const { participantIds, name, avatarUrl, isGroup } = req.body;
   const currentUserId = req.userId as string;
 
   try {
-    // If not a group, check if 1:1 conversation already exists
     if (!isGroup && participantIds.length === 1) {
       const existing = await prisma.conversation.findFirst({
         where: {
           isGroup: false,
           AND: [
             { participants: { some: { id: currentUserId } } },
-            { participants: { some: { id: participantIds[0] } } }
-          ]
+            { participants: { some: { id: participantIds[0] } } },
+          ],
         },
         include: {
           participants: {
@@ -109,12 +131,13 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
           }
         }
       });
-      if (existing) return res.json(existing);
+      if (existing && existing.participants.length === 2) return res.json(existing);
     }
 
     const conversation = await prisma.conversation.create({
       data: {
         name,
+        avatarUrl,
         isGroup: !!isGroup,
         participants: {
           connect: [currentUserId, ...participantIds].map(id => ({ id }))
@@ -126,6 +149,11 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    conversation.participants.forEach((p: any) => {
+      emitToUser(p.id, 'conversation_created', conversation);
+    });
+
     res.status(201).json(conversation);
   } catch (error) {
     console.error('Create conversation error:', error);
@@ -133,12 +161,188 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const sendMessage = async (req: AuthRequest, res: Response) => {
-  const { conversationId, content, type } = req.body;
-  const senderId = req.userId as string;
+export const updateConversation = async (req: AuthRequest, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const userId = req.userId as string;
+  const { name, avatarUrl } = req.body;
 
   try {
-    // Verify user is a participant in the conversation
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        participants: { some: { id: userId } }
+      }
+    });
+
+    if (!conversation) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(avatarUrl !== undefined && { avatarUrl })
+      },
+      include: {
+        participants: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        }
+      }
+    });
+
+    emitToConversation(conversationId, 'conversation_updated', updated);
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update conversation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const addParticipant = async (req: AuthRequest, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const userId = req.userId as string;
+  const { userId: addUserId } = req.body;
+
+  try {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        participants: { some: { id: userId } },
+        isGroup: true
+      }
+    });
+
+    if (!conversation) {
+      return res.status(403).json({ error: 'Access denied or not a group' });
+    }
+
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        participants: { connect: { id: addUserId } }
+      },
+      include: {
+        participants: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        }
+      }
+    });
+
+    emitToConversation(conversationId, 'conversation_updated', updated);
+    emitToUser(addUserId, 'conversation_created', updated);
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Add participant error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const removeParticipant = async (req: AuthRequest, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const userId = req.userId as string;
+  const { userId: removeUserId } = req.body;
+
+  try {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        participants: { some: { id: userId } },
+        isGroup: true
+      }
+    });
+
+    if (!conversation) {
+      return res.status(403).json({ error: 'Access denied or not a group' });
+    }
+
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        participants: { disconnect: { id: removeUserId } }
+      },
+      include: {
+        participants: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        }
+      }
+    });
+
+    emitToConversation(conversationId, 'conversation_updated', updated);
+    emitToUser(removeUserId, 'conversation_removed', { conversationId });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Remove participant error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const leaveConversation = async (req: AuthRequest, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const userId = req.userId as string;
+
+  try {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        participants: { some: { id: userId } },
+        isGroup: true
+      }
+    });
+
+    if (!conversation) {
+      return res.status(403).json({ error: 'Access denied or not a group' });
+    }
+
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        participants: { disconnect: { id: userId } }
+      },
+      include: {
+        participants: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        }
+      }
+    });
+
+    emitToConversation(conversationId, 'conversation_updated', updated);
+
+    const systemMsg = await prisma.message.create({
+      data: {
+        content: `${req.user?.name || '一位用户'} 离开了群聊`,
+        type: 'SYSTEM',
+        senderId: userId,
+        conversationId
+      },
+      include: {
+        sender: { select: { id: true, name: true, avatarUrl: true } },
+        reactions: { include: { user: { select: { id: true, name: true } } } }
+      }
+    });
+
+    emitToConversation(conversationId, 'new_message', systemMsg);
+
+    res.json({ message: 'Left conversation' });
+  } catch (error) {
+    console.error('Leave conversation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const sendMessage = async (req: AuthRequest, res: Response) => {
+  const { conversationId, content, type, replyToId } = req.body;
+  const senderId = req.userId as string;
+
+  const msgType = type || 'TEXT';
+  if (msgType === 'TEXT' && (!content || !content.trim())) {
+    return res.status(400).json({ error: '消息内容不能为空' });
+  }
+
+  try {
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: conversationId,
@@ -157,35 +361,60 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Access denied to this conversation' });
     }
 
+    if (replyToId) {
+      const replyMsg = await prisma.message.findFirst({
+        where: { id: replyToId, conversationId }
+      });
+      if (!replyMsg) {
+        return res.status(400).json({ error: 'Reply message not found in this conversation' });
+      }
+    }
+
     const message = await prisma.message.create({
       data: {
         content,
         type: type || 'TEXT',
         senderId,
-        conversationId
+        conversationId,
+        ...(replyToId && { replyToId })
       },
       include: {
         sender: {
           select: { id: true, name: true, avatarUrl: true }
+        },
+        replyTo: {
+          include: {
+            sender: { select: { id: true, name: true } }
+          }
+        },
+        reactions: {
+          include: {
+            user: { select: { id: true, name: true } }
+          }
         }
       }
     });
 
-    // Update conversation updatedAt timestamp
     await prisma.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() }
     });
 
-    // Broadcast message via Socket.io
     emitToConversation(conversationId, 'new_message', message);
 
-    // Also notify each participant individually (except sender) for general notifications/unread updates
     conversation.participants.forEach((p: any) => {
       if (p.id !== senderId) {
         emitToUser(p.id, 'message_received', {
           conversationId,
           message
+        });
+        createNotification({
+          type: 'REPLY',
+          title: '收到新私信',
+          content: `${req.user?.name || '有人'} 给你发送了一条消息`,
+          userId: p.id,
+          link: '/messages',
+          category: 'DIRECT_MESSAGE'
         });
       }
     });
@@ -203,15 +432,14 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
 
   try {
     const message = await prisma.message.findUnique({
-      where: { id: messageId },
-      include: { conversation: true }
+      where: { id: messageId }
     });
 
     if (!message) {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    if (message.senderId !== userId) {
+    if (message.senderId !== userId && req.user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -219,7 +447,6 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
       where: { id: messageId }
     });
 
-    // Broadcast deletion via Socket.io
     emitToConversation(message.conversationId, 'message_deleted', {
       messageId,
       conversationId: message.conversationId
@@ -228,6 +455,38 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Message deleted' });
   } catch (error) {
     console.error('Delete message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteConversation = async (req: AuthRequest, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const userId = req.userId as string;
+
+  try {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        participants: { some: { id: userId } }
+      }
+    });
+
+    if (!conversation) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        participants: { disconnect: { id: userId } }
+      }
+    });
+
+    emitToUser(userId, 'conversation_removed', { conversationId });
+
+    res.json({ message: 'Conversation deleted' });
+  } catch (error) {
+    console.error('Delete conversation error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -250,7 +509,6 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
   const userId = req.userId as string;
 
   try {
-    // Verify user is a participant in the conversation
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: conversationId,
@@ -282,7 +540,6 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
         }))
       });
 
-      // Notify other participants that messages have been read
       emitToConversation(conversationId, 'messages_read', {
         conversationId,
         userId,
@@ -294,6 +551,93 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Marked as read' });
   } catch (error) {
     console.error('Mark as read error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const addReaction = async (req: AuthRequest, res: Response) => {
+  const { messageId } = req.params;
+  const { emoji } = req.body;
+  const userId = req.userId as string;
+
+  try {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      include: { conversation: true }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: message.conversationId,
+        participants: { some: { id: userId } }
+      }
+    });
+
+    if (!conversation) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const reaction = await prisma.messageReaction.upsert({
+      where: {
+        messageId_userId_emoji: { messageId, userId, emoji }
+      },
+      create: { messageId, userId, emoji },
+      update: {},
+      include: {
+        user: { select: { id: true, name: true } }
+      }
+    });
+
+    emitToConversation(message.conversationId, 'message_reaction', {
+      messageId,
+      reaction
+    });
+
+    res.status(201).json(reaction);
+  } catch (error) {
+    console.error('Add reaction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const removeReaction = async (req: AuthRequest, res: Response) => {
+  const { messageId, emoji } = req.params;
+  const userId = req.userId as string;
+
+  try {
+    const reaction = await prisma.messageReaction.findUnique({
+      where: {
+        messageId_userId_emoji: { messageId, userId, emoji }
+      }
+    });
+
+    if (!reaction) {
+      return res.status(404).json({ error: 'Reaction not found' });
+    }
+
+    await prisma.messageReaction.delete({
+      where: { id: reaction.id }
+    });
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId }
+    });
+
+    if (message) {
+      emitToConversation(message.conversationId, 'message_reaction_removed', {
+        messageId,
+        userId,
+        emoji
+      });
+    }
+
+    res.json({ message: 'Reaction removed' });
+  } catch (error) {
+    console.error('Remove reaction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

@@ -30,8 +30,8 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
       // Actually, if it's maintenance mode, we should block everything except maybe GET stats or something?
       // Usually, we block all user-facing APIs.
       
-      // Allow admin login even in maintenance mode
-      if (req.path === '/api/auth/login') {
+      // Allow admin login and public settings even in maintenance mode
+      if (req.path === '/api/auth/login' || req.path === '/api/auth/settings') {
          return next();
       }
 

@@ -372,3 +372,73 @@ body {
   top: 28px !important;
   right: 28px !important;
 }
+
+/* ============================================================
+   Notification Center – Glassmorphism
+   ============================================================ */
+.notification-glass.el-popper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.notification-glass .el-popper__arrow::before {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+
+.dark .notification-glass .el-popper__arrow::before {
+  background: rgba(24, 24, 27, 0.6) !important;
+  border-color: rgba(63, 63, 70, 0.4) !important;
+}
+
+.notification-panel {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .notification-panel {
+  background: rgba(24, 24, 27, 0.6);
+  border-color: rgba(63, 63, 70, 0.4);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.notification-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.dark .notification-header {
+  border-bottom-color: rgba(63, 63, 70, 0.35);
+}
+
+.notification-item {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.dark .notification-item {
+  border-bottom-color: rgba(63, 63, 70, 0.25);
+}
+
+.dark .notification-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}

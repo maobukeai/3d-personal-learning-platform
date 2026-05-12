@@ -51,3 +51,46 @@ export const deleteNotification = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getNotificationPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    let prefs = await prisma.notificationPreference.findUnique({
+      where: { userId: req.userId as string }
+    });
+    if (!prefs) {
+      prefs = await prisma.notificationPreference.create({
+        data: { userId: req.userId as string }
+      });
+    }
+    res.json(prefs);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateNotificationPreferences = async (req: AuthRequest, res: Response) => {
+  const { emailSystemUpdates, emailTeamActivity, emailMarketing, pushMentions, pushDirectMessages } = req.body;
+  try {
+    const prefs = await prisma.notificationPreference.upsert({
+      where: { userId: req.userId as string },
+      update: {
+        ...(emailSystemUpdates !== undefined && { emailSystemUpdates }),
+        ...(emailTeamActivity !== undefined && { emailTeamActivity }),
+        ...(emailMarketing !== undefined && { emailMarketing }),
+        ...(pushMentions !== undefined && { pushMentions }),
+        ...(pushDirectMessages !== undefined && { pushDirectMessages }),
+      },
+      create: {
+        userId: req.userId as string,
+        emailSystemUpdates: emailSystemUpdates ?? true,
+        emailTeamActivity: emailTeamActivity ?? true,
+        emailMarketing: emailMarketing ?? false,
+        pushMentions: pushMentions ?? true,
+        pushDirectMessages: pushDirectMessages ?? true,
+      }
+    });
+    res.json(prefs);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

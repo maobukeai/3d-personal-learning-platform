@@ -40,7 +40,11 @@ const handleLogin = async () => {
       ElMessage.info('请输入两步验证码')
     } else {
       ElMessage.success('欢迎回来！')
-      router.push('/dashboard')
+      if (router.currentRoute.value.query.onboarding === 'true') {
+        router.push('/onboarding')
+      } else {
+        router.push('/dashboard')
+      }
     }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '登录失败，请检查账号密码')

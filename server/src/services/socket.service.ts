@@ -3,19 +3,26 @@ import { Server as HttpServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 
-interface UserSocket {
-  userId: string;
-  socketId: string;
-}
-
 let io: SocketServer;
-const onlineUsers = new Map<string, string>(); // userId -> socketId
+const onlineUsers = new Map<string, Set<string>>(); // userId -> Set of socketIds
 
 export const initSocket = (server: HttpServer) => {
   io = new SocketServer(server, {
     cors: {
-      origin: '*', // In production, replace with actual origin
-      methods: ['GET', 'POST']
+      origin: (origin, callback) => {
+        const allowedOrigins = [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          process.env.FRONTEND_URL
+        ].filter(Boolean) as string[];
+        if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: ['GET', 'POST'],
+      credentials: true
     }
   });
 
@@ -40,8 +47,18 @@ export const initSocket = (server: HttpServer) => {
     const userId = (socket as any).userId;
     console.log(`User connected: ${userId} (${socket.id})`);
     
-    onlineUsers.set(userId, socket.id);
-    io.emit('user_status', { userId, status: 'online' });
+    // Add this socket to user's socket set
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+    const userSockets = onlineUsers.get(userId)!;
+    const wasOffline = userSockets.size === 0;
+    userSockets.add(socket.id);
+
+    // Only emit online status when first device connects
+    if (wasOffline) {
+      io.emit('user_status', { userId, status: 'online' });
+    }
 
     // Send initial list of online users
     socket.emit('online_users_list', Array.from(onlineUsers.keys()));
@@ -66,9 +83,19 @@ export const initSocket = (server: HttpServer) => {
     });
 
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${userId}`);
-      onlineUsers.delete(userId);
-      io.emit('user_status', { userId, status: 'offline' });
+      console.log(`User disconnected: ${userId} (${socket.id})`);
+      
+      // Remove this socket from user's set
+      const userSockets = onlineUsers.get(userId);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        
+        // If no more sockets for this user, remove from map and emit offline
+        if (userSockets.size === 0) {
+          onlineUsers.delete(userId);
+          io.emit('user_status', { userId, status: 'offline' });
+        }
+      }
     });
   });
 
@@ -83,9 +110,11 @@ export const getIo = () => {
 };
 
 export const emitToUser = (userId: string, event: string, data: any) => {
-  const socketId = onlineUsers.get(userId);
-  if (socketId) {
-    io.to(socketId).emit(event, data);
+  const userSocketIds = onlineUsers.get(userId);
+  if (userSocketIds) {
+    for (const socketId of userSocketIds) {
+      io.to(socketId).emit(event, data);
+    }
   }
 };
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Users, Star, BookOpen, Shield, MessageCircle, ArrowRight, X } from 'lucide-vue-next'
+import { Star, BookOpen, ArrowRight, X } from 'lucide-vue-next'
 
 const props = defineProps<{
   visible: boolean
@@ -20,7 +20,7 @@ const handleJoin = () => {
 <template>
   <el-dialog
     :model-value="visible"
-    @update:model-value="val => emit('update:visible', val)"
+    @update:model-value="(val: any) => emit('update:visible', val)"
     width="900px"
     class="detail-dialog"
     :show-close="false"

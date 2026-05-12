@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { 
-  Plus, 
-  Search, 
-  Clock, 
-  Trash2, 
+import {
+  Plus,
+  Trash2,
   Edit2,
-  GripVertical,
   Milestone
 } from 'lucide-vue-next'
 import api from '@/utils/api'

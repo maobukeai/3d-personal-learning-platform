@@ -17,6 +17,9 @@ import materialRoutes from './routes/material.routes';
 import showcaseRoutes from './routes/showcase.routes';
 import messageRoutes from './routes/message.routes';
 import teamRoutes from './routes/team.routes';
+import subscriptionRoutes from './routes/subscription.routes';
+import noteRoutes from './routes/note.routes';
+
 import { errorHandler } from './middlewares/error.middleware';
 import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
 
@@ -71,6 +74,9 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/showcase', showcaseRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/notes', noteRoutes);
+
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

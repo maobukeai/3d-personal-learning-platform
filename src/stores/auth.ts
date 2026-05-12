@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import api from '@/utils/api';
+import { socketService } from '@/utils/socket';
 
 interface User {
   id: string;
@@ -12,6 +13,16 @@ interface User {
   role: string;
   emailVerified?: boolean;
   twoFactorEnabled?: boolean;
+  createdAt: string;
+  subscription?: {
+    plan: {
+      name: string;
+      displayName?: string;
+      badgeColor?: string;
+    }
+    status?: string;
+    interval?: string;
+  }
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -219,10 +230,16 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     logout() {
+      socketService.disconnect();
       this.user = null;
       this.token = '';
+      this.deviceToken = '';
+      this.onlineUserIds = new Set<string>();
+      this.unreadMessagesCount = 0;
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('deviceToken');
+      localStorage.removeItem('activeWorkspaceId');
     }
   }
 });

@@ -98,11 +98,6 @@ const handleDeleteBroadcast = async (id: string) => {
   }
 }
 
-const openBroadcastModal = () => {
-  showBroadcastModal.value = true
-  broadcastTab.value = 'send'
-}
-
 const switchBroadcastTab = (tab: string) => {
   broadcastTab.value = tab
   if (tab === 'history') {
@@ -164,6 +159,61 @@ onMounted(() => {
     <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
       <div class="max-w-7xl mx-auto space-y-8">
         
+        <!-- Quick Actions -->
+        <div class="p-8 rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+          <h3 class="font-bold text-lg mb-6" style="color: var(--text-primary)">管理操作</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button @click="router.push('/admin/users')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 group-hover:scale-110 transition-transform">
+                <Users class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">用户管理</span>
+            </button>
+            <button @click="router.push('/admin/audits')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 group-hover:scale-110 transition-transform">
+                <CheckCircle2 class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">内容审核</span>
+            </button>
+            <button @click="router.push('/admin/courses')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 group-hover:scale-110 transition-transform">
+                <BookOpen class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">课程管理</span>
+            </button>
+            <button @click="router.push('/admin/roadmaps')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 group-hover:scale-110 transition-transform">
+                <Clock class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">学习路线</span>
+            </button>
+            <button @click="router.push('/admin/teams')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 group-hover:scale-110 transition-transform">
+                <UserPlus class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">团队管理</span>
+            </button>
+            <button @click="router.push('/admin/feedback')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 group-hover:scale-110 transition-transform">
+                <MessageSquare class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">反馈中心</span>
+            </button>
+            <button @click="router.push('/admin/settings')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-slate-50 dark:bg-white/10 text-slate-600 group-hover:scale-110 transition-transform">
+                <Layout class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">系统设置</span>
+            </button>
+            <button @click="showBroadcastModal = true" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
+              <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 group-hover:scale-110 transition-transform">
+                <Megaphone class="w-6 h-6" />
+              </div>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">全站广播</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div v-for="stat in stats" :key="stat.label" 
@@ -241,61 +291,6 @@ onMounted(() => {
                  <p class="text-sm font-bold">暂无资产提交</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="p-8 rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
-          <h3 class="font-bold text-lg mb-6" style="color: var(--text-primary)">管理操作</h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button @click="router.push('/admin/users')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 group-hover:scale-110 transition-transform">
-                <Users class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">用户管理</span>
-            </button>
-            <button @click="router.push('/admin/audits')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 group-hover:scale-110 transition-transform">
-                <CheckCircle2 class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">内容审核</span>
-            </button>
-            <button @click="router.push('/admin/courses')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 group-hover:scale-110 transition-transform">
-                <BookOpen class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">课程管理</span>
-            </button>
-            <button @click="router.push('/admin/roadmaps')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 group-hover:scale-110 transition-transform">
-                <Clock class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">学习路线</span>
-            </button>
-            <button @click="router.push('/admin/teams')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 group-hover:scale-110 transition-transform">
-                <UserPlus class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">团队管理</span>
-            </button>
-            <button @click="router.push('/admin/feedback')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 group-hover:scale-110 transition-transform">
-                <MessageSquare class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">反馈中心</span>
-            </button>
-            <button @click="router.push('/admin/settings')" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-slate-50 dark:bg-white/10 text-slate-600 group-hover:scale-110 transition-transform">
-                <Layout class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">系统设置</span>
-            </button>
-            <button @click="showBroadcastModal = true" class="flex flex-col items-center gap-3 p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)">
-              <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 group-hover:scale-110 transition-transform">
-                <Megaphone class="w-6 h-6" />
-              </div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">全站广播</span>
-            </button>
           </div>
         </div>
       </div>

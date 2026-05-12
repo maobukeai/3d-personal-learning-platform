@@ -9,11 +9,67 @@ import { config } from '../config/env';
 import { sendEmail } from '../utils/email';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
+export const getPublicSettings = async (req: Request, res: Response) => {
+  try {
+    const keys = [
+      'PLATFORM_NAME', 'ALLOW_REGISTRATION', 'MAINTENANCE_MODE', 'MATERIAL_CATEGORIES',
+      'PLATFORM_LOGO_URL', 'PLATFORM_DESCRIPTION', 'PASSWORD_MIN_LENGTH', 'SESSION_TIMEOUT',
+      'AUTO_APPROVE_MATERIALS', 'AUTO_APPROVE_SHOWCASES', 'MAX_UPLOAD_SIZE_MB',
+      'ALLOWED_FILE_TYPES', 'SMTP_FROM_NAME', 'FOOTER_TEXT', 'DEFAULT_USER_ROLE'
+    ];
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { in: keys } }
+    });
+    
+    const config = settings.reduce((acc: any, curr: any) => {
+      if (curr.key === 'MATERIAL_CATEGORIES') {
+        try {
+          acc[curr.key] = JSON.parse(curr.value);
+        } catch {
+          acc[curr.key] = ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'];
+        }
+      } else if (curr.key === 'ALLOWED_FILE_TYPES') {
+        try {
+          acc[curr.key] = JSON.parse(curr.value);
+        } catch {
+          acc[curr.key] = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'];
+        }
+      } else {
+        acc[curr.key] = curr.value;
+      }
+      return acc;
+    }, {
+      PLATFORM_NAME: '3D Personal Learning Hub',
+      ALLOW_REGISTRATION: 'true',
+      MAINTENANCE_MODE: 'false',
+      MATERIAL_CATEGORIES: ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'],
+      PLATFORM_LOGO_URL: '',
+      PLATFORM_DESCRIPTION: '',
+      PASSWORD_MIN_LENGTH: '6',
+      SESSION_TIMEOUT: '7d',
+      AUTO_APPROVE_MATERIALS: 'false',
+      AUTO_APPROVE_SHOWCASES: 'false',
+      MAX_UPLOAD_SIZE_MB: '50',
+      ALLOWED_FILE_TYPES: ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'],
+      SMTP_FROM_NAME: '',
+      FOOTER_TEXT: '',
+      DEFAULT_USER_ROLE: 'USER'
+    });
+
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const register = async (req: Request, res: Response) => {
   const { email, password, name } = req.body;
   try {
     // Check if registration is allowed
     const allowReg = await prisma.systemSetting.findUnique({ where: { key: 'ALLOW_REGISTRATION' } });
+    console.log(`[Registration Attempt] Email: ${email}, ALLOW_REGISTRATION setting: ${allowReg?.value}`);
+    
     if (allowReg && allowReg.value === 'false') {
       return res.status(403).json({ error: '目前平台已关闭新用户注册' });
     }
@@ -31,6 +87,45 @@ export const register = async (req: Request, res: Response) => {
         name,
       },
     });
+
+    // Join or create a global public team for the user instead of a personal one
+    let publicTeam = await prisma.team.findFirst({
+      where: { name: '公共空间', type: 'TEAM' }
+    });
+
+    if (!publicTeam) {
+      publicTeam = await prisma.team.create({
+        data: {
+          name: '公共空间',
+          description: '全站公共协作与创作空间',
+          type: 'TEAM',
+          visibility: 'PUBLIC',
+          ownerId: user.id, // First user becomes the owner of the global space
+          members: {
+            create: {
+              userId: user.id,
+              role: 'OWNER'
+            }
+          }
+        }
+      });
+    } else {
+      // Add user to existing public team as a member
+      await prisma.teamMember.upsert({
+        where: {
+          teamId_userId: {
+            teamId: publicTeam.id,
+            userId: user.id
+          }
+        },
+        update: {},
+        create: {
+          teamId: publicTeam.id,
+          userId: user.id,
+          role: 'MEMBER'
+        }
+      });
+    }
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
@@ -52,6 +147,10 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
+    if (user.status === 'BANNED') {
+      return res.status(403).json({ error: '您的账号已被封禁，请联系管理员。' });
+    }
+
     if (user.twoFactorEnabled) {
       if (deviceToken) {
         const trusted = await prisma.trustedDevice.findFirst({
@@ -71,7 +170,7 @@ export const login = async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: user.id }, config.JWT_SECRET, { expiresIn: '7d' });
     res.json({ 
       token, 
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, location: user.location, website: user.website, twoFactorEnabled: user.twoFactorEnabled } 
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, location: user.location, website: user.website, twoFactorEnabled: user.twoFactorEnabled, createdAt: user.createdAt } 
     });
   } catch (error) {
     console.error(error);
@@ -85,6 +184,10 @@ export const login2FA = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.twoFactorSecret) {
       return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    if (user.status === 'BANNED') {
+      return res.status(403).json({ error: '您的账号已被封禁，请联系管理员。' });
     }
 
     const isValid = speakeasy.totp.verify({
@@ -110,7 +213,19 @@ export const login2FA = async (req: Request, res: Response) => {
     res.json({ 
       token, 
       deviceToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, location: user.location, website: user.website, twoFactorEnabled: user.twoFactorEnabled } 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        name: user.name, 
+        role: user.role, 
+        avatarUrl: user.avatarUrl, 
+        bio: user.bio, 
+        location: user.location, 
+        website: user.website, 
+        twoFactorEnabled: user.twoFactorEnabled, 
+        createdAt: user.createdAt,
+        subscription: user.subscription
+      } 
     });
   } catch (error) {
     console.error(error);
@@ -133,7 +248,9 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     location: user.location,
     website: user.website,
     twoFactorEnabled: user.twoFactorEnabled,
-    emailVerified: user.emailVerified
+    emailVerified: user.emailVerified,
+    createdAt: user.createdAt,
+    subscription: user.subscription
   };
   
   res.json(safeUser);
@@ -348,12 +465,12 @@ export const sendCodeToNewEmail = async (req: AuthRequest, res: Response) => {
     const subject = configData.EMAIL_CHANGE_SUBJECT || '您的新邮箱验证码';
     let html = configData.EMAIL_CHANGE_BODY || `<div style="padding: 20px; font-family: sans-serif;">
         <h2>更改您的邮箱</h2>
-        <p>您好，您正在尝试将账号邮箱更改为 ${newEmail}，验证码如下：</p>
+        <p>您好，您正在尝试将账号邮箱更改为 {{newEmail}}，验证码如下：</p>
         <div style="background: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center;">{{code}}</div>
         <p>有效期 10 分钟。如果不是您本人操作，请忽略此邮件。</p>
       </div>`;
 
-    html = html.replace('{{code}}', code).replace('${newEmail}', newEmail);
+    html = html.replace('{{code}}', code).replace('{{newEmail}}', newEmail);
     const text = `您的验证码是: ${code}。有效期 10 分钟。`;
 
     await sendEmail(newEmail, subject, text, html);
@@ -471,16 +588,27 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
 };
 
 export const getPublicUsers = async (req: AuthRequest, res: Response) => {
+  const { search } = req.query;
   try {
     const users = await prisma.user.findMany({
+      where: search ? {
+        OR: [
+          { name: { contains: search as string } },
+          { email: { contains: search as string } }
+        ]
+      } : {},
       select: {
         id: true,
         email: true,
         name: true,
         avatarUrl: true,
         role: true,
-        createdAt: true
-      }
+        createdAt: true,
+        subscription: {
+          include: { plan: true }
+        }
+      },
+      take: 10
     });
     res.json(users);
   } catch (error) {
@@ -525,46 +653,75 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
 };
 
 export const getActivity = async (req: AuthRequest, res: Response) => {
+  const { date } = req.query;
   try {
-    const [assets, discussions, enrollments] = await Promise.all([
+    const where: any = {};
+    if (date) {
+      const startOfDay = new Date(date as string);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date as string);
+      endOfDay.setHours(23, 59, 59, 999);
+      where.createdAt = {
+        gte: startOfDay,
+        lte: endOfDay
+      };
+    }
+
+    const [assets, discussions, enrollments, showcases] = await Promise.all([
       prisma.asset.findMany({ 
-        take: 5, 
+        where,
+        take: 10, 
         orderBy: { createdAt: 'desc' },
         include: { user: { select: { name: true } } }
       }),
       prisma.discussion.findMany({ 
-        take: 5, 
+        where,
+        take: 10, 
         orderBy: { createdAt: 'desc' },
         include: { user: { select: { name: true } } }
       }),
       prisma.enrollment.findMany({ 
-        take: 5, 
+        where,
+        take: 10, 
         orderBy: { createdAt: 'desc' },
         include: { user: { select: { name: true } }, course: { select: { title: true } } }
+      }),
+      prisma.showcase.findMany({
+        where,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { name: true } } }
       })
     ]);
 
     const activities = [
       ...assets.map(a => ({ 
         id: `a-${a.id}`, 
-        user: a.user.name || 'AI成员', 
+        user: a.user.name || '有人', 
         action: '发布了新资产', 
         target: a.title, 
         createdAt: a.createdAt 
       })),
       ...discussions.map(d => ({ 
         id: `d-${d.id}`, 
-        user: d.user.name || 'AI成员', 
+        user: d.user.name || '有人', 
         action: '发起了新讨论', 
         target: d.title, 
         createdAt: d.createdAt 
       })),
       ...enrollments.map(e => ({ 
         id: `e-${e.id}`, 
-        user: e.user.name || 'AI成员', 
+        user: e.user.name || '有人', 
         action: '加入了新课程', 
         target: e.course.title, 
         createdAt: e.createdAt 
+      })),
+      ...showcases.map(s => ({
+        id: `s-${s.id}`,
+        user: s.user.name || '有人',
+        action: '发布了新作品',
+        target: s.title,
+        createdAt: s.createdAt
       }))
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10);
 
@@ -574,33 +731,177 @@ export const getActivity = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getStats = async (req: AuthRequest, res: Response) => {
+export const getUserSettings = async (req: AuthRequest, res: Response) => {
   try {
-    const assetCount = await prisma.asset.count({
+    const settings = await prisma.userSetting.findMany({
       where: { userId: req.userId as string }
+    });
+    const config = settings.reduce((acc: any, curr: any) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    }, {});
+    res.json(config);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateUserSettings = async (req: AuthRequest, res: Response) => {
+  const { settings } = req.body;
+  try {
+    const updates = settings.map((s: { key: string, value: string }) =>
+      prisma.userSetting.upsert({
+        where: { userId_key: { userId: req.userId as string, key: s.key } },
+        update: { value: s.value },
+        create: { userId: req.userId as string, key: s.key, value: s.value }
+      })
+    );
+    await Promise.all(updates);
+    res.json({ message: '设置已成功保存' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getTrustedDevices = async (req: AuthRequest, res: Response) => {
+  try {
+    const devices = await prisma.trustedDevice.findMany({
+      where: { userId: req.userId as string },
+      select: { id: true, createdAt: true }
+    });
+    res.json(devices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const revokeTrustedDevice = async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const device = await prisma.trustedDevice.findUnique({ where: { id } });
+    if (!device) {
+      return res.status(404).json({ error: '设备不存在' });
+    }
+    if (device.userId !== req.userId) {
+      return res.status(403).json({ error: '无权操作此设备' });
+    }
+    await prisma.trustedDevice.delete({ where: { id } });
+    res.json({ message: '设备已移除' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteAccount = async (req: AuthRequest, res: Response) => {
+  const { twoFactorCode } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        return res.status(400).json({ error: '需要两步验证码', twoFactorRequired: true });
+      }
+      if (!user.twoFactorSecret) {
+        return res.status(400).json({ error: '两步验证配置异常' });
+      }
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: twoFactorCode,
+        window: 1,
+      });
+      if (!isValid) {
+        return res.status(400).json({ error: '两步验证码错误' });
+      }
+    }
+
+    if (user.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: '不能删除最后一个管理员账户' });
+      }
+    }
+    await prisma.user.delete({ where: { id: req.userId as string } });
+    res.json({ message: '账户已成功删除' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getStats = async (req: AuthRequest, res: Response) => {
+  const { date } = req.query;
+  try {
+    const userId = req.userId as string;
+
+    const assetCount = await prisma.asset.count({
+      where: { userId }
     });
 
     const taskCount = await prisma.task.count({
-      where: { userId: req.userId as string, status: 'TODO' }
+      where: { userId, status: 'TODO' }
     });
 
     const feedbackCount = await prisma.feedback.count({
-      where: { userId: req.userId as string }
+      where: { userId }
     });
 
     const enrollments = await prisma.enrollment.findMany({
-      where: { userId: req.userId as string }
+      where: { userId }
     });
 
     const totalProgress = enrollments.length > 0 
       ? Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)
       : 0;
 
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const fourteenDaysAgo = new Date(sevenDaysAgo);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 7);
+
+    const [recentAssets, prevAssets] = await Promise.all([
+      prisma.asset.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.asset.count({ where: { userId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } })
+    ]);
+
+    const [recentTasks, prevTasks] = await Promise.all([
+      prisma.task.count({ where: { userId, status: 'TODO', createdAt: { gte: sevenDaysAgo } } }),
+      prisma.task.count({ where: { userId, status: 'TODO', createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } })
+    ]);
+
+    const [recentFeedbacks, prevFeedbacks] = await Promise.all([
+      prisma.feedback.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.feedback.count({ where: { userId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } })
+    ]);
+
+    const computeTrend = (current: number, previous: number): string => {
+      if (previous === 0 && current === 0) return '0';
+      if (previous === 0) return `+${current}`;
+      const diff = current - previous;
+      const pct = Math.round((diff / previous) * 100);
+      return pct >= 0 ? `+${pct}%` : `${pct}%`;
+    };
+
     res.json({
       assetCount,
       taskCount,
       feedbackCount,
-      learningProgress: `${totalProgress}%`
+      learningProgress: `${totalProgress}%`,
+      trends: {
+        assets: computeTrend(recentAssets, prevAssets),
+        tasks: computeTrend(recentTasks, prevTasks),
+        feedbacks: computeTrend(recentFeedbacks, prevFeedbacks),
+        learning: totalProgress > 0 ? `+${totalProgress}%` : '0%'
+      }
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

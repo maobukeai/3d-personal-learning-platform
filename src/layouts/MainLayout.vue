@@ -3,21 +3,27 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import {
-  LayoutDashboard, Box, FolderOpen, Layers, MapPin, Wind, Image as ImageIcon,
-  Users, Clock, FileText, MonitorPlay, MessageSquare, Briefcase, GraduationCap,
-  Settings, HelpCircle, Gem, ChevronDown, Plus, LogOut, User as UserIcon, CreditCard, Bell,
-  ShieldCheck, BarChart3, Database, MessageCircle
+  LayoutDashboard, Box, Layers, MapPin, Image as ImageIcon,
+  Users, MonitorPlay, MessageSquare, Briefcase, GraduationCap,
+  Settings, HelpCircle, ChevronDown, Plus, LogOut, User as UserIcon, CreditCard, Bell,
+  ShieldCheck, BarChart3, Database, MessageCircle, Crown, Zap, Notebook
 } from 'lucide-vue-next'
 import CreateTeamDialog from '@/components/CreateTeamDialog.vue'
 import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
+import InvitationDialog from '@/components/InvitationDialog.vue'
 
 import { useAuthStore } from '@/stores/auth'
+import { useSystemStore } from '@/stores/system'
+import { useWorkspaceStore } from '@/stores/workspace'
 import api from '@/utils/api'
 import { socketService } from '@/utils/socket'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const systemStore = useSystemStore()
+const workspaceStore = useWorkspaceStore()
 
 const adminGroups = [
   {
@@ -27,50 +33,32 @@ const adminGroups = [
       { name: '用户管理', icon: Users, path: '/admin/users' },
       { name: '用户反馈', icon: MessageCircle, path: '/admin/feedback' },
       { name: '资产审核', icon: Database, path: '/admin/assets' },
+      { name: '材料审核', icon: Layers, path: '/admin/materials' },
+      { name: '订阅管理', icon: CreditCard, path: '/admin/subscriptions' },
       { name: '系统设置', icon: Settings, path: '/admin/settings' },
     ]
   }
 ]
 
-const currentWorkspace = ref({ id: 'personal', name: '个人空间', type: 'personal', color: 'bg-accent' })
+const isCreateTeamVisible = ref(false)
+const isExploreGroupsVisible = ref(false)
+const isInvitationVisible = ref(false)
+const activeInvitationId = ref<string | null>(null)
 
-const workspaces = ref<any[]>([
-  { id: 'personal', name: '个人空间', type: 'personal', color: 'bg-accent' }
-])
+const handleTeamCreated = (team: any) => {
+  workspaceStore.fetchWorkspaces()
+  router.push(`/team/${team.id}`)
+}
 
-const fetchTeams = async () => {
-  try {
-    const response = await api.get('/api/teams')
-    const teams = response.data.map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      type: 'team',
-      color: 'bg-orange-500'
-    }))
-    workspaces.value = [
-      { id: 'personal', name: '个人空间', type: 'personal', color: 'bg-accent' },
-      ...teams
-    ]
-    
-    // Sync current workspace if we are on a team route
-    if (route.path.startsWith('/team/')) {
-      const id = route.path.split('/')[2]
-      const ws = workspaces.value.find(w => w.id === id)
-      if (ws) currentWorkspace.value = ws
-    }
-  } catch (error) {
-    console.error('Fetch teams error:', error)
+const handleInvitationSuccess = (data: { accept: boolean, teamId?: string }) => {
+  if (data.accept && data.teamId) {
+    workspaceStore.fetchWorkspaces()
+    router.push(`/team/${data.teamId}`)
   }
 }
 
-const isCreateTeamVisible = ref(false)
-
-const handleTeamCreated = () => {
-  fetchTeams()
-}
-
 const handleSwitchWorkspace = (ws: any) => {
-  currentWorkspace.value = ws
+  workspaceStore.setWorkspace(ws)
   if (ws.type === 'team') {
     router.push(`/team/${ws.id}`)
   } else {
@@ -78,13 +66,27 @@ const handleSwitchWorkspace = (ws: any) => {
   }
 }
 
+// Watch for workspace changes to refresh data if needed
+watch(() => workspaceStore.activeTeamId, (newId, oldId) => {
+  if (oldId && newId !== oldId) {
+    const currentPath = route.path
+    const workspaceAwarePaths = [
+      '/dashboard', '/assets', '/my-works', '/work', '/team-tasks',
+      '/materials', '/showcase', '/members', '/discussions'
+    ]
+    if (workspaceAwarePaths.some(path => currentPath.startsWith(path))) {
+       window.location.reload()
+    }
+  }
+})
+
 const handleProfileClick = (type: string) => {
   if (type === 'profile') {
     router.push({ path: '/settings', query: { tab: 'profile' } })
   } else if (type === 'notifications') {
     router.push({ path: '/settings', query: { tab: 'notifications' } })
   } else if (type === 'billing') {
-    ElMessage.info('订阅与账单功能正在开发中...')
+    router.push('/billing')
   } else if (type === 'logout') {
     handleLogout()
   }
@@ -101,21 +103,26 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const menuGroups = [
+const menuGroups = computed(() => [
   {
     title: '我的学习',
     items: [
       { name: '仪表盘', icon: LayoutDashboard, path: '/dashboard' },
       { name: '工作与计划', icon: Briefcase, path: '/work' },
       { name: '学习路线', icon: MapPin, path: '/roadmaps' },
-      { name: '学院', icon: GraduationCap, path: '/academy' },
+      { name: '学院课程', icon: GraduationCap, path: '/academy' },
+      { name: '我的笔记', icon: Notebook, path: '/notes' },
     ]
   },
   {
     title: '团队协作',
     items: [
-      { name: '团队任务', icon: Users, path: '/team-tasks' },
-      { name: '成员', icon: Users, path: '/members' },
+      { name: '团队任务', icon: Briefcase, path: '/team-tasks' },
+      { 
+        name: '成员', 
+        icon: Users, 
+        path: workspaceStore.activeTeamId ? `/team/${workspaceStore.activeTeamId}` : '/members' 
+      },
     ]
   },
   {
@@ -123,7 +130,6 @@ const menuGroups = [
     items: [
       { name: '我的作品', icon: Box, path: '/my-works' },
       { name: '3D 资产库', icon: ImageIcon, path: '/assets' },
-      { name: '项目', icon: FolderOpen, path: '/projects' },
       { name: '材料', icon: Layers, path: '/materials' },
     ]
   },
@@ -135,7 +141,7 @@ const menuGroups = [
       { name: '作品展示', icon: MonitorPlay, path: '/showcase' },
     ]
   }
-]
+])
 
 const applyTheme = (theme: string) => {
   const root = document.documentElement
@@ -170,13 +176,32 @@ const fetchNotifications = async () => {
   }
 }
 
-const handleMarkAsRead = async (id: string) => {
-  try {
-    await api.put(`/api/notifications/${id}/read`)
-    const n = notifications.value.find(notif => notif.id === id)
-    if (n) n.isRead = true
-  } catch (error) {
-    console.error('Mark as read error:', error)
+const handleMarkAsRead = async (notification: any) => {
+  if (!notification.isRead) {
+    try {
+      await api.put(`/api/notifications/${notification.id}/read`)
+      const n = notifications.value.find(notif => notif.id === notification.id)
+      if (n) n.isRead = true
+    } catch (error) {
+      console.error('Mark as read error:', error)
+    }
+  }
+
+  // Handle specific notification types
+  if (notification.title === '收到团队邀请' && notification.link) {
+    const url = new URL(notification.link, window.location.origin)
+    const invitationId = url.searchParams.get('invitationId')
+    if (invitationId) {
+      activeInvitationId.value = invitationId
+      isInvitationVisible.value = true
+    }
+  } else if (notification.link) {
+    const resolved = router.resolve(notification.link)
+    if (resolved.name) {
+      router.push(notification.link)
+    } else {
+      console.warn('Notification link points to unknown route:', notification.link)
+    }
   }
 }
 
@@ -200,87 +225,90 @@ const fetchUnreadMessagesCount = async () => {
   }
 }
 
+const onNewNotification = (notification: any) => {
+  notifications.value.unshift(notification)
+
+  ElNotification({
+    title: notification.title,
+    message: notification.content,
+    type: 'info',
+    duration: 5000,
+    position: 'top-right',
+    onClick: () => {
+      if (notification.link) {
+        const resolved = router.resolve(notification.link)
+        if (resolved.name) {
+          router.push(notification.link)
+        }
+      }
+    }
+  })
+}
+
+const onOnlineUsersList = (ids: string[]) => {
+  authStore.setOnlineUsers(ids)
+}
+
+const onUserStatus = ({ userId, status }: { userId: string, status: 'online' | 'offline' }) => {
+  authStore.updateUserStatus(userId, status)
+}
+
+const onMessageReceived = ({ conversationId: _conversationId, message }: any) => {
+  const isMessagesPage = route.path === '/messages'
+
+  if (!isMessagesPage) {
+    authStore.incrementUnreadMessagesCount()
+
+    ElNotification({
+      title: `来自 ${message.sender.name} 的新消息`,
+      message: message.type === 'TEXT' ? message.content : '[图片/文件]',
+      type: 'success',
+      duration: 3000,
+      position: 'bottom-right',
+      onClick: () => {
+        router.push('/messages')
+      }
+    })
+  }
+}
+
 onMounted(() => {
-  // Initialize Socket.io connection early
   socketService.connect()
 
   const savedTheme = localStorage.getItem('theme') || 'light'
   applyTheme(savedTheme)
-  
+
   const savedAccent = localStorage.getItem('accentColor') || '#3b82f6'
   applyAccentColor(savedAccent)
 
   fetchNotifications()
-  fetchTeams()
+  workspaceStore.fetchWorkspaces()
   fetchUnreadMessagesCount()
-  
-  // Initial fetch and then long interval (5 mins) as a fallback
+  authStore.fetchMe()
+
   setInterval(fetchNotifications, 300000)
 
-  // Listen for real-time notifications
-  socketService.on('new_notification', (notification) => {
-    notifications.value.unshift(notification)
-    
-    // Show instant visual alert
-    ElNotification({
-      title: notification.title,
-      message: notification.content,
-      type: 'info',
-      duration: 5000,
-      position: 'top-right',
-      onClick: () => {
-        if (notification.link) router.push(notification.link)
-      }
-    })
-  })
-
-  // centralize online status tracking
-  socketService.on('online_users_list', (ids: string[]) => {
-    authStore.setOnlineUsers(ids)
-  })
-
-  socketService.on('user_status', ({ userId, status }: { userId: string, status: 'online' | 'offline' }) => {
-    authStore.updateUserStatus(userId, status)
-  })
-
-  // 全局消息提醒
-  socketService.on('message_received', ({ conversationId, message }) => {
-    const isMessagesPage = route.path === '/messages'
-    
-    // 增加未读计数
-    if (!isMessagesPage) {
-      authStore.incrementUnreadMessagesCount()
-      
-      ElNotification({
-        title: `来自 ${message.sender.name} 的新消息`,
-        message: message.type === 'TEXT' ? message.content : '[图片/文件]',
-        type: 'success',
-        duration: 3000,
-        position: 'bottom-right',
-        onClick: () => {
-          router.push('/messages')
-        }
-      })
-    }
-  })
+  socketService.on('new_notification', onNewNotification)
+  socketService.on('online_users_list', onOnlineUsersList)
+  socketService.on('user_status', onUserStatus)
+  socketService.on('message_received', onMessageReceived)
 })
 
 // Sync workspace with route
 watch(() => route.path, (path) => {
   if (path.startsWith('/team/')) {
     const id = path.split('/')[2]
-    const ws = workspaces.value.find(w => w.id === id)
-    if (ws) currentWorkspace.value = ws
+    workspaceStore.setWorkspaceById(id)
   } else if (!path.includes('/admin/')) {
-    currentWorkspace.value = workspaces.value[0] // Personal
+    // Logic moved to workspaceStore or handled by its own initialization
   }
 }, { immediate: true })
 
 onUnmounted(() => {
-  socketService.off('new_notification')
-  socketService.off('message_received')
-  socketService.off('online_users_list')
-  socketService.off('user_status')
+  socketService.off('new_notification', onNewNotification)
+  socketService.off('message_received', onMessageReceived)
+  socketService.off('online_users_list', onOnlineUsersList)
+  socketService.off('user_status', onUserStatus)
 })
 </script>
 
@@ -291,32 +319,32 @@ onUnmounted(() => {
       
       <!-- Workspace Switcher -->
       <div class="p-4 border-b" style="border-color: var(--border-base)">
-        <el-dropdown trigger="click" class="w-full" placement="bottom-start">
+        <el-dropdown trigger="click" class="w-full" placement="bottom-start" v-if="workspaceStore.currentWorkspace">
           <div class="flex items-center justify-between w-full p-2 rounded-xl border cursor-pointer hover:border-accent hover:shadow-sm transition-all" style="background-color: var(--bg-card); border-color: var(--border-base)">
             <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm" :class="currentWorkspace.color">
-                {{ currentWorkspace.name.charAt(0) }}
+              <div class="w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm" :class="workspaceStore.currentWorkspace.color">
+                {{ workspaceStore.currentWorkspace.name.charAt(0) }}
               </div>
-              <span class="font-bold truncate" style="color: var(--text-primary)">{{ currentWorkspace.name }}</span>
+              <span class="font-bold truncate" style="color: var(--text-primary)">{{ workspaceStore.currentWorkspace.name }}</span>
             </div>
             <ChevronDown class="w-4 h-4 text-slate-400 shrink-0" />
           </div>
           <template #dropdown>
             <el-dropdown-menu class="w-64 p-2 rounded-2xl border-none shadow-2xl">
               <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">切换工作空间</div>
-              <el-dropdown-item v-for="ws in workspaces" :key="ws.id" @click="handleSwitchWorkspace(ws)" class="rounded-xl my-0.5">
+              <el-dropdown-item v-for="ws in workspaceStore.workspaces" :key="ws.id" @click="handleSwitchWorkspace(ws)" class="rounded-xl my-0.5">
                 <div class="flex items-center justify-between w-full py-1">
                   <div class="flex items-center gap-3">
                     <div class="w-6 h-6 rounded-lg text-white flex items-center justify-center font-bold text-[10px]" :class="ws.color">
                       {{ ws.name.charAt(0) }}
                     </div>
-                    <span class="font-medium" :class="currentWorkspace.id === ws.id ? 'text-accent' : 'text-slate-600 dark:text-slate-400'">{{ ws.name }}</span>
+                    <span class="font-medium" :class="workspaceStore.currentWorkspace?.id === ws.id ? 'text-accent' : 'text-slate-600 dark:text-slate-400'">{{ ws.name }}</span>
                   </div>
-                  <div v-if="currentWorkspace.id === ws.id" class="w-1.5 h-1.5 rounded-full bg-accent"></div>
+                  <div v-if="workspaceStore.currentWorkspace?.id === ws.id" class="w-1.5 h-1.5 rounded-full bg-accent"></div>
                 </div>
               </el-dropdown-item>
               <div class="border-t border-slate-100 my-2"></div>
-              <el-dropdown-item class="rounded-xl my-0.5" @click="isCreateTeamVisible = true">
+              <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
                 <div class="flex items-center gap-3 py-1 text-slate-500">
                   <Plus class="w-4 h-4" />
                   <span class="font-medium">创建或加入团队</span>
@@ -325,6 +353,7 @@ onUnmounted(() => {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+        <div v-else class="h-11 animate-pulse bg-slate-100 dark:bg-white/5 rounded-xl"></div>
       </div>
 
       <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-hide">
@@ -385,7 +414,7 @@ onUnmounted(() => {
         </button>
 
         <!-- Notification Bell -->
-        <el-dropdown trigger="click" class="w-full" placement="top-start">
+        <el-dropdown trigger="click" class="w-full" placement="top-start" popper-class="notification-glass">
           <button class="w-full flex items-center justify-between px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors">
             <div class="flex items-center gap-3">
               <div class="relative">
@@ -397,22 +426,22 @@ onUnmounted(() => {
             <span v-if="unreadCount > 0" class="text-[10px] font-bold bg-rose-500 text-white px-1.5 py-0.5 rounded-full">{{ unreadCount }}</span>
           </button>
           <template #dropdown>
-            <div class="w-80 p-0 rounded-2xl overflow-hidden shadow-2xl border-none">
-              <div class="px-4 py-3 border-b flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">通知中心</span>
+            <div class="notification-panel w-80 p-0 rounded-3xl overflow-hidden">
+              <div class="notification-header px-4 py-3 flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500/80 dark:text-slate-400/80">通知中心</span>
                 <button @click="handleMarkAllRead" class="text-[10px] font-bold text-accent hover:underline">全部忽略</button>
               </div>
               <div class="max-h-96 overflow-y-auto scrollbar-hide">
                 <div v-for="n in notifications" :key="n.id" 
-                  @click="handleMarkAsRead(n.id)"
-                  class="p-4 border-b last:border-b-0 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                  :class="!n.isRead ? 'bg-accent/5 dark:bg-accent/10' : ''"
+                  @click="handleMarkAsRead(n)"
+                  class="notification-item p-4 cursor-pointer transition-colors"
+                  :class="!n.isRead ? 'bg-accent/[0.04] dark:bg-accent/[0.08]' : ''"
                 >
-                  <p class="text-xs font-bold mb-1" :class="!n.isRead ? 'text-accent' : 'text-slate-700 dark:text-slate-300'">{{ n.title }}</p>
-                  <p class="text-[11px] text-slate-500 leading-relaxed mb-2">{{ n.content }}</p>
-                  <p class="text-[9px] text-slate-400">{{ new Date(n.createdAt).toLocaleString() }}</p>
+                  <p class="text-xs font-bold mb-1" :class="!n.isRead ? 'text-accent' : 'text-slate-700/90 dark:text-slate-300/90'">{{ n.title }}</p>
+                  <p class="text-[11px] text-slate-500/80 dark:text-slate-400/80 leading-relaxed mb-2">{{ n.content }}</p>
+                  <p class="text-[9px] text-slate-400/60 dark:text-slate-500/60">{{ new Date(n.createdAt).toLocaleString() }}</p>
                 </div>
-                <div v-if="notifications.length === 0" class="py-10 text-center text-slate-400">
+                <div v-if="notifications.length === 0" class="py-10 text-center text-slate-400/60">
                   <Bell class="w-8 h-8 mx-auto mb-2 opacity-10" />
                   <p class="text-xs">暂无新通知</p>
                 </div>
@@ -426,11 +455,23 @@ onUnmounted(() => {
             <span class="w-full outline-none">
               <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all w-full">
                 <div class="relative">
-                  <img :src="authStore.user?.avatarUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'" class="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-sm" />
-                  <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+                  <UserAvatar :user="authStore.user ?? undefined" size="md" />
+                  <div v-if="authStore.user?.subscription?.plan?.name && authStore.user.subscription.plan.name !== 'FREE'" 
+                       class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900"
+                       :style="{ backgroundColor: authStore.user.subscription.plan.name === 'SVIP' ? '#f59e0b' : '#8b5cf6' }">
+                    <Crown v-if="authStore.user.subscription.plan.name === 'SVIP'" class="w-2.5 h-2.5 text-white" />
+                    <Zap v-else class="w-2.5 h-2.5 text-white" />
+                  </div>
                 </div>
-                <div class="flex-1 min-w-0 text-left">
-                  <p class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{{ authStore.user?.name || '未命名用户' }}</p>
+                <div class="flex-1 min-w-0 text-left ml-1">
+                  <div class="flex items-center gap-2">
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{{ authStore.user?.name || '未命名用户' }}</p>
+                    <span v-if="authStore.user?.subscription?.plan?.name && authStore.user.subscription.plan.name !== 'FREE'" 
+                          class="shrink-0 px-1.5 py-0 rounded text-[8px] font-black text-white"
+                          :style="{ backgroundColor: authStore.user.subscription.plan.name === 'SVIP' ? '#f59e0b' : '#8b5cf6' }">
+                      {{ authStore.user.subscription.plan.name }}
+                    </span>
+                  </div>
                   <p class="text-[10px] text-slate-400 truncate">{{ authStore.user?.email }}</p>
                 </div>
                 <ChevronDown class="w-4 h-4 text-slate-400 shrink-0" />
@@ -472,6 +513,18 @@ onUnmounted(() => {
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300" style="background-color: var(--bg-app)">
+      <!-- Maintenance Mode Banner for Admins -->
+      <div v-if="systemStore.settings.MAINTENANCE_MODE && authStore.user?.role === 'ADMIN'" 
+           class="bg-rose-600 text-white px-6 py-2 flex items-center justify-between shrink-0 z-50 shadow-lg">
+        <div class="flex items-center gap-3">
+          <ShieldCheck class="w-4 h-4 animate-pulse" />
+          <span class="text-xs font-bold uppercase tracking-wider">系统维护模式已开启 - 仅管理员可访问</span>
+        </div>
+        <RouterLink to="/admin/settings" class="text-[10px] font-black underline hover:opacity-80 transition-opacity">
+          前往关闭
+        </RouterLink>
+      </div>
+      
       <RouterView />
     </main>
 
@@ -479,6 +532,16 @@ onUnmounted(() => {
     <CreateTeamDialog 
       v-model:visible="isCreateTeamVisible"
       @success="handleTeamCreated"
+    />
+
+    <InvitationDialog 
+      v-model:visible="isInvitationVisible"
+      :invitation-id="activeInvitationId"
+      @success="handleInvitationSuccess"
+    />
+
+    <ExploreGroupsDialog 
+      v-model:visible="isExploreGroupsVisible"
     />
   </div>
 </template>

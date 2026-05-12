@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { emitToUser } from '../services/socket.service';
+import { emitToUser, emitToAll } from '../services/socket.service';
+import { createNotification } from '../utils/notification';
 import fs from 'fs';
 import path from 'path';
 
@@ -14,7 +15,11 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'No asset file uploaded' });
     }
 
-    const { title, description } = req.body;
+    const { title, description, categoryId } = req.body;
+    if (!categoryId) {
+      return res.status(400).json({ error: 'Category is required' });
+    }
+
     const assetsDir = path.join(__dirname, '../../uploads/assets');
     if (!fs.existsSync(assetsDir)) {
       fs.mkdirSync(assetsDir, { recursive: true });
@@ -37,13 +42,55 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         thumbnail: thumbnailUrl,
         type,
         size,
+        categoryId,
         userId: req.userId as string,
+        teamId: req.workspaceId,
       },
+      include: { category: true }
+    });
+
+    // Broadcast activity
+    emitToAll('new_activity', {
+      id: `a-${asset.id}`,
+      user: req.user?.name || '有人',
+      action: '发布了新资产',
+      target: asset.title,
+      createdAt: asset.createdAt
     });
 
     res.status(201).json(asset);
   } catch (error) {
     console.error('Upload asset error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateAsset = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { title, description, categoryId } = req.body;
+
+  try {
+    const existingAsset = await prisma.asset.findFirst({
+      where: { id, teamId: req.workspaceId }
+    });
+
+    if (!existingAsset) {
+      return res.status(404).json({ error: 'Asset not found or access denied' });
+    }
+
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+
+    const asset = await prisma.asset.update({
+      where: { id },
+      data: updateData,
+      include: { category: true }
+    });
+    res.json(asset);
+  } catch (error) {
+    console.error('Update asset error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -132,9 +179,13 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 12;
     const search = req.query.search as string;
+    const categoryId = req.query.categoryId as string;
     const skip = (page - 1) * limit;
 
     const where: any = { status: 'APPROVED' };
+    if (categoryId && categoryId !== 'all') {
+      where.categoryId = categoryId;
+    }
     if (search) {
       where.OR = [
         { title: { contains: search } },
@@ -149,6 +200,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
         skip,
         take: limit,
         include: {
+          category: true,
           user: {
             select: { name: true, avatarUrl: true }
           }
@@ -174,8 +226,9 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
 export const getUserAssets = async (req: AuthRequest, res: Response) => {
   try {
     const assets = await prisma.asset.findMany({
-      where: { userId: req.userId as string },
+      where: { teamId: req.workspaceId },
       orderBy: { createdAt: 'desc' },
+      include: { category: true }
     });
     res.json(assets);
   } catch (error) {
@@ -187,7 +240,7 @@ export const getAssetById = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string },
+      where: { id, teamId: req.workspaceId },
     });
 
     if (!asset) {
@@ -204,7 +257,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string },
+      where: { id, teamId: req.workspaceId },
     });
 
     if (!asset) {
@@ -251,34 +304,129 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response) => {
 
 export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { status } = req.body; // 'APPROVED', 'REJECTED'
+  const { status, rejectReason } = req.body;
   
   if (!['APPROVED', 'REJECTED'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
 
   try {
+    const updateData: any = { status };
+    if (status === 'REJECTED' && rejectReason) {
+      updateData.rejectReason = rejectReason;
+    }
+    if (status === 'APPROVED') {
+      updateData.rejectReason = null;
+    }
+
     const asset = await prisma.asset.update({
       where: { id },
-      data: { status }
+      data: updateData
     });
 
-    // Notify user about audit result
-    const notification = await prisma.notification.create({
-      data: {
-        type: 'SYSTEM',
-        title: status === 'APPROVED' ? '资产审核通过' : '资产审核未通过',
-        content: `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
-        userId: asset.userId,
-        link: '/assets'
-      }
+    await createNotification({
+      type: 'SYSTEM',
+      title: status === 'APPROVED' ? '资产审核通过' : '资产审核未通过',
+      content: status === 'REJECTED' && rejectReason
+        ? `你上传的资产 "${asset.title}" 未通过审核，原因：${rejectReason}`
+        : `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+      userId: asset.userId,
+      link: '/assets',
+      category: 'SYSTEM'
     });
-
-    // Push real-time notification
-    emitToUser(asset.userId, 'new_notification', notification);
 
     res.json(asset);
   } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) => {
+  const { ids, status, rejectReason } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: '请选择至少一个资产' });
+  }
+
+  if (!['APPROVED', 'REJECTED'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  try {
+    const updateData: any = { status };
+    if (status === 'REJECTED' && rejectReason) {
+      updateData.rejectReason = rejectReason;
+    }
+    if (status === 'APPROVED') {
+      updateData.rejectReason = null;
+    }
+
+    const result = await prisma.asset.updateMany({
+      where: { id: { in: ids } },
+      data: updateData
+    });
+
+    const assets = await prisma.asset.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, title: true, userId: true }
+    });
+
+    for (const asset of assets) {
+      await createNotification({
+        type: 'SYSTEM',
+        title: status === 'APPROVED' ? '资产审核通过' : '资产审核未通过',
+        content: status === 'REJECTED' && rejectReason
+          ? `你上传的资产 "${asset.title}" 未通过审核，原因：${rejectReason}`
+          : `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+        userId: asset.userId,
+        link: '/assets',
+        category: 'SYSTEM'
+      });
+    }
+
+    res.json({ message: `成功更新 ${result.count} 个资产状态`, count: result.count });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { title, description, status, categoryId } = req.body;
+
+  try {
+    const asset = await prisma.asset.update({
+      where: { id },
+      data: { title, description, status, categoryId }
+    });
+    res.json(asset);
+  } catch (error) {
+    console.error('Admin update asset error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const adminDeleteAsset = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    const asset = await prisma.asset.findUnique({ where: { id } });
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Delete file from disk if exists
+    const fileName = asset.url.split('/').pop();
+    if (fileName) {
+      const filePath = path.join(__dirname, '../../uploads/assets', fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await prisma.asset.delete({ where: { id } });
+    res.json({ message: 'Asset deleted successfully by admin' });
+  } catch (error) {
+    console.error('Admin delete asset error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

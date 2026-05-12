@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get('/stats', taskController.getTaskStats);
 router.get('/', taskController.getAllTasks);
 router.post('/', taskController.createTask);
 router.put('/:id', taskController.updateTask);

@@ -4,22 +4,20 @@ import {
   AlertCircle, 
   Send, 
   Image as ImageIcon, 
-  Paperclip, 
   ChevronRight,
   Info,
   CheckCircle2,
   Bug,
   History,
   Clock,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 
-import { useAuthStore } from '@/stores/auth'
 import api from '@/utils/api'
 import { X } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const isUploading = ref(false)
 const previewUrl = ref('')
@@ -331,6 +329,22 @@ onMounted(() => {
                 <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4 line-clamp-2">
                   {{ item.description }}
                 </p>
+
+                <!-- Admin Reply Display -->
+                <div v-if="item.adminReply" class="mb-4 p-4 bg-rose-50/50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-900/20">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="p-1 bg-rose-100 dark:bg-rose-900/40 rounded-md">
+                        <MessageSquare class="w-3 h-3 text-rose-600" />
+                      </div>
+                      <span class="text-[10px] font-black uppercase text-rose-600 tracking-wider">官方回复</span>
+                    </div>
+                    <span v-if="item.repliedAt" class="text-[9px] text-slate-400 font-bold">
+                      {{ formatDate(item.repliedAt) }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-600 dark:text-slate-300 italic">{{ item.adminReply }}</p>
+                </div>
 
                 <div v-if="item.attachmentUrl" class="mb-4">
                   <a :href="item.attachmentUrl" target="_blank" class="flex items-center gap-2 text-[10px] font-bold text-rose-600 hover:text-rose-700 w-fit">

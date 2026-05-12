@@ -5,6 +5,9 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 class SocketService {
   private socket: Socket | null = null;
   private listeners: { event: string, callback: (...args: any[]) => void }[] = [];
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect() {
     const token = localStorage.getItem('token');
@@ -14,27 +17,43 @@ class SocketService {
 
     this.socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket']
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      timeout: 10000
     });
 
     this.socket.on('connect', () => {
-      console.log('Connected to WebSocket server');
-      // Re-register any listeners that were added before connection
+      this.reconnectAttempts = 0;
       this.listeners.forEach(({ event, callback }) => {
         this.socket?.on(event, callback);
       });
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
+    this.socket.on('disconnect', (reason) => {
+      if (reason === 'io server disconnect') {
+        this.socket?.connect();
+      }
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+    this.socket.on('connect_error', () => {
+      this.reconnectAttempts++;
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.error('Socket: 达到最大重连次数，停止重连');
+        this.disconnect();
+      }
     });
   }
 
   disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -50,25 +69,37 @@ class SocketService {
     if (this.socket) {
       this.socket.on(event, callback);
     }
-    // Always store in listeners to re-register on reconnect/late connect
     if (!this.listeners.some(l => l.event === event && l.callback === callback)) {
       this.listeners.push({ event, callback });
     }
   }
 
-  off(event: string, callback: (...args: any[]) => void) {
+  off(event: string, callback?: (...args: any[]) => void) {
     if (this.socket) {
-      this.socket.off(event, callback);
+      if (callback) {
+        this.socket.off(event, callback);
+      } else {
+        this.socket.off(event);
+      }
     }
-    this.listeners = this.listeners.filter(l => !(l.event === event && l.callback === callback));
+    if (callback) {
+      this.listeners = this.listeners.filter(l => !(l.event === event && l.callback === callback));
+    } else {
+      this.listeners = this.listeners.filter(l => l.event !== event);
+    }
   }
 
   emit(event: string, ...args: any[]) {
-    if (this.socket) {
+    if (this.socket?.connected) {
       this.socket.emit(event, ...args);
     } else {
-      console.warn(`Attempted to emit "${event}" but socket is not connected`);
+      console.warn(`Socket: 尝试发送 "${event}" 事件但未连接，正在重连...`);
+      this.connect();
     }
+  }
+
+  isConnected() {
+    return this.socket?.connected ?? false;
   }
 }
 

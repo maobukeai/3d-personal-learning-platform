@@ -4,9 +4,11 @@ import { useRouter } from 'vue-router'
 import { Mail, Lock, User, Eye, EyeOff, Chrome, Github, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { useSystemStore } from '@/stores/system'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const systemStore = useSystemStore()
 const showPassword = ref(false)
 const isLoading = ref(false)
 
@@ -43,7 +45,7 @@ const handleRegister = async () => {
       password: registerForm.value.password
     })
     ElMessage.success('账号创建成功，请登录！')
-    router.push('/login')
+    router.push({ path: '/login', query: { onboarding: 'true' } })
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '注册失败，请稍后重试')
   } finally {
@@ -118,7 +120,18 @@ const handleRegister = async () => {
           <p style="color: var(--text-secondary)">立即开始你的设计师成长之路</p>
         </div>
 
-        <div class="space-y-5">
+        <!-- Registration Closed Notice -->
+        <div v-if="systemStore.settings.ALLOW_REGISTRATION === false" class="mb-8 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center shrink-0 shadow-lg shadow-rose-200">
+            <Lock class="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-rose-600">注册已暂停</h3>
+            <p class="text-xs text-rose-400 font-medium">抱歉，目前平台已关闭新用户注册，请联系管理员或稍后再试。</p>
+          </div>
+        </div>
+
+        <div v-if="systemStore.settings.ALLOW_REGISTRATION !== false" class="space-y-5">
           <!-- Input Fields -->
           <div class="space-y-4">
             <div>

@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Users, Image as ImageIcon, Check } from 'lucide-vue-next'
 
+import api from '@/utils/api'
+
 const props = defineProps<{
   visible: boolean
 }>()
@@ -18,20 +20,26 @@ const handleClose = () => {
   emit('update:visible', false)
 }
 
-const handleCreate = () => {
+const handleCreate = async () => {
   if (!teamName.value) {
     ElMessage.warning('请输入团队名称')
     return
   }
   
   loading.value = true
-  // 模拟 API 调用
-  setTimeout(() => {
-    loading.value = false
+  try {
+    await api.post('/api/teams', {
+      name: teamName.value,
+      description: teamDescription.value
+    })
     ElMessage.success('团队创建成功！')
     emit('success')
     handleClose()
-  }, 1000)
+  } catch (error) {
+    ElMessage.error('创建团队失败')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

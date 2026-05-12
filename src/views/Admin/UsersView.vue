@@ -1,37 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { 
   Users, 
   Shield, 
-  Mail, 
-  Server, 
-  Settings as SettingsIcon,
-  Save,
-  RefreshCw,
   Search,
   MoreVertical,
   Trash2,
-  CheckCircle2,
-  AlertCircle
+  UserX,
+  UserCheck,
+  RefreshCw,
+  Mail,
+  Calendar,
+  Filter
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 
-const activeTab = ref('users')
 const users = ref<any[]>([])
 const isLoading = ref(false)
 const searchQuery = ref('')
-
-// System Settings State
-const systemSettings = ref({
-  SMTP_HOST: '',
-  SMTP_PORT: '465',
-  SMTP_USER: '',
-  SMTP_PASS: '',
-  SMTP_FROM: '',
-  PLATFORM_NAME: '3D Personal Learning Platform'
-})
-const isSavingSettings = ref(false)
+const roleFilter = ref('ALL')
 
 const fetchUsers = async () => {
   isLoading.value = true
@@ -45,39 +33,19 @@ const fetchUsers = async () => {
   }
 }
 
-const fetchSettings = async () => {
-  try {
-    const response = await api.get('/api/admin/settings')
-    const settingsMap = response.data.reduce((acc: any, curr: any) => {
-      acc[curr.key] = curr.value
-      return acc
-    }, {})
+const filteredUsers = computed(() => {
+  return users.value.filter(user => {
+    if (!user) return false
+    const matchesSearch = 
+      (user.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+       user.email?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+       false)
     
-    // Update local state with fetched values
-    Object.keys(systemSettings.value).forEach(key => {
-      if (settingsMap[key]) {
-        (systemSettings.value as any)[key] = settingsMap[key]
-      }
-    })
-  } catch (error) {
-    console.error('Failed to fetch settings')
-  }
-}
-
-const handleSaveSettings = async () => {
-  isSavingSettings.value = true
-  try {
-    const settingsArray = Object.entries(systemSettings.value).map(([key, value]) => ({
-      key, value
-    }))
-    await api.post('/api/admin/settings', { settings: settingsArray })
-    ElMessage.success('系统设置已保存')
-  } catch (error) {
-    ElMessage.error('保存失败')
-  } finally {
-    isSavingSettings.value = false
-  }
-}
+    const matchesRole = roleFilter.value === 'ALL' || user.role === roleFilter.value
+    
+    return matchesSearch && matchesRole
+  })
+})
 
 const handleRoleChange = async (user: any, newRole: string) => {
   try {
@@ -91,204 +59,156 @@ const handleRoleChange = async (user: any, newRole: string) => {
 
 const handleDeleteUser = (user: any) => {
   ElMessageBox.confirm(
-    `确定要删除用户 ${user.name || user.email} 吗？此操作不可逆。`,
-    '警告',
+    `确定要删除用户 ${user.name || user.email} 吗？此操作不可逆，将删除其所有相关数据。`,
+    '极端危险操作',
     {
-      confirmButtonText: '确定删除',
+      confirmButtonText: '确定永久删除',
       cancelButtonText: '取消',
-      type: 'warning',
+      type: 'error',
       confirmButtonClass: 'el-button--danger'
     }
   ).then(async () => {
     try {
       await api.delete(`/api/admin/users/${user.id}`)
       users.value = users.value.filter(u => u.id !== user.id)
-      ElMessage.success('用户已删除')
+      ElMessage.success('用户及其数据已从系统移除')
     } catch (error) {
       ElMessage.error('删除失败')
     }
   })
 }
 
-onMounted(() => {
-  fetchUsers()
-  fetchSettings()
-})
+onMounted(fetchUsers)
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+  <div class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300" style="background-color: var(--bg-app)">
     <!-- Header -->
-    <div class="h-16 px-8 border-b flex items-center justify-between shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-colors duration-300">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-          <Shield class="w-6 h-6" />
+    <div class="h-20 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+      <div class="flex items-center gap-4">
+        <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+          <Users class="w-6 h-6 text-indigo-600" />
         </div>
-        <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">管理后台</h1>
+        <div>
+          <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">全平台用户管理</h1>
+          <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">监控活跃用户、调整权限等级及账号清理</p>
+        </div>
       </div>
       
-      <div class="flex items-center gap-4">
-        <div v-if="activeTab === 'users'" class="relative">
-          <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input 
-            v-model="searchQuery"
-            type="text" 
-            placeholder="搜索用户..." 
-            class="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 transition-all w-64"
-          />
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-slate-200 transition-all">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">总计</span>
+          <span class="text-sm font-black text-indigo-600">{{ users.length }}</span>
         </div>
-        <button @click="fetchUsers" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
+        <button @click="fetchUsers" class="p-2.5 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors text-slate-400">
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
         </button>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- Sidebar -->
-      <div class="w-64 border-r p-4 space-y-2 shrink-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-colors duration-300">
-        <button 
-          @click="activeTab = 'users'"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-          :class="activeTab === 'users' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'"
-        >
-          <Users class="w-4 h-4" />
-          用户管理
-        </button>
-        <button 
-          @click="activeTab = 'settings'"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-          :class="activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'"
-        >
-          <SettingsIcon class="w-4 h-4" />
-          系统配置
-        </button>
+    <!-- Filters Bar -->
+    <div class="p-6 border-b shrink-0 transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-center">
+        <div class="relative w-full md:w-96">
+          <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input v-model="searchQuery" 
+                 type="text" 
+                 placeholder="按姓名或邮箱搜索用户..." 
+                 class="w-full pl-11 pr-4 py-3 rounded-2xl border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                 style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)" />
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <Filter class="w-4 h-4 text-slate-400" />
+            <select v-model="roleFilter" 
+                    class="px-4 py-2.5 rounded-xl border outline-none font-bold text-xs"
+                    style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)">
+              <option value="ALL">所有角色</option>
+              <option value="ADMIN">管理员</option>
+              <option value="INSTRUCTOR">导师</option>
+              <option value="USER">普通用户</option>
+            </select>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <!-- Panels -->
-      <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
-        <div class="max-w-6xl mx-auto">
-          
-          <!-- Users Panel -->
-          <div v-if="activeTab === 'users'" class="animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <table class="w-full text-left">
-                <thead>
-                  <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                    <th class="px-6 py-4">用户信息</th>
-                    <th class="px-6 py-4">权限角色</th>
-                    <th class="px-6 py-4">注册日期</th>
-                    <th class="px-6 py-4 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                  <tr v-for="user in users" :key="user.id" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td class="px-6 py-4">
-                      <div class="flex items-center gap-3">
-                        <img :src="user.avatarUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'" class="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-sm" />
-                        <div>
-                          <p class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ user.name || '未命名' }}</p>
-                          <p class="text-xs text-slate-400">{{ user.email }}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4">
-                      <el-tag :type="user.role === 'ADMIN' ? 'danger' : 'info'" size="small" class="font-bold">
-                        {{ user.role }}
-                      </el-tag>
-                    </td>
-                    <td class="px-6 py-4 text-xs text-slate-500">
-                      {{ new Date(user.createdAt).toLocaleDateString() }}
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                      <el-dropdown trigger="click">
-                        <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                          <MoreVertical class="w-4 h-4 text-slate-400" />
-                        </button>
-                        <template #dropdown>
-                          <el-dropdown-menu>
-                            <el-dropdown-item @click="handleRoleChange(user, 'USER')">设为普通用户</el-dropdown-item>
-                            <el-dropdown-item @click="handleRoleChange(user, 'ADMIN')">设为管理员</el-dropdown-item>
-                            <el-dropdown-item divided @click="handleDeleteUser(user)" class="text-rose-600">删除用户</el-dropdown-item>
-                          </el-dropdown-menu>
-                        </template>
-                      </el-dropdown>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-if="users.length === 0" class="py-20 flex flex-col items-center text-slate-400">
-                <Users class="w-12 h-12 mb-4 opacity-20" />
-                <p class="text-sm">暂无用户信息</p>
-              </div>
-            </div>
-          </div>
+    <!-- Users List -->
+    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+      <div class="max-w-7xl mx-auto">
+        <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
+          <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-sm font-bold text-slate-400">正在同步用户数据...</p>
+        </div>
 
-          <!-- Settings Panel -->
-          <div v-else-if="activeTab === 'settings'" class="animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-2xl">
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-              <div class="flex items-center justify-between mb-8">
-                <div>
-                  <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <Mail class="w-5 h-5 text-indigo-600" />
-                    SMTP 邮箱配置
-                  </h2>
-                  <p class="text-xs text-slate-400 mt-1">配置用于发送验证码、找回密码等系统邮件的 SMTP 服务器。</p>
-                </div>
-              </div>
-
-              <div class="space-y-6">
-                <div class="grid grid-cols-2 gap-6">
-                  <div class="col-span-1">
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">SMTP 服务器</label>
-                    <el-input v-model="systemSettings.SMTP_HOST" placeholder="smtp.example.com" />
-                  </div>
-                  <div class="col-span-1">
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">端口</label>
-                    <el-input v-model="systemSettings.SMTP_PORT" placeholder="465" />
-                  </div>
-                  <div class="col-span-2">
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">账号 (User)</label>
-                    <el-input v-model="systemSettings.SMTP_USER" placeholder="your-email@example.com" />
-                  </div>
-                  <div class="col-span-2">
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">密码 (Password/Auth Token)</label>
-                    <el-input v-model="systemSettings.SMTP_PASS" type="password" show-password />
-                  </div>
-                  <div class="col-span-2">
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">发件人地址 (From Email)</label>
-                    <el-input v-model="systemSettings.SMTP_FROM" placeholder="no-reply@example.com" />
-                  </div>
-                </div>
-
-                <div class="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
-                  <button class="px-6 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2">
-                    <AlertCircle class="w-4 h-4" /> 测试连接
-                  </button>
-                  <button 
-                    @click="handleSaveSettings"
-                    :disabled="isSavingSettings"
-                    class="px-8 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
-                  >
-                    <Save v-if="!isSavingSettings" class="w-4 h-4" />
-                    <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    {{ isSavingSettings ? '正在保存...' : '保存配置' }}
-                  </button>
-                </div>
-              </div>
-            </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div v-for="user in filteredUsers" :key="user.id" 
+               class="group rounded-3xl border p-6 transition-all hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900/40 relative overflow-hidden"
+               style="background-color: var(--bg-card); border-color: var(--border-base)">
             
-            <div class="mt-8 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-2xl p-6 flex gap-4">
-              <AlertCircle class="w-6 h-6 text-amber-500 shrink-0" />
-              <div>
-                <p class="text-sm font-bold text-amber-800 dark:text-amber-200">安全提示</p>
-                <p class="text-xs text-amber-700 dark:text-amber-400 mt-1 leading-relaxed">
-                  请确保使用的是专用的发件账号或授权码（如 QQ 邮箱/Gmail 的 APP Password）。不要在此处填写您的登录主密码。
-                </p>
+            <!-- Role Badge -->
+            <div class="absolute top-4 right-4">
+              <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm"
+                    :class="{
+                      'bg-rose-100 text-rose-600': user.role === 'ADMIN',
+                      'bg-blue-100 text-blue-600': user.role === 'INSTRUCTOR',
+                      'bg-slate-100 text-slate-500': user.role === 'USER'
+                    }">
+                {{ user.role }}
+              </span>
+            </div>
+
+            <div class="flex items-start gap-4 mb-6">
+              <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm shrink-0">
+                <img :src="user.avatarUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'" class="w-full h-full object-cover" />
+              </div>
+              <div class="min-w-0 pr-12">
+                <h3 class="font-bold text-lg truncate" style="color: var(--text-primary)">{{ user.name || '未命名用户' }}</h3>
+                <p class="text-xs text-slate-400 truncate">{{ user.email }}</p>
               </div>
             </div>
-          </div>
 
+            <div class="space-y-3 mb-6">
+              <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                <Calendar class="w-3.5 h-3.5" />
+                注册于 {{ new Date(user.createdAt).toLocaleDateString() }}
+              </div>
+              <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                <Shield class="w-3.5 h-3.5" />
+                用户 ID: {{ user.id.split('-')[0] }}...
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-4 border-t border-slate-50 dark:border-white/5">
+              <el-dropdown trigger="click" class="flex-1">
+                <button class="w-full py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-xs transition-all flex items-center justify-center gap-2">
+                  <Shield class="w-3.5 h-3.5" />
+                  修改权限
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click="handleRoleChange(user, 'USER')">设为普通用户</el-dropdown-item>
+                    <el-dropdown-item @click="handleRoleChange(user, 'INSTRUCTOR')">设为平台导师</el-dropdown-item>
+                    <el-dropdown-item @click="handleRoleChange(user, 'ADMIN')">设为管理员</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              
+              <button @click="handleDeleteUser(user)" 
+                      class="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm">
+                <Trash2 class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="filteredUsers.length === 0 && !isLoading" class="flex flex-col items-center justify-center py-24 text-center">
+          <div class="w-20 h-20 rounded-full bg-slate-50 dark:bg-white/5 flex items-center justify-center mb-6">
+            <Search class="w-10 h-10 text-slate-300" />
+          </div>
+          <h3 class="text-xl font-bold mb-2" style="color: var(--text-primary)">未找到匹配用户</h3>
+          <p class="text-sm text-slate-400 max-w-sm">尝试更换关键词或筛选条件再次搜索。</p>
         </div>
       </div>
     </div>
@@ -299,21 +219,8 @@ onMounted(() => {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slide-in-from-bottom-2 {
-  from { transform: translateY(0.5rem); }
-  to { transform: translateY(0); }
-}
-.animate-in {
-  animation-fill-mode: forwards;
-}
-.fade-in {
-  animation-name: fade-in;
-}
-.slide-in-from-bottom-2 {
-  animation-name: slide-in-from-bottom-2;
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

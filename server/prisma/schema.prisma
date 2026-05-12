@@ -32,6 +32,113 @@ model User {
   enrollments   Enrollment[]
   trustedDevices TrustedDevice[]
   feedbacks     Feedback[]
+  notifications Notification[]
+  tasks         Task[]
+  roadmapProgress UserRoadmapProgress[]
+  projects      ProjectMember[]
+  materials     Material[]
+  showcases     Showcase[]
+  showcaseLikes ShowcaseLike[]
+  showcaseComments ShowcaseComment[]
+  
+  // Messaging & Teams
+  conversations Conversation[] @relation("UserConversations")
+  messages      Message[]
+  messageReads  MessageRead[]
+  ownedTeams    Team[]         @relation("TeamOwner")
+  teamMemberships TeamMember[]
+}
+
+model Conversation {
+  id           String       @id @default(uuid())
+  name         String?      // Optional group name
+  isGroup      Boolean      @default(false)
+  participants User[]       @relation("UserConversations")
+  messages     Message[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  content        String
+  type           String       @default("TEXT") // 'TEXT', 'IMAGE', 'FILE'
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  readBy         MessageRead[]
+  createdAt      DateTime     @default(now())
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  ownerId     String
+  owner       User         @relation("TeamOwner", fields: [ownerId], references: [id])
+  members     TeamMember[]
+  invitations TeamInvitation[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER") // 'OWNER', 'ADMIN', 'MEMBER'
+  joinedAt  DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model TeamInvitation {
+  id           String   @id @default(uuid())
+  teamId       String
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviterId    String
+  inviteeEmail String
+  status       String   @default("PENDING") // 'PENDING', 'ACCEPTED', 'REJECTED'
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  type        String   // 'REPLY', 'COURSE_UPDATE', 'SYSTEM'
+  title       String
+  content     String
+  isRead      Boolean  @default(false)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link        String?  // Optional link to redirect user
+  broadcastId String?
+  broadcast   Broadcast? @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model Broadcast {
+  id            String         @id @default(uuid())
+  title         String
+  content       String
+  link          String?
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
 }
 
 model TrustedDevice {
@@ -63,6 +170,17 @@ model Asset {
   url         String
   thumbnail   String?
   type        String   // e.g., 'GLB', 'GLTF', 'FBX'
+  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  
+  // 3D Metadata
+  vertices    Int?
+  faces       Int?
+  materials   Int?
+  animations  Int?
+  hasAnimations Boolean @default(false)
+  size        Float?   // in MB
+  dimensions  String?  // e.g., "10x20x15"
+  
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
@@ -70,14 +188,15 @@ model Asset {
 }
 
 model Course {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   title       String
   description String?
   thumbnail   String?
   lessons     Lesson[]
   enrollments Enrollment[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  discussions Discussion[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Lesson {
@@ -85,6 +204,7 @@ model Lesson {
   title     String
   content   String?  // Markdown or HTML
   videoUrl  String?
+  hotspots  String?  // JSON string for 3D hotspots
   courseId  String
   course    Course   @relation(fields: [courseId], references: [id])
   order     Int
@@ -111,6 +231,8 @@ model Discussion {
   content   String
   userId    String
   user      User      @relation(fields: [userId], references: [id])
+  courseId  String?   // Optional: link to a course
+  course    Course?   @relation(fields: [courseId], references: [id])
   comments  Comment[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -133,6 +255,8 @@ model Task {
   description String?
   status      String   // 'TODO', 'IN_PROGRESS', 'DONE'
   dueDate     DateTime?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -149,4 +273,126 @@ model Feedback {
   user        User     @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model VerificationCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Roadmap {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  steps       RoadmapStep[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RoadmapStep {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  order       Int
+  roadmapId   String
+  roadmap     Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  userProgress UserRoadmapProgress[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserRoadmapProgress {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roadmapStepId String
+  roadmapStep   RoadmapStep @relation(fields: [roadmapStepId], references: [id], onDelete: Cascade)
+  completed     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([userId, roadmapStepId])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  progress    Int      @default(0)
+  status      String   @default("进行中") // '进行中', '已完成', '已暂停'
+  dueDate     DateTime?
+  color       String   @default("bg-accent")
+  tags        String?  // JSON string or comma separated
+  members     ProjectMember[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER") // 'OWNER', 'MEMBER'
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model Material {
+  id          String   @id @default(uuid())
+  title       String
+  category    String
+  resolution  String?  // '4K', '8K', '矢量', etc.
+  previewUrl  String?
+  fileUrl     String
+  tags        String?
+  isProcedural Boolean @default(false)
+  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Showcase {
+  id          String   @id @default(uuid())
+  title       String
+  thumbnailUrl String
+  videoUrl    String?
+  isVideo     Boolean  @default(false)
+  views       Int      @default(0)
+  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes       ShowcaseLike[]
+  comments    ShowcaseComment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ShowcaseLike {
+  id         String   @id @default(uuid())
+  showcaseId String
+  showcase   Showcase @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([showcaseId, userId])
+}
+
+model ShowcaseComment {
+  id         String   @id @default(uuid())
+  content    String
+  showcaseId String
+  showcase   Showcase @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

@@ -16,14 +16,35 @@ interface User {
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null as User | null,
+    user: JSON.parse(localStorage.getItem('user') || 'null') as User | null,
     token: localStorage.getItem('token') || '',
     deviceToken: localStorage.getItem('deviceToken') || '',
+    onlineUserIds: new Set<string>(),
+    unreadMessagesCount: 0,
   }),
   getters: {
     isAuthenticated: (state) => !!state.token,
+    isUserOnline: (state) => (userId: string) => state.onlineUserIds.has(userId),
   },
   actions: {
+    setUnreadMessagesCount(count: number) {
+      this.unreadMessagesCount = count;
+    },
+    incrementUnreadMessagesCount() {
+      this.unreadMessagesCount++;
+    },
+    setOnlineUsers(ids: string[]) {
+      this.onlineUserIds = new Set(ids);
+    },
+    updateUserStatus(userId: string, status: 'online' | 'offline') {
+      if (status === 'online') {
+        this.onlineUserIds.add(userId);
+      } else {
+        this.onlineUserIds.delete(userId);
+      }
+      // Force reactivity by re-assigning (Set reactivity can be tricky in some Vue versions)
+      this.onlineUserIds = new Set(this.onlineUserIds);
+    },
     async login(credentials: any) {
       try {
         const response = await api.post('/api/auth/login', {
@@ -34,6 +55,7 @@ export const useAuthStore = defineStore('auth', {
           this.token = response.data.token;
           this.user = response.data.user;
           localStorage.setItem('token', this.token);
+          localStorage.setItem('user', JSON.stringify(this.user));
         }
         return response.data;
       } catch (error) {
@@ -52,6 +74,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.get('/api/auth/me');
         this.user = response.data;
+        localStorage.setItem('user', JSON.stringify(this.user));
       } catch (error) {
         this.logout();
       }
@@ -60,6 +83,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.put('/api/auth/profile', profileData);
         this.user = response.data;
+        localStorage.setItem('user', JSON.stringify(this.user));
         return response.data;
       } catch (error) {
         throw error;
@@ -75,6 +99,7 @@ export const useAuthStore = defineStore('auth', {
           }
         });
         this.user = response.data;
+        localStorage.setItem('user', JSON.stringify(this.user));
         return response.data;
       } catch (error) {
         throw error;
@@ -99,7 +124,10 @@ export const useAuthStore = defineStore('auth', {
     async enable2FA(code: string) {
       try {
         const response = await api.post('/api/auth/2fa/enable', { code });
-        if (this.user) this.user.twoFactorEnabled = true;
+        if (this.user) {
+          this.user.twoFactorEnabled = true;
+          localStorage.setItem('user', JSON.stringify(this.user));
+        }
         return response.data;
       } catch (error) {
         throw error;
@@ -108,7 +136,10 @@ export const useAuthStore = defineStore('auth', {
     async disable2FA() {
       try {
         const response = await api.post('/api/auth/2fa/disable');
-        if (this.user) this.user.twoFactorEnabled = false;
+        if (this.user) {
+          this.user.twoFactorEnabled = false;
+          localStorage.setItem('user', JSON.stringify(this.user));
+        }
         return response.data;
       } catch (error) {
         throw error;
@@ -120,6 +151,7 @@ export const useAuthStore = defineStore('auth', {
         this.token = response.data.token;
         this.user = response.data.user;
         localStorage.setItem('token', this.token);
+        localStorage.setItem('user', JSON.stringify(this.user));
         if (response.data.deviceToken) {
           this.deviceToken = response.data.deviceToken;
           localStorage.setItem('deviceToken', this.deviceToken);
@@ -156,7 +188,10 @@ export const useAuthStore = defineStore('auth', {
     async verifyEmail(code: string) {
       try {
         const response = await api.post('/api/auth/email/verify', { code });
-        if (this.user) this.user.emailVerified = true;
+        if (this.user) {
+          this.user.emailVerified = true;
+          localStorage.setItem('user', JSON.stringify(this.user));
+        }
         return response.data;
       } catch (error) {
         throw error;
@@ -176,6 +211,7 @@ export const useAuthStore = defineStore('auth', {
         if (this.user) {
           this.user.email = response.data.user.email;
           this.user.emailVerified = response.data.user.emailVerified;
+          localStorage.setItem('user', JSON.stringify(this.user));
         }
         return response.data;
       } catch (error) {
@@ -186,6 +222,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null;
       this.token = '';
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
   }
 });

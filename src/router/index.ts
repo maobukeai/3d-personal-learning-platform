@@ -83,6 +83,11 @@ const router = createRouter({
           component: () => import('@/views/Assets/ProjectsView.vue')
         },
         {
+          path: 'team/:id',
+          name: 'TeamDetail',
+          component: () => import('@/views/Community/TeamDetailView.vue')
+        },
+        {
           path: 'materials',
           name: 'Materials',
           component: () => import('@/views/Assets/MaterialsView.vue')
@@ -108,20 +113,64 @@ const router = createRouter({
           component: () => import('@/views/Support/ReportBugView.vue')
         },
         {
-          path: 'academy-player',
+          path: 'academy/player/:id',
           name: 'AcademyPlayer',
           component: () => import('@/views/Learning/AcademyPlayerView.vue')
         },
         // Admin Routes
         {
+          path: 'admin/dashboard',
+          name: 'AdminDashboard',
+          component: () => import('@/views/Admin/AdminDashboardView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
           path: 'admin/users',
           name: 'AdminUsers',
-          component: () => import('@/views/Admin/UsersView.vue')
+          component: () => import('@/views/Admin/UsersView.vue'),
+          meta: { requiresAdmin: true }
         },
         {
           path: 'admin/feedback',
           name: 'AdminFeedback',
-          component: () => import('@/views/Admin/FeedbackView.vue')
+          component: () => import('@/views/Admin/FeedbackView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/assets',
+          name: 'AdminAssets',
+          component: () => import('@/views/Admin/AdminAssetsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/roadmaps',
+          name: 'AdminRoadmaps',
+          component: () => import('@/views/Admin/AdminRoadmapsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/courses',
+          name: 'AdminCourses',
+          component: () => import('@/views/Admin/AdminCoursesView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/teams',
+          name: 'AdminTeams',
+          component: () => import('@/views/Admin/AdminTeamsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/audits',
+          name: 'AdminAudits',
+          component: () => import('@/views/Admin/AdminAuditsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/settings',
+          name: 'AdminSettings',
+          component: () => import('@/views/Admin/AdminSettingsView.vue'),
+          meta: { requiresAdmin: true }
         }
       ]
     }
@@ -132,8 +181,8 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore()
   const token = localStorage.getItem('token')
 
-  if (token && !authStore.isAuthenticated) {
-    authStore.token = token
+  // If we have a token but no user, or if we just want to ensure the session is fresh
+  if (token && !authStore.user) {
     await authStore.fetchMe()
   }
 
@@ -142,6 +191,10 @@ router.beforeEach(async (to) => {
   } 
   
   if (to.meta.guestOnly && authStore.isAuthenticated) {
+    return { name: 'Dashboard' }
+  }
+
+  if (to.meta.requiresAdmin && authStore.user?.role !== 'ADMIN') {
     return { name: 'Dashboard' }
   }
 })

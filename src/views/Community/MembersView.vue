@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { 
   Search, 
   Users, 
@@ -10,76 +10,63 @@ import {
   ShieldCheck,
   Circle
 } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
+import api from '@/utils/api'
+import { useRouter } from 'vue-router'
+import { socketService } from '@/utils/socket'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
+const router = useRouter()
 const searchQuery = ref('')
 const activeFilter = ref('全部')
+const members = ref<any[]>([])
+const isLoading = ref(false)
 
-const filters = ['全部', '管理员', '设计师', '学习者']
+const filters = ['全部', 'ADMIN', 'USER']
+const roleLabels: Record<string, string> = {
+  'ADMIN': '管理员',
+  'USER': '学习者'
+}
 
-const members = [
-  {
-    id: 1,
-    name: '设计师小王 (你)',
-    email: 'admin@3dlearn.com',
-    role: '管理员',
-    status: '在线',
-    avatar: 'https://i.pravatar.cc/150?img=11',
-    joinedDate: '2026-01-15'
-  },
-  {
-    id: 2,
-    name: 'Sarah Chen',
-    email: 'sarah.c@3dlearn.com',
-    role: '设计师',
-    status: '忙碌',
-    avatar: 'https://i.pravatar.cc/150?img=32',
-    joinedDate: '2026-02-10'
-  },
-  {
-    id: 3,
-    name: 'Alex Rivera',
-    email: 'alex.r@3dlearn.com',
-    role: '设计师',
-    status: '离线',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    joinedDate: '2026-03-05'
-  },
-  {
-    id: 4,
-    name: 'David Wilson',
-    email: 'david.w@3dlearn.com',
-    role: '学习者',
-    status: '在线',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-    joinedDate: '2026-04-20'
-  },
-  {
-    id: 5,
-    name: 'Emily Zhang',
-    email: 'emily.z@3dlearn.com',
-    role: '学习者',
-    status: '在线',
-    avatar: 'https://i.pravatar.cc/150?img=25',
-    joinedDate: '2026-05-01'
+const fetchMembers = async () => {
+  isLoading.value = true
+  try {
+    const response = await api.get('/api/auth/users/public')
+    members.value = response.data
+  } catch (error) {
+    ElMessage.error('获取成员列表失败')
+  } finally {
+    isLoading.value = false
   }
-]
+}
 
 const filteredMembers = computed(() => {
-  return members.filter(member => {
-    const matchesSearch = member.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                          member.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+  return members.value.filter(member => {
+    const name = (member.name || '').toLowerCase()
+    const email = member.email.toLowerCase()
+    const matchesSearch = name.includes(searchQuery.value.toLowerCase()) ||
+                          email.includes(searchQuery.value.toLowerCase())
     const matchesFilter = activeFilter.value === '全部' || member.role === activeFilter.value
     return matchesSearch && matchesFilter
   })
 })
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case '在线': return 'text-emerald-500'
-    case '忙碌': return 'text-amber-500'
-    default: return 'text-slate-300 dark:text-slate-600'
+const handleChatWithMember = async (member: any) => {
+  try {
+    await api.post('/api/messages/conversations', {
+      participantIds: [member.id],
+      isGroup: false
+    })
+    router.push('/messages')
+  } catch (error) {
+    ElMessage.error('无法发起对话')
   }
 }
+
+onMounted(() => {
+  fetchMembers()
+})
 </script>
 
 <template>
@@ -87,10 +74,10 @@ const getStatusColor = (status: string) => {
     <!-- Header -->
     <div class="h-16 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
       <div class="flex items-center gap-3">
-        <div class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-          <Users class="w-5 h-5 text-purple-600 dark:text-purple-400" />
+        <div class="p-2 bg-purple-50 rounded-lg">
+          <Users class="w-5 h-5 text-purple-600" />
         </div>
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">团队成员</h1>
+        <h1 class="text-xl font-bold" style="color: var(--text-primary)">平台成员</h1>
       </div>
       
       <div class="flex items-center gap-4">
@@ -105,7 +92,7 @@ const getStatusColor = (status: string) => {
           />
         </div>
         <button class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2">
-          <UserPlus class="w-4 h-4" /> 邀请成员
+          <UserPlus class="w-4 h-4" /> 邀请伙伴
         </button>
       </div>
     </div>
@@ -121,7 +108,7 @@ const getStatusColor = (status: string) => {
           :class="activeFilter === filter ? 'bg-slate-800 dark:bg-accent text-white' : 'hover:opacity-80'"
           :style="activeFilter !== filter ? 'color: var(--text-secondary); background-color: var(--bg-app)' : ''"
         >
-          {{ filter }}
+          {{ roleLabels[filter] || filter }}
         </button>
       </div>
     </div>
@@ -133,7 +120,7 @@ const getStatusColor = (status: string) => {
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="border-b transition-colors duration-300" style="background-color: var(--bg-app); border-color: var(--border-base)">
-              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted)">成员姓名</th>
+              <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted)">成员信息</th>
               <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted)">角色</th>
               <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted)">状态</th>
               <th class="px-6 py-4 text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted)">加入时间</th>
@@ -144,31 +131,31 @@ const getStatusColor = (status: string) => {
             <tr v-for="member in filteredMembers" :key="member.id" class="hover:opacity-90 transition-colors group">
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
-                  <img :src="member.avatar" class="w-10 h-10 rounded-full border transition-colors duration-300" style="border-color: var(--border-base)" />
+                  <img :src="member.avatarUrl || `https://ui-avatars.com/api/?name=${member.name || member.email}`" class="w-10 h-10 rounded-full border transition-colors duration-300" style="border-color: var(--border-base)" />
                   <div>
-                    <p class="text-sm font-bold" style="color: var(--text-primary)">{{ member.name }}</p>
+                    <p class="text-sm font-bold" style="color: var(--text-primary)">{{ member.name || '未设置昵称' }}</p>
                     <p class="text-xs" style="color: var(--text-muted)">{{ member.email }}</p>
                   </div>
                 </div>
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center gap-1.5">
-                  <ShieldCheck v-if="member.role === '管理员'" class="w-3.5 h-3.5 text-accent" />
-                  <span class="text-xs font-bold" style="color: var(--text-secondary)">{{ member.role }}</span>
+                  <ShieldCheck v-if="member.role === 'ADMIN'" class="w-3.5 h-3.5 text-accent" />
+                  <span class="text-xs font-bold" style="color: var(--text-secondary)">{{ roleLabels[member.role] || member.role }}</span>
                 </div>
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center gap-2">
-                  <Circle class="w-2 h-2 fill-current" :class="getStatusColor(member.status)" />
-                  <span class="text-xs font-bold" style="color: var(--text-secondary)">{{ member.status }}</span>
+                  <Circle class="w-2 h-2 fill-current" :class="authStore.isUserOnline(member.id) ? 'text-emerald-500' : 'text-slate-300'" />
+                  <span class="text-xs font-bold" style="color: var(--text-secondary)">{{ authStore.isUserOnline(member.id) ? '在线' : '离线' }}</span>
                 </div>
               </td>
               <td class="px-6 py-4 text-xs font-bold" style="color: var(--text-secondary)">
-                {{ member.joinedDate }}
+                {{ new Date(member.createdAt).toLocaleDateString() }}
               </td>
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button class="p-2 hover:text-accent hover:bg-accent-subtle rounded-lg transition-all" 
+                  <button @click="handleChatWithMember(member)" class="p-2 hover:text-accent hover:bg-accent-subtle rounded-lg transition-all" 
                           style="color: var(--text-muted)" title="发送消息">
                     <MessageSquare class="w-4 h-4" />
                   </button>

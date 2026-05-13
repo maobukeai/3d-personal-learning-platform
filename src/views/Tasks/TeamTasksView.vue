@@ -49,7 +49,8 @@ const isDrawerOpen = ref(false)
 const isEditMode = ref(false)
 const projectForm = ref({
   id: '', title: '', description: '', dueDate: '', color: 'bg-accent',
-  tags: '', progress: 0, status: '进行中', visibility: 'PRIVATE', maxMembers: 10
+  tags: '', progress: 0, status: 'IN_PROGRESS', visibility: 'PRIVATE', maxMembers: 10,
+  memberIds: [] as string[], inviteUserIds: [] as string[]
 })
 
 const colors = [
@@ -60,7 +61,17 @@ const colors = [
   { name: '蔷薇红', value: 'bg-rose-500' },
   { name: '品牌色', value: 'bg-accent' },
 ]
-const statusOptions = ['规划中', '进行中', '已暂停', '已完成']
+
+const statusOptions = [
+  { value: 'PLANNED', label: '规划中' },
+  { value: 'IN_PROGRESS', label: '进行中' },
+  { value: 'PAUSED', label: '已暂停' },
+  { value: 'COMPLETED', label: '已完成' }
+]
+
+const getStatusLabel = (status: string) => {
+  return statusOptions.find(o => o.value === status)?.label || status
+}
 
 const isTaskDialogOpen = ref(false)
 const taskForm = ref({ title: '', description: '', assigneeId: '', dueDate: '', priority: 'MEDIUM', projectId: '', teamId: '', participantIds: [] as string[] })
@@ -79,8 +90,8 @@ const columns = [
 
 const projectStats = computed(() => {
   const total = projects.value.length
-  const active = projects.value.filter(p => p.status === '进行中').length
-  const completed = projects.value.filter(p => p.status === '已完成').length
+  const active = projects.value.filter(p => p.status === 'IN_PROGRESS').length
+  const completed = projects.value.filter(p => p.status === 'COMPLETED').length
   const completionRate = total ? Math.round((completed / total) * 100) : 0
   return { total, active, completed, completionRate }
 })
@@ -232,7 +243,12 @@ const fetchAll = async () => {
 
 const openAddDrawer = () => {
   isEditMode.value = false
-  projectForm.value = { id: '', title: '', description: '', dueDate: '', color: 'bg-accent', tags: '', progress: 0, status: '规划中', visibility: 'PRIVATE', maxMembers: 10 }
+  projectForm.value = { 
+    id: '', title: '', description: '', dueDate: '', color: 'bg-accent', 
+    tags: '', progress: 0, status: 'PLANNED', visibility: 'PRIVATE', maxMembers: 10,
+    memberIds: [], inviteUserIds: []
+  }
+  fetchTeamMembers()
   isDrawerOpen.value = true
 }
 
@@ -242,9 +258,11 @@ const openEditDrawer = (project: any) => {
     id: project.id, title: project.title, description: project.description || '',
     dueDate: project.dueDate || '', color: project.color || 'bg-accent',
     tags: project.tags || '', progress: project.progress || 0,
-    status: project.status || '进行中', visibility: project.visibility || 'PRIVATE',
-    maxMembers: project.maxMembers || 10
+    status: project.status || 'IN_PROGRESS', visibility: project.visibility || 'PRIVATE',
+    maxMembers: project.maxMembers || 10,
+    memberIds: [], inviteUserIds: []
   }
+  fetchTeamMembers()
   isDrawerOpen.value = true
 }
 
@@ -540,11 +558,11 @@ onMounted(fetchAll)
                       </div>
                     </div>
                     <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider"
-                         :class="project.status === '已完成' ? 'bg-emerald-500/10 text-emerald-500' : project.status === '进行中' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
-                      <CheckCircle2 v-if="project.status === '已完成'" class="w-3.5 h-3.5" />
-                      <Activity v-else-if="project.status === '进行中'" class="w-3.5 h-3.5" />
+                         :class="project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : project.status === 'IN_PROGRESS' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
+                      <CheckCircle2 v-if="project.status === 'COMPLETED'" class="w-3.5 h-3.5" />
+                      <Activity v-else-if="project.status === 'IN_PROGRESS'" class="w-3.5 h-3.5" />
                       <Clock v-else class="w-3.5 h-3.5" />
-                      {{ project.status }}
+                      {{ getStatusLabel(project.status) }}
                     </div>
                   </div>
                 </div>
@@ -588,8 +606,8 @@ onMounted(fetchAll)
                       </td>
                       <td class="px-8 py-6">
                         <span class="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider"
-                              :class="project.status === '已完成' ? 'bg-emerald-500/10 text-emerald-500' : project.status === '进行中' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
-                          {{ project.status }}
+                              :class="project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : project.status === 'IN_PROGRESS' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
+                          {{ getStatusLabel(project.status) }}
                         </span>
                       </td>
                       <td class="px-8 py-6">
@@ -831,7 +849,7 @@ onMounted(fetchAll)
           <div>
             <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">当前状态</label>
             <el-select v-model="projectForm.status" class="!w-full custom-select">
-              <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
+              <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
             </el-select>
           </div>
           <div>
@@ -860,6 +878,31 @@ onMounted(fetchAll)
         <div>
           <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">分类标签 (逗号分隔)</label>
           <input v-model="projectForm.tags" type="text" class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold" style="border-color: var(--border-base); color: var(--text-primary)" placeholder="如：3D建模, WebGL, 内部工具" />
+        </div>
+
+        <div v-if="!isEditMode && teamMembers.length > 0">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">直接加入的成员</label>
+          <el-select v-model="projectForm.memberIds" multiple placeholder="选择直接加入的成员" class="!w-full custom-select">
+            <el-option v-for="m in teamMembers" :key="m.id" :label="m.name || m.email" :value="m.id">
+              <div class="flex items-center gap-3">
+                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <span class="font-bold">{{ m.name || m.email }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
+
+        <div v-if="!isEditMode && teamMembers.length > 0">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">发送邀请的成员</label>
+          <el-select v-model="projectForm.inviteUserIds" multiple placeholder="选择要邀请的成员" class="!w-full custom-select">
+            <el-option v-for="m in teamMembers" :key="m.id" :label="m.name || m.email" :value="m.id">
+              <div class="flex items-center gap-3">
+                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <span class="font-bold">{{ m.name || m.email }}</span>
+              </div>
+            </el-option>
+          </el-select>
+          <p class="text-[10px] text-slate-400 mt-2 ml-1">被邀请的成员将收到通知，可自行决定是否加入</p>
         </div>
       </div>
       <template #footer>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { MdEditor, MdPreview } from 'md-editor-v3'
+import { useI18n } from 'vue-i18n'
 import 'md-editor-v3/lib/style.css'
 
+const { locale } = useI18n()
 const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
@@ -10,7 +12,7 @@ const props = withDefaults(defineProps<{
   previewOnly?: boolean
 }>(), {
   placeholder: '请输入内容，支持 Markdown 格式...',
-  height: '400px',
+  height: '500px',
   previewOnly: false
 })
 
@@ -24,14 +26,43 @@ const text = computed({
 })
 
 const editorId = ref(`md-editor-${Date.now()}`)
+
+const editorLanguage = computed(() => {
+  return locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
+})
+
+const isDark = ref(document.documentElement.classList.contains('dark'))
+let observer: MutationObserver | null = null
+
+onMounted(() => {
+  observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        isDark.value = document.documentElement.classList.contains('dark')
+      }
+    })
+  })
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+  }
+})
 </script>
 
 <template>
-  <div class="markdown-editor-wrapper">
+  <div class="markdown-editor-wrapper" :class="{ 'is-dark': isDark }">
     <MdPreview
       v-if="previewOnly"
       :id="editorId"
       :model-value="modelValue"
+      :theme="isDark ? 'dark' : 'light'"
       class="md-preview-custom"
     />
     <MdEditor
@@ -40,7 +71,8 @@ const editorId = ref(`md-editor-${Date.now()}`)
       :id="editorId"
       :placeholder="placeholder"
       :style="{ height }"
-      language="zh-CN"
+      :theme="isDark ? 'dark' : 'light'"
+      :language="editorLanguage"
       :preview="true"
       :toolbarsExclude="['github', 'htmlPreview', 'catalog']"
     />
@@ -48,10 +80,16 @@ const editorId = ref(`md-editor-${Date.now()}`)
 </template>
 
 <style>
+.markdown-editor-wrapper {
+  --md-bk-color: var(--bg-card);
+  --md-color: var(--text-primary);
+}
+
 .md-preview-custom {
   background: transparent !important;
   font-size: 14px;
   line-height: 1.8;
+  color: var(--text-primary) !important;
 }
 
 .md-preview-custom .md-editor-preview-wrapper {
@@ -61,29 +99,40 @@ const editorId = ref(`md-editor-${Date.now()}`)
 .markdown-editor-wrapper .md-editor {
   border-radius: 1rem;
   overflow: hidden;
-  border: 1px solid var(--border-base, #e5e7eb);
-}
-
-.markdown-editor-wrapper .md-editor--dark {
-  --md-bk-color: var(--bg-app, #1e1e1e);
+  border: 1px solid var(--border-base, #e5e7eb) !important;
+  background-color: var(--bg-card) !important;
 }
 
 .markdown-editor-wrapper .md-editor-toolbar-wrapper {
-  background-color: var(--bg-card, #fff) !important;
+  background-color: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-base) !important;
 }
 
 .markdown-editor-wrapper .md-editor-content {
-  background-color: var(--bg-card, #fff) !important;
+  background-color: var(--bg-card) !important;
 }
 
 .markdown-editor-wrapper .md-editor-input {
-  background-color: var(--bg-app, #f9fafb) !important;
-  color: var(--text-primary, #111827) !important;
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
   font-size: 14px !important;
 }
 
 .markdown-editor-wrapper .md-editor-preview {
-  background-color: var(--bg-card, #fff) !important;
-  color: var(--text-primary, #111827) !important;
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode specific adjustments */
+.markdown-editor-wrapper.is-dark .md-editor {
+  --md-bk-color: var(--bg-card);
+}
+
+.markdown-editor-wrapper.is-dark .md-editor-toolbar-item svg {
+  fill: var(--text-secondary);
+}
+
+.markdown-editor-wrapper.is-dark .md-editor-toolbar-item:hover svg {
+  fill: var(--accent);
 }
 </style>

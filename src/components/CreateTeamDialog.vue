@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Plus, Users, Check } from 'lucide-vue-next'
 
 import api from '@/utils/api'
 
+const { t } = useI18n()
 const props = defineProps<{
   visible: boolean
 }>()
@@ -13,11 +15,17 @@ const emit = defineEmits(['update:visible', 'success'])
 
 const teamName = ref('')
 const teamDescription = ref('')
-const teamCategory = ref('建模')
+const teamCategory = ref('modeling')
 const teamType = ref('public')
 const loading = ref(false)
 
-const categories = ['建模', '渲染', '动画', '材质', '游戏引擎']
+const categories = computed(() => [
+  { label: t('categories.modeling'), value: 'modeling' },
+  { label: t('categories.rendering'), value: 'rendering' },
+  { label: t('categories.animation'), value: 'animation' },
+  { label: t('categories.materials'), value: 'materials' },
+  { label: t('categories.gameEngine'), value: 'gameEngine' }
+])
 
 const handleClose = () => {
   emit('update:visible', false)
@@ -25,7 +33,7 @@ const handleClose = () => {
 
 const handleCreate = async () => {
   if (!teamName.value) {
-    ElMessage.warning('请输入团队名称')
+    ElMessage.warning(t('team.nameRequired'))
     return
   }
   
@@ -37,7 +45,7 @@ const handleCreate = async () => {
       category: teamCategory.value,
       visibility: teamType.value === 'public' ? 'PUBLIC' : 'PRIVATE'
     })
-    ElMessage.success('团队创建成功！')
+    ElMessage.success(t('team.createSuccess'))
     emit('success', team)  // pass team object so caller can navigate to /team/:id
     handleClose()
     // Reset form
@@ -45,7 +53,7 @@ const handleCreate = async () => {
     teamDescription.value = ''
     teamType.value = 'public'
   } catch (error) {
-    ElMessage.error('创建团队失败')
+    ElMessage.error(t('team.createFailed'))
   } finally {
     loading.value = false
   }
@@ -56,41 +64,41 @@ const handleCreate = async () => {
   <el-dialog
     :model-value="visible"
     @update:model-value="(val: any) => emit('update:visible', val)"
-    title="创建新团队"
+    :title="t('team.createTitle')"
     width="500px"
     class="custom-rounded-dialog"
     :show-close="true"
   >
     <div class="space-y-6 py-2">
       <div class="space-y-2">
-        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">团队名称</label>
+        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{ t('team.name') }}</label>
         <input 
           v-model="teamName"
           type="text" 
-          placeholder="例如：3D 建模进阶小组"
+          :placeholder="t('team.namePlaceholder')"
           class="w-full px-5 py-3 rounded-2xl border-2 border-slate-100 focus:border-accent focus:ring-4 focus:ring-accent-subtle outline-none transition-all placeholder:text-slate-300"
         >
       </div>
 
       <div class="space-y-2">
-        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">团队描述</label>
+        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{ t('team.description') }}</label>
         <textarea 
           v-model="teamDescription"
           rows="3"
-          placeholder="简要介绍一下你的团队..."
+          :placeholder="t('team.descriptionPlaceholder')"
           class="w-full px-5 py-3 rounded-2xl border-2 border-slate-100 focus:border-accent focus:ring-4 focus:ring-accent-subtle outline-none transition-all resize-none placeholder:text-slate-300"
         ></textarea>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">团队分类</label>
-        <el-select v-model="teamCategory" class="w-full custom-select" placeholder="选择团队分类">
-          <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
+        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{ t('team.category') }}</label>
+        <el-select v-model="teamCategory" class="w-full custom-select" :placeholder="t('team.categoryPlaceholder')">
+          <el-option v-for="cat in categories" :key="cat.value" :label="cat.label" :value="cat.value" />
         </el-select>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">团队类型</label>
+        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{ t('team.type') }}</label>
         <div class="grid grid-cols-2 gap-4">
           <button 
             @click="teamType = 'public'"
@@ -103,7 +111,7 @@ const handleCreate = async () => {
                 <Check class="w-3 h-3 text-white" />
               </div>
             </div>
-            <span class="text-sm font-black text-slate-900">公开</span>
+            <span class="text-sm font-black text-slate-900">{{ t('team.public') }}</span>
           </button>
 
           <button 
@@ -117,7 +125,7 @@ const handleCreate = async () => {
                 <Check class="w-3 h-3 text-white" />
               </div>
             </div>
-            <span class="text-sm font-black text-slate-900">私密</span>
+            <span class="text-sm font-black text-slate-900">{{ t('team.private') }}</span>
           </button>
         </div>
       </div>
@@ -129,14 +137,14 @@ const handleCreate = async () => {
           @click="handleClose"
           class="px-6 py-2.5 rounded-full font-bold text-slate-500 hover:bg-slate-100 transition-colors"
         >
-          取消
+          {{ t('common.cancel') }}
         </button>
         <button 
           @click="handleCreate"
           :disabled="loading"
           class="px-8 py-2.5 rounded-full font-bold text-white bg-accent hover:bg-accent shadow-xl shadow-accent/20 transition-all disabled:opacity-50 active:scale-95"
         >
-          {{ loading ? '创建中...' : '立即创建' }}
+          {{ loading ? t('common.loading') : t('common.confirm') }}
         </button>
       </div>
     </template>

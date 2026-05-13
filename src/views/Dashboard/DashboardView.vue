@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { 
   BookOpen, 
   Users, 
@@ -17,15 +18,24 @@ import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { socketService } from '@/utils/socket'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
 const stats = ref([
-  { label: '整体学习进度', value: '0%', trend: '0%', color: 'text-accent', icon: TrendingUp },
-  { label: '待办学习任务', value: '0', trend: '0', color: 'text-amber-600', icon: Calendar },
-  { label: '资产库作品', value: '0', trend: '0', color: 'text-emerald-600', icon: Box },
-  { label: '反馈记录', value: '0', trend: '0', color: 'text-purple-600', icon: MessageSquare },
+  { label: t('dashboard.stats.learningProgress'), value: '0%', trend: '0%', color: 'text-accent', icon: TrendingUp },
+  { label: t('dashboard.stats.pendingTasks'), value: '0', trend: '0', color: 'text-amber-600', icon: Calendar },
+  { label: t('dashboard.stats.assets'), value: '0', trend: '0', color: 'text-emerald-600', icon: Box },
+  { label: t('dashboard.stats.feedback'), value: '0', trend: '0', color: 'text-purple-600', icon: MessageSquare },
 ])
+
+// Re-initialize labels when language changes
+watch(() => t('dashboard.stats.learningProgress'), () => {
+  stats.value[0].label = t('dashboard.stats.learningProgress')
+  stats.value[1].label = t('dashboard.stats.pendingTasks')
+  stats.value[2].label = t('dashboard.stats.assets')
+  stats.value[3].label = t('dashboard.stats.feedback')
+})
 
 const activeEnrollment = ref<any>(null)
 const activityLog = ref<any[]>([])
@@ -99,12 +109,12 @@ const handleAddTask = async () => {
   if (!newTask.value.title) return
   try {
     await api.post('/api/tasks', newTask.value)
-    ElMessage.success('任务已添加')
+    ElMessage.success(t('dashboard.addTaskSuccess'))
     isAddDialogOpen.value = false
     newTask.value = { title: '', description: '', status: 'TODO', dueDate: '' }
     fetchDashboardData()
   } catch (error) {
-    ElMessage.error('添加任务失败')
+    ElMessage.error(t('dashboard.addTaskFailed'))
   }
 }
 
@@ -113,9 +123,9 @@ const formatTime = (date: string) => {
   const then = new Date(date)
   const diff = now.getTime() - then.getTime()
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 60) return `${minutes}分钟前`
+  if (minutes < 60) return t('dashboard.time.minutesAgo', { n: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}小时前`
+  if (hours < 24) return t('dashboard.time.hoursAgo', { n: hours })
   return then.toLocaleDateString()
 }
 
@@ -156,15 +166,15 @@ const handleActivityClick = (log: any) => {
     <!-- Dashboard Header -->
     <div class="h-20 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
       <div>
-        <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">工作台概览</h1>
-        <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">欢迎回来，今天准备学习什么新技能？</p>
+        <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">{{ t('dashboard.title') }}</h1>
+        <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">{{ t('dashboard.welcome') }}</p>
       </div>
       <div class="flex items-center gap-3">
         <el-date-picker
           v-model="selectedDate"
           type="date"
           class="!w-40 custom-date-picker"
-          placeholder="选择日期"
+          :placeholder="t('dashboard.selectDate')"
           :clearable="false"
           :disabled-date="disabledDate"
           popper-class="custom-date-popper"

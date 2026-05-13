@@ -11,8 +11,10 @@ router.get('/stats', adminController.getAdminStats);
 router.get('/settings', adminController.getSettings);
 router.post('/settings', adminController.updateSettings);
 router.post('/settings/test-smtp', adminController.testSmtp);
+router.get('/audit-logs', adminController.getAuditLogs);
 
 router.get('/users', adminController.getUsers);
+router.post('/users', adminController.createUser);
 router.put('/users/:id', adminController.updateUser);
 router.post('/users/:id/reset-password', adminController.resetUserPassword);
 router.put('/users/:id/role', adminController.updateUserRole);
@@ -71,6 +73,7 @@ router.delete('/materials/:id', adminController.adminDeleteMaterial);
 
 // Showcase audit
 router.get('/showcases', adminController.getAllShowcasesForAdmin);
+router.put('/showcases/batch-status', adminController.batchUpdateShowcaseStatus);
 router.put('/showcases/:id/status', adminController.updateShowcaseStatus);
 router.delete('/showcases/:id', adminController.adminDeleteShowcase);
 

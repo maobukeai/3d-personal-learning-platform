@@ -5,6 +5,7 @@ import { emitToUser, emitToAll } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import fs from 'fs';
 import path from 'path';
+import { process3DAsset } from '../utils/asset-processor';
 
 export const uploadAsset = async (req: AuthRequest, res: Response) => {
   try {
@@ -34,6 +35,13 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
     }
 
+    // Process 3D metadata if it's a 3D model
+    let metadata = null;
+    if (type === 'GLB' || type === 'GLTF') {
+      const fullPath = path.join(__dirname, '../../uploads/assets', assetFile.filename);
+      metadata = await process3DAsset(fullPath);
+    }
+
     const asset = await prisma.asset.create({
       data: {
         title: title || assetFile.originalname,
@@ -45,6 +53,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         categoryId,
         userId: req.userId as string,
         teamId: req.workspaceId,
+        ...(metadata || {})
       },
       include: { category: true }
     });

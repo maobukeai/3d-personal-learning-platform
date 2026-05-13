@@ -392,7 +392,8 @@ onMounted(() => {
     <el-dialog
       v-model="showCreateDialog"
       :title="editingNote ? '编辑笔记' : '写笔记'"
-      width="800px"
+      width="80%"
+      top="5vh"
       class="custom-rounded-dialog"
       destroy-on-close
     >
@@ -406,9 +407,9 @@ onMounted(() => {
           <el-input v-model="formCategory" placeholder="分类（可选）" class="w-40" />
           <el-input v-model="formTags" placeholder="标签，逗号分隔" class="flex-1" />
         </div>
-        <el-input v-model="formSummary" placeholder="摘要（可选）" type="textarea" :rows="2" />
-        <div class="min-h-[300px]">
-          <MarkdownEditor v-model="formContent" />
+        <el-input v-model="formSummary" placeholder="摘要（可选）" type="textarea" :rows="3" />
+        <div class="min-h-[600px]">
+          <MarkdownEditor v-model="formContent" height="600px" />
         </div>
       </div>
       <template #footer>
@@ -422,7 +423,8 @@ onMounted(() => {
     <el-dialog
       v-model="showDetailDialog"
       :title="detailNote?.title || '笔记详情'"
-      width="800px"
+      width="80%"
+      top="5vh"
       class="custom-rounded-dialog"
       destroy-on-close
     >
@@ -450,7 +452,9 @@ onMounted(() => {
           {{ detailNote.summary }}
         </div>
 
-        <div class="prose prose-sm max-w-none text-[var(--text-primary)]" v-html="detailNote.content" />
+        <div class="min-h-[200px]">
+          <MarkdownEditor :model-value="detailNote.content" preview-only />
+        </div>
 
         <div v-if="parseTags(detailNote).length" class="flex flex-wrap gap-1 pt-3 border-t border-[var(--border-base)]">
           <el-tag v-for="tag in parseTags(detailNote)" :key="tag" size="small" round>

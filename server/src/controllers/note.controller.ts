@@ -78,7 +78,7 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
           },
           likes: {
             where: { userId: req.userId },
-            select: { id: true }
+            select: { userId: true }
           }
         },
         orderBy,
@@ -122,7 +122,7 @@ export const getPopularNotes = async (req: AuthRequest, res: Response) => {
         },
         likes: {
           where: { userId: req.userId },
-          select: { id: true }
+          select: { userId: true }
         }
       },
       orderBy: [
@@ -170,7 +170,7 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
         },
         likes: {
           where: { userId: req.userId },
-          select: { id: true }
+          select: { userId: true }
         }
       }
     });
@@ -257,7 +257,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
         },
         likes: {
           where: { userId: req.userId },
-          select: { id: true }
+          select: { userId: true }
         }
       }
     });

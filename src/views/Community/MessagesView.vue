@@ -28,6 +28,8 @@ import {
   Trash2
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
+import InvitationDialog from '@/components/InvitationDialog.vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { socketService } from '@/utils/socket'
@@ -46,8 +48,7 @@ const isLoadingMessages = ref(false)
 const isUploading = ref(false)
 
 const isProfileDialogOpen = ref(false)
-const selectedUserProfile = ref<any>(null)
-const isLoadingProfile = ref(false)
+const selectedUserId = ref<string | null>(null)
 
 const isInfoPanelOpen = ref(false)
 
@@ -84,18 +85,9 @@ const conversationContextMenu = ref<{ visible: boolean; x: number; y: number; co
 
 const isDragOver = ref(false)
 
-const openUserProfile = async (userId: string) => {
+const openUserProfile = (userId: string) => {
+  selectedUserId.value = userId
   isProfileDialogOpen.value = true
-  isLoadingProfile.value = true
-  try {
-    const response = await api.get(`/api/auth/users/${userId}`)
-    selectedUserProfile.value = response.data
-  } catch (error) {
-    ElMessage.error('获取用户信息失败')
-    isProfileDialogOpen.value = false
-  } finally {
-    isLoadingProfile.value = false
-  }
 }
 
 const filteredMessages = computed(() => {
@@ -1369,94 +1361,11 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
     </el-dialog>
 
     <!-- User Profile Dialog -->
-    <el-dialog
+    <UserProfileDialog
       v-model="isProfileDialogOpen"
-      width="440px"
-      class="custom-dialog profile-dialog"
-      :show-close="false"
-      destroy-on-close
-    >
-      <div v-if="isLoadingProfile" class="py-20 text-center">
-        <div class="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
-      </div>
-      <template v-else-if="selectedUserProfile">
-        <div class="h-32 bg-gradient-to-br from-accent to-indigo-600 relative -mx-8 -mt-6 mb-12">
-          <button @click="isProfileDialogOpen = false" class="absolute top-4 right-4 p-2 bg-black/20 text-white rounded-xl hover:bg-black/40 transition-all">
-            <X class="w-4 h-4" />
-          </button>
-        </div>
-        <div class="px-2 pb-2 -mt-20 relative">
-          <img :src="selectedUserProfile.avatarUrl || `https://ui-avatars.com/api/?name=${selectedUserProfile.name || selectedUserProfile.email}`" class="w-24 h-24 rounded-3xl border-4 object-cover shadow-xl mb-4" style="border-color: var(--bg-card)" />
-          <div class="flex items-center justify-between mb-2">
-            <div>
-              <h3 class="text-2xl font-bold" style="color: var(--text-primary)">{{ selectedUserProfile.name || '未命名用户' }}</h3>
-              <p class="text-sm" style="color: var(--text-muted)">{{ selectedUserProfile.email }}</p>
-            </div>
-            <div class="px-3 py-1 bg-accent/10 text-accent rounded-full text-xs font-bold">
-              {{ selectedUserProfile.role === 'ADMIN' ? '管理员' : '正式成员' }}
-            </div>
-          </div>
-
-          <p class="text-sm mt-4 mb-6 italic" style="color: var(--text-secondary)">
-            {{ selectedUserProfile.bio || '这位小伙伴很神秘，什么都没写~' }}
-          </p>
-
-          <div class="grid grid-cols-2 gap-4 mb-8">
-            <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-2xl">
-              <div class="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent">
-                <MapPin class="w-5 h-5" />
-              </div>
-              <div class="min-w-0">
-                <p class="text-[10px] text-slate-400 font-bold uppercase">所在地</p>
-                <p class="text-xs font-bold truncate" style="color: var(--text-primary)">{{ selectedUserProfile.location || '未知' }}</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-2xl">
-              <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500">
-                <Calendar class="w-5 h-5" />
-              </div>
-              <div class="min-w-0">
-                <p class="text-[10px] text-slate-400 font-bold uppercase">加入时间</p>
-                <p class="text-xs font-bold truncate" style="color: var(--text-primary)">{{ new Date(selectedUserProfile.createdAt).toLocaleDateString() }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-around py-6 border-y mb-8" style="border-color: var(--border-base)">
-            <div class="text-center">
-              <div class="flex items-center gap-2 mb-1 justify-center">
-                <Box class="w-4 h-4 text-accent" />
-                <span class="text-xl font-black" style="color: var(--text-primary)">{{ selectedUserProfile._count?.assets || 0 }}</span>
-              </div>
-              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">发布资产</p>
-            </div>
-            <div class="w-px h-8 bg-slate-200 dark:bg-slate-800"></div>
-            <div class="text-center">
-              <div class="flex items-center gap-2 mb-1 justify-center">
-                <MessageSquare class="w-4 h-4 text-emerald-500" />
-                <span class="text-xl font-black" style="color: var(--text-primary)">{{ selectedUserProfile._count?.discussions || 0 }}</span>
-              </div>
-              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">发起讨论</p>
-            </div>
-            <div v-if="selectedUserProfile.website" class="w-px h-8 bg-slate-200 dark:bg-slate-800"></div>
-            <div v-if="selectedUserProfile.website" class="text-center">
-              <a :href="selectedUserProfile.website" target="_blank" class="flex items-center gap-2 mb-1 justify-center group">
-                <LinkIcon class="w-4 h-4 text-orange-500 group-hover:scale-110 transition-all" />
-              </a>
-              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">个人主页</p>
-            </div>
-          </div>
-
-          <button 
-            @click="startNewChat(selectedUserProfile); isProfileDialogOpen = false" 
-            class="w-full py-4 bg-accent text-white rounded-2xl font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-          >
-            <MessageSquare class="w-5 h-5" />
-            立即联系
-          </button>
-        </div>
-      </template>
-    </el-dialog>
+      :user-id="selectedUserId"
+      @chat="startNewChat"
+    />
   </div>
 </template>
 

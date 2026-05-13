@@ -29,10 +29,18 @@ export const getLessonById = async (req: AuthRequest, res: Response) => {
 };
 
 export const createLesson = async (req: AuthRequest, res: Response) => {
-  const { title, content, videoUrl, courseId, order } = req.body;
+  const { title, content, videoUrl, courseId, order, hotspots, sceneConfig } = req.body;
   try {
     const lesson = await prisma.lesson.create({
-      data: { title, content, videoUrl, courseId, order }
+      data: { 
+        title, 
+        content, 
+        videoUrl, 
+        courseId, 
+        order,
+        hotspots: hotspots ? (typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots)) : null,
+        sceneConfig: sceneConfig ? (typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig)) : null
+      }
     });
     res.status(201).json(lesson);
   } catch (error) {
@@ -42,11 +50,19 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
 
 export const updateLesson = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { title, content, videoUrl, order } = req.body;
+  const { title, content, videoUrl, order, hotspots, sceneConfig } = req.body;
   try {
+    const updateData: any = { title, content, videoUrl, order };
+    if (hotspots !== undefined) {
+      updateData.hotspots = typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots);
+    }
+    if (sceneConfig !== undefined) {
+      updateData.sceneConfig = typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig);
+    }
+
     const lesson = await prisma.lesson.update({
       where: { id },
-      data: { title, content, videoUrl, order }
+      data: updateData
     });
     res.json(lesson);
   } catch (error) {

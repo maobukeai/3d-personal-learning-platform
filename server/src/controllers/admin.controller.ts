@@ -2,6 +2,7 @@ import { Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import dns from 'dns';
 import nodemailer from 'nodemailer';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -10,6 +11,25 @@ import { parseBilibiliUrl } from '../utils/bilibili';
 import { parseYoutubeUrl } from '../utils/youtube';
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { parseGithubUrl } from '../utils/github';
+
+/**
+ * 自定义 DNS 查找：绕过 Mihomo/Clash TUN Fake-IP 劫持
+ * 直接使用国内公共 DNS 查询真实 IP
+ */
+function resolveSmtpRealIp(hostname: string): Promise<string> {
+  return new Promise((resolve) => {
+    const resolver = new dns.Resolver();
+    resolver.setServers(['119.29.29.29', '223.5.5.5', '8.8.8.8']);
+    resolver.resolve4(hostname, (err, addresses) => {
+      if (!err && addresses && addresses.length > 0) {
+        resolve(addresses[0]);
+      } else {
+        resolve(hostname);
+      }
+    });
+  });
+}
+
 
 export const parseExternalLink = async (req: AuthRequest, res: Response) => {
   const { url } = req.body;
@@ -142,9 +162,12 @@ export const getAdminStats = async (req: AuthRequest, res: Response) => {
   }
 };
 
+import { settingsService } from '../services/settings.service';
+import { auditService, AuditModule, AuditAction } from '../services/audit.service';
+
 export const getSettings = async (req: AuthRequest, res: Response) => {
   try {
-    const settings = await prisma.systemSetting.findMany();
+    const settings = await settingsService.getAll();
     res.json(settings);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -153,20 +176,32 @@ export const getSettings = async (req: AuthRequest, res: Response) => {
 
 export const updateSettings = async (req: AuthRequest, res: Response) => {
   try {
-    const { settings } = req.body; // Expecting [{key, value}, ...]
-    console.log('[Admin Settings] Updating settings:', settings);
+    const { settings } = req.body; // Expecting { key: value, ... } or [{key, value}, ...]
     
-    const updates = settings.map((s: { key: string, value: string }) => 
-      prisma.systemSetting.upsert({
-        where: { key: s.key },
-        update: { value: s.value },
-        create: { key: s.key, value: s.value }
-      })
-    );
+    const oldSettings = await settingsService.getAll();
+    let settingsObj: any = {};
 
-    await Promise.all(updates);
+    if (Array.isArray(settings)) {
+      settings.forEach((s: any) => { settingsObj[s.key] = s.value; });
+    } else {
+      settingsObj = settings;
+    }
+
+    await settingsService.updateMany(settingsObj);
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_SETTINGS,
+      module: AuditModule.SETTINGS,
+      description: '管理员更新了全局系统设置',
+      oldValue: oldSettings,
+      newValue: settingsObj,
+      req
+    });
+
     res.json({ message: '设置已成功保存' });
   } catch (error) {
+    console.error('Update Settings Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -182,10 +217,11 @@ export const testSmtp = async (req: AuthRequest, res: Response) => {
     const isSecure = secure === true || secure === 'true';
     const portNum = parseInt(port) || 465;
 
-    console.log(`[SMTP Test] Attempting connection: ${host}:${portNum}, secure: ${isSecure}`);
+    const realIp = await resolveSmtpRealIp(host);
+    console.log(`[SMTP Test] Attempting connection: ${host}(${realIp}):${portNum}, secure: ${isSecure}`);
 
     const transporter = nodemailer.createTransport({
-      host,
+      host: realIp,
       port: portNum,
       secure: isSecure,
       auth: {
@@ -193,14 +229,13 @@ export const testSmtp = async (req: AuthRequest, res: Response) => {
         pass,
       },
       tls: {
-        // Essential for security, should be true
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.2'
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2',
+        servername: host,
       },
-      // Essential for Gmail to prevent early connection drops
-      connectionTimeout: 20000,
-      greetingTimeout: 20000,
-      socketTimeout: 20000,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
     });
 
     // Detailed verification
@@ -246,6 +281,11 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
         status: true,
         avatarUrl: true,
         createdAt: true,
+        subscription: {
+          include: {
+            plan: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -255,11 +295,137 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const createUser = async (req: AuthRequest, res: Response) => {
+  const { name, email, password, role } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: '邮箱和密码为必填项' });
+  }
+
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: '该邮箱已被注册' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: role || 'USER',
+          status: 'ACTIVE',
+          emailVerified: true
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+          createdAt: true
+        }
+      });
+
+      // 1. 创建个人工作区（PERSONAL 类型团队）
+      await tx.team.create({
+        data: {
+          name: `${name || user.email} 的个人空间`,
+          description: '个人专属创作与协作空间',
+          type: 'PERSONAL',
+          visibility: 'PRIVATE',
+          ownerId: user.id,
+          members: {
+            create: {
+              userId: user.id,
+              role: 'OWNER'
+            }
+          }
+        }
+      });
+
+      // 2. 查找或创建公共空间 - 使用并发安全的方式
+      let publicTeam = await tx.team.findUnique({
+        where: { name_type: { name: '公共空间', type: 'TEAM' } }
+      });
+
+      if (!publicTeam) {
+        // 尝试创建公共空间，如果并发创建失败则重新查找
+        try {
+          publicTeam = await tx.team.create({
+            data: {
+              name: '公共空间',
+              description: '全站公共协作与创作空间',
+              type: 'TEAM',
+              visibility: 'PUBLIC',
+              ownerId: user.id,
+              members: {
+                create: {
+                  userId: user.id,
+                  role: 'OWNER'
+                }
+              }
+            }
+          });
+        } catch (e) {
+          // 如果唯一约束冲突，说明有其他请求先创建了公共空间，重新查找
+          publicTeam = await tx.team.findUnique({
+            where: { name_type: { name: '公共空间', type: 'TEAM' } }
+          });
+          if (!publicTeam) {
+            throw e; // 如果还是找不到，抛出原始错误
+          }
+        }
+      }
+
+      // 将用户添加到公共团队作为成员
+      if (publicTeam.ownerId !== user.id) {
+        await tx.teamMember.upsert({
+          where: {
+            teamId_userId: {
+              teamId: publicTeam.id,
+              userId: user.id
+            }
+          },
+          update: {},
+          create: {
+            teamId: publicTeam.id,
+            userId: user.id,
+            role: 'MEMBER'
+          }
+        });
+      }
+
+      return user;
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.CREATE_USER,
+      module: AuditModule.USER,
+      description: `管理员创建了新用户 ${result.email}`,
+      newValue: result,
+      req
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const updateUser = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { name, email, role, status } = req.body;
 
   try {
+    const oldUser = await prisma.user.findUnique({ where: { id } });
+    if (!oldUser) return res.status(404).json({ error: '用户不存在' });
+
     // Prevent self-demotion or self-banning if you are an admin
     if (id === req.userId && (role !== 'ADMIN' || status === 'BANNED')) {
       return res.status(400).json({ error: '不能修改自己的管理员权限或封禁自己' });
@@ -270,6 +436,17 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       data: { name, email, role, status },
       select: { id: true, email: true, name: true, role: true, status: true }
     });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_USER,
+      module: AuditModule.USER,
+      description: `管理员更新了用户 ${updatedUser.email} 的资料`,
+      oldValue: oldUser,
+      newValue: updatedUser,
+      req
+    });
+
     res.json(updatedUser);
   } catch (error) {
     console.error('Update user error:', error);
@@ -286,11 +463,23 @@ export const resetUserPassword = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
       where: { id },
       data: { password: hashedPassword }
     });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.RESET_PASSWORD,
+      module: AuditModule.USER,
+      description: `管理员重置了用户 ${user.email} 的密码`,
+      req
+    });
+
     res.json({ message: '用户密码已成功重置' });
   } catch (error) {
     console.error('Reset password error:', error);
@@ -308,11 +497,25 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    const oldUser = await prisma.user.findUnique({ where: { id } });
+    if (!oldUser) return res.status(404).json({ error: '用户不存在' });
+
     const updatedUser = await prisma.user.update({
       where: { id },
       data: { role },
       select: { id: true, email: true, name: true, role: true }
     });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_USER,
+      module: AuditModule.USER,
+      description: `管理员修改了用户 ${updatedUser.email} 的角色为 ${role}`,
+      oldValue: { role: oldUser.role },
+      newValue: { role },
+      req
+    });
+
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -342,6 +545,16 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.user.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.DELETE_USER,
+      module: AuditModule.USER,
+      description: `管理员删除了用户 ${userToDelete.email}`,
+      oldValue: userToDelete,
+      req
+    });
+
     res.json({ message: 'User deleted successfully' });
   } catch (error: any) {
     console.error('Delete user error:', error);
@@ -535,7 +748,12 @@ export const deleteRoadmapStep = async (req: AuthRequest, res: Response) => {
 export const getAllCourseCategories = async (req: AuthRequest, res: Response) => {
   try {
     const categories = await prisma.courseCategory.findMany({
-      orderBy: { order: 'asc' }
+      orderBy: { order: 'asc' },
+      include: {
+        _count: {
+          select: { courses: true }
+        }
+      }
     });
     res.json(categories);
   } catch (error) {
@@ -642,10 +860,19 @@ export const deleteCourse = async (req: AuthRequest, res: Response) => {
 };
 
 export const createLesson = async (req: AuthRequest, res: Response) => {
-  const { courseId, title, content, videoUrl, order, duration } = req.body;
+  const { courseId, title, content, videoUrl, order, duration, hotspots, sceneConfig } = req.body;
   try {
     const lesson = await prisma.lesson.create({
-      data: { courseId, title, content, videoUrl, order: parseInt(order), duration: duration ? parseInt(duration) : 0 }
+      data: { 
+        courseId, 
+        title, 
+        content, 
+        videoUrl, 
+        order: parseInt(order), 
+        duration: duration ? parseInt(duration) : 0,
+        hotspots: hotspots ? (typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots)) : null,
+        sceneConfig: sceneConfig ? (typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig)) : null
+      }
     });
     res.status(201).json(lesson);
   } catch (error) {
@@ -655,11 +882,17 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
 
 export const updateLesson = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { title, content, videoUrl, order, duration } = req.body;
+  const { title, content, videoUrl, order, duration, hotspots, sceneConfig } = req.body;
   try {
     const updateData: any = { title, content, videoUrl };
     if (order !== undefined) updateData.order = parseInt(order);
     if (duration !== undefined) updateData.duration = parseInt(duration);
+    if (hotspots !== undefined) {
+      updateData.hotspots = typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots);
+    }
+    if (sceneConfig !== undefined) {
+      updateData.sceneConfig = typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig);
+    }
 
     const lesson = await prisma.lesson.update({
       where: { id },
@@ -870,6 +1103,9 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    const oldMaterial = await prisma.material.findUnique({ where: { id } });
+    if (!oldMaterial) return res.status(404).json({ error: 'Material not found' });
+
     const updateData: any = { status };
     if (status === 'REJECTED' && rejectReason) {
       updateData.rejectReason = rejectReason;
@@ -881,6 +1117,16 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response) => {
     const material = await prisma.material.update({
       where: { id },
       data: updateData
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: status === 'APPROVED' ? AuditAction.APPROVE_MATERIAL : AuditAction.REJECT_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `管理员${status === 'APPROVED' ? '批准' : '拒绝'}了材料: ${material.title}`,
+      oldValue: { status: oldMaterial.status },
+      newValue: { status, rejectReason },
+      req
     });
 
     await createNotification({
@@ -1004,28 +1250,82 @@ export const getAllShowcasesForAdmin = async (req: AuthRequest, res: Response) =
 
 export const updateShowcaseStatus = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { status } = req.body; // 'APPROVED', 'REJECTED'
+  const { status, rejectReason } = req.body; // 'APPROVED', 'REJECTED'
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
 
   try {
+    const oldShowcase = await prisma.showcase.findUnique({ where: { id } });
+    if (!oldShowcase) return res.status(404).json({ error: 'Showcase not found' });
+
     const showcase = await prisma.showcase.update({
       where: { id },
       data: { status }
     });
 
+    await auditService.log({
+      userId: req.userId as string,
+      action: status === 'APPROVED' ? AuditAction.APPROVE_SHOWCASE : AuditAction.REJECT_SHOWCASE,
+      module: AuditModule.SHOWCASE,
+      description: `管理员${status === 'APPROVED' ? '批准' : '拒绝'}了作品: ${showcase.title}`,
+      oldValue: { status: oldShowcase.status },
+      newValue: { status, rejectReason },
+      req
+    });
+
     await createNotification({
       type: 'SYSTEM',
       title: status === 'APPROVED' ? '作品审核通过' : '作品审核未通过',
-      content: `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+      content: status === 'REJECTED' && rejectReason
+        ? `你发布的作品 "${showcase.title}" 未通过审核，原因：${rejectReason}`
+        : `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
       userId: showcase.userId,
       link: '/showcase',
       category: 'SYSTEM'
     });
 
     res.json(showcase);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const batchUpdateShowcaseStatus = async (req: AuthRequest, res: Response) => {
+  const { ids, status, rejectReason } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: '请选择至少一个作品' });
+  }
+
+  if (!['APPROVED', 'REJECTED'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  try {
+    const result = await prisma.showcase.updateMany({
+      where: { id: { in: ids } },
+      data: { status }
+    });
+
+    const showcases = await prisma.showcase.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, title: true, userId: true }
+    });
+
+    await createNotificationBatch(showcases.map(showcase => ({
+      type: 'SYSTEM',
+      title: status === 'APPROVED' ? '作品审核通过' : '作品审核未通过',
+      content: status === 'REJECTED' && rejectReason
+        ? `你发布的作品 "${showcase.title}" 未通过审核，原因：${rejectReason}`
+        : `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+      userId: showcase.userId,
+      link: '/showcase',
+      category: 'SYSTEM'
+    })));
+
+    res.json({ message: `成功更新 ${result.count} 个作品状态`, count: result.count });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -1317,6 +1617,40 @@ export const getAllTransactions = async (req: AuthRequest, res: Response) => {
     });
     res.json(transactions);
   } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getAuditLogs = async (req: AuthRequest, res: Response) => {
+  try {
+    const { page = 1, limit = 50, module, action } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = {};
+    if (module) where.module = module as string;
+    if (action) where.action = action as string;
+
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        include: {
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.auditLog.count({ where })
+    ]);
+
+    res.json({
+      logs,
+      total,
+      pages: Math.ceil(total / Number(limit)),
+      currentPage: Number(page)
+    });
+  } catch (error) {
+    console.error('Get Audit Logs Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

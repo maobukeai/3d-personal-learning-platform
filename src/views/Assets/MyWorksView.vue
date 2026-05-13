@@ -27,6 +27,7 @@ import ModelViewer from '@/components/ModelViewer.vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail'
 import { useRouter } from 'vue-router'
+import PublishWorkDialog from '@/components/PublishWorkDialog.vue'
 
 const router = useRouter()
 const searchQuery = ref('')
@@ -38,6 +39,8 @@ const isPreviewOpen = ref(false)
 const isAutoRotating = ref(true)
 const viewMode = ref<'grid' | 'list'>('grid')
 const sortBy = ref('newest')
+
+const isPublishWorkDialogOpen = ref(false)
 
 const sortOptions = [
   { label: '最新上传', value: 'newest' },
@@ -67,8 +70,25 @@ const stats = computed(() => {
 const fetchMyAssets = async () => {
   isLoading.value = true
   try {
-    const response = await api.get('/api/assets/my')
-    assets.value = response.data
+    const [assetsRes, showcasesRes] = await Promise.all([
+      api.get('/api/assets/my'),
+      api.get('/api/showcase/my')
+    ])
+    
+    const independentShowcases = showcasesRes.data
+      .filter((s: any) => !s.assetId)
+      .map((s: any) => ({
+        ...s,
+        isIndependentShowcase: true,
+        url: s.videoUrl || s.thumbnailUrl || '',
+        thumbnail: s.thumbnailUrl || '',
+        type: s.type || 'IMAGE',
+        size: 0,
+        status: s.status || 'APPROVED',
+        category: { name: '创意作品' }
+      }))
+
+    assets.value = [...assetsRes.data, ...independentShowcases]
   } catch (error) {
     ElMessage.error('获取作品失败')
   } finally {
@@ -138,7 +158,7 @@ const openPreview = (asset: any) => {
 }
 
 const handleMetadataLoaded = async (metadata: any) => {
-  if (!selectedAsset.value) return
+  if (!selectedAsset.value || selectedAsset.value.isIndependentShowcase) return
   if (!selectedAsset.value.vertices || selectedAsset.value.vertices !== metadata.vertices) {
     try {
       const response = await api.patch(`/api/assets/${selectedAsset.value.id}/metadata`, metadata)
@@ -164,7 +184,11 @@ const handleDeleteWork = (work: any) => {
     }
   ).then(async () => {
     try {
-      await api.delete(`/api/assets/${work.id}`)
+      if (work.isIndependentShowcase) {
+        await api.delete(`/api/showcase/${work.id}`)
+      } else {
+        await api.delete(`/api/assets/${work.id}`)
+      }
       assets.value = assets.value.filter(w => w.id !== work.id)
       if (isPreviewOpen.value && selectedAsset.value?.id === work.id) {
         isPreviewOpen.value = false
@@ -177,68 +201,6 @@ const handleDeleteWork = (work: any) => {
 }
 
 const assetCategories = ref<any[]>([])
-
-const isUploadDialogOpen = ref(false)
-const uploadForm = ref({
-  title: '',
-  description: '',
-  categoryId: '',
-  file: null as File | null,
-  thumbnail: null as File | null
-})
-const isUploading = ref(false)
-
-const handleFileChange = (e: any) => {
-  const file = e.target.files[0]
-  if (file) {
-    uploadForm.value.file = file
-    if (!uploadForm.value.title) {
-      uploadForm.value.title = file.name.split('.')[0]
-    }
-  }
-}
-
-const handleThumbnailChange = (e: any) => {
-  const file = e.target.files[0]
-  if (file) {
-    uploadForm.value.thumbnail = file
-  }
-}
-
-const handleUpload = async () => {
-  if (!uploadForm.value.file) {
-    ElMessage.warning('请选择文件')
-    return
-  }
-  if (!uploadForm.value.categoryId) {
-    ElMessage.warning('请选择资源分类')
-    return
-  }
-
-  isUploading.value = true
-  const formData = new FormData()
-  formData.append('asset', uploadForm.value.file)
-  if (uploadForm.value.thumbnail) {
-    formData.append('thumbnail', uploadForm.value.thumbnail)
-  }
-  formData.append('title', uploadForm.value.title)
-  formData.append('description', uploadForm.value.description)
-  formData.append('categoryId', uploadForm.value.categoryId)
-
-  try {
-    await api.post('/api/assets/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    ElMessage.success('上传成功，请等待管理员审核')
-    isUploadDialogOpen.value = false
-    uploadForm.value = { title: '', description: '', categoryId: '', file: null, thumbnail: null }
-    fetchMyAssets()
-  } catch (error) {
-    ElMessage.error('上传失败')
-  } finally {
-    isUploading.value = false
-  }
-}
 
 const isEditDialogOpen = ref(false)
 const editForm = ref({
@@ -266,17 +228,29 @@ const handleSaveEdit = async () => {
   }
   isSaving.value = true
   try {
-    const response = await api.patch(`/api/assets/${editForm.value.id}`, {
-      title: editForm.value.title,
-      description: editForm.value.description,
-      categoryId: editForm.value.categoryId || null
-    })
+    const targetAsset = assets.value.find(a => a.id === editForm.value.id)
+    let updatedData = {}
+    if (targetAsset?.isIndependentShowcase) {
+      const response = await api.put(`/api/showcase/${editForm.value.id}`, {
+        title: editForm.value.title,
+        description: editForm.value.description
+      })
+      updatedData = response.data
+    } else {
+      const response = await api.patch(`/api/assets/${editForm.value.id}`, {
+        title: editForm.value.title,
+        description: editForm.value.description,
+        categoryId: editForm.value.categoryId || null
+      })
+      updatedData = response.data
+    }
+
     const index = assets.value.findIndex(a => a.id === editForm.value.id)
     if (index !== -1) {
-      assets.value[index] = { ...assets.value[index], ...response.data }
+      assets.value[index] = { ...assets.value[index], ...updatedData }
     }
     if (selectedAsset.value?.id === editForm.value.id) {
-      selectedAsset.value = { ...selectedAsset.value, ...response.data }
+      selectedAsset.value = { ...selectedAsset.value, ...updatedData }
     }
     ElMessage.success('作品信息已更新')
     isEditDialogOpen.value = false
@@ -362,8 +336,8 @@ onMounted(() => {
         <button @click="goToShowcase" class="border px-4 py-2 rounded-xl text-sm font-bold hover:opacity-80 transition-all flex items-center gap-2" style="border-color: var(--border-base); color: var(--text-secondary)">
           <SendHorizonal class="w-4 h-4" /> 作品展示
         </button>
-        <button @click="isUploadDialogOpen = true" class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center gap-2">
-          <Plus class="w-4 h-4" /> 上传作品
+        <button @click="isPublishWorkDialogOpen = true" class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center gap-2">
+          <Plus class="w-4 h-4" /> 上传/发布作品
         </button>
       </div>
     </div>
@@ -478,7 +452,7 @@ onMounted(() => {
                         style="background-color: var(--bg-card); color: var(--text-primary)">
                   <Eye class="w-4 h-4" />
                 </button>
-                <button v-if="work.status === 'APPROVED'" @click="openPublishDialog(work)" class="p-2.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-500 transition-all shadow-lg"
+                <button v-if="work.status === 'APPROVED' && !work.isIndependentShowcase" @click="openPublishDialog(work)" class="p-2.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-500 transition-all shadow-lg"
                         style="background-color: var(--bg-card); color: var(--text-primary)">
                   <SendHorizonal class="w-4 h-4" />
                 </button>
@@ -506,7 +480,7 @@ onMounted(() => {
                   <span v-if="work.size" class="flex items-center gap-1"><HardDrive class="w-3 h-3" /> {{ work.size }} MB</span>
                   <span v-if="work.vertices" class="flex items-center gap-1"><Box class="w-3 h-3" /> {{ (work.vertices / 1000).toFixed(1) }}K 顶点</span>
                 </div>
-                <a :href="work.url" download @click.stop class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
+                <a v-if="!work.isIndependentShowcase" :href="work.url" download @click.stop class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
                    <Download class="w-3 h-3" />
                 </a>
               </div>
@@ -545,7 +519,7 @@ onMounted(() => {
             </div>
 
             <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button v-if="work.status === 'APPROVED'" @click.stop="openPublishDialog(work)" class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-indigo-500 transition-all" title="发布到展示墙">
+              <button v-if="work.status === 'APPROVED' && !work.isIndependentShowcase" @click.stop="openPublishDialog(work)" class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-indigo-500 transition-all" title="发布到展示墙">
                 <SendHorizonal class="w-4 h-4" />
               </button>
               <button @click.stop="openEditDialog(work)" class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/40 text-blue-500 transition-all">
@@ -563,80 +537,14 @@ onMounted(() => {
           <FolderOpen class="w-16 h-16 mb-4 opacity-10" />
           <p class="text-sm font-bold mb-1">{{ searchQuery ? '没有找到匹配的作品' : '还没有上传作品' }}</p>
           <p class="text-xs mb-4 opacity-60">{{ searchQuery ? '试试其他关键词' : '上传你的第一个作品，开始创作之旅' }}</p>
-          <button v-if="!searchQuery" @click="isUploadDialogOpen = true" class="px-6 py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-accent/10">
-            <Plus class="w-4 h-4" /> 上传第一个作品
+          <button v-if="!searchQuery" @click="isPublishWorkDialogOpen = true" class="px-6 py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-accent/10">
+            <Plus class="w-4 h-4" /> 上传/发布第一个作品
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Upload Dialog -->
-    <Transition name="fade">
-      <div v-if="isUploadDialogOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isUploadDialogOpen = false"></div>
-        <div class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl space-y-6" style="background-color: var(--bg-card)">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">上传作品</h3>
-            <button @click="isUploadDialogOpen = false" style="color: var(--text-secondary)"><X class="w-5 h-5" /></button>
-          </div>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">作品名称</label>
-              <input v-model="uploadForm.title" type="text" class="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)" placeholder="给你的作品起个名字" />
-            </div>
-            
-            <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">描述 (支持 Markdown)</label>
-              <MarkdownEditor v-model="uploadForm.description" placeholder="简单介绍一下这个作品... 支持 Markdown 格式" height="250px" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">资源分类</label>
-              <el-select v-model="uploadForm.categoryId" placeholder="请选择分类" class="w-full custom-select-v2">
-                <el-option v-for="cat in assetCategories" :key="cat.id" :label="cat.name" :value="cat.id" />
-              </el-select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">选择文件</label>
-              <div class="relative group">
-                <input type="file" @change="handleFileChange" accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.jpg,.jpeg,.png,.gif,.webp,.svg,.mp4,.webm,.mov,.pdf,.zip" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                <div class="w-full border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2 transition-all group-hover:border-accent group-hover:bg-accent/5" style="border-color: var(--border-base)">
-                  <UploadCloud class="w-8 h-8 text-accent/40" />
-                  <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                    {{ uploadForm.file ? uploadForm.file.name : '点击或拖拽文件到这里' }}
-                  </p>
-                  <p class="text-[10px]" style="color: var(--text-secondary)">支持 3D模型 / 图片 / 视频 / 文档</p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">上传封面图 (可选)</label>
-              <div class="relative group">
-                <input type="file" @change="handleThumbnailChange" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                <div class="w-full border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center gap-1 transition-all group-hover:border-accent group-hover:bg-accent/5" style="border-color: var(--border-base)">
-                  <UploadCloud class="w-6 h-6 text-accent/40" />
-                  <p class="text-[10px] font-medium" style="color: var(--text-secondary)">
-                    {{ uploadForm.thumbnail ? uploadForm.thumbnail.name : '点击上传封面预览图' }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button 
-            @click="handleUpload"
-            :disabled="isUploading"
-            class="w-full py-4 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all flex items-center justify-center gap-2"
-          >
-            <span v-if="!isUploading">开始上传</span>
-            <span v-else class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-          </button>
-        </div>
-      </div>
-    </Transition>
+    <PublishWorkDialog v-model="isPublishWorkDialogOpen" @published="fetchMyAssets" />
 
     <!-- Edit Dialog -->
     <Transition name="fade">
@@ -756,7 +664,7 @@ onMounted(() => {
                 <RotateCw class="w-4 h-4" :class="isAutoRotating ? 'animate-spin-slow' : ''" />
               </button>
               <div v-if="selectedAsset?.type && ['GLB', 'GLTF', 'FBX', 'OBJ', 'STL'].includes(selectedAsset.type.toUpperCase())" class="w-px h-4 mx-1" style="background-color: var(--border-base)"></div>
-              <button v-if="selectedAsset?.status === 'APPROVED'" @click="openPublishDialog(selectedAsset); isPreviewOpen = false" class="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors" title="发布到展示墙">
+              <button v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" @click="openPublishDialog(selectedAsset); isPreviewOpen = false" class="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors" title="发布到展示墙">
                 <SendHorizonal class="w-4 h-4" />
               </button>
               <button @click="openEditDialog(selectedAsset); isPreviewOpen = false" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-full transition-colors">
@@ -831,10 +739,10 @@ onMounted(() => {
             </div>
 
             <div class="mt-auto pt-6 space-y-2">
-              <a :href="selectedAsset?.url" download class="w-full py-3 bg-accent hover:bg-accent text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center justify-center gap-2">
+              <a v-if="!selectedAsset?.isIndependentShowcase" :href="selectedAsset?.url" download class="w-full py-3 bg-accent hover:bg-accent text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center justify-center gap-2">
                 <Download class="w-4 h-4" /> 下载文件
               </a>
-              <button v-if="selectedAsset?.status === 'APPROVED'" @click="openPublishDialog(selectedAsset); isPreviewOpen = false" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 hover:bg-indigo-700">
+              <button v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" @click="openPublishDialog(selectedAsset); isPreviewOpen = false" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 hover:bg-indigo-700">
                 <SendHorizonal class="w-4 h-4" /> 发布到展示墙
               </button>
               <button @click="openEditDialog(selectedAsset); isPreviewOpen = false" class="w-full py-3 border rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-80" style="border-color: var(--border-base); color: var(--text-secondary)">

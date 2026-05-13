@@ -38,7 +38,7 @@ const projectForm = ref({
   color: 'bg-accent',
   tags: '',
   progress: 0,
-  status: '进行中',
+  status: 'IN_PROGRESS',
   visibility: 'PRIVATE',
   maxMembers: 10,
   memberIds: [] as string[],
@@ -56,7 +56,16 @@ const colors = [
   { name: '品牌色', value: 'bg-accent' },
 ]
 
-const statusOptions = ['规划中', '进行中', '已暂停', '已完成']
+const statusOptions = [
+  { value: 'PLANNED', label: '规划中' },
+  { value: 'IN_PROGRESS', label: '进行中' },
+  { value: 'PAUSED', label: '已暂停' },
+  { value: 'COMPLETED', label: '已完成' }
+]
+
+const getStatusLabel = (status: string) => {
+  return statusOptions.find(o => o.value === status)?.label || status
+}
 
 const fetchProjects = async () => {
   isLoading.value = true
@@ -83,7 +92,7 @@ const fetchTeamMembers = async () => {
 
 const openAddDrawer = () => {
   isEditMode.value = false
-  projectForm.value = { id: '', title: '', description: '', dueDate: '', color: 'bg-accent', tags: '', progress: 0, status: '规划中', visibility: 'PRIVATE', maxMembers: 10, memberIds: [], inviteUserIds: [] }
+  projectForm.value = { id: '', title: '', description: '', dueDate: '', color: 'bg-accent', tags: '', progress: 0, status: 'PLANNED', visibility: 'PRIVATE', maxMembers: 10, memberIds: [], inviteUserIds: [] }
   fetchTeamMembers()
   isDrawerOpen.value = true
 }
@@ -98,7 +107,7 @@ const openEditDrawer = (project: any) => {
     color: project.color || 'bg-accent',
     tags: project.tags || '',
     progress: project.progress || 0,
-    status: project.status || '进行中',
+    status: project.status || 'IN_PROGRESS',
     visibility: project.visibility || 'PRIVATE',
     maxMembers: project.maxMembers || 10,
     memberIds: [],
@@ -159,8 +168,8 @@ const getTagsList = (tags: string | null) => {
 // Dashboard stats
 const stats = computed(() => {
   const total = projects.value.length
-  const active = projects.value.filter(p => p.status === '进行中').length
-  const completed = projects.value.filter(p => p.status === '已完成').length
+  const active = projects.value.filter(p => p.status === 'IN_PROGRESS').length
+  const completed = projects.value.filter(p => p.status === 'COMPLETED').length
   const completionRate = total ? Math.round((completed / total) * 100) : 0
   return { total, active, completed, completionRate }
 })
@@ -367,11 +376,11 @@ onMounted(fetchProjects)
                 </div>
                 
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider"
-                     :class="project.status === '已完成' ? 'bg-emerald-500/10 text-emerald-500' : project.status === '进行中' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
-                  <CheckCircle2 v-if="project.status === '已完成'" class="w-3.5 h-3.5" />
-                  <Activity v-else-if="project.status === '进行中'" class="w-3.5 h-3.5" />
+                     :class="project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : project.status === 'IN_PROGRESS' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
+                  <CheckCircle2 v-if="project.status === 'COMPLETED'" class="w-3.5 h-3.5" />
+                  <Activity v-else-if="project.status === 'IN_PROGRESS'" class="w-3.5 h-3.5" />
                   <Clock v-else class="w-3.5 h-3.5" />
-                  {{ project.status }}
+                  {{ getStatusLabel(project.status) }}
                 </div>
               </div>
             </div>
@@ -420,8 +429,8 @@ onMounted(fetchProjects)
                   </td>
                   <td class="px-8 py-6">
                     <span class="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider"
-                          :class="project.status === '已完成' ? 'bg-emerald-500/10 text-emerald-500' : project.status === '进行中' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
-                      {{ project.status }}
+                          :class="project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : project.status === 'IN_PROGRESS' ? 'bg-accent/10 text-accent' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'">
+                      {{ getStatusLabel(project.status) }}
                     </span>
                   </td>
                   <td class="px-8 py-6">
@@ -513,7 +522,7 @@ onMounted(fetchProjects)
           <div>
             <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">当前状态</label>
             <el-select v-model="projectForm.status" class="!w-full custom-select">
-              <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
+              <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
             </el-select>
           </div>
           <div>

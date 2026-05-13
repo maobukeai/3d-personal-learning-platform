@@ -22,8 +22,12 @@ import {
   Users
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+
+const route = useRoute()
+const router = useRouter()
 
 const isLoading = ref(true)
 const plans = ref<any[]>([])
@@ -93,29 +97,21 @@ const handleSubscribe = async (plan: any) => {
   }
 
   try {
-    await ElMessageBox.confirm(
-      `确定要将您的订阅更新为 ${plan.displayName || plan.name} 计划吗？费用为 ￥${billingInterval.value === 'YEARLY' && plan.yearlyPrice ? plan.yearlyPrice : plan.price}/${billingInterval.value === 'YEARLY' ? '年' : '月'}。`,
-      '确认订阅',
-      {
-        confirmButtonText: '立即支付',
-        cancelButtonText: '取消',
-        type: 'info',
-        customClass: 'custom-rounded-dialog'
-      }
-    )
-
-    const res = await api.post('/api/subscriptions/subscribe', {
+    const { data } = await api.post('/api/subscriptions/create-order', {
       planId: plan.id,
       interval: billingInterval.value
     })
-    ElMessage.success(res.data.message)
-    const authStore = useAuthStore()
-    await authStore.fetchMe()
-    fetchBillingData()
+    
+    router.push({
+      name: 'Checkout',
+      query: {
+        orderId: data.orderId,
+        amount: data.amount,
+        planName: plan.displayName || plan.name
+      }
+    })
   } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '订阅失败')
-    }
+    ElMessage.error(error.response?.data?.error || '创建订单失败')
   }
 }
 
@@ -123,22 +119,20 @@ const handleConfirmUpgrade = async () => {
   if (!upgradePlan.value) return
 
   try {
-    const res = await api.post('/api/subscriptions/subscribe', {
+    const { data } = await api.post('/api/subscriptions/create-order', {
       planId: upgradePlan.value.id,
       interval: billingInterval.value
     })
 
-    if (res.data.isUpgrade && res.data.proratedRefund > 0) {
-      ElMessage.success(`${res.data.message}，原计划剩余价值 ￥${res.data.proratedRefund} 已抵扣，实付 ￥${res.data.finalAmount}`)
-    } else {
-      ElMessage.success(res.data.message)
-    }
-
+    router.push({
+      name: 'Checkout',
+      query: {
+        orderId: data.orderId,
+        amount: data.amount,
+        planName: upgradePlan.value.displayName || upgradePlan.value.name
+      }
+    })
     showUpgradeDialog.value = false
-    upgradePlan.value = null
-    const authStore = useAuthStore()
-    await authStore.fetchMe()
-    fetchBillingData()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '操作失败')
   }

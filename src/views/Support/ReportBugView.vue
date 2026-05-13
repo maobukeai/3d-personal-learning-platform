@@ -29,9 +29,19 @@ const bugForm = ref({
   type: 'Bug',
   title: '',
   description: '',
-  priority: '中',
+  priority: 'MEDIUM',
   attachmentUrl: ''
 })
+
+const priorityOptions = [
+  { value: 'LOW', label: '低' },
+  { value: 'MEDIUM', label: '中' },
+  { value: 'HIGH', label: '高' }
+]
+
+const getPriorityLabel = (priority: string) => {
+  return priorityOptions.find(o => o.value === priority)?.label || priority
+}
 
 const isSubmitting = ref(false)
 const isSubmitted = ref(false)
@@ -202,11 +212,11 @@ onMounted(() => {
                 <div>
                   <label class="block text-xs font-bold text-slate-400 uppercase mb-2">紧急程度</label>
                   <div class="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100">
-                    <button v-for="p in ['低', '中', '高']" :key="p"
-                      @click="bugForm.priority = p"
+                    <button v-for="p in priorityOptions" :key="p.value"
+                      @click="bugForm.priority = p.value"
                       class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all"
-                      :style="bugForm.priority === p ? 'background-color: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm)' : 'color: var(--text-secondary)'">
-                      {{ p }}
+                      :style="bugForm.priority === p.value ? 'background-color: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm)' : 'color: var(--text-secondary)'">
+                      {{ p.label }}
                     </button>
                   </div>
                 </div>
@@ -359,7 +369,7 @@ onMounted(() => {
                   </div>
                   <div class="flex items-center gap-1">
                     <AlertCircle class="w-3 h-3" />
-                    优先级: {{ item.priority }}
+                    优先级: {{ getPriorityLabel(item.priority) }}
                   </div>
                 </div>
               </div>

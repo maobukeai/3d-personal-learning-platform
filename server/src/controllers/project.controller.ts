@@ -213,7 +213,7 @@ export const joinProject = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    if (project.visibility !== 'PUBLIC' && project.status === '已完成') {
+    if (project.visibility !== 'PUBLIC' && project.status === 'COMPLETED') {
       return res.status(400).json({ error: 'Cannot join this project' });
     }
 
@@ -244,6 +244,14 @@ export const addDiscussion = async (req: AuthRequest, res: Response) => {
   const userId = req.userId as string;
 
   try {
+    // 首先检查项目是否在当前工作区
+    const project = await prisma.project.findFirst({
+      where: { id, teamId: req.workspaceId }
+    });
+    
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    
+    // 再检查用户是否是项目成员
     const member = await prisma.projectMember.findFirst({
       where: { projectId: id, userId }
     });
@@ -280,6 +288,24 @@ export const createProjectTask = async (req: AuthRequest, res: Response) => {
   const { title, description, assigneeId, dueDate, participantIds } = req.body;
 
   try {
+    // 检查项目是否在当前工作区并且用户是项目成员
+    const project = await prisma.project.findFirst({
+      where: { id, teamId: req.workspaceId },
+      include: {
+        members: {
+          where: { userId: req.userId }
+        }
+      }
+    });
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    if (!project.members || project.members.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to create tasks in this project' });
+    }
+
     const task = await prisma.task.create({
       data: {
         title,
@@ -334,6 +360,30 @@ export const updateProjectTask = async (req: AuthRequest, res: Response) => {
   const { title, description, status, assigneeId, dueDate } = req.body;
 
   try {
+    // 检查任务是否在当前工作区并且当前用户是项目成员
+    const existingTask = await prisma.task.findFirst({
+      where: { 
+        id: taskId, 
+        teamId: req.workspaceId 
+      },
+      include: { 
+        project: {
+          include: {
+            members: {
+              where: { userId: req.userId }
+            }
+          }
+        }
+      }
+    });
+    
+    if (!existingTask) return res.status(404).json({ error: 'Task not found' });
+    
+    // 检查用户是否是项目成员
+    if (!existingTask.project || existingTask.project.members.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to update this task' });
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: {
@@ -504,6 +554,34 @@ export const addDiscussionReaction = async (req: AuthRequest, res: Response) => 
   const userId = req.userId as string;
 
   try {
+    // 检查讨论是否在当前工作区并且用户是项目成员
+    const discussion = await prisma.projectDiscussion.findFirst({
+      where: { id: discussionId },
+      include: {
+        project: {
+          include: {
+            members: {
+              where: { userId }
+            }
+          }
+        }
+      }
+    });
+    
+    if (!discussion) {
+      return res.status(404).json({ error: 'Discussion not found' });
+    }
+    
+    // 检查讨论所在的项目是否在当前工作区
+    if (discussion.project.teamId !== req.workspaceId) {
+      return res.status(404).json({ error: 'Discussion not found' });
+    }
+    
+    // 检查用户是否是项目成员
+    if (!discussion.project.members || discussion.project.members.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to add reactions' });
+    }
+
     const existing = await prisma.projectDiscussionReaction.findUnique({
       where: { discussionId_userId_emoji: { discussionId, userId, emoji } }
     });

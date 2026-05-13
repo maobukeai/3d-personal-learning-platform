@@ -197,6 +197,30 @@ const formatYoutubeUrl = (url: string) => {
   return url
 }
 
+const parseHotspots = (hotspots: any) => {
+  if (!hotspots) return []
+  if (typeof hotspots === 'string') {
+    try {
+      return JSON.parse(hotspots)
+    } catch {
+      return []
+    }
+  }
+  return hotspots
+}
+
+const parseSceneConfig = (config: any) => {
+  if (!config) return {}
+  if (typeof config === 'string') {
+    try {
+      return JSON.parse(config)
+    } catch {
+      return {}
+    }
+  }
+  return config
+}
+
 watch(currentLessonIndex, () => {
   activeTab.value = 'content'
   if (currentLesson.value) {
@@ -247,7 +271,12 @@ onMounted(fetchCourseData)
         <template v-else-if="currentLesson">
           <!-- 3D Model Mode -->
           <div v-if="is3DModel(currentLesson.videoUrl)" class="w-full h-full relative">
-            <ModelViewer :model-url="currentLesson.videoUrl" auto-rotate />
+            <ModelViewer 
+              :model-url="currentLesson.videoUrl" 
+              :hotspots="parseHotspots(currentLesson.hotspots)"
+              :scene-config="parseSceneConfig(currentLesson.sceneConfig)"
+              auto-rotate 
+            />
             <div class="absolute bottom-6 right-6 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-xl border border-white/10 pointer-events-none">
               <div class="flex items-center gap-2">
                 <Box class="w-4 h-4 text-accent" />
@@ -417,7 +446,7 @@ onMounted(fetchCourseData)
                   <StickyNote class="w-3.5 h-3.5" />
                   <span class="font-bold">{{ currentLesson?.title }} 的笔记</span>
                 </div>
-                <textarea v-model="newNoteContent" rows="3" placeholder="记录你的学习心得..."
+                <textarea v-model="newNoteContent" rows="6" placeholder="记录你的学习心得..."
                           class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-white/5 text-sm text-slate-200 placeholder-slate-600 outline-none resize-none focus:border-accent/30 transition-colors"></textarea>
                 <div class="flex justify-end">
                   <button @click="handleSaveNote" :disabled="!newNoteContent.trim() || isSavingNote"

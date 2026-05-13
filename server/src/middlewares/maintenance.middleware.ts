@@ -2,36 +2,31 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
+import { settingsService } from '../services/settings.service';
 
 export const checkMaintenanceMode = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const maintenanceMode = await prisma.systemSetting.findUnique({
-      where: { key: 'MAINTENANCE_MODE' }
-    });
+    const isMaintenance = await settingsService.get('MAINTENANCE_MODE');
 
-    if (maintenanceMode && maintenanceMode.value === 'true') {
+    if (isMaintenance) {
       // Check if it's an admin trying to bypass
       const authHeader = req.headers.authorization;
       if (authHeader) {
         const token = authHeader.split(' ')[1];
         try {
-          const decoded = jwt.verify(token, config.JWT_SECRET) as { userId: string };
-          const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+          const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
+          const user = await prisma.user.findUnique({ where: { id: decoded.id } });
           
           if (user && user.role === 'ADMIN') {
             return next(); // Allow admin to bypass
           }
         } catch (e) {
-          // Token invalid or other error, just proceed to block
+          // Token invalid or other error
         }
       }
 
-      // If it's a critical auth route or admin route, we might want to allow it?
-      // Actually, if it's maintenance mode, we should block everything except maybe GET stats or something?
-      // Usually, we block all user-facing APIs.
-      
       // Allow admin login and public settings even in maintenance mode
-      if (req.path === '/api/auth/login' || req.path === '/api/auth/settings') {
+      if (req.path === '/api/auth/login' || req.path === '/api/auth/settings' || req.path === '/api/auth/refresh') {
          return next();
       }
 
@@ -43,6 +38,6 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
 
     next();
   } catch (error) {
-    next(); // If DB fails, don't block the site
+    next(); // If service fails, don't block the site
   }
 };

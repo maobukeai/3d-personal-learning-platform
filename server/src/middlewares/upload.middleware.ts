@@ -2,12 +2,13 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
+import { settingsService } from '../services/settings.service';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dir = './uploads/avatars';
     
-    if (file.fieldname === 'attachment') {
+    if (file.fieldname === 'attachment' || file.fieldname === 'file') {
       dir = './uploads/feedback';
     } else if (file.fieldname === 'message_file') {
       dir = './uploads/messages';
@@ -35,51 +36,72 @@ const storage = multer.diskStorage({
   }
 });
 
-const imageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg', '.bmp'];
-const documentExtensions = ['.pdf', '.zip', '.rar', '.7z'];
-const model3dExtensions = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.dae', '.3ds', '.blend', '.usdz', '.abc'];
-const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
-const audioExtensions = ['.mp3', '.wav', '.ogg', '.flac'];
-
-const allowedExtensions = [
-  ...imageExtensions,
-  ...documentExtensions,
-  ...model3dExtensions,
-  ...videoExtensions,
-  ...audioExtensions
-];
-
-const fieldSizeLimits: Record<string, number> = {
-  avatar: 5 * 1024 * 1024,
-  thumbnail: 10 * 1024 * 1024,
-  attachment: 20 * 1024 * 1024,
-  message_file: 20 * 1024 * 1024,
-  images: 10 * 1024 * 1024,
-  asset: 100 * 1024 * 1024,
-  material: 100 * 1024 * 1024,
-  preview: 50 * 1024 * 1024
-};
-
-export const upload = multer({ 
+const multerInstance = multer({ 
   storage: storage,
   limits: { 
-    fileSize: 100 * 1024 * 1024,
+    fileSize: 500 * 1024 * 1024, // High upper limit for multer, we validate lower in wrapper
     files: 10
-  },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!allowedExtensions.includes(ext)) {
-      return cb(new Error(`不支持的文件类型: ${ext}。支持的类型: ${allowedExtensions.join(', ')}`));
-    }
-
-    const fieldLimit = fieldSizeLimits[file.fieldname];
-    if (fieldLimit) {
-      req.headers['content-length'] = String(Math.min(Number(req.headers['content-length'] || 0), fieldLimit));
-    }
-
-    cb(null, true);
   }
 });
+
+const createUploadMiddleware = (multerAction: any) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const settings = await settingsService.getAll();
+      const maxFileSize = (settings.MAX_FILE_SIZE || 100) * 1024 * 1024;
+      let allowedExtensions: string[] = ['.jpeg', '.jpg', '.png', '.glb', '.gltf'];
+      
+      // 处理允许的扩展名 - 支持字符串和数组格式
+      if (settings.ALLOWED_EXTENSIONS) {
+        if (typeof settings.ALLOWED_EXTENSIONS === 'string') {
+          allowedExtensions = settings.ALLOWED_EXTENSIONS.split(',').map(ext => ext.trim().toLowerCase());
+        } else if (Array.isArray(settings.ALLOWED_EXTENSIONS)) {
+          allowedExtensions = settings.ALLOWED_EXTENSIONS.map(ext => ext.toLowerCase());
+        }
+      }
+
+      multerAction(req, res, (err: any) => {
+        if (err instanceof multer.MulterError) {
+          return res.status(400).json({ error: err.message });
+        } else if (err) {
+          return res.status(400).json({ error: err.message });
+        }
+
+        // Manual extension and size check for dynamic settings
+        const files = req.file ? { [req.file.fieldname]: [req.file] } : (req.files as { [fieldname: string]: Express.Multer.File[] });
+        
+        if (files) {
+          for (const fieldname in files) {
+            const fileList = Array.isArray(files[fieldname]) ? files[fieldname] : [files[fieldname]];
+            for (const file of fileList) {
+              const ext = path.extname(file.originalname).toLowerCase();
+              if (!allowedExtensions.includes(ext)) {
+                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                return res.status(400).json({ error: `不支持的文件类型: ${ext}` });
+              }
+              if (file.size > maxFileSize) {
+                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                 return res.status(400).json({ error: `文件 ${file.originalname} 超过大小限制 (${settings.MAX_FILE_SIZE}MB)` });
+              }
+            }
+          }
+        }
+        next();
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
+export const upload = {
+  single: (fieldname: string) => createUploadMiddleware(multerInstance.single(fieldname)),
+  array: (fieldname: string, maxCount?: number) => createUploadMiddleware(multerInstance.array(fieldname, maxCount)),
+  fields: (fields: multer.Field[]) => createUploadMiddleware(multerInstance.fields(fields)),
+};
+
+const model3dExtensions = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.dae', '.3ds', '.blend', '.usdz', '.abc'];
+const documentExtensions = ['.pdf', '.zip', '.rar', '.7z'];
 
 export const validateFileContent = async (req: Request, res: Response, next: NextFunction) => {
   const files = req.file ? [req.file] : (req.files ? (Object.values(req.files).flat() as Express.Multer.File[]) : []);

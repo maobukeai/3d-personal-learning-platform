@@ -164,9 +164,11 @@ const calculateProratedRefund = (
   return Math.round(dailyPrice * remainingDays * 100) / 100;
 };
 
-export const subscribe = async (req: any, res: Response) => {
+import { paymentService, PaymentMethod } from '../services/payment.service';
+
+export const createOrder = async (req: any, res: Response) => {
   const userId = req.user.id;
-  const { planId, interval, paymentMethod } = req.body;
+  const { planId, interval, paymentMethod = 'MOCK' } = req.body;
 
   try {
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
@@ -176,7 +178,6 @@ export const subscribe = async (req: any, res: Response) => {
     const amount = billingInterval === 'YEARLY' && plan.yearlyPrice
       ? plan.yearlyPrice
       : plan.price;
-    const durationDays = billingInterval === 'YEARLY' ? 365 : 30;
 
     const existingSub = await prisma.subscription.findUnique({
       where: { userId },
@@ -189,7 +190,6 @@ export const subscribe = async (req: any, res: Response) => {
 
     let proratedRefund = 0;
     let isUpgrade = false;
-    let isRenewal = false;
 
     if (existingSub && existingSub.status === 'ACTIVE' && existingSub.plan.name !== 'FREE') {
       const currentPriority = existingSub.plan.priority || 0;
@@ -205,75 +205,52 @@ export const subscribe = async (req: any, res: Response) => {
           existingSub.startDate,
           existingSub.endDate
         );
-      } else if (newPriority === currentPriority) {
-        isRenewal = true;
       }
     }
 
-    const invoiceNo = `INV-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const finalAmount = Math.max(0, amount - proratedRefund);
+    const description = isUpgrade 
+      ? `升级至 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`
+      : `订阅 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`;
 
-    const subscription = await prisma.subscription.upsert({
-      where: { userId },
-      update: {
-        planId,
-        status: 'ACTIVE',
-        interval: billingInterval,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
-        cancelAtPeriodEnd: false,
-        autoRenew: true,
-        paymentMethod: paymentMethod || 'MOCK_PAYMENT',
-      },
-      create: {
-        userId,
-        planId,
-        status: 'ACTIVE',
-        interval: billingInterval,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
-        cancelAtPeriodEnd: false,
-        autoRenew: true,
-        paymentMethod: paymentMethod || 'MOCK_PAYMENT',
-      }
-    });
-
-    let description = '';
-    if (isUpgrade) {
-      description = `升级至 ${plan.displayName || plan.name} 计划 - ${billingInterval === 'YEARLY' ? '年付' : '月付'}`;
-      if (proratedRefund > 0) {
-        description += `（原计划剩余价值 ￥${proratedRefund} 已抵扣）`;
-      }
-    } else if (isRenewal) {
-      description = `续费 ${plan.displayName || plan.name} 计划 - ${billingInterval === 'YEARLY' ? '年付' : '月付'}`;
-    } else {
-      description = `订阅 ${plan.displayName || plan.name} 计划 - ${billingInterval === 'YEARLY' ? '年付' : '月付'}`;
-    }
-
-    await prisma.transaction.create({
-      data: {
-        userId,
-        amount: Math.max(0, amount - proratedRefund),
-        status: 'COMPLETED',
-        description,
-        paymentMethod: paymentMethod || 'MOCK_PAYMENT',
-        planName: plan.name,
-        interval: billingInterval,
-        invoiceNo,
-      }
+    const transaction = await paymentService.createOrder({
+      userId,
+      amount: finalAmount,
+      description,
+      planId,
+      planName: plan.name,
+      interval: billingInterval,
+      paymentMethod
     });
 
     res.json({
-      message: isUpgrade ? '订阅升级成功' : isRenewal ? '续费成功' : '订阅成功',
-      subscription,
-      invoiceNo,
+      orderId: transaction.id,
+      amount: finalAmount,
+      currency: transaction.currency,
+      invoiceNo: transaction.invoiceNo,
       isUpgrade,
-      isRenewal,
-      proratedRefund,
-      finalAmount: Math.max(0, amount - proratedRefund),
+      proratedRefund
     });
   } catch (error) {
-    res.status(500).json({ error: '订阅失败' });
+    console.error('Create order error:', error);
+    res.status(500).json({ error: '创建订单失败' });
   }
+};
+
+export const verifyPayment = async (req: any, res: Response) => {
+  const { orderId, paymentId } = req.body;
+  try {
+    const transaction = await paymentService.verifyPayment(orderId, paymentId || `MOCK-${Date.now()}`);
+    res.json({ message: '支付验证成功', transaction });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || '支付验证失败' });
+  }
+};
+
+export const subscribe = async (req: any, res: Response) => {
+  // Legacy subscribe method (keeping for compatibility, but redirects to order flow logic internally if needed)
+  // Actually, we'll refactor the frontend to use createOrder + verifyPayment
+  return createOrder(req, res);
 };
 
 export const cancelSubscription = async (req: any, res: Response) => {

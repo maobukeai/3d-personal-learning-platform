@@ -11,6 +11,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import UserAvatar from '@/components/UserAvatar.vue'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import api from '@/utils/api'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -24,9 +25,21 @@ const activeFilter = ref('全部')
 const members = ref<any[]>([])
 const isLoading = ref(false)
 
+const isProfileDialogOpen = ref(false)
+const selectedUserId = ref<string | null>(null)
+
+const openUserProfile = (userId: string) => {
+  selectedUserId.value = userId
+  isProfileDialogOpen.value = true
+}
+
 onMounted(async () => {
   if (workspaceStore.activeTeamId) {
     router.replace(`/team/${workspaceStore.activeTeamId}`)
+  } else if (authStore.user?.role !== 'ADMIN') {
+    // If not in a team context and not an admin, redirect to dashboard
+    // Regular users should not see the platform-wide member list
+    router.replace('/dashboard')
   } else {
     await fetchMembers()
   }
@@ -138,9 +151,14 @@ const handleChatWithMember = async (member: any) => {
             <tr v-for="member in filteredMembers" :key="member.id" class="hover:opacity-90 transition-colors group">
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
-                  <UserAvatar :user="member" size="md" />
+                  <UserAvatar 
+                    :user="member" 
+                    size="md" 
+                    class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                    @click="openUserProfile(member.id)"
+                  />
                   <div>
-                    <p class="text-sm font-bold" style="color: var(--text-primary)">{{ member.name || '未设置昵称' }}</p>
+                    <p class="text-sm font-bold cursor-pointer hover:text-accent transition-colors" style="color: var(--text-primary)" @click="openUserProfile(member.id)">{{ member.name || '未设置昵称' }}</p>
                     <p class="text-xs" style="color: var(--text-muted)">{{ member.email }}</p>
                   </div>
                 </div>
@@ -176,6 +194,12 @@ const handleChatWithMember = async (member: any) => {
         </table>
       </div>
     </div>
+
+    <UserProfileDialog 
+      v-model="isProfileDialogOpen" 
+      :user-id="selectedUserId"
+      @chat="handleChatWithMember"
+    />
   </div>
 </template>
 

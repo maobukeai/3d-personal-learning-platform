@@ -498,7 +498,7 @@ onMounted(fetchCourse)
                     <StickyNote class="w-4 h-4 text-amber-500" /> 学习笔记
                   </h4>
                   <p class="text-xs mb-3" style="color: var(--text-muted)">记录你的学习心得和笔记</p>
-                  <textarea rows="3" placeholder="在这里快速记录笔记..."
+                  <textarea rows="5" placeholder="在这里快速记录笔记..."
                             class="w-full px-3 py-2 rounded-xl border text-xs outline-none resize-none transition-all focus:ring-2 focus:ring-accent/20"
                             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"></textarea>
                   <button class="w-full mt-2 py-2 border border-slate-200 dark:border-white/10 text-xs font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5" style="color: var(--text-secondary)">

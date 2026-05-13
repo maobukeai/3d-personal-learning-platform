@@ -4,6 +4,7 @@ import { Search, MessageSquare, Edit3, X, Plus, Heart, Eye, Pin, Trash2, Chevron
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
 const authStore = useAuthStore()
 const currentUserId = computed(() => authStore.user?.id)
@@ -564,8 +565,8 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="prose prose-sm dark:prose-invert max-w-none mb-8" style="color: var(--text-secondary); white-space: pre-wrap;">
-              {{ selectedDiscussion.content }}
+            <div class="mb-8">
+              <MarkdownEditor :model-value="selectedDiscussion.content" preview-only />
             </div>
 
             <!-- Post Images -->
@@ -590,7 +591,9 @@ onMounted(() => {
                         <span class="text-xs font-bold" style="color: var(--text-primary)">{{ comment.user?.name || '匿名用户' }}</span>
                         <span class="text-[10px]" style="color: var(--text-muted)">{{ formatTime(comment.createdAt) }}</span>
                       </div>
-                      <p class="text-sm leading-relaxed" style="color: var(--text-secondary)">{{ comment.content }}</p>
+                      <div class="text-sm leading-relaxed" style="color: var(--text-secondary)">
+                        <MarkdownEditor :model-value="comment.content" preview-only />
+                      </div>
                     </div>
                     <!-- Comment Actions -->
                     <div class="flex items-center gap-4 mt-1.5 ml-2">
@@ -621,29 +624,24 @@ onMounted(() => {
                     </div>
 
                     <!-- Reply Input -->
-                    <div v-if="replyingTo?.id === comment.id" class="mt-3 ml-2 flex gap-2">
-                      <input 
-                        v-model="replyContent"
-                        type="text" 
-                        :placeholder="`回复 ${comment.user?.name || '匿名用户'}...`" 
-                        class="flex-1 px-3 py-1.5 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                        style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-primary)"
-                        @keyup.enter="handleReplyComment(comment.id)"
-                      />
-                      <button 
-                        @click="handleReplyComment(comment.id)"
-                        :disabled="!replyContent"
-                        class="px-3 py-1.5 bg-accent text-white font-bold rounded-xl text-xs disabled:opacity-50 transition-all flex items-center gap-1"
-                      >
-                        <Send class="w-3 h-3" /> 发送
-                      </button>
-                      <button 
-                        @click="replyingTo = null"
-                        class="px-2 py-1.5 rounded-xl text-xs transition-all"
-                        style="color: var(--text-muted)"
-                      >
-                        取消
-                      </button>
+                    <div v-if="replyingTo?.id === comment.id" class="mt-3 ml-2 space-y-2">
+                      <MarkdownEditor v-model="replyContent" height="120px" :placeholder="`回复 ${comment.user?.name || '匿名用户'}...`" />
+                      <div class="flex justify-end gap-2">
+                        <button 
+                          @click="replyingTo = null"
+                          class="px-3 py-1.5 rounded-xl text-xs transition-all font-bold"
+                          style="color: var(--text-muted)"
+                        >
+                          取消
+                        </button>
+                        <button 
+                          @click="handleReplyComment(comment.id)"
+                          :disabled="!replyContent"
+                          class="px-4 py-1.5 bg-accent text-white font-bold rounded-xl text-xs shadow-md shadow-accent/10 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                        >
+                          <Send class="w-3 h-3" /> 发表回复
+                        </button>
+                      </div>
                     </div>
 
                     <!-- Show Replies Toggle -->
@@ -672,7 +670,9 @@ onMounted(() => {
                               <span class="text-[11px] font-bold" style="color: var(--text-primary)">{{ reply.user?.name || '匿名用户' }}</span>
                               <span class="text-[9px]" style="color: var(--text-muted)">{{ formatTime(reply.createdAt) }}</span>
                             </div>
-                            <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">{{ reply.content }}</p>
+                            <div class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+                              <MarkdownEditor :model-value="reply.content" preview-only />
+                            </div>
                           </div>
                           <div class="flex items-center gap-3 mt-1 ml-1">
                             <button 
@@ -710,22 +710,17 @@ onMounted(() => {
           <div class="p-4 border-t shrink-0" style="border-color: var(--border-base); background-color: var(--bg-card)">
             <div class="flex gap-3">
               <img :src="authStore.user?.avatarUrl || `https://ui-avatars.com/api/?name=${authStore.user?.name || 'User'}`" class="w-8 h-8 rounded-full shrink-0 ring-1 ring-white/10" />
-              <div class="flex-1 flex gap-2">
-                <input 
-                  v-model="newComment"
-                  type="text" 
-                  placeholder="撰写你的回复..." 
-                  class="flex-1 px-4 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                  style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"
-                  @keyup.enter="handleAddComment"
-                />
-                <button 
-                  @click="handleAddComment"
-                  :disabled="!newComment || isSubmittingComment"
-                  class="px-5 py-2 bg-accent text-white font-bold rounded-xl text-sm shadow-lg shadow-accent/20 disabled:opacity-50 transition-all flex items-center gap-1.5"
-                >
-                  <Send class="w-3.5 h-3.5" /> 发表
-                </button>
+              <div class="flex-1 space-y-3">
+                <MarkdownEditor v-model="newComment" height="150px" placeholder="撰写你的回复...支持 Markdown 格式" />
+                <div class="flex justify-end">
+                  <button 
+                    @click="handleAddComment"
+                    :disabled="!newComment || isSubmittingComment"
+                    class="px-5 py-2 bg-accent text-white font-bold rounded-xl text-sm shadow-lg shadow-accent/20 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                  >
+                    <Send class="w-3.5 h-3.5" /> 发表回复
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -737,7 +732,7 @@ onMounted(() => {
     <Transition name="fade">
       <div v-if="showCreateModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showCreateModal = false"></div>
-        <div class="relative w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-5" style="background-color: var(--bg-card)">
+        <div class="relative w-full max-w-[80vw] max-h-[90vh] p-8 rounded-3xl shadow-2xl space-y-5 overflow-y-auto scrollbar-hide" style="background-color: var(--bg-card)">
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold" style="color: var(--text-primary)">发布新讨论</h3>
             <button @click="showCreateModal = false" style="color: var(--text-secondary)"><X class="w-5 h-5" /></button>
@@ -751,7 +746,7 @@ onMounted(() => {
             
             <div>
               <label class="block text-xs font-bold uppercase mb-2 ml-1" style="color: var(--text-secondary)">内容</label>
-              <textarea v-model="postForm.content" rows="6" class="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)" placeholder="你想说点什么？"></textarea>
+              <MarkdownEditor v-model="postForm.content" height="450px" placeholder="你想说点什么？支持 Markdown 格式..." />
             </div>
 
             <!-- Tags Input -->

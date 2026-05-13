@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { 
   User, 
   Lock, 
@@ -24,13 +25,15 @@ import {
   Languages,
   Download,
   AtSign,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-vue-next'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/utils/api'
 
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -53,6 +56,8 @@ const is2FALoading = ref(false)
 const qrCodeUrl = ref('')
 const tfaCode = ref('')
 const show2FASetup = ref(false)
+const recoveryCodes = ref<string[]>([])
+const showRecoveryCodes = ref(false)
 
 const currentTheme = ref(localStorage.getItem('theme') || 'light')
 const currentAccent = ref(localStorage.getItem('accentColor') || '#3b82f6')
@@ -69,7 +74,6 @@ const accentColors = [
 const languageOptions = [
   { label: '简体中文', value: 'zh-CN' },
   { label: 'English', value: 'en-US' },
-  { label: '日本語', value: 'ja-JP' },
 ]
 
 const notificationPrefs = ref({
@@ -85,7 +89,6 @@ const emailChangeForm = ref({
   code: '',
   step: 1 as 1 | 2,
 })
-const isSendingEmailCode = ref(false)
 
 const trustedDevices = ref<any[]>([])
 const isLoadingDevices = ref(false)
@@ -101,7 +104,7 @@ const isLoadingTeams = ref(false)
 const handleUpdateProfile = async () => {
   try {
     await authStore.updateProfile(profileForm.value)
-    ElMessage.success('个人资料已更新')
+    ElMessage.success(t('settings.successUpdate'))
   } catch (error) {
     ElMessage.error('更新失败')
   }
@@ -144,11 +147,32 @@ const start2FASetup = async () => {
   try {
     const data = await authStore.setup2FA()
     qrCodeUrl.value = data.qrCodeUrl
+    recoveryCodes.value = data.recoveryCodes || []
     show2FASetup.value = true
   } catch (error) {
     ElMessage.error('无法启动两步验证设置')
   } finally {
     is2FALoading.value = false
+  }
+}
+
+const fetchRecoveryCodes = async () => {
+  try {
+    const { data } = await api.get('/api/auth/2fa/recovery-codes')
+    recoveryCodes.value = data.recoveryCodes
+    showRecoveryCodes.value = true
+  } catch (error) {
+    ElMessage.error('无法获取恢复代码')
+  }
+}
+
+const regenerateRecoveryCodes = async () => {
+  try {
+    const { data } = await api.post('/api/auth/2fa/recovery-codes/regenerate')
+    recoveryCodes.value = data.recoveryCodes
+    ElMessage.success('已重新生成恢复代码')
+  } catch (error) {
+    ElMessage.error('重新生成失败')
   }
 }
 
@@ -200,7 +224,8 @@ const applyAccentColor = (color: string) => {
 const applyLanguage = (lang: string) => {
   currentLanguage.value = lang
   localStorage.setItem('language', lang)
-  ElMessage.success(lang === 'zh-CN' ? '语言已切换为简体中文' : lang === 'en-US' ? 'Language switched to English' : '言語が日本語に切り替わりました')
+  locale.value = lang
+  ElMessage.success(t('settings.successLanguage'))
 }
 
 const fetchNotificationPrefs = async () => {
@@ -218,24 +243,47 @@ const fetchNotificationPrefs = async () => {
   }
 }
 
+const isSavingPrefs = ref(false)
 const saveNotificationPrefs = async () => {
   try {
+    isSavingPrefs.value = true
     await api.put('/api/notifications/preferences', notificationPrefs.value)
-    ElMessage.success('通知偏好已保存')
+    ElMessage.success(t('settings.successSavePrefs'))
   } catch (error) {
-    ElMessage.error('保存通知偏好失败')
+    ElMessage.error(t('settings.errorSavePrefs'))
+  } finally {
+    isSavingPrefs.value = false
   }
+}
+
+const isSendingEmailCode = ref(false)
+const isConfirmingEmail = ref(false)
+const emailCodeCountdown = ref(0)
+let countdownTimer: any = null
+
+const startEmailCountdown = () => {
+  emailCodeCountdown.value = 60
+  countdownTimer = setInterval(() => {
+    if (emailCodeCountdown.value > 0) {
+      emailCodeCountdown.value--
+    } else {
+      clearInterval(countdownTimer)
+    }
+  }, 1000)
 }
 
 const sendEmailChangeCode = async () => {
   if (!emailChangeForm.value.newEmail) {
     return ElMessage.warning('请输入新邮箱地址')
   }
+  if (emailCodeCountdown.value > 0) return
+
   try {
     isSendingEmailCode.value = true
     await api.post('/api/auth/email/send-code-new', { newEmail: emailChangeForm.value.newEmail })
     ElMessage.success('验证码已发送到新邮箱')
     emailChangeForm.value.step = 2
+    startEmailCountdown()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '发送验证码失败')
   } finally {
@@ -248,6 +296,7 @@ const confirmEmailChange = async () => {
     return ElMessage.warning('请输入验证码')
   }
   try {
+    isConfirmingEmail.value = true
     await api.put('/api/auth/email/change', {
       newEmail: emailChangeForm.value.newEmail,
       code: emailChangeForm.value.code
@@ -257,6 +306,8 @@ const confirmEmailChange = async () => {
     await authStore.fetchMe()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '更换邮箱失败')
+  } finally {
+    isConfirmingEmail.value = false
   }
 }
 
@@ -362,12 +413,12 @@ const fetchMyTeams = async () => {
 }
 
 const sections = [
-  { id: 'profile', label: '个人资料', icon: User },
-  { id: 'notifications', label: '消息通知', icon: Bell },
-  { id: 'security', label: '账号安全', icon: ShieldCheck },
-  { id: 'appearance', label: '界面外观', icon: Palette },
-  { id: 'teams', label: '我的团队', icon: Users },
-  { id: 'data', label: '数据与隐私', icon: Download },
+  { id: 'profile', label: t('settings.profile'), icon: User },
+  { id: 'notifications', label: t('settings.notifications'), icon: Bell },
+  { id: 'security', label: t('settings.account'), icon: ShieldCheck },
+  { id: 'appearance', label: t('settings.appearance'), icon: Palette },
+  { id: 'teams', label: t('settings.teams'), icon: Users },
+  { id: 'data', label: t('settings.dangerZone'), icon: Download },
 ]
 
 watch(() => authStore.user, (newUser) => {
@@ -409,7 +460,7 @@ watch(activeSection, (newSection) => {
   <div class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300" style="background-color: var(--bg-app)">
     <div class="h-16 px-8 flex items-center justify-between shrink-0 border-b transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
       <div class="flex items-center gap-3">
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">账户设置</h1>
+        <h1 class="text-xl font-bold" style="color: var(--text-primary)">{{ t('settings.title') }}</h1>
       </div>
     </div>
 
@@ -452,7 +503,7 @@ watch(activeSection, (newSection) => {
                 <input type="file" class="hidden" accept="image/*" @change="handleAvatarUpload" />
               </label>
               <div>
-                <h2 class="text-xl font-bold" style="color: var(--text-primary)">个人形象</h2>
+                <h2 class="text-xl font-bold" style="color: var(--text-primary)">{{ t('settings.profile') }}</h2>
                 <p class="text-xs mt-1" style="color: var(--text-secondary)">点击头像即可更换，建议上传 500x500px 以上的 JPG 或 PNG 格式图片</p>
               </div>
             </div>
@@ -486,13 +537,29 @@ watch(activeSection, (newSection) => {
               </div>
 
               <div class="pt-4">
-                <button @click="handleUpdateProfile" class="px-8 py-3 bg-accent text-white font-bold rounded-2xl shadow-xl shadow-accent/20 hover:scale-105 transition-all">保存更改</button>
+                <button @click="handleUpdateProfile" class="px-8 py-3 bg-accent text-white font-bold rounded-2xl shadow-xl shadow-accent/20 hover:scale-105 transition-all">{{ t('common.save') }}</button>
               </div>
             </div>
           </div>
 
           <!-- Notifications Section -->
           <div v-if="activeSection === 'notifications'" class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div class="p-8 rounded-3xl border border-accent/20 bg-accent/[0.02] flex items-center justify-between transition-all hover:bg-accent/[0.05]">
+               <div class="flex items-center gap-4">
+                 <div class="w-12 h-12 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
+                   <Bell class="w-6 h-6" />
+                 </div>
+                 <div>
+                   <h3 class="text-lg font-bold" style="color: var(--text-primary)">通知中心</h3>
+                   <p class="text-xs text-slate-500 mt-1">查看所有历史通知、系统消息和团队动态</p>
+                 </div>
+               </div>
+               <button @click="router.push('/notifications')" class="flex items-center gap-2 px-6 py-3 bg-accent text-white font-bold rounded-2xl shadow-xl shadow-accent/20 hover:scale-105 transition-all">
+                 进入通知中心
+                 <ChevronRight class="w-4 h-4" />
+               </button>
+             </div>
+
              <div class="p-8 rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
                <div class="flex items-center gap-3 mb-8">
                  <div class="w-1.5 h-6 bg-accent rounded-full"></div>
@@ -572,8 +639,8 @@ watch(activeSection, (newSection) => {
                   <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">新邮箱地址</label>
                   <input v-model="emailChangeForm.newEmail" type="email" class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)" placeholder="newemail@example.com" />
                 </div>
-                <button @click="sendEmailChangeCode" :disabled="isSendingEmailCode" class="px-6 py-2.5 bg-accent text-white font-bold rounded-xl text-xs hover:scale-105 transition-all disabled:opacity-50">
-                  {{ isSendingEmailCode ? '正在发送...' : '发送验证码' }}
+                <button @click="sendEmailChangeCode" :disabled="isSendingEmailCode || emailCodeCountdown > 0" class="px-6 py-2.5 bg-accent text-white font-bold rounded-xl text-xs hover:scale-105 transition-all disabled:opacity-50">
+                  {{ isSendingEmailCode ? '正在发送...' : emailCodeCountdown > 0 ? `重试 (${emailCodeCountdown}s)` : '发送验证码' }}
                 </button>
               </div>
 
@@ -585,7 +652,9 @@ watch(activeSection, (newSection) => {
                   <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">验证码</label>
                   <div class="flex gap-3">
                     <input v-model="emailChangeForm.code" type="text" maxlength="6" class="flex-1 px-4 py-3 rounded-2xl border text-center font-black tracking-[0.5em] transition-all focus:outline-none focus:ring-2 focus:ring-accent/20" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)" placeholder="000000" />
-                    <button @click="confirmEmailChange" class="px-6 py-3 bg-accent text-white font-bold rounded-2xl text-xs">确认更换</button>
+                    <button @click="confirmEmailChange" :disabled="isConfirmingEmail || emailChangeForm.code.length !== 6" class="px-6 py-3 bg-accent text-white font-bold rounded-2xl text-xs disabled:opacity-50">
+                      {{ isConfirmingEmail ? '更换中...' : '确认更换' }}
+                    </button>
                   </div>
                 </div>
                 <button @click="emailChangeForm.step = 1" class="text-xs text-slate-400 hover:text-slate-600">返回上一步</button>
@@ -657,6 +726,17 @@ watch(activeSection, (newSection) => {
                     <div class="flex-1 space-y-3">
                       <p class="text-xs font-bold">1. 扫描二维码</p>
                       <p class="text-[10px] text-slate-500 leading-relaxed">使用手机上的 Authenticator App 扫描左侧二维码。如果无法扫描，可以手动输入密钥。</p>
+                      
+                      <div v-if="recoveryCodes.length > 0" class="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl space-y-2">
+                        <p class="text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                          <ShieldAlert class="w-3 h-3" /> 请保存这些恢复代码
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                          <code v-for="code in recoveryCodes" :key="code" class="text-[10px] bg-white dark:bg-slate-900 px-2 py-1 rounded border border-amber-200 dark:border-amber-900/30 text-center">{{ code }}</code>
+                        </div>
+                        <p class="text-[9px] text-amber-600/70 dark:text-amber-500/50">如果丢失手机，您可以使用这些代码登录。每个代码只能使用一次。</p>
+                      </div>
+
                       <div class="flex gap-2">
                         <input v-model="tfaCode" type="text" maxlength="6" class="flex-1 px-4 py-2 rounded-xl border text-sm text-center font-black tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="000000" />
                         <button @click="confirm2FA" class="px-6 py-2 bg-accent text-white font-bold rounded-xl text-xs">验证并启用</button>
@@ -672,7 +752,29 @@ watch(activeSection, (newSection) => {
                    <CheckCircle2 class="w-5 h-5 text-emerald-500" />
                    <p class="text-xs text-emerald-800 dark:text-emerald-400 font-medium">您的账号正在受到两步验证的保护。</p>
                 </div>
-                <button @click="disable2FA" class="text-xs font-bold text-rose-500 hover:underline">关闭两步验证</button>
+
+                <div class="space-y-4">
+                  <div v-if="showRecoveryCodes" class="p-6 bg-slate-50 dark:bg-white/5 border rounded-2xl space-y-4 animate-in zoom-in-95 duration-300" style="border-color: var(--border-base)">
+                    <div class="flex items-center justify-between">
+                      <h4 class="text-xs font-bold" style="color: var(--text-primary)">恢复代码</h4>
+                      <button @click="regenerateRecoveryCodes" class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
+                        <RefreshCw class="w-3 h-3" /> 重新生成
+                      </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <code v-for="code in recoveryCodes" :key="code" class="text-xs bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-center font-mono tracking-wider">{{ code }}</code>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">这些代码可以用于在丢失身份验证器时找回账号。请将它们保存在安全的地方。</p>
+                  </div>
+                  
+                  <div class="flex items-center gap-4">
+                    <button @click="showRecoveryCodes ? showRecoveryCodes = false : fetchRecoveryCodes()" class="text-xs font-bold text-accent hover:underline">
+                      {{ showRecoveryCodes ? '隐藏恢复代码' : '查看恢复代码' }}
+                    </button>
+                    <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                    <button @click="disable2FA" class="text-xs font-bold text-rose-500 hover:underline">关闭两步验证</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -716,13 +818,13 @@ watch(activeSection, (newSection) => {
           <!-- Appearance Section -->
           <div v-if="activeSection === 'appearance'" class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div class="p-8 rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
-              <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">外观模式</h3>
+              <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">{{ t('settings.theme') }}</h3>
               <div class="grid grid-cols-3 gap-4">
                 <button 
                   v-for="theme in [
-                    { id: 'light', label: '亮色', icon: Sun },
-                    { id: 'dark', label: '暗色', icon: Moon },
-                    { id: 'system', label: '系统', icon: Monitor }
+                    { id: 'light', label: t('settings.themeLight'), icon: Sun },
+                    { id: 'dark', label: t('settings.themeDark'), icon: Moon },
+                    { id: 'system', label: t('settings.themeSystem'), icon: Monitor }
                   ]" 
                   :key="theme.id"
                   @click="applyTheme(theme.id)"
@@ -737,7 +839,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div class="p-8 rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
-              <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">主题色</h3>
+              <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">{{ t('settings.accentColor') }}</h3>
               <div class="flex flex-wrap gap-4">
                 <button 
                   v-for="color in accentColors" 

@@ -18,6 +18,7 @@ import {
   Search
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -29,6 +30,26 @@ const projectId = computed(() => route.params.id as string)
 const project = ref<any>(null)
 const isLoading = ref(true)
 const activeTab = ref('tasks') // 'tasks', 'discussions', 'settings'
+
+const isProfileDialogOpen = ref(false)
+const selectedUserId = ref<string | null>(null)
+
+const openUserProfile = (userId: string) => {
+  selectedUserId.value = userId
+  isProfileDialogOpen.value = true
+}
+
+const handleStartChat = async (user: any) => {
+  try {
+    await api.post('/api/messages/conversations', {
+      participantIds: [user.id],
+      isGroup: false
+    })
+    router.push('/messages')
+  } catch (error) {
+    ElMessage.error('创建对话失败')
+  }
+}
 
 // Discussions related
 const newComment = ref('')
@@ -428,8 +449,8 @@ onMounted(fetchProject)
               <h1 class="text-2xl font-black tracking-tight leading-tight mb-2" style="color: var(--text-primary)">{{ project.title }}</h1>
               <div class="flex items-center gap-2">
                 <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest"
-                      :class="project.status === '已完成' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-accent/10 text-accent'">
-                  {{ project.status }}
+                      :class="project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-accent/10 text-accent'">
+                  {{ project.status === 'COMPLETED' ? '已完成' : project.status === 'IN_PROGRESS' ? '进行中' : project.status === 'PAUSED' ? '已暂停' : '规划中' }}
                 </span>
                 <span class="text-[10px] font-bold text-slate-400 border px-2 py-0.5 rounded-md" style="border-color: var(--border-base)">
                   {{ project.visibility === 'PUBLIC' ? '公开报名' : '私有项目' }}
@@ -481,10 +502,13 @@ onMounted(fetchProject)
           </div>
           
           <div class="space-y-4">
-            <div v-for="member in project.members" :key="member.id" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
-              <img :src="member.user.avatarUrl || `https://ui-avatars.com/api/?name=${member.user.name || member.user.email}&background=random`" class="w-10 h-10 rounded-xl object-cover shadow-sm" />
+            <div v-for="member in project.members" :key="member.id" 
+                 class="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
+                 @click="openUserProfile(member.user.id)">
+              <img :src="member.user.avatarUrl || `https://ui-avatars.com/api/?name=${member.user.name || member.user.email}&background=random`" 
+                   class="w-10 h-10 rounded-xl object-cover shadow-sm group-hover:ring-2 group-hover:ring-accent transition-all" />
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ member.user.name || member.user.email }}</p>
+                <p class="text-sm font-bold truncate group-hover:text-accent transition-colors" style="color: var(--text-primary)">{{ member.user.name || member.user.email }}</p>
                 <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{{ member.role }}</p>
               </div>
             </div>
@@ -627,13 +651,20 @@ onMounted(fetchProject)
                     
                     <div class="flex items-center justify-between mt-auto">
                       <div class="flex items-center gap-2">
-                        <img v-if="task.assignee" :src="task.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${task.assignee.name || task.assignee.email}`" class="w-6 h-6 rounded-full" />
+                        <div v-if="task.assignee" class="flex items-center gap-1.5 cursor-pointer group/as" @click.stop="openUserProfile(task.assignee.id)">
+                          <img :src="task.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${task.assignee.name || task.assignee.email}`" class="w-6 h-6 rounded-full group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
+                          <span class="text-[10px] font-bold text-slate-400 group-hover/as:text-accent transition-colors">{{ task.assignee?.name || '未分配' }}</span>
+                        </div>
                         <div v-else class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                           <UserPlus class="w-3 h-3 text-slate-400" />
                         </div>
-                        <span class="text-[10px] font-bold text-slate-400">{{ task.assignee?.name || '未分配' }}</span>
+                        
                         <div v-if="task.participants && task.participants.length > 0" class="flex items-center -space-x-1.5 ml-1">
-                          <img v-for="p in task.participants.slice(0, 3)" :key="p.userId" :src="p.user?.avatarUrl || `https://ui-avatars.com/api/?name=${p.user?.name || '?'}`" class="w-5 h-5 rounded-full border-2 object-cover" style="border-color: var(--bg-card)" :title="p.user?.name" />
+                          <img v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
+                               :src="p.user?.avatarUrl || `https://ui-avatars.com/api/?name=${p.user?.name || '?'}`" 
+                               class="w-5 h-5 rounded-full border-2 object-cover cursor-pointer hover:z-10 hover:scale-110 transition-all" 
+                               style="border-color: var(--bg-card)" :title="p.user?.name"
+                               @click.stop="openUserProfile(p.user.id)" />
                           <span v-if="task.participants.length > 3" class="text-[9px] font-bold text-slate-400 ml-1">+{{ task.participants.length - 3 }}</span>
                         </div>
                       </div>
@@ -662,11 +693,13 @@ onMounted(fetchProject)
                      class="flex gap-4 max-w-3xl" 
                      :class="msg.userId === authStore.user?.id ? 'ml-auto flex-row-reverse' : ''">
                   
-                  <img :src="msg.user.avatarUrl || `https://ui-avatars.com/api/?name=${msg.user.name || msg.user.email}`" class="w-12 h-12 rounded-2xl shrink-0 shadow-sm object-cover" />
+                  <img :src="msg.user.avatarUrl || `https://ui-avatars.com/api/?name=${msg.user.name || msg.user.email}`" 
+                       class="w-12 h-12 rounded-2xl shrink-0 shadow-sm object-cover cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+                       @click="openUserProfile(msg.user.id)" />
                   
                   <div :class="msg.userId === authStore.user?.id ? 'items-end' : ''" class="flex flex-col">
                     <div class="flex items-center gap-3 mb-2" :class="msg.userId === authStore.user?.id ? 'flex-row-reverse' : ''">
-                      <span class="text-xs font-black text-slate-700 dark:text-slate-300">{{ msg.user.name || msg.user.email }}</span>
+                      <span class="text-xs font-black text-slate-700 dark:text-slate-300 cursor-pointer hover:text-accent transition-colors" @click="openUserProfile(msg.user.id)">{{ msg.user.name || msg.user.email }}</span>
                       <span class="text-[10px] font-bold text-slate-400">{{ new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
                     </div>
                     <div class="px-6 py-4 rounded-3xl text-sm leading-relaxed shadow-sm max-w-xl" 
@@ -977,10 +1010,15 @@ onMounted(fetchProject)
           <button @click="handleInviteMembers" :disabled="inviteUserIds.length === 0" class="flex-[2] py-3 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">发送邀请</button>
         </div>
       </template>
-    </el-dialog>
+      </el-dialog>
 
-  </div>
-</template>
+      <UserProfileDialog 
+      v-model="isProfileDialogOpen" 
+      :user-id="selectedUserId"
+      @chat="handleStartChat"
+      />
+      </div>
+      </template>
 
 <style scoped>
 .scrollbar-hide::-webkit-scrollbar { display: none; }

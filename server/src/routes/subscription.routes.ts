@@ -9,6 +9,8 @@ router.use(authenticate);
 router.get('/plans', subscriptionController.getPlans);
 router.get('/me', subscriptionController.getMySubscription);
 router.post('/subscribe', subscriptionController.subscribe);
+router.post('/create-order', subscriptionController.createOrder);
+router.post('/verify-payment', subscriptionController.verifyPayment);
 router.post('/cancel', subscriptionController.cancelSubscription);
 router.post('/cancel-with-2fa', subscriptionController.cancelSubscriptionWith2FA);
 router.get('/cancel-requires-2fa', subscriptionController.checkCancelRequires2FA);

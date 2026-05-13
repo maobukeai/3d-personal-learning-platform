@@ -1,5 +1,20 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import prisma from '../services/prisma';
+
+function resolveRealIp(hostname: string): Promise<string> {
+  return new Promise((resolve) => {
+    const resolver = new dns.Resolver();
+    resolver.setServers(['119.29.29.29', '223.5.5.5', '8.8.8.8']);
+    resolver.resolve4(hostname, (err, addresses) => {
+      if (!err && addresses && addresses.length > 0) {
+        resolve(addresses[0]);
+      } else {
+        resolve(hostname);
+      }
+    });
+  });
+}
 
 let cachedTransporter: nodemailer.Transporter | null = null;
 let cachedConfigHash: string = '';
@@ -36,8 +51,10 @@ async function getTransporter(): Promise<{ transporter: nodemailer.Transporter |
   const isSecure = config.SMTP_SECURE === 'true';
   const port = parseInt(config.SMTP_PORT) || (isSecure ? 465 : 587);
 
+  const realIp = await resolveRealIp(config.SMTP_HOST);
+
   cachedTransporter = nodemailer.createTransport({
-    host: config.SMTP_HOST,
+    host: realIp,
     port,
     secure: isSecure,
     auth: {
@@ -45,12 +62,13 @@ async function getTransporter(): Promise<{ transporter: nodemailer.Transporter |
       pass: config.SMTP_PASS,
     },
     tls: {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false,
       minVersion: 'TLSv1.2',
+      servername: config.SMTP_HOST,
     },
-    connectionTimeout: 20000,
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
   });
 
   cachedConfigHash = hash;

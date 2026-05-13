@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as teamController from '../controllers/team.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
+import { sanitizeInput, validate } from '../middlewares/validation.middleware';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.post('/members', teamController.addMemberDirectly);
 router.get('/:teamId', teamController.getTeamById);
 router.patch('/:teamId', teamController.updateTeam);
 router.post('/:teamId/upload-avatar', upload.single('avatar'), validateFileContent, teamController.uploadTeamAvatar);
-router.delete('/:teamId', teamController.deleteTeam);
+router.delete('/:teamId', sanitizeInput, teamController.deleteTeam);
 router.get('/:teamId/members', teamController.getTeamMembers);
 router.delete('/:teamId/members/:userId', teamController.removeMember);
 router.patch('/:teamId/members/:userId/role', teamController.updateMemberRole);

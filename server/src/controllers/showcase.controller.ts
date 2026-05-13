@@ -13,7 +13,6 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
     }
 
     const where: any = {
-      teamId: req.workspaceId,
       status: 'APPROVED'
     };
     if (type && type !== '全部') {

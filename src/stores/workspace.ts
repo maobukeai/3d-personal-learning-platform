@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
 import api from '@/utils/api';
+import { useAuthStore } from './auth';
 
 export interface Workspace {
   id: string;
   name: string;
-  type: 'personal' | 'team';
+  type: 'personal' | 'team' | 'admin';
   color: string;
 }
 
@@ -15,20 +16,34 @@ export const useWorkspaceStore = defineStore('workspace', {
     isLoading: false
   }),
   getters: {
-    activeTeamId: (state) => state.currentWorkspace?.id || null,
-    isPersonal: (state) => state.currentWorkspace?.type === 'personal'
+    activeTeamId: (state) => (state.currentWorkspace && state.currentWorkspace.type !== 'admin' ? state.currentWorkspace.id : null),
+    isPersonal: (state) => state.currentWorkspace?.type === 'personal',
+    isAdminWorkspace: (state) => state.currentWorkspace?.type === 'admin'
   },
   actions: {
     async fetchWorkspaces() {
       this.isLoading = true;
+      const authStore = useAuthStore();
       try {
         const response = await api.get('/api/teams');
-        this.workspaces = response.data.map((t: any) => ({
+        const fetchedWorkspaces = response.data.map((t: any) => ({
           id: t.id,
           name: t.name,
-          type: t.type.toLowerCase(),
+          type: t.type.toLowerCase() as 'personal' | 'team',
           color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500'
         }));
+
+        this.workspaces = fetchedWorkspaces;
+
+        // Add Admin Workspace if user is ADMIN
+        if (authStore.user?.role === 'ADMIN') {
+          this.workspaces.unshift({
+            id: 'admin-workspace',
+            name: '管理中心',
+            type: 'admin',
+            color: 'bg-rose-600'
+          });
+        }
         
         // Restore from localStorage if possible
         const savedId = localStorage.getItem('activeWorkspaceId');
@@ -54,7 +69,10 @@ export const useWorkspaceStore = defineStore('workspace', {
       this.currentWorkspace = workspace;
       localStorage.setItem('activeWorkspaceId', workspace.id);
     },
-    setWorkspaceById(id: string) {
+    async setWorkspaceById(id: string) {
+      if (this.workspaces.length === 0) {
+        await this.fetchWorkspaces();
+      }
       localStorage.setItem('activeWorkspaceId', id);
       const ws = this.workspaces.find(w => w.id === id);
       if (ws) {

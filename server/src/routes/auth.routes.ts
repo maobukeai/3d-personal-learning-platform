@@ -9,8 +9,8 @@ const router = Router();
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: '请求过于频繁，请 15 分钟后再试' },
+  max: 100,
+  message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -25,7 +25,7 @@ const passwordResetLimiter = rateLimit({
 
 const emailLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 3,
+  max: 10,
   message: { error: '邮件发送请求过于频繁，请 10 分钟后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -34,13 +34,26 @@ const emailLimiter = rateLimit({
 router.post('/register', authLimiter, sanitizeInput, validate({
   email: { type: 'email', required: true, maxLength: 255 },
   password: { type: 'string', required: true, minLength: 6, maxLength: 128, message: '密码长度需在 6-128 位之间' },
-  name: { type: 'string', required: false, maxLength: 50 }
+  name: { type: 'string', required: false, maxLength: 50 },
+  verificationCode: { type: 'string', required: true, minLength: 6, maxLength: 6 }
 }), authController.register);
+
+router.post('/email/send-code-public', emailLimiter, sanitizeInput, validate({
+  email: { type: 'email', required: true }
+}), authController.sendPublicVerificationCode);
+
+router.post('/email/verify-public', sanitizeInput, validate({
+  email: { type: 'email', required: true },
+  code: { type: 'string', required: true, minLength: 6, maxLength: 6 }
+}), authController.verifyPublicEmail);
 
 router.post('/login', authLimiter, sanitizeInput, validate({
   email: { type: 'string', required: true },
   password: { type: 'string', required: true }
 }), authController.login);
+
+router.post('/refresh', authController.refreshToken);
+router.post('/logout', authController.logout);
 
 router.get('/settings', authController.getPublicSettings);
 
@@ -91,6 +104,8 @@ router.put('/email/change', authenticate, sanitizeInput, validate({
 }), authController.changeEmail);
 
 router.put('/2fa/setup', authenticate, authController.setup2FA);
+router.get('/2fa/recovery-codes', authenticate, authController.getRecoveryCodes);
+router.post('/2fa/recovery-codes/regenerate', authenticate, authController.regenerateRecoveryCodes);
 router.post('/2fa/enable', authenticate, sanitizeInput, validate({
   code: { type: 'string', required: true, minLength: 6, maxLength: 6 }
 }), authController.enable2FA);

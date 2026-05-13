@@ -126,10 +126,19 @@ const getStatusLabel = (status: string) => {
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
-    case '高': return 'text-rose-600 bg-rose-50'
-    case '中': return 'text-amber-600 bg-amber-50'
-    case '低': return 'text-emerald-600 bg-emerald-50'
+    case 'HIGH': return 'text-rose-600 bg-rose-50'
+    case 'MEDIUM': return 'text-amber-600 bg-amber-50'
+    case 'LOW': return 'text-emerald-600 bg-emerald-50'
     default: return 'text-slate-600 bg-slate-50'
+  }
+}
+
+const getPriorityLabel = (priority: string) => {
+  switch (priority) {
+    case 'HIGH': return '高'
+    case 'MEDIUM': return '中'
+    case 'LOW': return '低'
+    default: return priority
   }
 }
 
@@ -232,7 +241,7 @@ onMounted(fetchFeedbacks)
                 <div class="flex items-start justify-between mb-2">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider" :class="getPriorityColor(item.priority)">
-                      {{ item.priority }} 优先级
+                      {{ getPriorityLabel(item.priority) }} 优先级
                     </span>
                     <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wider">
                       {{ item.type }}

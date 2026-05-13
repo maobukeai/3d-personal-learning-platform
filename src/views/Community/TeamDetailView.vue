@@ -21,6 +21,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import UserAvatar from '@/components/UserAvatar.vue'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -33,6 +34,26 @@ const team = ref<any>(null)
 const isLoading = ref(false)
 const activeTab = ref('people') // 'people', 'applications', 'settings'
 const memberSearchQuery = ref('')
+
+const isProfileDialogOpen = ref(false)
+const selectedUserId = ref<string | null>(null)
+
+const openUserProfile = (userId: string) => {
+  selectedUserId.value = userId
+  isProfileDialogOpen.value = true
+}
+
+const handleStartChat = async (user: any) => {
+  try {
+    await api.post('/api/messages/conversations', {
+      participantIds: [user.id],
+      isGroup: false
+    })
+    router.push('/messages')
+  } catch (error) {
+    ElMessage.error('创建对话失败')
+  }
+}
 
 const fetchTeamDetail = async () => {
   isLoading.value = true
@@ -69,8 +90,16 @@ const isOwnerOrAdmin = computed(() => {
 
 const isOwner = computed(() => currentUserRole.value === 'OWNER')
 
+const isPersonalSpace = computed(() => {
+  return team.value?.type === 'PERSONAL'
+})
+
 const isSpecialPublicSpace = computed(() => {
   return team.value?.name === '公共空间'
+})
+
+const canManageTeam = computed(() => {
+  return isMember.value && isOwnerOrAdmin.value && !isPersonalSpace.value
 })
 
 const canLeaveTeam = computed(() => {
@@ -295,19 +324,64 @@ const handleAvatarChange = async (event: any) => {
     ElMessage.error('头像更新失败')
   }
 }
+const isSendingAvatar = ref(false)
+const isDissolveModalOpen = ref(false)
+const dissolveCode = ref('')
+const isDissolving = ref(false)
+const dissolveCountdown = ref(0)
+let dissolveTimer: any = null
+
+const startDissolveCountdown = () => {
+  dissolveCountdown.value = 60
+  dissolveTimer = setInterval(() => {
+    if (dissolveCountdown.value > 0) {
+      dissolveCountdown.value--
+    } else {
+      clearInterval(dissolveTimer)
+    }
+  }, 1000)
+}
+
+const sendDissolveCode = async () => {
+  if (dissolveCountdown.value > 0) return
+  try {
+    await api.post('/api/auth/email/send-code')
+    ElMessage.success('验证码已发送到您的邮箱')
+    startDissolveCountdown()
+  } catch (error) {
+    ElMessage.error('发送验证码失败')
+  }
+}
 
 const handleDeleteTeam = async () => {
+  dissolveCode.value = ''
+  isDissolveModalOpen.value = true
+}
+
+watch(isDissolveModalOpen, (isOpen) => {
+  if (!isOpen) {
+    dissolveCode.value = ''
+    if (dissolveTimer) clearInterval(dissolveTimer)
+    dissolveCountdown.value = 0
+  }
+})
+
+const confirmDeleteTeam = async () => {
+  if (!dissolveCode.value) {
+    return ElMessage.warning('请输入验证码')
+  }
   try {
-    await ElMessageBox.confirm('解散团队将永久删除所有协作数据，确定吗？', '极端警告', {
-      confirmButtonText: '解散团队',
-      cancelButtonText: '取消',
-      type: 'error'
+    isDissolving.value = true
+    await api.delete(`/api/teams/${teamId.value}`, {
+      data: { code: dissolveCode.value }
     })
-    await api.delete(`/api/teams/${teamId.value}`)
     ElMessage.success('团队已解散')
+    isDissolveModalOpen.value = false
     router.push('/dashboard')
-  } catch (error) {
-    if (error !== 'cancel') ElMessage.error('操作失败')
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '解散团队失败')
+  } finally {
+    isDissolving.value = false
   }
 }
 
@@ -387,13 +461,19 @@ watch(() => team.value, (newTeam) => {
             </div>
 
             <div class="flex items-center gap-4">
-              <template v-if="isMember && isOwnerOrAdmin">
+              <template v-if="canManageTeam">
                 <button @click="isAddModalOpen = true" class="flex items-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all">
                   <UserPlus class="w-5 h-5" />
                   管理成员
                 </button>
                 <button @click="activeTab = 'settings'" class="p-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all" style="border-color: var(--border-base)">
                   <Settings class="w-6 h-6 text-slate-400" />
+                </button>
+              </template>
+              <template v-else-if="isMember && isPersonalSpace">
+                <button @click="activeTab = 'settings'" class="flex items-center gap-2 px-8 py-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold" style="border-color: var(--border-base); color: var(--text-primary)">
+                  <Settings class="w-5 h-5 text-slate-400" />
+                  空间设置
                 </button>
               </template>
               <template v-if="!isMember && team?.visibility === 'PUBLIC'">
@@ -459,9 +539,18 @@ watch(() => team.value, (newTeam) => {
               </div>
 
               <div class="flex items-center gap-4 mb-6">
-                <UserAvatar :user="person.isMember ? person.user : { name: person.displayName, email: person.displayEmail }" size="lg" />
+                <UserAvatar 
+                  :user="person.isMember ? person.user : { name: person.displayName, email: person.displayEmail }" 
+                  size="lg" 
+                  class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                  @click="person.isMember && openUserProfile(person.user.id)"
+                />
                 <div class="flex-1 min-w-0">
-                  <h4 class="font-bold text-base truncate" style="color: var(--text-primary)">{{ person.displayName }}</h4>
+                  <h4 class="font-bold text-base truncate cursor-pointer hover:text-accent transition-colors" 
+                      style="color: var(--text-primary)"
+                      @click="person.isMember && openUserProfile(person.user.id)">
+                    {{ person.displayName }}
+                  </h4>
                   <p class="text-xs text-slate-400 truncate">{{ person.displayEmail }}</p>
                 </div>
               </div>
@@ -479,7 +568,7 @@ watch(() => team.value, (newTeam) => {
                   </span>
                 </div>
 
-                <div v-if="isMember && isOwnerOrAdmin && person.userId !== authStore.user?.id" class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div v-if="canManageTeam && person.userId !== authStore.user?.id" class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                   <template v-if="person.isMember">
                     <el-dropdown trigger="click" placement="bottom-end">
                       <button class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all" style="color: var(--text-muted)">
@@ -516,7 +605,7 @@ watch(() => team.value, (newTeam) => {
             </div>
 
             <!-- Add Person CTA -->
-            <button v-if="isMember && isOwnerOrAdmin" @click="isAddModalOpen = true" 
+            <button v-if="canManageTeam" @click="isAddModalOpen = true" 
                     class="h-full min-h-[160px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border-2 border-dashed transition-all hover:bg-accent/5 group" 
                     style="border-color: var(--accent)">
               <div class="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
@@ -588,7 +677,7 @@ watch(() => team.value, (newTeam) => {
                     <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
                   </el-select>
                 </div>
-                <div class="space-y-3">
+                <div v-if="!isPersonalSpace" class="space-y-3">
                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">隐私与可见性</label>
                   <el-select v-model="editForm.visibility" class="w-full custom-select" placeholder="选择可见性">
                     <el-option label="公开 (所有人可搜寻)" value="PUBLIC" />
@@ -604,7 +693,7 @@ watch(() => team.value, (newTeam) => {
             </div>
           </div>
 
-          <div class="pt-12 border-t" style="border-color: var(--border-base)">
+          <div v-if="!isPersonalSpace" class="pt-12 border-t" style="border-color: var(--border-base)">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
               <div class="lg:col-span-1">
                 <h3 class="text-xl font-black mb-3 text-rose-500">归档与危险操作</h3>
@@ -698,6 +787,60 @@ watch(() => team.value, (newTeam) => {
         </div>
       </div>
     </div>
+
+    <!-- Dissolve Team Modal -->
+    <div v-if="isDissolveModalOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+      <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-[3rem] p-10 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+        <div class="flex items-center justify-between mb-8">
+          <div class="p-4 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500">
+            <Trash2 class="w-6 h-6" />
+          </div>
+          <button @click="isDissolveModalOpen = false" class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all">
+            <X class="w-6 h-6 text-slate-400" />
+          </button>
+        </div>
+
+        <div class="space-y-6">
+          <div>
+            <h3 class="text-2xl font-black text-rose-600">确认解散团队？</h3>
+            <p class="text-xs text-slate-400 font-medium mt-1 leading-relaxed">这是一项高危操作。如果您确定要解散 <strong>{{ team?.name }}</strong>，请完成安全验证。</p>
+          </div>
+
+          <div class="space-y-4">
+            <div v-if="authStore.user?.twoFactorEnabled" class="space-y-2">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">两步验证码</label>
+              <input v-model="dissolveCode" type="text" maxlength="6" placeholder="000000" 
+                     class="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all" 
+                     style="border-color: var(--border-base); color: var(--text-primary)" />
+            </div>
+            <div v-else class="space-y-2">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">邮箱验证码</label>
+              <div class="flex gap-3">
+                <input v-model="dissolveCode" type="text" maxlength="6" placeholder="000000" 
+                       class="flex-1 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all" 
+                       style="border-color: var(--border-base); color: var(--text-primary)" />
+                <button @click="sendDissolveCode" :disabled="dissolveCountdown > 0" 
+                        class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50">
+                  {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : '获取' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button @click="confirmDeleteTeam" :disabled="isDissolving || dissolveCode.length !== 6" 
+                  class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            <Trash2 class="w-4 h-4" />
+            {{ isDissolving ? '正在解散...' : '确认并解散团队' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <UserProfileDialog 
+      v-model="isProfileDialogOpen" 
+      :user-id="selectedUserId"
+      @chat="handleStartChat"
+    />
   </div>
 </template>
 

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import fs from 'fs';
+import speakeasy from 'speakeasy';
 
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -148,6 +149,10 @@ export const inviteToTeam = async (req: AuthRequest, res: Response) => {
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
     
+    if (team.type === 'PERSONAL') {
+      return res.status(400).json({ error: '个人空间不允许邀请其他成员' });
+    }
+
     const member = team.members.find(m => m.userId === inviterId);
     if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
       return res.status(403).json({ error: 'Unauthorized to invite' });
@@ -413,6 +418,8 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response) => {
 
 export const deleteTeam = async (req: AuthRequest, res: Response) => {
   const teamId = req.params.teamId as string;
+  const { code } = req.body;
+  
   try {
     const team = await prisma.team.findUnique({
       where: { id: teamId }
@@ -420,10 +427,47 @@ export const deleteTeam = async (req: AuthRequest, res: Response) => {
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
     if (team.ownerId !== req.userId) return res.status(403).json({ error: 'Only owner can delete team' });
+    if (team.name === '公共空间' || team.type === 'PERSONAL') {
+      return res.status(400).json({ error: '不能删除系统预置或个人空间' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+
+    if (user.twoFactorEnabled) {
+      if (!code) {
+        return res.status(400).json({ error: '需要两步验证码', twoFactorRequired: true });
+      }
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret!,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+      });
+      if (!isValid) return res.status(400).json({ error: '两步验证码错误' });
+    } else {
+      if (!code) {
+        return res.status(400).json({ error: '需要邮箱验证码', emailVerificationRequired: true });
+      }
+      const record = await prisma.verificationCode.findFirst({
+        where: { 
+          email: user.email, 
+          code, 
+          expiresAt: { gt: new Date() } 
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!record) return res.status(400).json({ error: '验证码错误或已过期' });
+      
+      // Clean up verification code
+      await prisma.verificationCode.delete({ where: { id: record.id } });
+    }
 
     await prisma.team.delete({ where: { id: teamId } });
     res.json({ message: 'Team deleted successfully' });
   } catch (error) {
+    console.error('Delete team error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -631,6 +675,10 @@ export const addMemberDirectly = async (req: AuthRequest, res: Response) => {
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
+
+    if (team.type === 'PERSONAL') {
+      return res.status(400).json({ error: '个人空间不允许添加其他成员' });
+    }
 
     // Check permissions
     const currentMember = team.members.find(m => m.userId === currentUserId);

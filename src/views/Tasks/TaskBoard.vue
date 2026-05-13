@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
+import { useI18n } from 'vue-i18n'
 import { 
   Plus, Search, Clock, CheckCircle2, AlertCircle,
   Calendar, Trash2, X, LayoutGrid, List,
@@ -8,9 +9,11 @@ import {
   FolderOpen, TrendingUp, BarChart3, Zap
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import api from '@/utils/api'
 import { useWorkspaceStore } from '@/stores/workspace'
 
+const { t } = useI18n()
 const workspaceStore = useWorkspaceStore()
 
 const tasks = ref<any[]>([])
@@ -23,12 +26,33 @@ const isAddDialogOpen = ref(false)
 const viewMode = ref<'board' | 'list'>('board')
 const stats = ref<any>(null)
 
-const priorityOptions = [
-  { id: 'URGENT', label: '紧急', color: 'bg-red-500', textColor: 'text-red-500', icon: Flame },
-  { id: 'HIGH', label: '高', color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp },
-  { id: 'MEDIUM', label: '中', color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus },
-  { id: 'LOW', label: '低', color: 'bg-slate-400', textColor: 'text-slate-400', icon: ArrowDown },
-]
+const isProfileDialogOpen = ref(false)
+const selectedUserId = ref<string | null>(null)
+
+const openUserProfile = (userId: string) => {
+  selectedUserId.value = userId
+  isProfileDialogOpen.value = true
+}
+
+const handleStartChat = async (user: any) => {
+  try {
+    await api.post('/api/messages/conversations', {
+      participantIds: [user.id],
+      isGroup: false
+    })
+    // Navigate to messages or just close dialog
+    ElMessage.success('已发起对话')
+  } catch (error) {
+    ElMessage.error('创建对话失败')
+  }
+}
+
+const priorityOptions = computed(() => [
+  { id: 'URGENT', label: t('tasks.urgent'), color: 'bg-red-500', textColor: 'text-red-500', icon: Flame },
+  { id: 'HIGH', label: t('tasks.high'), color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp },
+  { id: 'MEDIUM', label: t('tasks.medium'), color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus },
+  { id: 'LOW', label: t('tasks.low'), color: 'bg-slate-400', textColor: 'text-slate-400', icon: ArrowDown },
+])
 
 const tagColorMap: Record<string, string> = {
   '设计': 'bg-pink-500/10 text-pink-500',
@@ -82,10 +106,16 @@ const projects = ref<any[]>([])
 const teams = ref<any[]>([])
 
 const columns = ref([
-  { id: 'TODO', title: '待办', color: 'bg-slate-500', headerBg: 'from-slate-500/10 to-transparent' },
-  { id: 'IN_PROGRESS', title: '进行中', color: 'bg-accent', headerBg: 'from-accent/10 to-transparent' },
-  { id: 'DONE', title: '已完成', color: 'bg-emerald-500', headerBg: 'from-emerald-500/10 to-transparent' },
+  { id: 'TODO', title: t('tasks.todo'), color: 'bg-slate-500', headerBg: 'from-slate-500/10 to-transparent' },
+  { id: 'IN_PROGRESS', title: t('tasks.inProgress'), color: 'bg-accent', headerBg: 'from-accent/10 to-transparent' },
+  { id: 'DONE', title: t('tasks.done'), color: 'bg-emerald-500', headerBg: 'from-emerald-500/10 to-transparent' },
 ])
+
+watch(() => t('tasks.todo'), () => {
+  columns.value[0].title = t('tasks.todo')
+  columns.value[1].title = t('tasks.inProgress')
+  columns.value[2].title = t('tasks.done')
+})
 
 const tasksByStatus = computed(() => {
   let filtered = tasks.value
@@ -661,23 +691,26 @@ onMounted(() => {
                     </div>
                     <!-- Assignee -->
                     <div v-if="task.assignee" class="flex items-center gap-1.5 ml-1">
-                      <div class="relative">
+                      <div class="relative cursor-pointer hover:ring-2 hover:ring-accent rounded-lg transition-all" @click.stop="openUserProfile(task.assignee.id)">
                         <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" class="w-5 h-5 rounded-lg object-cover" :alt="task.assignee.name" />
                         <div v-else class="w-5 h-5 rounded-lg bg-accent/10 flex items-center justify-center">
                           <User class="w-3 h-3 text-accent" />
                         </div>
                       </div>
-                      <span class="text-[10px] text-slate-400 font-medium">{{ task.assignee.name }}</span>
+                      <span class="text-[10px] text-slate-400 font-medium cursor-pointer hover:text-accent" @click.stop="openUserProfile(task.assignee.id)">{{ task.assignee.name }}</span>
                     </div>
                     <!-- Participants -->
                     <div v-if="task.participants && task.participants.length > 0" class="flex items-center -space-x-1.5 ml-1">
-                      <img v-for="p in task.participants.slice(0, 3)" :key="p.userId" :src="p.user.avatarUrl || `https://ui-avatars.com/api/?name=${p.user.name || 'U'}&background=random`" class="w-5 h-5 rounded-lg object-cover border border-white dark:border-slate-800" :title="p.user.name" />
+                      <UserAvatar v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
+                           :user="p.user" 
+                           size="sm" 
+                           class="border border-white dark:border-slate-800 cursor-pointer hover:z-10 hover:scale-110 transition-all" 
+                           :title="p.user.name"
+                           @click.stop="openUserProfile(p.user.id)" />
                       <div v-if="task.participants.length > 3" class="w-5 h-5 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-white dark:border-slate-800">
                         +{{ task.participants.length - 3 }}
                       </div>
-                    </div>
-                  </div>
-
+                    </div>                  </div>
                   <!-- Quick Status Actions -->
                   <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button v-if="task.status !== 'TODO'" @click.stop="quickStatusChange(task, 'TODO')" class="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="移到待办">
@@ -748,17 +781,22 @@ onMounted(() => {
           </div>
 
           <!-- Assignee -->
-          <div v-if="task.assignee" class="shrink-0 flex items-center gap-1.5">
-            <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
-            <div v-else class="w-5 h-5 rounded-lg bg-accent/10 flex items-center justify-center">
-              <User class="w-3 h-3 text-accent" />
+          <div v-if="task.assignee" class="shrink-0 flex items-center gap-1.5 cursor-pointer group/as" @click.stop="openUserProfile(task.assignee.id)">
+            <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" class="w-5 h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
+            <div v-else class="w-5 h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all">
+              <User class="w-3 h-3 text-accent group-hover/as:text-white" />
             </div>
-            <span class="text-[10px] text-slate-400 font-medium">{{ task.assignee.name }}</span>
+            <span class="text-[10px] text-slate-400 font-medium group-hover/as:text-accent transition-colors">{{ task.assignee.name }}</span>
           </div>
 
           <!-- Participants -->
           <div v-if="task.participants && task.participants.length > 0" class="shrink-0 flex items-center -space-x-1.5">
-            <img v-for="p in task.participants.slice(0, 3)" :key="p.userId" :src="p.user.avatarUrl || `https://ui-avatars.com/api/?name=${p.user.name || 'U'}&background=random`" class="w-5 h-5 rounded-lg object-cover border border-white dark:border-slate-800" :title="p.user.name" />
+            <UserAvatar v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
+                 :user="p.user" 
+                 size="sm" 
+                 class="border border-white dark:border-slate-800 cursor-pointer hover:z-10 hover:scale-110 transition-all" 
+                 :title="p.user.name"
+                 @click.stop="openUserProfile(p.user.id)" />
             <div v-if="task.participants.length > 3" class="w-5 h-5 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-white dark:border-slate-800">
               +{{ task.participants.length - 3 }}
             </div>
@@ -1032,6 +1070,12 @@ onMounted(() => {
         </div>
       </div>
     </Transition>
+
+    <UserProfileDialog 
+      v-model="isProfileDialogOpen" 
+      :user-id="selectedUserId"
+      @chat="handleStartChat"
+    />
   </div>
 </template>
 

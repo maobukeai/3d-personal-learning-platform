@@ -52,7 +52,6 @@ const defaultSettings = {
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
   DEFAULT_USER_ROLE: 'USER',
-  MATERIAL_CATEGORIES: '全部材料, 金属, 木纹, 石材, 织物, 程序化, 玻璃, 其他',
   PASSWORD_MIN_LENGTH: '6',
   SESSION_TIMEOUT: '7d',
   AUTO_APPROVE_MATERIALS: false,
@@ -101,19 +100,35 @@ const fetchSettings = async () => {
     isLoading.value = true
     const { data } = await api.get('/api/admin/settings')
     
-    data.forEach((s: any) => {
-      if (s.key === 'ALLOW_REGISTRATION' || s.key === 'MAINTENANCE_MODE' || s.key === 'AUTO_APPROVE_MATERIALS' || s.key === 'AUTO_APPROVE_SHOWCASES') {
-        (settings.value as any)[s.key] = s.value === 'true'
-      } else if (s.key === 'MATERIAL_CATEGORIES' || s.key === 'ALLOWED_FILE_TYPES') {
-        try {
-          (settings.value as any)[s.key] = JSON.parse(s.value).join(', ')
-        } catch {
-          (settings.value as any)[s.key] = (defaultSettings as any)[s.key]
+    // Support both array and object formats for backward compatibility during transition
+    if (Array.isArray(data)) {
+      data.forEach((s: any) => {
+        if (s.key === 'ALLOW_REGISTRATION' || s.key === 'MAINTENANCE_MODE' || s.key === 'AUTO_APPROVE_MATERIALS' || s.key === 'AUTO_APPROVE_SHOWCASES') {
+          (settings.value as any)[s.key] = s.value === 'true'
+        } else if (s.key === 'MATERIAL_CATEGORIES' || s.key === 'ALLOWED_FILE_TYPES' || s.key === 'ALLOWED_EXTENSIONS') {
+          try {
+            const arr = typeof s.value === 'string' ? JSON.parse(s.value) : s.value
+            (settings.value as any)[s.key] = arr.join(', ')
+          } catch {
+            (settings.value as any)[s.key] = (defaultSettings as any)[s.key]
+          }
+        } else if (Object.keys(settings.value).includes(s.key)) {
+          (settings.value as any)[s.key] = s.value
         }
-      } else if (Object.keys(settings.value).includes(s.key)) {
-        (settings.value as any)[s.key] = s.value
-      }
-    })
+      })
+    } else {
+      // Object format
+      Object.entries(data).forEach(([key, value]) => {
+        if (typeof value === 'boolean') {
+          (settings.value as any)[key] = value
+        } else if (Array.isArray(value)) {
+           (settings.value as any)[key] = value.join(', ')
+        } else if (Object.keys(settings.value).includes(key)) {
+          (settings.value as any)[key] = value
+        }
+      })
+    }
+    
     originalSettings.value = JSON.parse(JSON.stringify(settings.value))
     hasUnsavedChanges.value = false
   } catch (error) {
@@ -328,12 +343,6 @@ window.addEventListener('beforeunload', (e) => {
                   </div>
                 </div>
 
-                <div class="col-span-1 md:col-span-2 space-y-2 mt-4">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">材料分类 (使用逗号分隔)</label>
-                  <textarea v-model="settings.MATERIAL_CATEGORIES" rows="2"
-                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all resize-none" 
-                         style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"></textarea>
-                </div>
               </div>
             </section>
           </div>

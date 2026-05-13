@@ -21,12 +21,12 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET) as { userId: string };
-    req.userId = decoded.userId;
+    const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
+    req.userId = decoded.id;
     
     // Optionally attach the full user object
     const user = await prisma.user.findUnique({ 
-      where: { id: decoded.userId },
+      where: { id: decoded.id },
       include: { 
         subscription: {
           include: { plan: true }
@@ -48,7 +48,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const workspaceId = req.headers['x-workspace-id'] as string;
     if (workspaceId) {
       const isMember = await prisma.teamMember.findFirst({
-        where: { teamId: workspaceId, userId: decoded.userId }
+        where: { teamId: workspaceId, userId: decoded.id }
       });
       if (isMember) {
         req.workspaceId = workspaceId;
@@ -58,7 +58,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     // Fallback to personal workspace if not set or invalid
     if (!req.workspaceId) {
       const personalTeam = await prisma.team.findFirst({
-        where: { ownerId: decoded.userId, type: 'PERSONAL' }
+        where: { ownerId: decoded.id, type: 'PERSONAL' }
       });
       if (personalTeam) {
         req.workspaceId = personalTeam.id;

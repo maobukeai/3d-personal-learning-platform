@@ -144,6 +144,12 @@ const router = createRouter({
           component: () => import('@/views/Settings/SettingsView.vue')
         },
         {
+          path: 'checkout',
+          name: 'Checkout',
+          component: () => import('@/views/Settings/CheckoutView.vue'),
+          meta: { requiresAuth: true, hideSidebar: true }
+        },
+        {
           path: 'billing',
           name: 'Billing',
           component: () => import('@/views/Settings/BillingView.vue')
@@ -162,6 +168,11 @@ const router = createRouter({
           path: 'notes',
           name: 'Notes',
           component: () => import('@/views/Learning/NotesView.vue')
+        },
+        {
+          path: 'notifications',
+          name: 'Notifications',
+          component: () => import('@/views/NotificationsView.vue')
         },
         // Admin Routes
         {
@@ -185,14 +196,14 @@ const router = createRouter({
         {
           path: 'admin/assets',
           name: 'AdminAssets',
-          component: () => import('@/views/Admin/AdminAssetsView.vue'),
-          meta: { requiresAdmin: true }
+          component: () => import('@/views/Admin/AdminAuditsView.vue'),
+          meta: { requiresAdmin: true, auditType: 'assets' }
         },
         {
           path: 'admin/materials',
           name: 'AdminMaterials',
-          component: () => import('@/views/Admin/AdminMaterialsView.vue'),
-          meta: { requiresAdmin: true }
+          component: () => import('@/views/Admin/AdminAuditsView.vue'),
+          meta: { requiresAdmin: true, auditType: 'materials' }
         },
         {
           path: 'admin/roadmaps',
@@ -204,6 +215,12 @@ const router = createRouter({
           path: 'admin/courses',
           name: 'AdminCourses',
           component: () => import('@/views/Admin/AdminCoursesView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'admin/categories',
+          name: 'AdminCategories',
+          component: () => import('@/views/Admin/AdminCategoriesView.vue'),
           meta: { requiresAdmin: true }
         },
         {
@@ -222,6 +239,12 @@ const router = createRouter({
           path: 'admin/audits',
           name: 'AdminAudits',
           component: () => import('@/views/Admin/AdminAuditsView.vue'),
+          meta: { requiresAdmin: true, auditType: 'showcases' }
+        },
+        {
+          path: 'admin/audit-logs',
+          name: 'AdminAuditLogs',
+          component: () => import('@/views/Admin/AdminAuditLogsView.vue'),
           meta: { requiresAdmin: true }
         },
         {

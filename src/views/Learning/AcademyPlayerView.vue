@@ -62,6 +62,18 @@ const fetchCourseData = async () => {
 
     if (data.userEnrollment) {
       progress.value = data.userEnrollment.progress
+      
+      // Prioritize query param for lesson selection
+      const lessonQuery = route.query.lesson
+      if (lessonQuery !== undefined) {
+        const index = parseInt(lessonQuery as string, 10)
+        if (!isNaN(index) && index >= 0 && index < lessons.value.length) {
+          currentLessonIndex.value = index
+          isLoading.value = false
+          return
+        }
+      }
+
       if (lessons.value.length > 0 && progress.value > 0) {
         let lastIncompleteIndex = lessons.value.findIndex((l: any) => !lessonProgressMap.value[l.id])
         if (lastIncompleteIndex === -1) lastIncompleteIndex = lessons.value.length - 1

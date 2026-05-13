@@ -13,5 +13,6 @@ router.post('/', authenticate, noteController.createNote);
 router.put('/:id', authenticate, noteController.updateNote);
 router.delete('/:id', authenticate, noteController.deleteNote);
 router.post('/:id/like', authenticate, noteController.toggleLikeNote);
+router.post('/:id/popular', authenticate, noteController.togglePopularNote);
 
 export default router;

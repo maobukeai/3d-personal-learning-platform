@@ -90,10 +90,12 @@ onUnmounted(() => {
   font-size: 14px;
   line-height: 1.8;
   color: var(--text-primary) !important;
+  border: none !important;
 }
 
 .md-preview-custom .md-editor-preview-wrapper {
   padding: 0 !important;
+  border: none !important;
 }
 
 .markdown-editor-wrapper .md-editor {

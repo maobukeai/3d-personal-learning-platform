@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import speakeasy from 'speakeasy';
+import bcrypt from 'bcryptjs';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
@@ -213,7 +214,7 @@ export const createOrder = async (req: any, res: Response) => {
       ? `升级至 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`
       : `订阅 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`;
 
-    const transaction = await paymentService.createOrder({
+    const { transaction, paymentUrl } = await paymentService.createOrder({
       userId,
       amount: finalAmount,
       description,
@@ -229,11 +230,49 @@ export const createOrder = async (req: any, res: Response) => {
       currency: transaction.currency,
       invoiceNo: transaction.invoiceNo,
       isUpgrade,
-      proratedRefund
+      proratedRefund,
+      paymentUrl
     });
   } catch (error) {
     console.error('Create order error:', error);
     res.status(500).json({ error: '创建订单失败' });
+  }
+};
+
+export const payOrder = async (req: any, res: Response) => {
+  const { orderId, paymentMethod } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const transaction = await prisma.transaction.findUnique({
+      where: { id: orderId }
+    });
+
+    if (!transaction || transaction.userId !== userId || transaction.status !== 'PENDING') {
+      return res.status(404).json({ error: '无效的订单' });
+    }
+
+    // Update payment method
+    await prisma.transaction.update({
+      where: { id: orderId },
+      data: { paymentMethod }
+    });
+
+    let paymentUrl = null;
+    if (paymentMethod === 'ALIPAY') {
+      const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/billing?success=true`;
+      const notifyUrl = `${process.env.API_URL || 'http://localhost:3000'}/api/webhooks/alipay`;
+      try {
+        const { generatePaymentUrl } = require('../services/alipay');
+        paymentUrl = generatePaymentUrl(transaction.invoiceNo, transaction.amount, transaction.description, returnUrl, notifyUrl);
+      } catch (error) {
+        console.error('Failed to generate Alipay URL', error);
+      }
+    }
+
+    res.json({ paymentUrl });
+  } catch (error) {
+    res.status(500).json({ error: '获取支付链接失败' });
   }
 };
 
@@ -259,7 +298,36 @@ export const cancelSubscription = async (req: any, res: Response) => {
     if (!userId) {
       return res.status(401).json({ error: '未授权' });
     }
-    const { immediate } = req.body;
+    const { immediate, twoFactorCode, password } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        return res.status(400).json({ error: '需要两步验证码', twoFactorRequired: true });
+      }
+      if (!user.twoFactorSecret) {
+        return res.status(400).json({ error: '两步验证配置异常' });
+      }
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: twoFactorCode,
+        window: 1,
+      });
+      if (!isValid) {
+        return res.status(400).json({ error: '两步验证码错误' });
+      }
+    } else {
+      if (!password) {
+        return res.status(400).json({ error: '取消订阅需要验证密码', passwordRequired: true });
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ error: '密码错误' });
+      }
+    }
 
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -485,7 +553,7 @@ export const getStorageUsage = async (req: any, res: Response) => {
 
     const materials = await prisma.material.findMany({
       where: { userId },
-      select: { id: true }
+      select: { id: true, fileSize: true }
     });
 
     const showcases = await prisma.showcase.findMany({
@@ -494,8 +562,9 @@ export const getStorageUsage = async (req: any, res: Response) => {
     });
 
     const assetStorage = assets.reduce((sum, a) => sum + (a.size || 0), 0);
+    const materialStorage = materials.reduce((sum, m) => sum + (m.fileSize || 0), 0);
 
-    const usedMB = assetStorage;
+    const usedMB = assetStorage + materialStorage;
     const usedGB = parseFloat((usedMB / 1024).toFixed(2));
 
     const subscription = await prisma.subscription.findUnique({

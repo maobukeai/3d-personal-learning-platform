@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../utils/notification';
+import { checkProjectQuota } from '../utils/quota';
 
 export const getAllProjects = async (req: AuthRequest, res: Response) => {
   try {
@@ -32,13 +33,21 @@ export const getAllProjects = async (req: AuthRequest, res: Response) => {
 
 export const createProject = async (req: AuthRequest, res: Response) => {
   const { title, description, dueDate, color, tags, visibility, maxMembers, memberIds, inviteUserIds } = req.body;
+  const userId = req.userId as string;
+
   try {
+    // Check quota
+    const quota = await checkProjectQuota(userId);
+    if (!quota.allowed) {
+      return res.status(403).json({ error: quota.message });
+    }
+
     const membersData: any[] = [
-      { userId: req.userId as string, role: 'OWNER' }
+      { userId, role: 'OWNER' }
     ];
 
     if (memberIds && memberIds.length > 0) {
-      const existingMemberIds = new Set([req.userId as string]);
+      const existingMemberIds = new Set([userId]);
       for (const uid of memberIds) {
         if (!existingMemberIds.has(uid)) {
           membersData.push({ userId: uid, role: 'MEMBER' });

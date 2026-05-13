@@ -29,11 +29,21 @@ const payMethod = ref('ALIPAY') // 'ALIPAY', 'WECHAT'
 const handlePay = async () => {
   try {
     isLoading.value = true
-    // Simulate payment process delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
     
+    const { data } = await api.post('/api/subscriptions/pay-order', {
+      orderId: orderId.value,
+      paymentMethod: payMethod.value
+    })
+
+    if (data.paymentUrl) {
+      window.location.href = data.paymentUrl
+      return
+    }
+
+    // Fallback for Mock
+    await new Promise(resolve => setTimeout(resolve, 1500))
     isVerifying.value = true
-    const { data } = await api.post('/api/subscriptions/verify-payment', {
+    await api.post('/api/subscriptions/verify-payment', {
       orderId: orderId.value
     })
     
@@ -113,20 +123,12 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- QR Mock -->
+        <!-- Secure redirect info -->
         <div class="flex flex-col items-center justify-center py-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-dashed border-[var(--border-base)]">
-          <div class="relative group">
-            <div class="w-40 h-40 bg-white p-2 rounded-2xl shadow-lg">
-              <Scan class="w-full h-full text-slate-100 p-4" />
-              <div class="absolute inset-0 flex items-center justify-center">
-                <Loader2 v-if="isLoading" class="w-8 h-8 text-accent animate-spin" />
-                <p v-else class="text-[10px] font-black text-slate-300 uppercase tracking-tighter">Mock Payment QR</p>
-              </div>
-            </div>
-          </div>
-          <p class="mt-4 text-xs font-medium text-slate-400 flex items-center gap-2">
-            <ShieldCheck class="w-4 h-4 text-emerald-500" />
-            模拟环境：点击下方按钮完成支付流程
+          <ShieldCheck class="w-12 h-12 text-emerald-500 mb-3 opacity-80" />
+          <p class="text-sm font-bold text-[var(--text-primary)]">安全支付环境</p>
+          <p class="mt-2 text-xs font-medium text-slate-400 text-center px-4">
+            点击下方按钮后，您将被安全跳转至第三方支付平台完成付款。
           </p>
         </div>
 
@@ -142,16 +144,16 @@ onMounted(() => {
           </template>
           <template v-else-if="isLoading">
             <Loader2 class="w-5 h-5 animate-spin" />
-            正在跳转...
+            正在跳转支付...
           </template>
           <template v-else>
-            立即模拟支付 ￥{{ amount }}
+            立即支付 ￥{{ amount }}
           </template>
         </button>
 
         <div class="flex items-center justify-center gap-2">
           <AlertCircle class="w-3.5 h-3.5 text-slate-300" />
-          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Secure Checkout Powered by Gemini MockPay</p>
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Secure Checkout Powered by Alipay</p>
         </div>
       </div>
     </div>

@@ -6,14 +6,28 @@ import { createNotification } from '../utils/notification';
 import fs from 'fs';
 import path from 'path';
 import { process3DAsset } from '../utils/asset-processor';
+import { checkAssetQuota, checkStorageQuota } from '../utils/quota';
 
 export const uploadAsset = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.userId as string;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const assetFile = files?.asset?.[0];
 
     if (!assetFile) {
       return res.status(400).json({ error: 'No asset file uploaded' });
+    }
+
+    // Check quotas
+    const assetQuota = await checkAssetQuota(userId);
+    if (!assetQuota.allowed) {
+      return res.status(403).json({ error: assetQuota.message });
+    }
+
+    const fileSizeMB = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
+    const storageQuota = await checkStorageQuota(userId, fileSizeMB);
+    if (!storageQuota.allowed) {
+      return res.status(403).json({ error: storageQuota.message });
     }
 
     const { title, description, categoryId } = req.body;
@@ -28,7 +42,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
 
     const url = `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
     const type = path.extname(assetFile.originalname).slice(1).toUpperCase();
-    const size = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)); // Size in MB
+    const size = fileSizeMB;
 
     let thumbnailUrl = null;
     if (files?.thumbnail?.[0]) {
@@ -51,7 +65,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         type,
         size,
         categoryId,
-        userId: req.userId as string,
+        userId,
         teamId: req.workspaceId,
         ...(metadata || {})
       },
@@ -109,13 +123,13 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
   const { vertices, faces, materials, animations, hasAnimations, dimensions } = req.body;
 
   try {
-    // Verify ownership
+    // Verify ownership and workspace context
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string }
+      where: { id, userId: req.userId as string, teamId: req.workspaceId }
     });
 
     if (!existingAsset) {
-      return res.status(404).json({ error: 'Asset not found or access denied' });
+      return res.status(404).json({ error: 'Asset not found or access denied in this workspace' });
     }
 
     const updateData: any = {
@@ -148,13 +162,13 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    // Verify ownership
+    // Verify ownership and workspace context
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string }
+      where: { id, userId: req.userId as string, teamId: req.workspaceId }
     });
 
     if (!existingAsset) {
-      return res.status(404).json({ error: 'Asset not found or access denied' });
+      return res.status(404).json({ error: 'Asset not found or access denied in this workspace' });
     }
 
     const assetsDir = path.join(__dirname, '../../uploads/assets');

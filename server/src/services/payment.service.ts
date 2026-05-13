@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import crypto from 'crypto';
+import { generatePaymentUrl } from './alipay';
 
 export enum PaymentStatus {
   PENDING = 'PENDING',
@@ -42,7 +43,18 @@ class PaymentService {
       }
     });
 
-    return transaction;
+    let paymentUrl = null;
+    if (paymentMethod === PaymentMethod.ALIPAY) {
+      try {
+        const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/checkout?success=true&orderId=${transaction.id}`;
+        const notifyUrl = `${process.env.API_URL || 'http://localhost:3000'}/api/webhooks/alipay`;
+        paymentUrl = generatePaymentUrl(invoiceNo, amount, description, returnUrl, notifyUrl);
+      } catch (error) {
+        console.error('Failed to generate Alipay URL', error);
+      }
+    }
+
+    return { transaction, paymentUrl };
   }
 
   async verifyPayment(transactionId: string, paymentId: string) {

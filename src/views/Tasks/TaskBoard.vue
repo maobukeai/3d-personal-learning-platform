@@ -9,6 +9,7 @@ import {
   FolderOpen, TrendingUp, BarChart3, Zap
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import UserAvatar from '@/components/UserAvatar.vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import api from '@/utils/api'
 import { useWorkspaceStore } from '@/stores/workspace'
@@ -250,7 +251,7 @@ const parseTags = (tags: string | null | undefined): string[] => {
 }
 
 const getPriorityConfig = (priority: string) => {
-  return priorityOptions.find(p => p.id === priority) || priorityOptions[2]
+  return priorityOptions.value.find(p => p.id === priority) || priorityOptions.value[2]
 }
 
 const addTag = (target: 'new' | 'edit') => {

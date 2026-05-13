@@ -142,10 +142,13 @@ export const register = async (req: Request, res: Response) => {
         action: AuditAction.CREATE_USER,
         module: AuditModule.AUTH,
         description: `新用户注册: ${user.email}`,
-        req
+        req,
+        tx // Pass transaction client
       });
 
       return { user, personalTeam };
+    }, {
+      timeout: 10000 // Increase timeout to 10 seconds
     });
 
     res.status(201).json({ message: 'User created successfully' });
@@ -541,7 +544,37 @@ export const enable2FA = async (req: AuthRequest, res: Response) => {
 };
 
 export const disable2FA = async (req: AuthRequest, res: Response) => {
+  const { code, password } = req.body;
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({ error: '两步验证未启用' });
+    }
+
+    if (code) {
+      if (!user.twoFactorSecret) {
+        return res.status(400).json({ error: '配置异常，请联系管理员' });
+      }
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+      });
+      if (!isValid) {
+        return res.status(400).json({ error: '验证码错误' });
+      }
+    } else if (password) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ error: '密码错误' });
+      }
+    } else {
+      return res.status(400).json({ error: '禁用两步验证需要提供验证码或密码', verificationRequired: true });
+    }
+
     await prisma.user.update({
       where: { id: req.userId as string },
       data: { twoFactorEnabled: false, twoFactorSecret: null }
@@ -1033,7 +1066,7 @@ export const revokeTrustedDevice = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteAccount = async (req: AuthRequest, res: Response) => {
-  const { twoFactorCode } = req.body;
+  const { twoFactorCode, password } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
     if (!user) {
@@ -1055,6 +1088,14 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
       });
       if (!isValid) {
         return res.status(400).json({ error: '两步验证码错误' });
+      }
+    } else {
+      if (!password) {
+        return res.status(400).json({ error: '删除账号需要验证密码', passwordRequired: true });
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ error: '密码错误' });
       }
     }
 

@@ -6,6 +6,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
+import { checkTeamQuota } from '../utils/quota';
 
 export const getTeams = async (req: AuthRequest, res: Response) => {
   try {
@@ -72,6 +73,11 @@ export const createTeam = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    const quota = await checkTeamQuota(userId);
+    if (!quota.allowed) {
+      return res.status(403).json({ error: quota.message });
+    }
+
     const team = await prisma.team.create({
       data: {
         name: name.trim(),

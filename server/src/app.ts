@@ -19,6 +19,7 @@ import messageRoutes from './routes/message.routes';
 import teamRoutes from './routes/team.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import noteRoutes from './routes/note.routes';
+import webhookRoutes from './routes/webhook.routes';
 
 import { errorHandler } from './middlewares/error.middleware';
 import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
@@ -76,6 +77,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 
 app.get('/', (req, res) => {

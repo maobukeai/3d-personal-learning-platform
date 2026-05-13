@@ -40,12 +40,14 @@ interface AuditParams {
   oldValue?: any;
   newValue?: any;
   req?: Request;
+  tx?: any; // Add optional transaction client
 }
 
 class AuditService {
-  async log({ userId, action, module, description, oldValue, newValue, req }: AuditParams) {
+  async log({ userId, action, module, description, oldValue, newValue, req, tx }: AuditParams) {
+    const client = tx || prisma; // Use transaction client if provided
     try {
-      await prisma.auditLog.create({
+      await client.auditLog.create({
         data: {
           userId,
           action,

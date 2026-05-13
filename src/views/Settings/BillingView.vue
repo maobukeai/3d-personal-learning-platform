@@ -304,6 +304,11 @@ const getUpgradePriceDiff = (plan: any) => {
 
 onMounted(() => {
   fetchBillingData()
+  
+  if (route.query.success === 'true') {
+    ElMessage.success('支付成功！您的订阅权限已生效。')
+    router.replace({ name: 'Billing' })
+  }
 })
 </script>
 

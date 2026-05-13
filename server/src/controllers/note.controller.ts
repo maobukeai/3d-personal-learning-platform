@@ -3,7 +3,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getNotes = async (req: AuthRequest, res: Response) => {
-  const { visibility, search, sort, tag, category } = req.query;
+  const { visibility, search, sort, tag, category, author } = req.query;
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 12;
   const skip = (page - 1) * limit;
@@ -11,16 +11,25 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
   try {
     const where: any = {};
 
-    if (visibility === 'PUBLIC') {
-      where.visibility = 'PUBLIC';
-    } else if (visibility === 'PRIVATE') {
-      where.visibility = 'PRIVATE';
+    if (author === 'me') {
       where.userId = req.userId;
+      if (visibility === 'PUBLIC') {
+        where.visibility = 'PUBLIC';
+      } else if (visibility === 'PRIVATE') {
+        where.visibility = 'PRIVATE';
+      }
     } else {
-      where.OR = [
-        { visibility: 'PUBLIC' },
-        { visibility: 'PRIVATE', userId: req.userId }
-      ];
+      if (visibility === 'PUBLIC') {
+        where.visibility = 'PUBLIC';
+      } else if (visibility === 'PRIVATE') {
+        where.visibility = 'PRIVATE';
+        where.userId = req.userId;
+      } else {
+        where.OR = [
+          { visibility: 'PUBLIC' },
+          { visibility: 'PRIVATE', userId: req.userId }
+        ];
+      }
     }
 
     if (search) {
@@ -112,7 +121,7 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
 export const getPopularNotes = async (req: AuthRequest, res: Response) => {
   try {
     const notes = await prisma.note.findMany({
-      where: { visibility: 'PUBLIC' },
+      where: { visibility: 'PUBLIC', isPopular: true },
       include: {
         user: {
           select: { id: true, name: true, avatarUrl: true }
@@ -126,10 +135,10 @@ export const getPopularNotes = async (req: AuthRequest, res: Response) => {
         }
       },
       orderBy: [
-        { views: 'desc' },
-        { likes: { _count: 'desc' } }
+        { isPinned: 'desc' },
+        { createdAt: 'desc' }
       ],
-      take: 6
+      take: 12
     });
 
     const notesWithLiked = notes.map(n => ({
@@ -141,6 +150,35 @@ export const getPopularNotes = async (req: AuthRequest, res: Response) => {
     res.json(notesWithLiked);
   } catch (error) {
     console.error('Get popular notes error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const togglePopularNote = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  if (req.user?.role !== 'ADMIN') {
+    return res.status(403).json({ error: '只有管理员可以推流笔记' });
+  }
+
+  try {
+    const note = await prisma.note.findUnique({
+      where: { id },
+      select: { isPopular: true, visibility: true }
+    });
+
+    if (!note) return res.status(404).json({ error: '笔记不存在' });
+    if (note.visibility !== 'PUBLIC' && !note.isPopular) {
+      return res.status(400).json({ error: '只有公开笔记可以推流到热门' });
+    }
+
+    const updated = await prisma.note.update({
+      where: { id },
+      data: { isPopular: !note.isPopular }
+    });
+
+    res.json({ isPopular: updated.isPopular });
+  } catch (error) {
+    console.error('Toggle popular note error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

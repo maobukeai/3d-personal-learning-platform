@@ -114,8 +114,12 @@ const handleEnroll = async () => {
   }
 }
 
-const handleStartLearning = () => {
-  router.push(`/academy/player/${courseId}`)
+const handleStartLearning = (lessonIndex?: number) => {
+  const query = lessonIndex !== undefined ? { lesson: lessonIndex } : {}
+  router.push({ 
+    path: `/academy/player/${courseId}`,
+    query
+  })
 }
 
 const toggleBookmark = () => {
@@ -313,8 +317,12 @@ onMounted(fetchCourse)
               <template v-if="activeSection === 'outline'">
                 <div class="space-y-3">
                   <div v-for="(lesson, index) in course.lessons" :key="lesson.id"
+                       @click="isEnrolled && handleStartLearning(index as number)"
                        class="group flex items-center gap-4 p-4 rounded-2xl border transition-all hover:shadow-md"
-                       :class="course.lessonProgressMap?.[lesson.id] ? 'border-emerald-200 dark:border-emerald-800/30' : ''"
+                       :class="[
+                         course.lessonProgressMap?.[lesson.id] ? 'border-emerald-200 dark:border-emerald-800/30' : '',
+                         isEnrolled ? 'cursor-pointer' : ''
+                       ]"
                        style="background-color: var(--bg-card); border-color: var(--border-base)">
                     <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                          :class="course.lessonProgressMap?.[lesson.id] ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-white/5'"
@@ -334,7 +342,7 @@ onMounted(fetchCourse)
                         </span>
                       </div>
                     </div>
-                    <button v-if="isEnrolled" @click="handleStartLearning"
+                    <button v-if="isEnrolled"
                             class="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10">
                       <PlayCircle class="w-4 h-4 text-accent" />
                     </button>

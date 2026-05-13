@@ -768,6 +768,7 @@ model Note {
   category    String?
   views       Int        @default(0)
   isPinned    Boolean    @default(false)
+  isPopular   Boolean    @default(false)
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes       NoteLike[]

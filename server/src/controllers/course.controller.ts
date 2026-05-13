@@ -395,6 +395,16 @@ export const updateReview = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { rating, comment } = req.body;
   try {
+    const existing = await prisma.courseReview.findUnique({
+      where: { id },
+      select: { userId: true }
+    });
+
+    if (!existing) return res.status(404).json({ error: 'Review not found' });
+    if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
     const review = await prisma.courseReview.update({
       where: { id },
       data: { rating, comment: comment || null },
@@ -411,6 +421,16 @@ export const updateReview = async (req: AuthRequest, res: Response) => {
 export const deleteReview = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
+    const existing = await prisma.courseReview.findUnique({
+      where: { id },
+      select: { userId: true }
+    });
+
+    if (!existing) return res.status(404).json({ error: 'Review not found' });
+    if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
     await prisma.courseReview.delete({ where: { id } });
     res.json({ message: 'Review deleted successfully' });
   } catch (error) {
@@ -454,6 +474,16 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { content, timestamp } = req.body;
   try {
+    const existing = await prisma.courseNote.findUnique({
+      where: { id },
+      select: { userId: true }
+    });
+
+    if (!existing) return res.status(404).json({ error: 'Note not found' });
+    if (existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
     const note = await prisma.courseNote.update({
       where: { id },
       data: { content, timestamp: timestamp !== undefined ? timestamp : undefined }
@@ -467,6 +497,16 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
 export const deleteNote = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
+    const existing = await prisma.courseNote.findUnique({
+      where: { id },
+      select: { userId: true }
+    });
+
+    if (!existing) return res.status(404).json({ error: 'Note not found' });
+    if (existing.userId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
     await prisma.courseNote.delete({ where: { id } });
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {

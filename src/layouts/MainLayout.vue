@@ -123,6 +123,16 @@ const handleSwitchWorkspace = (ws: any) => {
   }
 }
 
+const handleQuickSettings = (ws: any) => {
+  if (ws.type === 'admin') {
+    router.push('/admin/settings')
+  } else if (ws.type === 'personal') {
+    router.push({ path: '/settings', query: { tab: 'profile' } })
+  } else {
+    router.push(`/settings/workspace/${ws.id}`)
+  }
+}
+
 // Watch for workspace changes
 watch(() => workspaceStore.activeTeamId, (newId, oldId) => {
   // Navigation is handled by handleSwitchWorkspace
@@ -405,20 +415,50 @@ onUnmounted(() => {
                          :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }" />
           </div>
           <template #dropdown>
-            <el-dropdown-menu class="w-64 p-2 rounded-2xl border-none shadow-2xl">
+            <el-dropdown-menu class="w-72 p-2 rounded-2xl border-none shadow-2xl">
               <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">切换工作空间</div>
-              <el-dropdown-item v-for="ws in workspaceStore.workspaces" :key="ws.id" @click="handleSwitchWorkspace(ws)" class="rounded-xl my-0.5">
-                <div class="flex items-center justify-between w-full py-1">
+              <el-dropdown-item 
+                v-for="ws in workspaceStore.workspaces" 
+                :key="ws.id" 
+                @click="handleSwitchWorkspace(ws)" 
+                class="rounded-2xl my-1 p-2 group transition-all duration-200"
+                :class="workspaceStore.currentWorkspace?.id === ws.id ? 'bg-accent/5' : ''"
+              >
+                <div class="flex items-center justify-between w-full">
                   <div class="flex items-center gap-3">
-                    <div class="w-6 h-6 rounded-lg text-white flex items-center justify-center font-bold text-[10px]" :class="ws.color">
-                      {{ ws.name.charAt(0) }}
+                    <!-- 圆形头像 -->
+                    <div class="relative">
+                      <div class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-105" :class="ws.color">
+                        {{ ws.name.charAt(0) }}
+                      </div>
+                      <!-- 徽标 -->
+                      <div v-if="ws.badgeCount" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 px-1">
+                        {{ ws.badgeCount > 99 ? '99+' : ws.badgeCount }}
+                      </div>
                     </div>
-                    <span class="font-medium" :class="workspaceStore.currentWorkspace?.id === ws.id ? 'text-accent' : 'text-slate-600 dark:text-slate-400'">{{ ws.name }}</span>
+                    <!-- 文字信息 -->
+                    <div class="flex flex-col text-left">
+                      <span class="font-semibold text-sm" :class="workspaceStore.currentWorkspace?.id === ws.id ? 'text-accent' : 'text-slate-700 dark:text-slate-200'">
+                        {{ ws.name }}
+                      </span>
+                      <span class="text-[10px] text-slate-400">
+                        {{ ws.type === 'admin' ? '系统管理中心' : (ws.type === 'personal' ? '个人工作空间' : '团队协作空间') }}
+                      </span>
+                    </div>
                   </div>
-                  <div v-if="workspaceStore.currentWorkspace?.id === ws.id" class="w-1.5 h-1.5 rounded-full bg-accent"></div>
+                  <!-- 快捷按钮 -->
+                  <div class="flex items-center gap-2">
+                    <button 
+                      @click.stop="handleQuickSettings(ws)"
+                      class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
+                    >
+                      <Settings class="w-4 h-4" />
+                    </button>
+                    <div v-if="workspaceStore.currentWorkspace?.id === ws.id" class="w-1.5 h-1.5 rounded-full bg-accent"></div>
+                  </div>
                 </div>
               </el-dropdown-item>
-              <div class="border-t border-slate-100 my-2"></div>
+              <div class="border-t border-slate-100 dark:border-slate-800 my-2"></div>
               <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
                 <div class="flex items-center gap-3 py-1 text-slate-500">
                   <Plus class="w-4 h-4" />

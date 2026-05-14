@@ -33,3 +33,9 @@ export const generateRecoveryCodes = () => {
   }
   return codes;
 };
+
+export const sanitizeUser = (user: any) => {
+  if (!user) return null;
+  const { password, twoFactorSecret, twoFactorRecoveryCodes, ...safeUser } = user;
+  return safeUser;
+};

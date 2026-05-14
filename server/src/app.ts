@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
+import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import feedbackRoutes from './routes/feedback.routes';
@@ -25,6 +26,9 @@ import { errorHandler } from './middlewares/error.middleware';
 import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
 
 const app = express();
+
+// Trust proxy - essential for getting real client IP when behind a reverse proxy (Nginx, etc.)
+app.set('trust proxy', 1);
 
 // Security Middleware
 app.use(helmet({
@@ -50,6 +54,7 @@ app.use(cors({
   credentials: true
 }));
 
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 

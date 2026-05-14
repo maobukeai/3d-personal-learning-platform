@@ -25,6 +25,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -280,10 +281,7 @@ onMounted(fetchCourse)
             <div class="flex-1 min-w-0 space-y-8">
               <!-- Instructor Card -->
               <div v-if="instructorInfo" class="p-5 rounded-2xl border flex items-center gap-4" style="background-color: var(--bg-card); border-color: var(--border-base)">
-                <div class="w-14 h-14 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-700 shrink-0">
-                  <img v-if="instructorInfo.avatarUrl" :src="instructorInfo.avatarUrl" class="w-full h-full object-cover" />
-                  <UserIcon v-else class="w-8 h-8 text-slate-400 m-3" />
-                </div>
+                <UserAvatar :user="instructorInfo" size="lg" />
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
                     <h4 class="text-sm font-bold" style="color: var(--text-primary)">{{ instructorInfo.name || '讲师' }}</h4>
@@ -405,9 +403,7 @@ onMounted(fetchCourse)
                   <div v-for="review in course.reviews" :key="review.id"
                        class="p-5 rounded-2xl border" style="background-color: var(--bg-card); border-color: var(--border-base)">
                     <div class="flex items-center gap-3 mb-3">
-                      <div class="w-9 h-9 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700">
-                        <img v-if="review.user?.avatarUrl" :src="review.user.avatarUrl" class="w-full h-full object-cover" />
-                      </div>
+                      <UserAvatar :user="review.user" size="md" />
                       <div class="flex-1 min-w-0">
                         <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ review.user?.name || '匿名用户' }}</p>
                         <div class="flex items-center gap-2">

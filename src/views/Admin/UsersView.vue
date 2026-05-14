@@ -22,6 +22,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const users = ref<any[]>([])
 const isLoading = ref(false)
@@ -398,12 +399,7 @@ onMounted(() => {
             </div>
 
             <div class="flex items-start gap-4 mb-6">
-              <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden border-2 border-white dark:border-slate-800 shadow-sm shrink-0">
-                <img v-if="user.avatarUrl" :src="user.avatarUrl" class="w-full h-full object-cover" @error="handleAvatarError" />
-                <div :style="user.avatarUrl ? 'display:none' : 'display:flex'" class="w-full h-full items-center justify-center text-slate-400 dark:text-slate-500">
-                  <UserIcon class="w-7 h-7" />
-                </div>
-              </div>
+              <UserAvatar :user="user" size="lg" shadow />
               <div class="min-w-0 pr-12">
                 <h3 class="font-bold text-lg truncate" style="color: var(--text-primary)">{{ user.name || '未命名用户' }}</h3>
                 <p class="text-xs text-slate-400 truncate">{{ user.email }}</p>

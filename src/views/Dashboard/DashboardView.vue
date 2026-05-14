@@ -17,6 +17,7 @@ import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { socketService } from '@/utils/socket'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -302,12 +303,10 @@ const handleActivityClick = (log: any) => {
               </div>
               <div class="p-6 space-y-6">
                 <div v-for="log in activityLog" :key="log.id" @click="handleActivityClick(log)" class="flex gap-4 group cursor-pointer">
-                  <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/5 border-2 border-white dark:border-slate-800 shadow-sm overflow-hidden shrink-0">
-                    <img :src="`https://ui-avatars.com/api/?name=${log.user}`" class="w-full h-full" />
-                  </div>
+                  <UserAvatar :user="log.user" size="sm" />
                   <div class="flex-1 min-w-0">
                     <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
-                      <span class="font-bold group-hover:text-accent transition-colors" style="color: var(--text-primary)">{{ log.user }}</span> 
+                      <span class="font-bold group-hover:text-accent transition-colors" style="color: var(--text-primary)">{{ log.user.name }}</span> 
                       {{ log.action }} 
                       <span class="text-accent font-bold">#{{ log.target }}</span>
                     </p>
@@ -336,7 +335,7 @@ const handleActivityClick = (log: any) => {
                  <img v-for="i in 4" :key="i" :src="`https://i.pravatar.cc/150?img=${i+30}`" class="w-8 h-8 rounded-full border-2" style="border-color: var(--bg-card)" />
                  <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)">+5</div>
               </div>
-              <button @click="router.push('/members')" class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-bold transition-transform hover:scale-[1.02]">
+              <button @click="router.push('/explore-teams')" class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-bold transition-transform hover:scale-[1.02]">
                 寻找团队伙伴
               </button>
             </div>

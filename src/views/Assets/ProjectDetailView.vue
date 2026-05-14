@@ -19,6 +19,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -505,8 +506,7 @@ onMounted(fetchProject)
             <div v-for="member in project.members" :key="member.id" 
                  class="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
                  @click="openUserProfile(member.user.id)">
-              <img :src="member.user.avatarUrl || `https://ui-avatars.com/api/?name=${member.user.name || member.user.email}&background=random`" 
-                   class="w-10 h-10 rounded-xl object-cover shadow-sm group-hover:ring-2 group-hover:ring-accent transition-all" />
+              <UserAvatar :user="member.user" size="md" class="group-hover:ring-2 group-hover:ring-accent transition-all" />
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-bold truncate group-hover:text-accent transition-colors" style="color: var(--text-primary)">{{ member.user.name || member.user.email }}</p>
                 <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{{ member.role }}</p>
@@ -652,7 +652,7 @@ onMounted(fetchProject)
                     <div class="flex items-center justify-between mt-auto">
                       <div class="flex items-center gap-2">
                         <div v-if="task.assignee" class="flex items-center gap-1.5 cursor-pointer group/as" @click.stop="openUserProfile(task.assignee.id)">
-                          <img :src="task.assignee.avatarUrl || `https://ui-avatars.com/api/?name=${task.assignee.name || task.assignee.email}`" class="w-6 h-6 rounded-full group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
+                          <UserAvatar :user="task.assignee" size="xs" class="group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
                           <span class="text-[10px] font-bold text-slate-400 group-hover/as:text-accent transition-colors">{{ task.assignee?.name || '未分配' }}</span>
                         </div>
                         <div v-else class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -660,9 +660,9 @@ onMounted(fetchProject)
                         </div>
                         
                         <div v-if="task.participants && task.participants.length > 0" class="flex items-center -space-x-1.5 ml-1">
-                          <img v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
-                               :src="p.user?.avatarUrl || `https://ui-avatars.com/api/?name=${p.user?.name || '?'}`" 
-                               class="w-5 h-5 rounded-full border-2 object-cover cursor-pointer hover:z-10 hover:scale-110 transition-all" 
+                          <UserAvatar v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
+                               :user="p.user" size="xs" 
+                               class="border-2 cursor-pointer hover:z-10 hover:scale-110 transition-all" 
                                style="border-color: var(--bg-card)" :title="p.user?.name"
                                @click.stop="openUserProfile(p.user.id)" />
                           <span v-if="task.participants.length > 3" class="text-[9px] font-bold text-slate-400 ml-1">+{{ task.participants.length - 3 }}</span>
@@ -693,8 +693,7 @@ onMounted(fetchProject)
                      class="flex gap-4 max-w-3xl" 
                      :class="msg.userId === authStore.user?.id ? 'ml-auto flex-row-reverse' : ''">
                   
-                  <img :src="msg.user.avatarUrl || `https://ui-avatars.com/api/?name=${msg.user.name || msg.user.email}`" 
-                       class="w-12 h-12 rounded-2xl shrink-0 shadow-sm object-cover cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+                  <UserAvatar :user="msg.user" size="md" class="cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
                        @click="openUserProfile(msg.user.id)" />
                   
                   <div :class="msg.userId === authStore.user?.id ? 'items-end' : ''" class="flex flex-col">
@@ -851,7 +850,7 @@ onMounted(fetchProject)
           <el-select v-model="taskForm.assigneeId" class="!w-full custom-select" placeholder="选择执行者" clearable>
             <el-option v-for="m in project?.members" :key="m.userId" :label="m.user.name || m.user.email" :value="m.userId">
               <div class="flex items-center gap-3">
-                <img :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m.user" size="xs" />
                 <span class="font-bold">{{ m.user.name || m.user.email }}</span>
               </div>
             </el-option>
@@ -863,7 +862,7 @@ onMounted(fetchProject)
           <el-select v-model="taskForm.participantIds" multiple placeholder="选择参与人员" class="!w-full custom-select">
             <el-option v-for="m in project?.members" :key="m.userId" :label="m.user.name || m.user.email" :value="m.userId">
               <div class="flex items-center gap-3">
-                <img :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m.user" size="xs" />
                 <span class="font-bold">{{ m.user.name || m.user.email }}</span>
               </div>
             </el-option>
@@ -935,7 +934,7 @@ onMounted(fetchProject)
           <el-select v-model="editTaskForm.assigneeId" class="!w-full custom-select" placeholder="选择执行者" clearable>
             <el-option v-for="m in project?.members" :key="m.userId" :label="m.user.name || m.user.email" :value="m.userId">
               <div class="flex items-center gap-3">
-                <img :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m.user" size="xs" />
                 <span class="font-bold">{{ m.user.name || m.user.email }}</span>
               </div>
             </el-option>
@@ -947,7 +946,7 @@ onMounted(fetchProject)
           <el-select v-model="editTaskForm.participantIds" multiple placeholder="选择参与人员" class="!w-full custom-select">
             <el-option v-for="m in project?.members" :key="m.userId" :label="m.user.name || m.user.email" :value="m.userId">
               <div class="flex items-center gap-3">
-                <img :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m.user" size="xs" />
                 <span class="font-bold">{{ m.user.name || m.user.email }}</span>
               </div>
             </el-option>
@@ -997,7 +996,7 @@ onMounted(fetchProject)
           <el-select v-model="inviteUserIds" multiple placeholder="选择成员" class="!w-full custom-select">
             <el-option v-for="m in teamMembersForInvite" :key="m.id" :label="m.name || m.email" :value="m.id">
               <div class="flex items-center gap-3">
-                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m" size="xs" />
                 <span class="font-bold">{{ m.name || m.email }}</span>
               </div>
             </el-option>

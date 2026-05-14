@@ -18,6 +18,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 import { useWorkspaceStore } from '@/stores/workspace'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const workspaceStore = useWorkspaceStore()
 
@@ -366,9 +367,9 @@ onMounted(fetchProjects)
               <div class="flex items-center justify-between pt-5 border-t" style="border-color: var(--border-base)">
                 <div class="flex items-center -space-x-3">
                   <div v-for="(m, i) in project.members.slice(0,4)" :key="m.userId" 
-                       class="w-8 h-8 rounded-full border-2 bg-slate-200 z-10"
-                       :style="{ 'border-color': 'var(--bg-card)', 'z-index': 10 - Number(i) }">
-                    <img :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}&background=random`" class="w-full h-full rounded-full object-cover" />
+                       class="z-10"
+                       :style="{ 'z-index': 10 - Number(i) }">
+                    <UserAvatar :user="m.user" size="sm" class="border-2" style="border-color: var(--bg-card)" />
                   </div>
                   <div v-if="project.members.length > 4" class="w-8 h-8 rounded-full border-2 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500" style="border-color: var(--bg-card)">
                     +{{ (project.members?.length || 0) - 4 }}
@@ -435,7 +436,7 @@ onMounted(fetchProjects)
                   </td>
                   <td class="px-8 py-6">
                     <div class="flex items-center -space-x-2">
-                      <img v-for="m in project.members.slice(0,3)" :key="m.userId" :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}`" class="w-8 h-8 rounded-full border-2 object-cover" style="border-color: var(--bg-card)" />
+                      <UserAvatar v-for="m in project.members.slice(0,3)" :key="m.userId" :user="m.user" size="sm" class="border-2" style="border-color: var(--bg-card)" />
                       <div v-if="project.members.length > 3" class="w-8 h-8 rounded-full border-2 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500" style="border-color: var(--bg-card)">
                         +{{ (project.members?.length || 0) - 3 }}
                       </div>
@@ -560,7 +561,7 @@ onMounted(fetchProjects)
           <el-select v-model="projectForm.memberIds" multiple placeholder="选择直接加入的成员" class="!w-full custom-select">
             <el-option v-for="m in teamMembers" :key="m.id" :label="m.name || m.email" :value="m.id">
               <div class="flex items-center gap-3">
-                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m" size="xs" />
                 <span class="font-bold">{{ m.name || m.email }}</span>
               </div>
             </el-option>
@@ -572,7 +573,7 @@ onMounted(fetchProjects)
           <el-select v-model="projectForm.inviteUserIds" multiple placeholder="选择要邀请的成员" class="!w-full custom-select">
             <el-option v-for="m in teamMembers" :key="m.id" :label="m.name || m.email" :value="m.id">
               <div class="flex items-center gap-3">
-                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m" size="xs" />
                 <span class="font-bold">{{ m.name || m.email }}</span>
               </div>
             </el-option>

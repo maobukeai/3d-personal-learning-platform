@@ -28,14 +28,12 @@ interface User {
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: JSON.parse(localStorage.getItem('user') || 'null') as User | null,
-    token: localStorage.getItem('token') || '',
-    refreshToken: localStorage.getItem('refreshToken') || '',
     deviceToken: localStorage.getItem('deviceToken') || '',
     onlineUserIds: new Set<string>(),
     unreadMessagesCount: 0,
   }),
   getters: {
-    isAuthenticated: (state) => !!state.token,
+    isAuthenticated: (state) => !!state.user,
     isUserOnline: (state) => (userId: string) => state.onlineUserIds.has(userId),
   },
   actions: {
@@ -63,12 +61,8 @@ export const useAuthStore = defineStore('auth', {
           ...credentials,
           deviceToken: this.deviceToken
         });
-        if (response.data.accessToken) {
-          this.token = response.data.accessToken;
-          this.refreshToken = response.data.refreshToken;
+        if (response.data.user) {
           this.user = response.data.user;
-          localStorage.setItem('token', this.token);
-          localStorage.setItem('refreshToken', this.refreshToken);
           localStorage.setItem('user', JSON.stringify(this.user));
         }
         return response.data;
@@ -90,7 +84,6 @@ export const useAuthStore = defineStore('auth', {
       await api.post('/api/auth/email/verify-public', { email, code });
     },
     async fetchMe() {
-      if (!this.token) return;
       try {
         const response = await api.get('/api/auth/me');
         this.user = response.data;
@@ -168,11 +161,7 @@ export const useAuthStore = defineStore('auth', {
     async login2FA(userId: string, code: string, rememberDevice: boolean = false) {
       try {
         const response = await api.post('/api/auth/login/2fa', { userId, code, rememberDevice });
-        this.token = response.data.accessToken;
-        this.refreshToken = response.data.refreshToken;
         this.user = response.data.user;
-        localStorage.setItem('token', this.token);
-        localStorage.setItem('refreshToken', this.refreshToken);
         localStorage.setItem('user', JSON.stringify(this.user));
         if (response.data.deviceToken) {
           this.deviceToken = response.data.deviceToken;
@@ -184,14 +173,9 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async refreshAccessToken() {
-      if (!this.refreshToken) throw new Error('No refresh token');
       try {
-        const response = await api.post('/api/auth/refresh', { refreshToken: this.refreshToken });
-        this.token = response.data.accessToken;
-        this.refreshToken = response.data.refreshToken;
-        localStorage.setItem('token', this.token);
-        localStorage.setItem('refreshToken', this.refreshToken);
-        return this.token;
+        const response = await api.post('/api/auth/refresh');
+        return response.data;
       } catch (error) {
         this.logout();
         throw error;
@@ -256,18 +240,11 @@ export const useAuthStore = defineStore('auth', {
     },
     logout() {
       socketService.disconnect();
-      // Optional: Call logout endpoint to clear token from DB
-      if (this.refreshToken) {
-        api.post('/api/auth/logout', { refreshToken: this.refreshToken }).catch(() => {});
-      }
+      api.post('/api/auth/logout').catch(() => {});
       this.user = null;
-      this.token = '';
-      this.refreshToken = '';
       this.deviceToken = '';
       this.onlineUserIds = new Set<string>();
       this.unreadMessagesCount = 0;
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       localStorage.removeItem('deviceToken');
       localStorage.removeItem('activeWorkspaceId');

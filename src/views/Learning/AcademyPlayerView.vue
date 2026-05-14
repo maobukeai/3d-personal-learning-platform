@@ -21,6 +21,7 @@ import {
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import ModelViewer from '@/components/ModelViewer.vue'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const route = useRoute()
 const router = useRouter()
@@ -339,7 +340,7 @@ onMounted(fetchCourseData)
                 <span class="px-3 py-1 bg-accent/20 text-accent text-[10px] font-bold rounded-full">文字教程</span>
                 <h2 class="text-3xl font-black">{{ currentLesson.title }}</h2>
               </div>
-              <div class="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed" v-html="currentLesson.content"></div>
+              <div class="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed" v-html="sanitizeHtml(currentLesson.content)"></div>
               <div class="pt-12 flex justify-center">
                 <button @click="handleVideoEnded" class="px-8 py-3 bg-accent text-white font-bold rounded-2xl shadow-xl shadow-accent/20 flex items-center gap-2">
                   完成学习 <ChevronRight class="w-4 h-4" />

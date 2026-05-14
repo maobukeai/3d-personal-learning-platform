@@ -11,6 +11,7 @@ import { parseBilibiliUrl } from '../utils/bilibili';
 import { parseYoutubeUrl } from '../utils/youtube';
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { parseGithubUrl } from '../utils/github';
+import { sanitizeUser } from '../utils/auth';
 
 /**
  * 自定义 DNS 查找：绕过 Mihomo/Clash TUN Fake-IP 劫持
@@ -119,7 +120,7 @@ export const getAdminStats = async (req: AuthRequest, res: Response) => {
       prisma.feedback.count({ where: { status: 'OPEN' } }),
       prisma.material.count(),
       prisma.showcase.count(),
-      prisma.team.count(),
+      prisma.team.count({ where: { type: 'TEAM' } }),
       prisma.material.count({ where: { status: 'PENDING' } }),
       prisma.showcase.count({ where: { status: 'PENDING' } })
     ]);
@@ -407,7 +408,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       action: AuditAction.CREATE_USER,
       module: AuditModule.USER,
       description: `管理员创建了新用户 ${result.email}`,
-      newValue: result,
+      newValue: sanitizeUser(result),
       req
     });
 
@@ -442,7 +443,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       action: AuditAction.UPDATE_USER,
       module: AuditModule.USER,
       description: `管理员更新了用户 ${updatedUser.email} 的资料`,
-      oldValue: oldUser,
+      oldValue: sanitizeUser(oldUser),
       newValue: updatedUser,
       req
     });
@@ -551,7 +552,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
       action: AuditAction.DELETE_USER,
       module: AuditModule.USER,
       description: `管理员删除了用户 ${userToDelete.email}`,
-      oldValue: userToDelete,
+      oldValue: sanitizeUser(userToDelete),
       req
     });
 
@@ -919,6 +920,9 @@ export const deleteLesson = async (req: AuthRequest, res: Response) => {
 export const getAllTeams = async (req: AuthRequest, res: Response) => {
   try {
     const teams = await prisma.team.findMany({
+      where: {
+        type: 'TEAM'
+      },
       include: {
         owner: { select: { id: true, name: true, email: true, avatarUrl: true } },
         members: {
@@ -1187,6 +1191,15 @@ export const batchUpdateMaterialStatus = async (req: AuthRequest, res: Response)
       category: 'SYSTEM'
     })));
 
+    await auditService.log({
+      userId: req.userId as string,
+      action: status === 'APPROVED' ? AuditAction.APPROVE_MATERIAL : AuditAction.REJECT_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `管理员批量${status === 'APPROVED' ? '批准' : '拒绝'}了 ${result.count} 个材料`,
+      newValue: { ids, status, rejectReason },
+      req
+    });
+
     res.json({ message: `成功更新 ${result.count} 个材料状态`, count: result.count });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1197,10 +1210,24 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { title, description, category, tags, status } = req.body;
   try {
+    const oldMaterial = await prisma.material.findUnique({ where: { id } });
+    if (!oldMaterial) return res.status(404).json({ error: 'Material not found' });
+
     const material = await prisma.material.update({
       where: { id },
       data: { title, description, category, tags, status }
     });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `管理员更新了材料: ${material.title}`,
+      oldValue: oldMaterial,
+      newValue: material,
+      req
+    });
+
     res.json(material);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1226,6 +1253,16 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response) => {
     if (material.previewUrl) deleteFile(material.previewUrl);
 
     await prisma.material.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.DELETE_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `管理员删除了材料: ${material.title}`,
+      oldValue: material,
+      req
+    });
+
     res.json({ message: 'Material deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1325,6 +1362,15 @@ export const batchUpdateShowcaseStatus = async (req: AuthRequest, res: Response)
       category: 'SYSTEM'
     })));
 
+    await auditService.log({
+      userId: req.userId as string,
+      action: status === 'APPROVED' ? AuditAction.APPROVE_SHOWCASE : AuditAction.REJECT_SHOWCASE,
+      module: AuditModule.SHOWCASE,
+      description: `管理员批量${status === 'APPROVED' ? '批准' : '拒绝'}了 ${result.count} 个作品`,
+      newValue: { ids, status, rejectReason },
+      req
+    });
+
     res.json({ message: `成功更新 ${result.count} 个作品状态`, count: result.count });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1340,6 +1386,16 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.showcase.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.DELETE_SHOWCASE,
+      module: AuditModule.SHOWCASE,
+      description: `管理员删除了作品: ${showcase.title}`,
+      oldValue: showcase,
+      req
+    });
+
     res.json({ message: 'Showcase deleted successfully' });
   } catch (error) {
     console.error('Admin delete showcase error:', error);

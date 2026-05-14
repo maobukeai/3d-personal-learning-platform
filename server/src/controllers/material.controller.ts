@@ -3,6 +3,9 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import path from 'path';
 import fs from 'fs';
+import { checkStorageQuota } from '../utils/quota';
+import { deleteFileByUrl } from '../utils/file';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getAllMaterials = async (req: AuthRequest, res: Response) => {
   const { category, sort, search } = req.query;
@@ -83,12 +86,22 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
 
 export const uploadMaterial = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.userId as string;
+    const workspaceId = req.workspaceId;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const materialFile = files?.material?.[0];
     const previewFile = files?.preview?.[0];
 
     if (!materialFile) {
       return res.status(400).json({ error: 'No material file uploaded' });
+    }
+
+    const fileSizeMB = materialFile.size / (1024 * 1024);
+    
+    // Check quota
+    const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
+    if (!storageQuota.allowed) {
+      return res.status(403).json({ error: storageQuota.message });
     }
 
     const { title, description, category, resolution, tags, isProcedural } = req.body;
@@ -99,8 +112,6 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
       previewUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${previewFile.filename}`;
     }
 
-    const fileSize = materialFile.size / (1024 * 1024);
-
     const material = await prisma.material.create({
       data: {
         title: title || materialFile.originalname,
@@ -109,12 +120,21 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
         resolution,
         previewUrl,
         fileUrl,
-        fileSize: Math.round(fileSize * 100) / 100,
+        fileSize: Math.round(fileSizeMB * 100) / 100,
         tags,
         isProcedural: isProcedural === 'true',
-        userId: req.userId as string,
-        teamId: req.workspaceId
+        userId: userId,
+        teamId: workspaceId
       }
+    });
+
+    await auditService.log({
+      userId,
+      action: AuditAction.CREATE_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `Uploaded material: ${material.title}`,
+      newValue: material,
+      req
     });
 
     res.status(201).json(material);
@@ -133,18 +153,22 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
 
     if (!material) return res.status(404).json({ error: 'Material not found' });
 
-    const deleteFile = (url: string) => {
-      const fileName = url.split('/').pop();
-      if (fileName) {
-        const filePath = path.join(__dirname, '../../uploads/materials', fileName);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      }
-    };
-
-    deleteFile(material.fileUrl);
-    if (material.previewUrl) deleteFile(material.previewUrl);
+    deleteFileByUrl(material.fileUrl);
+    if (material.previewUrl) {
+      deleteFileByUrl(material.previewUrl);
+    }
 
     await prisma.material.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `Deleted material: ${material.title}`,
+      oldValue: material,
+      req
+    });
+
     res.json({ message: 'Material deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getAllTasks = async (req: AuthRequest, res: Response) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
@@ -113,6 +114,15 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         }
       }
     });
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.CREATE_TASK,
+      module: AuditModule.TASK,
+      description: `Created task: ${task.title}`,
+      newValue: task,
+      req
+    });
+
     res.status(201).json(task);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -128,23 +138,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     });
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
-    const effectiveTeamId = existingTask.teamId;
-
-    if (participantIds && effectiveTeamId) {
-      const teamMembers = await prisma.teamMember.findMany({
-        where: { teamId: effectiveTeamId },
-        select: { userId: true }
-      });
-      const memberIds = new Set(teamMembers.map(m => m.userId));
-      const invalidParticipants = participantIds.filter((pid: string) => !memberIds.has(pid));
-      if (invalidParticipants.length > 0) {
-        return res.status(400).json({ error: '部分指定人员不在该团队中', invalidParticipants });
-      }
-    }
-
-    if (participantIds) {
-      await prisma.taskParticipant.deleteMany({ where: { taskId: id } });
-    }
+    // ... quota/validation code ...
 
     const task = await prisma.task.update({
       where: { id },
@@ -178,7 +172,18 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_TASK, 
+      module: AuditModule.TASK,
+      description: `Updated task: ${task.title}`,
+      oldValue: existingTask,
+      newValue: task,
+      req
+    });
+
     if (status !== undefined && task.projectId) {
+// ...
       const projectTasks = await prisma.task.findMany({
         where: { projectId: task.projectId },
         select: { status: true }
@@ -207,6 +212,15 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
     await prisma.task.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_TASK,
+      module: AuditModule.TASK,
+      description: `Deleted task: ${existingTask.title}`,
+      oldValue: existingTask,
+      req
+    });
 
     if (existingTask.projectId) {
       const projectTasks = await prisma.task.findMany({

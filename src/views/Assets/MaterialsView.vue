@@ -15,6 +15,7 @@ import {
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
 import { useSystemStore } from '@/stores/system'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const systemStore = useSystemStore()
 const searchQuery = ref('')
@@ -416,10 +417,7 @@ onMounted(() => {
 
               <!-- Uploader Info -->
               <div v-if="selectedMaterial.user" class="flex items-center gap-3 p-3 rounded-xl" style="background-color: var(--bg-app)">
-                <div class="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center overflow-hidden shrink-0">
-                  <img v-if="selectedMaterial.user.avatarUrl" :src="selectedMaterial.user.avatarUrl" class="w-full h-full object-cover" />
-                  <span v-else class="text-[10px] font-bold text-orange-500">{{ (selectedMaterial.user.name || '?')[0] }}</span>
-                </div>
+                <UserAvatar :user="selectedMaterial.user" size="md" />
                 <div>
                   <p class="text-xs font-bold" style="color: var(--text-primary)">{{ selectedMaterial.user.name || '匿名用户' }}</p>
                   <p class="text-[10px]" style="color: var(--text-muted)">上传于 {{ new Date(selectedMaterial.createdAt).toLocaleDateString() }}</p>

@@ -3,6 +3,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToAll } from '../services/socket.service';
 import { parseBilibiliUrl } from '../utils/bilibili';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getAllCourses = async (req: AuthRequest, res: Response) => {
   const { categoryId, search, difficulty, sort } = req.query;
@@ -137,6 +138,16 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
     const course = await prisma.course.create({
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty: difficulty || 'BEGINNER', status: status || 'PUBLISHED' }
     });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.CREATE_COURSE,
+      module: AuditModule.COURSE,
+      description: `Created course: ${course.title}`,
+      newValue: course,
+      req
+    });
+
     res.status(201).json(course);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -168,10 +179,22 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response) =
         );
       }
 
-      return await tx.course.findUnique({
+      const finalCourse = await tx.course.findUnique({
         where: { id: course.id },
         include: { lessons: true }
       });
+
+      await auditService.log({
+        userId: req.userId,
+        action: AuditAction.CREATE_COURSE,
+        module: AuditModule.COURSE,
+        description: `Created course with lessons: ${course.title}`,
+        newValue: finalCourse,
+        req,
+        tx
+      });
+
+      return finalCourse;
     });
 
     res.status(201).json(result);
@@ -185,10 +208,24 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
+    const oldCourse = await prisma.course.findUnique({ where: { id } });
+    if (!oldCourse) return res.status(404).json({ error: 'Course not found' });
+
     const course = await prisma.course.update({
       where: { id },
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status }
     });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_COURSE,
+      module: AuditModule.COURSE,
+      description: `Updated course: ${course.title}`,
+      oldValue: oldCourse,
+      newValue: course,
+      req
+    });
+
     res.json(course);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -198,7 +235,20 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
 export const deleteCourse = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
+    const course = await prisma.course.findUnique({ where: { id } });
+    if (!course) return res.status(404).json({ error: 'Course not found' });
+
     await prisma.course.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_COURSE,
+      module: AuditModule.COURSE,
+      description: `Deleted course: ${course.title}`,
+      oldValue: course,
+      req
+    });
+
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -219,12 +269,13 @@ export const enrollInCourse = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    emitToAll('new_activity', {
-      id: `e-${enrollment.userId}-${enrollment.courseId}-${enrollment.teamId}`,
-      user: req.user?.name || '有人',
-      action: '加入了新课程',
-      target: enrollment.course.title,
-      createdAt: enrollment.createdAt
+    await auditService.log({
+      userId: req.userId,
+      action: 'ENROLL_COURSE',
+      module: AuditModule.COURSE,
+      description: `Enrolled in course: ${enrollment.course.title}`,
+      newValue: enrollment,
+      req
     });
 
     res.status(201).json(enrollment);

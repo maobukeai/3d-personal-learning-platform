@@ -9,7 +9,9 @@ export enum AuditModule {
   TEAM = 'TEAM',
   MATERIAL = 'MATERIAL',
   SHOWCASE = 'SHOWCASE',
-  AUTH = 'AUTH'
+  AUTH = 'AUTH',
+  PROJECT = 'PROJECT',
+  TASK = 'TASK'
 }
 
 export enum AuditAction {
@@ -20,16 +22,31 @@ export enum AuditAction {
   UPDATE_USER = 'UPDATE_USER',
   DELETE_USER = 'DELETE_USER',
   RESET_PASSWORD = 'RESET_PASSWORD',
+  CREATE_ASSET = 'CREATE_ASSET',
+  UPDATE_ASSET = 'UPDATE_ASSET',
+  DELETE_ASSET = 'DELETE_ASSET',
   APPROVE_ASSET = 'APPROVE_ASSET',
   REJECT_ASSET = 'REJECT_ASSET',
-  DELETE_ASSET = 'DELETE_ASSET',
   CREATE_COURSE = 'CREATE_COURSE',
   UPDATE_COURSE = 'UPDATE_COURSE',
   DELETE_COURSE = 'DELETE_COURSE',
+  CREATE_MATERIAL = 'CREATE_MATERIAL',
+  DELETE_MATERIAL = 'DELETE_MATERIAL',
   APPROVE_MATERIAL = 'APPROVE_MATERIAL',
   REJECT_MATERIAL = 'REJECT_MATERIAL',
+  CREATE_SHOWCASE = 'CREATE_SHOWCASE',
+  DELETE_SHOWCASE = 'DELETE_SHOWCASE',
   APPROVE_SHOWCASE = 'APPROVE_SHOWCASE',
   REJECT_SHOWCASE = 'REJECT_SHOWCASE',
+  CREATE_TEAM = 'CREATE_TEAM',
+  DELETE_TEAM = 'DELETE_TEAM',
+  CREATE_PROJECT = 'CREATE_PROJECT',
+  UPDATE_PROJECT = 'UPDATE_PROJECT',
+  DELETE_PROJECT = 'DELETE_PROJECT',
+  CREATE_TASK = 'CREATE_TASK',
+  UPDATE_TASK = 'UPDATE_TASK',
+  DELETE_TASK = 'DELETE_TASK',
+  ENROLL_COURSE = 'ENROLL_COURSE',
 }
 
 interface AuditParams {
@@ -47,6 +64,39 @@ class AuditService {
   async log({ userId, action, module, description, oldValue, newValue, req, tx }: AuditParams) {
     const client = tx || prisma; // Use transaction client if provided
     try {
+      // Robust IP detection
+      let ipAddress: string | null = null;
+      
+      if (req) {
+        // Priority: 1. X-Forwarded-For, 2. X-Real-IP, 3. req.ip, 4. remoteAddress
+        const xForwardedFor = req.headers['x-forwarded-for'];
+        if (xForwardedFor) {
+          ipAddress = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor.split(',')[0].trim();
+        }
+        
+        if (!ipAddress || ipAddress === 'unknown') {
+          ipAddress = (req.headers['x-real-ip'] as string) || 
+                      (req.headers['cf-connecting-ip'] as string) || 
+                      (req.headers['true-client-ip'] as string) ||
+                      req.ip || 
+                      null;
+        }
+
+        if (!ipAddress && req.socket) {
+          ipAddress = req.socket.remoteAddress || null;
+        }
+      }
+
+      // Normalize local addresses
+      if (ipAddress === '::1' || ipAddress === '::ffff:127.0.0.1') {
+        ipAddress = '127.0.0.1';
+      }
+
+      // Debug logging to help troubleshoot if IPs are still missing
+      if (!ipAddress && req) {
+        console.warn(`[AuditService] Could not detect IP address. Headers: ${JSON.stringify(req.headers)}`);
+      }
+
       await client.auditLog.create({
         data: {
           userId,
@@ -55,7 +105,7 @@ class AuditService {
           description,
           oldValue: oldValue ? JSON.stringify(oldValue) : null,
           newValue: newValue ? JSON.stringify(newValue) : null,
-          ipAddress: req?.ip || req?.headers['x-forwarded-for']?.toString() || null,
+          ipAddress: ipAddress,
           userAgent: req?.headers['user-agent'] || null,
         }
       });

@@ -5,6 +5,7 @@ import { User } from 'lucide-vue-next'
 const props = defineProps<{
   user?: {
     name?: string
+    email?: string
     avatarUrl?: string
     role?: string
     subscription?: {
@@ -17,7 +18,7 @@ const props = defineProps<{
       interval?: string
     }
   } | null
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }>()
 
 const imageError = ref(false)
@@ -27,6 +28,13 @@ const handleImageError = () => {
 }
 
 const sizeConfig = {
+  xs: {
+    container: 'w-5 h-5',
+    text: 'text-[8px]',
+    badge: 'px-0.5 py-0.5 text-[5px]',
+    icon: 'w-2.5 h-2.5',
+    crown: false
+  },
   sm: {
     container: 'w-6 h-6',
     text: 'text-[10px]',
@@ -132,7 +140,7 @@ const frameConfig = computed(() => {
 })
 
 const showBadge = computed(() => frameConfig.value.badgeText !== '' || frameConfig.value.badgeIcon !== '')
-const size = computed(() => sizeConfig[props.size || 'md'])
+const size = computed(() => sizeConfig[props.size as keyof typeof sizeConfig] || sizeConfig.md)
 
 const initials = computed(() => {
   const name = props.user?.name || props.user?.email || ''

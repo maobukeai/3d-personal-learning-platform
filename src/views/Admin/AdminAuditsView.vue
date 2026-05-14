@@ -19,15 +19,14 @@ import {
   MessageSquare,
   Eye as EyeIcon,
   Tag,
-  User,
   Box,
   Layers,
   Edit,
-  FolderCog,
-  Plus
+  FolderCog
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -609,10 +608,7 @@ onMounted(() => {
 
               <div class="flex items-center justify-between bg-slate-50 dark:bg-white/5 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2 min-w-0">
-                  <div class="w-5 h-5 rounded-full bg-indigo-500/10 shrink-0 overflow-hidden flex items-center justify-center">
-                    <img v-if="item.user?.avatarUrl" :src="item.user.avatarUrl" class="w-full h-full object-cover" />
-                    <User v-else class="w-2.5 h-2.5 text-indigo-500" />
-                  </div>
+                  <UserAvatar :user="item.user" size="sm" />
                   <span class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
                     {{ item.user?.name || item.user?.email?.split('@')[0] || '匿名创作者' }}
                   </span>

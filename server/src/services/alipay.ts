@@ -1,4 +1,4 @@
-import AlipaySdk from 'alipay-sdk';
+import { AlipaySdk } from 'alipay-sdk';
 import { config } from '../config/env';
 
 // This acts as a wrapper around the alipay SDK.

@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const feedbacks = ref<any[]>([])
 const isLoading = ref(false)
@@ -228,8 +229,7 @@ onMounted(fetchFeedbacks)
             <div class="flex items-start gap-4">
               <!-- User Info Side -->
               <div class="flex flex-col items-center gap-2 w-20 shrink-0">
-                <img :src="item.user.avatarUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'" 
-                  class="w-12 h-12 rounded-2xl object-cover border-2 border-slate-100 group-hover:border-indigo-200 transition-colors" />
+                <UserAvatar :user="item.user" size="md" />
                 <div class="text-center">
                   <p class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate w-20">{{ item.user.name }}</p>
                   <p class="text-[9px] text-slate-400 truncate w-20">{{ item.user.email }}</p>

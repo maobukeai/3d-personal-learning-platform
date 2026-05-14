@@ -116,8 +116,6 @@ const handleSwitchWorkspace = (ws: any) => {
   workspaceStore.setWorkspace(ws)
   if (ws.type === 'admin') {
     router.push('/admin/dashboard')
-  } else if (ws.type === 'team') {
-    router.push(`/team/${ws.id}`)
   } else {
     router.push('/dashboard')
   }

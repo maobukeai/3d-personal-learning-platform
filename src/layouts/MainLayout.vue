@@ -388,11 +388,11 @@ onUnmounted(() => {
         <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
              :class="[
                workspaceStore.currentWorkspace?.type === 'personal' ? 'ml-4' : 
-               workspaceStore.currentWorkspace?.type === 'team' ? 'ml-10' : 
+               workspaceStore.currentWorkspace?.type === 'team' ? 'ml-12' : 
                workspaceStore.isAdminWorkspace ? 'ml-20' : 'ml-4',
                { 'hover:scale-[1.02]': true }
              ]">
-          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500" 
+          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
                :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
                :style="workspaceStore.isAdminWorkspace ? {
                  background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
@@ -400,12 +400,12 @@ onUnmounted(() => {
                } : {}">
             {{ workspaceStore.currentWorkspace.name.charAt(0) }}
           </div>
-          <span class="text-sm font-bold truncate max-w-[200px] transition-all duration-500" 
+          <span class="text-sm font-bold truncate max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
                 :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
                 style="color: var(--text-primary)">
             {{ workspaceStore.currentWorkspace.name }}
           </span>
-          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500" 
+          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
                        :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }" />
         </div>
         <template #dropdown>

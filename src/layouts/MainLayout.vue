@@ -385,7 +385,7 @@ onUnmounted(() => {
              :style="{ 
                transform: `translateX(${
                  workspaceStore.currentWorkspace?.type === 'personal' ? 0 : 
-                 workspaceStore.currentWorkspace?.type === 'team' ? 40 : 80
+                 workspaceStore.currentWorkspace?.type === 'team' ? 24 : 48
                }px)` 
              }">
           <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm" 

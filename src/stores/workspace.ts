@@ -7,6 +7,8 @@ export interface Workspace {
   name: string;
   type: 'personal' | 'team' | 'admin';
   color: string;
+  description?: string;
+  badgeCount?: number;
 }
 
 export const useWorkspaceStore = defineStore('workspace', {
@@ -30,7 +32,9 @@ export const useWorkspaceStore = defineStore('workspace', {
           id: t.id,
           name: t.name,
           type: t.type.toLowerCase() as 'personal' | 'team',
-          color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500'
+          color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
+          description: t.type === 'PERSONAL' ? '个人专属创意空间' : '团队协作与资源共享',
+          badgeCount: Math.floor(Math.random() * 5)
         }));
 
         this.workspaces = fetchedWorkspaces;
@@ -41,7 +45,9 @@ export const useWorkspaceStore = defineStore('workspace', {
             id: 'admin-workspace',
             name: '管理中心',
             type: 'admin',
-            color: 'bg-rose-600'
+            color: 'bg-rose-600',
+            description: '系统管理与审核',
+            badgeCount: 3
           });
         }
       } catch (error) {

@@ -372,77 +372,69 @@ onUnmounted(() => {
   <div class="flex flex-col h-screen w-full overflow-hidden text-sm transition-colors duration-300" style="background-color: var(--bg-app); color: var(--text-primary)">
     <!-- Top Navigation Bar -->
     <header class="topbar h-16 flex items-center justify-between px-6 shrink-0 border-b z-30" style="background-color: var(--bg-sidebar); border-color: var(--border-base)">
-      <!-- Left: Workspace Switcher -->
-      <el-dropdown trigger="click" placement="bottom-start" v-if="workspaceStore.currentWorkspace">
-        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 ml-4" 
-             :class="[
-               workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
-               workspaceStore.currentWorkspace?.type === 'personal' ? 'ml-4' : 
-               workspaceStore.currentWorkspace?.type === 'team' ? 'ml-12' : 
-               workspaceStore.isAdminWorkspace ? 'ml-20' : 'ml-4',
-               { 'hover:scale-[1.02]': workspaceStore.isInitialized }
-             ]"
-             :style="{ 
-               transform: `translateX(${
-                 workspaceStore.currentWorkspace?.type === 'personal' ? 0 : 
-                 workspaceStore.currentWorkspace?.type === 'team' ? 12 : 24
-               }px)` 
-             }">
-          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm" 
-               :class="[
-                 workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
-                 workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
-               ]"
-               :style="workspaceStore.isAdminWorkspace ? {
-                 background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
-                 boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)'
-               } : {}">
-            {{ workspaceStore.currentWorkspace.name.charAt(0) }}
+      <!-- Left: Workspace Switcher / Logo -->
+      <template v-if="!workspaceStore.isInitialized">
+        <div class="flex items-center gap-2.5 ml-4 animate-pulse">
+          <div class="w-8 h-8 rounded-lg bg-slate-200/50 dark:bg-white/10"></div>
+          <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
+        </div>
+      </template>
+      <template v-else>
+        <el-dropdown trigger="click" placement="bottom-start" v-if="workspaceStore.currentWorkspace">
+          <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 ml-4 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
+               :style="{ 
+                 transform: `translateX(${
+                   workspaceStore.currentWorkspace?.type === 'personal' ? 0 : 
+                   workspaceStore.currentWorkspace?.type === 'team' ? 12 : 24
+                 }px)` 
+               }">
+            <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
+                 :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
+                 :style="workspaceStore.isAdminWorkspace ? {
+                   background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
+                   boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)'
+                 } : {}">
+              {{ workspaceStore.currentWorkspace.name.charAt(0) }}
+            </div>
+            <span class="text-sm font-bold truncate max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
+                  :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
+                  style="color: var(--text-primary)">
+              {{ workspaceStore.currentWorkspace.name }}
+            </span>
+            <ChevronDown class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
+                         :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }" />
           </div>
-          <span class="text-sm font-bold truncate max-w-[200px]" 
-                :class="[
-                  workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
-                  { 'tracking-wide': workspaceStore.isAdminWorkspace }
-                ]"
-                style="color: var(--text-primary)">
-            {{ workspaceStore.currentWorkspace.name }}
-          </span>
-          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0" 
-                       :class="[
-                         workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
-                         { 'text-rose-400': workspaceStore.isAdminWorkspace }
-                       ]" />
-        </div>
-        <template #dropdown>
-          <el-dropdown-menu class="w-64 p-2 rounded-2xl border-none shadow-2xl">
-            <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">切换工作空间</div>
-            <el-dropdown-item v-for="ws in workspaceStore.workspaces" :key="ws.id" @click="handleSwitchWorkspace(ws)" class="rounded-xl my-0.5">
-              <div class="flex items-center justify-between w-full py-1">
-                <div class="flex items-center gap-3">
-                  <div class="w-6 h-6 rounded-lg text-white flex items-center justify-center font-bold text-[10px]" :class="ws.color">
-                    {{ ws.name.charAt(0) }}
+          <template #dropdown>
+            <el-dropdown-menu class="w-64 p-2 rounded-2xl border-none shadow-2xl">
+              <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">切换工作空间</div>
+              <el-dropdown-item v-for="ws in workspaceStore.workspaces" :key="ws.id" @click="handleSwitchWorkspace(ws)" class="rounded-xl my-0.5">
+                <div class="flex items-center justify-between w-full py-1">
+                  <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-lg text-white flex items-center justify-center font-bold text-[10px]" :class="ws.color">
+                      {{ ws.name.charAt(0) }}
+                    </div>
+                    <span class="font-medium" :class="workspaceStore.currentWorkspace?.id === ws.id ? 'text-accent' : 'text-slate-600 dark:text-slate-400'">{{ ws.name }}</span>
                   </div>
-                  <span class="font-medium" :class="workspaceStore.currentWorkspace?.id === ws.id ? 'text-accent' : 'text-slate-600 dark:text-slate-400'">{{ ws.name }}</span>
+                  <div v-if="workspaceStore.currentWorkspace?.id === ws.id" class="w-1.5 h-1.5 rounded-full bg-accent"></div>
                 </div>
-                <div v-if="workspaceStore.currentWorkspace?.id === ws.id" class="w-1.5 h-1.5 rounded-full bg-accent"></div>
-              </div>
-            </el-dropdown-item>
-            <div class="border-t border-slate-100 my-2"></div>
-            <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
-              <div class="flex items-center gap-3 py-1 text-slate-500">
-                <Plus class="w-4 h-4" />
-                <span class="font-medium">创建或加入团队</span>
-              </div>
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <div v-else class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
-          <Box class="w-4 h-4 text-white" />
+              </el-dropdown-item>
+              <div class="border-t border-slate-100 my-2"></div>
+              <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
+                <div class="flex items-center gap-3 py-1 text-slate-500">
+                  <Plus class="w-4 h-4" />
+                  <span class="font-medium">创建或加入团队</span>
+                </div>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <div v-else class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
+            <Box class="w-4 h-4 text-white" />
+          </div>
+          <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
         </div>
-        <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
-      </div>
+      </template>
 
       <!-- Center: Search Bar -->
       <div class="topbar-search flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer hover:border-[var(--border-strong)] transition-colors" 

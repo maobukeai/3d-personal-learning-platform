@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const authStore = useAuthStore()
 const currentUserId = computed(() => authStore.user?.id)
@@ -425,7 +426,7 @@ onMounted(() => {
             </div>
 
             <div class="flex gap-4">
-              <img :src="d.user?.avatarUrl || `https://ui-avatars.com/api/?name=${d.user?.name || 'User'}`" class="w-11 h-11 rounded-full shrink-0 ring-2 ring-white/10" />
+              <UserAvatar :user="d.user" size="md" class="shrink-0" />
 
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1.5">
@@ -513,7 +514,7 @@ onMounted(() => {
           <!-- Modal Header -->
           <div class="p-5 border-b flex items-center justify-between shrink-0" style="border-color: var(--border-base)">
             <div class="flex items-center gap-3">
-              <img :src="selectedDiscussion.user?.avatarUrl || `https://ui-avatars.com/api/?name=${selectedDiscussion.user?.name || 'User'}`" class="w-9 h-9 rounded-full ring-2 ring-white/10" />
+              <UserAvatar :user="selectedDiscussion.user" size="sm" />
               <div>
                 <div class="flex items-center gap-2">
                   <p class="text-xs font-bold" style="color: var(--text-primary)">{{ selectedDiscussion.user?.name || '匿名用户' }}</p>
@@ -584,7 +585,7 @@ onMounted(() => {
               <div v-for="comment in selectedDiscussion.comments" :key="comment.id" class="space-y-3">
                 <!-- Main Comment -->
                 <div class="flex gap-3">
-                  <img :src="comment.user?.avatarUrl || `https://ui-avatars.com/api/?name=${comment.user?.name || 'User'}`" class="w-8 h-8 rounded-full shrink-0 ring-1 ring-white/10" />
+                  <UserAvatar :user="comment.user" size="sm" class="shrink-0" />
                   <div class="flex-1">
                     <div class="p-3.5 rounded-2xl" style="background-color: var(--bg-app)">
                       <div class="flex items-center justify-between mb-1.5">
@@ -663,7 +664,7 @@ onMounted(() => {
                     <!-- Nested Replies -->
                     <div v-if="expandedReplies.has(comment.id) && comment.replies?.length > 0" class="mt-3 ml-4 space-y-3 border-l-2 pl-4" style="border-color: var(--border-base)">
                       <div v-for="reply in comment.replies" :key="reply.id" class="flex gap-2.5">
-                        <img :src="reply.user?.avatarUrl || `https://ui-avatars.com/api/?name=${reply.user?.name || 'User'}`" class="w-6 h-6 rounded-full shrink-0 ring-1 ring-white/10" />
+                        <UserAvatar :user="reply.user" size="sm" class="shrink-0" />
                         <div class="flex-1">
                           <div class="p-2.5 rounded-xl" style="background-color: var(--bg-app)">
                             <div class="flex items-center justify-between mb-1">
@@ -709,7 +710,7 @@ onMounted(() => {
           <!-- Comment Input Footer -->
           <div class="p-4 border-t shrink-0" style="border-color: var(--border-base); background-color: var(--bg-card)">
             <div class="flex gap-3">
-              <img :src="authStore.user?.avatarUrl || `https://ui-avatars.com/api/?name=${authStore.user?.name || 'User'}`" class="w-8 h-8 rounded-full shrink-0 ring-1 ring-white/10" />
+              <UserAvatar :user="authStore.user" size="sm" class="shrink-0" />
               <div class="flex-1 space-y-3">
                 <MarkdownEditor v-model="newComment" height="150px" placeholder="撰写你的回复...支持 Markdown 格式" />
                 <div class="flex justify-end">

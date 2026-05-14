@@ -7,10 +7,13 @@ import fs from 'fs';
 import path from 'path';
 import { process3DAsset } from '../utils/asset-processor';
 import { checkAssetQuota, checkStorageQuota } from '../utils/quota';
+import { deleteFileByUrl } from '../utils/file';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const uploadAsset = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId as string;
+    const workspaceId = req.workspaceId;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const assetFile = files?.asset?.[0];
 
@@ -18,14 +21,14 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'No asset file uploaded' });
     }
 
-    // Check quotas
-    const assetQuota = await checkAssetQuota(userId);
+    // Check quotas with workspace context
+    const assetQuota = await checkAssetQuota(userId, workspaceId);
     if (!assetQuota.allowed) {
       return res.status(403).json({ error: assetQuota.message });
     }
 
     const fileSizeMB = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
-    const storageQuota = await checkStorageQuota(userId, fileSizeMB);
+    const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
     if (!storageQuota.allowed) {
       return res.status(403).json({ error: storageQuota.message });
     }
@@ -49,13 +52,6 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
     }
 
-    // Process 3D metadata if it's a 3D model
-    let metadata = null;
-    if (type === 'GLB' || type === 'GLTF') {
-      const fullPath = path.join(__dirname, '../../uploads/assets', assetFile.filename);
-      metadata = await process3DAsset(fullPath);
-    }
-
     const asset = await prisma.asset.create({
       data: {
         title: title || assetFile.originalname,
@@ -66,10 +62,39 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         size,
         categoryId,
         userId,
-        teamId: req.workspaceId,
-        ...(metadata || {})
+        teamId: workspaceId
       },
       include: { category: true }
+    });
+
+    // Respond immediately to the user
+    res.status(201).json(asset);
+
+    // Process 3D metadata asynchronously in the background
+    if (type === 'GLB' || type === 'GLTF') {
+      const fullPath = path.join(__dirname, '../../uploads/assets', assetFile.filename);
+      
+      // We don't await this, letting it run in the background
+      process3DAsset(fullPath).then(async (metadata) => {
+        if (metadata) {
+          await prisma.asset.update({
+            where: { id: asset.id },
+            data: { ...metadata }
+          });
+          console.log(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
+        }
+      }).catch(err => {
+        console.error(`[AssetProcessor] Background processing failed for asset: ${asset.id}`, err);
+      });
+    }
+
+    await auditService.log({
+      userId,
+      action: AuditAction.CREATE_ASSET,
+      module: AuditModule.ASSET,
+      description: `Uploaded asset: ${asset.title}`,
+      newValue: asset,
+      req
     });
 
     // Broadcast activity
@@ -80,8 +105,6 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       target: asset.title,
       createdAt: asset.createdAt
     });
-
-    res.status(201).json(asset);
   } catch (error) {
     console.error('Upload asset error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -111,6 +134,17 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
       data: updateData,
       include: { category: true }
     });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_ASSET, 
+      module: AuditModule.ASSET,
+      description: `Updated asset: ${asset.title}`,
+      oldValue: existingAsset,
+      newValue: asset,
+      req
+    });
+
     res.json(asset);
   } catch (error) {
     console.error('Update asset error:', error);
@@ -184,6 +218,11 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
     fs.writeFileSync(filePath, base64Data, 'base64');
 
     const thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${fileName}`;
+
+    // Delete old thumbnail if it was a local file
+    if (existingAsset.thumbnail) {
+      deleteFileByUrl(existingAsset.thumbnail);
+    }
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -287,17 +326,23 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    // Delete file from disk
-    const fileName = asset.url.split('/').pop();
-    if (fileName) {
-      const filePath = path.join(__dirname, '../../uploads/assets', fileName);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+    // Delete files from disk
+    deleteFileByUrl(asset.url);
+    if (asset.thumbnail) {
+      deleteFileByUrl(asset.thumbnail);
     }
 
     await prisma.asset.delete({
       where: { id },
+    });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_ASSET,
+      module: AuditModule.ASSET,
+      description: `Deleted asset: ${asset.title}`,
+      oldValue: asset,
+      req
     });
 
     res.json({ message: 'Asset deleted successfully' });
@@ -342,9 +387,22 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
       updateData.rejectReason = null;
     }
 
+    const oldAsset = await prisma.asset.findUnique({ where: { id } });
+    if (!oldAsset) return res.status(404).json({ error: 'Asset not found' });
+
     const asset = await prisma.asset.update({
       where: { id },
       data: updateData
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: status === 'APPROVED' ? AuditAction.APPROVE_ASSET : AuditAction.REJECT_ASSET,
+      module: AuditModule.ASSET,
+      description: `管理员${status === 'APPROVED' ? '批准' : '拒绝'}了资产: ${asset.title}`,
+      oldValue: { status: oldAsset.status },
+      newValue: { status, rejectReason },
+      req
     });
 
     await createNotification({
@@ -407,6 +465,15 @@ export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) =>
       });
     }
 
+    await auditService.log({
+      userId: req.userId as string,
+      action: status === 'APPROVED' ? AuditAction.APPROVE_ASSET : AuditAction.REJECT_ASSET,
+      module: AuditModule.ASSET,
+      description: `管理员批量${status === 'APPROVED' ? '批准' : '拒绝'}了 ${result.count} 个资产`,
+      newValue: { ids, status, rejectReason },
+      req
+    });
+
     res.json({ message: `成功更新 ${result.count} 个资产状态`, count: result.count });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -418,10 +485,24 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
   const { title, description, status, categoryId } = req.body;
 
   try {
+    const oldAsset = await prisma.asset.findUnique({ where: { id } });
+    if (!oldAsset) return res.status(404).json({ error: 'Asset not found' });
+
     const asset = await prisma.asset.update({
       where: { id },
       data: { title, description, status, categoryId }
     });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_ASSET,
+      module: AuditModule.ASSET,
+      description: `管理员更新了资产: ${asset.title}`,
+      oldValue: oldAsset,
+      newValue: asset,
+      req
+    });
+
     res.json(asset);
   } catch (error) {
     console.error('Admin update asset error:', error);
@@ -447,6 +528,16 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.asset.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.DELETE_ASSET,
+      module: AuditModule.ASSET,
+      description: `管理员删除了资产: ${asset.title}`,
+      oldValue: asset,
+      req
+    });
+
     res.json({ message: 'Asset deleted successfully by admin' });
   } catch (error) {
     console.error('Admin delete asset error:', error);

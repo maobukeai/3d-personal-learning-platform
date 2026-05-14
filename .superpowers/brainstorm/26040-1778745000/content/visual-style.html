@@ -1,0 +1,76 @@
+<h2>视觉风格与分组方案</h2>
+<p class="subtitle">针对视觉美化和层次感，这里有两种不同的设计方向：</p>
+
+<div class="split">
+  <div class="card" data-choice="modern-card" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #f8fafc; padding: 20px; border-radius: 8px;">
+        <div style="font-size: 10px; color: #94a3b8; font-weight: bold; margin-bottom: 12px; letter-spacing: 0.1em;">SYSTEM</div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-left: 4px solid #e11d48;">
+          <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #fb7185, #e11d48); border-radius: 8px;"></div>
+          <div style="font-weight: 600; font-size: 13px;">管理中心</div>
+        </div>
+        <div style="margin: 16px 0; border-top: 1px solid #e2e8f0;"></div>
+        <div style="font-size: 10px; color: #94a3b8; font-weight: bold; margin-bottom: 12px; letter-spacing: 0.1em;">WORKSPACE</div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px; margin-bottom: 8px;">
+          <div style="width: 32px; height: 32px; background: #6366f1; border-radius: 8px;"></div>
+          <div style="font-weight: 500; font-size: 13px; color: #64748b;">个人空间</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: #f1f5f9; border-radius: 12px;">
+          <div style="width: 32px; height: 32px; background: #f59e0b; border-radius: 8px;"></div>
+          <div style="font-weight: 600; font-size: 13px; color: #1e293b;">我的超酷团队</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 1：现代卡片式 (Modern Card)</h3>
+      <p>使用微卡片设计，通过左侧色条区分类型。强化分组标签（如 SYSTEM / WORKSPACE），层次清晰，带有轻微阴影提升悬浮感。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="minimalist-glass" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: linear-gradient(to bottom right, #eff6ff, #fdf2f8); padding: 20px; border-radius: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.8); backdrop-filter: blur(4px);">
+            <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #fb7185, #e11d48); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">管</div>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 600; font-size: 13px;">管理中心</span>
+              <span style="font-size: 10px; color: #94a3b8;">系统管理权限</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; margin-top: 8px;">
+            <div style="width: 36px; height: 36px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">系</div>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 500; font-size: 13px; color: #64748b;">个人空间</span>
+              <span style="font-size: 10px; color: #cbd5e1;">默认私有空间</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 2：极简圆润款 (Minimalist Glass)</h3>
+      <p>采用圆形头像和更柔和的背景色。加入二级副标题（描述信息），增加毛玻璃效果。去掉硬性分割线，通过间距和颜色深浅引导视线。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>优点 (方案 1)</h4>
+    <ul>
+      <li>分组感极强，适合多团队</li>
+      <li>管理中心优先级最高</li>
+      <li>符合专业后台软件审美</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>优点 (方案 2)</h4>
+    <ul>
+      <li>更现代、轻量化</li>
+      <li>适合 3D/创意类产品</li>
+      <li>副标题提供更多上下文</li>
+    </ul>
+  </div>
+</div>

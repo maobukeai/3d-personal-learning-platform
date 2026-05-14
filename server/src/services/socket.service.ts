@@ -28,7 +28,18 @@ export const initSocket = (server: HttpServer) => {
 
   // Authentication middleware for socket
   io.use((socket, next) => {
-    const token = socket.handshake.auth.token || socket.handshake.headers.authorization;
+    let token = socket.handshake.auth.token || socket.handshake.headers.authorization;
+    
+    // Check cookies if not in auth/headers
+    if (!token && socket.handshake.headers.cookie) {
+      const cookies = socket.handshake.headers.cookie.split(';').reduce((acc: any, curr) => {
+        const [key, value] = curr.trim().split('=');
+        acc[key] = value;
+        return acc;
+      }, {});
+      token = cookies.token;
+    }
+
     if (!token) {
       return next(new Error('Authentication error: No token provided'));
     }

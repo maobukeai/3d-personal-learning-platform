@@ -7,6 +7,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import { checkTeamQuota } from '../utils/quota';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getTeams = async (req: AuthRequest, res: Response) => {
   try {
@@ -53,7 +54,13 @@ export const getPublicTeams = async (req: AuthRequest, res: Response) => {
       },
       include: {
         _count: { select: { members: true } },
-        owner: { select: { name: true, avatarUrl: true } }
+        owner: { select: { name: true, avatarUrl: true } },
+        members: {
+          take: 5,
+          include: {
+            user: { select: { name: true, avatarUrl: true } }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
       take: 20
@@ -98,6 +105,16 @@ export const createTeam = async (req: AuthRequest, res: Response) => {
         members: true
       }
     });
+
+    await auditService.log({
+      userId,
+      action: AuditAction.CREATE_TEAM,
+      module: AuditModule.TEAM,
+      description: `Created team: ${team.name}`,
+      newValue: team,
+      req
+    });
+
     res.status(201).json(team);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -382,6 +399,16 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_USER, // Need to add UPDATE_TEAM to AuditAction enum
+      module: AuditModule.TEAM,
+      description: `Updated team: ${updated.name}`,
+      oldValue: team,
+      newValue: updated,
+      req
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -413,6 +440,14 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.team.update({
       where: { id: teamId },
       data: { avatarUrl }
+    });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_USER,
+      module: AuditModule.TEAM,
+      description: `Updated team avatar for: ${updated.name}`,
+      req
     });
 
     res.json(updated);
@@ -471,6 +506,16 @@ export const deleteTeam = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.team.delete({ where: { id: teamId } });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_TEAM,
+      module: AuditModule.TEAM,
+      description: `Deleted team: ${team.name}`,
+      oldValue: team,
+      req
+    });
+
     res.json({ message: 'Team deleted successfully' });
   } catch (error) {
     console.error('Delete team error:', error);

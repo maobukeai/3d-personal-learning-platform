@@ -11,6 +11,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 import { useWorkspaceStore } from '@/stores/workspace'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const workspaceStore = useWorkspaceStore()
@@ -229,7 +230,7 @@ const fetchTeamMembers = async (teamId?: string) => {
 const fetchTeams = async () => {
   try {
     const response = await api.get('/api/teams')
-    teams.value = response.data.filter((t: any) => t.type === 'TEAM')
+    teams.value = response.data
   } catch (error) {
     // silently fail
   }
@@ -356,6 +357,7 @@ const deleteTask = (task: any) => {
     try {
       await api.delete(`/api/tasks/${task.id}`)
       ElMessage.success('已删除')
+      isTaskDialogOpen.value = false
       fetchTasks()
       fetchStats()
     } catch (error) {
@@ -547,13 +549,13 @@ onMounted(fetchAll)
                     </div>
                   </div>
                   <div class="flex items-center justify-between pt-5 border-t" style="border-color: var(--border-base)">
-                    <div class="flex items-center -space-x-3">
+                    <div class="flex items-center -space-x-1.5">
                       <div v-for="(m, i) in project.members.slice(0,4)" :key="m.userId"
-                           class="w-8 h-8 rounded-full border-2 bg-slate-200 z-10"
-                           :style="{ 'border-color': 'var(--bg-card)', 'z-index': 10 - Number(i) }">
-                        <img :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}&background=random`" class="w-full h-full rounded-full object-cover" />
+                           class="z-10"
+                           :style="{ 'z-index': 10 - Number(i) }">
+                        <UserAvatar :user="m.user" size="sm" />
                       </div>
-                      <div v-if="project.members.length > 4" class="w-8 h-8 rounded-full border-2 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500" style="border-color: var(--bg-card)">
+                      <div v-if="project.members.length > 4" class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
                         +{{ (project.members?.length || 0) - 4 }}
                       </div>
                     </div>
@@ -611,9 +613,9 @@ onMounted(fetchAll)
                         </span>
                       </td>
                       <td class="px-8 py-6">
-                        <div class="flex items-center -space-x-2">
-                          <img v-for="m in project.members.slice(0,3)" :key="m.userId" :src="m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.name || m.user.email}`" class="w-8 h-8 rounded-full border-2 object-cover" style="border-color: var(--bg-card)" />
-                          <div v-if="project.members.length > 3" class="w-8 h-8 rounded-full border-2 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500" style="border-color: var(--bg-card)">
+                        <div class="flex items-center -space-x-1.5">
+                          <UserAvatar v-for="m in project.members.slice(0,3)" :key="m.userId" :user="m.user" size="sm" />
+                          <div v-if="project.members.length > 3" class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
                             +{{ (project.members?.length || 0) - 3 }}
                           </div>
                         </div>
@@ -768,19 +770,17 @@ onMounted(fetchAll)
                           <span>{{ formatDueDate(task.dueDate) }}</span>
                         </div>
                         <div v-if="task.assignee" class="flex items-center gap-1.5 ml-1">
-                          <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" class="w-5 h-5 rounded-lg object-cover" :alt="task.assignee.name" />
-                          <div v-else class="w-5 h-5 rounded-lg bg-accent/10 flex items-center justify-center">
-                            <Users class="w-3 h-3 text-accent" />
-                          </div>
+                          <UserAvatar :user="task.assignee" size="sm" />
                           <span class="text-[10px] text-slate-400 font-medium">{{ task.assignee.name }}</span>
                         </div>
-                        <div v-if="task.participants && task.participants.length > 0" class="flex items-center -space-x-1.5 ml-1">
-                          <img v-for="p in task.participants.slice(0, 3)" :key="p.userId" :src="p.user.avatarUrl || `https://ui-avatars.com/api/?name=${p.user.name || 'U'}&background=random`" class="w-5 h-5 rounded-lg object-cover border border-white dark:border-slate-800" :title="p.user.name" />
-                          <div v-if="task.participants.length > 3" class="w-5 h-5 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-white dark:border-slate-800">
+                        <div v-if="task.participants && task.participants.length > 0" class="flex items-center -space-x-1 ml-1">
+                          <UserAvatar v-for="p in task.participants.slice(0, 3)" :key="p.userId" :user="p.user" size="sm" />
+                          <div v-if="task.participants.length > 3" class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-500">
                             +{{ task.participants.length - 3 }}
                           </div>
                         </div>
                       </div>
+
                       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button v-if="task.status !== 'TODO'" @click.stop="quickStatusChange(task, 'TODO')" class="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="移到待办">
                           <Clock class="w-3 h-3" />
@@ -885,7 +885,7 @@ onMounted(fetchAll)
           <el-select v-model="projectForm.memberIds" multiple placeholder="选择直接加入的成员" class="!w-full custom-select">
             <el-option v-for="m in teamMembers" :key="m.id" :label="m.name || m.email" :value="m.id">
               <div class="flex items-center gap-3">
-                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m" size="sm" />
                 <span class="font-bold">{{ m.name || m.email }}</span>
               </div>
             </el-option>
@@ -897,7 +897,7 @@ onMounted(fetchAll)
           <el-select v-model="projectForm.inviteUserIds" multiple placeholder="选择要邀请的成员" class="!w-full custom-select">
             <el-option v-for="m in teamMembers" :key="m.id" :label="m.name || m.email" :value="m.id">
               <div class="flex items-center gap-3">
-                <img :src="m.avatarUrl || `https://ui-avatars.com/api/?name=${m.name || m.email}`" class="w-6 h-6 rounded-full" />
+                <UserAvatar :user="m" size="sm" />
                 <span class="font-bold">{{ m.name || m.email }}</span>
               </div>
             </el-option>
@@ -967,7 +967,7 @@ onMounted(fetchAll)
                 <el-select v-model="taskForm.assigneeId" clearable placeholder="选择负责人" class="!w-full custom-select">
                   <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                     <div class="flex items-center gap-2">
-                      <img v-if="m.avatarUrl" :src="m.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
+                      <UserAvatar :user="m" size="sm" />
                       <span>{{ m.name }}</span>
                     </div>
                   </el-option>
@@ -985,7 +985,7 @@ onMounted(fetchAll)
               <el-select v-model="taskForm.participantIds" multiple placeholder="选择参与人员（必须为团队成员）" class="!w-full custom-select">
                 <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                   <div class="flex items-center gap-2">
-                    <img v-if="m.avatarUrl" :src="m.avatarUrl" class="w-5 h-5 rounded-lg object-cover" />
+                    <UserAvatar :user="m" size="sm" />
                     <span>{{ m.name }}</span>
                   </div>
                 </el-option>

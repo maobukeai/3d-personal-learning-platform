@@ -2,11 +2,11 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { useI18n } from 'vue-i18n'
-import { 
+import {
   Plus, Search, Clock, CheckCircle2, AlertCircle,
   Calendar, Trash2, X, LayoutGrid, List,
   Flame, ArrowUp, Minus, ArrowDown, Tag, User,
-  FolderOpen, TrendingUp, BarChart3, Zap
+  FolderOpen, TrendingUp, BarChart3, Zap, Eye
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -86,6 +86,8 @@ const newTask = ref({
 })
 
 const isEditDrawerOpen = ref(false)
+const isPreviewDialogOpen = ref(false)
+const previewingTask = ref<any>(null)
 const editingTask = ref<any>(null)
 const editForm = ref({
   title: '',
@@ -305,7 +307,7 @@ const fetchTeamMembers = async (teamId?: string) => {
 const fetchTeams = async () => {
   try {
     const response = await api.get('/api/teams')
-    teams.value = response.data.filter((t: any) => t.type === 'TEAM')
+    teams.value = response.data
   } catch (error) {
     // silently fail
   }
@@ -388,6 +390,8 @@ const deleteTask = (task: any) => {
     try {
       await api.delete(`/api/tasks/${task.id}`)
       ElMessage.success('已删除')
+      isEditDrawerOpen.value = false
+      isPreviewDialogOpen.value = false
       fetchTasks()
       fetchStats()
     } catch (error) {
@@ -396,7 +400,13 @@ const deleteTask = (task: any) => {
   })
 }
 
+const openPreviewDialog = (task: any) => {
+  previewingTask.value = task
+  isPreviewDialogOpen.value = true
+}
+
 const openEditDialog = (task: any) => {
+  isPreviewDialogOpen.value = false
   editingTask.value = task
   editForm.value = {
     title: task.title,
@@ -644,7 +654,7 @@ onMounted(() => {
           >
             <template #item="{ element: task }">
               <div 
-                   @click="openEditDialog(task)"
+                   @click="openPreviewDialog(task)"
                    class="group p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative"
                    style="background-color: var(--bg-app); border-color: var(--border-base)">
                 
@@ -714,6 +724,9 @@ onMounted(() => {
                     </div>                  </div>
                   <!-- Quick Status Actions -->
                   <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button @click.stop="openPreviewDialog(task)" class="p-1 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all" title="查看详情">
+                      <Eye class="w-3 h-3" />
+                    </button>
                     <button v-if="task.status !== 'TODO'" @click.stop="quickStatusChange(task, 'TODO')" class="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="移到待办">
                       <Clock class="w-3 h-3" />
                     </button>
@@ -746,7 +759,7 @@ onMounted(() => {
     <div v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-8 scrollbar-hide">
       <div class="max-w-5xl mx-auto space-y-2">
         <div v-for="task in listFilteredTasks" :key="task.id"
-             @click="openEditDialog(task)"
+             @click="openPreviewDialog(task)"
              class="group flex items-center gap-4 p-4 rounded-xl border hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer"
              style="background-color: var(--bg-card); border-color: var(--border-base)">
           
@@ -811,6 +824,9 @@ onMounted(() => {
 
           <!-- Quick Actions -->
           <div class="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button @click.stop="openPreviewDialog(task)" class="p-1 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all" title="查看详情">
+              <Eye class="w-3.5 h-3.5" />
+            </button>
             <button v-if="task.status !== 'DONE'" @click.stop="quickStatusChange(task, 'DONE')" class="p-1 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all" title="标记完成">
               <CheckCircle2 class="w-3.5 h-3.5" />
             </button>
@@ -834,25 +850,159 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Task Preview Dialog -->
+    <Transition name="fade">
+      <div v-if="isPreviewDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isPreviewDialogOpen = false"></div>
+        <div class="relative w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto" style="background-color: var(--bg-card)">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl flex items-center justify-center" :class="getPriorityConfig(previewingTask.priority).color + '/10'">
+                <component :is="getPriorityConfig(previewingTask.priority).icon" class="w-5 h-5" :class="getPriorityConfig(previewingTask.priority).textColor" />
+              </div>
+              <div>
+                <h3 class="text-xl font-bold" style="color: var(--text-primary)">任务详情</h3>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Task Details</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="openEditDialog(previewingTask)" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-accent hover:text-white transition-all">
+                编辑任务
+              </button>
+              <button @click="isPreviewDialogOpen = false" style="color: var(--text-secondary)" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all">
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- Title -->
+            <div>
+              <h2 class="text-2xl font-black" style="color: var(--text-primary)">{{ previewingTask.title }}</h2>
+            </div>
+
+            <!-- Meta Information (Compacted) -->
+            <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10 gap-2 overflow-x-auto scrollbar-hide">
+              <!-- Status -->
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <Clock class="w-4 h-4 text-slate-400" />
+                </div>
+                <div>
+                  <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">状态</p>
+                  <p class="text-xs font-bold" style="color: var(--text-primary)">{{ previewingTask.status === 'TODO' ? '待办' : previewingTask.status === 'IN_PROGRESS' ? '进行中' : '已完成' }}</p>
+                </div>
+              </div>
+              
+              <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+              <!-- Priority -->
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <Flame class="w-4 h-4 text-slate-400" />
+                </div>
+                <div>
+                  <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">优先级</p>
+                  <p class="text-xs font-bold" :class="getPriorityConfig(previewingTask.priority).textColor">{{ getPriorityConfig(previewingTask.priority).label }}</p>
+                </div>
+              </div>
+
+              <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+              <!-- Due Date -->
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <Calendar class="w-4 h-4 text-slate-400" />
+                </div>
+                <div>
+                  <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">截止日期</p>
+                  <p class="text-xs font-bold" :class="previewingTask.dueDate && new Date(previewingTask.dueDate) < new Date() && previewingTask.status !== 'DONE' ? 'text-rose-500' : ''" :style="{ color: !(previewingTask.dueDate && new Date(previewingTask.dueDate) < new Date() && previewingTask.status !== 'DONE') ? 'var(--text-primary)' : '' }">
+                    {{ previewingTask.dueDate ? new Date(previewingTask.dueDate).toLocaleDateString() : '未设置' }}
+                  </p>
+                </div>
+              </div>
+
+              <template v-if="previewingTask.project">
+                <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                    <FolderOpen class="w-4 h-4 text-slate-400" />
+                  </div>
+                  <div>
+                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">项目</p>
+                    <p class="text-xs font-bold text-accent truncate max-w-[80px]">{{ previewingTask.project.title }}</p>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Description (Emphasized) -->
+            <div v-if="previewingTask.description">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1 flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+                详细描述
+              </p>
+              <div class="p-6 bg-white dark:bg-white/5 rounded-3xl text-sm leading-relaxed border border-slate-100 dark:border-white/10 shadow-sm" style="color: var(--text-primary); font-size: 0.95rem;">
+                {{ previewingTask.description }}
+              </div>
+            </div>
+
+            <!-- Tags -->
+            <div v-if="parseTags(previewingTask.tags).length > 0">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">标签</p>
+              <div class="flex flex-wrap gap-2">
+                <span v-for="tag in parseTags(previewingTask.tags)" :key="tag" class="px-3 py-1 rounded-xl text-[10px] font-bold" :class="getTagClass(tag)">
+                  # {{ tag }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Personnel -->
+            <div class="grid grid-cols-2 gap-6">
+              <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">负责人</p>
+                <div v-if="previewingTask.assignee" class="flex items-center gap-3 p-3 bg-slate-100 dark:bg-white/5 rounded-2xl">
+                  <UserAvatar :user="previewingTask.assignee" size="md" />
+                  <div>
+                    <p class="text-xs font-bold" style="color: var(--text-primary)">{{ previewingTask.assignee.name }}</p>
+                    <p class="text-[9px] text-slate-400">{{ previewingTask.assignee.email }}</p>
+                  </div>
+                </div>
+                <div v-else class="text-xs text-slate-400 p-3 italic">未指派</div>
+              </div>
+              <div v-if="previewingTask.participants && previewingTask.participants.length > 0">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">参与者</p>
+                <div class="flex items-center -space-x-2">
+                  <UserAvatar v-for="p in previewingTask.participants" :key="p.userId" :user="p.user" size="md" class="border-2 border-white dark:border-slate-900" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Add Task Dialog -->
     <Transition name="fade">
       <div v-if="isAddDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isAddDialogOpen = false"></div>
-        <div class="relative w-full max-w-lg p-8 rounded-3xl shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto" style="background-color: var(--bg-card)">
+        <div class="relative w-full max-w-4xl p-12 rounded-[2.5rem] shadow-2xl space-y-8 max-h-[95vh] overflow-y-auto" style="background-color: var(--bg-card)">
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">新建学习任务</h3>
-            <button @click="isAddDialogOpen = false" style="color: var(--text-secondary)"><X class="w-5 h-5" /></button>
+            <h3 class="text-3xl font-black tracking-tight" style="color: var(--text-primary)">新建学习任务</h3>
+            <button @click="isAddDialogOpen = false" style="color: var(--text-secondary)" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all">
+              <X class="w-8 h-8" />
+            </button>
           </div>
 
-          <div class="space-y-4">
+          <div class="space-y-6">
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">任务标题</label>
-              <input v-model="newTask.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="例如：学习 Blender 几何节点" />
+              <label class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest">任务标题</label>
+              <input v-model="newTask.title" type="text" class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold" placeholder="例如：深入学习 Blender 几何节点系统" />
             </div>
             
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">详细描述 (可选)</label>
-              <textarea v-model="newTask.description" rows="3" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none" placeholder="这次任务的目标是什么？"></textarea>
+              <label class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest">详细描述 (可选)</label>
+              <textarea v-model="newTask.description" rows="12" class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-[2rem] text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed" placeholder="在此输入任务的详细背景、目标、步骤及参考资料..."></textarea>
             </div>
 
             <div>
@@ -958,21 +1108,23 @@ onMounted(() => {
     <Transition name="fade">
       <div v-if="isEditDrawerOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="isEditDrawerOpen = false"></div>
-        <div class="relative w-full max-w-lg p-8 rounded-3xl shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto" style="background-color: var(--bg-card)">
+        <div class="relative w-full max-w-4xl p-12 rounded-[2.5rem] shadow-2xl space-y-8 max-h-[95vh] overflow-y-auto" style="background-color: var(--bg-card)">
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">修改任务</h3>
-            <button @click="isEditDrawerOpen = false" style="color: var(--text-secondary)"><X class="w-5 h-5" /></button>
+            <h3 class="text-3xl font-black tracking-tight" style="color: var(--text-primary)">修改任务</h3>
+            <button @click="isEditDrawerOpen = false" style="color: var(--text-secondary)" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all">
+              <X class="w-8 h-8" />
+            </button>
           </div>
 
-          <div class="space-y-4">
+          <div class="space-y-6">
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">任务标题</label>
-              <input v-model="editForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all" />
+              <label class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest">任务标题</label>
+              <input v-model="editForm.title" type="text" class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold" />
             </div>
             
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">详细描述</label>
-              <textarea v-model="editForm.description" rows="3" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"></textarea>
+              <label class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest">详细描述</label>
+              <textarea v-model="editForm.description" rows="15" class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-[2rem] text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"></textarea>
             </div>
 
             <div class="grid grid-cols-3 gap-4">

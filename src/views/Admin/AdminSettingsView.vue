@@ -26,6 +26,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/utils/api'
 import { useSystemStore } from '@/stores/system'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const systemStore = useSystemStore()
 const isLoading = ref(false)
@@ -605,7 +606,7 @@ window.addEventListener('beforeunload', (e) => {
                     <p class="text-xs font-medium" style="color: var(--text-primary)">{{ settings.EMAIL_VERIFY_SUBJECT }}</p>
                   </div>
                 </div>
-                <div class="p-6 bg-white" v-html="emailPreviewHtml"></div>
+                <div class="p-6 bg-white" v-html="sanitizeHtml(emailPreviewHtml)"></div>
               </div>
             </section>
           </div>

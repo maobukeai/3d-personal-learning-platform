@@ -10,13 +10,10 @@ class SocketService {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect() {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
     if (this.socket?.connected) return;
 
     this.socket = io(SOCKET_URL, {
-      auth: { token },
+      withCredentials: true,
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,

@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import api from '@/utils/api'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const logs = ref<any[]>([])
 const total = ref(0)
@@ -166,10 +167,7 @@ onMounted(fetchLogs)
                 </td>
                 <td class="px-8 py-5">
                   <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                      <img v-if="log.user?.avatarUrl" :src="log.user.avatarUrl" class="w-full h-full object-cover" />
-                      <UserIcon v-else class="w-4 h-4 text-slate-400" />
-                    </div>
+                    <UserAvatar :user="log.user" size="md" />
                     <div class="flex flex-col min-w-0">
                       <span class="text-xs font-black truncate" style="color: var(--text-primary)">{{ log.user?.name || '系统' }}</span>
                       <span class="text-[10px] text-slate-400 truncate">{{ log.user?.email || 'SYSTEM' }}</span>

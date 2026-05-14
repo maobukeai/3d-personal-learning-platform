@@ -3,6 +3,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { checkProjectQuota } from '../utils/quota';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getAllProjects = async (req: AuthRequest, res: Response) => {
   try {
@@ -81,6 +82,15 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await auditService.log({
+      userId,
+      action: AuditAction.CREATE_PROJECT,
+      module: AuditModule.PROJECT,
+      description: `Created project: ${project.title}`,
+      newValue: project,
+      req
+    });
+
     if (inviteUserIds && inviteUserIds.length > 0) {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -150,6 +160,17 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
       where: { id },
       data: updateData
     });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.UPDATE_PROJECT, 
+      module: AuditModule.PROJECT,
+      description: `Updated project: ${updated.title}`,
+      oldValue: project,
+      newValue: updated,
+      req
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -429,6 +450,16 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
     if (!member) return res.status(403).json({ error: 'Only owners can delete projects' });
 
     await prisma.project.delete({ where: { id } });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_PROJECT,
+      module: AuditModule.PROJECT,
+      description: `Deleted project: ${project.title}`,
+      oldValue: project,
+      req
+    });
+
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

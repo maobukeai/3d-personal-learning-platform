@@ -632,7 +632,7 @@ watch(() => team.value, (newTeam) => {
             <div v-for="app in pendingApplications" :key="app.id"
                  class="flex items-center gap-6 p-6 bg-white dark:bg-slate-900 rounded-2xl border transition-all hover:shadow-lg"
                  style="border-color: var(--border-base)">
-              <img :src="app.user.avatarUrl || 'https://www.gravatar.com/avatar/0?d=mp'" class="w-14 h-14 rounded-2xl object-cover border" style="border-color: var(--border-base)" />
+              <UserAvatar :user="app.user" size="lg" />
               <div class="flex-1 min-w-0">
                 <h4 class="font-bold text-base" style="color: var(--text-primary)">{{ app.user.name || app.user.email }}</h4>
                 <p class="text-xs text-slate-400">{{ app.user.email }}</p>
@@ -747,7 +747,7 @@ watch(() => team.value, (newTeam) => {
                    class="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border hover:border-accent transition-all group"
                    style="border-color: var(--border-base)">
                 <div class="flex items-center gap-3">
-                  <img :src="user.avatarUrl || 'https://www.gravatar.com/avatar/0?d=mp'" class="w-10 h-10 rounded-xl object-cover" />
+                  <UserAvatar :user="user" size="md" />
                   <div>
                     <p class="text-sm font-bold" style="color: var(--text-primary)">{{ user.name }}</p>
                     <p class="text-[10px] text-slate-400">{{ user.email }}</p>

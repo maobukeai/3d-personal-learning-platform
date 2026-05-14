@@ -8,7 +8,7 @@ import prisma from '../services/prisma';
 import { config } from '../config/env';
 import { sendEmail } from '../utils/email';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { generateAccessToken, generateRefreshToken, generateRecoveryCodes } from '../utils/auth';
+import { generateAccessToken, generateRefreshToken, generateRecoveryCodes, sanitizeUser } from '../utils/auth';
 import { settingsService } from '../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../services/audit.service';
 
@@ -142,6 +142,7 @@ export const register = async (req: Request, res: Response) => {
         action: AuditAction.CREATE_USER,
         module: AuditModule.AUTH,
         description: `新用户注册: ${user.email}`,
+        newValue: sanitizeUser(user),
         req,
         tx // Pass transaction client
       });
@@ -252,6 +253,7 @@ export const login = async (req: Request, res: Response) => {
             action: AuditAction.LOGIN,
             module: AuditModule.AUTH,
             description: `用户登录 (受信任设备): ${user.email}`,
+            newValue: sanitizeUser(user),
             req
           });
 
@@ -278,6 +280,16 @@ export const login = async (req: Request, res: Response) => {
     
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    };
+
+    res.cookie('token', accessToken, { ...cookieOptions, maxAge: 3600000 }); // 1 hour
+    res.cookie('refreshToken', refreshToken, cookieOptions);
 
     await auditService.log({
       userId: user.id,
@@ -349,6 +361,15 @@ export const login2FA = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
+
+    await auditService.log({
+      userId: user.id,
+      action: AuditAction.LOGIN,
+      module: AuditModule.AUTH,
+      description: `用户登录 (2FA 验证): ${user.email}`,
+      req
+    });
+
     res.json({ 
       accessToken,
       refreshToken,
@@ -374,7 +395,7 @@ export const login2FA = async (req: Request, res: Response) => {
 };
 
 export const refreshToken = async (req: Request, res: Response) => {
-  const { refreshToken: token } = req.body;
+  let token = req.body.refreshToken || (req.cookies ? req.cookies.refreshToken : null);
   if (!token) return res.status(400).json({ error: 'Refresh token required' });
 
   try {
@@ -385,15 +406,26 @@ export const refreshToken = async (req: Request, res: Response) => {
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
       if (storedToken) {
-        await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+        await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => {});
       }
+      res.clearCookie('token');
+      res.clearCookie('refreshToken');
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
 
     const accessToken = generateAccessToken(storedToken.user.id, storedToken.user.role);
-    // Optional: Rotate refresh token
     const newRefreshToken = await generateRefreshToken(storedToken.user.id);
-    await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+    await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => {});
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    };
+
+    res.cookie('token', accessToken, { ...cookieOptions, maxAge: 3600000 });
+    res.cookie('refreshToken', newRefreshToken, cookieOptions);
 
     res.json({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {
@@ -402,9 +434,16 @@ export const refreshToken = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req.body.refreshToken || (req.cookies ? req.cookies.refreshToken : null);
+  
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+  };
+
   try {
-    if (refreshToken) {
+    if (refreshToken && typeof refreshToken === 'string') {
       const storedToken = await prisma.refreshToken.findUnique({
         where: { token: refreshToken },
         select: { userId: true }
@@ -422,8 +461,12 @@ export const logout = async (req: Request, res: Response) => {
       
       await prisma.refreshToken.delete({ where: { token: refreshToken } }).catch(() => {});
     }
+    
+    res.clearCookie('token', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
     res.json({ message: 'Logged out' });
   } catch (error) {
+    console.error('[Auth] Logout error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -620,6 +663,14 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
       data: { password: hashedNewPassword }
     });
 
+    await auditService.log({
+      userId: user.id,
+      action: AuditAction.RESET_PASSWORD,
+      module: AuditModule.AUTH,
+      description: '用户修改了登录密码',
+      req
+    });
+
     res.json({ message: '密码已成功修改' });
   } catch (error) {
     console.error(error);
@@ -774,6 +825,15 @@ export const changeEmail = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await auditService.log({
+      userId: updatedUser.id,
+      action: AuditAction.UPDATE_USER,
+      module: AuditModule.AUTH,
+      description: `用户更换了登录邮箱: ${newEmail}`,
+      newValue: { email: newEmail },
+      req
+    });
+
     await prisma.verificationCode.delete({ where: { id: record.id } });
 
     res.json({ 
@@ -821,6 +881,14 @@ export const resetPasswordWith2FA = async (req: Request, res: Response) => {
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword }
+    });
+
+    await auditService.log({
+      userId: user.id,
+      action: AuditAction.RESET_PASSWORD,
+      module: AuditModule.AUTH,
+      description: `用户重置了登录密码 (2FA 验证): ${user.email}`,
+      req
     });
 
     res.json({ message: '密码已成功重置' });
@@ -941,53 +1009,94 @@ export const getActivity = async (req: AuthRequest, res: Response) => {
         where,
         take: 10, 
         orderBy: { createdAt: 'desc' },
-        include: { user: { select: { name: true } } }
+        include: { 
+          user: { 
+            select: { 
+              id: true,
+              name: true, 
+              avatarUrl: true, 
+              role: true, 
+              subscription: { include: { plan: true } } 
+            } 
+          } 
+        }
       }),
       prisma.discussion.findMany({ 
         where,
         take: 10, 
         orderBy: { createdAt: 'desc' },
-        include: { user: { select: { name: true } } }
+        include: { 
+          user: { 
+            select: { 
+              id: true,
+              name: true, 
+              avatarUrl: true, 
+              role: true, 
+              subscription: { include: { plan: true } } 
+            } 
+          } 
+        }
       }),
       prisma.enrollment.findMany({ 
         where,
         take: 10, 
         orderBy: { createdAt: 'desc' },
-        include: { user: { select: { name: true } }, course: { select: { title: true } } }
+        include: { 
+          user: { 
+            select: { 
+              id: true,
+              name: true, 
+              avatarUrl: true, 
+              role: true, 
+              subscription: { include: { plan: true } } 
+            } 
+          }, 
+          course: { select: { title: true } } 
+        }
       }),
       prisma.showcase.findMany({
         where,
         take: 10,
         orderBy: { createdAt: 'desc' },
-        include: { user: { select: { name: true } } }
+        include: { 
+          user: { 
+            select: { 
+              id: true,
+              name: true, 
+              avatarUrl: true, 
+              role: true, 
+              subscription: { include: { plan: true } } 
+            } 
+          } 
+        }
       })
     ]);
 
     const activities = [
       ...assets.map(a => ({ 
         id: `a-${a.id}`, 
-        user: a.user.name || '有人', 
+        user: a.user, 
         action: '发布了新资产', 
         target: a.title, 
         createdAt: a.createdAt 
       })),
       ...discussions.map(d => ({ 
         id: `d-${d.id}`, 
-        user: d.user.name || '有人', 
+        user: d.user, 
         action: '发起了新讨论', 
         target: d.title, 
         createdAt: d.createdAt 
       })),
       ...enrollments.map(e => ({ 
         id: `e-${e.id}`, 
-        user: e.user.name || '有人', 
+        user: e.user, 
         action: '加入了新课程', 
         target: e.course.title, 
         createdAt: e.createdAt 
       })),
       ...showcases.map(s => ({
         id: `s-${s.id}`,
-        user: s.user.name || '有人',
+        user: s.user,
         action: '发布了新作品',
         target: s.title,
         createdAt: s.createdAt
@@ -1105,6 +1214,16 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ error: '不能删除最后一个管理员账户' });
       }
     }
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.DELETE_USER,
+      module: AuditModule.AUTH,
+      description: `用户注销了账户: ${user.email}`,
+      oldValue: sanitizeUser(user),
+      req
+    });
+
     await prisma.user.delete({ where: { id: req.userId as string } });
     res.json({ message: '账户已成功删除' });
   } catch (error) {

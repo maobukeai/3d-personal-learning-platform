@@ -261,16 +261,23 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
   const systemStore = useSystemStore()
-  const token = localStorage.getItem('token')
 
   // Fetch system settings if not already fetched
   if (!systemStore.isInitialized) {
     await systemStore.fetchSettings()
   }
 
-  // If we have a token but no user, or if we just want to ensure the session is fresh
-  if (token && !authStore.user) {
-    await authStore.fetchMe()
+  // If we have a user in localStorage (initial load), ensure it's still valid
+  if (authStore.user && to.meta.requiresAuth) {
+    // Optional: Refresh user info on transition to protected route if needed
+    // await authStore.fetchMe() 
+  } else if (!authStore.user && to.meta.requiresAuth) {
+    // If no user in state but route needs auth, try fetching (it will use cookies)
+    try {
+      await authStore.fetchMe()
+    } catch (e) {
+      // fetchMe handles logout/redirect if it fails
+    }
   }
 
   // Handle Maintenance Mode

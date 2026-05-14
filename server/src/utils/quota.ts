@@ -30,26 +30,35 @@ async function getUserPlan(userId: string) {
 }
 
 /**
- * Checks if the user has enough storage space left.
- * Note: getStorageUsage in subscription controller only checks Assets, 
- * but a full check should include Materials and potentially others.
+ * Checks if the user (or team) has enough storage space left.
  */
-export async function checkStorageQuota(userId: string, incomingSizeMB: number = 0): Promise<QuotaStatus> {
-  const plan = await getUserPlan(userId);
-  if (!plan) return { allowed: true }; // Should not happen
+export async function checkStorageQuota(userId: string, incomingSizeMB: number = 0, teamId?: string): Promise<QuotaStatus> {
+  // If teamId is provided, the quota is tied to the team owner's plan
+  let ownerId = userId;
+  if (teamId) {
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (team) ownerId = team.ownerId;
+  }
+
+  const plan = await getUserPlan(ownerId);
+  if (!plan) return { allowed: true };
+
+  // Sum up all assets and materials for the owner OR the specific team
+  // In a team context, we usually care about the team's total usage
+  const where = teamId ? { teamId } : { userId: ownerId, teamId: null };
 
   const [assetStorage, materialStorage] = await Promise.all([
     prisma.asset.aggregate({
-      where: { userId },
+      where,
       _sum: { size: true }
     }),
     prisma.material.aggregate({
-      where: { userId },
+      where,
       _sum: { fileSize: true }
     })
   ]);
 
-  const usedMB = (assetStorage._sum.size || 0) + (materialStorage._sum.size || 0); // Note: Material uses fileSize, Asset uses size
+  const usedMB = (assetStorage._sum.size || 0) + (materialStorage._sum.fileSize || 0);
   const incomingGB = incomingSizeMB / 1024;
   const usedGB = usedMB / 1024;
   const limitGB = plan.maxStorage;
@@ -57,7 +66,7 @@ export async function checkStorageQuota(userId: string, incomingSizeMB: number =
   if (usedGB + incomingGB > limitGB) {
     return {
       allowed: false,
-      message: `超出存储配额。当前已用 ${usedGB.toFixed(2)}GB / 限制 ${limitGB}GB`,
+      message: `超出存储配额。${teamId ? '团队' : '个人'}当前已用 ${usedGB.toFixed(2)}GB / 限制 ${limitGB}GB`,
       current: usedGB,
       limit: limitGB
     };
@@ -67,7 +76,7 @@ export async function checkStorageQuota(userId: string, incomingSizeMB: number =
 }
 
 /**
- * Checks if the user can create another team.
+ * Checks if the user (or team) can create another team.
  */
 export async function checkTeamQuota(userId: string): Promise<QuotaStatus> {
   const plan = await getUserPlan(userId);
@@ -113,15 +122,20 @@ export async function checkProjectQuota(userId: string): Promise<QuotaStatus> {
 }
 
 /**
- * Checks if the user can upload another asset.
+ * Checks if the user (or team) can upload another asset.
  */
-export async function checkAssetQuota(userId: string): Promise<QuotaStatus> {
-  const plan = await getUserPlan(userId);
+export async function checkAssetQuota(userId: string, teamId?: string): Promise<QuotaStatus> {
+  let ownerId = userId;
+  if (teamId) {
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (team) ownerId = team.ownerId;
+  }
+
+  const plan = await getUserPlan(ownerId);
   if (!plan) return { allowed: true };
 
-  const assetCount = await prisma.asset.count({
-    where: { userId }
-  });
+  const where = teamId ? { teamId } : { userId: ownerId, teamId: null };
+  const assetCount = await prisma.asset.count({ where });
 
   if (assetCount >= plan.maxAssets) {
     return {

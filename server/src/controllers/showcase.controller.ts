@@ -3,9 +3,12 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
+import { deleteFileByUrl } from '../utils/file';
+import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getAllShowcases = async (req: AuthRequest, res: Response) => {
-  const { filter, type } = req.query;
+// ... existing code ...
+
   try {
     let orderBy: any = { createdAt: 'desc' };
     if (filter === '热门') {
@@ -188,6 +191,15 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.CREATE_SHOWCASE,
+      module: AuditModule.SHOWCASE,
+      description: `Created showcase: ${showcase.title}`,
+      newValue: showcase,
+      req
+    });
+
     res.status(201).json(showcase);
   } catch (error) {
     console.error('Create showcase error:', error);
@@ -244,6 +256,15 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
       }
     });
 
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.CREATE_SHOWCASE,
+      module: AuditModule.SHOWCASE,
+      description: `Published asset to showcase: ${showcase.title}`,
+      newValue: showcase,
+      req
+    });
+
     res.status(201).json(showcase);
   } catch (error) {
     console.error('Publish asset to showcase error:', error);
@@ -279,6 +300,8 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
     if (isVideo !== undefined) updateData.isVideo = isVideo === 'true';
     if (type !== undefined) updateData.type = type;
     if (thumbnailFile) {
+      // Delete old thumbnail
+      if (showcase.thumbnailUrl) deleteFileByUrl(showcase.thumbnailUrl);
       updateData.thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     }
     if (imageFiles.length > 0) {
@@ -302,6 +325,16 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.REJECT_SHOWCASE, // Generic update action or add UPDATE_SHOWCASE
+      module: AuditModule.SHOWCASE,
+      description: `Updated showcase: ${updated.title}`,
+      oldValue: showcase,
+      newValue: updated,
+      req
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -323,8 +356,24 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    // Delete files
+    if (showcase.thumbnailUrl) deleteFileByUrl(showcase.thumbnailUrl);
+    if (showcase.images) {
+      const images = JSON.parse(showcase.images);
+      images.forEach((url: string) => deleteFileByUrl(url));
+    }
+
     await prisma.showcase.delete({
       where: { id }
+    });
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.DELETE_SHOWCASE,
+      module: AuditModule.SHOWCASE,
+      description: `Deleted showcase: ${showcase.title}`,
+      oldValue: showcase,
+      req
     });
 
     res.json({ message: 'Deleted successfully' });

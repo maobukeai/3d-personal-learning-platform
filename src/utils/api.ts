@@ -3,15 +3,11 @@ import router from '@/router';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+  withCredentials: true,
 });
 
-// 请求拦截器：自动注入 Token 与 Workspace ID
+// 请求拦截器：自动注入 Workspace ID
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   const activeWorkspaceId = localStorage.getItem('activeWorkspaceId');
   if (activeWorkspaceId) {
     config.headers['X-Workspace-Id'] = activeWorkspaceId;
@@ -49,8 +45,7 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
+        }).then(() => {
           return api(originalRequest);
         }).catch((err) => {
           return Promise.reject(err);
@@ -64,12 +59,11 @@ api.interceptors.response.use(
       const authStore = useAuthStore();
 
       try {
-        const newToken = await authStore.refreshAccessToken();
-        processQueue(null, newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        await authStore.refreshAccessToken();
+        processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
+        processQueue(refreshError);
         
         // Only redirect to login if we are on a route that requires authentication
         if (router.currentRoute.value.meta.requiresAuth) {

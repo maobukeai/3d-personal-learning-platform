@@ -23,7 +23,7 @@ interface Note {
   isLiked: boolean
   userId: string
   _count: { likes: number }
-  user: { id: string; name: string; avatarUrl: string }
+  user: { id: string; name: string; avatarUrl: string; bio?: string }
   createdAt: string
   updatedAt: string
 }
@@ -350,7 +350,7 @@ onMounted(() => {
           >
             <div class="flex items-start justify-between mb-3">
               <div class="flex items-center gap-2">
-                <UserAvatar :src="note.user.avatarUrl" :name="note.user.name" size="sm" />
+                <UserAvatar :user="note.user" size="sm" />
                 <div>
                   <span class="text-sm font-medium text-[var(--text-primary)]">{{ note.user.name }}</span>
                   <span class="text-xs text-[var(--text-muted)] ml-2">{{ formatDate(note.createdAt) }}</span>
@@ -481,7 +481,7 @@ onMounted(() => {
 
           <!-- Author Info -->
           <div class="mb-10">
-            <UserAvatar :src="detailNote.user.avatarUrl" :name="detailNote.user.name" size="lg" class="mb-4" />
+            <UserAvatar :user="detailNote.user" size="lg" class="mb-4" />
             <h4 class="font-bold text-[var(--text-primary)] mb-1">{{ detailNote.user.name }}</h4>
             <p class="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed">{{ detailNote.user.bio || '探索者' }}</p>
           </div>

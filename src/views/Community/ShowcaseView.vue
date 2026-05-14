@@ -31,6 +31,7 @@ import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue'
@@ -421,7 +422,7 @@ onMounted(fetchShowcases)
 
               <div class="flex items-center justify-between mt-auto">
                 <div class="flex items-center gap-2 cursor-pointer group/author" @click.stop="openUserProfile(item.user.id)">
-                  <img :src="item.user.avatarUrl || `https://ui-avatars.com/api/?name=${item.user.name || item.user.email}`" class="w-6 h-6 rounded-full border group-hover/author:ring-2 group-hover/author:ring-indigo-500 transition-all" style="border-color: var(--border-base)" />
+                  <UserAvatar :user="item.user" size="sm" class="group-hover/author:ring-2 group-hover/author:ring-indigo-500 transition-all" />
                   <span class="text-[11px] font-bold group-hover/author:text-indigo-600 transition-colors" style="color: var(--text-secondary)">{{ item.user.name || item.user.email }}</span>
                 </div>
 
@@ -499,9 +500,8 @@ onMounted(fetchShowcases)
                   <div class="flex-1">
                     <h2 class="text-2xl font-bold mb-3" style="color: var(--text-primary)">{{ detailItem.title }}</h2>
                     <div class="flex items-center gap-3">
-                      <img :src="detailItem.user.avatarUrl || `https://ui-avatars.com/api/?name=${detailItem.user.name || detailItem.user.email}`" 
-                           class="w-8 h-8 rounded-full border cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all" 
-                           style="border-color: var(--border-base)" 
+                      <UserAvatar :user="detailItem.user" size="sm" 
+                           class="cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all" 
                            @click="openUserProfile(detailItem.user.id)" />
                       <div>
                         <p class="text-sm font-bold cursor-pointer hover:text-indigo-600 transition-colors" style="color: var(--text-primary)" @click="openUserProfile(detailItem.user.id)">{{ detailItem.user.name || detailItem.user.email }}</p>
@@ -564,7 +564,7 @@ onMounted(fetchShowcases)
 
                   <!-- Comment Input -->
                   <div class="flex items-start gap-3 mb-6">
-                    <img :src="authStore.user?.avatarUrl || `https://ui-avatars.com/api/?name=${authStore.user?.name || 'U'}`" class="w-8 h-8 rounded-full border shrink-0" style="border-color: var(--border-base)" />
+                    <UserAvatar :user="authStore.user" size="sm" />
                     <div class="flex-1 flex items-center gap-2">
                       <input
                         v-model="newComment"
@@ -589,7 +589,7 @@ onMounted(fetchShowcases)
                   </div>
                   <div v-else class="space-y-4">
                     <div v-for="comment in comments" :key="comment.id" class="flex items-start gap-3 group">
-                      <img :src="comment.user.avatarUrl || `https://ui-avatars.com/api/?name=${comment.user.name || 'U'}`" class="w-7 h-7 rounded-full border shrink-0" style="border-color: var(--border-base)" />
+                      <UserAvatar :user="comment.user" size="sm" />
                       <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-0.5">
                           <span class="text-xs font-bold" style="color: var(--text-primary)">{{ comment.user.name || '匿名用户' }}</span>

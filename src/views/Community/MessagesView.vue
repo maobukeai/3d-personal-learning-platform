@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { 
   Search, 
   Send, 
-  Phone, 
-  Video, 
+  Languages,
+  Mic,
   Image as ImageIcon, 
   Paperclip,
   Smile,
@@ -27,13 +28,16 @@ import {
   SmilePlus,
   Trash2
 } from 'lucide-vue-next'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import InvitationDialog from '@/components/InvitationDialog.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { socketService } from '@/utils/socket'
+import { sanitizeHtml } from '@/utils/sanitize'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const searchQuery = ref('')
 const newMessage = ref('')
@@ -51,6 +55,25 @@ const isProfileDialogOpen = ref(false)
 const selectedUserId = ref<string | null>(null)
 
 const isInfoPanelOpen = ref(false)
+const infoTab = ref<'info' | 'files' | 'photos'>('info')
+
+const sharedPhotos = computed(() => {
+  return messages.value.filter(m => m.type === 'IMAGE').map(m => ({
+    id: m.id,
+    url: m.content,
+    createdAt: m.createdAt
+  }))
+})
+
+const sharedFiles = computed(() => {
+  return messages.value.filter(m => m.type === 'FILE').map(m => ({
+    id: m.id,
+    name: m.content.split('/').pop() || '未知文件',
+    url: m.content,
+    createdAt: m.createdAt,
+    size: m.fileSize // Assume backend provides this or just show date
+  }))
+})
 
 const replyToMessage = ref<any>(null)
 
@@ -71,6 +94,38 @@ const userSearchQuery = ref('')
 const publicUsers = ref<any[]>([])
 const isLoadingUsers = ref(false)
 
+// Swipe-to-delete state
+const swipingConvId = ref<string | null>(null)
+const swipeOffset = ref<Record<string, number>>({})
+let touchStartX = 0
+
+const handleTouchStart = (e: TouchEvent, convId: string) => {
+  touchStartX = e.touches[0].clientX
+  if (swipingConvId.value && swipingConvId.value !== convId) {
+    swipeOffset.value[swipingConvId.value] = 0
+  }
+  swipingConvId.value = convId
+}
+
+const handleTouchMove = (e: TouchEvent, convId: string) => {
+  const currentX = e.touches[0].clientX
+  const diff = touchStartX - currentX
+  if (diff > 0) { // Swiping left
+    swipeOffset.value[convId] = Math.min(diff, 80)
+  } else {
+    swipeOffset.value[convId] = 0
+  }
+}
+
+const handleTouchEnd = (convId: string) => {
+  if (swipeOffset.value[convId] > 40) {
+    swipeOffset.value[convId] = 70
+  } else {
+    swipeOffset.value[convId] = 0
+    swipingConvId.value = null
+  }
+}
+
 const groupChatName = ref('')
 const groupChatParticipants = ref<any[]>([])
 const groupChatSearchQuery = ref('')
@@ -84,6 +139,27 @@ const conversationContextMenu = ref<{ visible: boolean; x: number; y: number; co
 })
 
 const isDragOver = ref(false)
+const dragCounter = ref(0)
+const translations = ref<Record<string, string>>({})
+
+const handleTranslate = async (message: any) => {
+  if (translations.value[message.id]) {
+    delete translations.value[message.id]
+    return
+  }
+  
+  try {
+    // In a real app, this would call a translation API
+    // For now, we simulate with a simple logic or call a mock
+    const response = await api.post('/api/messages/translate', { 
+      content: message.content,
+      targetLang: authStore.user?.language || 'zh'
+    })
+    translations.value[message.id] = response.data.translation
+  } catch (error) {
+    ElMessage.error(t('messages.sendFailed'))
+  }
+}
 
 const openUserProfile = (userId: string) => {
   selectedUserId.value = userId
@@ -256,16 +332,24 @@ const handleSendMessage = async (type = 'TEXT', content?: string) => {
       ...(replyId && { replyToId: replyId })
     })
   } catch (error) {
-    ElMessage.error('消息发送失败')
+    ElMessage.error(t('messages.sendFailed'))
     if (type === 'TEXT') newMessage.value = msgContent
   }
 }
 
 const handleDeleteMessage = async (messageId: string) => {
   try {
+    await ElMessageBox.confirm(t('messages.deleteConfirm'), t('common.confirm'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    })
     await api.delete(`/api/messages/messages/${messageId}`)
+    ElMessage.success(t('messages.deleteSuccess'))
   } catch (error) {
-    ElMessage.error('删除失败')
+    if (error !== 'cancel') {
+      ElMessage.error(t('common.deleteFailed'))
+    }
   }
 }
 
@@ -333,8 +417,30 @@ const handleFileUpload = async (event: Event) => {
   }
 }
 
+const handleDragEnter = (event: DragEvent) => {
+  event.preventDefault()
+  dragCounter.value++
+  isDragOver.value = true
+}
+
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault()
+  dragCounter.value--
+  if (dragCounter.value <= 0) {
+    dragCounter.value = 0
+    isDragOver.value = false
+  }
+}
+
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  isDragOver.value = true
+}
+
 const handleDrop = async (event: DragEvent) => {
+  event.preventDefault()
   isDragOver.value = false
+  dragCounter.value = 0
   const files = event.dataTransfer?.files
   if (!files?.length) return
 
@@ -352,15 +458,6 @@ const handleDrop = async (event: DragEvent) => {
   } finally {
     isUploading.value = false
   }
-}
-
-const handleDragOver = (event: DragEvent) => {
-  event.preventDefault()
-  isDragOver.value = true
-}
-
-const handleDragLeave = () => {
-  isDragOver.value = false
 }
 
 const scrollToBottom = () => {
@@ -465,6 +562,11 @@ const leaveGroupChat = async () => {
 
 const deleteConversation = async (conv: any) => {
   try {
+    await ElMessageBox.confirm('确定要删除此会话吗？这将清除你的本地聊天记录。', '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     await api.delete(`/api/messages/conversations/${conv.id}`)
     conversations.value = conversations.value.filter(c => c.id !== conv.id)
     if (activeConversation.value?.id === conv.id) {
@@ -476,9 +578,12 @@ const deleteConversation = async (conv: any) => {
     }
     ElMessage.success('会话已删除')
   } catch (error) {
-    ElMessage.error('删除会话失败')
+    if (error !== 'cancel') {
+      ElMessage.error('删除会话失败')
+    }
   }
   conversationContextMenu.value.visible = false
+  if (conv.id) swipeOffset.value[conv.id] = 0
 }
 
 const handleConversationContextMenu = (event: MouseEvent, conv: any) => {
@@ -737,8 +842,9 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
     <div class="w-80 border-r flex flex-col shrink-0" style="background-color: var(--bg-card); border-color: var(--border-base)">
       <div class="p-6 border-b" style="border-color: var(--border-base)">
         <div class="flex items-center justify-between mb-4">
-          <h1 class="text-xl font-bold" style="color: var(--text-primary)">消息中心</h1>
+          <h1 class="text-xl font-bold" style="color: var(--text-primary)">{{ t('messages.title') }}</h1>
           <div class="flex gap-1">
+
             <button @click="isGroupChatDialogOpen = true" class="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl hover:bg-indigo-500 hover:text-white transition-all" title="创建群聊">
               <Users class="w-4 h-4" />
             </button>
@@ -752,17 +858,18 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
           <input 
             v-model="searchQuery"
             type="text" 
-            placeholder="搜索联系人..." 
+            :placeholder="t('messages.searchPlaceholder')" 
             class="pl-10 pr-4 py-2 border-none rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
+
         </div>
       </div>
 
       <div class="flex-1 overflow-y-auto scrollbar-hide">
         <div v-if="isLoadingConversations" class="p-10 text-center">
           <div class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">正在同步聊天记录</p>
+          <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{{ t('messages.syncing') }}</p>
         </div>
         
         <template v-else>
@@ -771,66 +878,93 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
             :key="conv.id"
             @click="selectConversation(conv)"
             @contextmenu="handleConversationContextMenu($event, conv)"
-            class="p-4 flex gap-3 cursor-pointer transition-all hover:opacity-80 relative"
+            @touchstart="handleTouchStart($event, conv.id)"
+            @touchmove="handleTouchMove($event, conv.id)"
+            @touchend="handleTouchEnd(conv.id)"
+            class="p-4 flex gap-3 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-white/5 relative group overflow-hidden"
             :class="activeConversation?.id === conv.id ? 'bg-accent-subtle' : ''"
           >
             <div v-if="activeConversation?.id === conv.id" class="absolute left-0 top-0 bottom-0 w-1 bg-accent"></div>
             
-            <div class="relative shrink-0">
-              <template v-if="conv.isGroup">
-                <div class="w-12 h-12 rounded-full border flex items-center justify-center" :class="conv.avatarUrl ? '' : 'bg-indigo-500/10'" style="border-color: var(--border-base)">
-                  <img v-if="conv.avatarUrl" :src="conv.avatarUrl" class="w-12 h-12 rounded-full object-cover" />
-                  <Users v-else class="w-5 h-5 text-indigo-500" />
-                </div>
-              </template>
-              <template v-else>
-                <img :src="getConversationAvatar(conv)" 
-                     @click.stop="openUserProfile(getOtherParticipant(conv)?.id)"
-                     class="w-12 h-12 rounded-full border object-cover hover:ring-2 hover:ring-accent transition-all cursor-pointer" style="border-color: var(--border-base)" />
-                <div v-if="authStore.isUserOnline(getOtherParticipant(conv)?.id)" class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 rounded-full" style="border-color: var(--bg-card)"></div>
-              </template>
+            <!-- Swipe Delete Action (Background) -->
+            <div class="absolute inset-y-0 right-0 bg-rose-500 flex items-center justify-center transition-all duration-200 z-0"
+                 :style="{ width: (swipeOffset[conv.id] || 0) + 'px' }">
+              <button @click.stop="deleteConversation(conv)" class="w-full h-full flex items-center justify-center text-white">
+                <Trash2 class="w-5 h-5" />
+              </button>
             </div>
-            
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm font-bold truncate pr-2 flex items-center gap-1.5" style="color: var(--text-primary)">
-                  <Hash v-if="conv.isGroup" class="w-3 h-3 text-indigo-400 shrink-0" />
-                  {{ getConversationName(conv) }}
-                </span>
-                <span class="text-[9px] font-medium shrink-0" style="color: var(--text-muted)">
-                  {{ new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
-                </span>
+
+            <!-- Content Area -->
+            <div class="flex flex-1 gap-3 transition-transform duration-200 z-10"
+                 :style="{ transform: `translateX(-${swipeOffset[conv.id] || 0}px)` }">
+              <div class="relative shrink-0">
+                <template v-if="conv.isGroup">
+                  <div class="w-12 h-12 rounded-full border flex items-center justify-center" :class="conv.avatarUrl ? '' : 'bg-indigo-500/10'" style="border-color: var(--border-base)">
+                    <img v-if="conv.avatarUrl" :src="conv.avatarUrl" class="w-12 h-12 rounded-full object-cover" />
+                    <Users v-else class="w-5 h-5 text-indigo-500" />
+                  </div>
+                </template>
+                <template v-else>
+                  <UserAvatar :user="getOtherParticipant(conv)" 
+                       @click.stop="openUserProfile(getOtherParticipant(conv)?.id)"
+                       size="md"
+                       class="cursor-pointer hover:ring-2 hover:ring-accent transition-all" />
+                  <div v-if="authStore.isUserOnline(getOtherParticipant(conv)?.id)" class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 rounded-full z-40" style="border-color: var(--bg-card)"></div>
+                </template>
               </div>
-              <div class="flex items-center justify-between">
-                <p class="text-xs truncate pr-4" style="color: var(--text-secondary)">
-                  {{ getLastMessagePreview(conv) }}
-                </p>
-                <div v-if="conv.unreadCount > 0" class="shrink-0 min-w-[16px] h-4 bg-accent text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
-                  {{ conv.unreadCount }}
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-bold truncate pr-2 flex items-center gap-1.5" style="color: var(--text-primary)">
+                    <Hash v-if="conv.isGroup" class="w-3 h-3 text-indigo-400 shrink-0" />
+                    {{ getConversationName(conv) }}
+                  </span>
+                  <span class="text-[9px] font-medium shrink-0" style="color: var(--text-muted)">
+                    {{ new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <p class="text-xs truncate pr-4" style="color: var(--text-secondary)">
+                    {{ getLastMessagePreview(conv) }}
+                  </p>
+                  <div v-if="conv.unreadCount > 0" class="shrink-0 min-w-[16px] h-4 bg-accent text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                    {{ conv.unreadCount }}
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- Hover Delete Button (for Desktop) -->
+            <button 
+              @click.stop="deleteConversation(conv)"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden"
+              title="删除会话"
+            >
+              <Trash2 class="w-4 h-4" />
+            </button>
           </div>
           
           <div v-if="filteredConversations.length === 0" class="py-20 text-center text-slate-400">
             <MessageSquare class="w-10 h-10 mx-auto mb-3 opacity-10" />
-            <p class="text-xs">未找到匹配的对话</p>
+            <p class="text-xs">{{ t('messages.noConversations') }}</p>
           </div>
         </template>
       </div>
     </div>
 
     <!-- Chat Area -->
-    <div class="flex-1 flex flex-col relative" style="background-color: var(--bg-app)">
+    <div class="flex-1 flex flex-col relative" 
+         style="background-color: var(--bg-app)"
+         @dragenter="handleDragEnter"
+         @dragover="handleDragOver"
+         @dragleave="handleDragLeave"
+         @drop="handleDrop">
       <!-- Drag overlay -->
       <div v-if="isDragOver" 
-           @dragover="handleDragOver"
-           @dragleave="handleDragLeave"
-           @drop="handleDrop"
-           class="absolute inset-0 z-50 bg-accent/10 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-accent rounded-2xl m-4">
+           class="absolute inset-0 z-50 bg-accent/10 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-accent rounded-2xl m-4 pointer-events-none">
         <div class="text-center">
           <Paperclip class="w-12 h-12 text-accent mx-auto mb-3" />
-          <p class="text-lg font-bold text-accent">拖拽文件到此处上传</p>
+          <p class="text-lg font-bold text-accent">{{ t('messages.dropToUpload') }}</p>
         </div>
       </div>
 
@@ -845,20 +979,21 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
               </div>
             </template>
             <template v-else>
-              <img :src="getConversationAvatar(activeConversation)" 
+              <UserAvatar :user="getOtherParticipant(activeConversation)" 
                    @click="openUserProfile(getOtherParticipant(activeConversation)?.id)"
-                   class="w-10 h-10 rounded-full border object-cover cursor-pointer hover:ring-2 hover:ring-accent transition-all" style="border-color: var(--border-base)" />
+                   size="md"
+                   class="cursor-pointer hover:ring-2 hover:ring-accent transition-all" />
             </template>
             <div>
               <p class="text-sm font-bold flex items-center gap-1.5" style="color: var(--text-primary)">
                 <Hash v-if="activeConversation.isGroup" class="w-3.5 h-3.5 text-indigo-400" />
                 {{ getConversationName(activeConversation) }}
-                <span v-if="activeConversation.isGroup" class="text-[10px] font-medium text-slate-400 ml-1">{{ activeConversation.participants?.length || 0 }}人</span>
+                <span v-if="activeConversation.isGroup" class="text-[10px] font-medium text-slate-400 ml-1">{{ activeConversation.participants?.length || 0 }}{{ t('messages.groupParticipants') }}</span>
               </p>
-              <p v-if="isOtherTyping" class="text-[10px] text-accent font-bold animate-pulse">正在输入...</p>
+              <p v-if="isOtherTyping" class="text-[10px] text-accent font-bold animate-pulse">{{ t('messages.typing') }}</p>
               <p v-else-if="!activeConversation.isGroup" class="text-[10px] font-bold flex items-center gap-1" :class="authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? 'text-emerald-500' : 'text-slate-400'">
                 <span class="w-1.5 h-1.5 rounded-full" :class="authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? 'bg-emerald-500' : 'bg-slate-300'"></span>
-                {{ authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? '在线' : '离线' }}
+                {{ authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? t('messages.online') : t('messages.offline') }}
               </p>
             </div>
           </div>
@@ -880,14 +1015,14 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
                 <input 
                   v-model="messageSearchQuery"
                   type="text" 
-                  placeholder="搜索聊天记录..." 
+                  :placeholder="t('messages.searchMessages')" 
                   class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                   style="color: var(--text-primary)"
                 />
               </div>
             </el-popover>
-            <button class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-muted)"><Phone class="w-4 h-4" /></button>
-            <button class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-muted)"><Video class="w-4 h-4" /></button>
+            <button class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-muted)" :title="t('messages.voiceMessage')"><Mic class="w-4 h-4" /></button>
+            <button class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-muted)" :title="t('messages.translate')"><Languages class="w-4 h-4" /></button>
             <div class="w-px h-4 mx-2" style="background-color: var(--border-base)"></div>
             <button @click="isInfoPanelOpen = !isInfoPanelOpen" 
                     class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
@@ -901,16 +1036,13 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
         <!-- Messages Area -->
         <div ref="messagesContainer" 
              class="flex-1 overflow-y-auto p-6 space-y-1 scrollbar-hide"
-             @scroll="handleScroll"
-             @dragover="handleDragOver"
-             @dragleave="handleDragLeave"
-             @drop="handleDrop">
+             @scroll="handleScroll">
           
           <!-- Load older messages button -->
           <div v-if="hasMoreMessages" class="text-center py-3 mb-4">
             <button @click="loadOlderMessages" :disabled="isLoadingOlderMessages" class="px-4 py-2 text-xs font-bold text-accent hover:bg-accent/10 rounded-xl transition-all">
               <div v-if="isLoadingOlderMessages" class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <template v-else>加载更早的消息</template>
+              <template v-else>{{ t('messages.loadOlder') }}</template>
             </button>
           </div>
 
@@ -933,16 +1065,17 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
             <div v-else class="flex group" :class="msg.senderId === authStore.user?.id ? 'justify-end' : 'justify-start'">
               <div class="flex gap-3 max-w-[70%]" :class="msg.senderId === authStore.user?.id ? 'flex-row-reverse' : ''">
                 <!-- Avatar -->
-                <div v-if="shouldShowSenderAvatar(msg, filteredMessages[index - 1])" class="shrink-0 self-end mb-1">
-                  <img v-if="msg.senderId !== authStore.user?.id"
+                <div v-if="shouldShowSenderAvatar(msg, filteredMessages[index - 1])" class="shrink-0 mb-1">
+                  <UserAvatar v-if="msg.senderId !== authStore.user?.id"
                        @click="openUserProfile(msg.senderId)"
-                       :src="msg.sender.avatarUrl || `https://ui-avatars.com/api/?name=${msg.sender.name || msg.sender.email}`" 
-                       class="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-accent transition-all" />
-                  <div v-else class="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-xs font-bold">
-                    {{ (authStore.user?.name || '我')[0] }}
-                  </div>
+                       :user="msg.sender"
+                       size="md"
+                       class="cursor-pointer hover:ring-2 hover:ring-accent transition-all" />
+                  <UserAvatar v-else
+                       :user="authStore.user"
+                       size="md" />
                 </div>
-                <div v-else class="w-8 shrink-0"></div>
+                <div v-else class="w-10 shrink-0"></div>
                 
                 <div class="flex flex-col relative" :class="msg.senderId === authStore.user?.id ? 'items-end' : 'items-start'">
                   <!-- Sender name for group chats -->
@@ -978,19 +1111,58 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
                       </div>
                     </template>
                     <template v-else>
-                      <span v-html="renderTextWithLinks(msg.content)"></span>
+                      <span v-html="sanitizeHtml(renderTextWithLinks(msg.content))"></span>
+
+                      <!-- Translation Display -->
+                      <div v-if="translations[msg.id]" class="mt-2 pt-2 border-t border-white/20 dark:border-slate-800 flex flex-col gap-1">
+                        <div class="flex items-center gap-1.5 text-[9px] font-bold opacity-60">
+                          <Languages class="w-3 h-3" />
+                          {{ t('messages.translate') }}
+                        </div>
+                        <p class="text-xs italic opacity-90">{{ translations[msg.id] }}</p>
+                      </div>
                     </template>
+                    </div>
+
+                    <!-- Message Actions (On Hover) -->
+                    <div class="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button v-if="msg.type === 'TEXT'" 
+                            @click="handleTranslate(msg)" 
+                            class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all"
+                            :class="translations[msg.id] ? 'text-accent' : 'text-slate-400'"
+                            :title="t('messages.translate')">
+                      <Languages class="w-3 h-3" />
+                    </button>
+                    <button @click="setReplyTo(msg)" 
+                            class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 transition-all">
+                      <Reply class="w-3 h-3" />
+                    </button>
+                    <button @click="showReactionPicker = msg.id" 
+                            class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 transition-all">
+                      <SmilePlus class="w-3 h-3" />
+                    </button>
+                    </div>
 
                     <!-- Quick reaction button on hover -->
-                    <button 
-                      @click.stop="showReactionPicker = showReactionPicker === msg.id ? null : msg.id"
-                      class="absolute -bottom-1 opacity-0 group-hover:opacity-100 transition-all p-1 rounded-full hover:scale-110"
-                      :class="msg.senderId === authStore.user?.id ? '-left-1' : '-right-1'"
-                      style="background-color: var(--bg-card); box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border-base)"
-                    >
-                      <SmilePlus class="w-3 h-3" style="color: var(--text-muted)" />
-                    </button>
-                  </div>
+                    <div class="absolute -bottom-1 opacity-0 group-hover:opacity-100 transition-all flex gap-1 z-10"
+                         :class="msg.senderId === authStore.user?.id ? '-left-1' : '-right-1'">
+                      <button 
+                        @click.stop="showReactionPicker = showReactionPicker === msg.id ? null : msg.id"
+                        class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)]"
+                        style="background-color: var(--bg-card)"
+                      >
+                        <SmilePlus class="w-3 h-3 text-[var(--text-muted)]" />
+                      </button>
+                      <button 
+                        v-if="msg.senderId === authStore.user?.id"
+                        @click.stop="handleDeleteMessage(msg.id)"
+                        class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                        style="background-color: var(--bg-card)"
+                        title="删除消息"
+                      >
+                        <Trash2 class="w-3 h-3 text-rose-500" />
+                      </button>
+                    </div>
 
                   <!-- Reaction Picker Popup -->
                   <div v-if="showReactionPicker === msg.id" 
@@ -1079,7 +1251,7 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
             <div class="flex items-center">
               <button @click="showEmojiPicker = !showEmojiPicker" class="p-2 hover:text-accent transition-colors" :class="showEmojiPicker ? 'text-accent' : ''" style="color: var(--text-muted)"><Smile class="w-5 h-5" /></button>
               <button @click="triggerFileUpload" class="p-2 hover:text-accent transition-colors" style="color: var(--text-muted)"><Paperclip class="w-5 h-5" /></button>
-              <button @click="triggerFileUpload" class="p-2 hover:text-accent transition-colors" style="color: var(--text-muted)"><ImageIcon class="w-5 h-5" /></button>
+              <button class="p-2 hover:text-accent transition-colors" style="color: var(--text-muted)"><Mic class="w-5 h-5" /></button>
             </div>
             
             <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" />
@@ -1088,7 +1260,7 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
               v-model="newMessage"
               @input="handleTyping"
               @keydown.enter.prevent="handleSendMessage('TEXT')"
-              placeholder="写下你的消息..." 
+              :placeholder="t('sidebar.messages') + '...'" 
               rows="1"
               class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 resize-none max-h-32 scrollbar-hide"
               style="color: var(--text-primary)"
@@ -1128,66 +1300,121 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
 
     <!-- Info Panel -->
     <div v-if="isInfoPanelOpen && activeConversation" 
-         class="w-80 border-l flex flex-col shrink-0 overflow-y-auto scrollbar-hide"
+         class="w-80 border-l flex flex-col shrink-0 overflow-hidden"
          style="background-color: var(--bg-card); border-color: var(--border-base)">
-      <div class="p-6 border-b flex items-center justify-between" style="border-color: var(--border-base)">
+      <div class="p-6 border-b flex items-center justify-between shrink-0" style="border-color: var(--border-base)">
         <h3 class="text-sm font-bold" style="color: var(--text-primary)">会话详情</h3>
         <button @click="isInfoPanelOpen = false" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all">
           <X class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
       </div>
 
-      <!-- Group Info -->
-      <div v-if="activeConversation.isGroup" class="p-6 text-center border-b" style="border-color: var(--border-base)">
-        <div class="w-20 h-20 rounded-2xl mx-auto mb-3 flex items-center justify-center" :class="activeConversation.avatarUrl ? '' : 'bg-indigo-500/10'">
-          <img v-if="activeConversation.avatarUrl" :src="activeConversation.avatarUrl" class="w-20 h-20 rounded-2xl object-cover" />
-          <Users v-else class="w-8 h-8 text-indigo-500" />
-        </div>
-        <h3 class="text-lg font-bold mb-1" style="color: var(--text-primary)">{{ activeConversation.name || '未命名群聊' }}</h3>
-        <p class="text-xs" style="color: var(--text-muted)">群聊 · {{ activeConversation.participants?.length || 0 }} 位成员</p>
+      <!-- Tabs Header -->
+      <div class="flex p-1 gap-1 mx-4 mt-4 rounded-xl bg-[var(--bg-app)] shrink-0">
+        <button v-for="tab in ['info', 'photos', 'files']" :key="tab"
+                @click="infoTab = tab as any"
+                class="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider"
+                :class="infoTab === tab ? 'bg-[var(--bg-card)] shadow-sm' : 'text-[var(--text-muted)]'"
+                :style="infoTab === tab ? 'color: var(--text-primary)' : ''">
+          {{ tab === 'info' ? '信息' : tab === 'photos' ? '照片' : '文件' }}
+        </button>
       </div>
 
-      <!-- 1:1 User Info -->
-      <div v-else class="p-6 text-center border-b" style="border-color: var(--border-base)">
-        <img :src="getConversationAvatar(activeConversation)" class="w-20 h-20 rounded-2xl mx-auto mb-3 object-cover" />
-        <h3 class="text-lg font-bold mb-1 cursor-pointer hover:text-accent transition-colors" @click="openUserProfile(getOtherParticipant(activeConversation)?.id)" style="color: var(--text-primary)">
-          {{ getOtherParticipant(activeConversation)?.name || '未知用户' }}
-        </h3>
-        <p class="text-xs flex items-center justify-center gap-1" :class="authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? 'text-emerald-500' : 'text-slate-400'">
-          <span class="w-1.5 h-1.5 rounded-full" :class="authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? 'bg-emerald-500' : 'bg-slate-300'"></span>
-          {{ authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? '在线' : '离线' }}
-        </p>
-      </div>
-
-      <!-- Members List -->
-      <div class="p-6">
-        <h4 class="text-xs font-bold uppercase tracking-wider mb-3" style="color: var(--text-muted)">
-          {{ activeConversation.isGroup ? '群成员' : '共享群聊' }}
-        </h4>
-        <div class="space-y-2">
-          <div v-for="participant in activeConversation.participants" :key="participant.id" 
-               class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
-               @click="participant.id !== authStore.user?.id && openUserProfile(participant.id)">
-            <div class="relative">
-              <img :src="participant.avatarUrl || `https://ui-avatars.com/api/?name=${participant.name || participant.email}`" class="w-9 h-9 rounded-full object-cover" />
-              <div v-if="authStore.isUserOnline(participant.id)" class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 rounded-full" style="border-color: var(--bg-card)"></div>
+      <div class="flex-1 overflow-y-auto scrollbar-hide">
+        <!-- Info Tab -->
+        <div v-if="infoTab === 'info'">
+          <!-- Group Info -->
+          <div v-if="activeConversation.isGroup" class="p-6 text-center border-b" style="border-color: var(--border-base)">
+            <div class="w-20 h-20 rounded-2xl mx-auto mb-3 flex items-center justify-center" :class="activeConversation.avatarUrl ? '' : 'bg-indigo-500/10'">
+              <img v-if="activeConversation.avatarUrl" :src="activeConversation.avatarUrl" class="w-20 h-20 rounded-2xl object-cover" />
+              <Users v-else class="w-8 h-8 text-indigo-500" />
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium truncate" style="color: var(--text-primary)">
-                {{ participant.name || '未命名用户' }}
-                <span v-if="participant.id === authStore.user?.id" class="text-[10px] text-slate-400 ml-1">(你)</span>
-              </p>
-              <p class="text-[10px] truncate" style="color: var(--text-muted)">{{ participant.email }}</p>
+            <h3 class="text-lg font-bold mb-1" style="color: var(--text-primary)">{{ activeConversation.name || '未命名群聊' }}</h3>
+            <p class="text-xs" style="color: var(--text-muted)">群聊 · {{ activeConversation.participants?.length || 0 }} 位成员</p>
+          </div>
+
+          <!-- 1:1 User Info -->
+          <div v-else class="p-6 text-center border-b" style="border-color: var(--border-base)">
+            <UserAvatar :user="getOtherParticipant(activeConversation)" size="xl" class="mx-auto mb-3" />
+            <h3 class="text-lg font-bold mb-1 cursor-pointer hover:text-accent transition-colors" @click="openUserProfile(getOtherParticipant(activeConversation)?.id)" style="color: var(--text-primary)">
+              {{ getOtherParticipant(activeConversation)?.name || '未知用户' }}
+            </h3>
+            <p class="text-xs flex items-center justify-center gap-1" :class="authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? 'text-emerald-500' : 'text-slate-400'">
+              <span class="w-1.5 h-1.5 rounded-full" :class="authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? 'bg-emerald-500' : 'bg-slate-300'"></span>
+              {{ authStore.isUserOnline(getOtherParticipant(activeConversation)?.id) ? '在线' : '离线' }}
+            </p>
+          </div>
+
+          <!-- Members List -->
+          <div class="p-6">
+            <h4 class="text-xs font-bold uppercase tracking-wider mb-3" style="color: var(--text-muted)">
+              {{ activeConversation.isGroup ? '群成员' : '共享群聊' }}
+            </h4>
+            <div class="space-y-2">
+              <div v-for="participant in activeConversation.participants" :key="participant.id" 
+                   class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+                   @click="participant.id !== authStore.user?.id && openUserProfile(participant.id)">
+                <div class="relative shrink-0">
+                  <UserAvatar :user="participant" size="sm" />
+                  <div v-if="authStore.isUserOnline(participant.id)" class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 rounded-full z-40" style="border-color: var(--bg-card)"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">
+                    {{ participant.name || '未命名用户' }}
+                    <span v-if="participant.id === authStore.user?.id" class="text-[10px] text-slate-400 ml-1">(你)</span>
+                  </p>
+                  <p class="text-[10px] truncate" style="color: var(--text-muted)">{{ participant.email }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group Actions -->
+            <div v-if="activeConversation.isGroup" class="mt-6 space-y-2">
+              <button @click="leaveGroupChat" class="w-full py-3 px-4 flex items-center gap-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all text-sm font-medium">
+                <LogOut class="w-4 h-4" />
+                退出群聊
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Group Actions -->
-        <div v-if="activeConversation.isGroup" class="mt-6 space-y-2">
-          <button @click="leaveGroupChat" class="w-full py-3 px-4 flex items-center gap-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all text-sm font-medium">
-            <LogOut class="w-4 h-4" />
-            退出群聊
-          </button>
+        <!-- Photos Tab -->
+        <div v-else-if="infoTab === 'photos'" class="p-4">
+          <div v-if="sharedPhotos.length === 0" class="py-20 text-center opacity-40">
+            <ImageIcon class="w-10 h-10 mx-auto mb-2" />
+            <p class="text-xs">暂无共享照片</p>
+          </div>
+          <div v-else class="grid grid-cols-3 gap-2">
+            <div v-for="photo in sharedPhotos" :key="photo.id" 
+                 @click="openLink(api.defaults.baseURL + photo.url)"
+                 class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-all border border-[var(--border-base)]">
+              <img :src="api.defaults.baseURL + photo.url" class="w-full h-full object-cover" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Files Tab -->
+        <div v-else-if="infoTab === 'files'" class="p-4">
+          <div v-if="sharedFiles.length === 0" class="py-20 text-center opacity-40">
+            <Paperclip class="w-10 h-10 mx-auto mb-2" />
+            <p class="text-xs">暂无共享文件</p>
+          </div>
+          <div v-else class="space-y-2">
+            <div v-for="file in sharedFiles" :key="file.id" 
+                 class="p-3 rounded-2xl border border-[var(--border-base)] bg-[var(--bg-app)] flex items-center gap-3 group">
+              <div class="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent">
+                <Paperclip class="w-5 h-5" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold truncate" style="color: var(--text-primary)">{{ file.name }}</p>
+                <p class="text-[10px]" style="color: var(--text-muted)">{{ formatDateSeparator(file.createdAt) }}</p>
+              </div>
+              <a :href="api.defaults.baseURL + file.url" target="_blank" 
+                 class="p-2 opacity-0 group-hover:opacity-100 transition-all hover:text-accent">
+                <Download class="w-4 h-4" />
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1198,13 +1425,16 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px', backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-base)' }"
          @click.stop>
       <button @click="setReplyTo(contextMenu.message)" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all" style="color: var(--text-primary)">
-        <Reply class="w-4 h-4 text-accent" /> 回复
+        <Reply class="w-4 h-4 text-accent" /> {{ t('common.reply') || '回复' }}
+      </button>
+      <button v-if="contextMenu.message.type === 'TEXT'" @click="handleTranslate(contextMenu.message)" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all" style="color: var(--text-primary)">
+        <Languages class="w-4 h-4 text-indigo-500" /> {{ t('messages.translate') }}
       </button>
       <button v-if="contextMenu.message.type === 'TEXT'" @click="copyMessage(contextMenu.message.content)" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all" style="color: var(--text-primary)">
-        <AtSign class="w-4 h-4" style="color: var(--text-muted)" /> 复制
+        <AtSign class="w-4 h-4" style="color: var(--text-muted)" /> {{ t('common.copy') || '复制' }}
       </button>
       <button v-if="contextMenu.message.senderId === authStore.user?.id" @click="handleDeleteMessage(contextMenu.messageId); closeContextMenu()" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all">
-        <X class="w-4 h-4" /> 删除
+        <X class="w-4 h-4" /> {{ t('common.delete') }}
       </button>
       <div class="border-t my-1" style="border-color: var(--border-base)"></div>
       <div class="px-3 py-2 flex gap-1">
@@ -1222,14 +1452,14 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
          :style="{ left: conversationContextMenu.x + 'px', top: conversationContextMenu.y + 'px', backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-base)' }"
          @click.stop>
       <button @click="deleteConversation(conversationContextMenu.conversation)" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all">
-        <Trash2 class="w-4 h-4" /> 删除会话
+        <Trash2 class="w-4 h-4" /> {{ t('common.delete') }} {{ t('sidebar.messages') }}
       </button>
     </div>
 
     <!-- New Chat Dialog -->
     <el-dialog
       v-model="isNewChatDialogOpen"
-      title="发起新聊天"
+      :title="t('messages.startNewChat') || '发起新聊天'"
       width="440px"
       class="custom-dialog"
       :show-close="true"
@@ -1258,7 +1488,7 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
             @click.stop="startNewChat(user)"
             class="p-3 flex items-center gap-3 rounded-2xl hover:bg-accent/10 cursor-pointer transition-all group"
           >
-            <img :src="user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name || user.email}`" class="w-10 h-10 rounded-full border border-slate-200 dark:border-white/10 object-cover" />
+            <UserAvatar :user="user" size="md" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ user.name || '未命名用户' }}</p>
               <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
@@ -1304,7 +1534,7 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
             <div v-for="user in groupChatParticipants" :key="user.id" 
                  class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                  style="background-color: var(--bg-app); color: var(--text-primary); border: 1px solid var(--border-base)">
-              <img :src="user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name || user.email}`" class="w-5 h-5 rounded-full object-cover" />
+              <UserAvatar :user="user" size="sm" />
               {{ user.name || user.email }}
               <button @click="removeGroupParticipant(user.id)" class="hover:text-rose-500 transition-colors">
                 <X class="w-3 h-3" />
@@ -1337,7 +1567,7 @@ watch(() => isGroupChatDialogOpen.value, (val) => {
               @click="addGroupParticipant(user)"
               class="p-3 flex items-center gap-3 rounded-2xl hover:bg-indigo-500/10 cursor-pointer transition-all group"
             >
-              <img :src="user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name || user.email}`" class="w-10 h-10 rounded-full border border-slate-200 dark:border-white/10 object-cover" />
+              <UserAvatar :user="user" size="md" />
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-bold truncate" style="color: var(--text-primary)">{{ user.name || '未命名用户' }}</p>
                 <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>

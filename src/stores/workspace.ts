@@ -13,7 +13,8 @@ export const useWorkspaceStore = defineStore('workspace', {
   state: () => ({
     workspaces: [] as Workspace[],
     currentWorkspace: null as Workspace | null,
-    isLoading: false
+    isLoading: false,
+    isInitialized: false
   }),
   getters: {
     activeTeamId: (state) => (state.currentWorkspace && state.currentWorkspace.type !== 'admin' ? state.currentWorkspace.id : null),
@@ -22,7 +23,6 @@ export const useWorkspaceStore = defineStore('workspace', {
   },
   actions: {
     async fetchWorkspaces() {
-      this.isLoading = true;
       const authStore = useAuthStore();
       try {
         const response = await api.get('/api/teams');
@@ -44,39 +44,61 @@ export const useWorkspaceStore = defineStore('workspace', {
             color: 'bg-rose-600'
           });
         }
-        
-        // Restore from localStorage if possible
-        const savedId = localStorage.getItem('activeWorkspaceId');
-        const restored = savedId ? this.workspaces.find(w => w.id === savedId) : null;
-
-        if (restored) {
-          this.currentWorkspace = restored;
-        } else if (!this.currentWorkspace || !this.workspaces.find(w => w.id === this.currentWorkspace?.id)) {
-          const personal = this.workspaces.find(w => w.type === 'personal');
-          if (personal) {
-            this.currentWorkspace = personal;
-          } else if (this.workspaces.length > 0) {
-            this.currentWorkspace = this.workspaces[0];
-          }
-        }
       } catch (error) {
         console.error('Fetch workspaces error:', error);
-      } finally {
-        this.isLoading = false;
       }
     },
+
+    async initialize(currentPath?: string) {
+      if (this.isInitialized && this.workspaces.length > 0) return;
+      
+      this.isLoading = true;
+      await this.fetchWorkspaces();
+
+      let targetId: string | null = null;
+
+      // 1. Priority: Current Route
+      if (currentPath?.startsWith('/team/')) {
+        targetId = currentPath.split('/')[2];
+      } else if (currentPath?.startsWith('/admin/')) {
+        targetId = 'admin-workspace';
+      }
+
+      // 2. Fallback: LocalStorage
+      if (!targetId) {
+        targetId = localStorage.getItem('activeWorkspaceId');
+      }
+
+      // 3. Final Fallback: Personal or First available
+      const ws = targetId ? this.workspaces.find(w => w.id === targetId) : null;
+      if (ws) {
+        this.currentWorkspace = ws;
+      } else {
+        const personal = this.workspaces.find(w => w.type === 'personal');
+        this.currentWorkspace = personal || this.workspaces[0] || null;
+      }
+
+      if (this.currentWorkspace) {
+        localStorage.setItem('activeWorkspaceId', this.currentWorkspace.id);
+      }
+
+      this.isInitialized = true;
+      this.isLoading = false;
+    },
+
     setWorkspace(workspace: Workspace) {
       this.currentWorkspace = workspace;
       localStorage.setItem('activeWorkspaceId', workspace.id);
     },
+
     async setWorkspaceById(id: string) {
       if (this.workspaces.length === 0) {
         await this.fetchWorkspaces();
       }
-      localStorage.setItem('activeWorkspaceId', id);
       const ws = this.workspaces.find(w => w.id === id);
       if (ws) {
         this.currentWorkspace = ws;
+        localStorage.setItem('activeWorkspaceId', id);
       }
     }
   }

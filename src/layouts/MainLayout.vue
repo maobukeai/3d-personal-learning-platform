@@ -123,20 +123,9 @@ const handleSwitchWorkspace = (ws: any) => {
   }
 }
 
-// Watch for workspace changes to refresh data if needed
+// Watch for workspace changes
 watch(() => workspaceStore.activeTeamId, (newId, oldId) => {
-  // Only reload if we are switching between two valid non-admin workspaces
-  // (e.g. Team A -> Team B, or Personal -> Team)
-  if (oldId && newId && newId !== oldId) {
-    const currentPath = route.path
-    const workspaceAwarePaths = [
-      '/dashboard', '/assets', '/my-works', '/work', '/team-tasks',
-      '/materials', '/showcase', '/members', '/discussions'
-    ]
-    if (workspaceAwarePaths.some(path => currentPath.startsWith(path))) {
-       window.location.reload()
-    }
-  }
+  // Navigation is handled by handleSwitchWorkspace
 })
 
 const handleProfileClick = (type: string) => {
@@ -348,7 +337,7 @@ onMounted(() => {
   applyAccentColor(savedAccent)
 
   fetchNotifications()
-  workspaceStore.fetchWorkspaces()
+  workspaceStore.initialize(route.path)
   fetchUnreadMessagesCount()
   authStore.fetchMe()
 
@@ -368,7 +357,7 @@ watch(() => route.path, (path) => {
   } else if (path.startsWith('/admin/')) {
     workspaceStore.setWorkspaceById('admin-workspace')
   }
-}, { immediate: true })
+}, { immediate: false })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
@@ -385,28 +374,44 @@ onUnmounted(() => {
     <header class="topbar h-16 flex items-center justify-between px-6 shrink-0 border-b z-30" style="background-color: var(--bg-sidebar); border-color: var(--border-base)">
       <!-- Left: Workspace Switcher -->
       <el-dropdown trigger="click" placement="bottom-start" v-if="workspaceStore.currentWorkspace">
-        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ml-4" 
+        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 ml-4" 
+             :class="[
+               workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
+               workspaceStore.currentWorkspace?.type === 'personal' ? 'ml-4' : 
+               workspaceStore.currentWorkspace?.type === 'team' ? 'ml-12' : 
+               workspaceStore.isAdminWorkspace ? 'ml-20' : 'ml-4',
+               { 'hover:scale-[1.02]': workspaceStore.isInitialized }
+             ]"
              :style="{ 
                transform: `translateX(${
                  workspaceStore.currentWorkspace?.type === 'personal' ? 0 : 
                  workspaceStore.currentWorkspace?.type === 'team' ? 40 : 80
                }px)` 
              }">
-          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
-               :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
+          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm" 
+               :class="[
+                 workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
+                 workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
+               ]"
                :style="workspaceStore.isAdminWorkspace ? {
                  background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
                  boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)'
                } : {}">
             {{ workspaceStore.currentWorkspace.name.charAt(0) }}
           </div>
-          <span class="text-sm font-bold truncate max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
-                :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
+          <span class="text-sm font-bold truncate max-w-[200px]" 
+                :class="[
+                  workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
+                  { 'tracking-wide': workspaceStore.isAdminWorkspace }
+                ]"
                 style="color: var(--text-primary)">
             {{ workspaceStore.currentWorkspace.name }}
           </span>
-          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
-                       :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }" />
+          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0" 
+                       :class="[
+                         workspaceStore.isInitialized ? 'transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]' : '',
+                         { 'text-rose-400': workspaceStore.isAdminWorkspace }
+                       ]" />
         </div>
         <template #dropdown>
           <el-dropdown-menu class="w-64 p-2 rounded-2xl border-none shadow-2xl">

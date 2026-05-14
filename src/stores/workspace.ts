@@ -33,8 +33,8 @@ export const useWorkspaceStore = defineStore('workspace', {
           name: t.name,
           type: t.type.toLowerCase() as 'personal' | 'team',
           color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
-          description: t.type === 'PERSONAL' ? '个人专属创意空间' : '团队协作与资源共享',
-          badgeCount: Math.floor(Math.random() * 5)
+          description: t.type === 'PERSONAL' ? '默认个人空间' : `${t._count?.members || 1} 名成员`,
+          badgeCount: t.type === 'PERSONAL' ? authStore.unreadMessagesCount : 0
         }));
 
         this.workspaces = fetchedWorkspaces;

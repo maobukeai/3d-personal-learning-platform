@@ -385,7 +385,7 @@ onUnmounted(() => {
       <!-- Left: Workspace Switcher / Logo -->
       <template v-if="!workspaceStore.isInitialized">
         <div class="flex items-center gap-2.5 ml-4 animate-pulse">
-          <div class="w-8 h-8 rounded-lg bg-slate-200/50 dark:bg-white/10"></div>
+          <div class="w-8 h-8 rounded-full bg-slate-200/50 dark:bg-white/10"></div>
           <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
         </div>
       </template>
@@ -398,7 +398,7 @@ onUnmounted(() => {
                    workspaceStore.currentWorkspace?.type === 'team' ? 12 : 24
                  }px)` 
                }">
-            <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
+            <div class="w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
                  :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
                  :style="workspaceStore.isAdminWorkspace ? {
                    background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
@@ -442,7 +442,7 @@ onUnmounted(() => {
                         {{ ws.name }}
                       </span>
                       <span class="text-[10px] text-slate-400">
-                        {{ ws.type === 'admin' ? '系统管理中心' : (ws.type === 'personal' ? '个人工作空间' : '团队协作空间') }}
+                        {{ ws.description }}
                       </span>
                     </div>
                   </div>
@@ -469,7 +469,7 @@ onUnmounted(() => {
           </template>
         </el-dropdown>
         <div v-else class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
+          <div class="w-7 h-7 rounded-full bg-accent flex items-center justify-center">
             <Box class="w-4 h-4 text-white" />
           </div>
           <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>

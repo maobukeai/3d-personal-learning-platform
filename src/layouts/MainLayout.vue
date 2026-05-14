@@ -385,13 +385,13 @@ onUnmounted(() => {
     <header class="topbar h-16 flex items-center justify-between px-6 shrink-0 border-b z-30" style="background-color: var(--bg-sidebar); border-color: var(--border-base)">
       <!-- Left: Workspace Switcher -->
       <el-dropdown trigger="click" placement="bottom-start" v-if="workspaceStore.currentWorkspace">
-        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
-             :class="[
-               workspaceStore.currentWorkspace?.type === 'personal' ? 'ml-4' : 
-               workspaceStore.currentWorkspace?.type === 'team' ? 'ml-12' : 
-               workspaceStore.isAdminWorkspace ? 'ml-20' : 'ml-4',
-               { 'hover:scale-[1.02]': true }
-             ]">
+        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ml-4" 
+             :style="{ 
+               transform: `translateX(${
+                 workspaceStore.currentWorkspace?.type === 'personal' ? 0 : 
+                 workspaceStore.currentWorkspace?.type === 'team' ? 40 : 80
+               }px)` 
+             }">
           <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]" 
                :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
                :style="workspaceStore.isAdminWorkspace ? {

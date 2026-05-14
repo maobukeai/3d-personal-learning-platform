@@ -385,12 +385,22 @@ onUnmounted(() => {
     <header class="topbar h-16 flex items-center justify-between px-6 shrink-0 border-b z-30" style="background-color: var(--bg-sidebar); border-color: var(--border-base)">
       <!-- Left: Workspace Switcher -->
       <el-dropdown trigger="click" placement="bottom-start" v-if="workspaceStore.currentWorkspace">
-        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
-          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm" :class="workspaceStore.currentWorkspace.color">
+        <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-all duration-300" 
+             :class="{ 'ml-3 hover:scale-[1.02]': workspaceStore.isAdminWorkspace }">
+          <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-300" 
+               :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
+               :style="workspaceStore.isAdminWorkspace ? {
+                 background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
+                 boxShadow: '0 4px 10px rgba(225, 29, 72, 0.3)'
+               } : {}">
             {{ workspaceStore.currentWorkspace.name.charAt(0) }}
           </div>
-          <span class="text-sm font-bold truncate max-w-[200px]" style="color: var(--text-primary)">{{ workspaceStore.currentWorkspace.name }}</span>
-          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0" />
+          <span class="text-sm font-bold truncate max-w-[200px]" 
+                :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
+                style="color: var(--text-primary)">
+            {{ workspaceStore.currentWorkspace.name }}
+          </span>
+          <ChevronDown class="w-4 h-4 text-slate-400 shrink-0" :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }" />
         </div>
         <template #dropdown>
           <el-dropdown-menu class="w-64 p-2 rounded-2xl border-none shadow-2xl">

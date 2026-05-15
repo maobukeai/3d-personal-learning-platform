@@ -53,7 +53,8 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
     let dimensions = '0.00 x 0.00 x 0.00';
 
     if (scenes.length > 0) {
-      const bounds = getBounds(scenes[0]);
+      const scene = scenes[0]!;
+      const bounds = getBounds(scene);
       const size = [
         Math.abs(bounds.max[0] - bounds.min[0]),
         Math.abs(bounds.max[1] - bounds.min[1]),

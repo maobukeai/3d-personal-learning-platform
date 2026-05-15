@@ -6,7 +6,6 @@ import {
   XCircle,
   Clock,
   Search,
-
   Video,
   Image as ImageIcon,
   RefreshCw,
@@ -436,7 +435,7 @@ onMounted(() => {
       <div class="px-8 pb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- 待审核卡片 -->
         <div
-class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5" 
+          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === 'PENDING'
               ? 'ring-2 ring-amber-500 bg-amber-500/5 border-amber-500/30'
@@ -464,7 +463,7 @@ class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relativ
 
         <!-- 已通过卡片 -->
         <div
-class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5" 
+          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === 'APPROVED'
               ? 'ring-2 ring-emerald-500 bg-emerald-500/5 border-emerald-500/30'
@@ -492,7 +491,7 @@ class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relativ
 
         <!-- 打回卡片 -->
         <div
-class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5" 
+          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === 'REJECTED'
               ? 'ring-2 ring-rose-500 bg-rose-500/5 border-rose-500/30'
@@ -520,7 +519,7 @@ class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relativ
 
         <!-- 全部卡片 -->
         <div
-class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5" 
+          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === ''
               ? 'ring-2 ring-indigo-500 bg-indigo-500/5 border-indigo-500/30'
@@ -552,7 +551,7 @@ class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relativ
     >
       <div class="flex items-center gap-4">
         <button
-class="flex items-center gap-2 px-3.5 py-2 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs shadow-sm" 
+          class="flex items-center gap-2 px-3.5 py-2 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs shadow-sm"
           style="border-color: var(--border-base); color: var(--text-primary)"
           @click="toggleSelectAll"
         >
@@ -564,7 +563,7 @@ class="flex items-center gap-2 px-3.5 py-2 rounded-xl border hover:bg-slate-50 d
         <div class="relative w-72">
           <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
-v-model="searchQuery" 
+            v-model="searchQuery"
             type="text"
             placeholder="检索记录名称、描述、作者..."
             class="w-full pl-10 pr-4 py-2 rounded-xl border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm"
@@ -587,7 +586,7 @@ v-model="searchQuery"
         leave-active-class="animate-out slide-out-to-top-4 duration-300"
       >
         <div
-v-if="selectedIds.length > 0" 
+          v-if="selectedIds.length > 0"
           class="absolute inset-0 z-20 bg-indigo-600 text-white flex items-center justify-between px-8 shadow-md"
         >
           <div class="flex items-center gap-4">
@@ -648,7 +647,8 @@ v-if="selectedIds.length > 0"
       <!-- 极品卡片瀑布排版 -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <div
-v-for="item in filteredItems" :key="item.id" 
+          v-for="item in filteredItems"
+          :key="item.id"
           class="group rounded-3xl border overflow-hidden transition-all duration-300 hover:shadow-2xl relative cursor-pointer flex flex-col"
           :class="
             selectedIds.includes(item.id)
@@ -671,7 +671,9 @@ v-for="item in filteredItems" :key="item.id"
             class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center border-b border-black/5 dark:border-white/5"
           >
             <img
-v-if="item.thumbnailUrl || item.previewUrl || item.thumbnail || item.videoUrl || item.url" 
+              v-if="
+                item.thumbnailUrl || item.previewUrl || item.thumbnail || item.videoUrl || item.url
+              "
               :src="
                 item.thumbnailUrl || item.previewUrl || item.thumbnail || item.videoUrl || item.url
               "
@@ -704,7 +706,9 @@ v-if="item.thumbnailUrl || item.previewUrl || item.thumbnail || item.videoUrl ||
               @click.stop
             >
               <a
-v-if="item.videoUrl || item.fileUrl || item.thumbnailUrl || item.previewUrl || item.url" 
+                v-if="
+                  item.videoUrl || item.fileUrl || item.thumbnailUrl || item.previewUrl || item.url
+                "
                 :href="
                   item.videoUrl || item.fileUrl || item.thumbnailUrl || item.previewUrl || item.url
                 "
@@ -741,7 +745,7 @@ v-if="item.videoUrl || item.fileUrl || item.thumbnailUrl || item.previewUrl || i
                   {{ item.title }}
                 </h3>
                 <span
-class="px-2 py-0.5 rounded text-[9px] font-bold shrink-0 mt-0.5 shadow-sm border" 
+                  class="px-2 py-0.5 rounded text-[9px] font-bold shrink-0 mt-0.5 shadow-sm border"
                   :class="
                     item.status === 'APPROVED'
                       ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
@@ -814,13 +818,17 @@ class="px-2 py-0.5 rounded text-[9px] font-bold shrink-0 mt-0.5 shadow-sm border
               <!-- 审核动作按钮条 -->
               <div class="flex items-center gap-2 pt-1" @click.stop>
                 <button
-v-if="item.status !== 'APPROVED'" class="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm" 
-                        @click="handleStatusUpdate(item, 'APPROVED')">
+                  v-if="item.status !== 'APPROVED'"
+                  class="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm"
+                  @click="handleStatusUpdate(item, 'APPROVED')"
+                >
                   <CheckCircle2 class="w-3.5 h-3.5" /> 批准通过
                 </button>
                 <button
-v-if="item.status !== 'REJECTED'" class="flex-1 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm" 
-                        @click="handleStatusUpdate(item, 'REJECTED')">
+                  v-if="item.status !== 'REJECTED'"
+                  class="flex-1 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm"
+                  @click="handleStatusUpdate(item, 'REJECTED')"
+                >
                   <XCircle class="w-3.5 h-3.5" /> 打回拒绝
                 </button>
               </div>
@@ -844,7 +852,8 @@ v-if="item.status !== 'REJECTED'" class="flex-1 py-2 rounded-xl bg-rose-500 hove
             >内容标题</label
           >
           <input
-v-model="editForm.title" type="text" 
+            v-model="editForm.title"
+            type="text"
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs font-bold"
             style="color: var(--text-primary)"
           />
@@ -856,7 +865,8 @@ v-model="editForm.title" type="text"
             >详细描述 / 备注</label
           >
           <textarea
-v-model="editForm.description" rows="4"
+            v-model="editForm.description"
+            rows="4"
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none text-xs leading-relaxed"
             style="color: var(--text-primary)"
           ></textarea>
@@ -883,7 +893,9 @@ v-model="editForm.description" rows="4"
             >材质组别 (手动录入)</label
           >
           <input
-v-model="editForm.category" type="text" placeholder="例如: 木纹, 金属..."
+            v-model="editForm.category"
+            type="text"
+            placeholder="例如: 木纹, 金属..."
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs font-medium"
             style="color: var(--text-primary)"
           />
@@ -895,7 +907,9 @@ v-model="editForm.category" type="text" placeholder="例如: 木纹, 金属..."
             >特征标签组合 (逗号分隔)</label
           >
           <input
-v-model="editForm.tags" type="text" placeholder="例如: 科技, cyberpunk, 游戏场景..."
+            v-model="editForm.tags"
+            type="text"
+            placeholder="例如: 科技, cyberpunk, 游戏场景..."
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs font-medium"
             style="color: var(--text-primary)"
           />
@@ -923,7 +937,8 @@ v-model="editForm.tags" type="text" placeholder="例如: 科技, cyberpunk, 游�
             取消编辑
           </button>
           <button
-:disabled="isSaving" class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-600/20 hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
+            :disabled="isSaving"
+            class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-600/20 hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
             @click="handleUpdate"
           >
             {{ isSaving ? '正在写入数据库...' : '确认并保存全部更改' }}
@@ -955,7 +970,8 @@ v-model="editForm.tags" type="text" placeholder="例如: 科技, cyberpunk, 游�
           >
           <div class="flex flex-wrap gap-1.5">
             <button
-v-for="reason in pageConfig.commonReasons" :key="reason"
+              v-for="reason in pageConfig.commonReasons"
+              :key="reason"
               class="px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all text-left"
               :class="
                 rejectionForm.reason === reason
@@ -974,7 +990,8 @@ v-for="reason in pageConfig.commonReasons" :key="reason"
             >详细打回说明 (必填)</label
           >
           <textarea
-v-model="rejectionForm.reason" rows="4"
+            v-model="rejectionForm.reason"
+            rows="4"
             placeholder="请输入具体的违规或优化建议..."
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none text-xs shadow-inner"
           ></textarea>
@@ -990,7 +1007,7 @@ v-model="rejectionForm.reason" rows="4"
             暂不处理
           </button>
           <button
-class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-xs shadow-md shadow-rose-500/20 hover:bg-rose-600 transition-all" 
+            class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-xs shadow-md shadow-rose-500/20 hover:bg-rose-600 transition-all"
             @click="submitRejection"
           >
             确认发送并打回
@@ -1036,4 +1053,3 @@ class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-xs shadow-
   }
 }
 </style>
-

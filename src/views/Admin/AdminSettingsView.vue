@@ -125,10 +125,7 @@ const fetchSettings = async () => {
           s.key === 'ALLOWED_EXTENSIONS'
         ) {
           try {
-            const arr: string[] =
-              typeof s.value === 'string'
-                ? JSON.parse(s.value)
-                : s.value;
+            const arr: string[] = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
             (settings.value as any)[s.key] = arr.join(', ');
           } catch {
             (settings.value as any)[s.key] = (defaultSettings as any)[s.key];

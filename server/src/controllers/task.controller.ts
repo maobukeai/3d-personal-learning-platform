@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import { createNotification } from '../utils/notification';
 
 export const getAllTasks = async (req: AuthRequest, res: Response) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
@@ -124,6 +125,19 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Notify assignee
+    if (assigneeId && assigneeId !== req.userId) {
+      await createNotification({
+        type: 'TASK',
+        title: '新任务指派',
+        content: `${req.user?.name || '有人'} 给您指派了新任务: ${task.title}`,
+        userId: assigneeId,
+        link: `/tasks?id=${task.id}`,
+        category: 'TASK_UPDATE',
+      });
+    }
+
     await auditService.log({
       userId: req.userId,
       action: AuditAction.CREATE_TASK,
@@ -193,6 +207,32 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Notify assignee if status changed or re-assigned
+    if (
+      status &&
+      status !== existingTask.status &&
+      task.assigneeId &&
+      task.assigneeId !== req.userId
+    ) {
+      await createNotification({
+        type: 'TASK',
+        title: '任务状态更新',
+        content: `任务 "${task.title}" 的状态已更新为 ${status}`,
+        userId: task.assigneeId,
+        link: `/tasks?id=${task.id}`,
+        category: 'TASK_UPDATE',
+      });
+    } else if (assigneeId && assigneeId !== existingTask.assigneeId && assigneeId !== req.userId) {
+      await createNotification({
+        type: 'TASK',
+        title: '新任务指派',
+        content: `${req.user?.name || '有人'} 给您指派了任务: ${task.title}`,
+        userId: assigneeId,
+        link: `/tasks?id=${task.id}`,
+        category: 'TASK_UPDATE',
+      });
+    }
 
     await auditService.log({
       userId: req.userId,

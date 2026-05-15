@@ -81,7 +81,7 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const course = await prisma.course.findUnique({
-      where: { id },
+      where: { id: id as any },
       include: {
         lessons: {
           orderBy: { order: 'asc' },
@@ -226,11 +226,11 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
-    const oldCourse = await prisma.course.findUnique({ where: { id } });
+    const oldCourse = await prisma.course.findUnique({ where: { id: id as any } });
     if (!oldCourse) return res.status(404).json({ error: 'Course not found' });
 
     const course = await prisma.course.update({
-      where: { id },
+      where: { id: id as any },
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
     });
 
@@ -253,10 +253,10 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
 export const deleteCourse = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    const course = await prisma.course.findUnique({ where: { id } });
+    const course = await prisma.course.findUnique({ where: { id: id as any } });
     if (!course) return res.status(404).json({ error: 'Course not found' });
 
-    await prisma.course.delete({ where: { id } });
+    await prisma.course.delete({ where: { id: id as any } });
 
     await auditService.log({
       userId: req.userId,
@@ -365,13 +365,13 @@ export const getLessonProgress = async (req: AuthRequest, res: Response) => {
   const { courseId } = req.params;
   try {
     const lessons = await prisma.lesson.findMany({
-      where: { courseId },
+      where: { courseId: courseId as any },
       select: { id: true },
     });
     const lessonIds = lessons.map((l) => l.id);
 
     const progress = await prisma.lessonProgress.findMany({
-      where: { userId: req.userId as string, lessonId: { in: lessonIds } },
+      where: { userId: req.userId as string, lessonId: { in: lessonIds as any } },
     });
     res.json(progress);
   } catch (error) {
@@ -380,7 +380,7 @@ export const getLessonProgress = async (req: AuthRequest, res: Response) => {
 };
 
 export const toggleLessonComplete = async (req: AuthRequest, res: Response) => {
-  const { lessonId } = req.params;
+  const lessonId = req.params.lessonId as string;
   const { completed } = req.body;
   try {
     const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
@@ -388,12 +388,12 @@ export const toggleLessonComplete = async (req: AuthRequest, res: Response) => {
 
     const progress = await prisma.lessonProgress.upsert({
       where: {
-        userId_lessonId: { userId: req.userId as string, lessonId },
+        userId_lessonId: { userId: req.userId as string, lessonId: lessonId as string },
       },
       update: { completed, completedAt: completed ? new Date() : null },
       create: {
         userId: req.userId as string,
-        lessonId,
+        lessonId: lessonId as string,
         completed,
         completedAt: completed ? new Date() : null,
       },
@@ -426,7 +426,7 @@ export const getCourseReviews = async (req: AuthRequest, res: Response) => {
   const { courseId } = req.params;
   try {
     const reviews = await prisma.courseReview.findMany({
-      where: { courseId },
+      where: { courseId: courseId as any },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
       },
@@ -469,7 +469,7 @@ export const updateReview = async (req: AuthRequest, res: Response) => {
   const { rating, comment } = req.body;
   try {
     const existing = await prisma.courseReview.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { userId: true },
     });
 
@@ -479,7 +479,7 @@ export const updateReview = async (req: AuthRequest, res: Response) => {
     }
 
     const review = await prisma.courseReview.update({
-      where: { id },
+      where: { id: id as any },
       data: { rating, comment: comment || null },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
@@ -495,7 +495,7 @@ export const deleteReview = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const existing = await prisma.courseReview.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { userId: true },
     });
 
@@ -504,7 +504,7 @@ export const deleteReview = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    await prisma.courseReview.delete({ where: { id } });
+    await prisma.courseReview.delete({ where: { id: id as any } });
     res.json({ message: 'Review deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -514,7 +514,7 @@ export const deleteReview = async (req: AuthRequest, res: Response) => {
 // --- Course Notes ---
 
 export const getLessonNotes = async (req: AuthRequest, res: Response) => {
-  const { lessonId } = req.params;
+  const lessonId = req.params.lessonId as string;
   try {
     const notes = await prisma.courseNote.findMany({
       where: { userId: req.userId as string, lessonId },
@@ -548,7 +548,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
   const { content, timestamp } = req.body;
   try {
     const existing = await prisma.courseNote.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { userId: true },
     });
 
@@ -558,7 +558,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
     }
 
     const note = await prisma.courseNote.update({
-      where: { id },
+      where: { id: id as any },
       data: { content, timestamp: timestamp !== undefined ? timestamp : undefined },
     });
     res.json(note);
@@ -571,7 +571,7 @@ export const deleteNote = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const existing = await prisma.courseNote.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { userId: true },
     });
 
@@ -580,7 +580,7 @@ export const deleteNote = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    await prisma.courseNote.delete({ where: { id } });
+    await prisma.courseNote.delete({ where: { id: id as any } });
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

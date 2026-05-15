@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   try {
-    // @ts-ignore
+    // @ts-expect-error: ignore missing type for $queryRaw
     const result = await prisma.$queryRaw`PRAGMA table_info(Showcase)`;
     console.log('Discussion table info:', result);
   } catch (error) {

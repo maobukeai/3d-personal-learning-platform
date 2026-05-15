@@ -5,18 +5,24 @@ import { config } from '../config/env';
 // It uses sandbox configuration if proper keys are not set.
 
 let alipaySdk: AlipaySdk | null = null;
+const { ALIPAY } = config;
 
-try {
-  alipaySdk = new AlipaySdk({
-    appId: process.env.ALIPAY_APP_ID || '9021000122675661', // Sandbox App ID as fallback
-    privateKey: process.env.ALIPAY_PRIVATE_KEY || '',
-    alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY || '',
-    gateway: process.env.ALIPAY_GATEWAY || 'https://openapi-sandbox.dl.alipaydev.com/gateway.do',
-    timeout: 5000,
-    camelcase: true,
-  });
-} catch (error) {
-  console.warn('Alipay SDK initialization failed. Payment gateway will not work.', error);
+if (ALIPAY.APP_ID && ALIPAY.PRIVATE_KEY) {
+  try {
+    alipaySdk = new AlipaySdk({
+      appId: ALIPAY.APP_ID,
+      privateKey: ALIPAY.PRIVATE_KEY,
+      alipayPublicKey: ALIPAY.PUBLIC_KEY || '',
+      gateway: ALIPAY.GATEWAY,
+      timeout: 5000,
+      camelcase: true,
+    });
+    console.log('Alipay SDK initialized successfully.');
+  } catch (error) {
+    console.warn('Alipay SDK initialization failed:', error);
+  }
+} else {
+  console.log('Alipay SDK initialization skipped: Missing ALIPAY_APP_ID or ALIPAY_PRIVATE_KEY.');
 }
 
 export const getAlipaySdk = () => alipaySdk;
@@ -45,7 +51,7 @@ export const generatePaymentUrl = (
     notifyUrl,
   };
 
-  return alipaySdk.pageExecute(method, 'GET', params);
+  return alipaySdk.pageExecute(method, 'GET', params as any);
 };
 
 export const verifyAlipaySign = (postData: any): boolean => {

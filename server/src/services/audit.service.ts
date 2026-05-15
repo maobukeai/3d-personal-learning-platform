@@ -31,6 +31,7 @@ export enum AuditAction {
   UPDATE_COURSE = 'UPDATE_COURSE',
   DELETE_COURSE = 'DELETE_COURSE',
   CREATE_MATERIAL = 'CREATE_MATERIAL',
+  UPDATE_MATERIAL = 'UPDATE_MATERIAL',
   DELETE_MATERIAL = 'DELETE_MATERIAL',
   APPROVE_MATERIAL = 'APPROVE_MATERIAL',
   REJECT_MATERIAL = 'REJECT_MATERIAL',
@@ -39,7 +40,11 @@ export enum AuditAction {
   APPROVE_SHOWCASE = 'APPROVE_SHOWCASE',
   REJECT_SHOWCASE = 'REJECT_SHOWCASE',
   CREATE_TEAM = 'CREATE_TEAM',
+  UPDATE_TEAM = 'UPDATE_TEAM',
   DELETE_TEAM = 'DELETE_TEAM',
+  JOIN_TEAM = 'JOIN_TEAM',
+  LEAVE_TEAM = 'LEAVE_TEAM',
+  INVITE_TEAM = 'INVITE_TEAM',
   CREATE_PROJECT = 'CREATE_PROJECT',
   UPDATE_PROJECT = 'UPDATE_PROJECT',
   DELETE_PROJECT = 'DELETE_PROJECT',
@@ -71,9 +76,10 @@ class AuditService {
         // Priority: 1. X-Forwarded-For, 2. X-Real-IP, 3. req.ip, 4. remoteAddress
         const xForwardedFor = req.headers['x-forwarded-for'];
         if (xForwardedFor) {
-          ipAddress = Array.isArray(xForwardedFor)
-            ? xForwardedFor[0]
-            : xForwardedFor.split(',')[0].trim();
+          const raw = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
+          if (raw) {
+            ipAddress = raw.split(',')[0]!.trim();
+          }
         }
 
         if (!ipAddress || ipAddress === 'unknown') {
@@ -98,7 +104,7 @@ class AuditService {
       // Debug logging to help troubleshoot if IPs are still missing
       if (!ipAddress && req) {
         console.warn(
-          `[AuditService] Could not detect IP address. Headers: ${JSON.stringify(req.headers)}`,
+          `[AuditService] Could not detect IP address. Headers: ${JSON.stringify(req.headers!)}`,
         );
       }
 
@@ -110,8 +116,8 @@ class AuditService {
           description,
           oldValue: oldValue ? JSON.stringify(oldValue) : null,
           newValue: newValue ? JSON.stringify(newValue) : null,
-          ipAddress: ipAddress,
-          userAgent: req?.headers['user-agent'] || null,
+          ipAddress: ipAddress!,
+          userAgent: (req?.headers['user-agent'] as string) || null,
         },
       });
     } catch (error) {

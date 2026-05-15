@@ -1,0 +1,50 @@
+<h2>方案 B：现代纸张模式 (Modern Paper) 设计详情</h2>
+<p class="subtitle">追求秩序感与写作舒适度的平衡</p>
+
+<div class="mockup">
+  <div class="mockup-header">架构与组件预览</div>
+  <div class="mockup-body" style="background: var(--bg-app); padding: 40px; display: flex; justify-content: center;">
+    <!-- Centered Paper -->
+    <div style="width: 100%; max-width: 700px; background: var(--bg-card); border: 1px solid var(--border-base); border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); min-height: 500px; padding: 60px;">
+      <!-- Title Area -->
+      <div style="font-size: 32px; font-weight: 800; color: var(--text-primary); margin-bottom: 20px; outline: none;" contenteditable="false">我的技术笔记</div>
+      <div style="height: 1px; background: var(--border-base); margin-bottom: 30px;"></div>
+      
+      <!-- Content Area -->
+      <div style="color: var(--text-secondary); line-height: 1.8; font-size: 16px;">
+        这里是沉浸式写作区域...<br/>
+        所有的 Markdown 语法将在输入后自动美化。<br/>
+        <br/>
+        <div style="height: 100px; border-left: 4px solid var(--accent); background: var(--bg-app); margin: 20px 0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>1. 布局架构 (Layout)</h3>
+  <ul>
+    <li><b>中心化纸张</b>：使用 <code>max-w-4xl</code> (约 896px) 的居中容器模拟“纸张”效果。</li>
+    <li><b>全局滚动</b>：取消内部小窗滚动，让整个页面随文字增长而自然延伸，支持系统级平滑滚动。</li>
+    <li><b>无感背景</b>：编辑器背景色与纸张区域融为一体，彻底消除“框中框”的感觉。</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>2. 交互细节 (Interaction)</h3>
+  <ul>
+    <li><b>智能工具栏</b>：MdEditor 的工具栏将设为透明背景，且仅在鼠标悬停在顶部区域时显示（或固定在顶部但不带背景）。</li>
+    <li><b>自动保存提醒</b>：在角落以极小文字或图标显示“已同步”，不干扰视线。</li>
+    <li><b>设置面板</b>：点击右上角极简图标弹出抽屉或气泡，管理标签、分类和可见性。</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>3. 技术实现 (Implementation)</h3>
+  <ul>
+    <li><b>CSS 穿透</b>：深度定制 <code>md-editor-v3</code> 的样式，覆盖其默认的 <code>.md-editor</code> 边框和内边距。</li>
+    <li><b>动态高度</b>：使用 <code>auto-height</code> 模式，确保编辑器高度随内容撑开，避免出现双滚动条。</li>
+  </ul>
+</div>
+
+<p class="label">这种“带层级的纸张感”是否符合您的预期？如果您觉得 OK，我就开始编写正式的技术规格说明了。</p>

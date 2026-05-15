@@ -16,6 +16,12 @@ export const config = {
     })(),
   DATABASE_URL: process.env.DATABASE_URL,
   NODE_ENV: process.env.NODE_ENV || 'development',
+  ALIPAY: {
+    APP_ID: process.env.ALIPAY_APP_ID,
+    PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
+    PUBLIC_KEY: process.env.ALIPAY_PUBLIC_KEY,
+    GATEWAY: process.env.ALIPAY_GATEWAY || 'https://openapi-sandbox.dl.alipaydev.com/gateway.do',
+  },
 };
 
 if (!config.DATABASE_URL) {

@@ -8,7 +8,7 @@ function resolveRealIp(hostname: string): Promise<string> {
     resolver.setServers(['119.29.29.29', '223.5.5.5', '8.8.8.8']);
     resolver.resolve4(hostname, (err, addresses) => {
       if (!err && addresses && addresses.length > 0) {
-        resolve(addresses[0]);
+        resolve(addresses[0]!);
       } else {
         resolve(hostname);
       }

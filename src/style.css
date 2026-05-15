@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ============================================================
    Dark mode: class-based (adds .dark to <html>)
@@ -25,63 +25,63 @@
   color-scheme: light;
 
   /* Layout backgrounds */
-  --bg-app:     #f8fafc;
-  --bg-card:    #ffffff;
+  --bg-app: #f8fafc;
+  --bg-card: #ffffff;
   --bg-sidebar: #f8fafc;
 
   /* Text */
-  --text-primary:   #0f172a;
+  --text-primary: #0f172a;
   --text-secondary: #64748b;
-  --text-muted:     #94a3b8;
+  --text-muted: #94a3b8;
 
   /* Borders */
-  --border-base:   #e2e8f0;
+  --border-base: #e2e8f0;
   --border-strong: #cbd5e1;
 
   /* Accent */
-  --accent:        #3b82f6;
-  --accent-hover:  #2563eb;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
   --accent-subtle: #eff6ff;
 
   /* Element Plus overrides – Light */
-  --el-color-primary:          #3b82f6;
-  --el-color-primary-light-3:  #93c5fd;
-  --el-color-primary-light-5:  #bfdbfe;
-  --el-color-primary-light-7:  #dbeafe;
-  --el-color-primary-light-9:  #eff6ff;
-  --el-color-primary-dark-2:   #2563eb;
+  --el-color-primary: #3b82f6;
+  --el-color-primary-light-3: #93c5fd;
+  --el-color-primary-light-5: #bfdbfe;
+  --el-color-primary-light-7: #dbeafe;
+  --el-color-primary-light-9: #eff6ff;
+  --el-color-primary-dark-2: #2563eb;
 
-  --el-bg-color:               #ffffff;
-  --el-bg-color-overlay:       #ffffff;
-  --el-bg-color-page:          #f8fafc;
+  --el-bg-color: #ffffff;
+  --el-bg-color-overlay: #ffffff;
+  --el-bg-color-page: #f8fafc;
 
-  --el-text-color-primary:     #0f172a;
-  --el-text-color-regular:     #334155;
-  --el-text-color-secondary:   #64748b;
+  --el-text-color-primary: #0f172a;
+  --el-text-color-regular: #334155;
+  --el-text-color-secondary: #64748b;
   --el-text-color-placeholder: #94a3b8;
-  --el-text-color-disabled:    #cbd5e1;
+  --el-text-color-disabled: #cbd5e1;
 
-  --el-border-color:           #e2e8f0;
-  --el-border-color-light:     #f1f5f9;
-  --el-border-color-lighter:   #f8fafc;
+  --el-border-color: #e2e8f0;
+  --el-border-color-light: #f1f5f9;
+  --el-border-color-lighter: #f8fafc;
   --el-border-color-extra-light: #f8fafc;
-  --el-border-color-dark:      #cbd5e1;
-  --el-border-color-darker:    #94a3b8;
+  --el-border-color-dark: #cbd5e1;
+  --el-border-color-darker: #94a3b8;
 
-  --el-fill-color:             #f8fafc;
-  --el-fill-color-light:       #f1f5f9;
-  --el-fill-color-lighter:     #f8fafc;
+  --el-fill-color: #f8fafc;
+  --el-fill-color-light: #f1f5f9;
+  --el-fill-color-lighter: #f8fafc;
   --el-fill-color-extra-light: #ffffff;
-  --el-fill-color-blank:       #ffffff;
-  --el-fill-color-dark:        #e2e8f0;
-  --el-fill-color-darker:      #cbd5e1;
+  --el-fill-color-blank: #ffffff;
+  --el-fill-color-dark: #e2e8f0;
+  --el-fill-color-darker: #cbd5e1;
 
-  --el-box-shadow:             0 2px 8px rgba(0, 0, 0, 0.06);
-  --el-box-shadow-light:       0 1px 4px rgba(0, 0, 0, 0.04);
-  --el-border-radius-base:     8px;
-  --el-border-radius-small:    4px;
-  --el-border-radius-round:    20px;
-  --el-border-radius-circle:   50%;
+  --el-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --el-box-shadow-light: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 20px;
+  --el-border-radius-circle: 50%;
 }
 
 /* ============================================================
@@ -91,68 +91,82 @@
   color-scheme: dark;
 
   /* Layout backgrounds */
-  --bg-app:     #09090b;
-  --bg-card:    #18181b;
+  --bg-app: #09090b;
+  --bg-card: #18181b;
   --bg-sidebar: #111113;
 
   /* Text */
-  --text-primary:   #f4f4f5;
+  --text-primary: #f4f4f5;
   --text-secondary: #d4d4d8;
-  --text-muted:     #a1a1aa;
+  --text-muted: #a1a1aa;
 
   /* Borders */
-  --border-base:   #27272a;
+  --border-base: #27272a;
   --border-strong: #3f3f46;
 
   /* Accent */
   --accent-subtle: #1e3a5f;
 
   /* Element Plus overrides – Dark */
-  --el-color-primary:          #3b82f6;
-  --el-color-primary-light-3:  #1d4ed8;
-  --el-color-primary-light-5:  #1e3a5f;
-  --el-color-primary-light-7:  #172554;
-  --el-color-primary-light-9:  #0f1b38;
+  --el-color-primary: #3b82f6;
+  --el-color-primary-light-3: #1d4ed8;
+  --el-color-primary-light-5: #1e3a5f;
+  --el-color-primary-light-7: #172554;
+  --el-color-primary-light-9: #0f1b38;
 
-  --el-bg-color:               #18181b;
-  --el-bg-color-overlay:       #27272a;
-  --el-bg-color-page:          #09090b;
+  --el-bg-color: #18181b;
+  --el-bg-color-overlay: #27272a;
+  --el-bg-color-page: #09090b;
 
-  --el-text-color-primary:     #f4f4f5;
-  --el-text-color-regular:     #e4e4e7;
-  --el-text-color-secondary:   #d4d4d8;
+  --el-text-color-primary: #f4f4f5;
+  --el-text-color-regular: #e4e4e7;
+  --el-text-color-secondary: #d4d4d8;
   --el-text-color-placeholder: #71717a;
-  --el-text-color-disabled:    #52525b;
+  --el-text-color-disabled: #52525b;
 
-  --el-border-color:           #3f3f46;
-  --el-border-color-light:     #27272a;
-  --el-border-color-lighter:   #18181b;
+  --el-border-color: #3f3f46;
+  --el-border-color-light: #27272a;
+  --el-border-color-lighter: #18181b;
   --el-border-color-extra-light: #09090b;
-  --el-border-color-dark:      #52525b;
-  --el-border-color-darker:    #71717a;
+  --el-border-color-dark: #52525b;
+  --el-border-color-darker: #71717a;
 
-  --el-fill-color:             #27272a;
-  --el-fill-color-light:       #1f1f22;
-  --el-fill-color-lighter:     #18181b;
+  --el-fill-color: #27272a;
+  --el-fill-color-light: #1f1f22;
+  --el-fill-color-lighter: #18181b;
   --el-fill-color-extra-light: #18181b;
-  --el-fill-color-blank:       #18181b;
-  --el-fill-color-dark:        #3f3f46;
-  --el-fill-color-darker:      #52525b;
+  --el-fill-color-blank: #18181b;
+  --el-fill-color-dark: #3f3f46;
+  --el-fill-color-darker: #52525b;
 
-  --el-box-shadow:             0 4px 16px rgba(0, 0, 0, 0.4);
-  --el-box-shadow-light:       0 2px 8px rgba(0, 0, 0, 0.3);
+  --el-box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================================
    Accent Color Utilities
    ============================================================ */
-.bg-accent { background-color: var(--accent) !important; }
-.bg-accent-subtle { background-color: var(--accent-subtle) !important; }
-.text-accent { color: var(--accent) !important; }
-.border-accent { border-color: var(--accent) !important; }
+.bg-accent {
+  background-color: var(--accent) !important;
+}
+.bg-accent-subtle {
+  background-color: var(--accent-subtle) !important;
+}
+.text-accent {
+  color: var(--accent) !important;
+}
+.border-accent {
+  border-color: var(--accent) !important;
+}
 
-.hover\:bg-accent:hover { background-color: var(--accent) !important; opacity: 0.9; }
-.hover\:text-accent:hover { color: var(--accent) !important; opacity: 0.9; }
+.hover\:bg-accent:hover {
+  background-color: var(--accent) !important;
+  opacity: 0.9;
+}
+.hover\:text-accent:hover {
+  color: var(--accent) !important;
+  opacity: 0.9;
+}
 
 /* ============================================================
    Base styles
@@ -165,7 +179,9 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  font-feature-settings: "kern" 1, "liga" 1;
+  font-feature-settings:
+    'kern' 1,
+    'liga' 1;
 }
 
 body {
@@ -176,7 +192,9 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
   line-height: 1.6;
 }
 

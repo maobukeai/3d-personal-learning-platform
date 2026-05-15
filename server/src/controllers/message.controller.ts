@@ -409,7 +409,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
           message,
         });
         createNotification({
-          type: 'REPLY',
+          type: 'MESSAGE',
           title: '收到新私信',
           content: `${req.user?.name || '有人'} 给你发送了一条消息`,
           userId: p.id,
@@ -427,7 +427,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteMessage = async (req: AuthRequest, res: Response) => {
-  const { messageId } = req.params;
+  const messageId = req.params.messageId as string;
   const userId = req.userId as string;
 
   try {
@@ -556,7 +556,7 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
 };
 
 export const addReaction = async (req: AuthRequest, res: Response) => {
-  const { messageId } = req.params;
+  const messageId = req.params.messageId as string;
   const { emoji } = req.body;
   const userId = req.userId as string;
 
@@ -583,9 +583,9 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 
     const reaction = await prisma.messageReaction.upsert({
       where: {
-        messageId_userId_emoji: { messageId, userId, emoji },
+        messageId_userId_emoji: { messageId: messageId as string, userId, emoji: emoji as string },
       },
-      create: { messageId, userId, emoji },
+      create: { messageId: messageId as string, userId, emoji: emoji as string },
       update: {},
       include: {
         user: { select: { id: true, name: true } },
@@ -605,13 +605,18 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 };
 
 export const removeReaction = async (req: AuthRequest, res: Response) => {
-  const { messageId, emoji } = req.params;
+  const messageId = req.params.messageId as string;
+  const emoji = req.params.emoji as string;
   const userId = req.userId as string;
 
   try {
     const reaction = await prisma.messageReaction.findUnique({
       where: {
-        messageId_userId_emoji: { messageId, userId, emoji },
+        messageId_userId_emoji: {
+          messageId: messageId as string,
+          userId,
+          emoji: emoji as string,
+        },
       },
     });
 

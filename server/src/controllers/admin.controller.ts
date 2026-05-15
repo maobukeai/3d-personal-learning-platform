@@ -23,7 +23,7 @@ function resolveSmtpRealIp(hostname: string): Promise<string> {
     resolver.setServers(['119.29.29.29', '223.5.5.5', '8.8.8.8']);
     resolver.resolve4(hostname, (err, addresses) => {
       if (!err && addresses && addresses.length > 0) {
-        resolve(addresses[0]);
+        resolve(addresses[0] || hostname);
       } else {
         resolve(hostname);
       }
@@ -432,7 +432,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
   const { name, email, role, status } = req.body;
 
   try {
-    const oldUser = await prisma.user.findUnique({ where: { id } });
+    const oldUser = await prisma.user.findUnique({ where: { id: id as any } });
     if (!oldUser) return res.status(404).json({ error: '用户不存在' });
 
     // Prevent self-demotion or self-banning if you are an admin
@@ -441,7 +441,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id },
+      where: { id: id as any },
       data: { name, email, role, status },
       select: { id: true, email: true, name: true, role: true, status: true },
     });
@@ -472,12 +472,12 @@ export const resetUserPassword = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { id } });
+    const user = await prisma.user.findUnique({ where: { id: id as any } });
     if (!user) return res.status(404).json({ error: '用户不存在' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
-      where: { id },
+      where: { id: id as any },
       data: { password: hashedPassword },
     });
 
@@ -506,11 +506,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const oldUser = await prisma.user.findUnique({ where: { id } });
+    const oldUser = await prisma.user.findUnique({ where: { id: id as any } });
     if (!oldUser) return res.status(404).json({ error: '用户不存在' });
 
     const updatedUser = await prisma.user.update({
-      where: { id },
+      where: { id: id as any },
       data: { role },
       select: { id: true, email: true, name: true, role: true },
     });
@@ -540,7 +540,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     // Check if user exists
-    const userToDelete = await prisma.user.findUnique({ where: { id } });
+    const userToDelete = await prisma.user.findUnique({ where: { id: id as any } });
     if (!userToDelete) {
       return res.status(404).json({ error: '用户不存在' });
     }
@@ -553,7 +553,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.user.delete({ where: { id: id as any } });
 
     await auditService.log({
       userId: req.userId as string,
@@ -612,7 +612,7 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response) => {
     }
 
     const updatedFeedback = await prisma.feedback.update({
-      where: { id },
+      where: { id: id as any },
       data: updateData,
     });
 
@@ -627,14 +627,17 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response) => {
     }
 
     if (notificationContent) {
-      await createNotification({
+      const notification = await createNotification({
         type: 'SYSTEM',
         title: notificationTitle,
         content: notificationContent,
         userId: updatedFeedback.userId,
-        link: '/settings',
+        link: '/report-bug?tab=history',
         category: 'SYSTEM',
       });
+
+      // Real-time push via socket
+      emitToUser(updatedFeedback.userId, 'new_notification', notification);
     }
 
     res.json(updatedFeedback);
@@ -648,12 +651,12 @@ export const deleteFeedback = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     // Check if feedback exists
-    const feedback = await prisma.feedback.findUnique({ where: { id } });
+    const feedback = await prisma.feedback.findUnique({ where: { id: id as any } });
     if (!feedback) {
       return res.status(404).json({ error: '反馈不存在' });
     }
 
-    await prisma.feedback.delete({ where: { id } });
+    await prisma.feedback.delete({ where: { id: id as any } });
     res.json({ message: 'Feedback deleted successfully' });
   } catch (error) {
     console.error('Delete feedback error:', error);
@@ -694,7 +697,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
   const { title, description } = req.body;
   try {
     const roadmap = await prisma.roadmap.update({
-      where: { id },
+      where: { id: id as any },
       data: { title, description },
     });
     res.json(roadmap);
@@ -706,7 +709,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
 export const deleteRoadmap = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.roadmap.delete({ where: { id } });
+    await prisma.roadmap.delete({ where: { id: id as any } });
     res.json({ message: 'Roadmap deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -733,7 +736,7 @@ export const updateRoadmapStep = async (req: AuthRequest, res: Response) => {
     if (order !== undefined) updateData.order = parseInt(order);
 
     const step = await prisma.roadmapStep.update({
-      where: { id },
+      where: { id: id as any },
       data: updateData,
     });
     res.json(step);
@@ -745,7 +748,7 @@ export const updateRoadmapStep = async (req: AuthRequest, res: Response) => {
 export const deleteRoadmapStep = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.roadmapStep.delete({ where: { id } });
+    await prisma.roadmapStep.delete({ where: { id: id as any } });
     res.json({ message: 'Roadmap step deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -787,7 +790,7 @@ export const updateCourseCategory = async (req: AuthRequest, res: Response) => {
   const { name, order } = req.body;
   try {
     const category = await prisma.courseCategory.update({
-      where: { id },
+      where: { id: id as any },
       data: { name, order: order !== undefined ? parseInt(order) : undefined },
     });
     res.json(category);
@@ -799,7 +802,7 @@ export const updateCourseCategory = async (req: AuthRequest, res: Response) => {
 export const deleteCourseCategory = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.courseCategory.delete({ where: { id } });
+    await prisma.courseCategory.delete({ where: { id: id as any } });
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -857,7 +860,7 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
     const course = await prisma.course.update({
-      where: { id },
+      where: { id: id as any },
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
     });
     res.json(course);
@@ -869,7 +872,7 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
 export const deleteCourse = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.course.delete({ where: { id } });
+    await prisma.course.delete({ where: { id: id as any } });
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -921,7 +924,7 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
     }
 
     const lesson = await prisma.lesson.update({
-      where: { id },
+      where: { id: id as any },
       data: updateData,
     });
     res.json(lesson);
@@ -933,7 +936,7 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
 export const deleteLesson = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.lesson.delete({ where: { id } });
+    await prisma.lesson.delete({ where: { id: id as any } });
     res.json({ message: 'Lesson deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1008,11 +1011,11 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
 
   try {
     const team = await prisma.$transaction(async (tx) => {
-      const oldTeam = await tx.team.findUnique({ where: { id } });
+      const oldTeam = await tx.team.findUnique({ where: { id: id as any } });
       if (!oldTeam) throw new Error('Team not found');
 
       const updatedTeam = await tx.team.update({
-        where: { id },
+        where: { id: id as any },
         data: { name, description, avatarUrl, ownerId },
       });
 
@@ -1053,7 +1056,7 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
 export const deleteTeam = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.team.delete({ where: { id } });
+    await prisma.team.delete({ where: { id: id as any } });
     res.json({ message: 'Team deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1132,7 +1135,7 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const oldMaterial = await prisma.material.findUnique({ where: { id } });
+    const oldMaterial = await prisma.material.findUnique({ where: { id: id as any } });
     if (!oldMaterial) return res.status(404).json({ error: 'Material not found' });
 
     const updateData: any = { status };
@@ -1144,7 +1147,7 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response) => {
     }
 
     const material = await prisma.material.update({
-      where: { id },
+      where: { id: id as any },
       data: updateData,
     });
 
@@ -1239,11 +1242,11 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { title, description, category, tags, status } = req.body;
   try {
-    const oldMaterial = await prisma.material.findUnique({ where: { id } });
+    const oldMaterial = await prisma.material.findUnique({ where: { id: id as any } });
     if (!oldMaterial) return res.status(404).json({ error: 'Material not found' });
 
     const material = await prisma.material.update({
-      where: { id },
+      where: { id: id as any },
       data: { title, description, category, tags, status },
     });
 
@@ -1266,7 +1269,7 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response) => {
 export const adminDeleteMaterial = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    const material = await prisma.material.findUnique({ where: { id } });
+    const material = await prisma.material.findUnique({ where: { id: id as any } });
     if (!material) return res.status(404).json({ error: 'Material not found' });
 
     // Delete files
@@ -1281,7 +1284,7 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response) => {
     deleteFile(material.fileUrl);
     if (material.previewUrl) deleteFile(material.previewUrl);
 
-    await prisma.material.delete({ where: { id } });
+    await prisma.material.delete({ where: { id: id as any } });
 
     await auditService.log({
       userId: req.userId as string,
@@ -1323,11 +1326,11 @@ export const updateShowcaseStatus = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const oldShowcase = await prisma.showcase.findUnique({ where: { id } });
+    const oldShowcase = await prisma.showcase.findUnique({ where: { id: id as any } });
     if (!oldShowcase) return res.status(404).json({ error: 'Showcase not found' });
 
     const showcase = await prisma.showcase.update({
-      where: { id },
+      where: { id: id as any },
       data: { status },
     });
 
@@ -1413,12 +1416,12 @@ export const batchUpdateShowcaseStatus = async (req: AuthRequest, res: Response)
 export const adminDeleteShowcase = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    const showcase = await prisma.showcase.findUnique({ where: { id } });
+    const showcase = await prisma.showcase.findUnique({ where: { id: id as any } });
     if (!showcase) {
       return res.status(404).json({ error: 'Showcase not found' });
     }
 
-    await prisma.showcase.delete({ where: { id } });
+    await prisma.showcase.delete({ where: { id: id as any } });
 
     await auditService.log({
       userId: req.userId as string,
@@ -1451,7 +1454,7 @@ export const deleteBroadcast = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     await prisma.broadcast.delete({
-      where: { id },
+      where: { id: id as any },
     });
     res.json({ message: '广播已成功撤回' });
   } catch (error) {
@@ -1597,7 +1600,7 @@ export const updateSubscriptionPlan = async (req: AuthRequest, res: Response) =>
     if (badgeColor !== undefined) updateData.badgeColor = badgeColor;
 
     const plan = await prisma.subscriptionPlan.update({
-      where: { id },
+      where: { id: id as any },
       data: updateData,
     });
     res.json({ ...plan, features: JSON.parse(plan.features || '[]') });
@@ -1617,7 +1620,7 @@ export const deleteSubscriptionPlan = async (req: AuthRequest, res: Response) =>
         .status(400)
         .json({ error: `该计划仍有 ${subscriberCount} 名活跃订阅者，无法删除` });
     }
-    await prisma.subscriptionPlan.delete({ where: { id } });
+    await prisma.subscriptionPlan.delete({ where: { id: id as any } });
     res.json({ message: '订阅计划已删除' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -1705,7 +1708,7 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
   } = req.body;
 
   try {
-    const existing = await prisma.subscription.findUnique({ where: { id } });
+    const existing = await prisma.subscription.findUnique({ where: { id: id as any } });
     if (!existing) return res.status(404).json({ error: '订阅不存在' });
 
     const updateData: any = {};
@@ -1723,7 +1726,7 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
     if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
 
     const subscription = await prisma.subscription.update({
-      where: { id },
+      where: { id: id as any },
       data: updateData,
       include: {
         user: { select: { id: true, name: true, email: true, avatarUrl: true } },
@@ -1740,10 +1743,10 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
 export const deleteSubscription = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    const existing = await prisma.subscription.findUnique({ where: { id } });
+    const existing = await prisma.subscription.findUnique({ where: { id: id as any } });
     if (!existing) return res.status(404).json({ error: '订阅不存在' });
 
-    await prisma.subscription.delete({ where: { id } });
+    await prisma.subscription.delete({ where: { id: id as any } });
     res.json({ message: '订阅已删除' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

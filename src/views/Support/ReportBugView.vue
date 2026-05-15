@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
   AlertCircle,
   Send,
@@ -12,11 +13,14 @@ import {
   Clock,
   ExternalLink,
   MessageSquare,
+  X,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 
 import api from '@/utils/api';
-import { X } from 'lucide-vue-next';
+
+const route = useRoute();
+const router = useRouter();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const isUploading = ref(false);
@@ -156,6 +160,18 @@ const handleSubmit = async () => {
   }
 };
 
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab === 'history') {
+      activeTab.value = 'history';
+    } else {
+      activeTab.value = 'submit';
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   fetchMyFeedbacks();
 });
@@ -191,7 +207,10 @@ onMounted(() => {
               ? 'bg-white dark:bg-slate-700 text-rose-600 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           "
-          @click="activeTab = 'submit'"
+          @click="
+            activeTab = 'submit';
+            router.replace({ query: { ...route.query, tab: 'submit' } });
+          "
         >
           <Bug class="w-3.5 h-3.5" />
           提交反馈
@@ -203,7 +222,10 @@ onMounted(() => {
               ? 'bg-white dark:bg-slate-700 text-rose-600 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           "
-          @click="activeTab = 'history'"
+          @click="
+            activeTab = 'history';
+            router.replace({ query: { ...route.query, tab: 'history' } });
+          "
         >
           <History class="w-3.5 h-3.5" />
           反馈历史

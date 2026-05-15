@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import {
-  RefreshCw,
-  Terminal,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-vue-next';
+import { RefreshCw, Terminal, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';

@@ -496,7 +496,7 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 export const getMe = async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const user = req.user!;
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
   // Return only the fields the frontend expects
@@ -520,7 +520,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 
 export const setup2FA = async (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
     const secret = speakeasy.generateSecret({
@@ -716,7 +716,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
 
 export const sendVerificationCode = async (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -756,7 +756,7 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response) => {
 export const verifyEmail = async (req: AuthRequest, res: Response) => {
   const { code } = req.body;
   try {
-    const user = req.user;
+    const user = req.user!;
     const record = await prisma.verificationCode.findFirst({
       where: {
         email: user.email,
@@ -1013,7 +1013,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const user = await prisma.user.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: {
         id: true,
         name: true,
@@ -1218,14 +1218,14 @@ export const getTrustedDevices = async (req: AuthRequest, res: Response) => {
 export const revokeTrustedDevice = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
-    const device = await prisma.trustedDevice.findUnique({ where: { id } });
+    const device = await prisma.trustedDevice.findUnique({ where: { id: id as any } });
     if (!device) {
       return res.status(404).json({ error: '设备不存在' });
     }
     if (device.userId !== req.userId) {
       return res.status(403).json({ error: '无权操作此设备' });
     }
-    await prisma.trustedDevice.delete({ where: { id } });
+    await prisma.trustedDevice.delete({ where: { id: id as any } });
     res.json({ message: '设备已移除' });
   } catch (error) {
     console.error(error);

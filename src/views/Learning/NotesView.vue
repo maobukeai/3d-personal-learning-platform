@@ -560,41 +560,23 @@ onMounted(() => {
 
           <div class="flex items-center gap-3">
             <!-- Preview Mode Toggle -->
-            <div class="flex items-center bg-slate-100 dark:bg-white/5 rounded-lg p-1 mr-4">
-              <button
-                @click="previewMode = 'edit'"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
-                :class="
-                  previewMode === 'edit'
-                    ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                "
-              >
-                <Edit3 class="w-3.5 h-3.5" /> 编辑
-              </button>
-              <button
-                @click="previewMode = 'live'"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
-                :class="
-                  previewMode === 'live'
-                    ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                "
-              >
-                <Layout class="w-3.5 h-3.5" /> 实时
-              </button>
-              <button
-                @click="previewMode = 'preview'"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
-                :class="
-                  previewMode === 'preview'
-                    ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                "
-              >
-                <Eye class="w-3.5 h-3.5" /> 预览
-              </button>
-            </div>
+            <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle mr-4">
+              <el-radio-button label="edit">
+                <div class="flex items-center gap-1.5 px-1">
+                  <Edit3 class="w-3.5 h-3.5" /> 编辑
+                </div>
+              </el-radio-button>
+              <el-radio-button label="live">
+                <div class="flex items-center gap-1.5 px-1">
+                  <Layout class="w-3.5 h-3.5" /> 实时
+                </div>
+              </el-radio-button>
+              <el-radio-button label="preview">
+                <div class="flex items-center gap-1.5 px-1">
+                  <Eye class="w-3.5 h-3.5" /> 预览
+                </div>
+              </el-radio-button>
+            </el-radio-group>
 
             <el-dropdown trigger="click">
               <el-button round class="!bg-[var(--bg-card)]">
@@ -870,6 +852,29 @@ onMounted(() => {
 :deep(.immersive-editor-dialog .el-dialog__body) {
   padding: 0;
   height: 100%;
+}
+
+.preview-mode-toggle :deep(.el-radio-button__inner) {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  transition: all 0.2s ease !important;
+}
+
+.preview-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background-color: var(--bg-card) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 6px !important;
+}
+
+.preview-mode-toggle {
+  background-color: var(--bg-app) !important;
+  padding: 2px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border-base) !important;
 }
 
 .editor-modern-title :deep(.el-input__wrapper) {

@@ -7,7 +7,12 @@ const router = Router();
 
 router.use(authenticate);
 
-router.post('/upload', upload.single('file'), validateFileContent, feedbackController.uploadAttachment);
+router.post(
+  '/upload',
+  upload.single('file'),
+  validateFileContent,
+  feedbackController.uploadAttachment,
+);
 router.post('/', feedbackController.submitFeedback);
 router.get('/my', feedbackController.getMyFeedback);
 

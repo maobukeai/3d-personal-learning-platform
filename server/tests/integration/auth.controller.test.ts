@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 // Mock asset-processor to avoid gltf-transform ESM issues
 jest.mock('../../src/utils/asset-processor', () => ({
   processGltf: jest.fn(),
-  getGltfMetadata: jest.fn()
+  getGltfMetadata: jest.fn(),
 }));
 
 import app from '../../src/app';
@@ -14,7 +14,7 @@ describe('Auth Controller Integration', () => {
   const testUser = {
     email: 'test-integration@example.com',
     password: 'password123',
-    name: 'Integration Test User'
+    name: 'Integration Test User',
   };
 
   beforeAll(async () => {
@@ -26,8 +26,8 @@ describe('Auth Controller Integration', () => {
         email: testUser.email,
         password: hashedPassword,
         name: testUser.name,
-        role: 'USER'
-      }
+        role: 'USER',
+      },
     });
   });
 
@@ -49,7 +49,7 @@ describe('Auth Controller Integration', () => {
       const res = await request(app)
         .post('/api/auth/login')
         .send({ email: 'nonexistent@example.com', password: 'password' });
-      
+
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('error', 'Invalid credentials');
     });
@@ -58,16 +58,16 @@ describe('Auth Controller Integration', () => {
       const res = await request(app)
         .post('/api/auth/login')
         .send({ email: testUser.email, password: testUser.password });
-      
+
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('user');
       expect(res.body.user.email).toBe(testUser.email);
-      
+
       // Check cookies
       const cookies = res.get('Set-Cookie') || [];
-      expect(cookies.some(c => c.includes('token='))).toBe(true);
-      expect(cookies.some(c => c.includes('refreshToken='))).toBe(true);
-      expect(cookies.some(c => c.includes('HttpOnly'))).toBe(true);
+      expect(cookies.some((c) => c.includes('token='))).toBe(true);
+      expect(cookies.some((c) => c.includes('refreshToken='))).toBe(true);
+      expect(cookies.some((c) => c.includes('HttpOnly'))).toBe(true);
     });
   });
 });

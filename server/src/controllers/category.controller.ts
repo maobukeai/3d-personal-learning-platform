@@ -9,9 +9,9 @@ export const getAllCategories = async (req: Request, res: Response) => {
       orderBy: { order: 'asc' },
       include: {
         _count: {
-          select: { assets: { where: { status: 'APPROVED' } } }
-        }
-      }
+          select: { assets: { where: { status: 'APPROVED' } } },
+        },
+      },
     });
     res.json(categories);
   } catch (error) {
@@ -25,11 +25,11 @@ export const adminCreateCategory = async (req: AuthRequest, res: Response) => {
 
   try {
     const category = await prisma.category.create({
-      data: { 
-        name, 
-        icon, 
-        order: order ? parseInt(order) : 0 
-      }
+      data: {
+        name,
+        icon,
+        order: order ? parseInt(order) : 0,
+      },
     });
 
     await auditService.log({
@@ -38,7 +38,7 @@ export const adminCreateCategory = async (req: AuthRequest, res: Response) => {
       module: 'CATEGORY',
       description: `管理员创建了资产分类: ${category.name}`,
       newValue: category,
-      req
+      req,
     });
 
     res.status(201).json(category);
@@ -60,11 +60,11 @@ export const adminUpdateCategory = async (req: AuthRequest, res: Response) => {
 
     const category = await prisma.category.update({
       where: { id },
-      data: { 
-        name, 
-        icon, 
-        order: order !== undefined ? parseInt(order) : undefined 
-      }
+      data: {
+        name,
+        icon,
+        order: order !== undefined ? parseInt(order) : undefined,
+      },
     });
 
     await auditService.log({
@@ -74,7 +74,7 @@ export const adminUpdateCategory = async (req: AuthRequest, res: Response) => {
       description: `管理员更新了资产分类: ${category.name}`,
       oldValue: oldCategory,
       newValue: category,
-      req
+      req,
     });
 
     res.json(category);
@@ -107,7 +107,7 @@ export const adminDeleteCategory = async (req: AuthRequest, res: Response) => {
       module: 'CATEGORY',
       description: `管理员删除了资产分类: ${category.name}`,
       oldValue: category,
-      req
+      req,
     });
 
     res.json({ message: 'Category deleted successfully' });

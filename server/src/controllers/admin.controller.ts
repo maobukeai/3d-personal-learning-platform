@@ -31,7 +31,6 @@ function resolveSmtpRealIp(hostname: string): Promise<string> {
   });
 }
 
-
 export const parseExternalLink = async (req: AuthRequest, res: Response) => {
   const { url } = req.body;
   if (!url) {
@@ -61,7 +60,7 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response) =
   try {
     const result = await prisma.$transaction(async (tx) => {
       const course = await tx.course.create({
-        data: { title, description, thumbnail, categoryId: req.body.categoryId }
+        data: { title, description, thumbnail, categoryId: req.body.categoryId },
       });
 
       if (lessons && Array.isArray(lessons)) {
@@ -73,16 +72,16 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response) =
                 videoUrl: lesson.videoUrl,
                 order: lesson.order,
                 courseId: course.id,
-                content: lesson.content || ''
-              }
-            })
-          )
+                content: lesson.content || '',
+              },
+            }),
+          ),
         );
       }
 
       return await tx.course.findUnique({
         where: { id: course.id },
-        include: { lessons: { orderBy: { order: 'asc' } } }
+        include: { lessons: { orderBy: { order: 'asc' } } },
       });
     });
 
@@ -108,7 +107,7 @@ export const getAdminStats = async (req: AuthRequest, res: Response) => {
       showcaseCount,
       teamCount,
       pendingMaterials,
-      pendingShowcases
+      pendingShowcases,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.asset.count(),
@@ -122,20 +121,20 @@ export const getAdminStats = async (req: AuthRequest, res: Response) => {
       prisma.showcase.count(),
       prisma.team.count({ where: { type: 'TEAM' } }),
       prisma.material.count({ where: { status: 'PENDING' } }),
-      prisma.showcase.count({ where: { status: 'PENDING' } })
+      prisma.showcase.count({ where: { status: 'PENDING' } }),
     ]);
 
     // Get recent activity (last 5 users, last 5 assets)
     const recentUsers = await prisma.user.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
-      select: { id: true, email: true, name: true, createdAt: true, avatarUrl: true }
+      select: { id: true, email: true, name: true, createdAt: true, avatarUrl: true },
     });
 
     const recentAssets = await prisma.asset.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { name: true } } }
+      include: { user: { select: { name: true } } },
     });
 
     res.json({
@@ -152,10 +151,10 @@ export const getAdminStats = async (req: AuthRequest, res: Response) => {
         showcases: showcaseCount,
         teams: teamCount,
         pendingMaterials,
-        pendingShowcases
+        pendingShowcases,
       },
       recentUsers,
-      recentAssets
+      recentAssets,
     });
   } catch (error) {
     console.error('Get Admin Stats Error:', error);
@@ -178,12 +177,14 @@ export const getSettings = async (req: AuthRequest, res: Response) => {
 export const updateSettings = async (req: AuthRequest, res: Response) => {
   try {
     const { settings } = req.body; // Expecting { key: value, ... } or [{key, value}, ...]
-    
+
     const oldSettings = await settingsService.getAll();
     let settingsObj: any = {};
 
     if (Array.isArray(settings)) {
-      settings.forEach((s: any) => { settingsObj[s.key] = s.value; });
+      settings.forEach((s: any) => {
+        settingsObj[s.key] = s.value;
+      });
     } else {
       settingsObj = settings;
     }
@@ -197,7 +198,7 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
       description: '管理员更新了全局系统设置',
       oldValue: oldSettings,
       newValue: settingsObj,
-      req
+      req,
     });
 
     res.json({ message: '设置已成功保存' });
@@ -210,7 +211,7 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
 export const testSmtp = async (req: AuthRequest, res: Response) => {
   try {
     const { host, port, user, pass, from, secure } = req.body;
-    
+
     if (!host || !user || !pass) {
       return res.status(400).json({ error: 'SMTP 配置不完整' });
     }
@@ -219,7 +220,9 @@ export const testSmtp = async (req: AuthRequest, res: Response) => {
     const portNum = parseInt(port) || 465;
 
     const realIp = await resolveSmtpRealIp(host);
-    console.log(`[SMTP Test] Attempting connection: ${host}(${realIp}):${portNum}, secure: ${isSecure}`);
+    console.log(
+      `[SMTP Test] Attempting connection: ${host}(${realIp}):${portNum}, secure: ${isSecure}`,
+    );
 
     const transporter = nodemailer.createTransport({
       host: realIp,
@@ -240,13 +243,13 @@ export const testSmtp = async (req: AuthRequest, res: Response) => {
     });
 
     // Detailed verification
-    await transporter.verify().catch(err => {
+    await transporter.verify().catch((err) => {
       console.error('[SMTP Verify Error]:', err);
       throw err;
     });
 
     const admin = req.user;
-    
+
     await transporter.sendMail({
       from: from || user,
       to: admin?.email || user,
@@ -259,13 +262,18 @@ export const testSmtp = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('SMTP Test Error Detail:', error);
     let errorMsg = error.message;
-    
+
     // Detailed error mapping
-    if (error.code === 'ECONNRESET') errorMsg = '连接被重置。通常是因为网络防火墙拦截或 SSL/TLS 协议不匹配。';
-    else if (error.code === 'ETIMEDOUT') errorMsg = '连接超时。请检查 465/587 端口是否在云服务器安全组中开放。';
-    else if (error.code === 'ECONNREFUSED') errorMsg = '连接被拒绝。目标服务器可能不可达，或端口被本地 ISP 封锁。';
-    else if (error.code === 'EAUTH') errorMsg = '验证失败。请确保您使用的是 Gmail 的 16 位“应用专用密码”而非主密码。';
-    else if (error.message.includes('secure TLS connection')) errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';
+    if (error.code === 'ECONNRESET')
+      errorMsg = '连接被重置。通常是因为网络防火墙拦截或 SSL/TLS 协议不匹配。';
+    else if (error.code === 'ETIMEDOUT')
+      errorMsg = '连接超时。请检查 465/587 端口是否在云服务器安全组中开放。';
+    else if (error.code === 'ECONNREFUSED')
+      errorMsg = '连接被拒绝。目标服务器可能不可达，或端口被本地 ISP 封锁。';
+    else if (error.code === 'EAUTH')
+      errorMsg = '验证失败。请确保您使用的是 Gmail 的 16 位“应用专用密码”而非主密码。';
+    else if (error.message.includes('secure TLS connection'))
+      errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';
 
     res.status(500).json({ error: `SMTP 连接失败: ${errorMsg}` });
   }
@@ -284,11 +292,11 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
         createdAt: true,
         subscription: {
           include: {
-            plan: true
-          }
-        }
+            plan: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(users);
   } catch (error) {
@@ -310,7 +318,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -319,7 +327,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
           password: hashedPassword,
           role: role || 'USER',
           status: 'ACTIVE',
-          emailVerified: true
+          emailVerified: true,
         },
         select: {
           id: true,
@@ -327,8 +335,8 @@ export const createUser = async (req: AuthRequest, res: Response) => {
           name: true,
           role: true,
           status: true,
-          createdAt: true
-        }
+          createdAt: true,
+        },
       });
 
       // 1. 创建个人工作区（PERSONAL 类型团队）
@@ -342,15 +350,15 @@ export const createUser = async (req: AuthRequest, res: Response) => {
           members: {
             create: {
               userId: user.id,
-              role: 'OWNER'
-            }
-          }
-        }
+              role: 'OWNER',
+            },
+          },
+        },
       });
 
       // 2. 查找或创建公共空间 - 使用并发安全的方式
       let publicTeam = await tx.team.findUnique({
-        where: { name_type: { name: '公共空间', type: 'TEAM' } }
+        where: { name_type: { name: '公共空间', type: 'TEAM' } },
       });
 
       if (!publicTeam) {
@@ -366,15 +374,15 @@ export const createUser = async (req: AuthRequest, res: Response) => {
               members: {
                 create: {
                   userId: user.id,
-                  role: 'OWNER'
-                }
-              }
-            }
+                  role: 'OWNER',
+                },
+              },
+            },
           });
         } catch (e) {
           // 如果唯一约束冲突，说明有其他请求先创建了公共空间，重新查找
           publicTeam = await tx.team.findUnique({
-            where: { name_type: { name: '公共空间', type: 'TEAM' } }
+            where: { name_type: { name: '公共空间', type: 'TEAM' } },
           });
           if (!publicTeam) {
             throw e; // 如果还是找不到，抛出原始错误
@@ -388,15 +396,15 @@ export const createUser = async (req: AuthRequest, res: Response) => {
           where: {
             teamId_userId: {
               teamId: publicTeam.id,
-              userId: user.id
-            }
+              userId: user.id,
+            },
           },
           update: {},
           create: {
             teamId: publicTeam.id,
             userId: user.id,
-            role: 'MEMBER'
-          }
+            role: 'MEMBER',
+          },
         });
       }
 
@@ -409,7 +417,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       module: AuditModule.USER,
       description: `管理员创建了新用户 ${result.email}`,
       newValue: sanitizeUser(result),
-      req
+      req,
     });
 
     res.status(201).json(result);
@@ -435,7 +443,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     const updatedUser = await prisma.user.update({
       where: { id },
       data: { name, email, role, status },
-      select: { id: true, email: true, name: true, role: true, status: true }
+      select: { id: true, email: true, name: true, role: true, status: true },
     });
 
     await auditService.log({
@@ -445,7 +453,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       description: `管理员更新了用户 ${updatedUser.email} 的资料`,
       oldValue: sanitizeUser(oldUser),
       newValue: updatedUser,
-      req
+      req,
     });
 
     res.json(updatedUser);
@@ -470,7 +478,7 @@ export const resetUserPassword = async (req: AuthRequest, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
       where: { id },
-      data: { password: hashedPassword }
+      data: { password: hashedPassword },
     });
 
     await auditService.log({
@@ -478,7 +486,7 @@ export const resetUserPassword = async (req: AuthRequest, res: Response) => {
       action: AuditAction.RESET_PASSWORD,
       module: AuditModule.USER,
       description: `管理员重置了用户 ${user.email} 的密码`,
-      req
+      req,
     });
 
     res.json({ message: '用户密码已成功重置' });
@@ -504,7 +512,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
     const updatedUser = await prisma.user.update({
       where: { id },
       data: { role },
-      select: { id: true, email: true, name: true, role: true }
+      select: { id: true, email: true, name: true, role: true },
     });
 
     await auditService.log({
@@ -514,7 +522,7 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
       description: `管理员修改了用户 ${updatedUser.email} 的角色为 ${role}`,
       oldValue: { role: oldUser.role },
       newValue: { role },
-      req
+      req,
     });
 
     res.json(updatedUser);
@@ -553,7 +561,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
       module: AuditModule.USER,
       description: `管理员删除了用户 ${userToDelete.email}`,
       oldValue: sanitizeUser(userToDelete),
-      req
+      req,
     });
 
     res.json({ message: 'User deleted successfully' });
@@ -572,11 +580,11 @@ export const getAllFeedback = async (req: AuthRequest, res: Response) => {
             id: true,
             name: true,
             email: true,
-            avatarUrl: true
-          }
-        }
+            avatarUrl: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(feedbacks);
   } catch (error) {
@@ -605,7 +613,7 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response) => {
 
     const updatedFeedback = await prisma.feedback.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
     // Create notification for the user
@@ -625,7 +633,7 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response) => {
         content: notificationContent,
         userId: updatedFeedback.userId,
         link: '/settings',
-        category: 'SYSTEM'
+        category: 'SYSTEM',
       });
     }
 
@@ -659,9 +667,9 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
   try {
     const roadmaps = await prisma.roadmap.findMany({
       include: {
-        steps: { orderBy: { order: 'asc' } }
+        steps: { orderBy: { order: 'asc' } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(roadmaps);
   } catch (error) {
@@ -673,7 +681,7 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
   const { title, description } = req.body;
   try {
     const roadmap = await prisma.roadmap.create({
-      data: { title, description }
+      data: { title, description },
     });
     res.status(201).json(roadmap);
   } catch (error) {
@@ -687,7 +695,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
   try {
     const roadmap = await prisma.roadmap.update({
       where: { id },
-      data: { title, description }
+      data: { title, description },
     });
     res.json(roadmap);
   } catch (error) {
@@ -709,7 +717,7 @@ export const createRoadmapStep = async (req: AuthRequest, res: Response) => {
   const { roadmapId, title, description, order } = req.body;
   try {
     const step = await prisma.roadmapStep.create({
-      data: { roadmapId, title, description, order: parseInt(order) }
+      data: { roadmapId, title, description, order: parseInt(order) },
     });
     res.status(201).json(step);
   } catch (error) {
@@ -726,7 +734,7 @@ export const updateRoadmapStep = async (req: AuthRequest, res: Response) => {
 
     const step = await prisma.roadmapStep.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
     res.json(step);
   } catch (error) {
@@ -752,9 +760,9 @@ export const getAllCourseCategories = async (req: AuthRequest, res: Response) =>
       orderBy: { order: 'asc' },
       include: {
         _count: {
-          select: { courses: true }
-        }
-      }
+          select: { courses: true },
+        },
+      },
     });
     res.json(categories);
   } catch (error) {
@@ -766,7 +774,7 @@ export const createCourseCategory = async (req: AuthRequest, res: Response) => {
   const { name, order } = req.body;
   try {
     const category = await prisma.courseCategory.create({
-      data: { name, order: order ? parseInt(order) : 0 }
+      data: { name, order: order ? parseInt(order) : 0 },
     });
     res.status(201).json(category);
   } catch (error) {
@@ -780,7 +788,7 @@ export const updateCourseCategory = async (req: AuthRequest, res: Response) => {
   try {
     const category = await prisma.courseCategory.update({
       where: { id },
-      data: { name, order: order !== undefined ? parseInt(order) : undefined }
+      data: { name, order: order !== undefined ? parseInt(order) : undefined },
     });
     res.json(category);
   } catch (error) {
@@ -807,15 +815,16 @@ export const getAllCourses = async (req: AuthRequest, res: Response) => {
         lessons: { orderBy: { order: 'asc' } },
         category: true,
         _count: { select: { enrollments: true, reviews: true } },
-        reviews: { select: { rating: true } }
+        reviews: { select: { rating: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
-    const coursesWithStats = courses.map(course => {
+    const coursesWithStats = courses.map((course) => {
       const { reviews, ...rest } = course;
-      const avgRating = reviews.length > 0
-        ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length
-        : 0;
+      const avgRating =
+        reviews.length > 0
+          ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length
+          : 0;
       return { ...rest, avgRating: Math.round(avgRating * 10) / 10 };
     });
     res.json(coursesWithStats);
@@ -828,7 +837,14 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
     const course = await prisma.course.create({
-      data: { title, description, thumbnail, categoryId: categoryId || null, difficulty: difficulty || 'BEGINNER', status: status || 'PUBLISHED' }
+      data: {
+        title,
+        description,
+        thumbnail,
+        categoryId: categoryId || null,
+        difficulty: difficulty || 'BEGINNER',
+        status: status || 'PUBLISHED',
+      },
     });
     res.status(201).json(course);
   } catch (error) {
@@ -842,7 +858,7 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
   try {
     const course = await prisma.course.update({
       where: { id },
-      data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status }
+      data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
     });
     res.json(course);
   } catch (error) {
@@ -864,16 +880,24 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
   const { courseId, title, content, videoUrl, order, duration, hotspots, sceneConfig } = req.body;
   try {
     const lesson = await prisma.lesson.create({
-      data: { 
-        courseId, 
-        title, 
-        content, 
-        videoUrl, 
-        order: parseInt(order), 
+      data: {
+        courseId,
+        title,
+        content,
+        videoUrl,
+        order: parseInt(order),
         duration: duration ? parseInt(duration) : 0,
-        hotspots: hotspots ? (typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots)) : null,
-        sceneConfig: sceneConfig ? (typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig)) : null
-      }
+        hotspots: hotspots
+          ? typeof hotspots === 'string'
+            ? hotspots
+            : JSON.stringify(hotspots)
+          : null,
+        sceneConfig: sceneConfig
+          ? typeof sceneConfig === 'string'
+            ? sceneConfig
+            : JSON.stringify(sceneConfig)
+          : null,
+      },
     });
     res.status(201).json(lesson);
   } catch (error) {
@@ -892,12 +916,13 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
       updateData.hotspots = typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots);
     }
     if (sceneConfig !== undefined) {
-      updateData.sceneConfig = typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig);
+      updateData.sceneConfig =
+        typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig);
     }
 
     const lesson = await prisma.lesson.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
     res.json(lesson);
   } catch (error) {
@@ -921,17 +946,17 @@ export const getAllTeams = async (req: AuthRequest, res: Response) => {
   try {
     const teams = await prisma.team.findMany({
       where: {
-        type: 'TEAM'
+        type: 'TEAM',
       },
       include: {
         owner: { select: { id: true, name: true, email: true, avatarUrl: true } },
         members: {
           include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
-          orderBy: { joinedAt: 'asc' }
+          orderBy: { joinedAt: 'asc' },
         },
-        _count: { select: { members: true } }
+        _count: { select: { members: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(teams);
   } catch (error) {
@@ -955,16 +980,16 @@ export const createTeam = async (req: AuthRequest, res: Response) => {
           description,
           avatarUrl,
           ownerId: creatorId,
-          type: 'TEAM'
-        }
+          type: 'TEAM',
+        },
       });
 
       await tx.teamMember.create({
         data: {
           teamId: newTeam.id,
           userId: creatorId,
-          role: 'OWNER'
-        }
+          role: 'OWNER',
+        },
       });
 
       return newTeam;
@@ -988,29 +1013,29 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
 
       const updatedTeam = await tx.team.update({
         where: { id },
-        data: { name, description, avatarUrl, ownerId }
+        data: { name, description, avatarUrl, ownerId },
       });
 
       if (ownerId && ownerId !== oldTeam.ownerId) {
         // Remove old owner as owner in members
         await tx.teamMember.updateMany({
           where: { teamId: id, role: 'OWNER' },
-          data: { role: 'MEMBER' }
+          data: { role: 'MEMBER' },
         });
 
         // Add or update new owner
         const existingMember = await tx.teamMember.findUnique({
-          where: { teamId_userId: { teamId: id, userId: ownerId } }
+          where: { teamId_userId: { teamId: id, userId: ownerId } },
         });
 
         if (existingMember) {
           await tx.teamMember.update({
             where: { id: existingMember.id },
-            data: { role: 'OWNER' }
+            data: { role: 'OWNER' },
           });
         } else {
           await tx.teamMember.create({
-            data: { teamId: id, userId: ownerId, role: 'OWNER' }
+            data: { teamId: id, userId: ownerId, role: 'OWNER' },
           });
         }
       }
@@ -1046,7 +1071,7 @@ export const updateTeamMemberRole = async (req: AuthRequest, res: Response) => {
 
   try {
     const member = await prisma.teamMember.findUnique({
-      where: { teamId_userId: { teamId, userId } }
+      where: { teamId_userId: { teamId, userId } },
     });
 
     if (!member) return res.status(404).json({ error: 'Member not found' });
@@ -1054,7 +1079,7 @@ export const updateTeamMemberRole = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.teamMember.update({
       where: { id: member.id },
-      data: { role }
+      data: { role },
     });
     res.json(updated);
   } catch (error) {
@@ -1067,7 +1092,7 @@ export const removeTeamMember = async (req: AuthRequest, res: Response) => {
   const userId = req.params.userId as string;
   try {
     const member = await prisma.teamMember.findUnique({
-      where: { teamId_userId: { teamId, userId } }
+      where: { teamId_userId: { teamId, userId } },
     });
 
     if (!member) return res.status(404).json({ error: 'Member not found' });
@@ -1088,9 +1113,9 @@ export const getAllMaterialsForAdmin = async (req: AuthRequest, res: Response) =
     const materials = await prisma.material.findMany({
       where: status ? { status: status as string } : {},
       include: {
-        user: { select: { name: true, email: true, avatarUrl: true } }
+        user: { select: { name: true, email: true, avatarUrl: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(materials);
   } catch (error) {
@@ -1120,7 +1145,7 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response) => {
 
     const material = await prisma.material.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
     await auditService.log({
@@ -1130,18 +1155,19 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response) => {
       description: `管理员${status === 'APPROVED' ? '批准' : '拒绝'}了材料: ${material.title}`,
       oldValue: { status: oldMaterial.status },
       newValue: { status, rejectReason },
-      req
+      req,
     });
 
     await createNotification({
       type: 'SYSTEM',
       title: status === 'APPROVED' ? '材料审核通过' : '材料审核未通过',
-      content: status === 'REJECTED' && rejectReason
-        ? `你上传的材料 "${material.title}" 未通过审核，原因：${rejectReason}`
-        : `你上传的材料 "${material.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+      content:
+        status === 'REJECTED' && rejectReason
+          ? `你上传的材料 "${material.title}" 未通过审核，原因：${rejectReason}`
+          : `你上传的材料 "${material.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
       userId: material.userId,
       link: '/materials',
-      category: 'SYSTEM'
+      category: 'SYSTEM',
     });
 
     res.json(material);
@@ -1172,24 +1198,27 @@ export const batchUpdateMaterialStatus = async (req: AuthRequest, res: Response)
 
     const result = await prisma.material.updateMany({
       where: { id: { in: ids } },
-      data: updateData
+      data: updateData,
     });
 
     const materials = await prisma.material.findMany({
       where: { id: { in: ids } },
-      select: { id: true, title: true, userId: true }
+      select: { id: true, title: true, userId: true },
     });
 
-    await createNotificationBatch(materials.map(material => ({
-      type: 'SYSTEM',
-      title: status === 'APPROVED' ? '材料审核通过' : '材料审核未通过',
-      content: status === 'REJECTED' && rejectReason
-        ? `你上传的材料 "${material.title}" 未通过审核，原因：${rejectReason}`
-        : `你上传的材料 "${material.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
-      userId: material.userId,
-      link: '/materials',
-      category: 'SYSTEM'
-    })));
+    await createNotificationBatch(
+      materials.map((material) => ({
+        type: 'SYSTEM',
+        title: status === 'APPROVED' ? '材料审核通过' : '材料审核未通过',
+        content:
+          status === 'REJECTED' && rejectReason
+            ? `你上传的材料 "${material.title}" 未通过审核，原因：${rejectReason}`
+            : `你上传的材料 "${material.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+        userId: material.userId,
+        link: '/materials',
+        category: 'SYSTEM',
+      })),
+    );
 
     await auditService.log({
       userId: req.userId as string,
@@ -1197,7 +1226,7 @@ export const batchUpdateMaterialStatus = async (req: AuthRequest, res: Response)
       module: AuditModule.MATERIAL,
       description: `管理员批量${status === 'APPROVED' ? '批准' : '拒绝'}了 ${result.count} 个材料`,
       newValue: { ids, status, rejectReason },
-      req
+      req,
     });
 
     res.json({ message: `成功更新 ${result.count} 个材料状态`, count: result.count });
@@ -1215,7 +1244,7 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response) => {
 
     const material = await prisma.material.update({
       where: { id },
-      data: { title, description, category, tags, status }
+      data: { title, description, category, tags, status },
     });
 
     await auditService.log({
@@ -1225,7 +1254,7 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response) => {
       description: `管理员更新了材料: ${material.title}`,
       oldValue: oldMaterial,
       newValue: material,
-      req
+      req,
     });
 
     res.json(material);
@@ -1260,7 +1289,7 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response) => {
       module: AuditModule.MATERIAL,
       description: `管理员删除了材料: ${material.title}`,
       oldValue: material,
-      req
+      req,
     });
 
     res.json({ message: 'Material deleted successfully' });
@@ -1275,9 +1304,9 @@ export const getAllShowcasesForAdmin = async (req: AuthRequest, res: Response) =
     const showcases = await prisma.showcase.findMany({
       where: status ? { status: status as string } : {},
       include: {
-        user: { select: { name: true, email: true, avatarUrl: true } }
+        user: { select: { name: true, email: true, avatarUrl: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(showcases);
   } catch (error) {
@@ -1299,7 +1328,7 @@ export const updateShowcaseStatus = async (req: AuthRequest, res: Response) => {
 
     const showcase = await prisma.showcase.update({
       where: { id },
-      data: { status }
+      data: { status },
     });
 
     await auditService.log({
@@ -1309,18 +1338,19 @@ export const updateShowcaseStatus = async (req: AuthRequest, res: Response) => {
       description: `管理员${status === 'APPROVED' ? '批准' : '拒绝'}了作品: ${showcase.title}`,
       oldValue: { status: oldShowcase.status },
       newValue: { status, rejectReason },
-      req
+      req,
     });
 
     await createNotification({
       type: 'SYSTEM',
       title: status === 'APPROVED' ? '作品审核通过' : '作品审核未通过',
-      content: status === 'REJECTED' && rejectReason
-        ? `你发布的作品 "${showcase.title}" 未通过审核，原因：${rejectReason}`
-        : `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+      content:
+        status === 'REJECTED' && rejectReason
+          ? `你发布的作品 "${showcase.title}" 未通过审核，原因：${rejectReason}`
+          : `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
       userId: showcase.userId,
       link: '/showcase',
-      category: 'SYSTEM'
+      category: 'SYSTEM',
     });
 
     res.json(showcase);
@@ -1343,24 +1373,27 @@ export const batchUpdateShowcaseStatus = async (req: AuthRequest, res: Response)
   try {
     const result = await prisma.showcase.updateMany({
       where: { id: { in: ids } },
-      data: { status }
+      data: { status },
     });
 
     const showcases = await prisma.showcase.findMany({
       where: { id: { in: ids } },
-      select: { id: true, title: true, userId: true }
+      select: { id: true, title: true, userId: true },
     });
 
-    await createNotificationBatch(showcases.map(showcase => ({
-      type: 'SYSTEM',
-      title: status === 'APPROVED' ? '作品审核通过' : '作品审核未通过',
-      content: status === 'REJECTED' && rejectReason
-        ? `你发布的作品 "${showcase.title}" 未通过审核，原因：${rejectReason}`
-        : `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
-      userId: showcase.userId,
-      link: '/showcase',
-      category: 'SYSTEM'
-    })));
+    await createNotificationBatch(
+      showcases.map((showcase) => ({
+        type: 'SYSTEM',
+        title: status === 'APPROVED' ? '作品审核通过' : '作品审核未通过',
+        content:
+          status === 'REJECTED' && rejectReason
+            ? `你发布的作品 "${showcase.title}" 未通过审核，原因：${rejectReason}`
+            : `你发布的作品 "${showcase.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+        userId: showcase.userId,
+        link: '/showcase',
+        category: 'SYSTEM',
+      })),
+    );
 
     await auditService.log({
       userId: req.userId as string,
@@ -1368,7 +1401,7 @@ export const batchUpdateShowcaseStatus = async (req: AuthRequest, res: Response)
       module: AuditModule.SHOWCASE,
       description: `管理员批量${status === 'APPROVED' ? '批准' : '拒绝'}了 ${result.count} 个作品`,
       newValue: { ids, status, rejectReason },
-      req
+      req,
     });
 
     res.json({ message: `成功更新 ${result.count} 个作品状态`, count: result.count });
@@ -1393,7 +1426,7 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response) => {
       module: AuditModule.SHOWCASE,
       description: `管理员删除了作品: ${showcase.title}`,
       oldValue: showcase,
-      req
+      req,
     });
 
     res.json({ message: 'Showcase deleted successfully' });
@@ -1406,7 +1439,7 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response) => {
 export const getBroadcasts = async (req: AuthRequest, res: Response) => {
   try {
     const broadcasts = await prisma.broadcast.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(broadcasts);
   } catch (error) {
@@ -1418,7 +1451,7 @@ export const deleteBroadcast = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     await prisma.broadcast.delete({
-      where: { id }
+      where: { id },
     });
     res.json({ message: '广播已成功撤回' });
   } catch (error) {
@@ -1435,22 +1468,24 @@ export const sendBroadcast = async (req: AuthRequest, res: Response) => {
 
   try {
     const broadcast = await prisma.broadcast.create({
-      data: { title, content, link }
+      data: { title, content, link },
     });
 
     const users = await prisma.user.findMany({
-      select: { id: true }
+      select: { id: true },
     });
 
-    await createNotificationBatch(users.map(user => ({
-      type: 'SYSTEM',
-      title,
-      content,
-      link,
-      userId: user.id,
-      broadcastId: broadcast.id,
-      category: 'SYSTEM'
-    })));
+    await createNotificationBatch(
+      users.map((user) => ({
+        type: 'SYSTEM',
+        title,
+        content,
+        link,
+        userId: user.id,
+        broadcastId: broadcast.id,
+        category: 'SYSTEM',
+      })),
+    );
 
     emitToAll('new_notification', {
       type: 'SYSTEM',
@@ -1458,9 +1493,9 @@ export const sendBroadcast = async (req: AuthRequest, res: Response) => {
       content,
       link,
       createdAt: new Date(),
-      broadcastId: broadcast.id
+      broadcastId: broadcast.id,
     });
-    
+
     res.json({ message: `广播发送成功，共发送给 ${users.length} 名用户` });
   } catch (error) {
     console.error('Send Broadcast Error:', error);
@@ -1472,20 +1507,36 @@ export const getAllSubscriptionPlans = async (req: AuthRequest, res: Response) =
   try {
     const plans = await prisma.subscriptionPlan.findMany({
       orderBy: { priority: 'asc' },
-      include: { _count: { select: { subscriptions: true } } }
+      include: { _count: { select: { subscriptions: true } } },
     });
-    res.json(plans.map(p => ({
-      ...p,
-      features: JSON.parse(p.features || '[]'),
-      subscriberCount: p._count.subscriptions
-    })));
+    res.json(
+      plans.map((p) => ({
+        ...p,
+        features: JSON.parse(p.features || '[]'),
+        subscriberCount: p._count.subscriptions,
+      })),
+    );
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
 
 export const createSubscriptionPlan = async (req: AuthRequest, res: Response) => {
-  const { name, displayName, price, yearlyPrice, interval, features, maxStorage, maxTeams, maxProjects, maxAssets, priority, isPopular, badgeColor } = req.body;
+  const {
+    name,
+    displayName,
+    price,
+    yearlyPrice,
+    interval,
+    features,
+    maxStorage,
+    maxTeams,
+    maxProjects,
+    maxAssets,
+    priority,
+    isPopular,
+    badgeColor,
+  } = req.body;
   try {
     const plan = await prisma.subscriptionPlan.create({
       data: {
@@ -1502,7 +1553,7 @@ export const createSubscriptionPlan = async (req: AuthRequest, res: Response) =>
         priority: parseInt(priority) || 0,
         isPopular: isPopular || false,
         badgeColor: badgeColor || null,
-      }
+      },
     });
     res.status(201).json({ ...plan, features: JSON.parse(plan.features || '[]') });
   } catch (error: any) {
@@ -1513,13 +1564,28 @@ export const createSubscriptionPlan = async (req: AuthRequest, res: Response) =>
 
 export const updateSubscriptionPlan = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { name, displayName, price, yearlyPrice, interval, features, maxStorage, maxTeams, maxProjects, maxAssets, priority, isPopular, badgeColor } = req.body;
+  const {
+    name,
+    displayName,
+    price,
+    yearlyPrice,
+    interval,
+    features,
+    maxStorage,
+    maxTeams,
+    maxProjects,
+    maxAssets,
+    priority,
+    isPopular,
+    badgeColor,
+  } = req.body;
   try {
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (displayName !== undefined) updateData.displayName = displayName;
     if (price !== undefined) updateData.price = parseFloat(price);
-    if (yearlyPrice !== undefined) updateData.yearlyPrice = yearlyPrice ? parseFloat(yearlyPrice) : null;
+    if (yearlyPrice !== undefined)
+      updateData.yearlyPrice = yearlyPrice ? parseFloat(yearlyPrice) : null;
     if (interval !== undefined) updateData.interval = interval;
     if (features !== undefined) updateData.features = JSON.stringify(features);
     if (maxStorage !== undefined) updateData.maxStorage = parseFloat(maxStorage);
@@ -1532,7 +1598,7 @@ export const updateSubscriptionPlan = async (req: AuthRequest, res: Response) =>
 
     const plan = await prisma.subscriptionPlan.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
     res.json({ ...plan, features: JSON.parse(plan.features || '[]') });
   } catch (error) {
@@ -1544,10 +1610,12 @@ export const deleteSubscriptionPlan = async (req: AuthRequest, res: Response) =>
   const id = req.params.id as string;
   try {
     const subscriberCount = await prisma.subscription.count({
-      where: { planId: id, status: 'ACTIVE' }
+      where: { planId: id, status: 'ACTIVE' },
     });
     if (subscriberCount > 0) {
-      return res.status(400).json({ error: `该计划仍有 ${subscriberCount} 名活跃订阅者，无法删除` });
+      return res
+        .status(400)
+        .json({ error: `该计划仍有 ${subscriberCount} 名活跃订阅者，无法删除` });
     }
     await prisma.subscriptionPlan.delete({ where: { id } });
     res.json({ message: '订阅计划已删除' });
@@ -1561,9 +1629,9 @@ export const getAllSubscriptions = async (req: AuthRequest, res: Response) => {
     const subscriptions = await prisma.subscription.findMany({
       include: {
         user: { select: { id: true, name: true, email: true, avatarUrl: true } },
-        plan: true
+        plan: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(subscriptions);
   } catch (error) {
@@ -1572,7 +1640,17 @@ export const getAllSubscriptions = async (req: AuthRequest, res: Response) => {
 };
 
 export const createSubscription = async (req: AuthRequest, res: Response) => {
-  const { userId, planId, status, interval, startDate, endDate, autoRenew, cancelAtPeriodEnd, paymentMethod } = req.body;
+  const {
+    userId,
+    planId,
+    status,
+    interval,
+    startDate,
+    endDate,
+    autoRenew,
+    cancelAtPeriodEnd,
+    paymentMethod,
+  } = req.body;
 
   if (!userId || !planId) {
     return res.status(400).json({ error: '用户ID和计划ID为必填项' });
@@ -1602,8 +1680,8 @@ export const createSubscription = async (req: AuthRequest, res: Response) => {
       },
       include: {
         user: { select: { id: true, name: true, email: true, avatarUrl: true } },
-        plan: true
-      }
+        plan: true,
+      },
     });
 
     res.status(201).json(subscription);
@@ -1615,7 +1693,16 @@ export const createSubscription = async (req: AuthRequest, res: Response) => {
 
 export const updateSubscription = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { planId, status, interval, startDate, endDate, autoRenew, cancelAtPeriodEnd, paymentMethod } = req.body;
+  const {
+    planId,
+    status,
+    interval,
+    startDate,
+    endDate,
+    autoRenew,
+    cancelAtPeriodEnd,
+    paymentMethod,
+  } = req.body;
 
   try {
     const existing = await prisma.subscription.findUnique({ where: { id } });
@@ -1640,8 +1727,8 @@ export const updateSubscription = async (req: AuthRequest, res: Response) => {
       data: updateData,
       include: {
         user: { select: { id: true, name: true, email: true, avatarUrl: true } },
-        plan: true
-      }
+        plan: true,
+      },
     });
 
     res.json(subscription);
@@ -1667,9 +1754,9 @@ export const getAllTransactions = async (req: AuthRequest, res: Response) => {
   try {
     const transactions = await prisma.transaction.findMany({
       include: {
-        user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(transactions);
   } catch (error) {
@@ -1692,18 +1779,18 @@ export const getAuditLogs = async (req: AuthRequest, res: Response) => {
         skip,
         take: Number(limit),
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       }),
-      prisma.auditLog.count({ where })
+      prisma.auditLog.count({ where }),
     ]);
 
     res.json({
       logs,
       total,
       pages: Math.ceil(total / Number(limit)),
-      currentPage: Number(page)
+      currentPage: Number(page),
     });
   } catch (error) {
     console.error('Get Audit Logs Error:', error);

@@ -31,28 +31,32 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" } // Allow images to be loaded from this server
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow images to be loaded from this server
+  }),
+);
 
 const allowedOrigins = [
   'http://localhost:5173', // Vite default
   'http://localhost:3000',
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  }),
+);
 
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
@@ -83,7 +87,6 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/webhooks', webhookRoutes);
-
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

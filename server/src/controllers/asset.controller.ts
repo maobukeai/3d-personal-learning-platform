@@ -62,9 +62,9 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         size,
         categoryId,
         userId,
-        teamId: workspaceId
+        teamId: workspaceId,
       },
-      include: { category: true }
+      include: { category: true },
     });
 
     // Respond immediately to the user
@@ -73,19 +73,24 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
     // Process 3D metadata asynchronously in the background
     if (type === 'GLB' || type === 'GLTF') {
       const fullPath = path.join(__dirname, '../../uploads/assets', assetFile.filename);
-      
+
       // We don't await this, letting it run in the background
-      process3DAsset(fullPath).then(async (metadata) => {
-        if (metadata) {
-          await prisma.asset.update({
-            where: { id: asset.id },
-            data: { ...metadata }
-          });
-          console.log(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
-        }
-      }).catch(err => {
-        console.error(`[AssetProcessor] Background processing failed for asset: ${asset.id}`, err);
-      });
+      process3DAsset(fullPath)
+        .then(async (metadata) => {
+          if (metadata) {
+            await prisma.asset.update({
+              where: { id: asset.id },
+              data: { ...metadata },
+            });
+            console.log(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
+          }
+        })
+        .catch((err) => {
+          console.error(
+            `[AssetProcessor] Background processing failed for asset: ${asset.id}`,
+            err,
+          );
+        });
     }
 
     await auditService.log({
@@ -94,7 +99,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       module: AuditModule.ASSET,
       description: `Uploaded asset: ${asset.title}`,
       newValue: asset,
-      req
+      req,
     });
 
     // Broadcast activity
@@ -103,7 +108,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       user: req.user?.name || '有人',
       action: '发布了新资产',
       target: asset.title,
-      createdAt: asset.createdAt
+      createdAt: asset.createdAt,
     });
   } catch (error) {
     console.error('Upload asset error:', error);
@@ -117,7 +122,7 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
 
   try {
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, teamId: req.workspaceId }
+      where: { id, teamId: req.workspaceId },
     });
 
     if (!existingAsset) {
@@ -132,17 +137,17 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
     const asset = await prisma.asset.update({
       where: { id },
       data: updateData,
-      include: { category: true }
+      include: { category: true },
     });
 
     await auditService.log({
       userId: req.userId,
-      action: AuditAction.UPDATE_ASSET, 
+      action: AuditAction.UPDATE_ASSET,
       module: AuditModule.ASSET,
       description: `Updated asset: ${asset.title}`,
       oldValue: existingAsset,
       newValue: asset,
-      req
+      req,
     });
 
     res.json(asset);
@@ -159,7 +164,7 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
   try {
     // Verify ownership and workspace context
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string, teamId: req.workspaceId }
+      where: { id, userId: req.userId as string, teamId: req.workspaceId },
     });
 
     if (!existingAsset) {
@@ -168,7 +173,7 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
 
     const updateData: any = {
       hasAnimations: hasAnimations === true || hasAnimations === 'true',
-      dimensions
+      dimensions,
     };
 
     if (vertices !== undefined) updateData.vertices = parseInt(vertices);
@@ -178,7 +183,7 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
 
     const asset = await prisma.asset.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
     res.json(asset);
   } catch (error) {
@@ -198,7 +203,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
   try {
     // Verify ownership and workspace context
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string, teamId: req.workspaceId }
+      where: { id, userId: req.userId as string, teamId: req.workspaceId },
     });
 
     if (!existingAsset) {
@@ -211,10 +216,10 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
     }
 
     // Convert base64 to file
-    const base64Data = thumbnail.replace(/^data:image\/png;base64,/, "");
+    const base64Data = thumbnail.replace(/^data:image\/png;base64,/, '');
     const fileName = `thumb-${id}-${Date.now()}.png`;
     const filePath = path.join(assetsDir, fileName);
-    
+
     fs.writeFileSync(filePath, base64Data, 'base64');
 
     const thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${fileName}`;
@@ -226,7 +231,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
 
     const asset = await prisma.asset.update({
       where: { id },
-      data: { thumbnail: thumbnailUrl }
+      data: { thumbnail: thumbnailUrl },
     });
 
     res.json(asset);
@@ -249,10 +254,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
       where.categoryId = categoryId;
     }
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } }
-      ];
+      where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
     }
 
     const [assets, total] = await Promise.all([
@@ -264,11 +266,11 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
         include: {
           category: true,
           user: {
-            select: { name: true, avatarUrl: true }
-          }
-        }
+            select: { name: true, avatarUrl: true },
+          },
+        },
       }),
-      prisma.asset.count({ where })
+      prisma.asset.count({ where }),
     ]);
 
     res.json({
@@ -277,8 +279,8 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -290,7 +292,7 @@ export const getUserAssets = async (req: AuthRequest, res: Response) => {
     const assets = await prisma.asset.findMany({
       where: { teamId: req.workspaceId },
       orderBy: { createdAt: 'desc' },
-      include: { category: true }
+      include: { category: true },
     });
     res.json(assets);
   } catch (error) {
@@ -342,7 +344,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
       module: AuditModule.ASSET,
       description: `Deleted asset: ${asset.title}`,
       oldValue: asset,
-      req
+      req,
     });
 
     res.json({ message: 'Asset deleted successfully' });
@@ -359,8 +361,8 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response) => {
       where: status ? { status: status as string } : {},
       include: {
         user: {
-          select: { name: true, email: true, avatarUrl: true }
-        }
+          select: { name: true, email: true, avatarUrl: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -373,7 +375,7 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response) => {
 export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   const { status, rejectReason } = req.body;
-  
+
   if (!['APPROVED', 'REJECTED'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
@@ -392,7 +394,7 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
 
     const asset = await prisma.asset.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
     await auditService.log({
@@ -402,18 +404,19 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
       description: `管理员${status === 'APPROVED' ? '批准' : '拒绝'}了资产: ${asset.title}`,
       oldValue: { status: oldAsset.status },
       newValue: { status, rejectReason },
-      req
+      req,
     });
 
     await createNotification({
       type: 'SYSTEM',
       title: status === 'APPROVED' ? '资产审核通过' : '资产审核未通过',
-      content: status === 'REJECTED' && rejectReason
-        ? `你上传的资产 "${asset.title}" 未通过审核，原因：${rejectReason}`
-        : `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+      content:
+        status === 'REJECTED' && rejectReason
+          ? `你上传的资产 "${asset.title}" 未通过审核，原因：${rejectReason}`
+          : `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
       userId: asset.userId,
       link: '/assets',
-      category: 'SYSTEM'
+      category: 'SYSTEM',
     });
 
     res.json(asset);
@@ -444,24 +447,25 @@ export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) =>
 
     const result = await prisma.asset.updateMany({
       where: { id: { in: ids } },
-      data: updateData
+      data: updateData,
     });
 
     const assets = await prisma.asset.findMany({
       where: { id: { in: ids } },
-      select: { id: true, title: true, userId: true }
+      select: { id: true, title: true, userId: true },
     });
 
     for (const asset of assets) {
       await createNotification({
         type: 'SYSTEM',
         title: status === 'APPROVED' ? '资产审核通过' : '资产审核未通过',
-        content: status === 'REJECTED' && rejectReason
-          ? `你上传的资产 "${asset.title}" 未通过审核，原因：${rejectReason}`
-          : `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
+        content:
+          status === 'REJECTED' && rejectReason
+            ? `你上传的资产 "${asset.title}" 未通过审核，原因：${rejectReason}`
+            : `你上传的资产 "${asset.title}" 已被管理员${status === 'APPROVED' ? '批准' : '拒绝'}。`,
         userId: asset.userId,
         link: '/assets',
-        category: 'SYSTEM'
+        category: 'SYSTEM',
       });
     }
 
@@ -471,7 +475,7 @@ export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) =>
       module: AuditModule.ASSET,
       description: `管理员批量${status === 'APPROVED' ? '批准' : '拒绝'}了 ${result.count} 个资产`,
       newValue: { ids, status, rejectReason },
-      req
+      req,
     });
 
     res.json({ message: `成功更新 ${result.count} 个资产状态`, count: result.count });
@@ -490,7 +494,7 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
 
     const asset = await prisma.asset.update({
       where: { id },
-      data: { title, description, status, categoryId }
+      data: { title, description, status, categoryId },
     });
 
     await auditService.log({
@@ -500,7 +504,7 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
       description: `管理员更新了资产: ${asset.title}`,
       oldValue: oldAsset,
       newValue: asset,
-      req
+      req,
     });
 
     res.json(asset);
@@ -535,7 +539,7 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response) => {
       module: AuditModule.ASSET,
       description: `管理员删除了资产: ${asset.title}`,
       oldValue: asset,
-      req
+      req,
     });
 
     res.json({ message: 'Asset deleted successfully by admin' });

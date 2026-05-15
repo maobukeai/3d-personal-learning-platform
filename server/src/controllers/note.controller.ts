@@ -25,10 +25,7 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
         where.visibility = 'PRIVATE';
         where.userId = req.userId;
       } else {
-        where.OR = [
-          { visibility: 'PUBLIC' },
-          { visibility: 'PRIVATE', userId: req.userId }
-        ];
+        where.OR = [{ visibility: 'PUBLIC' }, { visibility: 'PRIVATE', userId: req.userId }];
       }
     }
 
@@ -39,9 +36,9 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
           OR: [
             { title: { contains: search as string } },
             { content: { contains: search as string } },
-            { summary: { contains: search as string } }
-          ]
-        }
+            { summary: { contains: search as string } },
+          ],
+        },
       ];
       delete where.OR;
     }
@@ -54,25 +51,13 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
       where.category = category as string;
     }
 
-    let orderBy: any = [
-      { isPinned: 'desc' as const },
-      { createdAt: 'desc' as const }
-    ];
+    let orderBy: any = [{ isPinned: 'desc' as const }, { createdAt: 'desc' as const }];
     if (sort === 'most_liked') {
-      orderBy = [
-        { isPinned: 'desc' as const },
-        { likes: { _count: 'desc' as const } }
-      ];
+      orderBy = [{ isPinned: 'desc' as const }, { likes: { _count: 'desc' as const } }];
     } else if (sort === 'most_viewed') {
-      orderBy = [
-        { isPinned: 'desc' as const },
-        { views: 'desc' as const }
-      ];
+      orderBy = [{ isPinned: 'desc' as const }, { views: 'desc' as const }];
     } else if (sort === 'oldest') {
-      orderBy = [
-        { isPinned: 'desc' as const },
-        { createdAt: 'asc' as const }
-      ];
+      orderBy = [{ isPinned: 'desc' as const }, { createdAt: 'asc' as const }];
     }
 
     const [notes, total] = await Promise.all([
@@ -80,27 +65,27 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
         where,
         include: {
           user: {
-            select: { id: true, name: true, avatarUrl: true }
+            select: { id: true, name: true, avatarUrl: true },
           },
           _count: {
-            select: { likes: true }
+            select: { likes: true },
           },
           likes: {
             where: { userId: req.userId },
-            select: { userId: true }
-          }
+            select: { userId: true },
+          },
         },
         orderBy,
         skip,
-        take: limit
+        take: limit,
       }),
-      prisma.note.count({ where })
+      prisma.note.count({ where }),
     ]);
 
-    const notesWithLiked = notes.map(n => ({
+    const notesWithLiked = notes.map((n) => ({
       ...n,
       isLiked: n.likes.length > 0,
-      likes: undefined
+      likes: undefined,
     }));
 
     res.json({
@@ -109,8 +94,8 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Get notes error:', error);
@@ -124,27 +109,24 @@ export const getPopularNotes = async (req: AuthRequest, res: Response) => {
       where: { visibility: 'PUBLIC', isPopular: true },
       include: {
         user: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true }
+          select: { likes: true },
         },
         likes: {
           where: { userId: req.userId },
-          select: { userId: true }
-        }
+          select: { userId: true },
+        },
       },
-      orderBy: [
-        { isPinned: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      take: 12
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      take: 12,
     });
 
-    const notesWithLiked = notes.map(n => ({
+    const notesWithLiked = notes.map((n) => ({
       ...n,
       isLiked: n.likes.length > 0,
-      likes: undefined
+      likes: undefined,
     }));
 
     res.json(notesWithLiked);
@@ -163,7 +145,7 @@ export const togglePopularNote = async (req: AuthRequest, res: Response) => {
   try {
     const note = await prisma.note.findUnique({
       where: { id },
-      select: { isPopular: true, visibility: true }
+      select: { isPopular: true, visibility: true },
     });
 
     if (!note) return res.status(404).json({ error: '笔记不存在' });
@@ -173,7 +155,7 @@ export const togglePopularNote = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.note.update({
       where: { id },
-      data: { isPopular: !note.isPopular }
+      data: { isPopular: !note.isPopular },
     });
 
     res.json({ isPopular: updated.isPopular });
@@ -188,11 +170,15 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await prisma.note.findUnique({
       where: { id },
-      select: { id: true, visibility: true, userId: true }
+      select: { id: true, visibility: true, userId: true },
     });
     if (!existing) return res.status(404).json({ error: '笔记不存在' });
 
-    if (existing.visibility === 'PRIVATE' && existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
+    if (
+      existing.visibility === 'PRIVATE' &&
+      existing.userId !== req.userId &&
+      req.user?.role !== 'ADMIN'
+    ) {
       return res.status(403).json({ error: '无权查看此笔记' });
     }
 
@@ -201,22 +187,22 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
       data: { views: { increment: 1 } },
       include: {
         user: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true }
+          select: { likes: true },
         },
         likes: {
           where: { userId: req.userId },
-          select: { userId: true }
-        }
-      }
+          select: { userId: true },
+        },
+      },
     });
 
     res.json({
       ...note,
       isLiked: note.likes.length > 0,
-      likes: undefined
+      likes: undefined,
     });
   } catch (error) {
     console.error('Get note by id error:', error);
@@ -243,16 +229,16 @@ export const createNote = async (req: AuthRequest, res: Response) => {
         visibility: visibility || 'PRIVATE',
         tags: tags || null,
         category: category?.trim() || null,
-        userId: req.userId as string
+        userId: req.userId as string,
       },
       include: {
         user: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true }
-        }
-      }
+          select: { likes: true },
+        },
+      },
     });
 
     res.status(201).json({ ...note, isLiked: false });
@@ -269,7 +255,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
   try {
     const note = await prisma.note.findUnique({
       where: { id },
-      select: { userId: true }
+      select: { userId: true },
     });
     if (!note) return res.status(404).json({ error: '笔记不存在' });
     if (note.userId !== req.userId && req.user?.role !== 'ADMIN') {
@@ -284,26 +270,26 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
         ...(summary !== undefined && { summary: summary?.trim() || null }),
         ...(visibility !== undefined && { visibility }),
         ...(tags !== undefined && { tags }),
-        ...(category !== undefined && { category: category?.trim() || null })
+        ...(category !== undefined && { category: category?.trim() || null }),
       },
       include: {
         user: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true }
+          select: { likes: true },
         },
         likes: {
           where: { userId: req.userId },
-          select: { userId: true }
-        }
-      }
+          select: { userId: true },
+        },
+      },
     });
 
     res.json({
       ...updated,
       isLiked: updated.likes.length > 0,
-      likes: undefined
+      likes: undefined,
     });
   } catch (error) {
     console.error('Update note error:', error);
@@ -316,7 +302,7 @@ export const deleteNote = async (req: AuthRequest, res: Response) => {
   try {
     const note = await prisma.note.findUnique({
       where: { id },
-      select: { userId: true }
+      select: { userId: true },
     });
     if (!note) return res.status(404).json({ error: '笔记不存在' });
     if (note.userId !== req.userId && req.user?.role !== 'ADMIN') {
@@ -336,7 +322,7 @@ export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
   try {
     const note = await prisma.note.findUnique({
       where: { id: noteId },
-      select: { id: true, visibility: true }
+      select: { id: true, visibility: true },
     });
     if (!note) return res.status(404).json({ error: '笔记不存在' });
     if (note.visibility === 'PRIVATE') {
@@ -344,7 +330,7 @@ export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
     }
 
     const existing = await prisma.noteLike.findUnique({
-      where: { noteId_userId: { noteId, userId: req.userId! } }
+      where: { noteId_userId: { noteId, userId: req.userId! } },
     });
 
     if (existing) {
@@ -352,7 +338,7 @@ export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
       res.json({ isLiked: false });
     } else {
       await prisma.noteLike.create({
-        data: { noteId, userId: req.userId! }
+        data: { noteId, userId: req.userId! },
       });
       res.json({ isLiked: true });
     }
@@ -367,16 +353,13 @@ export const getNoteTags = async (req: AuthRequest, res: Response) => {
     const notes = await prisma.note.findMany({
       where: {
         tags: { not: null },
-        OR: [
-          { visibility: 'PUBLIC' },
-          { visibility: 'PRIVATE', userId: req.userId }
-        ]
+        OR: [{ visibility: 'PUBLIC' }, { visibility: 'PRIVATE', userId: req.userId }],
       },
-      select: { tags: true }
+      select: { tags: true },
     });
 
     const tagSet = new Set<string>();
-    notes.forEach(n => {
+    notes.forEach((n) => {
       if (n.tags) {
         try {
           const tags = JSON.parse(n.tags);
@@ -399,16 +382,13 @@ export const getNoteCategories = async (req: AuthRequest, res: Response) => {
     const categories = await prisma.note.findMany({
       where: {
         category: { not: null },
-        OR: [
-          { visibility: 'PUBLIC' },
-          { visibility: 'PRIVATE', userId: req.userId }
-        ]
+        OR: [{ visibility: 'PUBLIC' }, { visibility: 'PRIVATE', userId: req.userId }],
       },
       select: { category: true },
-      distinct: ['category']
+      distinct: ['category'],
     });
 
-    res.json({ categories: categories.map(c => c.category).filter(Boolean) });
+    res.json({ categories: categories.map((c) => c.category).filter(Boolean) });
   } catch (error) {
     console.error('Get note categories error:', error);
     res.status(500).json({ error: 'Internal server error' });

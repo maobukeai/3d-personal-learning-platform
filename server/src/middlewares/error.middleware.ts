@@ -72,7 +72,11 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     error = new AppError('数据验证失败', 400);
   } else if (err instanceof Prisma.PrismaClientUnknownRequestError) {
     error = new AppError('未知的数据库请求错误', 500);
-  } else if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError' || err.name === 'NotBeforeError') {
+  } else if (
+    err.name === 'JsonWebTokenError' ||
+    err.name === 'TokenExpiredError' ||
+    err.name === 'NotBeforeError'
+  ) {
     error = handleJWTError(err);
   } else if (err.name === 'MulterError') {
     error = handleMulterError(err);
@@ -91,6 +95,6 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   res.status(statusCode).json({
     status: 'error',
     error: message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

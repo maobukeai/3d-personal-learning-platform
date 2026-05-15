@@ -19,10 +19,10 @@ interface User {
       name: string;
       displayName?: string;
       badgeColor?: string;
-    }
+    };
     status?: string;
     interval?: string;
-  }
+  };
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.post('/api/auth/login', {
           ...credentials,
-          deviceToken: this.deviceToken
+          deviceToken: this.deviceToken,
         });
         if (response.data.user) {
           this.user = response.data.user;
@@ -108,8 +108,8 @@ export const useAuthStore = defineStore('auth', {
         formData.append('avatar', file);
         const response = await api.post('/api/auth/upload-avatar', formData, {
           headers: {
-            'Content-Type': 'multipart/form-data'
-          }
+            'Content-Type': 'multipart/form-data',
+          },
         });
         this.user = response.data;
         localStorage.setItem('user', JSON.stringify(this.user));
@@ -248,6 +248,6 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('user');
       localStorage.removeItem('deviceToken');
       localStorage.removeItem('activeWorkspaceId');
-    }
-  }
+    },
+  },
 });

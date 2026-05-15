@@ -8,7 +8,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 export const getPlans = async (req: Request, res: Response) => {
   try {
     let plans = await prisma.subscriptionPlan.findMany({
-      orderBy: { priority: 'asc' }
+      orderBy: { priority: 'asc' },
     });
 
     if (plans.length === 0) {
@@ -26,7 +26,7 @@ export const getPlans = async (req: Request, res: Response) => {
               '1 个协作团队',
               '社区论坛支持',
               '基础材质库',
-              '标准渲染队列'
+              '标准渲染队列',
             ]),
             maxStorage: 1,
             maxTeams: 1,
@@ -34,7 +34,7 @@ export const getPlans = async (req: Request, res: Response) => {
             maxAssets: 50,
             priority: 0,
             isPopular: false,
-            badgeColor: '#6b7280'
+            badgeColor: '#6b7280',
           },
           {
             name: 'VIP',
@@ -50,7 +50,7 @@ export const getPlans = async (req: Request, res: Response) => {
               '1对1 技术支持',
               '项目版本历史',
               '高级导出格式',
-              '自定义工作空间'
+              '自定义工作空间',
             ]),
             maxStorage: 20,
             maxTeams: 999,
@@ -58,7 +58,7 @@ export const getPlans = async (req: Request, res: Response) => {
             maxAssets: 500,
             priority: 1,
             isPopular: true,
-            badgeColor: '#8b5cf6'
+            badgeColor: '#8b5cf6',
           },
           {
             name: 'SVIP',
@@ -76,7 +76,7 @@ export const getPlans = async (req: Request, res: Response) => {
               '白标定制服务',
               '团队管理后台',
               'SLA 保障 99.9%',
-              '优先功能体验'
+              '优先功能体验',
             ]),
             maxStorage: 9999,
             maxTeams: 999,
@@ -84,22 +84,23 @@ export const getPlans = async (req: Request, res: Response) => {
             maxAssets: 9999,
             priority: 2,
             isPopular: false,
-            badgeColor: '#f59e0b'
-          }
-        ]
+            badgeColor: '#f59e0b',
+          },
+        ],
       });
       plans = await prisma.subscriptionPlan.findMany({
-        orderBy: { priority: 'asc' }
+        orderBy: { priority: 'asc' },
       });
     }
 
-    res.json(plans.map(p => ({
-      ...p,
-      features: JSON.parse(p.features || '[]'),
-      yearlyDiscount: p.yearlyPrice && p.price > 0
-        ? Math.round((1 - p.yearlyPrice / (p.price * 12)) * 100)
-        : 0
-    })));
+    res.json(
+      plans.map((p) => ({
+        ...p,
+        features: JSON.parse(p.features || '[]'),
+        yearlyDiscount:
+          p.yearlyPrice && p.price > 0 ? Math.round((1 - p.yearlyPrice / (p.price * 12)) * 100) : 0,
+      })),
+    );
   } catch (error) {
     res.status(500).json({ error: '获取订阅计划失败' });
   }
@@ -110,18 +111,20 @@ export const getMySubscription = async (req: any, res: Response) => {
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
     if (!subscription) {
       const freePlan = await prisma.subscriptionPlan.findFirst({
-        where: { name: 'FREE' }
+        where: { name: 'FREE' },
       });
       return res.json({
-        plan: freePlan ? {
-          ...freePlan,
-          features: JSON.parse(freePlan.features || '[]')
-        } : null,
+        plan: freePlan
+          ? {
+              ...freePlan,
+              features: JSON.parse(freePlan.features || '[]'),
+            }
+          : null,
         status: 'ACTIVE',
         interval: 'MONTHLY',
         startDate: new Date(),
@@ -131,10 +134,14 @@ export const getMySubscription = async (req: any, res: Response) => {
       });
     }
 
-    if (subscription.endDate && new Date(subscription.endDate) < new Date() && subscription.status === 'ACTIVE') {
+    if (
+      subscription.endDate &&
+      new Date(subscription.endDate) < new Date() &&
+      subscription.status === 'ACTIVE'
+    ) {
       await prisma.subscription.update({
         where: { id: subscription.id },
-        data: { status: 'EXPIRED' }
+        data: { status: 'EXPIRED' },
       });
       subscription.status = 'EXPIRED';
     }
@@ -143,8 +150,8 @@ export const getMySubscription = async (req: any, res: Response) => {
       ...subscription,
       plan: {
         ...subscription.plan,
-        features: JSON.parse(subscription.plan.features || '[]')
-      }
+        features: JSON.parse(subscription.plan.features || '[]'),
+      },
     });
   } catch (error) {
     res.status(500).json({ error: '获取订阅信息失败' });
@@ -155,7 +162,7 @@ const calculateProratedRefund = (
   currentPlanPrice: number,
   currentPlanInterval: string,
   startDate: Date,
-  endDate: Date | null
+  endDate: Date | null,
 ): number => {
   if (!endDate) return 0;
   const totalDays = currentPlanInterval === 'YEARLY' ? 365 : 30;
@@ -176,16 +183,19 @@ export const createOrder = async (req: any, res: Response) => {
     if (!plan) return res.status(404).json({ error: '订阅计划不存在' });
 
     const billingInterval = interval || 'MONTHLY';
-    const amount = billingInterval === 'YEARLY' && plan.yearlyPrice
-      ? plan.yearlyPrice
-      : plan.price;
+    const amount = billingInterval === 'YEARLY' && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
     const existingSub = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
-    if (existingSub && existingSub.planId === planId && existingSub.status === 'ACTIVE' && existingSub.interval === billingInterval) {
+    if (
+      existingSub &&
+      existingSub.planId === planId &&
+      existingSub.status === 'ACTIVE' &&
+      existingSub.interval === billingInterval
+    ) {
       return res.status(400).json({ error: '您已订阅此计划' });
     }
 
@@ -204,13 +214,13 @@ export const createOrder = async (req: any, res: Response) => {
             : existingSub.plan.price,
           existingSub.interval,
           existingSub.startDate,
-          existingSub.endDate
+          existingSub.endDate,
         );
       }
     }
 
     const finalAmount = Math.max(0, amount - proratedRefund);
-    const description = isUpgrade 
+    const description = isUpgrade
       ? `升级至 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`
       : `订阅 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`;
 
@@ -221,7 +231,7 @@ export const createOrder = async (req: any, res: Response) => {
       planId,
       planName: plan.name,
       interval: billingInterval,
-      paymentMethod
+      paymentMethod,
     });
 
     res.json({
@@ -231,7 +241,7 @@ export const createOrder = async (req: any, res: Response) => {
       invoiceNo: transaction.invoiceNo,
       isUpgrade,
       proratedRefund,
-      paymentUrl
+      paymentUrl,
     });
   } catch (error) {
     console.error('Create order error:', error);
@@ -245,7 +255,7 @@ export const payOrder = async (req: any, res: Response) => {
 
   try {
     const transaction = await prisma.transaction.findUnique({
-      where: { id: orderId }
+      where: { id: orderId },
     });
 
     if (!transaction || transaction.userId !== userId || transaction.status !== 'PENDING') {
@@ -255,7 +265,7 @@ export const payOrder = async (req: any, res: Response) => {
     // Update payment method
     await prisma.transaction.update({
       where: { id: orderId },
-      data: { paymentMethod }
+      data: { paymentMethod },
     });
 
     let paymentUrl = null;
@@ -264,7 +274,13 @@ export const payOrder = async (req: any, res: Response) => {
       const notifyUrl = `${process.env.API_URL || 'http://localhost:3000'}/api/webhooks/alipay`;
       try {
         const { generatePaymentUrl } = require('../services/alipay');
-        paymentUrl = generatePaymentUrl(transaction.invoiceNo, transaction.amount, transaction.description, returnUrl, notifyUrl);
+        paymentUrl = generatePaymentUrl(
+          transaction.invoiceNo,
+          transaction.amount,
+          transaction.description,
+          returnUrl,
+          notifyUrl,
+        );
       } catch (error) {
         console.error('Failed to generate Alipay URL', error);
       }
@@ -279,7 +295,10 @@ export const payOrder = async (req: any, res: Response) => {
 export const verifyPayment = async (req: any, res: Response) => {
   const { orderId, paymentId } = req.body;
   try {
-    const transaction = await paymentService.verifyPayment(orderId, paymentId || `MOCK-${Date.now()}`);
+    const transaction = await paymentService.verifyPayment(
+      orderId,
+      paymentId || `MOCK-${Date.now()}`,
+    );
     res.json({ message: '支付验证成功', transaction });
   } catch (error: any) {
     res.status(400).json({ error: error.message || '支付验证失败' });
@@ -331,7 +350,7 @@ export const cancelSubscription = async (req: any, res: Response) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
@@ -354,7 +373,7 @@ export const cancelSubscription = async (req: any, res: Response) => {
           cancelAtPeriodEnd: false,
           autoRenew: false,
           endDate: new Date(),
-        }
+        },
       });
 
       await prisma.transaction.create({
@@ -366,7 +385,7 @@ export const cancelSubscription = async (req: any, res: Response) => {
           paymentMethod: subscription.paymentMethod,
           planName: subscription.plan.name,
           invoiceNo: `CNL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        }
+        },
       });
 
       res.json({ message: '订阅已立即取消', type: 'immediate' });
@@ -376,13 +395,13 @@ export const cancelSubscription = async (req: any, res: Response) => {
         data: {
           cancelAtPeriodEnd: true,
           autoRenew: false,
-        }
+        },
       });
 
       res.json({
         message: '订阅将在当前周期结束后取消',
         type: 'end_of_period',
-        endDate: subscription.endDate
+        endDate: subscription.endDate,
       });
     }
   } catch (error) {
@@ -424,7 +443,7 @@ export const cancelSubscriptionWith2FA = async (req: any, res: Response) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
@@ -447,7 +466,7 @@ export const cancelSubscriptionWith2FA = async (req: any, res: Response) => {
           cancelAtPeriodEnd: false,
           autoRenew: false,
           endDate: new Date(),
-        }
+        },
       });
 
       await prisma.transaction.create({
@@ -459,7 +478,7 @@ export const cancelSubscriptionWith2FA = async (req: any, res: Response) => {
           paymentMethod: subscription.paymentMethod,
           planName: subscription.plan.name,
           invoiceNo: `CNL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        }
+        },
       });
 
       res.json({ message: '订阅已立即取消', type: 'immediate' });
@@ -469,13 +488,13 @@ export const cancelSubscriptionWith2FA = async (req: any, res: Response) => {
         data: {
           cancelAtPeriodEnd: true,
           autoRenew: false,
-        }
+        },
       });
 
       res.json({
         message: '订阅将在当前周期结束后取消',
         type: 'end_of_period',
-        endDate: subscription.endDate
+        endDate: subscription.endDate,
       });
     }
   } catch (error) {
@@ -506,7 +525,7 @@ export const toggleAutoRenew = async (req: any, res: Response) => {
 
   try {
     const subscription = await prisma.subscription.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
@@ -518,12 +537,12 @@ export const toggleAutoRenew = async (req: any, res: Response) => {
       data: {
         autoRenew,
         cancelAtPeriodEnd: !autoRenew,
-      }
+      },
     });
 
     res.json({
       message: autoRenew ? '已开启自动续费' : '已关闭自动续费',
-      autoRenew
+      autoRenew,
     });
   } catch (error) {
     res.status(500).json({ error: '操作失败' });
@@ -535,7 +554,7 @@ export const getTransactions = async (req: any, res: Response) => {
   try {
     const transactions = await prisma.transaction.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(transactions);
   } catch (error) {
@@ -548,17 +567,17 @@ export const getStorageUsage = async (req: any, res: Response) => {
   try {
     const assets = await prisma.asset.findMany({
       where: { userId },
-      select: { size: true }
+      select: { size: true },
     });
 
     const materials = await prisma.material.findMany({
       where: { userId },
-      select: { id: true, fileSize: true }
+      select: { id: true, fileSize: true },
     });
 
     const showcases = await prisma.showcase.findMany({
       where: { userId },
-      select: { id: true }
+      select: { id: true },
     });
 
     const assetStorage = assets.reduce((sum, a) => sum + (a.size || 0), 0);
@@ -569,7 +588,7 @@ export const getStorageUsage = async (req: any, res: Response) => {
 
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
     const maxStorage = subscription?.plan?.maxStorage || 1;
@@ -593,17 +612,18 @@ export const getSubscriptionLimits = async (req: any, res: Response) => {
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
-    const plan = subscription?.plan || await prisma.subscriptionPlan.findFirst({ where: { name: 'FREE' } });
+    const plan =
+      subscription?.plan || (await prisma.subscriptionPlan.findFirst({ where: { name: 'FREE' } }));
 
     if (!plan) return res.status(500).json({ error: '无法获取计划信息' });
 
     const [teamCount, projectCount, assetCount] = await Promise.all([
       prisma.teamMember.count({ where: { userId } }),
       prisma.projectMember.count({ where: { userId } }),
-      prisma.asset.count({ where: { userId } })
+      prisma.asset.count({ where: { userId } }),
     ]);
 
     res.json({
@@ -626,7 +646,7 @@ export const checkSubscription = async (req: any, res: Response) => {
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true }
+      include: { plan: true },
     });
 
     if (!subscription) {
@@ -637,7 +657,7 @@ export const checkSubscription = async (req: any, res: Response) => {
       if (subscription.status === 'ACTIVE') {
         await prisma.subscription.update({
           where: { id: subscription.id },
-          data: { status: 'EXPIRED' }
+          data: { status: 'EXPIRED' },
         });
       }
       return res.json({
@@ -645,7 +665,7 @@ export const checkSubscription = async (req: any, res: Response) => {
         expired: true,
         planName: subscription.plan.name,
         endDate: subscription.endDate,
-        needsUpgrade: true
+        needsUpgrade: true,
       });
     }
 
@@ -655,7 +675,7 @@ export const checkSubscription = async (req: any, res: Response) => {
       cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       autoRenew: subscription.autoRenew,
       endDate: subscription.endDate,
-      needsUpgrade: false
+      needsUpgrade: false,
     });
   } catch (error) {
     res.status(500).json({ error: '检查订阅状态失败' });

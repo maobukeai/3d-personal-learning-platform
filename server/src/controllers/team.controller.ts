@@ -14,20 +14,20 @@ export const getTeams = async (req: AuthRequest, res: Response) => {
     const teams = await prisma.team.findMany({
       where: {
         members: {
-          some: { userId: req.userId as string }
-        }
+          some: { userId: req.userId as string },
+        },
       },
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, avatarUrl: true, email: true } }
-          }
+            user: { select: { id: true, name: true, avatarUrl: true, email: true } },
+          },
         },
         _count: {
-          select: { members: true }
-        }
+          select: { members: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(teams);
   } catch (error) {
@@ -45,12 +45,14 @@ export const getPublicTeams = async (req: AuthRequest, res: Response) => {
         type: 'TEAM',
         visibility: 'PUBLIC',
         ...(category && category !== '全部' ? { category: category as string } : {}),
-        ...(search ? {
-          OR: [
-            { name: { contains: search as string } },
-            { description: { contains: search as string } }
-          ]
-        } : {})
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search as string } },
+                { description: { contains: search as string } },
+              ],
+            }
+          : {}),
       },
       include: {
         _count: { select: { members: true } },
@@ -58,12 +60,12 @@ export const getPublicTeams = async (req: AuthRequest, res: Response) => {
         members: {
           take: 5,
           include: {
-            user: { select: { name: true, avatarUrl: true } }
-          }
-        }
+            user: { select: { name: true, avatarUrl: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: 20
+      take: 20,
     });
     res.json(teams);
   } catch (error) {
@@ -97,13 +99,13 @@ export const createTeam = async (req: AuthRequest, res: Response) => {
         members: {
           create: {
             userId,
-            role: 'OWNER'
-          }
-        }
+            role: 'OWNER',
+          },
+        },
       },
       include: {
-        members: true
-      }
+        members: true,
+      },
     });
 
     await auditService.log({
@@ -112,7 +114,7 @@ export const createTeam = async (req: AuthRequest, res: Response) => {
       module: AuditModule.TEAM,
       description: `Created team: ${team.name}`,
       newValue: team,
-      req
+      req,
     });
 
     res.status(201).json(team);
@@ -129,7 +131,7 @@ export const getTeamMembers = async (req: AuthRequest, res: Response) => {
 
     if (team.visibility === 'PRIVATE') {
       const membership = await prisma.teamMember.findFirst({
-        where: { teamId, userId: req.userId as string }
+        where: { teamId, userId: req.userId as string },
       });
       if (!membership) return res.status(403).json({ error: 'Forbidden' });
     }
@@ -138,19 +140,18 @@ export const getTeamMembers = async (req: AuthRequest, res: Response) => {
       where: { teamId },
       include: {
         user: {
-          select: { 
-            id: true, 
-            name: true, 
-            email: true, 
-            avatarUrl: true, 
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
             role: true,
             subscription: {
-              include: { plan: true }
-            }
-          }
-        }
-
-      }
+              include: { plan: true },
+            },
+          },
+        },
+      },
     });
     res.json(members);
   } catch (error) {
@@ -167,16 +168,16 @@ export const inviteToTeam = async (req: AuthRequest, res: Response) => {
     // Check if team exists and user is owner/admin
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
-    
+
     if (team.type === 'PERSONAL') {
       return res.status(400).json({ error: '个人空间不允许邀请其他成员' });
     }
 
-    const member = team.members.find(m => m.userId === inviterId);
+    const member = team.members.find((m) => m.userId === inviterId);
     if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
       return res.status(403).json({ error: 'Unauthorized to invite' });
     }
@@ -185,8 +186,8 @@ export const inviteToTeam = async (req: AuthRequest, res: Response) => {
     const existingMember = await prisma.user.findFirst({
       where: {
         email: inviteeEmail,
-        teamMemberships: { some: { teamId } }
-      }
+        teamMemberships: { some: { teamId } },
+      },
     });
     if (existingMember) return res.status(400).json({ error: 'User is already a member' });
 
@@ -195,8 +196,8 @@ export const inviteToTeam = async (req: AuthRequest, res: Response) => {
         teamId,
         inviteeEmail,
         status: 'PENDING',
-        expiresAt: { gt: new Date() }
-      }
+        expiresAt: { gt: new Date() },
+      },
     });
     if (existingInvitation) return res.status(400).json({ error: '该邮箱已有待处理的邀请' });
 
@@ -205,8 +206,8 @@ export const inviteToTeam = async (req: AuthRequest, res: Response) => {
         teamId,
         inviterId,
         inviteeEmail,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-      }
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      },
     });
 
     // Create notification for invitee if they exist
@@ -218,7 +219,7 @@ export const inviteToTeam = async (req: AuthRequest, res: Response) => {
         content: `${req.user?.name || '有人'} 邀请你加入团队: ${team.name}`,
         userId: invitee.id,
         link: `/team/${teamId}?invitationId=${invitation.id}`,
-        category: 'TEAM_ACTIVITY'
+        category: 'TEAM_ACTIVITY',
       });
     }
     res.status(201).json(invitation);
@@ -236,11 +237,11 @@ export const getMyInvitations = async (req: AuthRequest, res: Response) => {
       where: {
         inviteeEmail: user.email,
         status: 'PENDING',
-        expiresAt: { gt: new Date() }
+        expiresAt: { gt: new Date() },
       },
       include: {
-        team: { select: { name: true, avatarUrl: true } }
-      }
+        team: { select: { name: true, avatarUrl: true } },
+      },
     });
     res.json(invitations);
   } catch (error) {
@@ -256,23 +257,22 @@ export const getTeamById = async (req: AuthRequest, res: Response) => {
       include: {
         members: {
           include: {
-            user: { 
-              select: { 
-                id: true, 
-                name: true, 
-                email: true, 
-                avatarUrl: true, 
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatarUrl: true,
                 role: true,
                 subscription: {
-                  include: { plan: true }
-                }
-              } 
-            }
-
+                  include: { plan: true },
+                },
+              },
+            },
           },
-          orderBy: { joinedAt: 'asc' }
-        }
-      }
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
@@ -283,15 +283,15 @@ export const getTeamById = async (req: AuthRequest, res: Response) => {
       const [invitations, applications] = await Promise.all([
         prisma.teamInvitation.findMany({
           where: { teamId, status: 'PENDING' },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         }),
         prisma.teamApplication.findMany({
           where: { teamId, status: 'PENDING' },
           include: {
-            user: { select: { id: true, name: true, email: true, avatarUrl: true } }
+            user: { select: { id: true, name: true, email: true, avatarUrl: true } },
           },
-          orderBy: { createdAt: 'desc' }
-        })
+          orderBy: { createdAt: 'desc' },
+        }),
       ]);
       (team as any).invitations = invitations;
       (team as any).applications = applications;
@@ -314,7 +314,7 @@ export const respondToInvitation = async (req: AuthRequest, res: Response) => {
   try {
     const invitation = await prisma.teamInvitation.findUnique({
       where: { id: invitationId },
-      include: { team: true }
+      include: { team: true },
     });
 
     if (!invitation || invitation.status !== 'PENDING') {
@@ -324,7 +324,7 @@ export const respondToInvitation = async (req: AuthRequest, res: Response) => {
     if (invitation.expiresAt < new Date()) {
       await prisma.teamInvitation.update({
         where: { id: invitationId },
-        data: { status: 'REJECTED' }
+        data: { status: 'REJECTED' },
       });
       return res.status(400).json({ error: '邀请已过期' });
     }
@@ -336,12 +336,12 @@ export const respondToInvitation = async (req: AuthRequest, res: Response) => {
 
     if (accept) {
       const existingMembership = await prisma.teamMember.findUnique({
-        where: { teamId_userId: { teamId: invitation.teamId, userId } }
+        where: { teamId_userId: { teamId: invitation.teamId, userId } },
       });
       if (existingMembership) {
         await prisma.teamInvitation.update({
           where: { id: invitationId },
-          data: { status: 'ACCEPTED' }
+          data: { status: 'ACCEPTED' },
         });
         return res.status(400).json({ error: '你已经是该团队的成员' });
       }
@@ -349,21 +349,21 @@ export const respondToInvitation = async (req: AuthRequest, res: Response) => {
       await prisma.$transaction([
         prisma.teamInvitation.update({
           where: { id: invitationId },
-          data: { status: 'ACCEPTED' }
+          data: { status: 'ACCEPTED' },
         }),
         prisma.teamMember.create({
           data: {
             teamId: invitation.teamId,
             userId,
-            role: 'MEMBER'
-          }
-        })
+            role: 'MEMBER',
+          },
+        }),
       ]);
       res.json({ message: 'Joined team successfully' });
     } else {
       await prisma.teamInvitation.update({
         where: { id: invitationId },
-        data: { status: 'REJECTED' }
+        data: { status: 'REJECTED' },
       });
       res.json({ message: 'Invitation rejected' });
     }
@@ -378,7 +378,7 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
   try {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
@@ -395,8 +395,8 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
         ...(description !== undefined && { description }),
         ...(avatarUrl !== undefined && { avatarUrl }),
         ...(visibility !== undefined && { visibility }),
-        ...(category !== undefined && { category })
-      }
+        ...(category !== undefined && { category }),
+      },
     });
 
     await auditService.log({
@@ -406,7 +406,7 @@ export const updateTeam = async (req: AuthRequest, res: Response) => {
       description: `Updated team: ${updated.name}`,
       oldValue: team,
       newValue: updated,
-      req
+      req,
     });
 
     res.json(updated);
@@ -424,7 +424,7 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response) => {
 
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
@@ -436,10 +436,10 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response) => {
     }
 
     const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
-    
+
     const updated = await prisma.team.update({
       where: { id: teamId },
-      data: { avatarUrl }
+      data: { avatarUrl },
     });
 
     await auditService.log({
@@ -447,7 +447,7 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response) => {
       action: AuditAction.UPDATE_USER,
       module: AuditModule.TEAM,
       description: `Updated team avatar for: ${updated.name}`,
-      req
+      req,
     });
 
     res.json(updated);
@@ -460,14 +460,15 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response) => {
 export const deleteTeam = async (req: AuthRequest, res: Response) => {
   const teamId = req.params.teamId as string;
   const { code } = req.body;
-  
+
   try {
     const team = await prisma.team.findUnique({
-      where: { id: teamId }
+      where: { id: teamId },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
-    if (team.ownerId !== req.userId) return res.status(403).json({ error: 'Only owner can delete team' });
+    if (team.ownerId !== req.userId)
+      return res.status(403).json({ error: 'Only owner can delete team' });
     if (team.name === '公共空间' || team.type === 'PERSONAL') {
       return res.status(400).json({ error: '不能删除系统预置或个人空间' });
     }
@@ -491,16 +492,16 @@ export const deleteTeam = async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ error: '需要邮箱验证码', emailVerificationRequired: true });
       }
       const record = await prisma.verificationCode.findFirst({
-        where: { 
-          email: user.email, 
-          code, 
-          expiresAt: { gt: new Date() } 
+        where: {
+          email: user.email,
+          code,
+          expiresAt: { gt: new Date() },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
 
       if (!record) return res.status(400).json({ error: '验证码错误或已过期' });
-      
+
       // Clean up verification code
       await prisma.verificationCode.delete({ where: { id: record.id } });
     }
@@ -513,7 +514,7 @@ export const deleteTeam = async (req: AuthRequest, res: Response) => {
       module: AuditModule.TEAM,
       description: `Deleted team: ${team.name}`,
       oldValue: team,
-      req
+      req,
     });
 
     res.json({ message: 'Team deleted successfully' });
@@ -529,7 +530,7 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
   try {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
@@ -547,7 +548,7 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
     if (isSelfRemoval && currentMember.role === 'OWNER') {
       return res.status(400).json({ error: '团队所有者不能退出，请先转让所有权' });
     }
-    
+
     if (!isSelfRemoval && !['OWNER', 'ADMIN'].includes(currentMember.role)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -556,10 +557,15 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
     if (!targetMember) return res.status(404).json({ error: 'Member not found' });
 
     // Cannot remove owner
-    if (targetMember.role === 'OWNER') return res.status(400).json({ error: 'Cannot remove owner' });
-    
+    if (targetMember.role === 'OWNER')
+      return res.status(400).json({ error: 'Cannot remove owner' });
+
     // Admins cannot remove other admins (only owner can)
-    if (currentMember.role === 'ADMIN' && targetMember.role === 'ADMIN' && team.ownerId !== req.userId) {
+    if (
+      currentMember.role === 'ADMIN' &&
+      targetMember.role === 'ADMIN' &&
+      team.ownerId !== req.userId
+    ) {
       return res.status(403).json({ error: 'Admins cannot remove other admins' });
     }
 
@@ -578,12 +584,14 @@ export const applyToTeam = async (req: AuthRequest, res: Response) => {
     // Check if team exists
     const team = await prisma.team.findUnique({ where: { id: teamId } });
     if (!team) return res.status(404).json({ error: 'Team not found' });
-    if (team.type === 'PERSONAL') return res.status(400).json({ error: 'Cannot apply to personal space' });
-    if (team.visibility === 'PRIVATE') return res.status(400).json({ error: '私密团队不支持申请加入，请通过邀请加入' });
+    if (team.type === 'PERSONAL')
+      return res.status(400).json({ error: 'Cannot apply to personal space' });
+    if (team.visibility === 'PRIVATE')
+      return res.status(400).json({ error: '私密团队不支持申请加入，请通过邀请加入' });
 
     // Check if already a member
     const existingMember = await prisma.teamMember.findUnique({
-      where: { teamId_userId: { teamId, userId } }
+      where: { teamId_userId: { teamId, userId } },
     });
     if (existingMember) return res.status(400).json({ error: 'Already a member' });
 
@@ -591,7 +599,7 @@ export const applyToTeam = async (req: AuthRequest, res: Response) => {
     const application = await prisma.teamApplication.upsert({
       where: { teamId_userId: { teamId, userId } },
       update: { message, status: 'PENDING' },
-      create: { teamId, userId, message }
+      create: { teamId, userId, message },
     });
 
     // Notify owner
@@ -601,7 +609,7 @@ export const applyToTeam = async (req: AuthRequest, res: Response) => {
       content: `${req.user?.name || '有人'} 申请加入你的团队: ${team.name}`,
       userId: team.ownerId,
       link: `/team/${teamId}`,
-      category: 'TEAM_ACTIVITY'
+      category: 'TEAM_ACTIVITY',
     });
 
     res.status(201).json(application);
@@ -617,16 +625,16 @@ export const getTeamApplications = async (req: AuthRequest, res: Response) => {
   try {
     // Check if user is owner/admin
     const member = await prisma.teamMember.findFirst({
-      where: { teamId, userId, role: { in: ['OWNER', 'ADMIN'] } }
+      where: { teamId, userId, role: { in: ['OWNER', 'ADMIN'] } },
     });
     if (!member) return res.status(403).json({ error: 'Unauthorized' });
 
     const applications = await prisma.teamApplication.findMany({
       where: { teamId, status: 'PENDING' },
       include: {
-        user: { select: { id: true, name: true, avatarUrl: true, email: true } }
+        user: { select: { id: true, name: true, avatarUrl: true, email: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(applications);
   } catch (error) {
@@ -641,7 +649,7 @@ export const respondToApplication = async (req: AuthRequest, res: Response) => {
   try {
     const application = await prisma.teamApplication.findUnique({
       where: { id: applicationId },
-      include: { team: true }
+      include: { team: true },
     });
 
     if (!application || application.status !== 'PENDING') {
@@ -650,18 +658,18 @@ export const respondToApplication = async (req: AuthRequest, res: Response) => {
 
     // Check if user is owner/admin of the team
     const member = await prisma.teamMember.findFirst({
-      where: { teamId: application.teamId, userId, role: { in: ['OWNER', 'ADMIN'] } }
+      where: { teamId: application.teamId, userId, role: { in: ['OWNER', 'ADMIN'] } },
     });
     if (!member) return res.status(403).json({ error: 'Unauthorized' });
 
     if (accept) {
       const existingMembership = await prisma.teamMember.findUnique({
-        where: { teamId_userId: { teamId: application.teamId, userId: application.userId } }
+        where: { teamId_userId: { teamId: application.teamId, userId: application.userId } },
       });
       if (existingMembership) {
         await prisma.teamApplication.update({
           where: { id: applicationId },
-          data: { status: 'APPROVED' }
+          data: { status: 'APPROVED' },
         });
         return res.status(400).json({ error: '该用户已经是团队成员' });
       }
@@ -669,15 +677,15 @@ export const respondToApplication = async (req: AuthRequest, res: Response) => {
       await prisma.$transaction([
         prisma.teamApplication.update({
           where: { id: applicationId },
-          data: { status: 'APPROVED' }
+          data: { status: 'APPROVED' },
         }),
         prisma.teamMember.create({
           data: {
             teamId: application.teamId,
             userId: application.userId,
-            role: 'MEMBER'
-          }
-        })
+            role: 'MEMBER',
+          },
+        }),
       ]);
 
       // Notify applicant
@@ -687,14 +695,14 @@ export const respondToApplication = async (req: AuthRequest, res: Response) => {
         content: `你加入团队"${application.team.name}" 的申请已被批准！`,
         userId: application.userId,
         link: `/team/${application.teamId}`,
-        category: 'TEAM_ACTIVITY'
+        category: 'TEAM_ACTIVITY',
       });
 
       res.json({ message: 'Application approved' });
     } else {
       await prisma.teamApplication.update({
         where: { id: applicationId },
-        data: { status: 'REJECTED' }
+        data: { status: 'REJECTED' },
       });
 
       await createNotification({
@@ -702,7 +710,7 @@ export const respondToApplication = async (req: AuthRequest, res: Response) => {
         title: '加入申请未通过',
         content: `你加入团队"${application.team.name}" 的申请已被拒绝。`,
         userId: application.userId,
-        category: 'TEAM_ACTIVITY'
+        category: 'TEAM_ACTIVITY',
       });
 
       res.json({ message: 'Application rejected' });
@@ -722,7 +730,7 @@ export const addMemberDirectly = async (req: AuthRequest, res: Response) => {
   try {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
@@ -732,21 +740,21 @@ export const addMemberDirectly = async (req: AuthRequest, res: Response) => {
     }
 
     // Check permissions
-    const currentMember = team.members.find(m => m.userId === currentUserId);
+    const currentMember = team.members.find((m) => m.userId === currentUserId);
     if (!currentMember || !['OWNER', 'ADMIN'].includes(currentMember.role)) {
       return res.status(403).json({ error: 'Unauthorized to add members' });
     }
 
     // Check if user already a member
-    const existingMember = team.members.find(m => m.userId === userId);
+    const existingMember = team.members.find((m) => m.userId === userId);
     if (existingMember) return res.status(400).json({ error: 'User is already a member' });
 
     const newMember = await prisma.teamMember.create({
       data: {
         teamId,
         userId,
-        role
-      }
+        role,
+      },
     });
 
     res.status(201).json(newMember);
@@ -767,17 +775,17 @@ export const updateMemberRole = async (req: AuthRequest, res: Response) => {
   try {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!team) return res.status(404).json({ error: 'Team not found' });
 
-    const currentMember = team.members.find(m => m.userId === currentUserId);
+    const currentMember = team.members.find((m) => m.userId === currentUserId);
     if (!currentMember || !['OWNER', 'ADMIN'].includes(currentMember.role)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    const targetMember = team.members.find(m => m.userId === userId);
+    const targetMember = team.members.find((m) => m.userId === userId);
     if (!targetMember) return res.status(404).json({ error: 'Member not found' });
 
     // Only OWNER can promote/demote ADMINs
@@ -791,7 +799,7 @@ export const updateMemberRole = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.teamMember.update({
       where: { id: targetMember.id },
-      data: { role }
+      data: { role },
     });
 
     res.json(updated);
@@ -807,12 +815,12 @@ export const cancelInvitation = async (req: AuthRequest, res: Response) => {
   try {
     const invitation = await prisma.teamInvitation.findUnique({
       where: { id: invitationId },
-      include: { team: { include: { members: true } } }
+      include: { team: { include: { members: true } } },
     });
 
     if (!invitation) return res.status(404).json({ error: 'Invitation not found' });
 
-    const currentMember = invitation.team.members.find(m => m.userId === currentUserId);
+    const currentMember = invitation.team.members.find((m) => m.userId === currentUserId);
     if (!currentMember || !['OWNER', 'ADMIN'].includes(currentMember.role)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }

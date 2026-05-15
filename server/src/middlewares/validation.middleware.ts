@@ -29,18 +29,24 @@ const validateField = (value: any, rule: ValidationRule, field: string): string 
   switch (rule.type) {
     case 'string':
       if (typeof value !== 'string') return rule.message || `${field} 必须为字符串`;
-      if (rule.minLength && value.length < rule.minLength) return rule.message || `${field} 长度不能少于 ${rule.minLength}`;
-      if (rule.maxLength && value.length > rule.maxLength) return rule.message || `${field} 长度不能超过 ${rule.maxLength}`;
+      if (rule.minLength && value.length < rule.minLength)
+        return rule.message || `${field} 长度不能少于 ${rule.minLength}`;
+      if (rule.maxLength && value.length > rule.maxLength)
+        return rule.message || `${field} 长度不能超过 ${rule.maxLength}`;
       if (rule.pattern && !rule.pattern.test(value)) return rule.message || `${field} 格式不正确`;
       break;
     case 'number':
-      if (typeof value !== 'number' && isNaN(Number(value))) return rule.message || `${field} 必须为数字`;
+      if (typeof value !== 'number' && isNaN(Number(value)))
+        return rule.message || `${field} 必须为数字`;
       const num = Number(value);
-      if (rule.min !== undefined && num < rule.min) return rule.message || `${field} 不能小于 ${rule.min}`;
-      if (rule.max !== undefined && num > rule.max) return rule.message || `${field} 不能大于 ${rule.max}`;
+      if (rule.min !== undefined && num < rule.min)
+        return rule.message || `${field} 不能小于 ${rule.min}`;
+      if (rule.max !== undefined && num > rule.max)
+        return rule.message || `${field} 不能大于 ${rule.max}`;
       break;
     case 'email':
-      if (typeof value !== 'string' || !EMAIL_REGEX.test(value)) return rule.message || `${field} 邮箱格式不正确`;
+      if (typeof value !== 'string' || !EMAIL_REGEX.test(value))
+        return rule.message || `${field} 邮箱格式不正确`;
       break;
     case 'boolean':
       if (typeof value !== 'boolean') return rule.message || `${field} 必须为布尔值`;

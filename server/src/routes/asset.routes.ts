@@ -10,7 +10,15 @@ router.use(authenticate);
 import * as categoryController from '../controllers/category.controller';
 router.get('/categories', categoryController.getAllCategories);
 
-router.post('/upload', upload.fields([{ name: 'asset', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }]), validateFileContent, assetController.uploadAsset);
+router.post(
+  '/upload',
+  upload.fields([
+    { name: 'asset', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+  ]),
+  validateFileContent,
+  assetController.uploadAsset,
+);
 router.get('/my', assetController.getUserAssets);
 router.get('/public', assetController.getPublicAssets);
 router.get('/:id', assetController.getAssetById);

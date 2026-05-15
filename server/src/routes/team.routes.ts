@@ -29,11 +29,15 @@ router.post('/members', teamController.addMemberDirectly);
 // Param routes last
 router.get('/:teamId', teamController.getTeamById);
 router.patch('/:teamId', teamController.updateTeam);
-router.post('/:teamId/upload-avatar', upload.single('avatar'), validateFileContent, teamController.uploadTeamAvatar);
+router.post(
+  '/:teamId/upload-avatar',
+  upload.single('avatar'),
+  validateFileContent,
+  teamController.uploadTeamAvatar,
+);
 router.delete('/:teamId', sanitizeInput, teamController.deleteTeam);
 router.get('/:teamId/members', teamController.getTeamMembers);
 router.delete('/:teamId/members/:userId', teamController.removeMember);
 router.patch('/:teamId/members/:userId/role', teamController.updateMemberRole);
 
 export default router;
-

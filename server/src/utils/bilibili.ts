@@ -1,4 +1,3 @@
-
 export interface BilibiliMetadata {
   title: string;
   description: string;
@@ -39,21 +38,25 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   // Fetch video page HTML
   const htmlResponse = await fetch(`https://www.bilibili.com/video/${bvid}`, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://www.bilibili.com'
-    }
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      Referer: 'https://www.bilibili.com',
+    },
   });
 
   const html = await htmlResponse.text();
-  const match = html.match(/window\.__INITIAL_STATE__=(.+?);\(function\(\)/) || html.match(/window\.__INITIAL_STATE__=(.+?);<\/script>/);
-  
+  const match =
+    html.match(/window\.__INITIAL_STATE__=(.+?);\(function\(\)/) ||
+    html.match(/window\.__INITIAL_STATE__=(.+?);<\/script>/);
+
   if (!match || !match[1]) {
     // Fallback to API if HTML parsing fails
     const viewResponse = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.bilibili.com'
-      }
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: 'https://www.bilibili.com',
+      },
     });
     const viewJson = await viewResponse.json();
     if (viewJson.code !== 0) {
@@ -74,7 +77,9 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
 }
 
 async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliMetadata> {
-  console.log(`[Bilibili] Parsing Data: ugc_season=${!!data.ugc_season}, archive_series=${!!data.archive_series}, pages=${data.pages?.length}`);
+  console.log(
+    `[Bilibili] Parsing Data: ugc_season=${!!data.ugc_season}, archive_series=${!!data.archive_series}, pages=${data.pages?.length}`,
+  );
 
   // A. Professional Collection (ugc_season)
   if (data.ugc_season && data.ugc_season.sections) {
@@ -86,26 +91,31 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
         lessons.push({
           title: episode.title,
           videoUrl: `https://player.bilibili.com/player.html?bvid=${episode.bvid}&cid=${episode.cid}&page=1&high_quality=1&as_wide=1&danmaku=0`,
-          order: order++
+          order: order++,
         });
       }
     }
     return { title: data.title, description: data.desc, thumbnail: fixPic(data.pic), lessons };
-  } 
-  
+  }
+
   // B. Archive Series (Space Series)
   if (data.archive_series && data.archive_series.series_id) {
     console.log(`[Bilibili] Handling as Archive Series: ${data.archive_series.series_id}`);
-    return await fetchBilibiliSeries(data.archive_series.series_id, data.owner?.mid || 0, data.title, data.pic);
+    return await fetchBilibiliSeries(
+      data.archive_series.series_id,
+      data.owner?.mid || 0,
+      data.title,
+      data.pic,
+    );
   }
-  
+
   // C. Multi-part Video (Pages)
   if (data.pages && data.pages.length > 1) {
     console.log(`[Bilibili] Handling as Multi-part Video (${data.pages.length} pages)`);
     const lessons = data.pages.map((page: any) => ({
       title: page.part || data.title + ` (P${page.page})`,
       videoUrl: `https://player.bilibili.com/player.html?bvid=${bvid}&cid=${page.cid}&page=${page.page}&high_quality=1&as_wide=1&danmaku=0`,
-      order: page.page
+      order: page.page,
     }));
     return { title: data.title, description: data.desc, thumbnail: fixPic(data.pic), lessons };
   }
@@ -116,11 +126,13 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
     title: data.title,
     description: data.desc,
     thumbnail: fixPic(data.pic),
-    lessons: [{
-      title: data.title,
-      videoUrl: `https://player.bilibili.com/player.html?bvid=${bvid}&cid=${data.cid || (data.pages && data.pages[0]?.cid)}&page=1&high_quality=1&as_wide=1&danmaku=0`,
-      order: 1
-    }]
+    lessons: [
+      {
+        title: data.title,
+        videoUrl: `https://player.bilibili.com/player.html?bvid=${bvid}&cid=${data.cid || (data.pages && data.pages[0]?.cid)}&page=1&high_quality=1&as_wide=1&danmaku=0`,
+        order: 1,
+      },
+    ],
   };
 }
 
@@ -129,13 +141,22 @@ function fixPic(pic: string) {
   return pic.startsWith('//') ? 'https:' + pic : pic;
 }
 
-async function fetchBilibiliSeries(seriesId: number, mid: number, defaultTitle: string, defaultPic: string): Promise<BilibiliMetadata> {
-  const seriesResponse = await fetch(`https://api.bilibili.com/x/series/archives?mid=${mid}&series_id=${seriesId}&only_normal=true&sort=asc&pn=1&ps=100`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://www.bilibili.com'
-    }
-  });
+async function fetchBilibiliSeries(
+  seriesId: number,
+  mid: number,
+  defaultTitle: string,
+  defaultPic: string,
+): Promise<BilibiliMetadata> {
+  const seriesResponse = await fetch(
+    `https://api.bilibili.com/x/series/archives?mid=${mid}&series_id=${seriesId}&only_normal=true&sort=asc&pn=1&ps=100`,
+    {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: 'https://www.bilibili.com',
+      },
+    },
+  );
 
   const seriesJson = await seriesResponse.json();
   if (seriesJson.code !== 0) {
@@ -145,24 +166,28 @@ async function fetchBilibiliSeries(seriesId: number, mid: number, defaultTitle: 
   const lessons = seriesJson.data.archives.map((archive: any, index: number) => ({
     title: archive.title,
     videoUrl: `https://player.bilibili.com/player.html?bvid=${archive.bvid}&cid=${archive.cid}&page=1&high_quality=1&as_wide=1&danmaku=0`,
-    order: index + 1
+    order: index + 1,
   }));
 
   return {
     title: defaultTitle,
     description: 'B站 系列视频导入',
     thumbnail: fixPic(defaultPic),
-    lessons
+    lessons,
   };
 }
 
 async function fetchBilibiliMediaList(mlid: string): Promise<BilibiliMetadata> {
-  const response = await fetch(`https://api.bilibili.com/x/v1/medialist/resource/list?type=3&oid=${mlid}&pn=1&ps=100`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://www.bilibili.com'
-    }
-  });
+  const response = await fetch(
+    `https://api.bilibili.com/x/v1/medialist/resource/list?type=3&oid=${mlid}&pn=1&ps=100`,
+    {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: 'https://www.bilibili.com',
+      },
+    },
+  );
 
   const json = await response.json();
   if (json.code !== 0) {
@@ -172,13 +197,13 @@ async function fetchBilibiliMediaList(mlid: string): Promise<BilibiliMetadata> {
   const lessons = json.data.medias.map((media: any, index: number) => ({
     title: media.title,
     videoUrl: `https://player.bilibili.com/player.html?bvid=${media.bv_id}&cid=${media.id}&page=1&high_quality=1&as_wide=1&danmaku=0`,
-    order: index + 1
+    order: index + 1,
   }));
 
   return {
     title: 'B站 播放列表',
     description: '通过 mlid 导入的播放列表',
     thumbnail: lessons[0] ? 'https://i0.hdslb.com/bfs/archive/' : '', // Placeholder
-    lessons
+    lessons,
   };
 }

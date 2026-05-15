@@ -7,7 +7,7 @@ import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 
 export const getAllShowcases = async (req: AuthRequest, res: Response) => {
-// ... existing code ...
+  const { filter, type } = req.query;
 
   try {
     let orderBy: any = { createdAt: 'desc' };
@@ -16,32 +16,32 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
     }
 
     const where: any = {
-      status: 'APPROVED'
+      status: 'APPROVED',
     };
     if (type && type !== '全部') {
-      where.type = type;
+      where.type = type as string;
     }
 
     const showcases = await prisma.showcase.findMany({
       where,
       include: {
         user: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
+          select: { id: true, name: true, email: true, avatarUrl: true },
         },
         asset: {
-          select: { id: true, title: true, url: true, type: true, thumbnail: true }
+          select: { id: true, title: true, url: true, type: true, thumbnail: true },
         },
         _count: {
-          select: { likes: true, comments: true }
+          select: { likes: true, comments: true },
         },
         likes: {
-          where: { userId: req.userId as string }
-        }
+          where: { userId: req.userId as string },
+        },
       },
-      orderBy
+      orderBy,
     });
 
-    const formatted = showcases.map(s => ({
+    const formatted = showcases.map((s) => ({
       id: s.id,
       title: s.title,
       description: s.description,
@@ -59,7 +59,7 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
       user: s.user,
       isLiked: s.likes.length > 0,
       likesCount: s._count.likes,
-      commentsCount: s._count.comments
+      commentsCount: s._count.comments,
     }));
 
     res.json(formatted);
@@ -75,18 +75,18 @@ export const getShowcaseById = async (req: AuthRequest, res: Response) => {
       where: { id },
       include: {
         user: {
-          select: { id: true, name: true, email: true, avatarUrl: true, bio: true }
+          select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
         },
         asset: {
-          select: { id: true, title: true, url: true, type: true, thumbnail: true }
+          select: { id: true, title: true, url: true, type: true, thumbnail: true },
         },
         _count: {
-          select: { likes: true, comments: true }
+          select: { likes: true, comments: true },
         },
         likes: {
-          where: { userId: req.userId as string }
-        }
-      }
+          where: { userId: req.userId as string },
+        },
+      },
     });
 
     if (!showcase) {
@@ -95,7 +95,7 @@ export const getShowcaseById = async (req: AuthRequest, res: Response) => {
 
     await prisma.showcase.update({
       where: { id },
-      data: { views: { increment: 1 } }
+      data: { views: { increment: 1 } },
     });
 
     res.json({
@@ -103,7 +103,7 @@ export const getShowcaseById = async (req: AuthRequest, res: Response) => {
       isLiked: showcase.likes.length > 0,
       likesCount: showcase._count.likes,
       commentsCount: showcase._count.comments,
-      views: showcase.views + 1
+      views: showcase.views + 1,
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -116,10 +116,10 @@ export const getMyShowcases = async (req: AuthRequest, res: Response) => {
       where: { userId: req.userId as string },
       include: {
         _count: {
-          select: { likes: true, comments: true }
-        }
+          select: { likes: true, comments: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(showcases);
   } catch (error) {
@@ -139,12 +139,20 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: '标题不能为空' });
     }
 
+    let showcaseType = type || 'IMAGE';
+    if (assetId && !type) {
+      showcaseType = 'MODEL';
+    }
+    if (isVideo === 'true' && !type) {
+      showcaseType = 'VIDEO';
+    }
+
     let thumbnailUrl = '';
     if (thumbnailFile) {
       thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     } else if (assetId) {
       const asset = await prisma.asset.findUnique({
-        where: { id: assetId }
+        where: { id: assetId },
       });
       if (asset?.thumbnail) {
         thumbnailUrl = asset.thumbnail;
@@ -156,16 +164,8 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
     }
 
     const imageUrls = imageFiles.map(
-      f => `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`
+      (f) => `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
     );
-
-    let showcaseType = type || 'IMAGE';
-    if (assetId && !type) {
-      showcaseType = 'MODEL';
-    }
-    if (isVideo === 'true' && !type) {
-      showcaseType = 'VIDEO';
-    }
 
     const showcase = await prisma.showcase.create({
       data: {
@@ -179,16 +179,16 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
         isVideo: isVideo === 'true',
         assetId: assetId || null,
         userId: req.userId as string,
-        teamId: req.workspaceId
+        teamId: req.workspaceId,
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
+          select: { id: true, name: true, email: true, avatarUrl: true },
         },
         asset: {
-          select: { id: true, title: true, url: true, type: true, thumbnail: true }
-        }
-      }
+          select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+      },
     });
 
     await auditService.log({
@@ -197,7 +197,7 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
       module: AuditModule.SHOWCASE,
       description: `Created showcase: ${showcase.title}`,
       newValue: showcase,
-      req
+      req,
     });
 
     res.status(201).json(showcase);
@@ -219,8 +219,8 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
     const asset = await prisma.asset.findFirst({
       where: {
         id: assetId,
-        userId: req.userId as string
-      }
+        userId: req.userId as string,
+      },
     });
 
     if (!asset) {
@@ -228,7 +228,7 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
     }
 
     const existingShowcase = await prisma.showcase.findFirst({
-      where: { assetId }
+      where: { assetId },
     });
     if (existingShowcase) {
       return res.status(400).json({ error: '该作品已发布到展示墙' });
@@ -240,20 +240,21 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
         description: description || asset.description || null,
         tags: tags || null,
         type: 'MODEL',
-        thumbnailUrl: asset.thumbnail || `${req.protocol}://${req.get('host')}/uploads/assets/placeholder.png`,
+        thumbnailUrl:
+          asset.thumbnail || `${req.protocol}://${req.get('host')}/uploads/assets/placeholder.png`,
         assetId: asset.id,
         isVideo: false,
         userId: req.userId as string,
-        teamId: req.workspaceId || asset.teamId
+        teamId: req.workspaceId || asset.teamId,
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
+          select: { id: true, name: true, email: true, avatarUrl: true },
         },
         asset: {
-          select: { id: true, title: true, url: true, type: true, thumbnail: true }
-        }
-      }
+          select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+      },
     });
 
     await auditService.log({
@@ -262,7 +263,7 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
       module: AuditModule.SHOWCASE,
       description: `Published asset to showcase: ${showcase.title}`,
       newValue: showcase,
-      req
+      req,
     });
 
     res.status(201).json(showcase);
@@ -276,7 +277,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const showcase = await prisma.showcase.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!showcase) {
@@ -306,7 +307,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
     }
     if (imageFiles.length > 0) {
       const imageUrls = imageFiles.map(
-        f => `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`
+        (f) => `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
       );
       const existingImages = showcase.images ? JSON.parse(showcase.images) : [];
       updateData.images = JSON.stringify([...existingImages, ...imageUrls]);
@@ -317,12 +318,12 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
       data: updateData,
       include: {
         user: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
+          select: { id: true, name: true, email: true, avatarUrl: true },
         },
         asset: {
-          select: { id: true, title: true, url: true, type: true, thumbnail: true }
-        }
-      }
+          select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+      },
     });
 
     await auditService.log({
@@ -332,7 +333,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
       description: `Updated showcase: ${updated.title}`,
       oldValue: showcase,
       newValue: updated,
-      req
+      req,
     });
 
     res.json(updated);
@@ -345,7 +346,7 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const showcase = await prisma.showcase.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!showcase) {
@@ -364,7 +365,7 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.showcase.delete({
-      where: { id }
+      where: { id },
     });
 
     await auditService.log({
@@ -373,7 +374,7 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
       module: AuditModule.SHOWCASE,
       description: `Deleted showcase: ${showcase.title}`,
       oldValue: showcase,
-      req
+      req,
     });
 
     res.json({ message: 'Deleted successfully' });
@@ -387,20 +388,20 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
   const userId = req.userId as string;
   try {
     const existing = await prisma.showcaseLike.findUnique({
-      where: { showcaseId_userId: { showcaseId: id, userId } }
+      where: { showcaseId_userId: { showcaseId: id, userId } },
     });
 
     if (existing) {
       await prisma.showcaseLike.delete({
-        where: { id: existing.id }
+        where: { id: existing.id },
       });
       res.json({ liked: false });
     } else {
       const like = await prisma.showcaseLike.create({
         data: { showcaseId: id, userId },
         include: {
-          showcase: { select: { userId: true, title: true } }
-        }
+          showcase: { select: { userId: true, title: true } },
+        },
       });
 
       if ((like as any).showcase.userId !== userId) {
@@ -410,7 +411,7 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
           content: `${req.user?.name || '有人'} 点赞了你的作品: ${(like as any).showcase.title}`,
           userId: (like as any).showcase.userId,
           link: '/showcase',
-          category: 'MENTION'
+          category: 'MENTION',
         });
       }
 
@@ -427,9 +428,9 @@ export const getComments = async (req: AuthRequest, res: Response) => {
     const comments = await prisma.showcaseComment.findMany({
       where: { showcaseId: id },
       include: {
-        user: { select: { id: true, name: true, avatarUrl: true } }
+        user: { select: { id: true, name: true, avatarUrl: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(comments);
   } catch (error) {
@@ -448,12 +449,12 @@ export const addComment = async (req: AuthRequest, res: Response) => {
       data: {
         content: content.trim(),
         showcaseId: id,
-        userId: req.userId as string
+        userId: req.userId as string,
       },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
-        showcase: { select: { userId: true, title: true } }
-      }
+        showcase: { select: { userId: true, title: true } },
+      },
     });
 
     if ((comment as any).showcase.userId !== req.userId) {
@@ -463,7 +464,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
         content: `${req.user?.name || '有人'} 评论了你的作品: ${(comment as any).showcase.title}`,
         userId: (comment as any).showcase.userId,
         link: '/showcase',
-        category: 'MENTION'
+        category: 'MENTION',
       });
     }
     res.status(201).json(comment);
@@ -476,7 +477,7 @@ export const deleteComment = async (req: AuthRequest, res: Response) => {
   const { commentId } = req.params;
   try {
     const comment = await prisma.showcaseComment.findUnique({
-      where: { id: commentId }
+      where: { id: commentId },
     });
 
     if (!comment) {
@@ -488,7 +489,7 @@ export const deleteComment = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.showcaseComment.delete({
-      where: { id: commentId }
+      where: { id: commentId },
     });
 
     res.json({ message: 'Comment deleted successfully' });

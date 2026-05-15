@@ -14,7 +14,7 @@ export interface AssetMetadata {
 
 export async function process3DAsset(filePath: string): Promise<AssetMetadata | null> {
   const ext = path.extname(filePath).toLowerCase();
-  
+
   // Currently only supporting GLB/GLTF as they are standardized
   if (ext !== '.glb' && ext !== '.gltf') {
     return null;
@@ -47,19 +47,19 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
 
     const materials = root.listMaterials().length;
     const animations = root.listAnimations().length;
-    
+
     // Calculate dimensions using the first scene
     const scenes = root.listScenes();
     let dimensions = '0.00 x 0.00 x 0.00';
-    
+
     if (scenes.length > 0) {
       const bounds = getBounds(scenes[0]);
       const size = [
         Math.abs(bounds.max[0] - bounds.min[0]),
         Math.abs(bounds.max[1] - bounds.min[1]),
-        Math.abs(bounds.max[2] - bounds.min[2])
+        Math.abs(bounds.max[2] - bounds.min[2]),
       ];
-      dimensions = size.map(s => s.toFixed(2)).join(' x ');
+      dimensions = size.map((s) => s.toFixed(2)).join(' x ');
     }
 
     return {
@@ -68,7 +68,7 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
       materials,
       animations,
       hasAnimations: animations > 0,
-      dimensions
+      dimensions,
     };
   } catch (error) {
     console.error('Error processing 3D asset metadata:', error);

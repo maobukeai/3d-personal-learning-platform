@@ -2,16 +2,16 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Converts a URL (e.g., http://localhost:3000/uploads/assets/file.glb) 
+ * Converts a URL (e.g., http://localhost:3000/uploads/assets/file.glb)
  * to a local file path relative to the project root.
  */
 export function urlToPath(url: string | null | undefined): string | null {
   if (!url) return null;
-  
+
   try {
     const parts = url.split('/uploads/');
     if (parts.length < 2) return null;
-    
+
     // parts[1] is something like "assets/file.glb"
     const relativePath = parts[1];
     return path.join(__dirname, '../../uploads', relativePath);
@@ -26,7 +26,7 @@ export function urlToPath(url: string | null | undefined): string | null {
  */
 export function deleteFile(filePath: string | null): boolean {
   if (!filePath) return false;
-  
+
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

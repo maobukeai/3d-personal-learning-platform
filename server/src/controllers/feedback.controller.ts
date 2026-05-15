@@ -26,8 +26,8 @@ export const submitFeedback = async (req: AuthRequest, res: Response) => {
         description,
         priority,
         attachmentUrl,
-        userId: req.userId!
-      }
+        userId: req.userId!,
+      },
     });
 
     res.status(201).json(feedback);
@@ -41,7 +41,7 @@ export const getMyFeedback = async (req: AuthRequest, res: Response) => {
   try {
     const feedbacks = await prisma.feedback.findMany({
       where: { userId: req.userId as string },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(feedbacks);
   } catch (error) {

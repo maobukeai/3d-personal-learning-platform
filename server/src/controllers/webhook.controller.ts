@@ -20,7 +20,7 @@ export const alipayWebhook = async (req: Request, res: Response) => {
 
     if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
       const transaction = await prisma.transaction.findFirst({
-        where: { invoiceNo }
+        where: { invoiceNo },
       });
 
       if (transaction && transaction.status === 'PENDING') {

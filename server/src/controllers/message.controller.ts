@@ -10,19 +10,19 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
     const conversations = await prisma.conversation.findMany({
       where: {
         participants: {
-          some: { id: userId }
-        }
+          some: { id: userId },
+        },
       },
       include: {
         participants: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
+          select: { id: true, name: true, email: true, avatarUrl: true },
         },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
-            sender: { select: { id: true, name: true } }
-          }
+            sender: { select: { id: true, name: true } },
+          },
         },
         _count: {
           select: {
@@ -30,19 +30,19 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
               where: {
                 NOT: { senderId: userId },
                 readBy: {
-                  none: { userId }
-                }
-              }
-            }
-          }
-        }
+                  none: { userId },
+                },
+              },
+            },
+          },
+        },
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
     });
 
-    const formatted = conversations.map(c => ({
+    const formatted = conversations.map((c) => ({
       ...c,
-      unreadCount: c._count.messages
+      unreadCount: c._count.messages,
     }));
 
     res.json(formatted);
@@ -63,9 +63,9 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       where: {
         id: conversationId,
         participants: {
-          some: { id: userId }
-        }
-      }
+          some: { id: userId },
+        },
+      },
     });
 
     if (!conversation) {
@@ -75,26 +75,26 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     const messages = await prisma.message.findMany({
       where: {
         conversationId,
-        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {})
+        ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
       },
       include: {
         sender: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         readBy: true,
         reactions: {
           include: {
-            user: { select: { id: true, name: true } }
-          }
+            user: { select: { id: true, name: true } },
+          },
         },
         replyTo: {
           include: {
-            sender: { select: { id: true, name: true } }
-          }
-        }
+            sender: { select: { id: true, name: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit + 1
+      take: limit + 1,
     });
 
     const hasMore = messages.length > limit;
@@ -103,7 +103,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     res.json({
       messages: items.reverse(),
       hasMore,
-      nextCursor: hasMore ? items[0]?.createdAt : null
+      nextCursor: hasMore ? items[0]?.createdAt : null,
     });
   } catch (error) {
     console.error('Get messages error:', error);
@@ -127,9 +127,9 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
         },
         include: {
           participants: {
-            select: { id: true, name: true, email: true, avatarUrl: true }
-          }
-        }
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
+        },
       });
       if (existing && existing.participants.length === 2) return res.json(existing);
     }
@@ -140,14 +140,14 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
         avatarUrl,
         isGroup: !!isGroup,
         participants: {
-          connect: [currentUserId, ...participantIds].map(id => ({ id }))
-        }
+          connect: [currentUserId, ...participantIds].map((id) => ({ id })),
+        },
       },
       include: {
         participants: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     conversation.participants.forEach((p: any) => {
@@ -170,8 +170,8 @@ export const updateConversation = async (req: AuthRequest, res: Response) => {
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: conversationId,
-        participants: { some: { id: userId } }
-      }
+        participants: { some: { id: userId } },
+      },
     });
 
     if (!conversation) {
@@ -182,13 +182,13 @@ export const updateConversation = async (req: AuthRequest, res: Response) => {
       where: { id: conversationId },
       data: {
         ...(name !== undefined && { name }),
-        ...(avatarUrl !== undefined && { avatarUrl })
+        ...(avatarUrl !== undefined && { avatarUrl }),
       },
       include: {
         participants: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     emitToConversation(conversationId, 'conversation_updated', updated);
@@ -210,8 +210,8 @@ export const addParticipant = async (req: AuthRequest, res: Response) => {
       where: {
         id: conversationId,
         participants: { some: { id: userId } },
-        isGroup: true
-      }
+        isGroup: true,
+      },
     });
 
     if (!conversation) {
@@ -221,13 +221,13 @@ export const addParticipant = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        participants: { connect: { id: addUserId } }
+        participants: { connect: { id: addUserId } },
       },
       include: {
         participants: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     emitToConversation(conversationId, 'conversation_updated', updated);
@@ -250,8 +250,8 @@ export const removeParticipant = async (req: AuthRequest, res: Response) => {
       where: {
         id: conversationId,
         participants: { some: { id: userId } },
-        isGroup: true
-      }
+        isGroup: true,
+      },
     });
 
     if (!conversation) {
@@ -261,13 +261,13 @@ export const removeParticipant = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        participants: { disconnect: { id: removeUserId } }
+        participants: { disconnect: { id: removeUserId } },
       },
       include: {
         participants: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     emitToConversation(conversationId, 'conversation_updated', updated);
@@ -289,8 +289,8 @@ export const leaveConversation = async (req: AuthRequest, res: Response) => {
       where: {
         id: conversationId,
         participants: { some: { id: userId } },
-        isGroup: true
-      }
+        isGroup: true,
+      },
     });
 
     if (!conversation) {
@@ -300,13 +300,13 @@ export const leaveConversation = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        participants: { disconnect: { id: userId } }
+        participants: { disconnect: { id: userId } },
       },
       include: {
         participants: {
-          select: { id: true, name: true, email: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     emitToConversation(conversationId, 'conversation_updated', updated);
@@ -316,12 +316,12 @@ export const leaveConversation = async (req: AuthRequest, res: Response) => {
         content: `${req.user?.name || '一位用户'} 离开了群聊`,
         type: 'SYSTEM',
         senderId: userId,
-        conversationId
+        conversationId,
       },
       include: {
         sender: { select: { id: true, name: true, avatarUrl: true } },
-        reactions: { include: { user: { select: { id: true, name: true } } } }
-      }
+        reactions: { include: { user: { select: { id: true, name: true } } } },
+      },
     });
 
     emitToConversation(conversationId, 'new_message', systemMsg);
@@ -347,14 +347,14 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       where: {
         id: conversationId,
         participants: {
-          some: { id: senderId }
-        }
+          some: { id: senderId },
+        },
       },
       include: {
         participants: {
-          select: { id: true }
-        }
-      }
+          select: { id: true },
+        },
+      },
     });
 
     if (!conversation) {
@@ -363,7 +363,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 
     if (replyToId) {
       const replyMsg = await prisma.message.findFirst({
-        where: { id: replyToId, conversationId }
+        where: { id: replyToId, conversationId },
       });
       if (!replyMsg) {
         return res.status(400).json({ error: 'Reply message not found in this conversation' });
@@ -376,28 +376,28 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         type: type || 'TEXT',
         senderId,
         conversationId,
-        ...(replyToId && { replyToId })
+        ...(replyToId && { replyToId }),
       },
       include: {
         sender: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         replyTo: {
           include: {
-            sender: { select: { id: true, name: true } }
-          }
+            sender: { select: { id: true, name: true } },
+          },
         },
         reactions: {
           include: {
-            user: { select: { id: true, name: true } }
-          }
-        }
-      }
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
 
     await prisma.conversation.update({
       where: { id: conversationId },
-      data: { updatedAt: new Date() }
+      data: { updatedAt: new Date() },
     });
 
     emitToConversation(conversationId, 'new_message', message);
@@ -406,7 +406,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       if (p.id !== senderId) {
         emitToUser(p.id, 'message_received', {
           conversationId,
-          message
+          message,
         });
         createNotification({
           type: 'REPLY',
@@ -414,7 +414,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
           content: `${req.user?.name || '有人'} 给你发送了一条消息`,
           userId: p.id,
           link: '/messages',
-          category: 'DIRECT_MESSAGE'
+          category: 'DIRECT_MESSAGE',
         });
       }
     });
@@ -432,7 +432,7 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
 
   try {
     const message = await prisma.message.findUnique({
-      where: { id: messageId }
+      where: { id: messageId },
     });
 
     if (!message) {
@@ -444,12 +444,12 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.message.delete({
-      where: { id: messageId }
+      where: { id: messageId },
     });
 
     emitToConversation(message.conversationId, 'message_deleted', {
       messageId,
-      conversationId: message.conversationId
+      conversationId: message.conversationId,
     });
 
     res.json({ message: 'Message deleted' });
@@ -467,8 +467,8 @@ export const deleteConversation = async (req: AuthRequest, res: Response) => {
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: conversationId,
-        participants: { some: { id: userId } }
-      }
+        participants: { some: { id: userId } },
+      },
     });
 
     if (!conversation) {
@@ -478,8 +478,8 @@ export const deleteConversation = async (req: AuthRequest, res: Response) => {
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        participants: { disconnect: { id: userId } }
-      }
+        participants: { disconnect: { id: userId } },
+      },
     });
 
     emitToUser(userId, 'conversation_removed', { conversationId });
@@ -513,9 +513,9 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       where: {
         id: conversationId,
         participants: {
-          some: { id: userId }
-        }
-      }
+          some: { id: userId },
+        },
+      },
     });
 
     if (!conversation) {
@@ -526,25 +526,25 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       where: {
         conversationId,
         readBy: {
-          none: { userId }
+          none: { userId },
         },
-        NOT: { senderId: userId }
-      }
+        NOT: { senderId: userId },
+      },
     });
 
     if (unreadMessages.length > 0) {
       await prisma.messageRead.createMany({
-        data: unreadMessages.map(m => ({
+        data: unreadMessages.map((m) => ({
           messageId: m.id,
-          userId
-        }))
+          userId,
+        })),
       });
 
       emitToConversation(conversationId, 'messages_read', {
         conversationId,
         userId,
-        messageIds: unreadMessages.map(m => m.id),
-        readAt: new Date()
+        messageIds: unreadMessages.map((m) => m.id),
+        readAt: new Date(),
       });
     }
 
@@ -563,7 +563,7 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
   try {
     const message = await prisma.message.findUnique({
       where: { id: messageId },
-      include: { conversation: true }
+      include: { conversation: true },
     });
 
     if (!message) {
@@ -573,8 +573,8 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
     const conversation = await prisma.conversation.findFirst({
       where: {
         id: message.conversationId,
-        participants: { some: { id: userId } }
-      }
+        participants: { some: { id: userId } },
+      },
     });
 
     if (!conversation) {
@@ -583,18 +583,18 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 
     const reaction = await prisma.messageReaction.upsert({
       where: {
-        messageId_userId_emoji: { messageId, userId, emoji }
+        messageId_userId_emoji: { messageId, userId, emoji },
       },
       create: { messageId, userId, emoji },
       update: {},
       include: {
-        user: { select: { id: true, name: true } }
-      }
+        user: { select: { id: true, name: true } },
+      },
     });
 
     emitToConversation(message.conversationId, 'message_reaction', {
       messageId,
-      reaction
+      reaction,
     });
 
     res.status(201).json(reaction);
@@ -611,8 +611,8 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
   try {
     const reaction = await prisma.messageReaction.findUnique({
       where: {
-        messageId_userId_emoji: { messageId, userId, emoji }
-      }
+        messageId_userId_emoji: { messageId, userId, emoji },
+      },
     });
 
     if (!reaction) {
@@ -620,18 +620,18 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.messageReaction.delete({
-      where: { id: reaction.id }
+      where: { id: reaction.id },
     });
 
     const message = await prisma.message.findUnique({
-      where: { id: messageId }
+      where: { id: messageId },
     });
 
     if (message) {
       emitToConversation(message.conversationId, 'message_reaction_removed', {
         messageId,
         userId,
-        emoji
+        emoji,
       });
     }
 

@@ -18,31 +18,16 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response) => {
       where.tags = { contains: tag as string };
     }
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { content: { contains: search } }
-      ];
+      where.OR = [{ title: { contains: search } }, { content: { contains: search } }];
     }
 
-    let orderBy: any = [
-      { isPinned: 'desc' as const },
-      { createdAt: 'desc' as const }
-    ];
+    let orderBy: any = [{ isPinned: 'desc' as const }, { createdAt: 'desc' as const }];
     if (sort === 'most_commented') {
-      orderBy = [
-        { isPinned: 'desc' as const },
-        { comments: { _count: 'desc' as const } }
-      ];
+      orderBy = [{ isPinned: 'desc' as const }, { comments: { _count: 'desc' as const } }];
     } else if (sort === 'most_liked') {
-      orderBy = [
-        { isPinned: 'desc' as const },
-        { likes: { _count: 'desc' as const } }
-      ];
+      orderBy = [{ isPinned: 'desc' as const }, { likes: { _count: 'desc' as const } }];
     } else if (sort === 'most_viewed') {
-      orderBy = [
-        { isPinned: 'desc' as const },
-        { viewCount: 'desc' as const }
-      ];
+      orderBy = [{ isPinned: 'desc' as const }, { viewCount: 'desc' as const }];
     }
 
     const [discussions, total] = await Promise.all([
@@ -50,27 +35,27 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response) => {
         where,
         include: {
           user: {
-            select: { id: true, name: true, avatarUrl: true }
+            select: { id: true, name: true, avatarUrl: true },
           },
           _count: {
-            select: { comments: true, likes: true }
+            select: { comments: true, likes: true },
           },
           likes: {
             where: { userId: req.userId },
-            select: { id: true }
-          }
+            select: { id: true },
+          },
         },
         orderBy,
         skip,
-        take: limit
+        take: limit,
       }),
-      prisma.discussion.count({ where })
+      prisma.discussion.count({ where }),
     ]);
 
-    const discussionsWithLiked = discussions.map(d => ({
+    const discussionsWithLiked = discussions.map((d) => ({
       ...d,
       isLiked: d.likes.length > 0,
-      likes: undefined
+      likes: undefined,
     }));
 
     res.json({
@@ -79,10 +64,11 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response) => {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
+    console.error('[Discussion] Get all discussions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -92,7 +78,7 @@ export const getDiscussionById = async (req: AuthRequest, res: Response) => {
   try {
     const existing = await prisma.discussion.findUnique({
       where: { id },
-      select: { id: true }
+      select: { id: true },
     });
     if (!existing) return res.status(404).json({ error: 'Discussion not found' });
 
@@ -101,67 +87,67 @@ export const getDiscussionById = async (req: AuthRequest, res: Response) => {
       data: { viewCount: { increment: 1 } },
       include: {
         user: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         comments: {
           where: { parentId: null },
           include: {
             user: {
-              select: { id: true, name: true, avatarUrl: true }
+              select: { id: true, name: true, avatarUrl: true },
             },
             likes: {
               where: { userId: req.userId },
-              select: { id: true }
+              select: { id: true },
             },
             _count: {
-              select: { likes: true, replies: true }
+              select: { likes: true, replies: true },
             },
             replies: {
               include: {
                 user: {
-                  select: { id: true, name: true, avatarUrl: true }
+                  select: { id: true, name: true, avatarUrl: true },
                 },
                 likes: {
                   where: { userId: req.userId },
-                  select: { id: true }
+                  select: { id: true },
                 },
                 _count: {
-                  select: { likes: true }
-                }
+                  select: { likes: true },
+                },
               },
-              orderBy: { createdAt: 'asc' }
-            }
+              orderBy: { createdAt: 'asc' },
+            },
           },
-          orderBy: { createdAt: 'asc' }
+          orderBy: { createdAt: 'asc' },
         },
         _count: {
-          select: { comments: true, likes: true }
+          select: { comments: true, likes: true },
         },
         likes: {
           where: { userId: req.userId },
-          select: { id: true }
-        }
-      }
+          select: { id: true },
+        },
+      },
     });
 
     if (!discussion) return res.status(404).json({ error: 'Discussion not found' });
 
-    const formattedComments = discussion.comments.map(c => ({
+    const formattedComments = discussion.comments.map((c) => ({
       ...c,
       isLiked: c.likes.length > 0,
       likes: undefined,
-      replies: c.replies.map(r => ({
+      replies: c.replies.map((r) => ({
         ...r,
         isLiked: r.likes.length > 0,
-        likes: undefined
-      }))
+        likes: undefined,
+      })),
     }));
 
     res.json({
       ...discussion,
       isLiked: discussion.likes.length > 0,
       likes: undefined,
-      comments: formattedComments
+      comments: formattedComments,
     });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -182,7 +168,9 @@ export const createDiscussion = async (req: AuthRequest, res: Response) => {
   try {
     let imageUrls: string[] = [];
     if (files && files.length > 0) {
-      imageUrls = files.map(file => `${req.protocol}://${req.get('host')}/uploads/discussions/${file.filename}`);
+      imageUrls = files.map(
+        (file) => `${req.protocol}://${req.get('host')}/uploads/discussions/${file.filename}`,
+      );
     }
 
     const discussion = await prisma.discussion.create({
@@ -192,8 +180,8 @@ export const createDiscussion = async (req: AuthRequest, res: Response) => {
         courseId,
         tags: tags || null,
         userId: req.userId as string,
-        images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
-      }
+        images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
+      },
     });
 
     emitToAll('new_activity', {
@@ -201,7 +189,7 @@ export const createDiscussion = async (req: AuthRequest, res: Response) => {
       user: req.user?.name || '有人',
       action: '发起了新讨论',
       target: discussion.title,
-      createdAt: discussion.createdAt
+      createdAt: discussion.createdAt,
     });
 
     res.status(201).json(discussion);
@@ -216,7 +204,7 @@ export const deleteDiscussion = async (req: AuthRequest, res: Response) => {
   try {
     const discussion = await prisma.discussion.findUnique({
       where: { id },
-      select: { userId: true }
+      select: { userId: true },
     });
     if (!discussion) return res.status(404).json({ error: 'Discussion not found' });
     if (discussion.userId !== req.userId && req.user?.role !== 'ADMIN') {
@@ -234,7 +222,7 @@ export const toggleLikeDiscussion = async (req: AuthRequest, res: Response) => {
   const discussionId = req.params.id as string;
   try {
     const existing = await prisma.discussionLike.findUnique({
-      where: { discussionId_userId: { discussionId, userId: req.userId! } }
+      where: { discussionId_userId: { discussionId, userId: req.userId! } },
     });
 
     if (existing) {
@@ -242,12 +230,12 @@ export const toggleLikeDiscussion = async (req: AuthRequest, res: Response) => {
       res.json({ isLiked: false });
     } else {
       await prisma.discussionLike.create({
-        data: { discussionId, userId: req.userId! }
+        data: { discussionId, userId: req.userId! },
       });
 
       const discussion = await prisma.discussion.findUnique({
         where: { id: discussionId },
-        select: { userId: true, title: true }
+        select: { userId: true, title: true },
       });
       if (discussion && discussion.userId !== req.userId) {
         await createNotification({
@@ -256,7 +244,7 @@ export const toggleLikeDiscussion = async (req: AuthRequest, res: Response) => {
           content: `${req.user?.name || '有人'} 赞了你的讨论: ${discussion.title}`,
           userId: discussion.userId,
           link: `/discussions`,
-          category: 'MENTION'
+          category: 'MENTION',
         });
       }
 
@@ -276,13 +264,13 @@ export const togglePinDiscussion = async (req: AuthRequest, res: Response) => {
 
     const discussion = await prisma.discussion.findUnique({
       where: { id },
-      select: { isPinned: true }
+      select: { isPinned: true },
     });
     if (!discussion) return res.status(404).json({ error: 'Discussion not found' });
 
     const updated = await prisma.discussion.update({
       where: { id },
-      data: { isPinned: !discussion.isPinned }
+      data: { isPinned: !discussion.isPinned },
     });
     res.json(updated);
   } catch (error) {
@@ -302,7 +290,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 
   try {
     const discussion = await prisma.discussion.findUnique({
-      where: { id: discussionId }
+      where: { id: discussionId },
     });
     if (!discussion) {
       return res.status(404).json({ error: '讨论不存在' });
@@ -310,7 +298,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 
     if (parentId) {
       const parentComment = await prisma.comment.findUnique({
-        where: { id: parentId }
+        where: { id: parentId },
       });
       if (!parentComment) {
         return res.status(404).json({ error: '父评论不存在' });
@@ -325,19 +313,19 @@ export const addComment = async (req: AuthRequest, res: Response) => {
         content,
         discussionId,
         parentId: parentId || null,
-        userId: req.userId as string
+        userId: req.userId as string,
       },
       include: {
         user: {
-          select: { id: true, name: true, avatarUrl: true }
+          select: { id: true, name: true, avatarUrl: true },
         },
         discussion: {
-          select: { userId: true, title: true }
+          select: { userId: true, title: true },
         },
         _count: {
-          select: { likes: true, replies: true }
-        }
-      }
+          select: { likes: true, replies: true },
+        },
+      },
     });
 
     if (comment.discussion.userId !== req.userId) {
@@ -347,14 +335,14 @@ export const addComment = async (req: AuthRequest, res: Response) => {
         content: `${req.user?.name || '有人'} 回复了你的讨论: ${comment.discussion.title}`,
         userId: comment.discussion.userId,
         link: `/discussions`,
-        category: 'MENTION'
+        category: 'MENTION',
       });
     }
 
     if (parentId) {
       const parentComment = await prisma.comment.findUnique({
         where: { id: parentId },
-        select: { userId: true }
+        select: { userId: true },
       });
       if (parentComment && parentComment.userId !== req.userId) {
         await createNotification({
@@ -363,7 +351,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
           content: `${req.user?.name || '有人'} 回复了你的评论`,
           userId: parentComment.userId,
           link: `/discussions`,
-          category: 'MENTION'
+          category: 'MENTION',
         });
       }
     }
@@ -372,7 +360,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
     res.status(201).json({
       ...commentData,
       isLiked: false,
-      replies: []
+      replies: [],
     });
   } catch (error) {
     console.error(error);
@@ -385,7 +373,7 @@ export const deleteComment = async (req: AuthRequest, res: Response) => {
   try {
     const comment = await prisma.comment.findUnique({
       where: { id },
-      select: { userId: true }
+      select: { userId: true },
     });
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
     if (comment.userId !== req.userId && req.user?.role !== 'ADMIN') {
@@ -403,7 +391,7 @@ export const toggleLikeComment = async (req: AuthRequest, res: Response) => {
   const commentId = req.params.id as string;
   try {
     const existing = await prisma.commentLike.findUnique({
-      where: { commentId_userId: { commentId, userId: req.userId! } }
+      where: { commentId_userId: { commentId, userId: req.userId! } },
     });
 
     if (existing) {
@@ -411,7 +399,7 @@ export const toggleLikeComment = async (req: AuthRequest, res: Response) => {
       res.json({ isLiked: false });
     } else {
       await prisma.commentLike.create({
-        data: { commentId, userId: req.userId! }
+        data: { commentId, userId: req.userId! },
       });
       res.json({ isLiked: true });
     }
@@ -424,11 +412,11 @@ export const getDiscussionTags = async (req: AuthRequest, res: Response) => {
   try {
     const discussions = await prisma.discussion.findMany({
       where: { tags: { not: null } },
-      select: { tags: true }
+      select: { tags: true },
     });
 
     const tagSet = new Set<string>();
-    discussions.forEach(d => {
+    discussions.forEach((d) => {
       if (d.tags) {
         try {
           const tags = JSON.parse(d.tags);
@@ -441,6 +429,7 @@ export const getDiscussionTags = async (req: AuthRequest, res: Response) => {
 
     res.json({ tags: Array.from(tagSet) });
   } catch (error) {
+    console.error('[Discussion] Get discussion tags error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

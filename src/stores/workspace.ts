@@ -16,12 +16,15 @@ export const useWorkspaceStore = defineStore('workspace', {
     workspaces: [] as Workspace[],
     currentWorkspace: null as Workspace | null,
     isLoading: false,
-    isInitialized: false
+    isInitialized: false,
   }),
   getters: {
-    activeTeamId: (state) => (state.currentWorkspace && state.currentWorkspace.type !== 'admin' ? state.currentWorkspace.id : null),
+    activeTeamId: (state) =>
+      state.currentWorkspace && state.currentWorkspace.type !== 'admin'
+        ? state.currentWorkspace.id
+        : null,
     isPersonal: (state) => state.currentWorkspace?.type === 'personal',
-    isAdminWorkspace: (state) => state.currentWorkspace?.type === 'admin'
+    isAdminWorkspace: (state) => state.currentWorkspace?.type === 'admin',
   },
   actions: {
     async fetchWorkspaces() {
@@ -34,7 +37,7 @@ export const useWorkspaceStore = defineStore('workspace', {
           type: t.type.toLowerCase() as 'personal' | 'team',
           color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
           description: t.type === 'PERSONAL' ? '默认个人空间' : `${t._count?.members || 1} 名成员`,
-          badgeCount: t.type === 'PERSONAL' ? authStore.unreadMessagesCount : 0
+          badgeCount: t.type === 'PERSONAL' ? authStore.unreadMessagesCount : 0,
         }));
 
         this.workspaces = fetchedWorkspaces;
@@ -47,7 +50,7 @@ export const useWorkspaceStore = defineStore('workspace', {
             type: 'admin',
             color: 'bg-rose-600',
             description: '系统管理与审核',
-            badgeCount: 3
+            badgeCount: 3,
           });
         }
       } catch (error) {
@@ -57,7 +60,7 @@ export const useWorkspaceStore = defineStore('workspace', {
 
     async initialize(currentPath?: string) {
       if (this.isInitialized && this.workspaces.length > 0) return;
-      
+
       this.isLoading = true;
       await this.fetchWorkspaces();
 
@@ -76,11 +79,11 @@ export const useWorkspaceStore = defineStore('workspace', {
       }
 
       // 3. Final Fallback: Personal or First available
-      const ws = targetId ? this.workspaces.find(w => w.id === targetId) : null;
+      const ws = targetId ? this.workspaces.find((w) => w.id === targetId) : null;
       if (ws) {
         this.currentWorkspace = ws;
       } else {
-        const personal = this.workspaces.find(w => w.type === 'personal');
+        const personal = this.workspaces.find((w) => w.type === 'personal');
         this.currentWorkspace = personal || this.workspaces[0] || null;
       }
 
@@ -101,11 +104,11 @@ export const useWorkspaceStore = defineStore('workspace', {
       if (this.workspaces.length === 0) {
         await this.fetchWorkspaces();
       }
-      const ws = this.workspaces.find(w => w.id === id);
+      const ws = this.workspaces.find((w) => w.id === id);
       if (ws) {
         this.currentWorkspace = ws;
         localStorage.setItem('activeWorkspaceId', id);
       }
-    }
-  }
+    },
+  },
 });

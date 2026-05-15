@@ -1,81 +1,78 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  ArrowRight, 
-  Sparkles, 
-  Trophy, 
+import { ref, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  Users,
+  Plus,
+  Search,
+  ArrowRight,
+  Sparkles,
+  Trophy,
   Globe,
   Loader2,
-  CheckCircle2,
   ChevronLeft,
   Check,
   Send,
-  Zap,
   Layers,
-  Rocket
-} from 'lucide-vue-next'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import CreateTeamDialog from '@/components/CreateTeamDialog.vue'
-import GroupDetailDialog from '@/components/GroupDetailDialog.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
-import api from '@/utils/api'
-import { useWorkspaceStore } from '@/stores/workspace'
+} from 'lucide-vue-next';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
+import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
+import api from '@/utils/api';
+import { useWorkspaceStore } from '@/stores/workspace';
 
-const router = useRouter()
-const workspaceStore = useWorkspaceStore()
+const router = useRouter();
+const workspaceStore = useWorkspaceStore();
 
-const isCreateTeamVisible = ref(false)
-const isDetailVisible = ref(false)
-const selectedTeam = ref<any>(null)
-const searchQuery = ref('')
-const isLoading = ref(false)
-const publicTeams = ref<any[]>([])
-const myTeamIds = ref<Set<string>>(new Set())
-const applyingIds = ref<Set<string>>(new Set())
+const isCreateTeamVisible = ref(false);
+const isDetailVisible = ref(false);
+const selectedTeam = ref<any>(null);
+const searchQuery = ref('');
+const isLoading = ref(false);
+const publicTeams = ref<any[]>([]);
+const myTeamIds = ref<Set<string>>(new Set());
+const applyingIds = ref<Set<string>>(new Set());
 
 const fetchData = async () => {
-  isLoading.value = true
+  isLoading.value = true;
   try {
     const [publicRes, myRes] = await Promise.all([
       api.get('/api/teams/public', { params: { search: searchQuery.value } }),
-      api.get('/api/teams')
-    ])
-    publicTeams.value = publicRes.data
-    myTeamIds.value = new Set(myRes.data.map((t: any) => t.id))
+      api.get('/api/teams'),
+    ]);
+    publicTeams.value = publicRes.data;
+    myTeamIds.value = new Set(myRes.data.map((t: any) => t.id));
   } catch (error) {
-    console.error('Fetch teams error:', error)
-    ElMessage.error('获取小组失败')
+    console.error('Fetch teams error:', error);
+    ElMessage.error('获取小组失败');
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
-let debounceTimer: any = null
+let debounceTimer: any = null;
 watch(searchQuery, () => {
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(fetchData, 400)
-})
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(fetchData, 400);
+});
 
 const handleTeamCreated = (team: any) => {
-  workspaceStore.fetchWorkspaces()
+  workspaceStore.fetchWorkspaces();
   if (team?.id) {
-    router.push(`/team/${team.id}`)
+    router.push(`/team/${team.id}`);
   } else {
-    router.push('/dashboard')
+    router.push('/dashboard');
   }
-}
+};
 
 const handleApplyToJoin = async (group: any) => {
-  if (!group) return
+  if (!group) return;
   if (myTeamIds.value.has(group.id)) {
-    router.push(`/team/${group.id}`)
-    return
+    router.push(`/team/${group.id}`);
+    return;
   }
-  
+
   try {
     await ElMessageBox.confirm(
       `你正在申请加入 "${group.name}"，申请信息将发送给团队管理员。`,
@@ -84,46 +81,57 @@ const handleApplyToJoin = async (group: any) => {
         confirmButtonText: '提交申请',
         cancelButtonText: '取消',
         type: 'info',
-        customClass: 'custom-rounded-dialog'
-      }
-    )
-    applyingIds.value.add(group.id)
-    await api.post('/api/teams/apply', { teamId: group.id })
-    ElMessage.success(`申请已提交！等待 "${group.name}" 管理员审批`)
-    fetchData()
+        customClass: 'custom-rounded-dialog',
+      },
+    );
+    applyingIds.value.add(group.id);
+    await api.post('/api/teams/apply', { teamId: group.id });
+    ElMessage.success(`申请已提交！等待 "${group.name}" 管理员审批`);
+    fetchData();
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '申请失败，请稍后重试')
+      ElMessage.error(error.response?.data?.error || '申请失败，请稍后重试');
     }
   } finally {
-    applyingIds.value.delete(group.id)
-    isDetailVisible.value = false
+    applyingIds.value.delete(group.id);
+    isDetailVisible.value = false;
   }
-}
+};
 
 const handleViewTeam = (group: any) => {
-  selectedTeam.value = group
-  isDetailVisible.value = true
-}
+  selectedTeam.value = group;
+  isDetailVisible.value = true;
+};
 
 onMounted(() => {
-  fetchData()
-})
+  fetchData();
+});
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden relative" style="background-color: var(--bg-app)">
+  <div
+    class="flex-1 flex flex-col h-full overflow-hidden relative"
+    style="background-color: var(--bg-app)"
+  >
     <!-- Animated Background Elements -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-20">
-      <div class="absolute -left-[5%] top-[5%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[120px] animate-pulse"></div>
-      <div class="absolute -right-[5%] top-[10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] animate-pulse" style="animation-delay: 2s"></div>
+      <div
+        class="absolute -left-[5%] top-[5%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[120px] animate-pulse"
+      ></div>
+      <div
+        class="absolute -right-[5%] top-[10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] animate-pulse"
+        style="animation-delay: 2s"
+      ></div>
     </div>
 
     <!-- Consolidated Hero Section -->
     <div class="relative px-10 pt-6 pb-6 overflow-hidden shrink-0">
       <div class="w-full relative z-10">
         <!-- Back Button -->
-        <button @click="router.back()" class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm">
+        <button
+          class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm"
+          @click="router.back()"
+        >
           <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
           <span class="text-[9px] font-black uppercase tracking-[0.2em]">返回</span>
         </button>
@@ -131,58 +139,97 @@ onMounted(() => {
         <div class="flex flex-col lg:flex-row items-center gap-12">
           <!-- Info Content -->
           <div class="flex-1 animate-in fade-in slide-in-from-left-6 duration-700">
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-3 shadow-sm">
+            <div
+              class="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-3 shadow-sm"
+            >
               <Sparkles class="w-3 h-3" />
               <span class="text-[10px] font-black uppercase tracking-wider">3D 协作社区</span>
             </div>
-            <h1 class="text-3xl lg:text-5xl font-black tracking-tight leading-tight" style="color: var(--text-primary)">
-              找到属于你的 <span class="text-transparent bg-clip-text bg-gradient-to-r from-accent via-blue-400 to-indigo-500">创意团队</span>
+            <h1
+              class="text-3xl lg:text-5xl font-black tracking-tight leading-tight"
+              style="color: var(--text-primary)"
+            >
+              找到属于你的
+              <span
+                class="text-transparent bg-clip-text bg-gradient-to-r from-accent via-blue-400 to-indigo-500"
+                >创意团队</span
+              >
             </h1>
-            <p class="mt-3 text-base text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl">
+            <p
+              class="mt-3 text-base text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl"
+            >
               在这里，你可以创建自己的学习小组，或者加入志同道合的团队。共享资产、协作项目，共同见证创意的诞生。
             </p>
 
             <!-- Small Benefits Tags -->
             <div class="flex flex-wrap gap-3 mt-5">
-              <div class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div
+                class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+              >
                 <Layers class="w-3.5 h-3.5 text-accent" /> 专属资产库
               </div>
-              <div class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div
+                class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+              >
                 <Users class="w-3.5 h-3.5 text-purple-400" /> 实时协作
               </div>
-              <div class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <div
+                class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+              >
                 <Trophy class="w-3.5 h-3.5 text-amber-400" /> 导师辅导
               </div>
             </div>
           </div>
 
           <!-- Create Team Card -->
-          <div class="w-full lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-6 duration-700">
-            <div @click="isCreateTeamVisible = true" 
-                 class="group relative bg-white/80 dark:bg-slate-800/80 p-6 rounded-[24px] border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-xl hover:border-accent transition-all duration-500 cursor-pointer overflow-hidden">
-              <div class="absolute -right-6 -top-6 w-32 h-32 bg-accent/10 rounded-full blur-2xl group-hover:bg-accent/20 transition-colors duration-700"></div>
-              
+          <div
+            class="w-full lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-6 duration-700"
+          >
+            <div
+              class="group relative bg-white/80 dark:bg-slate-800/80 p-6 rounded-[24px] border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-xl hover:border-accent transition-all duration-500 cursor-pointer overflow-hidden"
+              @click="isCreateTeamVisible = true"
+            >
+              <div
+                class="absolute -right-6 -top-6 w-32 h-32 bg-accent/10 rounded-full blur-2xl group-hover:bg-accent/20 transition-colors duration-700"
+              ></div>
+
               <div class="relative z-10 flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 bg-gradient-to-br from-accent to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-accent/40 group-hover:rotate-6 transition-all">
+                <div
+                  class="w-12 h-12 bg-gradient-to-br from-accent to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-accent/40 group-hover:rotate-6 transition-all"
+                >
                   <Plus class="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">创建团队</h3>
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Start Now</div>
+                  <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
+                    创建团队
+                  </h3>
+                  <div
+                    class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
+                  >
+                    Start Now
+                  </div>
                 </div>
               </div>
 
-              <p class="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed font-medium">
+              <p
+                class="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed font-medium"
+              >
                 主导项目架构，邀请精英成员加入协作。
               </p>
-              
+
               <div class="flex items-center justify-between">
-                <div class="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-md shadow-accent/20">
+                <div
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-md shadow-accent/20"
+                >
                   开始创建 <ArrowRight class="w-3.5 h-3.5" />
                 </div>
                 <div class="text-right">
-                  <div class="text-xl font-black leading-none" style="color: var(--text-primary)">100+</div>
-                  <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">活跃团队</div>
+                  <div class="text-xl font-black leading-none" style="color: var(--text-primary)">
+                    100+
+                  </div>
+                  <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                    活跃团队
+                  </div>
                 </div>
               </div>
             </div>
@@ -193,26 +240,40 @@ onMounted(() => {
 
     <!-- Main Content Section - Fills Width & Height -->
     <div class="flex-1 flex flex-col min-h-0 px-10 pb-6">
-      <div class="w-full flex-1 flex flex-col min-h-0 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
+      <div
+        class="w-full flex-1 flex flex-col min-h-0 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200"
+      >
         <!-- Exploration Header -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <h2 class="text-2xl font-black flex items-center gap-3" style="color: var(--text-primary)">
-            <div class="w-8 h-8 bg-accent rounded-xl flex items-center justify-center shadow-md shadow-accent/20">
+        <div
+          class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-5 border-b border-slate-200 dark:border-slate-800 shrink-0"
+        >
+          <h2
+            class="text-2xl font-black flex items-center gap-3"
+            style="color: var(--text-primary)"
+          >
+            <div
+              class="w-8 h-8 bg-accent rounded-xl flex items-center justify-center shadow-md shadow-accent/20"
+            >
               <Globe class="w-4 h-4 text-white" />
             </div>
             发现公开小组
-            <span class="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">{{ publicTeams.length }}</span>
+            <span
+              class="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full"
+              >{{ publicTeams.length }}</span
+            >
           </h2>
-          
+
           <div class="relative w-full md:w-96 group">
-            <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-all" />
-            <input 
+            <Search
+              class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent transition-all"
+            />
+            <input
               v-model="searchQuery"
-              type="text" 
+              type="text"
               placeholder="搜索小组名称、关键词..."
               class="w-full pl-12 pr-6 py-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-xs font-medium shadow-sm"
               style="border-color: var(--border-base); color: var(--text-primary)"
-            >
+            />
           </div>
         </div>
 
@@ -221,66 +282,106 @@ onMounted(() => {
           <!-- Loading -->
           <div v-if="isLoading" class="flex flex-col items-center justify-center h-full py-20">
             <Loader2 class="w-10 h-10 text-accent animate-spin" />
-            <p class="mt-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">连接中...</p>
+            <p class="mt-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+              连接中...
+            </p>
           </div>
 
           <!-- Team Grid - Responsive Columns for Wide Screens -->
-          <div v-else-if="publicTeams.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6 pb-6">
-            <div 
-              v-for="(group, index) in publicTeams" 
+          <div
+            v-else-if="publicTeams.length > 0"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6 pb-6"
+          >
+            <div
+              v-for="(group, index) in publicTeams"
               :key="group.id"
               class="group relative bg-white/70 dark:bg-slate-800/70 rounded-[24px] border border-white/50 dark:border-slate-700/50 overflow-hidden hover:shadow-xl hover:border-accent/30 hover:-translate-y-1 transition-all duration-500 cursor-pointer backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4"
-              :style="{ 'animation-delay': `${index * 30}ms`, 'border-color': 'var(--border-base)' }"
+              :style="{
+                'animation-delay': `${index * 30}ms`,
+                'border-color': 'var(--border-base)',
+              }"
               @click="handleViewTeam(group)"
             >
               <!-- Joined Badge -->
-              <div v-if="myTeamIds.has(group.id)" class="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/90 backdrop-blur-md text-white text-[9px] font-black rounded-xl uppercase tracking-wider shadow-md">
+              <div
+                v-if="myTeamIds.has(group.id)"
+                class="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/90 backdrop-blur-md text-white text-[9px] font-black rounded-xl uppercase tracking-wider shadow-md"
+              >
                 <Check class="w-3 h-3" /> 已加入
               </div>
 
               <!-- Card Header -->
               <div class="h-36 relative overflow-hidden">
-                <img :src="group.avatarUrl || `https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=500&q=80`" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
+                <img
+                  :src="
+                    group.avatarUrl ||
+                    `https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=500&q=80`
+                  "
+                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"
+                ></div>
               </div>
-              
+
               <div class="p-5">
-                <h3 class="font-black text-slate-900 dark:text-white text-base group-hover:text-accent transition-colors truncate mb-1">{{ group.name }}</h3>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-8">
+                <h3
+                  class="font-black text-slate-900 dark:text-white text-base group-hover:text-accent transition-colors truncate mb-1"
+                >
+                  {{ group.name }}
+                </h3>
+                <p
+                  class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-8"
+                >
                   {{ group.description || '探索 3D 的边界，开启创意之旅。' }}
                 </p>
-                
-                <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50">
+
+                <div
+                  class="flex items-center justify-between mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50"
+                >
                   <div class="flex items-center gap-2">
                     <div class="flex -space-x-1.5">
                       <template v-if="group.members?.length">
-                        <UserAvatar v-for="member in group.members" :key="member.id" 
+                        <UserAvatar
+                          v-for="member in group.members"
+                          :key="member.id"
                           :user="member.user"
                           size="sm"
                           class="ring-2 ring-white dark:ring-slate-800"
                         />
                       </template>
-                      <div v-else class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-black text-slate-400">
+                      <div
+                        v-else
+                        class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-black text-slate-400"
+                      >
                         <Users class="w-3 h-3" />
                       </div>
                     </div>
                     <div>
-                      <span class="text-[10px] font-black block" style="color: var(--text-primary)">{{ group._count?.members || 0 }}</span>
-                      <span class="text-[8px] text-slate-400 font-black uppercase tracking-widest">创作者</span>
+                      <span
+                        class="text-[10px] font-black block"
+                        style="color: var(--text-primary)"
+                        >{{ group._count?.members || 0 }}</span
+                      >
+                      <span class="text-[8px] text-slate-400 font-black uppercase tracking-widest"
+                        >创作者</span
+                      >
                     </div>
                   </div>
 
                   <div @click.stop>
-                    <button v-if="myTeamIds.has(group.id)"
-                      @click="router.push(`/team/${group.id}`)"
+                    <button
+                      v-if="myTeamIds.has(group.id)"
                       class="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm"
+                      @click="router.push(`/team/${group.id}`)"
                     >
                       <ArrowRight class="w-3 h-3" /> 进入
                     </button>
-                    <button v-else
-                      @click="handleApplyToJoin(group)"
+                    <button
+                      v-else
                       :disabled="applyingIds.has(group.id)"
                       class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50"
+                      @click="handleApplyToJoin(group)"
                     >
                       <Send class="w-3 h-3" />
                       {{ applyingIds.has(group.id) ? '提交' : '加入' }}
@@ -292,11 +393,21 @@ onMounted(() => {
           </div>
 
           <!-- Empty State -->
-          <div v-else class="flex flex-col items-center justify-center h-full rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10">
+          <div
+            v-else
+            class="flex flex-col items-center justify-center h-full rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10"
+          >
             <Users class="w-14 h-14 opacity-10 mb-6" style="color: var(--text-muted)" />
-            <h4 class="text-2xl font-black mb-2" style="color: var(--text-primary)">暂无匹配小组</h4>
-            <p class="text-sm font-medium text-slate-400 text-center">试着精简搜索词，或点燃创意的火花。</p>
-            <button @click="isCreateTeamVisible = true" class="mt-10 px-10 py-4 bg-accent text-white rounded-xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all">
+            <h4 class="text-2xl font-black mb-2" style="color: var(--text-primary)">
+              暂无匹配小组
+            </h4>
+            <p class="text-sm font-medium text-slate-400 text-center">
+              试着精简搜索词，或点燃创意的火花。
+            </p>
+            <button
+              class="mt-10 px-10 py-4 bg-accent text-white rounded-xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all"
+              @click="isCreateTeamVisible = true"
+            >
               创建首个小组
             </button>
           </div>
@@ -305,13 +416,10 @@ onMounted(() => {
     </div>
 
     <!-- Create Team Dialog -->
-    <CreateTeamDialog 
-      v-model:visible="isCreateTeamVisible"
-      @success="handleTeamCreated"
-    />
+    <CreateTeamDialog v-model:visible="isCreateTeamVisible" @success="handleTeamCreated" />
 
     <!-- Team Detail Dialog -->
-    <GroupDetailDialog 
+    <GroupDetailDialog
       v-model:visible="isDetailVisible"
       :group="selectedTeam"
       @join="handleApplyToJoin(selectedTeam)"
@@ -335,9 +443,15 @@ onMounted(() => {
 }
 
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 /* Custom easing for entrance animations */

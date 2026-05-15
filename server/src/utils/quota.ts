@@ -14,7 +14,7 @@ export interface QuotaStatus {
 async function getUserPlan(userId: string) {
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
-    include: { plan: true }
+    include: { plan: true },
   });
 
   if (subscription && subscription.status === 'ACTIVE') {
@@ -23,7 +23,7 @@ async function getUserPlan(userId: string) {
 
   // Fallback to FREE plan
   const freePlan = await prisma.subscriptionPlan.findFirst({
-    where: { name: 'FREE' }
+    where: { name: 'FREE' },
   });
 
   return freePlan;
@@ -32,7 +32,11 @@ async function getUserPlan(userId: string) {
 /**
  * Checks if the user (or team) has enough storage space left.
  */
-export async function checkStorageQuota(userId: string, incomingSizeMB: number = 0, teamId?: string): Promise<QuotaStatus> {
+export async function checkStorageQuota(
+  userId: string,
+  incomingSizeMB: number = 0,
+  teamId?: string,
+): Promise<QuotaStatus> {
   // If teamId is provided, the quota is tied to the team owner's plan
   let ownerId = userId;
   if (teamId) {
@@ -50,12 +54,12 @@ export async function checkStorageQuota(userId: string, incomingSizeMB: number =
   const [assetStorage, materialStorage] = await Promise.all([
     prisma.asset.aggregate({
       where,
-      _sum: { size: true }
+      _sum: { size: true },
     }),
     prisma.material.aggregate({
       where,
-      _sum: { fileSize: true }
-    })
+      _sum: { fileSize: true },
+    }),
   ]);
 
   const usedMB = (assetStorage._sum.size || 0) + (materialStorage._sum.fileSize || 0);
@@ -68,7 +72,7 @@ export async function checkStorageQuota(userId: string, incomingSizeMB: number =
       allowed: false,
       message: `超出存储配额。${teamId ? '团队' : '个人'}当前已用 ${usedGB.toFixed(2)}GB / 限制 ${limitGB}GB`,
       current: usedGB,
-      limit: limitGB
+      limit: limitGB,
     };
   }
 
@@ -83,7 +87,7 @@ export async function checkTeamQuota(userId: string): Promise<QuotaStatus> {
   if (!plan) return { allowed: true };
 
   const teamCount = await prisma.team.count({
-    where: { ownerId: userId, type: 'TEAM' }
+    where: { ownerId: userId, type: 'TEAM' },
   });
 
   if (teamCount >= plan.maxTeams) {
@@ -91,7 +95,7 @@ export async function checkTeamQuota(userId: string): Promise<QuotaStatus> {
       allowed: false,
       message: `已达到团队创建上限 (${plan.maxTeams})，请升级订阅。`,
       current: teamCount,
-      limit: plan.maxTeams
+      limit: plan.maxTeams,
     };
   }
 
@@ -106,7 +110,7 @@ export async function checkProjectQuota(userId: string): Promise<QuotaStatus> {
   if (!plan) return { allowed: true };
 
   const projectCount = await prisma.projectMember.count({
-    where: { userId, role: 'OWNER' }
+    where: { userId, role: 'OWNER' },
   });
 
   if (projectCount >= plan.maxProjects) {
@@ -114,7 +118,7 @@ export async function checkProjectQuota(userId: string): Promise<QuotaStatus> {
       allowed: false,
       message: `已达到项目创建上限 (${plan.maxProjects})，请升级订阅。`,
       current: projectCount,
-      limit: plan.maxProjects
+      limit: plan.maxProjects,
     };
   }
 
@@ -142,7 +146,7 @@ export async function checkAssetQuota(userId: string, teamId?: string): Promise<
       allowed: false,
       message: `已达到资产上传上限 (${plan.maxAssets})，请升级订阅。`,
       current: assetCount,
-      limit: plan.maxAssets
+      limit: plan.maxAssets,
     };
   }
 

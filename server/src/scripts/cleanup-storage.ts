@@ -9,11 +9,11 @@ import { urlToPath } from '../utils/file';
  */
 export async function cleanupOrphanedFiles() {
   console.log('[CleanupEngine] Starting storage cleanup...');
-  
+
   const stats = {
     scanned: 0,
     deleted: 0,
-    errors: 0
+    errors: 0,
   };
 
   try {
@@ -22,20 +22,26 @@ export async function cleanupOrphanedFiles() {
       prisma.asset.findMany({ select: { url: true, thumbnail: true } }),
       prisma.material.findMany({ select: { fileUrl: true, previewUrl: true } }),
       prisma.showcase.findMany({ select: { thumbnailUrl: true, images: true } }),
-      prisma.user.findMany({ select: { avatarUrl: true } })
+      prisma.user.findMany({ select: { avatarUrl: true } }),
     ]);
 
     const validPaths = new Set<string>();
-    
+
     const addPath = (url: string | null | undefined) => {
       const p = urlToPath(url);
       if (p) validPaths.add(path.normalize(p));
     };
 
-    assets.forEach(a => { addPath(a.url); addPath(a.thumbnail); });
-    materials.forEach(m => { addPath(m.fileUrl); addPath(m.previewUrl); });
-    showcases.forEach(s => { 
-      addPath(s.thumbnailUrl); 
+    assets.forEach((a) => {
+      addPath(a.url);
+      addPath(a.thumbnail);
+    });
+    materials.forEach((m) => {
+      addPath(m.fileUrl);
+      addPath(m.previewUrl);
+    });
+    showcases.forEach((s) => {
+      addPath(s.thumbnailUrl);
       if (s.images) {
         try {
           const imgs = JSON.parse(s.images);
@@ -43,7 +49,7 @@ export async function cleanupOrphanedFiles() {
         } catch {}
       }
     });
-    users.forEach(u => addPath(u.avatarUrl));
+    users.forEach((u) => addPath(u.avatarUrl));
 
     // 2. Scan upload directories
     const uploadDirs = ['assets', 'materials', 'showcase', 'avatars'];
@@ -56,7 +62,7 @@ export async function cleanupOrphanedFiles() {
       const files = fs.readdirSync(fullDir);
       for (const file of files) {
         const filePath = path.normalize(path.join(fullDir, file));
-        
+
         // Skip directories
         if (fs.statSync(filePath).isDirectory()) continue;
 
@@ -75,7 +81,9 @@ export async function cleanupOrphanedFiles() {
       }
     }
 
-    console.log(`[CleanupEngine] Cleanup finished. Scanned: ${stats.scanned}, Deleted: ${stats.deleted}, Errors: ${stats.errors}`);
+    console.log(
+      `[CleanupEngine] Cleanup finished. Scanned: ${stats.scanned}, Deleted: ${stats.deleted}, Errors: ${stats.errors}`,
+    );
   } catch (error) {
     console.error('[CleanupEngine] Critical error during cleanup:', error);
   }

@@ -13,7 +13,7 @@ const categoryToPrefKey: Record<NotificationCategory, string> = {
 
 async function getUserPreference(userId: string, category: NotificationCategory): Promise<boolean> {
   const prefs = await prisma.notificationPreference.findUnique({
-    where: { userId }
+    where: { userId },
   });
   if (!prefs) return true;
   return (prefs as any)[categoryToPrefKey[category]] ?? true;
@@ -34,22 +34,24 @@ export async function createNotification(params: {
   if (!enabled) return null;
 
   const notification = await prisma.notification.create({
-    data: notificationData
+    data: notificationData,
   });
   emitToUser(params.userId, 'new_notification', notification);
   return notification;
 }
 
-export async function createNotificationBatch(paramsList: Array<{
-  type: string;
-  title: string;
-  content: string;
-  userId: string;
-  link?: string;
-  broadcastId?: string;
-  category: NotificationCategory;
-}>) {
-  const filtered: Array<typeof paramsList[0] & { enabled: boolean }> = [];
+export async function createNotificationBatch(
+  paramsList: Array<{
+    type: string;
+    title: string;
+    content: string;
+    userId: string;
+    link?: string;
+    broadcastId?: string;
+    category: NotificationCategory;
+  }>,
+) {
+  const filtered: Array<(typeof paramsList)[0] & { enabled: boolean }> = [];
 
   for (const params of paramsList) {
     const enabled = await getUserPreference(params.userId, params.category);

@@ -8,10 +8,11 @@ import {
   ThumbsUp,
   Trash2,
   Edit3,
-  FolderOpen,
   BookOpen,
+  Notebook,
   Copy,
   Check,
+  Settings,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -305,224 +306,289 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-[var(--text-primary)]">学习笔记</h1>
-        <p class="text-sm text-[var(--text-secondary)] mt-1">记录学习心得，分享知识见解</p>
+  <div class="flex-1 flex flex-col h-full overflow-hidden">
+    <!-- Header Section -->
+    <div
+      class="px-8 py-6 flex items-center justify-between shrink-0 border-b"
+      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    >
+      <div class="flex items-center gap-4">
+        <div class="p-3 bg-accent-subtle rounded-2xl">
+          <Notebook class="w-6 h-6 text-accent" />
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-[var(--text-primary)]">学习笔记</h1>
+          <p class="text-xs text-[var(--text-muted)] mt-0.5">记录学习心得，分享知识见解</p>
+        </div>
       </div>
       <el-button type="primary" :icon="Plus" size="large" round @click="openCreateDialog">
-        写笔记
+        发布笔记
       </el-button>
     </div>
 
-    <div class="mb-6">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="我的笔记" name="MY" />
-        <el-tab-pane label="笔记动态" name="ACTIVITY" />
-        <el-tab-pane label="热门推荐" name="POPULAR" />
-      </el-tabs>
-    </div>
-
-    <div class="flex flex-col gap-6">
-      <div class="flex-1 min-w-0">
-        <div class="flex flex-wrap items-center gap-3 mb-4">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索笔记..."
-            :prefix-icon="Search"
-            clearable
-            class="max-w-xs"
-            @keyup.enter="loadNotes"
-            @clear="loadNotes"
-          />
-
-          <el-select v-model="sortBy" placeholder="排序" class="w-32" @change="loadNotes">
-            <el-option label="最新" value="latest" />
-            <el-option label="最热" value="most_viewed" />
-            <el-option label="最多赞" value="most_liked" />
-            <el-option label="最早" value="oldest" />
-          </el-select>
-
-          <el-select
-            v-if="tags.length"
-            v-model="filterTag"
-            placeholder="标签"
-            class="w-32"
-            clearable
-            @change="loadNotes"
-          >
-            <el-option v-for="t in tags" :key="t" :label="t" :value="t" />
-          </el-select>
-
-          <el-select
-            v-if="categories.length"
-            v-model="filterCategory"
-            placeholder="分类"
-            class="w-32"
-            clearable
-            @change="loadNotes"
-          >
-            <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-          </el-select>
+    <!-- Main Content Area -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
+      <div class="max-w-[1600px] mx-auto">
+        <div class="mb-8">
+          <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="custom-note-tabs">
+            <el-tab-pane label="我的笔记" name="MY" />
+            <el-tab-pane label="笔记动态" name="ACTIVITY" />
+            <el-tab-pane label="热门推荐" name="POPULAR" />
+          </el-tabs>
         </div>
 
-        <div v-if="loading" class="text-center py-20 text-[var(--text-muted)]">
-          <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-          <p class="mt-2">加载中...</p>
-        </div>
+        <div class="flex flex-col gap-6">
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-4 mb-6">
+              <el-input
+                v-model="searchQuery"
+                placeholder="搜索笔记..."
+                :prefix-icon="Search"
+                clearable
+                class="!w-64"
+                @keyup.enter="loadNotes"
+                @clear="loadNotes"
+              />
 
-        <div v-else-if="notes.length === 0" class="text-center py-20">
-          <BookOpen class="w-16 h-16 mx-auto text-[var(--text-muted)] opacity-40" />
-          <p class="text-[var(--text-secondary)] mt-4">这里空空如也...</p>
-        </div>
+              <div
+                class="flex items-center gap-1 p-1 rounded-xl"
+                style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+              >
+                <el-select v-model="sortBy" placeholder="排序" class="!w-32" @change="loadNotes">
+                  <el-option label="最新发布" value="latest" />
+                  <el-option label="最多浏览" value="most_viewed" />
+                  <el-option label="最多点赞" value="most_liked" />
+                  <el-option label="最早发布" value="oldest" />
+                </el-select>
+              </div>
 
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="note in notes"
-            :key="note.id"
-            class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-5 hover:shadow-card-hover transition-all cursor-pointer group flex flex-col h-full"
-            @click="viewDetail(note)"
-          >
-            <div class="flex items-start justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <UserAvatar :user="note.user" size="sm" />
-                <div>
-                  <span class="text-sm font-medium text-[var(--text-primary)]">{{
-                    note.user.name
-                  }}</span>
-                  <span class="text-xs text-[var(--text-muted)] ml-2">{{
-                    formatDate(note.createdAt)
-                  }}</span>
+              <div
+                v-if="tags.length"
+                class="flex items-center gap-1 p-1 rounded-xl"
+                style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+              >
+                <el-select
+                  v-model="filterTag"
+                  placeholder="所有标签"
+                  class="!w-32"
+                  clearable
+                  @change="loadNotes"
+                >
+                  <el-option v-for="t in tags" :key="t" :label="t" :value="t" />
+                </el-select>
+              </div>
+
+              <div
+                v-if="categories.length"
+                class="flex items-center gap-1 p-1 rounded-xl"
+                style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+              >
+                <el-select
+                  v-model="filterCategory"
+                  placeholder="所有分类"
+                  class="!w-32"
+                  clearable
+                  @change="loadNotes"
+                >
+                  <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+                </el-select>
+              </div>
+            </div>
+
+            <div v-if="loading" class="flex flex-col items-center justify-center py-32 text-[var(--text-muted)]">
+              <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+              <p class="mt-4 font-medium">正在为您加载笔记...</p>
+            </div>
+
+            <div v-else-if="notes.length === 0" class="flex flex-col items-center justify-center py-32">
+              <div class="w-24 h-24 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-6">
+                <BookOpen class="w-12 h-12 text-[var(--text-muted)] opacity-40" />
+              </div>
+              <p class="text-[var(--text-secondary)] font-medium">暂无相关笔记内容</p>
+              <el-button v-if="searchQuery" link type="primary" class="mt-2" @click="searchQuery = ''; loadNotes()">清除搜索</el-button>
+            </div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div
+                v-for="note in notes"
+                :key="note.id"
+                class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full relative"
+                @click="viewDetail(note)"
+              >
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex items-center gap-2.5">
+                    <UserAvatar :user="note.user" size="sm" />
+                    <div>
+                      <p class="text-sm font-bold text-[var(--text-primary)] leading-none">{{ note.user.name }}</p>
+                      <p class="text-[10px] text-[var(--text-muted)] mt-1">{{ formatDate(note.createdAt) }}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark">热门</el-tag>
+                    <el-tag :type="getVisibilityTag(note.visibility)" size="small" round>
+                      {{ getVisibilityLabel(note.visibility) }}
+                    </el-tag>
+                  </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-[var(--text-primary)] mb-3 line-clamp-1 group-hover:text-accent transition-colors">
+                  {{ note.title }}
+                </h3>
+                <p class="text-sm text-[var(--text-secondary)] line-clamp-3 mb-4 flex-1 leading-relaxed">
+                  {{ note.summary || note.content.replace(/[#*`>]/g, '').slice(0, 150) }}
+                </p>
+
+                <div v-if="parseTags(note).length" class="flex flex-wrap gap-1.5 mb-5">
+                  <span
+                    v-for="tag in parseTags(note).slice(0, 3)"
+                    :key="tag"
+                    class="px-2 py-0.5 rounded-md bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[10px] font-bold border border-[var(--border-base)]"
+                  >
+                    #{{ tag }}
+                  </span>
+                </div>
+
+                <div class="flex items-center justify-between mt-auto pt-4 border-t border-[var(--border-base)]">
+                  <div class="flex items-center gap-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                    <span class="flex items-center gap-1.5">
+                      <Eye class="w-3.5 h-3.5" /> {{ note.views }}
+                    </span>
+                    <span
+                      class="flex items-center gap-1.5 cursor-pointer hover:text-red-500 transition-colors"
+                      :class="{ 'text-red-500': note.isLiked }"
+                      @click.stop="handleLike(note)"
+                    >
+                      <ThumbsUp class="w-3.5 h-3.5" :class="{ 'fill-current': note.isLiked }" />
+                      {{ note._count.likes }}
+                    </span>
+                  </div>
+                  <span v-if="note.category" class="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded uppercase">
+                    {{ note.category }}
+                  </span>
+                </div>
+
+                <!-- Hover Actions -->
+                <div
+                  class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0"
+                >
+                  <template v-if="note.userId === authStore.user?.id">
+                    <el-button circle size="small" @click.stop="openEditDialog(note)">
+                      <Edit3 class="w-3.5 h-3.5" />
+                    </el-button>
+                    <el-button circle size="small" type="danger" @click.stop="handleDelete(note)">
+                      <Trash2 class="w-3.5 h-3.5" />
+                    </el-button>
+                  </template>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
-                <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark"
-                  >热门</el-tag
-                >
-                <el-tag :type="getVisibilityTag(note.visibility)" size="small" round>
-                  {{ getVisibilityLabel(note.visibility) }}
-                </el-tag>
-              </div>
             </div>
 
-            <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-2 line-clamp-1">
-              {{ note.title }}
-            </h3>
-            <p class="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3 flex-1">
-              {{ note.summary || note.content.replace(/[#*`>]/g, '').slice(0, 150) }}
-            </p>
-
-            <div v-if="parseTags(note).length" class="flex flex-wrap gap-1 mb-3">
-              <el-tag
-                v-for="tag in parseTags(note).slice(0, 3)"
-                :key="tag"
-                size="small"
-                round
-                type="info"
-              >
-                {{ tag }}
-              </el-tag>
-            </div>
-
-            <div class="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-              <span class="flex items-center gap-1"
-                ><Eye class="w-3.5 h-3.5" /> {{ note.views }}</span
-              >
-              <span
-                class="flex items-center gap-1 cursor-pointer hover:text-red-500 transition-colors"
-                :class="{ 'text-red-500': note.isLiked }"
-                @click.stop="handleLike(note)"
-              >
-                <ThumbsUp class="w-3.5 h-3.5" :class="{ 'fill-current': note.isLiked }" />
-                {{ note._count.likes }}
-              </span>
-              <span v-if="note.category" class="flex items-center gap-1">
-                <FolderOpen class="w-3.5 h-3.5" /> {{ note.category }}
-              </span>
-            </div>
-
-            <div
-              class="flex gap-2 mt-3 pt-3 border-t border-[var(--border-base)] opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <template v-if="note.userId === authStore.user?.id">
-                <el-button size="small" text @click.stop="openEditDialog(note)">
-                  <Edit3 class="w-4 h-4" />
-                </el-button>
-                <el-button size="small" text type="danger" @click.stop="handleDelete(note)">
-                  <Trash2 class="w-4 h-4" />
-                </el-button>
-              </template>
-              <template v-if="authStore.user?.role === 'ADMIN' && note.visibility === 'PUBLIC'">
-                <el-button
-                  size="small"
-                  :type="note.isPopular ? 'warning' : 'info'"
-                  text
-                  :title="note.isPopular ? '取消推流' : '推流到热门'"
-                  @click.stop="handlePromote(note)"
-                >
-                  <ThumbsUp class="w-4 h-4" :class="{ 'fill-current': note.isPopular }" />
-                  {{ note.isPopular ? '取消推流' : '推流热门' }}
-                </el-button>
-              </template>
+            <div v-if="totalPages > 1 && activeTab !== 'POPULAR'" class="flex justify-center mt-12 mb-8">
+              <el-pagination
+                :current-page="currentPage"
+                :page-size="pageSize"
+                :total="totalNotes"
+                layout="prev, pager, next"
+                background
+                @current-change="handlePageChange"
+              />
             </div>
           </div>
-        </div>
-
-        <div v-if="totalPages > 1 && activeTab !== 'POPULAR'" class="flex justify-center mt-6">
-          <el-pagination
-            :current-page="currentPage"
-            :page-size="pageSize"
-            :total="totalNotes"
-            layout="prev, pager, next"
-            background
-            @current-change="handlePageChange"
-          />
         </div>
       </div>
     </div>
 
     <el-dialog
       v-model="showCreateDialog"
-      :title="editingNote ? '编辑笔记' : '写笔记'"
-      width="80%"
-      top="5vh"
-      class="custom-rounded-dialog"
+      fullscreen
+      :show-close="false"
+      class="immersive-editor-dialog"
       destroy-on-close
     >
-      <div class="space-y-4">
-        <el-input v-model="formTitle" placeholder="笔记标题" size="large" />
-        <div class="flex gap-3">
-          <el-select v-model="formVisibility" placeholder="可见性" class="w-28">
-            <el-option label="私有" value="PRIVATE" />
-            <el-option label="公开" value="PUBLIC" />
-          </el-select>
-          <el-input v-model="formCategory" placeholder="分类（可选）" class="w-40" />
-          <el-input v-model="formTags" placeholder="标签，逗号分隔" class="flex-1" />
-        </div>
-        <el-input v-model="formSummary" placeholder="摘要（可选）" type="textarea" :rows="3" />
-        <div class="min-h-[600px]">
-          <MarkdownEditor v-model="formContent" height="600px" />
-        </div>
+      <div class="fixed inset-0 bg-[var(--bg-app)] overflow-y-auto custom-scrollbar h-screen">
+        <header class="sticky top-0 z-50 h-16 flex items-center justify-between px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]">
+          <div class="flex items-center gap-4">
+            <el-button
+              circle
+              class="hover:bg-slate-100 dark:hover:bg-white/10 shrink-0"
+              @click="showCreateDialog = false"
+            >
+              <Plus class="w-5 h-5 rotate-45 text-[var(--text-secondary)]" />
+            </el-button>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <el-dropdown trigger="click">
+              <el-button round class="!bg-[var(--bg-card)]">
+                <Settings class="w-4 h-4 mr-2" /> 设置
+              </el-button>
+              <template #dropdown>
+                <div class="p-4 w-80 space-y-4">
+                  <div>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
+                    <el-input
+                      v-model="formSummary"
+                      type="textarea"
+                      :rows="2"
+                      placeholder="简短摘要..."
+                      size="small"
+                    />
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
+                    <el-radio-group v-model="formVisibility" size="small" class="w-full">
+                      <el-radio-button label="PRIVATE">私有</el-radio-button>
+                      <el-radio-button label="PUBLIC">公开</el-radio-button>
+                    </el-radio-group>
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类</p>
+                    <el-input v-model="formCategory" placeholder="例如：前端开发" size="small" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
+                    <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
+                  </div>
+                </div>
+              </template>
+            </el-dropdown>
+            <el-button type="primary" size="large" round class="!px-8 font-bold shadow-lg" :loading="saving" @click="handleSave">
+              {{ editingNote ? '保存更新' : '发布笔记' }}
+            </el-button>
+          </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-4 pb-32 pt-10">
+          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-lg min-h-[80vh] px-8 md:px-16 py-12 md:py-20">
+            <el-input
+              v-model="formTitle"
+              placeholder="无标题"
+              class="editor-modern-title mb-8"
+            />
+            <MarkdownEditor v-model="formContent" autoHeight class="modern-paper-theme" :auto-focus="true" />
+            
+            <div class="mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-8 border-t border-[var(--border-base)]">
+              <div class="flex items-center gap-4">
+                <span class="flex items-center gap-1"><Check class="w-3 h-3" /> 自动保存</span>
+                <span class="flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
+              </div>
+              <span>共 {{ formContent.length }} 字符</span>
+            </div>
+          </div>
+        </main>
       </div>
-      <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSave">
-          {{ editingNote ? '保存' : '发布' }}
-        </el-button>
-      </template>
     </el-dialog>
 
     <!-- Modern Professional Note Detail View -->
     <el-dialog
       v-model="showDetailDialog"
-      width="1200px"
-      top="5vh"
+      width="95%"
+      top="2vh"
       class="modern-note-dialog"
       destroy-on-close
       :show-close="false"
     >
-      <div v-if="detailNote" class="flex h-[80vh] overflow-hidden">
+      <div v-if="detailNote" class="flex h-[92vh] overflow-hidden">
         <!-- Left Sidebar: Meta & Actions -->
         <aside class="w-72 bg-slate-50/50 dark:bg-white/[0.02] p-8 flex flex-col shrink-0">
           <div class="mb-8">
@@ -683,6 +749,59 @@ onMounted(() => {
 </template>
 
 <style scoped>
+:deep(.immersive-editor-dialog) {
+  padding: 0 !important;
+}
+
+:deep(.immersive-editor-dialog .el-dialog__header) {
+  display: none;
+}
+
+:deep(.immersive-editor-dialog .el-dialog__body) {
+  padding: 0;
+  height: 100%;
+}
+
+.editor-modern-title :deep(.el-input__wrapper) {
+  box-shadow: none !important;
+  background-color: transparent !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.editor-modern-title :deep(.el-input__inner) {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+  color: var(--text-primary) !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+
+.editor-modern-title :deep(.el-input__inner::placeholder) {
+  color: var(--text-muted) !important;
+  font-weight: 800 !important;
+}
+
+:deep(.custom-note-tabs .el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+:deep(.custom-note-tabs .el-tabs__active-bar) {
+  height: 3px;
+  border-radius: 3px;
+}
+
+:deep(.custom-note-tabs .el-tabs__item) {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0 1.5rem;
+  color: var(--text-muted);
+}
+
+:deep(.custom-note-tabs .el-tabs__item.is-active) {
+  color: var(--text-primary);
+}
+
 :deep(.modern-note-dialog) {
   border-radius: 1.5rem;
   overflow: hidden;

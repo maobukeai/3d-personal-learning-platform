@@ -775,11 +775,17 @@ onMounted(() => {
   color: var(--text-primary) !important;
   line-height: 1.2 !important;
   height: auto !important;
+  border: none !important;
 }
 
 .editor-modern-title :deep(.el-input__inner::placeholder) {
   color: var(--text-muted) !important;
   font-weight: 800 !important;
+}
+
+:deep(.modern-paper-theme .md-editor-content) {
+  line-height: 1.8 !important;
+  font-size: 16px !important;
 }
 
 :deep(.custom-note-tabs .el-tabs__nav-wrap::after) {

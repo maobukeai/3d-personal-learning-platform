@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Settings,
+  Layout,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -20,6 +21,8 @@ import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 
 const authStore = useAuthStore();
+
+const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
 
 interface Note {
   id: string;
@@ -556,6 +559,43 @@ onMounted(() => {
           </div>
 
           <div class="flex items-center gap-3">
+            <!-- Preview Mode Toggle -->
+            <div class="flex items-center bg-slate-100 dark:bg-white/5 rounded-lg p-1 mr-4">
+              <button
+                @click="previewMode = 'edit'"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
+                :class="
+                  previewMode === 'edit'
+                    ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                "
+              >
+                <Edit3 class="w-3.5 h-3.5" /> 编辑
+              </button>
+              <button
+                @click="previewMode = 'live'"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
+                :class="
+                  previewMode === 'live'
+                    ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                "
+              >
+                <Layout class="w-3.5 h-3.5" /> 实时
+              </button>
+              <button
+                @click="previewMode = 'preview'"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
+                :class="
+                  previewMode === 'preview'
+                    ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                "
+              >
+                <Eye class="w-3.5 h-3.5" /> 预览
+              </button>
+            </div>
+
             <el-dropdown trigger="click">
               <el-button round class="!bg-[var(--bg-card)]">
                 <Settings class="w-4 h-4 mr-2" /> 设置
@@ -629,6 +669,8 @@ onMounted(() => {
               auto-height
               class="modern-paper-theme"
               :auto-focus="true"
+              :preview="previewMode === 'live'"
+              :html-preview="previewMode === 'preview'"
             />
 
             <div

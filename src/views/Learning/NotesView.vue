@@ -80,8 +80,6 @@ const handleCopy = async () => {
   }
 };
 
-
-
 const totalPages = computed(() => Math.ceil(totalNotes.value / pageSize));
 
 const loadNotes = async () => {
@@ -330,7 +328,7 @@ onMounted(() => {
     <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
       <div class="max-w-[1600px] mx-auto">
         <div class="mb-8">
-          <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="custom-note-tabs">
+          <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
             <el-tab-pane label="我的笔记" name="MY" />
             <el-tab-pane label="笔记动态" name="ACTIVITY" />
             <el-tab-pane label="热门推荐" name="POPULAR" />
@@ -395,17 +393,35 @@ onMounted(() => {
               </div>
             </div>
 
-            <div v-if="loading" class="flex flex-col items-center justify-center py-32 text-[var(--text-muted)]">
+            <div
+              v-if="loading"
+              class="flex flex-col items-center justify-center py-32 text-[var(--text-muted)]"
+            >
               <el-icon class="is-loading" :size="40"><Loading /></el-icon>
               <p class="mt-4 font-medium">正在为您加载笔记...</p>
             </div>
 
-            <div v-else-if="notes.length === 0" class="flex flex-col items-center justify-center py-32">
-              <div class="w-24 h-24 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-6">
+            <div
+              v-else-if="notes.length === 0"
+              class="flex flex-col items-center justify-center py-32"
+            >
+              <div
+                class="w-24 h-24 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-6"
+              >
                 <BookOpen class="w-12 h-12 text-[var(--text-muted)] opacity-40" />
               </div>
               <p class="text-[var(--text-secondary)] font-medium">暂无相关笔记内容</p>
-              <el-button v-if="searchQuery" link type="primary" class="mt-2" @click="searchQuery = ''; loadNotes()">清除搜索</el-button>
+              <el-button
+                v-if="searchQuery"
+                link
+                type="primary"
+                class="mt-2"
+                @click="
+                  searchQuery = '';
+                  loadNotes();
+                "
+                >清除搜索</el-button
+              >
             </div>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -419,22 +435,32 @@ onMounted(() => {
                   <div class="flex items-center gap-2.5">
                     <UserAvatar :user="note.user" size="sm" />
                     <div>
-                      <p class="text-sm font-bold text-[var(--text-primary)] leading-none">{{ note.user.name }}</p>
-                      <p class="text-[10px] text-[var(--text-muted)] mt-1">{{ formatDate(note.createdAt) }}</p>
+                      <p class="text-sm font-bold text-[var(--text-primary)] leading-none">
+                        {{ note.user.name }}
+                      </p>
+                      <p class="text-[10px] text-[var(--text-muted)] mt-1">
+                        {{ formatDate(note.createdAt) }}
+                      </p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark">热门</el-tag>
+                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark"
+                      >热门</el-tag
+                    >
                     <el-tag :type="getVisibilityTag(note.visibility)" size="small" round>
                       {{ getVisibilityLabel(note.visibility) }}
                     </el-tag>
                   </div>
                 </div>
 
-                <h3 class="text-lg font-bold text-[var(--text-primary)] mb-3 line-clamp-1 group-hover:text-accent transition-colors">
+                <h3
+                  class="text-lg font-bold text-[var(--text-primary)] mb-3 line-clamp-1 group-hover:text-accent transition-colors"
+                >
                   {{ note.title }}
                 </h3>
-                <p class="text-sm text-[var(--text-secondary)] line-clamp-3 mb-4 flex-1 leading-relaxed">
+                <p
+                  class="text-sm text-[var(--text-secondary)] line-clamp-3 mb-4 flex-1 leading-relaxed"
+                >
                   {{ note.summary || note.content.replace(/[#*`>]/g, '').slice(0, 150) }}
                 </p>
 
@@ -448,8 +474,12 @@ onMounted(() => {
                   </span>
                 </div>
 
-                <div class="flex items-center justify-between mt-auto pt-4 border-t border-[var(--border-base)]">
-                  <div class="flex items-center gap-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                <div
+                  class="flex items-center justify-between mt-auto pt-4 border-t border-[var(--border-base)]"
+                >
+                  <div
+                    class="flex items-center gap-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider"
+                  >
                     <span class="flex items-center gap-1.5">
                       <Eye class="w-3.5 h-3.5" /> {{ note.views }}
                     </span>
@@ -462,7 +492,10 @@ onMounted(() => {
                       {{ note._count.likes }}
                     </span>
                   </div>
-                  <span v-if="note.category" class="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded uppercase">
+                  <span
+                    v-if="note.category"
+                    class="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded uppercase"
+                  >
                     {{ note.category }}
                   </span>
                 </div>
@@ -483,7 +516,10 @@ onMounted(() => {
               </div>
             </div>
 
-            <div v-if="totalPages > 1 && activeTab !== 'POPULAR'" class="flex justify-center mt-12 mb-8">
+            <div
+              v-if="totalPages > 1 && activeTab !== 'POPULAR'"
+              class="flex justify-center mt-12 mb-8"
+            >
               <el-pagination
                 :current-page="currentPage"
                 :page-size="pageSize"
@@ -506,7 +542,9 @@ onMounted(() => {
       destroy-on-close
     >
       <div class="fixed inset-0 bg-[var(--bg-app)] overflow-y-auto custom-scrollbar h-screen">
-        <header class="sticky top-0 z-50 h-16 flex items-center justify-between px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]">
+        <header
+          class="sticky top-0 z-50 h-16 flex items-center justify-between px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
+        >
           <div class="flex items-center gap-4">
             <el-button
               circle
@@ -516,7 +554,7 @@ onMounted(() => {
               <Plus class="w-5 h-5 rotate-45 text-[var(--text-secondary)]" />
             </el-button>
           </div>
-          
+
           <div class="flex items-center gap-3">
             <el-dropdown trigger="click">
               <el-button round class="!bg-[var(--bg-card)]">
@@ -525,7 +563,11 @@ onMounted(() => {
               <template #dropdown>
                 <div class="p-4 w-80 space-y-4">
                   <div>
-                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
+                    <p
+                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                    >
+                      笔记摘要
+                    </p>
                     <el-input
                       v-model="formSummary"
                       type="textarea"
@@ -535,42 +577,68 @@ onMounted(() => {
                     />
                   </div>
                   <div>
-                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
+                    <p
+                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                    >
+                      可见性
+                    </p>
                     <el-radio-group v-model="formVisibility" size="small" class="w-full">
                       <el-radio-button label="PRIVATE">私有</el-radio-button>
                       <el-radio-button label="PUBLIC">公开</el-radio-button>
                     </el-radio-group>
                   </div>
                   <div>
-                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类</p>
+                    <p
+                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                    >
+                      分类
+                    </p>
                     <el-input v-model="formCategory" placeholder="例如：前端开发" size="small" />
                   </div>
                   <div>
-                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
+                    <p
+                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+                    >
+                      标签
+                    </p>
                     <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
                   </div>
                 </div>
               </template>
             </el-dropdown>
-            <el-button type="primary" size="large" round class="!px-8 font-bold shadow-lg" :loading="saving" @click="handleSave">
+            <el-button
+              type="primary"
+              size="large"
+              round
+              class="!px-8 font-bold shadow-lg"
+              :loading="saving"
+              @click="handleSave"
+            >
               {{ editingNote ? '保存更新' : '发布笔记' }}
             </el-button>
           </div>
         </header>
 
-        <main class="max-w-4xl mx-auto px-4 pb-32 pt-10">
-          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-lg min-h-[80vh] px-8 md:px-16 py-12 md:py-20">
-            <el-input
-              v-model="formTitle"
-              placeholder="无标题"
-              class="editor-modern-title mb-8"
+        <main class="max-w-6xl mx-auto px-4 pb-32 pt-10">
+          <div
+            class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-lg min-h-[80vh] px-8 md:px-16 py-12 md:py-20"
+          >
+            <el-input v-model="formTitle" placeholder="无标题" class="editor-modern-title mb-4" />
+            <MarkdownEditor
+              v-model="formContent"
+              auto-height
+              class="modern-paper-theme"
+              :auto-focus="true"
             />
-            <MarkdownEditor v-model="formContent" autoHeight class="modern-paper-theme" :auto-focus="true" />
-            
-            <div class="mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-8 border-t border-[var(--border-base)]">
+
+            <div
+              class="mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-8 border-t border-[var(--border-base)]"
+            >
               <div class="flex items-center gap-4">
                 <span class="flex items-center gap-1"><Check class="w-3 h-3" /> 自动保存</span>
-                <span class="flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
+                <span class="flex items-center gap-1"
+                  ><BookOpen class="w-3 h-3" /> Markdown 支持</span
+                >
               </div>
               <span>共 {{ formContent.length }} 字符</span>
             </div>
@@ -770,7 +838,7 @@ onMounted(() => {
 }
 
 .editor-modern-title :deep(.el-input__inner) {
-  font-size: 2.5rem !important;
+  font-size: 1.5rem !important;
   font-weight: 800 !important;
   color: var(--text-primary) !important;
   line-height: 1.2 !important;

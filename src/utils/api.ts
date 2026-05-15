@@ -12,7 +12,7 @@ api.interceptors.request.use((config) => {
   if (activeWorkspaceId) {
     config.headers['X-Workspace-Id'] = activeWorkspaceId;
   }
-  
+
   return config;
 });
 
@@ -45,11 +45,13 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then(() => {
-          return api(originalRequest);
-        }).catch((err) => {
-          return Promise.reject(err);
-        });
+        })
+          .then(() => {
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
       }
 
       originalRequest._retry = true;
@@ -64,7 +66,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        
+
         // Only redirect to login if we are on a route that requires authentication
         if (router.currentRoute.value.meta.requiresAuth) {
           authStore.logout();
@@ -80,12 +82,11 @@ api.interceptors.response.use(
       const systemStore = useSystemStore();
       await systemStore.fetchSettings();
       if (systemStore.settings.MAINTENANCE_MODE) {
-         router.push('/maintenance');
+        router.push('/maintenance');
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
-

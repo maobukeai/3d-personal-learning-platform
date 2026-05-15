@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   Search,
   PlayCircle,
@@ -19,187 +19,225 @@ import {
   TrendingUp,
   Play,
   Bookmark,
-  Heart
-} from 'lucide-vue-next'
-import api from '@/utils/api'
+  Heart,
+} from 'lucide-vue-next';
+import api from '@/utils/api';
 
-const router = useRouter()
-const searchQuery = ref('')
-const categories = ref<any[]>([])
-const activeCategoryId = ref<string | null>(null)
-const courses = ref<any[]>([])
-const myEnrollments = ref<any[]>([])
-const isLoading = ref(false)
-const sortBy = ref<'newest' | 'popular' | 'rating'>('newest')
-const difficultyFilter = ref<string | null>(null)
-const showFilters = ref(false)
-const bookmarkedCourseIds = ref<Set<string>>(new Set())
+const router = useRouter();
+const searchQuery = ref('');
+const categories = ref<any[]>([]);
+const activeCategoryId = ref<string | null>(null);
+const courses = ref<any[]>([]);
+const myEnrollments = ref<any[]>([]);
+const isLoading = ref(false);
+const sortBy = ref<'newest' | 'popular' | 'rating'>('newest');
+const difficultyFilter = ref<string | null>(null);
+const showFilters = ref(false);
+const bookmarkedCourseIds = ref<Set<string>>(new Set());
 
 const difficultyMap: Record<string, { label: string; color: string; bg: string }> = {
   BEGINNER: { label: '入门', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   INTERMEDIATE: { label: '进阶', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  ADVANCED: { label: '高级', color: 'text-rose-500', bg: 'bg-rose-500/10' }
-}
+  ADVANCED: { label: '高级', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+};
 
 const learningStats = computed(() => {
-  const enrolled = myEnrollments.value
-  const totalCourses = enrolled.length
-  const completedCourses = enrolled.filter(e => e.progress >= 100).length
-  const inProgressCourses = enrolled.filter(e => e.progress > 0 && e.progress < 100).length
+  const enrolled = myEnrollments.value;
+  const totalCourses = enrolled.length;
+  const completedCourses = enrolled.filter((e) => e.progress >= 100).length;
+  const inProgressCourses = enrolled.filter((e) => e.progress > 0 && e.progress < 100).length;
   const totalLessons = enrolled.reduce((sum, e) => {
-    return sum + (e.course?._count?.lessons || 0)
-  }, 0)
-  const avgProgress = totalCourses > 0
-    ? Math.round(enrolled.reduce((sum, e) => sum + (e.progress || 0), 0) / totalCourses)
-    : 0
-  return { totalCourses, completedCourses, inProgressCourses, totalLessons, avgProgress }
-})
+    return sum + (e.course?._count?.lessons || 0);
+  }, 0);
+  const avgProgress =
+    totalCourses > 0
+      ? Math.round(enrolled.reduce((sum, e) => sum + (e.progress || 0), 0) / totalCourses)
+      : 0;
+  return { totalCourses, completedCourses, inProgressCourses, totalLessons, avgProgress };
+});
 
 const continueLearningCourses = computed(() => {
   return myEnrollments.value
-    .filter(e => e.progress > 0 && e.progress < 100)
-    .sort((a, b) => (b.updatedAt ? new Date(b.updatedAt).getTime() : 0) - (a.updatedAt ? new Date(a.updatedAt).getTime() : 0))
-    .slice(0, 3)
-})
+    .filter((e) => e.progress > 0 && e.progress < 100)
+    .sort(
+      (a, b) =>
+        (b.updatedAt ? new Date(b.updatedAt).getTime() : 0) -
+        (a.updatedAt ? new Date(a.updatedAt).getTime() : 0),
+    )
+    .slice(0, 3);
+});
 
 const recommendedCourses = computed(() => {
-  const enrolledIds = new Set(myEnrollments.value.map(e => e.courseId))
+  const enrolledIds = new Set(myEnrollments.value.map((e) => e.courseId));
   const enrolledCategories = new Set(
-    myEnrollments.value.map(e => e.course?.categoryId).filter(Boolean)
-  )
+    myEnrollments.value.map((e) => e.course?.categoryId).filter(Boolean),
+  );
   return courses.value
-    .filter(c => !enrolledIds.has(c.id))
-    .filter(c => enrolledCategories.size === 0 || enrolledCategories.has(c.categoryId))
+    .filter((c) => !enrolledIds.has(c.id))
+    .filter((c) => enrolledCategories.size === 0 || enrolledCategories.has(c.categoryId))
     .sort((a, b) => (b.avgRating || 0) - (a.avgRating || 0))
-    .slice(0, 4)
-})
+    .slice(0, 4);
+});
 
 const fetchData = async () => {
-  isLoading.value = true
+  isLoading.value = true;
   try {
     const [coursesRes, enrollmentsRes, categoriesRes] = await Promise.all([
-      api.get('/api/courses', { params: { sort: sortBy.value, difficulty: difficultyFilter.value || undefined } }),
+      api.get('/api/courses', {
+        params: { sort: sortBy.value, difficulty: difficultyFilter.value || undefined },
+      }),
       api.get('/api/courses/my-enrollments'),
-      api.get('/api/courses/categories')
-    ])
-    courses.value = coursesRes.data
-    myEnrollments.value = enrollmentsRes.data
-    categories.value = categoriesRes.data
+      api.get('/api/courses/categories'),
+    ]);
+    courses.value = coursesRes.data;
+    myEnrollments.value = enrollmentsRes.data;
+    categories.value = categoriesRes.data;
   } catch (error) {
-    console.error('Fetch data error:', error)
+    console.error('Fetch data error:', error);
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 const isEnrolled = (courseId: string) => {
-  return myEnrollments.value.some(e => e.courseId === courseId)
-}
+  return myEnrollments.value.some((e) => e.courseId === courseId);
+};
 
 const getEnrollmentProgress = (courseId: string) => {
-  const enrollment = myEnrollments.value.find(e => e.courseId === courseId)
-  return enrollment?.progress || 0
-}
+  const enrollment = myEnrollments.value.find((e) => e.courseId === courseId);
+  return enrollment?.progress || 0;
+};
 
 const handleCourseClick = (courseId: string) => {
-  router.push(`/academy/course/${courseId}`)
-}
+  router.push(`/academy/course/${courseId}`);
+};
 
 const continueLearning = (courseId: string) => {
-  router.push(`/academy/course/${courseId}`)
-}
+  router.push(`/academy/course/${courseId}`);
+};
 
 const toggleBookmark = async (courseId: string, event?: Event) => {
-  if (event) event.stopPropagation()
+  if (event) event.stopPropagation();
   if (bookmarkedCourseIds.value.has(courseId)) {
-    bookmarkedCourseIds.value.delete(courseId)
+    bookmarkedCourseIds.value.delete(courseId);
   } else {
-    bookmarkedCourseIds.value.add(courseId)
+    bookmarkedCourseIds.value.add(courseId);
   }
-}
+};
 
 const isBookmarked = (courseId: string) => {
-  return bookmarkedCourseIds.value.has(courseId)
-}
+  return bookmarkedCourseIds.value.has(courseId);
+};
 
 const filteredCourses = computed(() => {
-  let list = courses.value
+  let list = courses.value;
 
   if (activeCategoryId.value === 'mine') {
-    list = myEnrollments.value.map(e => e.course)
+    list = myEnrollments.value.map((e) => e.course);
   } else if (activeCategoryId.value === 'bookmarked') {
-    list = courses.value.filter(c => bookmarkedCourseIds.value.has(c.id))
+    list = courses.value.filter((c) => bookmarkedCourseIds.value.has(c.id));
   } else if (activeCategoryId.value) {
-    list = courses.value.filter(c => c.categoryId === activeCategoryId.value)
+    list = courses.value.filter((c) => c.categoryId === activeCategoryId.value);
   }
 
   if (searchQuery.value) {
-    list = list.filter(course =>
-      course.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      course.description?.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
+    list = list.filter(
+      (course) =>
+        course.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        course.description?.toLowerCase().includes(searchQuery.value.toLowerCase()),
+    );
   }
 
-  return list
-})
+  return list;
+});
 
 const featuredCourses = computed(() => {
-  return courses.value
-    .filter(c => c.avgRating >= 4 && c._count?.enrollments >= 0)
-    .slice(0, 4)
-})
+  return courses.value.filter((c) => c.avgRating >= 4 && c._count?.enrollments >= 0).slice(0, 4);
+});
 
 const activeCategory = computed(() => {
-  if (activeCategoryId.value === 'mine') return '我的课程'
-  if (activeCategoryId.value === 'bookmarked') return '我的收藏'
-  if (!activeCategoryId.value) return '全部课程'
-  const cat = categories.value.find(c => c.id === activeCategoryId.value)
-  return cat?.name || '全部课程'
-})
+  if (activeCategoryId.value === 'mine') return '我的课程';
+  if (activeCategoryId.value === 'bookmarked') return '我的收藏';
+  if (!activeCategoryId.value) return '全部课程';
+  const cat = categories.value.find((c) => c.id === activeCategoryId.value);
+  return cat?.name || '全部课程';
+});
 
 onMounted(() => {
-  fetchData()
-})
+  fetchData();
+});
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300" style="background-color: var(--bg-app)">
+  <div
+    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    style="background-color: var(--bg-app)"
+  >
     <!-- Top Header -->
-    <div class="px-8 py-5 flex items-center justify-between shrink-0 border-b transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+    <div
+      class="px-8 py-5 flex items-center justify-between shrink-0 border-b transition-colors duration-300"
+      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    >
       <div class="flex items-center gap-3">
         <div class="p-2.5 bg-accent-subtle rounded-xl">
           <GraduationCap class="w-5 h-5 text-accent" />
         </div>
         <div>
           <h1 class="text-xl font-bold" style="color: var(--text-primary)">学院课程</h1>
-          <p class="text-[10px] font-medium" style="color: var(--text-muted)">探索 3D 设计的无限可能</p>
+          <p class="text-[10px] font-medium" style="color: var(--text-muted)">
+            探索 3D 设计的无限可能
+          </p>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
         <div class="relative">
-          <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-muted)" />
-          <input v-model="searchQuery" type="text" placeholder="搜索课程..."
-                 class="pl-10 pr-4 py-2 rounded-xl border text-sm w-56 outline-none transition-all focus:w-72"
-                 style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)" />
-          <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2 -translate-y-1/2">
+          <Search
+            class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            style="color: var(--text-muted)"
+          />
+          <input
+v-model="searchQuery" type="text" placeholder="搜索课程..."
+            class="pl-10 pr-4 py-2 rounded-xl border text-sm w-56 outline-none transition-all focus:w-72"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
+          <button
+            v-if="searchQuery"
+            class="absolute right-3 top-1/2 -translate-y-1/2"
+            @click="searchQuery = ''"
+          >
             <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
           </button>
         </div>
 
-        <button @click="showFilters = !showFilters"
-                class="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all"
-                :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
-                style="border-color: var(--border-base); color: var(--text-secondary)">
+        <button
+class="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all"
+          :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
+          style="border-color: var(--border-base); color: var(--text-secondary)"
+          @click="showFilters = !showFilters"
+        >
           <Filter class="w-4 h-4" />
           筛选
         </button>
 
         <div class="flex items-center gap-1 p-1 rounded-xl" style="background-color: var(--bg-app)">
-          <button v-for="sort in [{key:'newest',label:'最新'},{key:'popular',label:'最热'},{key:'rating',label:'好评'}]" :key="sort.key"
-                  @click="sortBy = sort.key as any; fetchData()"
-                  class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                  :class="sortBy === sort.key ? 'bg-white dark:bg-white/10 shadow-sm text-accent' : 'text-slate-400 hover:text-slate-600'">
+          <button
+v-for="sort in [{key:'newest',label:'最新'},{key:'popular',label:'最热'},{key:'rating',label:'好评'}]" :key="sort.key"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+            :class="
+              sortBy === sort.key
+                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
+                : 'text-slate-400 hover:text-slate-600'
+            "
+            @click="
+              sortBy = sort.key as any;
+              fetchData();
+            "
+          >
             {{ sort.label }}
           </button>
         </div>
@@ -207,51 +245,80 @@ onMounted(() => {
     </div>
 
     <!-- Filter Bar -->
-    <div v-if="showFilters" class="px-8 py-3 border-b flex items-center gap-4 transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+    <div
+      v-if="showFilters"
+      class="px-8 py-3 border-b flex items-center gap-4 transition-colors duration-300"
+      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    >
       <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
-      <button v-for="d in [{key:'',label:'全部'},{key:'BEGINNER',label:'入门'},{key:'INTERMEDIATE',label:'进阶'},{key:'ADVANCED',label:'高级'}]" :key="d.key"
-              @click="difficultyFilter = d.key || null; fetchData()"
-              class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
-              :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : ''"
-              :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''">
+      <button
+v-for="d in [{key:'',label:'全部'},{key:'BEGINNER',label:'入门'},{key:'INTERMEDIATE',label:'进阶'},{key:'ADVANCED',label:'高级'}]" :key="d.key"
+        class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+        :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : ''"
+        :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''"
+        @click="
+          difficultyFilter = d.key || null;
+          fetchData();
+        "
+      >
         {{ d.label }}
       </button>
     </div>
 
     <!-- Category Tabs -->
-    <div class="px-8 py-3 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+    <div
+      class="px-8 py-3 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300"
+      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    >
       <button
-        @click="activeCategoryId = null"
         class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
-        :class="!activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :class="
+          !activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'
+        "
         :style="activeCategoryId ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = null"
       >
         全部课程
       </button>
       <button
-        @click="activeCategoryId = 'mine'"
         class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
-        :class="activeCategoryId === 'mine' ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :class="
+          activeCategoryId === 'mine'
+            ? 'bg-accent text-white shadow-md shadow-accent/20'
+            : 'hover:opacity-80'
+        "
         :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = 'mine'"
       >
         <BookOpen class="w-3.5 h-3.5" /> 我的课程
       </button>
       <button
-        @click="activeCategoryId = 'bookmarked'"
         class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
-        :class="activeCategoryId === 'bookmarked' ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :class="
+          activeCategoryId === 'bookmarked'
+            ? 'bg-accent text-white shadow-md shadow-accent/20'
+            : 'hover:opacity-80'
+        "
         :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = 'bookmarked'"
       >
         <Bookmark class="w-3.5 h-3.5" /> 我的收藏
       </button>
-      <div class="h-4 w-[1px] mx-1 transition-colors duration-300" style="background-color: var(--border-base)"></div>
+      <div
+        class="h-4 w-[1px] mx-1 transition-colors duration-300"
+        style="background-color: var(--border-base)"
+      ></div>
       <button
         v-for="cat in categories"
         :key="cat.id"
-        @click="activeCategoryId = cat.id"
         class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
-        :class="activeCategoryId === cat.id ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :class="
+          activeCategoryId === cat.id
+            ? 'bg-accent text-white shadow-md shadow-accent/20'
+            : 'hover:opacity-80'
+        "
         :style="activeCategoryId !== cat.id ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = cat.id"
       >
         {{ cat.name }}
         <span class="ml-1 text-[10px] opacity-60">{{ cat._count?.courses || 0 }}</span>
@@ -261,7 +328,6 @@ onMounted(() => {
     <!-- Content Area -->
     <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
       <div class="max-w-7xl mx-auto space-y-10">
-
         <!-- My Courses: Learning Stats & Continue Learning -->
         <template v-if="activeCategoryId === 'mine' && myEnrollments.length > 0">
           <!-- Learning Stats -->
@@ -271,35 +337,52 @@ onMounted(() => {
               <h2 class="text-lg font-bold" style="color: var(--text-primary)">学习概览</h2>
             </div>
             <div class="grid grid-cols-5 gap-4">
-              <div class="p-5 rounded-2xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+              <div
+                class="p-5 rounded-2xl border transition-colors duration-300"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+              >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-[10px] font-bold text-slate-400 uppercase">在学课程</span>
                   <BookOpen class="w-4 h-4 text-accent" />
                 </div>
                 <p class="text-3xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
               </div>
-              <div class="p-5 rounded-2xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+              <div
+                class="p-5 rounded-2xl border transition-colors duration-300"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+              >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-[10px] font-bold text-slate-400 uppercase">已完成</span>
                   <Trophy class="w-4 h-4 text-amber-500" />
                 </div>
-                <p class="text-3xl font-black text-amber-500">{{ learningStats.completedCourses }}</p>
+                <p class="text-3xl font-black text-amber-500">
+                  {{ learningStats.completedCourses }}
+                </p>
               </div>
-              <div class="p-5 rounded-2xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+              <div
+                class="p-5 rounded-2xl border transition-colors duration-300"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+              >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-[10px] font-bold text-slate-400 uppercase">总课时</span>
                   <Clock class="w-4 h-4 text-indigo-500" />
                 </div>
                 <p class="text-3xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
               </div>
-              <div class="p-5 rounded-2xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+              <div
+                class="p-5 rounded-2xl border transition-colors duration-300"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+              >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-[10px] font-bold text-slate-400 uppercase">平均进度</span>
                   <Target class="w-4 h-4 text-emerald-500" />
                 </div>
                 <p class="text-3xl font-black text-emerald-500">{{ learningStats.avgProgress }}%</p>
               </div>
-              <div class="p-5 rounded-2xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
+              <div
+                class="p-5 rounded-2xl border transition-colors duration-300"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+              >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-[10px] font-bold text-slate-400 uppercase">已报名</span>
                   <Flame class="w-4 h-4 text-rose-500" />
@@ -316,30 +399,45 @@ onMounted(() => {
               <h2 class="text-lg font-bold" style="color: var(--text-primary)">继续学习</h2>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div v-for="enrollment in continueLearningCourses" :key="enrollment.id"
-                   @click="continueLearning(enrollment.course.id)"
-                   class="group flex gap-4 p-4 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                   style="background-color: var(--bg-card); border-color: var(--border-base)">
-                <div class="w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0">
-                  <img :src="enrollment.course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
-                       referrerpolicy="no-referrer"
-                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div
+v-for="enrollment in continueLearningCourses" :key="enrollment.id"
+                class="group flex gap-4 p-4 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                @click="continueLearning(enrollment.course.id)"
+              >
+                <div
+                  class="w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
+                >
+                  <img
+:src="enrollment.course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                    referrerpolicy="no-referrer"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
                 </div>
                 <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                   <div>
-                    <h3 class="text-sm font-bold line-clamp-1 group-hover:text-accent transition-colors" style="color: var(--text-primary)">
+                    <h3
+                      class="text-sm font-bold line-clamp-1 group-hover:text-accent transition-colors"
+                      style="color: var(--text-primary)"
+                    >
                       {{ enrollment.course.title }}
                     </h3>
                     <p class="text-[10px] mt-1" style="color: var(--text-muted)">
-                      {{ enrollment.course._count?.lessons || 0 }} 课时 · {{ enrollment.course.category?.name || '' }}
+                      {{ enrollment.course._count?.lessons || 0 }} 课时 ·
+                      {{ enrollment.course.category?.name || '' }}
                     </p>
                   </div>
                   <div class="mt-2">
                     <div class="flex items-center justify-between mb-1">
-                      <span class="text-[10px] font-bold text-emerald-500">{{ enrollment.progress }}% 完成</span>
+                      <span class="text-[10px] font-bold text-emerald-500"
+                        >{{ enrollment.progress }}% 完成</span
+                      >
                     </div>
                     <div class="h-1.5 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-                      <div class="h-full bg-emerald-500 rounded-full transition-all" :style="{ width: enrollment.progress + '%' }"></div>
+                      <div
+                        class="h-full bg-emerald-500 rounded-full transition-all"
+                        :style="{ width: enrollment.progress + '%' }"
+                      ></div>
                     </div>
                   </div>
                 </div>
@@ -349,38 +447,73 @@ onMounted(() => {
         </template>
 
         <!-- Featured Section (only on "all" tab) -->
-        <section v-if="!activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0">
+        <section
+          v-if="
+            !activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0
+          "
+        >
           <div class="flex items-center gap-2 mb-5">
             <Sparkles class="w-5 h-5 text-amber-400" />
             <h2 class="text-lg font-bold" style="color: var(--text-primary)">精选推荐</h2>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="course in featuredCourses" :key="course.id"
-                 @click="handleCourseClick(course.id)"
-                 class="group flex gap-5 p-5 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                 style="background-color: var(--bg-card); border-color: var(--border-base)">
-              <div class="w-48 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0">
-                <img :src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
-                     referrerpolicy="no-referrer"
-                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div
+v-for="course in featuredCourses" :key="course.id"
+              class="group flex gap-5 p-5 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              @click="handleCourseClick(course.id)"
+            >
+              <div
+                class="w-48 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
+              >
+                <img
+:src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                  referrerpolicy="no-referrer"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
               <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
                 <div>
                   <div class="flex items-center gap-2 mb-2">
-                    <span v-if="course.category" class="px-2 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold">{{ course.category.name }}</span>
-                    <span :class="[difficultyMap[course.difficulty]?.bg, difficultyMap[course.difficulty]?.color]" class="px-2 py-0.5 rounded-md text-[10px] font-bold">
+                    <span
+                      v-if="course.category"
+                      class="px-2 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold"
+                      >{{ course.category.name }}</span
+                    >
+                    <span
+                      :class="[
+                        difficultyMap[course.difficulty]?.bg,
+                        difficultyMap[course.difficulty]?.color,
+                      ]"
+                      class="px-2 py-0.5 rounded-md text-[10px] font-bold"
+                    >
                       {{ difficultyMap[course.difficulty]?.label || '入门' }}
                     </span>
                   </div>
-                  <h3 class="text-base font-bold mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors" style="color: var(--text-primary)">
+                  <h3
+                    class="text-base font-bold mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors"
+                    style="color: var(--text-primary)"
+                  >
                     {{ course.title }}
                   </h3>
-                  <p class="text-xs line-clamp-2" style="color: var(--text-muted)">{{ course.description }}</p>
+                  <p class="text-xs line-clamp-2" style="color: var(--text-muted)">
+                    {{ course.description }}
+                  </p>
                 </div>
-                <div class="flex items-center gap-4 text-[10px] font-bold" style="color: var(--text-muted)">
-                  <span class="flex items-center gap-1"><Star class="w-3 h-3 text-amber-400 fill-amber-400" /> {{ course.avgRating || '-' }}</span>
-                  <span class="flex items-center gap-1"><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span>
-                  <span class="flex items-center gap-1"><BookOpen class="w-3 h-3" /> {{ course._count?.lessons || 0 }} 课时</span>
+                <div
+                  class="flex items-center gap-4 text-[10px] font-bold"
+                  style="color: var(--text-muted)"
+                >
+                  <span class="flex items-center gap-1"
+                    ><Star class="w-3 h-3 text-amber-400 fill-amber-400" />
+                    {{ course.avgRating || '-' }}</span
+                  >
+                  <span class="flex items-center gap-1"
+                    ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
+                  >
+                  <span class="flex items-center gap-1"
+                    ><BookOpen class="w-3 h-3" /> {{ course._count?.lessons || 0 }} 课时</span
+                  >
                 </div>
               </div>
             </div>
@@ -388,36 +521,67 @@ onMounted(() => {
         </section>
 
         <!-- Recommended Courses (only on "all" tab, when user has enrollments) -->
-        <section v-if="!activeCategoryId && !searchQuery && !difficultyFilter && myEnrollments.length > 0 && recommendedCourses.length > 0">
+        <section
+          v-if="
+            !activeCategoryId &&
+            !searchQuery &&
+            !difficultyFilter &&
+            myEnrollments.length > 0 &&
+            recommendedCourses.length > 0
+          "
+        >
           <div class="flex items-center gap-2 mb-5">
             <Heart class="w-5 h-5 text-rose-400" />
             <h2 class="text-lg font-bold" style="color: var(--text-primary)">猜你想学</h2>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div v-for="course in recommendedCourses" :key="course.id"
-                 @click="handleCourseClick(course.id)"
-                 class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                 style="background-color: var(--bg-card); border-color: var(--border-base)">
+            <div
+v-for="course in recommendedCourses" :key="course.id"
+              class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              @click="handleCourseClick(course.id)"
+            >
               <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-                <img :src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
-                     referrerpolicy="no-referrer"
-                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <img
+:src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                  referrerpolicy="no-referrer"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div
+                  class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                >
                   <PlayCircle class="w-12 h-12 text-white drop-shadow-lg" />
                 </div>
                 <div class="absolute top-3 left-3">
-                  <span :class="[difficultyMap[course.difficulty]?.bg, difficultyMap[course.difficulty]?.color]" class="px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-sm">
+                  <span
+                    :class="[
+                      difficultyMap[course.difficulty]?.bg,
+                      difficultyMap[course.difficulty]?.color,
+                    ]"
+                    class="px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-sm"
+                  >
                     {{ difficultyMap[course.difficulty]?.label || '入门' }}
                   </span>
                 </div>
               </div>
               <div class="p-4">
-                <h3 class="text-sm font-bold mb-1 line-clamp-1 group-hover:text-accent transition-colors" style="color: var(--text-primary)">
+                <h3
+                  class="text-sm font-bold mb-1 line-clamp-1 group-hover:text-accent transition-colors"
+                  style="color: var(--text-primary)"
+                >
                   {{ course.title }}
                 </h3>
-                <div class="flex items-center gap-3 text-[10px] font-bold" style="color: var(--text-muted)">
-                  <span class="flex items-center gap-1"><Star class="w-3 h-3 text-amber-400 fill-amber-400" /> {{ course.avgRating || '-' }}</span>
-                  <span class="flex items-center gap-1"><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span>
+                <div
+                  class="flex items-center gap-3 text-[10px] font-bold"
+                  style="color: var(--text-muted)"
+                >
+                  <span class="flex items-center gap-1"
+                    ><Star class="w-3 h-3 text-amber-400 fill-amber-400" />
+                    {{ course.avgRating || '-' }}</span
+                  >
+                  <span class="flex items-center gap-1"
+                    ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -427,83 +591,170 @@ onMounted(() => {
         <!-- Course Grid -->
         <section>
           <div class="flex items-center justify-between mb-5">
-            <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ activeCategory }}</h2>
-            <span class="text-xs font-bold" style="color: var(--text-muted)">{{ filteredCourses.length }} 门课程</span>
+            <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+              {{ activeCategory }}
+            </h2>
+            <span class="text-xs font-bold" style="color: var(--text-muted)"
+              >{{ filteredCourses.length }} 门课程</span
+            >
           </div>
 
-          <div v-if="filteredCourses.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div v-for="course in filteredCourses" :key="course.id"
-                 @click="handleCourseClick(course.id)"
-                 class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                 style="background-color: var(--bg-card); border-color: var(--border-base)">
+          <div
+            v-if="filteredCourses.length > 0"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            <div
+v-for="course in filteredCourses" :key="course.id"
+              class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              @click="handleCourseClick(course.id)"
+            >
               <!-- Course Cover -->
               <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-                <img :src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
-                     referrerpolicy="no-referrer"
-                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <img
+:src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                  referrerpolicy="no-referrer"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div
+                  class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                >
                   <PlayCircle class="w-12 h-12 text-white drop-shadow-lg" />
                 </div>
                 <!-- Badges -->
                 <div class="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span :class="[difficultyMap[course.difficulty]?.bg, difficultyMap[course.difficulty]?.color]" class="px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-sm">
+                  <span
+                    :class="[
+                      difficultyMap[course.difficulty]?.bg,
+                      difficultyMap[course.difficulty]?.color,
+                    ]"
+                    class="px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-sm"
+                  >
                     {{ difficultyMap[course.difficulty]?.label || '入门' }}
                   </span>
                 </div>
-                <div v-if="isEnrolled(course.id)" class="absolute top-3 right-3 flex items-center gap-1.5">
-                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-white">
+                <div
+                  v-if="isEnrolled(course.id)"
+                  class="absolute top-3 right-3 flex items-center gap-1.5"
+                >
+                  <span
+                    class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-white"
+                  >
                     已加入
                   </span>
                 </div>
                 <!-- Bookmark button -->
-                <button v-if="!isEnrolled(course.id)" 
-                        @click.stop="toggleBookmark(course.id, $event)" 
-                        class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50">
-                  <Bookmark class="w-3.5 h-3.5" :class="isBookmarked(course.id) ? 'text-amber-400 fill-amber-400' : 'text-white'" />
+                <button
+v-if="!isEnrolled(course.id)" 
+                  class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50"
+                  @click.stop="toggleBookmark(course.id, $event)"
+                >
+                  <Bookmark
+                    class="w-3.5 h-3.5"
+                    :class="
+                      isBookmarked(course.id) ? 'text-amber-400 fill-amber-400' : 'text-white'
+                    "
+                  />
                 </button>
                 <!-- Progress bar for enrolled courses -->
-                <div v-if="isEnrolled(course.id) && getEnrollmentProgress(course.id) > 0" class="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
-                  <div class="h-full bg-emerald-400 transition-all" :style="{ width: getEnrollmentProgress(course.id) + '%' }"></div>
+                <div
+                  v-if="isEnrolled(course.id) && getEnrollmentProgress(course.id) > 0"
+                  class="absolute bottom-0 left-0 right-0 h-1 bg-black/20"
+                >
+                  <div
+                    class="h-full bg-emerald-400 transition-all"
+                    :style="{ width: getEnrollmentProgress(course.id) + '%' }"
+                  ></div>
                 </div>
               </div>
 
               <!-- Course Info -->
               <div class="p-5">
                 <div class="flex items-center gap-2 mb-2">
-                  <span v-if="course.category" class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-bold">{{ course.category.name }}</span>
-                  <span v-if="course.tags" class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[9px] font-bold">{{ course.tags.split(',')[0] }}</span>
+                  <span
+                    v-if="course.category"
+                    class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-bold"
+                    >{{ course.category.name }}</span
+                  >
+                  <span
+                    v-if="course.tags"
+                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[9px] font-bold"
+                    >{{ course.tags.split(',')[0] }}</span
+                  >
                 </div>
-                <h3 class="text-sm font-bold mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-accent transition-colors" style="color: var(--text-primary)">
+                <h3
+                  class="text-sm font-bold mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-accent transition-colors"
+                  style="color: var(--text-primary)"
+                >
                   {{ course.title }}
                 </h3>
 
                 <div class="flex items-center gap-3 mb-3">
                   <div class="flex items-center gap-0.5">
-                    <Star v-for="i in 5" :key="i" class="w-3 h-3" :class="i <= Math.round(course.avgRating || 0) ? 'text-amber-400 fill-amber-400' : 'text-slate-200 dark:text-slate-700'" />
+                    <Star
+                      v-for="i in 5"
+                      :key="i"
+                      class="w-3 h-3"
+                      :class="
+                        i <= Math.round(course.avgRating || 0)
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'text-slate-200 dark:text-slate-700'
+                      "
+                    />
                   </div>
-                  <span class="text-[10px] font-bold" style="color: var(--text-muted)">{{ course.avgRating || '-' }}</span>
+                  <span class="text-[10px] font-bold" style="color: var(--text-muted)">{{
+                    course.avgRating || '-'
+                  }}</span>
                 </div>
 
-                <div class="flex items-center justify-between pt-3 border-t transition-colors duration-300" style="border-color: var(--border-base)">
-                  <div class="flex items-center gap-3 text-[10px] font-bold" style="color: var(--text-muted)">
-                    <span class="flex items-center gap-1"><BookOpen class="w-3 h-3" /> {{ course._count?.lessons || 0 }} 课时</span>
-                    <span class="flex items-center gap-1"><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span>
+                <div
+                  class="flex items-center justify-between pt-3 border-t transition-colors duration-300"
+                  style="border-color: var(--border-base)"
+                >
+                  <div
+                    class="flex items-center gap-3 text-[10px] font-bold"
+                    style="color: var(--text-muted)"
+                  >
+                    <span class="flex items-center gap-1"
+                      ><BookOpen class="w-3 h-3" /> {{ course._count?.lessons || 0 }} 课时</span
+                    >
+                    <span class="flex items-center gap-1"
+                      ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
+                    >
                   </div>
-                  <ChevronRight class="w-4 h-4 text-slate-300 group-hover:text-accent transition-colors" />
+                  <ChevronRight
+                    class="w-4 h-4 text-slate-300 group-hover:text-accent transition-colors"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Empty State -->
-          <div v-else class="h-64 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed" style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-muted)">
+          <div
+            v-else
+            class="h-64 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed"
+            style="
+              background-color: var(--bg-card);
+              border-color: var(--border-base);
+              color: var(--text-muted);
+            "
+          >
             <GraduationCap class="w-12 h-12 mb-4 opacity-20" />
             <p class="text-sm">
-              {{ activeCategoryId === 'bookmarked' ? '还没有收藏课程' : activeCategoryId === 'mine' ? '还没有加入课程' : '没有找到相关的课程' }}
+              {{
+                activeCategoryId === 'bookmarked'
+                  ? '还没有收藏课程'
+                  : activeCategoryId === 'mine'
+                    ? '还没有加入课程'
+                    : '没有找到相关的课程'
+              }}
             </p>
-            <button v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'" 
-                    @click="activeCategoryId = null"
-                    class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20">
+            <button
+v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'" 
+              class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20"
+              @click="activeCategoryId = null"
+            >
               浏览课程
             </button>
           </div>
@@ -514,8 +765,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;

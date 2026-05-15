@@ -9,7 +9,7 @@ describe('Auth Utils', () => {
         password: 'hashedpassword',
         twoFactorSecret: 'secret',
         twoFactorRecoveryCodes: '["code1"]',
-        name: 'Test User'
+        name: 'Test User',
       };
 
       const sanitized = sanitizeUser(user);
@@ -17,7 +17,7 @@ describe('Auth Utils', () => {
       expect(sanitized).toEqual({
         id: '1',
         email: 'test@example.com',
-        name: 'Test User'
+        name: 'Test User',
       });
       expect(sanitized).not.toHaveProperty('password');
       expect(sanitized).not.toHaveProperty('twoFactorSecret');
@@ -33,7 +33,7 @@ describe('Auth Utils', () => {
     it('should generate 8 recovery codes', () => {
       const codes = generateRecoveryCodes();
       expect(codes).toHaveLength(8);
-      codes.forEach(code => {
+      codes.forEach((code) => {
         expect(code).toMatch(/^[0-9A-F]{8}$/);
       });
     });

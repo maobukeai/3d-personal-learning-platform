@@ -13,23 +13,27 @@ export const initSocket = (server: HttpServer) => {
         const allowedOrigins = [
           'http://localhost:5173',
           'http://localhost:3000',
-          process.env.FRONTEND_URL
+          process.env.FRONTEND_URL,
         ].filter(Boolean) as string[];
-        if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+        if (
+          !origin ||
+          allowedOrigins.indexOf(origin) !== -1 ||
+          process.env.NODE_ENV === 'development'
+        ) {
           callback(null, true);
         } else {
           callback(new Error('Not allowed by CORS'));
         }
       },
       methods: ['GET', 'POST'],
-      credentials: true
-    }
+      credentials: true,
+    },
   });
 
   // Authentication middleware for socket
   io.use((socket, next) => {
     let token = socket.handshake.auth.token || socket.handshake.headers.authorization;
-    
+
     // Check cookies if not in auth/headers
     if (!token && socket.handshake.headers.cookie) {
       const cookies = socket.handshake.headers.cookie.split(';').reduce((acc: any, curr) => {
@@ -57,7 +61,7 @@ export const initSocket = (server: HttpServer) => {
   io.on('connection', (socket) => {
     const userId = (socket as any).userId;
     console.log(`User connected: ${userId} (${socket.id})`);
-    
+
     // Add this socket to user's socket set
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
@@ -85,22 +89,25 @@ export const initSocket = (server: HttpServer) => {
     });
 
     // Handle typing status
-    socket.on('typing', ({ conversationId, isTyping }: { conversationId: string, isTyping: boolean }) => {
-      socket.to(`conversation_${conversationId}`).emit('user_typing', {
-        userId,
-        conversationId,
-        isTyping
-      });
-    });
+    socket.on(
+      'typing',
+      ({ conversationId, isTyping }: { conversationId: string; isTyping: boolean }) => {
+        socket.to(`conversation_${conversationId}`).emit('user_typing', {
+          userId,
+          conversationId,
+          isTyping,
+        });
+      },
+    );
 
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${userId} (${socket.id})`);
-      
+
       // Remove this socket from user's set
       const userSockets = onlineUsers.get(userId);
       if (userSockets) {
         userSockets.delete(socket.id);
-        
+
         // If no more sockets for this user, remove from map and emit offline
         if (userSockets.size === 0) {
           onlineUsers.delete(userId);

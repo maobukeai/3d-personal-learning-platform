@@ -7,7 +7,7 @@ import { settingsService } from '../services/settings.service';
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dir = './uploads/avatars';
-    
+
     if (file.fieldname === 'attachment' || file.fieldname === 'file') {
       dir = './uploads/feedback';
     } else if (file.fieldname === 'message_file') {
@@ -16,14 +16,17 @@ const storage = multer.diskStorage({
       dir = './uploads/assets';
     } else if (file.fieldname === 'material' || file.fieldname === 'preview') {
       dir = './uploads/materials';
-    } else if ((file.fieldname === 'thumbnail' || file.fieldname === 'images') && req.baseUrl.includes('showcase')) {
-       dir = './uploads/showcase';
+    } else if (
+      (file.fieldname === 'thumbnail' || file.fieldname === 'images') &&
+      req.baseUrl.includes('showcase')
+    ) {
+      dir = './uploads/showcase';
     } else if (file.fieldname === 'thumbnail') {
-       dir = './uploads/assets';
+      dir = './uploads/assets';
     } else if (file.fieldname === 'images') {
-       dir = './uploads/discussions';
+      dir = './uploads/discussions';
     }
-    
+
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -31,17 +34,17 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const sanitizedOriginalName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(sanitizedOriginalName));
-  }
+  },
 });
 
-const multerInstance = multer({ 
+const multerInstance = multer({
   storage: storage,
-  limits: { 
+  limits: {
     fileSize: 500 * 1024 * 1024, // High upper limit for multer, we validate lower in wrapper
-    files: 10
-  }
+    files: 10,
+  },
 });
 
 const createUploadMiddleware = (multerAction: any) => {
@@ -50,13 +53,15 @@ const createUploadMiddleware = (multerAction: any) => {
       const settings = await settingsService.getAll();
       const maxFileSize = (settings.MAX_FILE_SIZE || 100) * 1024 * 1024;
       let allowedExtensions: string[] = ['.jpeg', '.jpg', '.png', '.glb', '.gltf'];
-      
+
       // 处理允许的扩展名 - 支持字符串和数组格式
       if (settings.ALLOWED_EXTENSIONS) {
         if (typeof settings.ALLOWED_EXTENSIONS === 'string') {
-          allowedExtensions = settings.ALLOWED_EXTENSIONS.split(',').map(ext => ext.trim().toLowerCase());
+          allowedExtensions = settings.ALLOWED_EXTENSIONS.split(',').map((ext) =>
+            ext.trim().toLowerCase(),
+          );
         } else if (Array.isArray(settings.ALLOWED_EXTENSIONS)) {
-          allowedExtensions = settings.ALLOWED_EXTENSIONS.map(ext => ext.toLowerCase());
+          allowedExtensions = settings.ALLOWED_EXTENSIONS.map((ext) => ext.toLowerCase());
         }
       }
 
@@ -68,11 +73,15 @@ const createUploadMiddleware = (multerAction: any) => {
         }
 
         // Manual extension and size check for dynamic settings
-        const files = req.file ? { [req.file.fieldname]: [req.file] } : (req.files as { [fieldname: string]: Express.Multer.File[] });
-        
+        const files = req.file
+          ? { [req.file.fieldname]: [req.file] }
+          : (req.files as { [fieldname: string]: Express.Multer.File[] });
+
         if (files) {
           for (const fieldname in files) {
-            const fileList = Array.isArray(files[fieldname]) ? files[fieldname] : [files[fieldname]];
+            const fileList = Array.isArray(files[fieldname])
+              ? files[fieldname]
+              : [files[fieldname]];
             for (const file of fileList) {
               const ext = path.extname(file.originalname).toLowerCase();
               if (!allowedExtensions.includes(ext)) {
@@ -80,8 +89,10 @@ const createUploadMiddleware = (multerAction: any) => {
                 return res.status(400).json({ error: `不支持的文件类型: ${ext}` });
               }
               if (file.size > maxFileSize) {
-                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-                 return res.status(400).json({ error: `文件 ${file.originalname} 超过大小限制 (${settings.MAX_FILE_SIZE}MB)` });
+                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                return res.status(400).json({
+                  error: `文件 ${file.originalname} 超过大小限制 (${settings.MAX_FILE_SIZE}MB)`,
+                });
               }
             }
           }
@@ -96,15 +107,31 @@ const createUploadMiddleware = (multerAction: any) => {
 
 export const upload = {
   single: (fieldname: string) => createUploadMiddleware(multerInstance.single(fieldname)),
-  array: (fieldname: string, maxCount?: number) => createUploadMiddleware(multerInstance.array(fieldname, maxCount)),
+  array: (fieldname: string, maxCount?: number) =>
+    createUploadMiddleware(multerInstance.array(fieldname, maxCount)),
   fields: (fields: multer.Field[]) => createUploadMiddleware(multerInstance.fields(fields)),
 };
 
-const model3dExtensions = ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.dae', '.3ds', '.blend', '.usdz', '.abc'];
+const model3dExtensions = [
+  '.glb',
+  '.gltf',
+  '.fbx',
+  '.obj',
+  '.stl',
+  '.dae',
+  '.3ds',
+  '.blend',
+  '.usdz',
+  '.abc',
+];
 const documentExtensions = ['.pdf', '.zip', '.rar', '.7z'];
 
 export const validateFileContent = async (req: Request, res: Response, next: NextFunction) => {
-  const files = req.file ? [req.file] : (req.files ? (Object.values(req.files).flat() as Express.Multer.File[]) : []);
+  const files = req.file
+    ? [req.file]
+    : req.files
+      ? (Object.values(req.files).flat() as Express.Multer.File[])
+      : [];
   if (files.length === 0) return next();
 
   try {
@@ -121,14 +148,34 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
       if (buffer.length > 0) {
         const result = await FileType.fromBuffer(buffer);
 
-        if (file.fieldname === 'avatar' || file.fieldname === 'thumbnail' || file.fieldname === 'images') {
-          if (!result || !['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'].includes(result.mime)) {
+        if (
+          file.fieldname === 'avatar' ||
+          file.fieldname === 'thumbnail' ||
+          file.fieldname === 'images'
+        ) {
+          if (
+            !result ||
+            ![
+              'image/jpeg',
+              'image/png',
+              'image/gif',
+              'image/webp',
+              'image/svg+xml',
+              'image/bmp',
+            ].includes(result.mime)
+          ) {
             fs.unlinkSync(file.path);
             return res.status(400).json({ error: '无效的图片文件内容' });
           }
         }
 
-        if (result && (result.mime.includes('javascript') || result.mime.includes('php') || result.mime.includes('html') || result.mime.includes('x-shellscript'))) {
+        if (
+          result &&
+          (result.mime.includes('javascript') ||
+            result.mime.includes('php') ||
+            result.mime.includes('html') ||
+            result.mime.includes('x-shellscript'))
+        ) {
           fs.unlinkSync(file.path);
           return res.status(400).json({ error: '不允许上传可执行或脚本文件' });
         }

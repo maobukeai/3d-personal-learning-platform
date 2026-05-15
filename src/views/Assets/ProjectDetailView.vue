@@ -438,7 +438,7 @@ onMounted(fetchProject)
         
         <!-- Back & Title -->
         <div class="p-8 pb-4">
-          <button @click="router.push('/team-tasks')" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-accent hover:scale-110 transition-all mb-8">
+          <button class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-accent hover:scale-110 transition-all mb-8" @click="router.push('/team-tasks')">
             <ArrowLeft class="w-5 h-5" />
           </button>
           
@@ -449,7 +449,8 @@ onMounted(fetchProject)
             <div>
               <h1 class="text-2xl font-black tracking-tight leading-tight mb-2" style="color: var(--text-primary)">{{ project.title }}</h1>
               <div class="flex items-center gap-2">
-                <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest"
+                <span
+class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest"
                       :class="project.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-accent/10 text-accent'">
                   {{ project.status === 'COMPLETED' ? '已完成' : project.status === 'IN_PROGRESS' ? '进行中' : project.status === 'PAUSED' ? '已暂停' : '规划中' }}
                 </span>
@@ -477,7 +478,8 @@ onMounted(fetchProject)
               <span :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'">{{ project.progress }}%</span>
             </div>
             <div class="h-2.5 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700">
-              <div class="h-full rounded-full transition-all duration-1000" 
+              <div
+class="h-full rounded-full transition-all duration-1000" 
                    :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
                    :style="{ width: project.progress + '%' }"></div>
             </div>
@@ -493,17 +495,18 @@ onMounted(fetchProject)
               <Users class="w-4 h-4" /> 团队成员 ({{ project.members.length }}/{{ project.maxMembers }})
             </h3>
             <div class="flex items-center gap-2">
-              <button v-if="isMember" @click="showInviteDialog = true; fetchTeamMembersForInvite()" class="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+              <button v-if="isMember" class="text-xs font-bold text-accent hover:underline flex items-center gap-1" @click="showInviteDialog = true; fetchTeamMembersForInvite()">
                 <UserPlus class="w-3 h-3" /> 邀请
               </button>
-              <button v-if="!isMember && project.members.length < project.maxMembers" @click="handleJoin" class="text-xs font-bold text-accent hover:underline">
+              <button v-if="!isMember && project.members.length < project.maxMembers" class="text-xs font-bold text-accent hover:underline" @click="handleJoin">
                 报名加入
               </button>
             </div>
           </div>
           
           <div class="space-y-4">
-            <div v-for="member in project.members" :key="member.id" 
+            <div
+v-for="member in project.members" :key="member.id" 
                  class="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
                  @click="openUserProfile(member.user.id)">
               <UserAvatar :user="member.user" size="md" class="group-hover:ring-2 group-hover:ring-accent transition-all" />
@@ -514,7 +517,8 @@ onMounted(fetchProject)
             </div>
 
             <!-- Empty Slots -->
-            <div v-for="n in Math.max(0, project.maxMembers - project.members.length)" :key="`slot-${n}`"
+            <div
+v-for="n in Math.max(0, project.maxMembers - project.members.length)" :key="`slot-${n}`"
                  class="flex items-center gap-3 p-3 rounded-2xl border-2 border-dashed opacity-50" style="border-color: var(--border-base)">
               <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                 <UserPlus class="w-4 h-4 text-slate-400" />
@@ -533,13 +537,14 @@ onMounted(fetchProject)
           
           <!-- Segmented Control -->
           <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-            <button v-for="tab in [
+            <button
+v-for="tab in [
               { id: 'tasks', label: '敏捷看板', icon: KanbanSquare },
               { id: 'discussions', label: '协作空间', icon: MessageSquare }
             ]" :key="tab.id"
-              @click="activeTab = tab.id"
               class="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-black transition-all"
               :class="activeTab === tab.id ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
+              @click="activeTab = tab.id"
             >
               <component :is="tab.icon" class="w-4 h-4" />
               {{ tab.label }}
@@ -556,7 +561,7 @@ onMounted(fetchProject)
                 class="pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-accent/20 w-48 transition-all"
               />
             </div>
-            <button v-if="isMember && activeTab === 'tasks'" @click="isTaskDialogOpen = true" class="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+            <button v-if="isMember && activeTab === 'tasks'" class="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2" @click="isTaskDialogOpen = true">
               <Plus class="w-4 h-4" /> 分配新任务
             </button>
           </div>
@@ -567,15 +572,16 @@ onMounted(fetchProject)
           <div class="flex items-center gap-2">
             <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">截止时间:</span>
             <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
-              <button v-for="f in [
+              <button
+v-for="f in [
                 { id: 'all', label: '全部' },
                 { id: 'overdue', label: '已逾期' },
                 { id: 'today', label: '今日' },
                 { id: 'week', label: '本周' }
               ]" :key="f.id"
-                @click="taskDateFilter = f.id"
                 class="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
                 :class="taskDateFilter === f.id ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500'"
+                @click="taskDateFilter = f.id"
               >
                 {{ f.label }}
               </button>
@@ -588,16 +594,16 @@ onMounted(fetchProject)
             <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">执行人:</span>
             <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button 
-                @click="taskAssigneeFilter = 'all'"
                 class="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
                 :class="taskAssigneeFilter === 'all' ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500'"
+                @click="taskAssigneeFilter = 'all'"
               >
                 全部人
               </button>
               <button 
-                @click="taskAssigneeFilter = 'me'"
                 class="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
                 :class="taskAssigneeFilter === 'me' ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500'"
+                @click="taskAssigneeFilter = 'me'"
               >
                 我的任务
               </button>
@@ -613,7 +619,8 @@ onMounted(fetchProject)
             <div class="flex gap-8 h-full pb-4 items-start min-w-max">
               
               <!-- Columns -->
-              <div v-for="col in [
+              <div
+v-for="col in [
                 { id: 'TODO', label: '待处理 (To Do)', color: 'border-slate-300 dark:border-slate-600', dot: 'bg-slate-400' },
                 { id: 'IN_PROGRESS', label: '进行中 (In Progress)', color: 'border-accent', dot: 'bg-accent' },
                 { id: 'DONE', label: '已交付 (Done)', color: 'border-emerald-500', dot: 'bg-emerald-500' }
@@ -635,13 +642,14 @@ onMounted(fetchProject)
 
                 <!-- Column Body (Task List) -->
                 <div class="flex-1 overflow-y-auto px-4 pb-4 space-y-4 scrollbar-hide">
-                  <div v-for="task in (tasksByStatus as Record<string, any[]>)[col.id]" :key="task.id" 
+                  <div
+v-for="task in (tasksByStatus as Record<string, any[]>)[col.id]" :key="task.id" 
                         draggable="true"
+                        class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border hover:shadow-xl hover:-translate-y-1 transition-all cursor-grab active:cursor-grabbing group"
+                        style="border-color: var(--border-base)"
                         @dragstart="onDragStart(task, $event)"
                         @dragend="onDragEnd"
-                        @click="openEditTaskDialog(task)"
-                        class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border hover:shadow-xl hover:-translate-y-1 transition-all cursor-grab active:cursor-grabbing group"
-                        style="border-color: var(--border-base)">
+                        @click="openEditTaskDialog(task)">
                     
                     <div class="flex items-start justify-between mb-3">
                       <h4 class="text-sm font-bold leading-snug group-hover:text-accent transition-colors" style="color: var(--text-primary)">{{ task.title }}</h4>
@@ -660,7 +668,8 @@ onMounted(fetchProject)
                         </div>
                         
                         <div v-if="task.participants && task.participants.length > 0" class="flex items-center -space-x-1.5 ml-1">
-                          <UserAvatar v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
+                          <UserAvatar
+v-for="p in task.participants.slice(0, 3)" :key="p.userId" 
                                :user="p.user" size="xs" 
                                class="border-2 cursor-pointer hover:z-10 hover:scale-110 transition-all" 
                                style="border-color: var(--bg-card)" :title="p.user?.name"
@@ -668,7 +677,8 @@ onMounted(fetchProject)
                           <span v-if="task.participants.length > 3" class="text-[9px] font-bold text-slate-400 ml-1">+{{ task.participants.length - 3 }}</span>
                         </div>
                       </div>
-                      <div v-if="task.dueDate" class="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-800"
+                      <div
+v-if="task.dueDate" class="flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-800"
                            :class="new Date(task.dueDate) < new Date() && task.status !== 'DONE' ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-slate-500'">
                         <Calendar class="w-3 h-3" />
                         {{ new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}
@@ -689,11 +699,13 @@ onMounted(fetchProject)
           <div v-show="activeTab === 'discussions'" class="absolute inset-0 flex flex-col bg-white dark:bg-slate-950">
             <template v-if="isMember">
               <div ref="chatScroll" class="flex-1 overflow-y-auto p-10 space-y-8 scrollbar-hide">
-                <div v-for="msg in project.discussions" :key="msg.id" 
+                <div
+v-for="msg in project.discussions" :key="msg.id" 
                      class="flex gap-4 max-w-3xl" 
                      :class="msg.userId === authStore.user?.id ? 'ml-auto flex-row-reverse' : ''">
                   
-                  <UserAvatar :user="msg.user" size="md" class="cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+                  <UserAvatar
+:user="msg.user" size="md" class="cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
                        @click="openUserProfile(msg.user.id)" />
                   
                   <div :class="msg.userId === authStore.user?.id ? 'items-end' : ''" class="flex flex-col">
@@ -701,7 +713,8 @@ onMounted(fetchProject)
                       <span class="text-xs font-black text-slate-700 dark:text-slate-300 cursor-pointer hover:text-accent transition-colors" @click="openUserProfile(msg.user.id)">{{ msg.user.name || msg.user.email }}</span>
                       <span class="text-[10px] font-bold text-slate-400">{{ new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
                     </div>
-                    <div class="px-6 py-4 rounded-3xl text-sm leading-relaxed shadow-sm max-w-xl" 
+                    <div
+class="px-6 py-4 rounded-3xl text-sm leading-relaxed shadow-sm max-w-xl" 
                          :class="msg.userId === authStore.user?.id ? 'bg-accent text-white rounded-tr-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm'">
                       {{ msg.content && msg.content !== ' ' ? msg.content : '' }}
                     </div>
@@ -721,10 +734,11 @@ onMounted(fetchProject)
                     </div>
 
                     <div class="flex items-center gap-1 mt-2 flex-wrap">
-                      <button v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji"
-                        @click="handleReaction(msg.id, emoji)"
+                      <button
+v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji"
                         class="px-2 py-0.5 rounded-full text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                         :class="msg.reactions?.some((r: any) => r.emoji === emoji && r.userId === authStore.user?.id) ? 'bg-accent/10 ring-1 ring-accent/30' : ''"
+                        @click="handleReaction(msg.id, emoji)"
                       >
                         {{ emoji }} <span v-if="msg.reactions?.filter((r: any) => r.emoji === emoji).length" class="text-[10px] text-slate-400">{{ msg.reactions.filter((r: any) => r.emoji === emoji).length }}</span>
                       </button>
@@ -744,7 +758,7 @@ onMounted(fetchProject)
                 <div v-if="imagePreviewUrls.length > 0" class="flex gap-2 mb-3 flex-wrap">
                   <div v-for="(url, idx) in imagePreviewUrls" :key="idx" class="relative group">
                     <img :src="url" class="w-20 h-20 rounded-xl object-cover" />
-                    <button @click="removeImage(idx)" class="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity" @click="removeImage(idx)">
                       <X class="w-3 h-3" />
                     </button>
                   </div>
@@ -754,7 +768,7 @@ onMounted(fetchProject)
                   <Paperclip class="w-4 h-4 text-accent" />
                   <span class="text-sm font-bold flex-1 truncate" style="color: var(--text-primary)">{{ selectedFile.name }}</span>
                   <span class="text-[10px] text-slate-400">{{ formatFileSize(selectedFile.size / (1024 * 1024)) }}</span>
-                  <button @click="removeFile" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all">
+                  <button class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all" @click="removeFile">
                     <X class="w-3 h-3 text-slate-400" />
                   </button>
                 </div>
@@ -770,11 +784,11 @@ onMounted(fetchProject)
                       <input type="file" class="hidden" @change="handleFileSelect" />
                     </label>
                     <div class="relative">
-                      <button @click="showEmojiPicker = !showEmojiPicker" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-accent">
+                      <button class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-accent" @click="showEmojiPicker = !showEmojiPicker">
                         <Smile class="w-4 h-4" />
                       </button>
                       <div v-if="showEmojiPicker" class="absolute bottom-full left-0 mb-2 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border flex flex-wrap gap-1 w-64" style="border-color: var(--border-base)">
-                        <button v-for="emoji in quickEmojis" :key="emoji" @click="insertEmoji(emoji)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-lg transition-all">
+                        <button v-for="emoji in quickEmojis" :key="emoji" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-lg transition-all" @click="insertEmoji(emoji)">
                           {{ emoji }}
                         </button>
                       </div>
@@ -790,9 +804,9 @@ onMounted(fetchProject)
                     @input="e => { (e.target as HTMLElement).style.height = 'auto'; (e.target as HTMLElement).style.height = (e.target as HTMLElement).scrollHeight + 'px' }"
                   ></textarea>
                   <button 
-                    @click="handleSendComment"
                     :disabled="(!newComment.trim() && selectedImages.length === 0 && !selectedFile) || isSendingComment"
                     class="absolute right-2 bottom-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                    @click="handleSendComment"
                   >
                     <Send class="w-5 h-5" />
                   </button>
@@ -806,7 +820,7 @@ onMounted(fetchProject)
               </div>
               <h3 class="text-2xl font-black mb-3" style="color: var(--text-primary)">受保护的工作流</h3>
               <p class="text-sm text-slate-500 max-w-md mb-8 leading-relaxed">协作空间仅对项目正式成员开放。这里存放着最核心的讨论和进度档案。如果你想参与其中，请立即报名。</p>
-              <button v-if="project.members.length < project.maxMembers" @click="handleJoin" class="px-10 py-4 bg-accent text-white rounded-2xl font-black shadow-2xl shadow-accent/20 hover:scale-105 transition-all">
+              <button v-if="project.members.length < project.maxMembers" class="px-10 py-4 bg-accent text-white rounded-2xl font-black shadow-2xl shadow-accent/20 hover:scale-105 transition-all" @click="handleJoin">
                 立即报名加入
               </button>
             </div>
@@ -828,7 +842,7 @@ onMounted(fetchProject)
       <template #header="{ close }">
         <div class="flex items-center justify-between">
           <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">下达任务</h3>
-          <button @click="close" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all">
+          <button class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all" @click="close">
             <X class="w-4 h-4 text-slate-500" />
           </button>
         </div>
@@ -882,10 +896,10 @@ onMounted(fetchProject)
 
       <template #footer>
         <div class="flex gap-4 p-4 border-t" style="border-color: var(--border-base)">
-          <button @click="isTaskDialogOpen = false" class="flex-1 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all" style="color: var(--text-primary)">
+          <button class="flex-1 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all" style="color: var(--text-primary)" @click="isTaskDialogOpen = false">
             取消
           </button>
-          <button @click="handleCreateTask" class="flex-[2] py-4 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <button class="flex-[2] py-4 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all" @click="handleCreateTask">
             确认下发
           </button>
         </div>
@@ -903,7 +917,7 @@ onMounted(fetchProject)
       <template #header="{ close }">
         <div class="flex items-center justify-between">
           <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">编辑任务</h3>
-          <button @click="close" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all">
+          <button class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all" @click="close">
             <X class="w-4 h-4 text-slate-500" />
           </button>
         </div>
@@ -966,10 +980,10 @@ onMounted(fetchProject)
 
       <template #footer>
         <div class="flex gap-4 p-4 border-t" style="border-color: var(--border-base)">
-          <button @click="handleDeleteTask(editingTask)" class="flex-1 py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-2xl font-black hover:bg-rose-100 transition-all">
+          <button class="flex-1 py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-2xl font-black hover:bg-rose-100 transition-all" @click="handleDeleteTask(editingTask)">
             删除任务
           </button>
-          <button @click="handleUpdateTask" class="flex-[2] py-4 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <button class="flex-[2] py-4 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all" @click="handleUpdateTask">
             更新资料
           </button>
         </div>
@@ -981,7 +995,7 @@ onMounted(fetchProject)
       <template #header="{ close }">
         <div class="flex items-center justify-between">
           <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">邀请加入项目</h3>
-          <button @click="close" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all">
+          <button class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all" @click="close">
             <X class="w-4 h-4 text-slate-500" />
           </button>
         </div>
@@ -1005,8 +1019,8 @@ onMounted(fetchProject)
       </div>
       <template #footer>
         <div class="flex gap-4">
-          <button @click="showInviteDialog = false" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all" style="color: var(--text-primary)">取消</button>
-          <button @click="handleInviteMembers" :disabled="inviteUserIds.length === 0" class="flex-[2] py-3 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">发送邀请</button>
+          <button class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all" style="color: var(--text-primary)" @click="showInviteDialog = false">取消</button>
+          <button :disabled="inviteUserIds.length === 0" class="flex-[2] py-3 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50" @click="handleInviteMembers">发送邀请</button>
         </div>
       </template>
       </el-dialog>

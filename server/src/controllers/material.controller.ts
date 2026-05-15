@@ -10,9 +10,9 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 export const getAllMaterials = async (req: AuthRequest, res: Response) => {
   const { category, sort, search } = req.query;
   try {
-    const where: any = { 
+    const where: any = {
       teamId: req.workspaceId,
-      status: 'APPROVED'
+      status: 'APPROVED',
     };
     if (category && category !== '全部材料') {
       where.category = category as string;
@@ -21,7 +21,7 @@ export const getAllMaterials = async (req: AuthRequest, res: Response) => {
       where.OR = [
         { title: { contains: search as string } },
         { tags: { contains: search as string } },
-        { description: { contains: search as string } }
+        { description: { contains: search as string } },
       ];
     }
 
@@ -31,25 +31,25 @@ export const getAllMaterials = async (req: AuthRequest, res: Response) => {
       where,
       include: {
         user: {
-          select: { name: true, email: true, avatarUrl: true }
+          select: { name: true, email: true, avatarUrl: true },
         },
         _count: {
-          select: { favorites: true }
-        }
+          select: { favorites: true },
+        },
       },
-      orderBy
+      orderBy,
     });
 
     const userId = req.userId;
     const userFavorites = await prisma.materialFavorite.findMany({
       where: { userId },
-      select: { materialId: true }
+      select: { materialId: true },
     });
-    const favoriteIds = new Set(userFavorites.map(f => f.materialId));
+    const favoriteIds = new Set(userFavorites.map((f) => f.materialId));
 
-    const materialsWithFavorite = materials.map(m => ({
+    const materialsWithFavorite = materials.map((m) => ({
       ...m,
-      isFavorited: favoriteIds.has(m.id)
+      isFavorited: favoriteIds.has(m.id),
     }));
 
     res.json(materialsWithFavorite);
@@ -65,17 +65,17 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
       where: { id },
       include: {
         user: {
-          select: { name: true, email: true, avatarUrl: true }
+          select: { name: true, email: true, avatarUrl: true },
         },
         _count: {
-          select: { favorites: true }
-        }
-      }
+          select: { favorites: true },
+        },
+      },
     });
     if (!material) return res.status(404).json({ error: 'Material not found' });
 
     const isFavorited = await prisma.materialFavorite.findFirst({
-      where: { userId: req.userId as string, materialId: id }
+      where: { userId: req.userId as string, materialId: id },
     });
 
     res.json({ ...material, isFavorited: !!isFavorited });
@@ -97,7 +97,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
     }
 
     const fileSizeMB = materialFile.size / (1024 * 1024);
-    
+
     // Check quota
     const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
     if (!storageQuota.allowed) {
@@ -105,7 +105,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
     }
 
     const { title, description, category, resolution, tags, isProcedural } = req.body;
-    
+
     const fileUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${materialFile.filename}`;
     let previewUrl = null;
     if (previewFile) {
@@ -124,8 +124,8 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
         tags,
         isProcedural: isProcedural === 'true',
         userId: userId,
-        teamId: workspaceId
-      }
+        teamId: workspaceId,
+      },
     });
 
     await auditService.log({
@@ -134,7 +134,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
       module: AuditModule.MATERIAL,
       description: `Uploaded material: ${material.title}`,
       newValue: material,
-      req
+      req,
     });
 
     res.status(201).json(material);
@@ -148,7 +148,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const material = await prisma.material.findFirst({
-      where: { id, teamId: req.workspaceId }
+      where: { id, teamId: req.workspaceId },
     });
 
     if (!material) return res.status(404).json({ error: 'Material not found' });
@@ -166,7 +166,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
       module: AuditModule.MATERIAL,
       description: `Deleted material: ${material.title}`,
       oldValue: material,
-      req
+      req,
     });
 
     res.json({ message: 'Material deleted successfully' });
@@ -192,7 +192,10 @@ export const downloadMaterial = async (req: AuthRequest, res: Response) => {
     const downloadName = encodeURIComponent(safeTitle + ext);
 
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"; filename*=UTF-8''${downloadName}`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${downloadName}"; filename*=UTF-8''${downloadName}`,
+    );
 
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
@@ -208,9 +211,9 @@ export const recordDownload = async (req: AuthRequest, res: Response) => {
       where: { id },
       data: {
         downloads: {
-          increment: 1
-        }
-      }
+          increment: 1,
+        },
+      },
     });
     res.json({ message: 'Download recorded', downloads: material.downloads });
   } catch (error) {
@@ -222,7 +225,7 @@ export const toggleFavorite = async (req: AuthRequest, res: Response) => {
   const materialId = req.params.id as string;
   try {
     const existing = await prisma.materialFavorite.findFirst({
-      where: { userId: req.userId as string, materialId }
+      where: { userId: req.userId as string, materialId },
     });
 
     if (existing) {
@@ -230,7 +233,7 @@ export const toggleFavorite = async (req: AuthRequest, res: Response) => {
       res.json({ isFavorited: false });
     } else {
       await prisma.materialFavorite.create({
-        data: { userId: req.userId as string, materialId }
+        data: { userId: req.userId as string, materialId },
       });
       res.json({ isFavorited: true });
     }
@@ -247,16 +250,16 @@ export const getMyFavorites = async (req: AuthRequest, res: Response) => {
         material: {
           include: {
             user: { select: { name: true, email: true, avatarUrl: true } },
-            _count: { select: { favorites: true } }
-          }
-        }
+            _count: { select: { favorites: true } },
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
-    const materials = favorites.map(f => ({
+    const materials = favorites.map((f) => ({
       ...f.material,
-      isFavorited: true
+      isFavorited: true,
     }));
 
     res.json(materials);

@@ -8,7 +8,13 @@ const router = Router();
 router.get('/', authenticate, discussionController.getAllDiscussions);
 router.get('/tags', authenticate, discussionController.getDiscussionTags);
 router.get('/:id', authenticate, discussionController.getDiscussionById);
-router.post('/', authenticate, upload.array('images', 5), validateFileContent, discussionController.createDiscussion);
+router.post(
+  '/',
+  authenticate,
+  upload.array('images', 5),
+  validateFileContent,
+  discussionController.createDiscussion,
+);
 router.delete('/:id', authenticate, discussionController.deleteDiscussion);
 router.post('/:id/like', authenticate, discussionController.toggleLikeDiscussion);
 router.post('/:id/pin', authenticate, discussionController.togglePinDiscussion);

@@ -8,10 +8,10 @@ async function fix() {
 
   for (const s of settings) {
     if (s.key === 'ALLOWED_EXTENSIONS' && !s.value.startsWith('[')) {
-      const arrayValue = s.value.split(',').map(ext => ext.trim());
+      const arrayValue = s.value.split(',').map((ext) => ext.trim());
       await prisma.systemSetting.update({
         where: { id: s.id },
-        data: { value: JSON.stringify(arrayValue) }
+        data: { value: JSON.stringify(arrayValue) },
       });
       console.log(`Fixed ${s.key}`);
     }
@@ -20,7 +20,7 @@ async function fix() {
   const finalSettings = await prisma.systemSetting.findMany();
   console.log('Updated System Settings:');
   console.table(finalSettings);
-  
+
   await prisma.$disconnect();
 }
 

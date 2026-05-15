@@ -7,9 +7,9 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
     const roadmaps = await prisma.roadmap.findMany({
       include: {
         steps: {
-          orderBy: { order: 'asc' }
-        }
-      }
+          orderBy: { order: 'asc' },
+        },
+      },
     });
     res.json(roadmaps);
   } catch (error) {
@@ -20,7 +20,7 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
 export const getMyRoadmapProgress = async (req: AuthRequest, res: Response) => {
   try {
     const progress = await prisma.userRoadmapProgress.findMany({
-      where: { userId: req.userId as string }
+      where: { userId: req.userId as string },
     });
     res.json(progress);
   } catch (error) {
@@ -35,15 +35,15 @@ export const updateStepProgress = async (req: AuthRequest, res: Response) => {
       where: {
         userId_roadmapStepId: {
           userId: req.userId as string,
-          roadmapStepId: stepId
-        }
+          roadmapStepId: stepId,
+        },
       },
       update: { completed },
       create: {
         userId: req.userId as string,
         roadmapStepId: stepId,
-        completed
-      }
+        completed,
+      },
     });
     res.json(progress);
   } catch (error) {

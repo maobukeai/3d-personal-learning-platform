@@ -7,7 +7,7 @@ export const getLessonsByCourse = async (req: AuthRequest, res: Response) => {
   try {
     const lessons = await prisma.lesson.findMany({
       where: { courseId },
-      orderBy: { order: 'asc' }
+      orderBy: { order: 'asc' },
     });
     res.json(lessons);
   } catch (error) {
@@ -19,7 +19,7 @@ export const getLessonById = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const lesson = await prisma.lesson.findUnique({
-      where: { id }
+      where: { id },
     });
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
     res.json(lesson);
@@ -32,15 +32,23 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
   const { title, content, videoUrl, courseId, order, hotspots, sceneConfig } = req.body;
   try {
     const lesson = await prisma.lesson.create({
-      data: { 
-        title, 
-        content, 
-        videoUrl, 
-        courseId, 
+      data: {
+        title,
+        content,
+        videoUrl,
+        courseId,
         order,
-        hotspots: hotspots ? (typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots)) : null,
-        sceneConfig: sceneConfig ? (typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig)) : null
-      }
+        hotspots: hotspots
+          ? typeof hotspots === 'string'
+            ? hotspots
+            : JSON.stringify(hotspots)
+          : null,
+        sceneConfig: sceneConfig
+          ? typeof sceneConfig === 'string'
+            ? sceneConfig
+            : JSON.stringify(sceneConfig)
+          : null,
+      },
     });
     res.status(201).json(lesson);
   } catch (error) {
@@ -57,12 +65,13 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
       updateData.hotspots = typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots);
     }
     if (sceneConfig !== undefined) {
-      updateData.sceneConfig = typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig);
+      updateData.sceneConfig =
+        typeof sceneConfig === 'string' ? sceneConfig : JSON.stringify(sceneConfig);
     }
 
     const lesson = await prisma.lesson.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
     res.json(lesson);
   } catch (error) {

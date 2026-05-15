@@ -10,8 +10,8 @@ export const getAllProjects = async (req: AuthRequest, res: Response) => {
     const where: any = {
       teamId: req.workspaceId,
       members: {
-        some: { userId: req.userId as string }
-      }
+        some: { userId: req.userId as string },
+      },
     };
     const projects = await prisma.project.findMany({
       where,
@@ -19,12 +19,12 @@ export const getAllProjects = async (req: AuthRequest, res: Response) => {
         members: {
           include: {
             user: {
-              select: { name: true, email: true, avatarUrl: true }
-            }
-          }
-        }
+              select: { name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
     });
     res.json(projects);
   } catch (error) {
@@ -33,7 +33,17 @@ export const getAllProjects = async (req: AuthRequest, res: Response) => {
 };
 
 export const createProject = async (req: AuthRequest, res: Response) => {
-  const { title, description, dueDate, color, tags, visibility, maxMembers, memberIds, inviteUserIds } = req.body;
+  const {
+    title,
+    description,
+    dueDate,
+    color,
+    tags,
+    visibility,
+    maxMembers,
+    memberIds,
+    inviteUserIds,
+  } = req.body;
   const userId = req.userId as string;
 
   try {
@@ -43,9 +53,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: quota.message });
     }
 
-    const membersData: any[] = [
-      { userId, role: 'OWNER' }
-    ];
+    const membersData: any[] = [{ userId, role: 'OWNER' }];
 
     if (memberIds && memberIds.length > 0) {
       const existingMemberIds = new Set([userId]);
@@ -68,18 +76,18 @@ export const createProject = async (req: AuthRequest, res: Response) => {
         maxMembers: maxMembers ? parseInt(maxMembers) : 10,
         teamId: req.workspaceId as any,
         members: {
-          create: membersData
-        }
+          create: membersData,
+        },
       },
       include: {
         members: {
           include: {
             user: {
-              select: { id: true, name: true, email: true, avatarUrl: true }
-            }
-          }
-        }
-      }
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+      },
     });
 
     await auditService.log({
@@ -88,7 +96,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       module: AuditModule.PROJECT,
       description: `Created project: ${project.title}`,
       newValue: project,
-      req
+      req,
     });
 
     if (inviteUserIds && inviteUserIds.length > 0) {
@@ -102,7 +110,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
           inviterId: req.userId as string,
           inviteeId: uid,
           status: 'PENDING',
-          expiresAt
+          expiresAt,
         }));
 
       if (invitations.length > 0) {
@@ -117,8 +125,8 @@ export const createProject = async (req: AuthRequest, res: Response) => {
               content: `你被邀请加入项目「${title}」`,
               userId: uid,
               link: `/projects/${project.id}`,
-              category: 'TEAM_ACTIVITY' as const
-            }))
+              category: 'TEAM_ACTIVITY' as const,
+            })),
         );
       }
     }
@@ -131,15 +139,16 @@ export const createProject = async (req: AuthRequest, res: Response) => {
 
 export const updateProject = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { title, description, progress, status, dueDate, color, tags, visibility, maxMembers } = req.body;
+  const { title, description, progress, status, dueDate, color, tags, visibility, maxMembers } =
+    req.body;
   try {
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId } as any
+      where: { id, teamId: req.workspaceId } as any,
     });
     if (!project) return res.status(404).json({ error: 'Project not found in this workspace' });
 
     const member = await prisma.projectMember.findFirst({
-      where: { projectId: id, userId: req.userId as string, role: 'OWNER' }
+      where: { projectId: id, userId: req.userId as string, role: 'OWNER' },
     });
     if (!member) return res.status(403).json({ error: 'Only owners can update project settings' });
 
@@ -150,7 +159,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
       color,
       tags,
       visibility,
-      maxMembers: maxMembers ? parseInt(maxMembers) : undefined
+      maxMembers: maxMembers ? parseInt(maxMembers) : undefined,
     };
 
     if (progress !== undefined) updateData.progress = parseInt(progress);
@@ -158,17 +167,17 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.project.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
     await auditService.log({
       userId: req.userId,
-      action: AuditAction.UPDATE_PROJECT, 
+      action: AuditAction.UPDATE_PROJECT,
       module: AuditModule.PROJECT,
       description: `Updated project: ${updated.title}`,
       oldValue: project,
       newValue: updated,
-      req
+      req,
     });
 
     res.json(updated);
@@ -185,8 +194,8 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, avatarUrl: true, email: true } }
-          }
+            user: { select: { id: true, name: true, avatarUrl: true, email: true } },
+          },
         },
         tasks: {
           include: {
@@ -195,28 +204,28 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
               select: {
                 id: true,
                 userId: true,
-                user: { select: { id: true, name: true, avatarUrl: true } }
-              }
-            }
+                user: { select: { id: true, name: true, avatarUrl: true } },
+              },
+            },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         },
         discussions: {
           include: {
             user: { select: { id: true, name: true, avatarUrl: true } },
             reactions: {
-              include: { user: { select: { id: true, name: true, avatarUrl: true } } }
-            }
+              include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+            },
           },
-          orderBy: { createdAt: 'asc' }
+          orderBy: { createdAt: 'asc' },
         },
         invitations: {
           where: { status: 'PENDING' },
           include: {
-            invitee: { select: { id: true, name: true, avatarUrl: true, email: true } }
-          }
-        }
-      }
+            invitee: { select: { id: true, name: true, avatarUrl: true, email: true } },
+          },
+        },
+      },
     });
 
     if (!project || project.teamId !== req.workspaceId) {
@@ -236,7 +245,7 @@ export const joinProject = async (req: AuthRequest, res: Response) => {
   try {
     const project = await prisma.project.findUnique({
       where: { id },
-      include: { members: true }
+      include: { members: true },
     });
 
     if (!project || project.teamId !== req.workspaceId) {
@@ -251,15 +260,15 @@ export const joinProject = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Project is full' });
     }
 
-    const existingMember = project.members.find(m => m.userId === userId);
+    const existingMember = project.members.find((m) => m.userId === userId);
     if (existingMember) return res.status(400).json({ error: 'Already a member' });
 
     const member = await prisma.projectMember.create({
       data: {
         projectId: id,
         userId,
-        role: 'MEMBER'
-      }
+        role: 'MEMBER',
+      },
     });
 
     res.status(201).json(member);
@@ -276,17 +285,18 @@ export const addDiscussion = async (req: AuthRequest, res: Response) => {
   try {
     // 首先检查项目是否在当前工作区
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId }
-    });
-    
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    
-    // 再检查用户是否是项目成员
-    const member = await prisma.projectMember.findFirst({
-      where: { projectId: id, userId }
+      where: { id, teamId: req.workspaceId },
     });
 
-    if (!member) return res.status(403).json({ error: 'Only project members can participate in discussions' });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    // 再检查用户是否是项目成员
+    const member = await prisma.projectMember.findFirst({
+      where: { projectId: id, userId },
+    });
+
+    if (!member)
+      return res.status(403).json({ error: 'Only project members can participate in discussions' });
 
     const discussion = await prisma.projectDiscussion.create({
       data: {
@@ -297,14 +307,14 @@ export const addDiscussion = async (req: AuthRequest, res: Response) => {
         images: images || null,
         fileUrl: fileUrl || null,
         fileName: fileName || null,
-        fileSize: fileSize || null
+        fileSize: fileSize || null,
       },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
         reactions: {
-          include: { user: { select: { id: true, name: true, avatarUrl: true } } }
-        }
-      }
+          include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+        },
+      },
     });
 
     res.status(201).json(discussion);
@@ -323,15 +333,15 @@ export const createProjectTask = async (req: AuthRequest, res: Response) => {
       where: { id, teamId: req.workspaceId },
       include: {
         members: {
-          where: { userId: req.userId }
-        }
-      }
+          where: { userId: req.userId },
+        },
+      },
     });
-    
+
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
-    
+
     if (!project.members || project.members.length === 0) {
       return res.status(403).json({ error: 'Not authorized to create tasks in this project' });
     }
@@ -346,9 +356,12 @@ export const createProjectTask = async (req: AuthRequest, res: Response) => {
         assigneeId: assigneeId || null,
         userId: req.userId as string,
         teamId: req.workspaceId as any,
-        participants: participantIds && participantIds.length > 0 ? {
-          create: participantIds.map((userId: string) => ({ userId }))
-        } : undefined
+        participants:
+          participantIds && participantIds.length > 0
+            ? {
+                create: participantIds.map((userId: string) => ({ userId })),
+              }
+            : undefined,
       } as any,
       include: {
         assignee: { select: { id: true, name: true, avatarUrl: true } },
@@ -356,10 +369,10 @@ export const createProjectTask = async (req: AuthRequest, res: Response) => {
           select: {
             id: true,
             userId: true,
-            user: { select: { id: true, name: true, avatarUrl: true } }
-          }
-        }
-      }
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
+      },
     });
 
     await recalcProjectProgress(id);
@@ -373,14 +386,14 @@ export const createProjectTask = async (req: AuthRequest, res: Response) => {
 async function recalcProjectProgress(projectId: string) {
   const tasks = await prisma.task.findMany({
     where: { projectId },
-    select: { status: true }
+    select: { status: true },
   });
   const total = tasks.length;
-  const done = tasks.filter(t => t.status === 'DONE').length;
+  const done = tasks.filter((t) => t.status === 'DONE').length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
   await prisma.project.update({
     where: { id: projectId },
-    data: { progress }
+    data: { progress },
   });
   return progress;
 }
@@ -392,23 +405,23 @@ export const updateProjectTask = async (req: AuthRequest, res: Response) => {
   try {
     // 检查任务是否在当前工作区并且当前用户是项目成员
     const existingTask = await prisma.task.findFirst({
-      where: { 
-        id: taskId, 
-        teamId: req.workspaceId 
+      where: {
+        id: taskId,
+        teamId: req.workspaceId,
       },
-      include: { 
+      include: {
         project: {
           include: {
             members: {
-              where: { userId: req.userId }
-            }
-          }
-        }
-      }
+              where: { userId: req.userId },
+            },
+          },
+        },
+      },
     });
-    
+
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
-    
+
     // 检查用户是否是项目成员
     if (!existingTask.project || existingTask.project.members.length === 0) {
       return res.status(403).json({ error: 'Not authorized to update this task' });
@@ -421,8 +434,8 @@ export const updateProjectTask = async (req: AuthRequest, res: Response) => {
         description,
         status,
         assigneeId,
-        dueDate: dueDate ? new Date(dueDate) : null
-      }
+        dueDate: dueDate ? new Date(dueDate) : null,
+      },
     });
 
     if (status !== undefined && task.projectId) {
@@ -440,12 +453,12 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const project = await prisma.project.findFirst({
-      where: { id, teamId: req.workspaceId } as any
+      where: { id, teamId: req.workspaceId } as any,
     });
     if (!project) return res.status(404).json({ error: 'Project not found in this workspace' });
 
     const member = await prisma.projectMember.findFirst({
-      where: { projectId: id, userId: req.userId as string, role: 'OWNER' }
+      where: { projectId: id, userId: req.userId as string, role: 'OWNER' },
     });
     if (!member) return res.status(403).json({ error: 'Only owners can delete projects' });
 
@@ -457,7 +470,7 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
       module: AuditModule.PROJECT,
       description: `Deleted project: ${project.title}`,
       oldValue: project,
-      req
+      req,
     });
 
     res.json({ message: 'Project deleted successfully' });
@@ -474,7 +487,7 @@ export const inviteToProject = async (req: AuthRequest, res: Response) => {
   try {
     const project = await prisma.project.findFirst({
       where: { id, teamId: req.workspaceId } as any,
-      include: { members: true }
+      include: { members: true },
     });
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
@@ -485,21 +498,24 @@ export const inviteToProject = async (req: AuthRequest, res: Response) => {
 
     const existingMemberIds = new Set((project as any).members.map((m: any) => m.userId));
     const existingInvitations = await prisma.projectInvitation.findMany({
-      where: { projectId: id, status: 'PENDING', inviteeId: { in: userIds } }
+      where: { projectId: id, status: 'PENDING', inviteeId: { in: userIds } },
     });
-    const existingInviteeIds = new Set(existingInvitations.map(i => i.inviteeId));
+    const existingInviteeIds = new Set(existingInvitations.map((i) => i.inviteeId));
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     const invitations = userIds
-      .filter((uid: string) => uid !== inviterId && !existingMemberIds.has(uid) && !existingInviteeIds.has(uid))
+      .filter(
+        (uid: string) =>
+          uid !== inviterId && !existingMemberIds.has(uid) && !existingInviteeIds.has(uid),
+      )
       .map((uid: string) => ({
         projectId: id,
         inviterId,
         inviteeId: uid,
         status: 'PENDING',
-        expiresAt
+        expiresAt,
       }));
 
     if (invitations.length === 0) {
@@ -515,8 +531,8 @@ export const inviteToProject = async (req: AuthRequest, res: Response) => {
         content: `你被邀请加入项目「${project.title}」`,
         userId: inv.inviteeId,
         link: `/projects/${id}`,
-        category: 'TEAM_ACTIVITY' as const
-      }))
+        category: 'TEAM_ACTIVITY' as const,
+      })),
     );
 
     res.status(201).json({ invited: invitations.length });
@@ -531,32 +547,36 @@ export const acceptProjectInvitation = async (req: AuthRequest, res: Response) =
 
   try {
     const invitation = await prisma.projectInvitation.findUnique({
-      where: { id: invitationId }
+      where: { id: invitationId },
     });
     if (!invitation) return res.status(404).json({ error: 'Invitation not found' });
-    if (invitation.inviteeId !== userId) return res.status(403).json({ error: 'Not your invitation' });
-    if (invitation.status !== 'PENDING') return res.status(400).json({ error: 'Invitation already processed' });
-    if (invitation.expiresAt < new Date()) return res.status(400).json({ error: 'Invitation expired' });
+    if (invitation.inviteeId !== userId)
+      return res.status(403).json({ error: 'Not your invitation' });
+    if (invitation.status !== 'PENDING')
+      return res.status(400).json({ error: 'Invitation already processed' });
+    if (invitation.expiresAt < new Date())
+      return res.status(400).json({ error: 'Invitation expired' });
 
     const project = await prisma.project.findUnique({
       where: { id: invitation.projectId },
-      include: { members: true }
+      include: { members: true },
     });
     if (!project) return res.status(404).json({ error: 'Project not found' });
-    if (project.members.length >= project.maxMembers) return res.status(400).json({ error: 'Project is full' });
+    if (project.members.length >= project.maxMembers)
+      return res.status(400).json({ error: 'Project is full' });
 
     await prisma.$transaction([
       prisma.projectInvitation.update({
         where: { id: invitationId },
-        data: { status: 'ACCEPTED' }
+        data: { status: 'ACCEPTED' },
       }),
       prisma.projectMember.create({
         data: {
           projectId: invitation.projectId,
           userId,
-          role: 'MEMBER'
-        }
-      })
+          role: 'MEMBER',
+        },
+      }),
     ]);
 
     res.json({ message: 'Invitation accepted' });
@@ -571,15 +591,17 @@ export const rejectProjectInvitation = async (req: AuthRequest, res: Response) =
 
   try {
     const invitation = await prisma.projectInvitation.findUnique({
-      where: { id: invitationId }
+      where: { id: invitationId },
     });
     if (!invitation) return res.status(404).json({ error: 'Invitation not found' });
-    if (invitation.inviteeId !== userId) return res.status(403).json({ error: 'Not your invitation' });
-    if (invitation.status !== 'PENDING') return res.status(400).json({ error: 'Invitation already processed' });
+    if (invitation.inviteeId !== userId)
+      return res.status(403).json({ error: 'Not your invitation' });
+    if (invitation.status !== 'PENDING')
+      return res.status(400).json({ error: 'Invitation already processed' });
 
     await prisma.projectInvitation.update({
       where: { id: invitationId },
-      data: { status: 'REJECTED' }
+      data: { status: 'REJECTED' },
     });
 
     res.json({ message: 'Invitation rejected' });
@@ -601,29 +623,29 @@ export const addDiscussionReaction = async (req: AuthRequest, res: Response) => 
         project: {
           include: {
             members: {
-              where: { userId }
-            }
-          }
-        }
-      }
+              where: { userId },
+            },
+          },
+        },
+      },
     });
-    
+
     if (!discussion) {
       return res.status(404).json({ error: 'Discussion not found' });
     }
-    
+
     // 检查讨论所在的项目是否在当前工作区
     if (discussion.project.teamId !== req.workspaceId) {
       return res.status(404).json({ error: 'Discussion not found' });
     }
-    
+
     // 检查用户是否是项目成员
     if (!discussion.project.members || discussion.project.members.length === 0) {
       return res.status(403).json({ error: 'Not authorized to add reactions' });
     }
 
     const existing = await prisma.projectDiscussionReaction.findUnique({
-      where: { discussionId_userId_emoji: { discussionId, userId, emoji } }
+      where: { discussionId_userId_emoji: { discussionId, userId, emoji } },
     });
 
     if (existing) {
@@ -632,7 +654,7 @@ export const addDiscussionReaction = async (req: AuthRequest, res: Response) => 
     } else {
       const reaction = await prisma.projectDiscussionReaction.create({
         data: { discussionId, userId, emoji },
-        include: { user: { select: { id: true, name: true, avatarUrl: true } } }
+        include: { user: { select: { id: true, name: true, avatarUrl: true } } },
       });
       res.status(201).json(reaction);
     }
@@ -649,12 +671,13 @@ export const removeProjectMember = async (req: AuthRequest, res: Response) => {
   try {
     const project = await prisma.project.findFirst({
       where: { id, teamId: req.workspaceId } as any,
-      include: { members: true }
+      include: { members: true },
     });
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
     const requester = (project as any).members.find((m: any) => m.userId === requesterId);
-    if (!requester || requester.role !== 'OWNER') return res.status(403).json({ error: 'Only owners can remove members' });
+    if (!requester || requester.role !== 'OWNER')
+      return res.status(403).json({ error: 'Only owners can remove members' });
 
     const target = (project as any).members.find((m: any) => m.userId === targetUserId);
     if (!target) return res.status(404).json({ error: 'Member not found' });

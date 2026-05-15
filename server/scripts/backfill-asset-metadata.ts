@@ -10,13 +10,9 @@ async function main() {
 
   const assets = await prisma.asset.findMany({
     where: {
-      OR: [
-        { vertices: null },
-        { faces: null },
-        { dimensions: null }
-      ],
-      type: { in: ['GLB', 'GLTF'] }
-    }
+      OR: [{ vertices: null }, { faces: null }, { dimensions: null }],
+      type: { in: ['GLB', 'GLTF'] },
+    },
   });
 
   console.log(`Found ${assets.length} assets to process.`);
@@ -38,7 +34,7 @@ async function main() {
       if (metadata) {
         await prisma.asset.update({
           where: { id: asset.id },
-          data: metadata
+          data: metadata,
         });
         console.log(`Successfully updated asset: ${asset.title}`);
       }

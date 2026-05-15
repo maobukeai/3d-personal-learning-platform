@@ -6,13 +6,13 @@ export enum PaymentStatus {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED'
+  REFUNDED = 'REFUNDED',
 }
 
 export enum PaymentMethod {
   ALIPAY = 'ALIPAY',
   WECHAT = 'WECHAT',
-  MOCK = 'MOCK'
+  MOCK = 'MOCK',
 }
 
 interface CreateOrderParams {
@@ -26,9 +26,17 @@ interface CreateOrderParams {
 }
 
 class PaymentService {
-  async createOrder({ userId, amount, description, planId, planName, interval, paymentMethod }: CreateOrderParams) {
+  async createOrder({
+    userId,
+    amount,
+    description,
+    planId,
+    planName,
+    interval,
+    paymentMethod,
+  }: CreateOrderParams) {
     const invoiceNo = `INV-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
@@ -40,7 +48,7 @@ class PaymentService {
         paymentMethod,
         invoiceNo,
         status: PaymentStatus.PENDING,
-      }
+      },
     });
 
     let paymentUrl = null;
@@ -60,7 +68,7 @@ class PaymentService {
   async verifyPayment(transactionId: string, paymentId: string) {
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { user: true }
+      include: { user: true },
     });
 
     if (!transaction || transaction.status !== PaymentStatus.PENDING) {
@@ -74,7 +82,7 @@ class PaymentService {
       data: {
         status: PaymentStatus.COMPLETED,
         paymentId,
-      }
+      },
     });
 
     // Activate subscription
@@ -102,7 +110,7 @@ class PaymentService {
           cancelAtPeriodEnd: false,
           autoRenew: true,
           paymentMethod: transaction.paymentMethod,
-        }
+        },
       });
     }
 

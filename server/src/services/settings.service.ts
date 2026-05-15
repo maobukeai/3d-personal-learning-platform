@@ -21,7 +21,38 @@ const DEFAULT_SETTINGS: SystemSettings = {
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
   MAX_FILE_SIZE: 100,
-  ALLOWED_EXTENSIONS: ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg', '.bmp', '.pdf', '.zip', '.rar', '.7z', '.glb', '.gltf', '.fbx', '.obj', '.stl', '.dae', '.3ds', '.blend', '.usdz', '.abc', '.mp4', '.webm', '.mov', '.avi', '.mkv', '.mp3', '.wav', '.ogg', '.flac'],
+  ALLOWED_EXTENSIONS: [
+    '.jpeg',
+    '.jpg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.svg',
+    '.bmp',
+    '.pdf',
+    '.zip',
+    '.rar',
+    '.7z',
+    '.glb',
+    '.gltf',
+    '.fbx',
+    '.obj',
+    '.stl',
+    '.dae',
+    '.3ds',
+    '.blend',
+    '.usdz',
+    '.abc',
+    '.mp4',
+    '.webm',
+    '.mov',
+    '.avi',
+    '.mkv',
+    '.mp3',
+    '.wav',
+    '.ogg',
+    '.flac',
+  ],
   AUTO_APPROVE_MATERIALS: false,
   AUTO_APPROVE_SHOWCASES: false,
   SMTP_HOST: '',
@@ -29,7 +60,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SMTP_USER: '',
   SMTP_PASS: '',
   SMTP_FROM: 'noreply@3d-learning.com',
-  MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件']
+  MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件'],
 };
 
 class SettingsService {
@@ -38,7 +69,7 @@ class SettingsService {
   private readonly CACHE_TTL = 60 * 1000; // 1 minute
 
   async getAll(): Promise<SystemSettings> {
-    if (this.cache && (Date.now() - this.lastFetch < this.CACHE_TTL)) {
+    if (this.cache && Date.now() - this.lastFetch < this.CACHE_TTL) {
       return { ...DEFAULT_SETTINGS, ...this.cache } as SystemSettings;
     }
 
@@ -48,7 +79,7 @@ class SettingsService {
     for (const s of dbSettings) {
       try {
         if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_')) {
-          settings[s.key as keyof SystemSettings] = s.value === 'true' as any;
+          settings[s.key as keyof SystemSettings] = s.value === ('true' as any);
         } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE')) {
           settings[s.key as keyof SystemSettings] = parseInt(s.value, 10) as any;
         } else if (s.key.endsWith('_CATEGORIES') || s.key.endsWith('_EXTENSIONS')) {
@@ -82,7 +113,7 @@ class SettingsService {
     await prisma.systemSetting.upsert({
       where: { key },
       update: { value: stringValue },
-      create: { key, value: stringValue }
+      create: { key, value: stringValue },
     });
 
     this.cache = null; // Invalidate cache

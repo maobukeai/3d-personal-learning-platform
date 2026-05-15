@@ -36,7 +36,8 @@ export default {
     emailSystemUpdates: 'System Updates & Announcements',
     emailSystemUpdatesDesc: 'Receive emails about new features and maintenance plans.',
     emailTeamActivity: 'Team Activity Notifications',
-    emailTeamActivityDesc: 'Notify you when there are new activities or task assignments in your team.',
+    emailTeamActivityDesc:
+      'Notify you when there are new activities or task assignments in your team.',
     emailMarketing: 'Marketing & Activities',
     emailMarketingDesc: 'Receive emails about special offers, webinars, and industry news.',
     pushMentions: 'Mentions & Replies',
@@ -122,7 +123,7 @@ export default {
     time: {
       minutesAgo: '{n}m ago',
       hoursAgo: '{n}h ago',
-    }
+    },
   },
   tasks: {
     board: 'Task Board',
@@ -164,5 +165,5 @@ export default {
     deleteConfirm: 'Are you sure you want to delete this note?',
     deleteSuccess: 'Note deleted',
     lastModified: 'Last Modified',
-  }
-}
+  },
+};

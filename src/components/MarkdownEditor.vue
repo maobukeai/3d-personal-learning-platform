@@ -1,59 +1,62 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { MdEditor, MdPreview } from 'md-editor-v3'
-import { useI18n } from 'vue-i18n'
-import 'md-editor-v3/lib/style.css'
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { MdEditor, MdPreview } from 'md-editor-v3';
+import { useI18n } from 'vue-i18n';
+import 'md-editor-v3/lib/style.css';
 
-const { locale } = useI18n()
-const props = withDefaults(defineProps<{
-  modelValue: string
-  placeholder?: string
-  height?: string
-  previewOnly?: boolean
-}>(), {
-  placeholder: '请输入内容，支持 Markdown 格式...',
-  height: '500px',
-  previewOnly: false
-})
+const { locale } = useI18n();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    placeholder?: string;
+    height?: string;
+    previewOnly?: boolean;
+  }>(),
+  {
+    placeholder: '请输入内容，支持 Markdown 格式...',
+    height: '500px',
+    previewOnly: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+  'update:modelValue': [value: string];
+}>();
 
 const text = computed({
   get: () => props.modelValue,
-  set: (val: string) => emit('update:modelValue', val)
-})
+  set: (val: string) => emit('update:modelValue', val),
+});
 
-const editorId = ref(`md-editor-${Date.now()}`)
+const editorId = ref(`md-editor-${Date.now()}`);
 
 const editorLanguage = computed(() => {
-  return locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
-})
+  return locale.value === 'zh-CN' ? 'zh-CN' : 'en-US';
+});
 
-const isDark = ref(document.documentElement.classList.contains('dark'))
-let observer: MutationObserver | null = null
+const isDark = ref(document.documentElement.classList.contains('dark'));
+let observer: MutationObserver | null = null;
 
 onMounted(() => {
   observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-        isDark.value = document.documentElement.classList.contains('dark')
+        isDark.value = document.documentElement.classList.contains('dark');
       }
-    })
-  })
+    });
+  });
 
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class']
-  })
-})
+    attributeFilter: ['class'],
+  });
+});
 
 onUnmounted(() => {
   if (observer) {
-    observer.disconnect()
+    observer.disconnect();
   }
-})
+});
 </script>
 
 <template>
@@ -67,14 +70,14 @@ onUnmounted(() => {
     />
     <MdEditor
       v-else
-      v-model="text"
       :id="editorId"
+      v-model="text"
       :placeholder="placeholder"
       :style="{ height }"
       :theme="isDark ? 'dark' : 'light'"
       :language="editorLanguage"
       :preview="true"
-      :toolbarsExclude="['github', 'htmlPreview', 'catalog']"
+      :toolbars-exclude="['github', 'htmlPreview', 'catalog']"
     />
   </div>
 </template>

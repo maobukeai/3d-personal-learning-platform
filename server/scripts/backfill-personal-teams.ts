@@ -8,8 +8,8 @@ async function main() {
   // 查找没有个人团队的用户
   const users = await prisma.user.findMany({
     include: {
-      ownedTeams: true
-    }
+      ownedTeams: true,
+    },
   });
 
   console.log(`Found ${users.length} users in total.`);
@@ -18,11 +18,11 @@ async function main() {
 
   for (const user of users) {
     // 检查用户是否已经有个人团队
-    const hasPersonalTeam = user.ownedTeams.some(team => team.type === 'PERSONAL');
-    
+    const hasPersonalTeam = user.ownedTeams.some((team) => team.type === 'PERSONAL');
+
     if (!hasPersonalTeam) {
       console.log(`Creating personal team for user: ${user.email} (${user.id})`);
-      
+
       try {
         await prisma.team.create({
           data: {
@@ -34,12 +34,12 @@ async function main() {
             members: {
               create: {
                 userId: user.id,
-                role: 'OWNER'
-              }
-            }
-          }
+                role: 'OWNER',
+              },
+            },
+          },
         });
-        
+
         createdCount++;
         console.log(`Successfully created personal team for: ${user.email}`);
       } catch (error) {

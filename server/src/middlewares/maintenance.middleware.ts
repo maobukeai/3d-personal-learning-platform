@@ -16,7 +16,7 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
         try {
           const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
           const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-          
+
           if (user && user.role === 'ADMIN') {
             return next(); // Allow admin to bypass
           }
@@ -26,13 +26,17 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
       }
 
       // Allow admin login and public settings even in maintenance mode
-      if (req.path === '/api/auth/login' || req.path === '/api/auth/settings' || req.path === '/api/auth/refresh') {
-         return next();
+      if (
+        req.path === '/api/auth/login' ||
+        req.path === '/api/auth/settings' ||
+        req.path === '/api/auth/refresh'
+      ) {
+        return next();
       }
 
-      return res.status(503).json({ 
-        error: '系统维护中', 
-        message: '平台正在进行例行维护，请稍后再试。管理员仍可正常登录。' 
+      return res.status(503).json({
+        error: '系统维护中',
+        message: '平台正在进行例行维护，请稍后再试。管理员仍可正常登录。',
       });
     }
 

@@ -122,7 +122,7 @@ export default {
     time: {
       minutesAgo: '{n}分钟前',
       hoursAgo: '{n}小时前',
-    }
+    },
   },
   tasks: {
     board: '任务看板',
@@ -164,5 +164,5 @@ export default {
     deleteConfirm: '确定要删除这条笔记吗？',
     deleteSuccess: '笔记已删除',
     lastModified: '最后修改',
-  }
-}
+  },
+};

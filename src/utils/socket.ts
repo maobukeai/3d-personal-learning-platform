@@ -4,7 +4,7 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 class SocketService {
   private socket: Socket | null = null;
-  private listeners: { event: string, callback: (...args: any[]) => void }[] = [];
+  private listeners: { event: string; callback: (...args: any[]) => void }[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -19,7 +19,7 @@ class SocketService {
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 30000,
-      timeout: 10000
+      timeout: 10000,
     });
 
     this.socket.on('connect', () => {
@@ -66,7 +66,7 @@ class SocketService {
     if (this.socket) {
       this.socket.on(event, callback);
     }
-    if (!this.listeners.some(l => l.event === event && l.callback === callback)) {
+    if (!this.listeners.some((l) => l.event === event && l.callback === callback)) {
       this.listeners.push({ event, callback });
     }
   }
@@ -80,9 +80,11 @@ class SocketService {
       }
     }
     if (callback) {
-      this.listeners = this.listeners.filter(l => !(l.event === event && l.callback === callback));
+      this.listeners = this.listeners.filter(
+        (l) => !(l.event === event && l.callback === callback),
+      );
     } else {
-      this.listeners = this.listeners.filter(l => l.event !== event);
+      this.listeners = this.listeners.filter((l) => l.event !== event);
     }
   }
 

@@ -11,7 +11,7 @@ export enum AuditModule {
   SHOWCASE = 'SHOWCASE',
   AUTH = 'AUTH',
   PROJECT = 'PROJECT',
-  TASK = 'TASK'
+  TASK = 'TASK',
 }
 
 export enum AuditAction {
@@ -66,20 +66,23 @@ class AuditService {
     try {
       // Robust IP detection
       let ipAddress: string | null = null;
-      
+
       if (req) {
         // Priority: 1. X-Forwarded-For, 2. X-Real-IP, 3. req.ip, 4. remoteAddress
         const xForwardedFor = req.headers['x-forwarded-for'];
         if (xForwardedFor) {
-          ipAddress = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor.split(',')[0].trim();
+          ipAddress = Array.isArray(xForwardedFor)
+            ? xForwardedFor[0]
+            : xForwardedFor.split(',')[0].trim();
         }
-        
+
         if (!ipAddress || ipAddress === 'unknown') {
-          ipAddress = (req.headers['x-real-ip'] as string) || 
-                      (req.headers['cf-connecting-ip'] as string) || 
-                      (req.headers['true-client-ip'] as string) ||
-                      req.ip || 
-                      null;
+          ipAddress =
+            (req.headers['x-real-ip'] as string) ||
+            (req.headers['cf-connecting-ip'] as string) ||
+            (req.headers['true-client-ip'] as string) ||
+            req.ip ||
+            null;
         }
 
         if (!ipAddress && req.socket) {
@@ -94,7 +97,9 @@ class AuditService {
 
       // Debug logging to help troubleshoot if IPs are still missing
       if (!ipAddress && req) {
-        console.warn(`[AuditService] Could not detect IP address. Headers: ${JSON.stringify(req.headers)}`);
+        console.warn(
+          `[AuditService] Could not detect IP address. Headers: ${JSON.stringify(req.headers)}`,
+        );
       }
 
       await client.auditLog.create({
@@ -107,7 +112,7 @@ class AuditService {
           newValue: newValue ? JSON.stringify(newValue) : null,
           ipAddress: ipAddress,
           userAgent: req?.headers['user-agent'] || null,
-        }
+        },
       });
     } catch (error) {
       console.error('[AuditService] Failed to create audit log:', error);

@@ -23,12 +23,18 @@ function buildConfigHash(config: Record<string, string>): string {
   return `${config.SMTP_HOST}|${config.SMTP_PORT}|${config.SMTP_USER}|${config.SMTP_PASS}|${config.SMTP_SECURE}`;
 }
 
-async function getTransporter(): Promise<{ transporter: nodemailer.Transporter | null; config: Record<string, string> }> {
+async function getTransporter(): Promise<{
+  transporter: nodemailer.Transporter | null;
+  config: Record<string, string>;
+}> {
   const settings = await prisma.systemSetting.findMany();
-  const config = settings.reduce((acc: any, curr) => {
-    acc[curr.key] = curr.value;
-    return acc;
-  }, {} as Record<string, string>);
+  const config = settings.reduce(
+    (acc: any, curr) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 
   if (!config.SMTP_HOST || !config.SMTP_USER || !config.SMTP_PASS) {
     if (cachedTransporter) {
@@ -84,9 +90,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
   }
 
   const fromEmail = config.SMTP_FROM || config.SMTP_USER;
-  const from = config.SMTP_FROM_NAME
-    ? `"${config.SMTP_FROM_NAME}" <${fromEmail}>`
-    : fromEmail;
+  const from = config.SMTP_FROM_NAME ? `"${config.SMTP_FROM_NAME}" <${fromEmail}>` : fromEmail;
 
   try {
     await transporter.sendMail({

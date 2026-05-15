@@ -13,6 +13,8 @@ const props = withDefaults(
     previewOnly?: boolean;
     autoFocus?: boolean;
     autoHeight?: boolean;
+    preview?: boolean;
+    htmlPreview?: boolean;
   }>(),
   {
     placeholder: '请输入内容，支持 Markdown 格式...',
@@ -20,6 +22,8 @@ const props = withDefaults(
     previewOnly: false,
     autoFocus: false,
     autoHeight: false,
+    preview: true,
+    htmlPreview: false,
   },
 );
 
@@ -80,9 +84,10 @@ onUnmounted(() => {
       :style="{ height }"
       :theme="isDark ? 'dark' : 'light'"
       :language="editorLanguage"
-      :preview="true"
+      :preview="preview"
+      :html-preview="htmlPreview"
       :auto-focus="autoFocus"
-      :autoHeight="autoHeight"
+      :auto-height="autoHeight"
       :toolbars-exclude="['github', 'htmlPreview', 'catalog']"
     />
   </div>
@@ -183,4 +188,3 @@ onUnmounted(() => {
   background-color: transparent !important;
 }
 </style>
-

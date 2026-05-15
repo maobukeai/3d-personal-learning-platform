@@ -11,11 +11,15 @@ const props = withDefaults(
     placeholder?: string;
     height?: string;
     previewOnly?: boolean;
+    autoFocus?: boolean;
+    autoHeight?: boolean;
   }>(),
   {
     placeholder: '请输入内容，支持 Markdown 格式...',
     height: '500px',
     previewOnly: false,
+    autoFocus: false,
+    autoHeight: false,
   },
 );
 
@@ -60,7 +64,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="markdown-editor-wrapper" :class="{ 'is-dark': isDark }">
+  <div class="markdown-editor-wrapper" :class="{ 'is-dark': isDark, 'h-full': height === '100%' }">
     <MdPreview
       v-if="previewOnly"
       :id="editorId"
@@ -77,6 +81,8 @@ onUnmounted(() => {
       :theme="isDark ? 'dark' : 'light'"
       :language="editorLanguage"
       :preview="true"
+      :auto-focus="autoFocus"
+      :autoHeight="autoHeight"
       :toolbars-exclude="['github', 'htmlPreview', 'catalog']"
     />
   </div>
@@ -86,11 +92,17 @@ onUnmounted(() => {
 .markdown-editor-wrapper {
   --md-bk-color: var(--bg-card);
   --md-color: var(--text-primary);
+  width: 100%;
+}
+
+.markdown-editor-wrapper.h-full {
+  display: flex;
+  flex-direction: column;
 }
 
 .md-preview-custom {
   background: transparent !important;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.8;
   color: var(--text-primary) !important;
   border: none !important;
@@ -102,10 +114,15 @@ onUnmounted(() => {
 }
 
 .markdown-editor-wrapper .md-editor {
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   border: 1px solid var(--border-base, #e5e7eb) !important;
   background-color: var(--bg-card) !important;
+  transition: border-color 0.2s ease;
+}
+
+.markdown-editor-wrapper .md-editor:focus-within {
+  border-color: var(--accent) !important;
 }
 
 .markdown-editor-wrapper .md-editor-toolbar-wrapper {
@@ -120,12 +137,27 @@ onUnmounted(() => {
 .markdown-editor-wrapper .md-editor-input {
   background-color: var(--bg-app) !important;
   color: var(--text-primary) !important;
-  font-size: 14px !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
 }
 
 .markdown-editor-wrapper .md-editor-preview {
   background-color: var(--bg-card) !important;
   color: var(--text-primary) !important;
+}
+
+/* Scrollbar styling for the editor */
+.markdown-editor-wrapper .md-editor-content-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.markdown-editor-wrapper .md-editor-content-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.markdown-editor-wrapper .md-editor-content-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 10px;
 }
 
 /* Dark mode specific adjustments */
@@ -140,4 +172,15 @@ onUnmounted(() => {
 .markdown-editor-wrapper.is-dark .md-editor-toolbar-item:hover svg {
   fill: var(--accent);
 }
+
+/* Modern Paper Theme styles */
+.markdown-editor-wrapper.modern-paper-theme .md-editor {
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.markdown-editor-wrapper.modern-paper-theme .md-editor-content {
+  background-color: transparent !important;
+}
 </style>
+

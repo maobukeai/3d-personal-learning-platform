@@ -26,7 +26,6 @@ import {
   BarChart3,
   Database,
   MessageCircle,
-
   Notebook,
   Terminal,
   FolderTree,
@@ -65,14 +64,29 @@ const adminGroups = computed(() => [
     items: [
       { name: '用户管理', icon: Users, path: '/admin/users' },
       { name: '团队管理', icon: Briefcase, path: '/admin/teams' },
-      { name: '用户反馈', icon: MessageCircle, path: '/admin/feedback' },
+      {
+        name: '用户反馈',
+        icon: MessageCircle,
+        path: '/admin/feedback',
+        badge: workspaceStore.adminStats.openFeedbacks,
+      },
     ],
   },
   {
     title: '内容审核',
     items: [
-      { name: '资产管理', icon: Database, path: '/admin/assets' },
-      { name: '材料管理', icon: Layers, path: '/admin/materials' },
+      {
+        name: '资产管理',
+        icon: Database,
+        path: '/admin/assets',
+        badge: workspaceStore.adminStats.pendingAssets,
+      },
+      {
+        name: '材料管理',
+        icon: Layers,
+        path: '/admin/materials',
+        badge: workspaceStore.adminStats.pendingMaterials,
+      },
       { name: '审核中心', icon: ShieldCheck, path: '/admin/audits' },
     ],
   },
@@ -225,7 +239,12 @@ const menuGroups = computed(() => {
       title: '交流社区',
       items: [
         { name: t('sidebar.discussions'), icon: MessageSquare, path: '/discussions' },
-        { name: t('sidebar.messages'), icon: MessageSquare, path: '/messages' },
+        {
+          name: t('sidebar.messages'),
+          icon: MessageSquare,
+          path: '/messages',
+          badge: authStore.unreadMessagesCount,
+        },
         { name: t('sidebar.showcase'), icon: MonitorPlay, path: '/showcase' },
       ],
     },
@@ -260,6 +279,11 @@ const fetchNotifications = async () => {
   try {
     const response = await api.get('/api/notifications');
     notifications.value = response.data;
+
+    // Also refresh admin stats if applicable
+    if (authStore.user?.role === 'ADMIN') {
+      workspaceStore.fetchAdminStats();
+    }
   } catch (error) {
     console.error('Fetch notifications error:', error);
   }
@@ -320,6 +344,11 @@ const fetchUnreadMessagesCount = async () => {
 const onNewNotification = (notification: any) => {
   notifications.value.unshift(notification);
 
+  // Immediate sync when notification arrives
+  if (authStore.user?.role === 'ADMIN') {
+    workspaceStore.fetchAdminStats();
+  }
+
   ElNotification({
     title: notification.title,
     message: notification.content,
@@ -364,6 +393,18 @@ const onMessageReceived = ({ conversationId: _conversationId, message }: any) =>
   }
 };
 
+// Watch for workspace changes to refresh stats
+watch(
+  () => workspaceStore.activeWorkspaceId,
+  (id) => {
+    if (id === 'admin-workspace') {
+      workspaceStore.fetchAdminStats();
+    }
+  },
+);
+
+let statsInterval: any = null;
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
   socketService.connect();
@@ -379,12 +420,29 @@ onMounted(() => {
   fetchUnreadMessagesCount();
   authStore.fetchMe();
 
-  setInterval(fetchNotifications, 300000);
+  if (authStore.user?.role === 'ADMIN') {
+    workspaceStore.fetchAdminStats();
+  }
+
+  // Real-time Sync: Polling every 15 seconds
+  statsInterval = setInterval(() => {
+    fetchNotifications();
+    if (authStore.user?.role === 'ADMIN') {
+      workspaceStore.fetchAdminStats();
+    }
+  }, 15000);
 
   socketService.on('new_notification', onNewNotification);
   socketService.on('online_users_list', onOnlineUsersList);
   socketService.on('user_status', onUserStatus);
   socketService.on('message_received', onMessageReceived);
+
+  // Custom event for immediate admin stat refresh
+  socketService.on('refresh_admin_stats', () => {
+    if (authStore.user?.role === 'ADMIN') {
+      workspaceStore.fetchAdminStats();
+    }
+  });
 });
 
 // Sync workspace with route
@@ -402,11 +460,13 @@ watch(
 );
 
 onUnmounted(() => {
+  if (statsInterval) clearInterval(statsInterval);
   window.removeEventListener('keydown', handleKeyDown);
   socketService.off('new_notification', onNewNotification);
   socketService.off('message_received', onMessageReceived);
   socketService.off('online_users_list', onOnlineUsersList);
   socketService.off('user_status', onUserStatus);
+  socketService.off('refresh_admin_stats');
 });
 </script>
 
@@ -423,7 +483,7 @@ onUnmounted(() => {
       <!-- Left: Workspace Switcher / Logo -->
       <template v-if="!workspaceStore.isInitialized">
         <div class="flex items-center gap-2.5 ml-4 animate-pulse">
-          <div class="w-8 h-8 rounded-full bg-slate-200/50 dark:bg-white/10"></div>
+          <div class="w-7 h-7 rounded-xl bg-slate-200/50 dark:bg-white/10"></div>
           <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
         </div>
       </template>
@@ -445,19 +505,34 @@ onUnmounted(() => {
               }px)`,
             }"
           >
-            <div
-              class="w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-              :class="workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color"
-              :style="
-                workspaceStore.isAdminWorkspace
-                  ? {
-                      background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
-                      boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)',
-                    }
-                  : {}
-              "
-            >
-              {{ workspaceStore.currentWorkspace.name.charAt(0) }}
+            <div class="relative">
+              <div
+                class="w-7 h-7 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
+                :class="
+                  workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
+                "
+                :style="
+                  workspaceStore.isAdminWorkspace
+                    ? {
+                        background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
+                        boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)',
+                      }
+                    : {}
+                "
+              >
+                {{ workspaceStore.currentWorkspace.name.charAt(0) }}
+              </div>
+              <!-- Active Workspace Badge -->
+              <div
+                v-if="workspaceStore.currentWorkspace?.badgeCount"
+                class="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--bg-sidebar)] px-1 animate-in zoom-in duration-300"
+              >
+                {{
+                  workspaceStore.currentWorkspace.badgeCount > 99
+                    ? '99+'
+                    : workspaceStore.currentWorkspace.badgeCount
+                }}
+              </div>
             </div>
             <span
               class="text-sm font-bold truncate max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
@@ -480,15 +555,15 @@ onUnmounted(() => {
                 v-for="ws in workspaceStore.workspaces"
                 :key="ws.id"
                 class="rounded-2xl my-1 p-2 group transition-all duration-200"
-                :class="workspaceStore.currentWorkspace?.id === ws.id ? 'bg-accent/5' : ''"
+                :class="workspaceStore.activeWorkspaceId === ws.id ? 'bg-accent/5' : ''"
                 @click="handleSwitchWorkspace(ws)"
               >
                 <div class="flex items-center justify-between w-full">
                   <div class="flex items-center gap-3">
-                    <!-- 圆形头像 -->
+                    <!-- 玻璃质感头像 -->
                     <div class="relative">
                       <div
-                        class="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-105"
+                        class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
                         :class="ws.color"
                       >
                         {{ ws.name.charAt(0) }}
@@ -506,7 +581,7 @@ onUnmounted(() => {
                       <span
                         class="font-semibold text-sm"
                         :class="
-                          workspaceStore.currentWorkspace?.id === ws.id
+                          workspaceStore.activeWorkspaceId === ws.id
                             ? 'text-accent'
                             : 'text-slate-700 dark:text-slate-200'
                         "
@@ -527,7 +602,7 @@ onUnmounted(() => {
                       <Settings class="w-4 h-4" />
                     </button>
                     <div
-                      v-if="workspaceStore.currentWorkspace?.id === ws.id"
+                      v-if="workspaceStore.activeWorkspaceId === ws.id"
                       class="w-1.5 h-1.5 rounded-full bg-accent"
                     ></div>
                   </div>
@@ -544,7 +619,7 @@ onUnmounted(() => {
           </template>
         </el-dropdown>
         <div v-else class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-full bg-accent flex items-center justify-center">
+          <div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
             <Box class="w-4 h-4 text-white" />
           </div>
           <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
@@ -748,14 +823,22 @@ onUnmounted(() => {
                           : 'text-slate-400'
                       "
                     />
-                    {{ item.name }}
-                  </div>
-                  <!-- Unread Badge for Messages -->
-                  <div
-                    v-if="item.path === '/messages' && authStore.unreadMessagesCount > 0"
-                    class="min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
-                  >
-                    {{ authStore.unreadMessagesCount }}
+                    <span class="flex-1">{{ item.name }}</span>
+
+                    <!-- High-Visibility Badge -->
+                    <div
+                      v-if="item.badge && item.badge > 0"
+                      class="px-1.5 py-0.5 min-w-[18px] h-4.5 rounded-full text-[10px] font-black flex items-center justify-center transition-all duration-300"
+                      :class="
+                        route.path === item.path
+                          ? 'bg-white text-rose-600 shadow-sm'
+                          : workspaceStore.isAdminWorkspace
+                            ? 'bg-rose-500 text-white'
+                            : 'bg-rose-500 text-white'
+                      "
+                    >
+                      {{ item.badge > 99 ? '99+' : item.badge }}
+                    </div>
                   </div>
                 </RouterLink>
               </li>

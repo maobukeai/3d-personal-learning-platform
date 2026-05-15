@@ -11,14 +11,14 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
 
   try {
     let orderBy: any = { createdAt: 'desc' };
-    if (filter === '热门') {
+    if ((filter as string) === '热门') {
       orderBy = { likes: { _count: 'desc' } };
     }
 
     const where: any = {
       status: 'APPROVED',
     };
-    if (type && type !== '全部') {
+    if (type && (type as string) !== '全部') {
       where.type = type as string;
     }
 
@@ -58,8 +58,8 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
       createdAt: s.createdAt,
       user: s.user,
       isLiked: s.likes.length > 0,
-      likesCount: s._count.likes,
-      commentsCount: s._count.comments,
+      likesCount: (s as any)._count.likes,
+      commentsCount: (s as any)._count.comments,
     }));
 
     res.json(formatted);
@@ -72,7 +72,7 @@ export const getShowcaseById = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const showcase = await prisma.showcase.findUnique({
-      where: { id },
+      where: { id: id as string },
       include: {
         user: {
           select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
@@ -94,15 +94,15 @@ export const getShowcaseById = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.showcase.update({
-      where: { id },
+      where: { id: id as string },
       data: { views: { increment: 1 } },
     });
 
     res.json({
       ...showcase,
       isLiked: showcase.likes.length > 0,
-      likesCount: showcase._count.likes,
-      commentsCount: showcase._count.comments,
+      likesCount: (showcase as any)._count.likes,
+      commentsCount: (showcase as any)._count.comments,
       views: showcase.views + 1,
     });
   } catch (error) {
@@ -152,7 +152,7 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
       thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/showcase/${thumbnailFile.filename}`;
     } else if (assetId) {
       const asset = await prisma.asset.findUnique({
-        where: { id: assetId },
+        where: { id: assetId as string },
       });
       if (asset?.thumbnail) {
         thumbnailUrl = asset.thumbnail;
@@ -277,14 +277,14 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const showcase = await prisma.showcase.findUnique({
-      where: { id },
+      where: { id: id as string },
     });
 
     if (!showcase) {
       return res.status(404).json({ error: 'Work not found' });
     }
 
-    if (showcase.userId !== req.userId && req.user.role !== 'ADMIN') {
+    if (showcase.userId !== req.userId && req.user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -314,7 +314,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = await prisma.showcase.update({
-      where: { id },
+      where: { id: id as string },
       data: updateData,
       include: {
         user: {
@@ -353,7 +353,7 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Work not found' });
     }
 
-    if (showcase.userId !== req.userId && req.user.role !== 'ADMIN') {
+    if (showcase.userId !== req.userId && req.user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -426,7 +426,7 @@ export const getComments = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   try {
     const comments = await prisma.showcaseComment.findMany({
-      where: { showcaseId: id },
+      where: { showcaseId: id as string },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
       },
@@ -477,19 +477,19 @@ export const deleteComment = async (req: AuthRequest, res: Response) => {
   const { commentId } = req.params;
   try {
     const comment = await prisma.showcaseComment.findUnique({
-      where: { id: commentId },
+      where: { id: commentId as string },
     });
 
     if (!comment) {
       return res.status(404).json({ error: 'Comment not found' });
     }
 
-    if (comment.userId !== req.userId && req.user.role !== 'ADMIN') {
+    if (comment.userId !== req.userId && req.user?.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     await prisma.showcaseComment.delete({
-      where: { id: commentId },
+      where: { id: commentId as string },
     });
 
     res.json({ message: 'Comment deleted successfully' });

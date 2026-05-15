@@ -1,13 +1,25 @@
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-
 export const getMyNotifications = async (req: AuthRequest, res: Response) => {
+  const { type } = req.query;
   try {
+    const where: any = { userId: req.userId as string };
+
+    if (type && type !== 'all') {
+      if (type === 'TEAM') {
+        where.type = { in: ['TEAM', 'PROJECT_INVITE', 'TEAM_ACTIVITY'] };
+      } else if (type === 'MESSAGE') {
+        where.type = { in: ['MESSAGE', 'REPLY', 'MENTION'] };
+      } else {
+        where.type = type as string;
+      }
+    }
+
     const notifications = await prisma.notification.findMany({
-      where: { userId: req.userId as string },
+      where,
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 50,
     });
     res.json(notifications);
   } catch (error) {

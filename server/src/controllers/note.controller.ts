@@ -144,7 +144,7 @@ export const togglePopularNote = async (req: AuthRequest, res: Response) => {
 
   try {
     const note = await prisma.note.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { isPopular: true, visibility: true },
     });
 
@@ -154,7 +154,7 @@ export const togglePopularNote = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = await prisma.note.update({
-      where: { id },
+      where: { id: id as any },
       data: { isPopular: !note.isPopular },
     });
 
@@ -169,7 +169,7 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const existing = await prisma.note.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { id: true, visibility: true, userId: true },
     });
     if (!existing) return res.status(404).json({ error: '笔记不存在' });
@@ -183,7 +183,7 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
     }
 
     const note = await prisma.note.update({
-      where: { id },
+      where: { id: id as any },
       data: { views: { increment: 1 } },
       include: {
         user: {
@@ -254,7 +254,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
 
   try {
     const note = await prisma.note.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { userId: true },
     });
     if (!note) return res.status(404).json({ error: '笔记不存在' });
@@ -263,7 +263,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = await prisma.note.update({
-      where: { id },
+      where: { id: id as any },
       data: {
         ...(title !== undefined && { title: title.trim() }),
         ...(content !== undefined && { content: content.trim() }),
@@ -301,7 +301,7 @@ export const deleteNote = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const note = await prisma.note.findUnique({
-      where: { id },
+      where: { id: id as any },
       select: { userId: true },
     });
     if (!note) return res.status(404).json({ error: '笔记不存在' });
@@ -309,7 +309,7 @@ export const deleteNote = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: '无权删除此笔记' });
     }
 
-    await prisma.note.delete({ where: { id } });
+    await prisma.note.delete({ where: { id: id as any } });
     res.json({ message: '笔记已删除' });
   } catch (error) {
     console.error('Delete note error:', error);
@@ -334,7 +334,9 @@ export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
     });
 
     if (existing) {
-      await prisma.noteLike.delete({ where: { id: existing.id } });
+      await prisma.noteLike.delete({
+        where: { noteId_userId: { noteId, userId: req.userId! } },
+      });
       res.json({ isLiked: false });
     } else {
       await prisma.noteLike.create({

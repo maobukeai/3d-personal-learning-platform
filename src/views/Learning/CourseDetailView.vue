@@ -19,7 +19,6 @@ import {
   Signal,
   Bookmark,
   Tag,
-
   StickyNote,
   Share2,
 } from 'lucide-vue-next';

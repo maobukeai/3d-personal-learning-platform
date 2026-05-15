@@ -57,11 +57,13 @@ const createUploadMiddleware = (multerAction: any) => {
       // 处理允许的扩展名 - 支持字符串和数组格式
       if (settings.ALLOWED_EXTENSIONS) {
         if (typeof settings.ALLOWED_EXTENSIONS === 'string') {
-          allowedExtensions = settings.ALLOWED_EXTENSIONS.split(',').map((ext) =>
-            ext.trim().toLowerCase(),
-          );
+          allowedExtensions = (settings.ALLOWED_EXTENSIONS as string)
+            .split(',')
+            .map((ext) => ext.trim().toLowerCase());
         } else if (Array.isArray(settings.ALLOWED_EXTENSIONS)) {
-          allowedExtensions = settings.ALLOWED_EXTENSIONS.map((ext) => ext.toLowerCase());
+          allowedExtensions = (settings.ALLOWED_EXTENSIONS as any[]).map((ext) =>
+            ext.toLowerCase(),
+          );
         }
       }
 
@@ -83,6 +85,7 @@ const createUploadMiddleware = (multerAction: any) => {
               ? files[fieldname]
               : [files[fieldname]];
             for (const file of fileList) {
+              if (!file) continue;
               const ext = path.extname(file.originalname).toLowerCase();
               if (!allowedExtensions.includes(ext)) {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);

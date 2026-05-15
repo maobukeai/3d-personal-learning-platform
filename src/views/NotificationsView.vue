@@ -21,11 +21,13 @@ const notifications = ref<any[]>([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const activeFilter = ref('all');
+const activeCategory = ref('all');
 
 const fetchNotifications = async () => {
   try {
     isLoading.value = true;
-    const response = await api.get('/api/notifications');
+    const type = activeCategory.value === 'all' ? '' : activeCategory.value;
+    const response = await api.get(`/api/notifications${type ? `?type=${type}` : ''}`);
     notifications.value = response.data;
   } catch (error) {
     console.error('Fetch notifications error:', error);
@@ -33,6 +35,12 @@ const fetchNotifications = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const handleCategoryChange = (catId: string) => {
+  activeCategory.value = catId;
+  activeFilter.value = 'all';
+  fetchNotifications();
 };
 
 const filteredNotifications = computed(() => {
@@ -98,18 +106,38 @@ const handleDeleteAll = async () => {
   }
 };
 
-const getIcon = (title: string) => {
-  if (title.includes('团队')) return Users;
-  if (title.includes('任务')) return Briefcase;
-  if (title.includes('消息') || title.includes('回复')) return MessageSquare;
-  return Info;
+const getIcon = (type: string) => {
+  switch (type) {
+    case 'TEAM':
+    case 'PROJECT_INVITE':
+      return Users;
+    case 'TASK':
+      return Briefcase;
+    case 'MESSAGE':
+    case 'REPLY':
+      return MessageSquare;
+    case 'SYSTEM':
+      return Info;
+    default:
+      return Info;
+  }
 };
 
-const getIconColor = (title: string) => {
-  if (title.includes('团队')) return 'text-blue-500 bg-blue-500/10';
-  if (title.includes('任务')) return 'text-amber-500 bg-amber-500/10';
-  if (title.includes('消息') || title.includes('回复')) return 'text-emerald-500 bg-emerald-500/10';
-  return 'text-indigo-500 bg-indigo-500/10';
+const getIconColor = (type: string) => {
+  switch (type) {
+    case 'TEAM':
+    case 'PROJECT_INVITE':
+      return 'text-blue-500 bg-blue-500/10';
+    case 'TASK':
+      return 'text-amber-500 bg-amber-500/10';
+    case 'MESSAGE':
+    case 'REPLY':
+      return 'text-emerald-500 bg-emerald-500/10';
+    case 'SYSTEM':
+      return 'text-indigo-500 bg-indigo-500/10';
+    default:
+      return 'text-indigo-500 bg-indigo-500/10';
+  }
 };
 
 onMounted(() => {
@@ -216,13 +244,25 @@ onMounted(() => {
           <div class="space-y-1">
             <button
               v-for="cat in [
-                { label: '系统通知', icon: Info, color: 'text-indigo-500' },
-                { label: '团队动态', icon: Users, color: 'text-blue-500' },
-                { label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
-                { label: '消息回复', icon: MessageSquare, color: 'text-emerald-500' },
+                { id: 'all', label: '全部', icon: Inbox, color: 'text-slate-400' },
+                { id: 'SYSTEM', label: '系统通知', icon: Info, color: 'text-indigo-500' },
+                { id: 'TEAM', label: '团队动态', icon: Users, color: 'text-blue-500' },
+                { id: 'TASK', label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
+                {
+                  id: 'MESSAGE',
+                  label: '消息回复',
+                  icon: MessageSquare,
+                  color: 'text-emerald-500',
+                },
               ]"
-              :key="cat.label"
-              class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs text-slate-600 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/5 transition-all"
+              :key="cat.id"
+              class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs transition-all"
+              :class="
+                activeCategory === cat.id
+                  ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/5'
+              "
+              @click="handleCategoryChange(cat.id)"
             >
               <component :is="cat.icon" class="w-4 h-4" :class="cat.color" />
               {{ cat.label }}
@@ -260,9 +300,9 @@ onMounted(() => {
               <div class="flex gap-4">
                 <div
                   class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
-                  :class="getIconColor(n.title)"
+                  :class="getIconColor(n.type)"
                 >
-                  <component :is="getIcon(n.title)" class="w-6 h-6" />
+                  <component :is="getIcon(n.type)" class="w-6 h-6" />
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between mb-1">

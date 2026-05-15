@@ -13,15 +13,16 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
       const authHeader = req.headers.authorization;
       if (authHeader) {
         const token = authHeader.split(' ')[1];
-        try {
-          const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
-          const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-
-          if (user && user.role === 'ADMIN') {
-            return next(); // Allow admin to bypass
+        if (token) {
+          try {
+            const decoded = jwt.verify(token, config.JWT_SECRET!) as unknown as { id: string };
+            const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+            if (user && user.role === 'ADMIN') {
+              return next(); // Allow admin to bypass
+            }
+          } catch (e) {
+            // Token invalid or other error
           }
-        } catch (e) {
-          // Token invalid or other error
         }
       }
 

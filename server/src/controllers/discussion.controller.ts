@@ -330,7 +330,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 
     if (comment.discussion.userId !== req.userId) {
       await createNotification({
-        type: 'REPLY',
+        type: 'MESSAGE',
         title: '收到新回复',
         content: `${req.user?.name || '有人'} 回复了你的讨论: ${comment.discussion.title}`,
         userId: comment.discussion.userId,
@@ -346,7 +346,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
       });
       if (parentComment && parentComment.userId !== req.userId) {
         await createNotification({
-          type: 'REPLY',
+          type: 'MESSAGE',
           title: '收到新回复',
           content: `${req.user?.name || '有人'} 回复了你的评论`,
           userId: parentComment.userId,

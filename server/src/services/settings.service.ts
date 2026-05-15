@@ -78,14 +78,15 @@ class SettingsService {
 
     for (const s of dbSettings) {
       try {
+        const key = s.key as keyof SystemSettings;
         if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_')) {
-          settings[s.key as keyof SystemSettings] = s.value === ('true' as any);
+          (settings as any)[key] = s.value === 'true';
         } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE')) {
-          settings[s.key as keyof SystemSettings] = parseInt(s.value, 10) as any;
+          (settings as any)[key] = parseInt(s.value, 10);
         } else if (s.key.endsWith('_CATEGORIES') || s.key.endsWith('_EXTENSIONS')) {
-          settings[s.key as keyof SystemSettings] = JSON.parse(s.value);
+          (settings as any)[key] = JSON.parse(s.value);
         } else {
-          settings[s.key as keyof SystemSettings] = s.value as any;
+          (settings as any)[key] = s.value;
         }
       } catch (e) {
         console.error(`Error parsing setting ${s.key}:`, e);

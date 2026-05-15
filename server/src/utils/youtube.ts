@@ -51,9 +51,12 @@ export async function parseYoutubeUrl(url: string): Promise<YoutubeMetadata> {
       }));
 
       return {
-        title: title,
+        title: title || 'YouTube Playlist',
         description: 'YouTube 播放列表导入',
-        thumbnail: `https://i.ytimg.com/vi/${uniqueVideoIds[0]}/hqdefault.jpg`,
+        thumbnail:
+          uniqueVideoIds.length > 0
+            ? `https://i.ytimg.com/vi/${uniqueVideoIds[0]}/hqdefault.jpg`
+            : '',
         lessons: lessons,
       };
     } catch (e) {

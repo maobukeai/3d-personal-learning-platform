@@ -51,15 +51,15 @@ export const adminCreateCategory = async (req: AuthRequest, res: Response) => {
 };
 
 export const adminUpdateCategory = async (req: AuthRequest, res: Response) => {
-  const id = req.params.id;
+  const id = req.params.id as string;
   const { name, icon, order } = req.body;
 
   try {
-    const oldCategory = await prisma.category.findUnique({ where: { id } });
+    const oldCategory = await prisma.category.findUnique({ where: { id: id as any } });
     if (!oldCategory) return res.status(404).json({ error: 'Category not found' });
 
     const category = await prisma.category.update({
-      where: { id },
+      where: { id: id as any },
       data: {
         name,
         icon,
@@ -87,10 +87,10 @@ export const adminUpdateCategory = async (req: AuthRequest, res: Response) => {
 };
 
 export const adminDeleteCategory = async (req: AuthRequest, res: Response) => {
-  const id = req.params.id;
+  const id = req.params.id as string;
 
   try {
-    const category = await prisma.category.findUnique({ where: { id } });
+    const category = await prisma.category.findUnique({ where: { id: id as any } });
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     // Check if category has assets
@@ -99,7 +99,7 @@ export const adminDeleteCategory = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Cannot delete category with associated assets' });
     }
 
-    await prisma.category.delete({ where: { id } });
+    await prisma.category.delete({ where: { id: id as any } });
 
     await auditService.log({
       userId: req.userId as string,

@@ -14,6 +14,7 @@ export function urlToPath(url: string | null | undefined): string | null {
 
     // parts[1] is something like "assets/file.glb"
     const relativePath = parts[1];
+    if (!relativePath) return null;
     return path.join(__dirname, '../../uploads', relativePath);
   } catch (error) {
     console.error('[FileUtil] Error parsing URL to path:', error);

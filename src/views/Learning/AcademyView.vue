@@ -197,7 +197,9 @@ onMounted(() => {
             style="color: var(--text-muted)"
           />
           <input
-v-model="searchQuery" type="text" placeholder="搜索课程..."
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索课程..."
             class="pl-10 pr-4 py-2 rounded-xl border text-sm w-56 outline-none transition-all focus:w-72"
             style="
               background-color: var(--bg-app);
@@ -215,7 +217,7 @@ v-model="searchQuery" type="text" placeholder="搜索课程..."
         </div>
 
         <button
-class="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all"
           :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
           style="border-color: var(--border-base); color: var(--text-secondary)"
           @click="showFilters = !showFilters"
@@ -226,7 +228,12 @@ class="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold tra
 
         <div class="flex items-center gap-1 p-1 rounded-xl" style="background-color: var(--bg-app)">
           <button
-v-for="sort in [{key:'newest',label:'最新'},{key:'popular',label:'最热'},{key:'rating',label:'好评'}]" :key="sort.key"
+            v-for="sort in [
+              { key: 'newest', label: '最新' },
+              { key: 'popular', label: '最热' },
+              { key: 'rating', label: '好评' },
+            ]"
+            :key="sort.key"
             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
             :class="
               sortBy === sort.key
@@ -252,7 +259,13 @@ v-for="sort in [{key:'newest',label:'最新'},{key:'popular',label:'最热'},{ke
     >
       <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
       <button
-v-for="d in [{key:'',label:'全部'},{key:'BEGINNER',label:'入门'},{key:'INTERMEDIATE',label:'进阶'},{key:'ADVANCED',label:'高级'}]" :key="d.key"
+        v-for="d in [
+          { key: '', label: '全部' },
+          { key: 'BEGINNER', label: '入门' },
+          { key: 'INTERMEDIATE', label: '进阶' },
+          { key: 'ADVANCED', label: '高级' },
+        ]"
+        :key="d.key"
         class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
         :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : ''"
         :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''"
@@ -400,7 +413,8 @@ v-for="d in [{key:'',label:'全部'},{key:'BEGINNER',label:'入门'},{key:'INTER
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div
-v-for="enrollment in continueLearningCourses" :key="enrollment.id"
+                v-for="enrollment in continueLearningCourses"
+                :key="enrollment.id"
                 class="group flex gap-4 p-4 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
                 style="background-color: var(--bg-card); border-color: var(--border-base)"
                 @click="continueLearning(enrollment.course.id)"
@@ -409,7 +423,10 @@ v-for="enrollment in continueLearningCourses" :key="enrollment.id"
                   class="w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
                 >
                   <img
-:src="enrollment.course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                    :src="
+                      enrollment.course.thumbnail ||
+                      'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
+                    "
                     referrerpolicy="no-referrer"
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
@@ -458,7 +475,8 @@ v-for="enrollment in continueLearningCourses" :key="enrollment.id"
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-v-for="course in featuredCourses" :key="course.id"
+              v-for="course in featuredCourses"
+              :key="course.id"
               class="group flex gap-5 p-5 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
               @click="handleCourseClick(course.id)"
@@ -467,7 +485,10 @@ v-for="course in featuredCourses" :key="course.id"
                 class="w-48 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
               >
                 <img
-:src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                  :src="
+                    course.thumbnail ||
+                    'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
+                  "
                   referrerpolicy="no-referrer"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -536,14 +557,18 @@ v-for="course in featuredCourses" :key="course.id"
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div
-v-for="course in recommendedCourses" :key="course.id"
+              v-for="course in recommendedCourses"
+              :key="course.id"
               class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
               @click="handleCourseClick(course.id)"
             >
               <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
                 <img
-:src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                  :src="
+                    course.thumbnail ||
+                    'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
+                  "
                   referrerpolicy="no-referrer"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -604,7 +629,8 @@ v-for="course in recommendedCourses" :key="course.id"
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
             <div
-v-for="course in filteredCourses" :key="course.id"
+              v-for="course in filteredCourses"
+              :key="course.id"
               class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
               @click="handleCourseClick(course.id)"
@@ -612,7 +638,10 @@ v-for="course in filteredCourses" :key="course.id"
               <!-- Course Cover -->
               <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
                 <img
-:src="course.thumbnail || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'"
+                  :src="
+                    course.thumbnail ||
+                    'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
+                  "
                   referrerpolicy="no-referrer"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -645,7 +674,7 @@ v-for="course in filteredCourses" :key="course.id"
                 </div>
                 <!-- Bookmark button -->
                 <button
-v-if="!isEnrolled(course.id)" 
+                  v-if="!isEnrolled(course.id)"
                   class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50"
                   @click.stop="toggleBookmark(course.id, $event)"
                 >
@@ -751,7 +780,7 @@ v-if="!isEnrolled(course.id)"
               }}
             </p>
             <button
-v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'" 
+              v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'"
               class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20"
               @click="activeCategoryId = null"
             >

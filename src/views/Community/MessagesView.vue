@@ -15,7 +15,6 @@ import {
   User as UserIcon,
   MessageSquare,
   X,
-
   Reply,
   Users,
   LogOut,
@@ -246,8 +245,6 @@ const getConversationName = (conv: any) => {
   const other = getOtherParticipant(conv);
   return other?.name || other?.email || '未知用户';
 };
-
-
 
 const getLastMessagePreview = (conv: any) => {
   const lastMsg = conv.messages?.[0];

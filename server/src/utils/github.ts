@@ -18,8 +18,8 @@ export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
     throw new Error('无效的 GitHub 仓库链接');
   }
 
-  const owner = match[1];
-  const repo = match[2].replace(/\.git$/, '');
+  const owner = match[1]!;
+  const repo = match[2]!.replace(/\.git$/, '');
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
 
   const headers: any = {
@@ -68,7 +68,7 @@ export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
       let order = 1;
 
       for (const match of headerMatches) {
-        const title = match[2].trim();
+        const title = match[2]!.trim();
         if (title.toLowerCase() === 'readme' || title === repoData.name) continue;
 
         lessons.push({

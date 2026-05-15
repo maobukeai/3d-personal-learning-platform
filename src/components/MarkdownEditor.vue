@@ -85,9 +85,9 @@ onUnmounted(() => {
       :theme="isDark ? 'dark' : 'light'"
       :language="editorLanguage"
       :preview="preview"
-      :html-preview="htmlPreview"
-      :auto-focus="autoFocus"
-      :auto-height="autoHeight"
+      :htmlPreview="htmlPreview"
+      :autoFocus="autoFocus"
+      :autoHeight="autoHeight"
       :toolbars-exclude="['github', 'htmlPreview', 'catalog']"
     />
   </div>

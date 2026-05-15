@@ -37,8 +37,12 @@ export const initSocket = (server: HttpServer) => {
     // Check cookies if not in auth/headers
     if (!token && socket.handshake.headers.cookie) {
       const cookies = socket.handshake.headers.cookie.split(';').reduce((acc: any, curr) => {
-        const [key, value] = curr.trim().split('=');
-        acc[key] = value;
+        const parts = curr.trim().split('=');
+        const key = parts[0];
+        const value = parts[1];
+        if (key) {
+          acc[key] = value;
+        }
         return acc;
       }, {});
       token = cookies.token;

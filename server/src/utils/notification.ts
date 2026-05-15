@@ -1,7 +1,13 @@
 import prisma from '../services/prisma';
 import { emitToUser } from '../services/socket.service';
 
-type NotificationCategory = 'SYSTEM' | 'TEAM_ACTIVITY' | 'MARKETING' | 'MENTION' | 'DIRECT_MESSAGE';
+type NotificationCategory =
+  | 'SYSTEM'
+  | 'TEAM_ACTIVITY'
+  | 'MARKETING'
+  | 'MENTION'
+  | 'DIRECT_MESSAGE'
+  | 'TASK_UPDATE';
 
 const categoryToPrefKey: Record<NotificationCategory, string> = {
   SYSTEM: 'emailSystemUpdates',
@@ -9,6 +15,7 @@ const categoryToPrefKey: Record<NotificationCategory, string> = {
   MARKETING: 'emailMarketing',
   MENTION: 'pushMentions',
   DIRECT_MESSAGE: 'pushDirectMessages',
+  TASK_UPDATE: 'emailTeamActivity', // Map to team activity for now if no specific preference exists
 };
 
 async function getUserPreference(userId: string, category: NotificationCategory): Promise<boolean> {

@@ -1,0 +1,109 @@
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com; # ⚠️ 替换为你的域名或服务器 IP
+
+    # 如果配置了 SSL 证书 (推荐)，启用此行强制 HTTPS
+    # return 301 https://$host$request_uri;
+
+    # 日志配置
+    access_log /var/log/nginx/3d-lms-access.log;
+    error_log /var/log/nginx/3d-lms-error.log;
+
+    # -------------------------------------------------------
+    # 关键：上传文件大小限制
+    # 默认 Nginx 只允许 1MB，3D 模型文件通常远超此限制
+    # 会导致上传时出现 413 Request Entity Too Large 错误
+    # -------------------------------------------------------
+    client_max_body_size 500m;
+
+    # -------------------------------------------------------
+    # 1. 前端静态文件托管 (Vue 3 / Vite 产出的 dist 目录)
+    # -------------------------------------------------------
+    location / {
+        # ⚠️ 替换为你服务器上项目的绝对路径，例如 /var/www/3d-platform/dist
+        root /path/to/your/project/dist;
+        index index.html;
+
+        # 解决 Vue Router History 模式刷新报 404 的问题（必须配置）
+        try_files $uri $uri/ /index.html;
+    }
+
+    # -------------------------------------------------------
+    # 2. 用户上传文件托管（让 Nginx 直接提供，比经过 Node.js 更高效）
+    # -------------------------------------------------------
+    location /uploads/ {
+        # ⚠️ 替换为你服务器上 server/uploads 目录的绝对路径
+        alias /path/to/your/project/server/uploads/;
+        expires 7d;
+        add_header Cache-Control "public";
+        # 安全：禁止在 uploads 目录执行任何脚本
+        location ~ \.(php|py|sh|cgi)$ {
+            deny all;
+        }
+    }
+
+    # -------------------------------------------------------
+    # 3. 代理后端 API 请求 (Node.js Express)
+    # -------------------------------------------------------
+    location /api {
+        proxy_pass http://127.0.0.1:3001; # 后端服务运行的端口，与 server/.env 里的 PORT 一致
+        proxy_http_version 1.1;
+
+        # 传递真实 IP 等 Header 信息给后端（rate-limit 和日志依赖这些）
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 适当增加上传超时（大文件上传可能耗时较长）
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+
+    # -------------------------------------------------------
+    # 4. 代理 WebSocket (Socket.io - 聊天与实时协作功能必须配置)
+    # -------------------------------------------------------
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+
+        # WebSocket 升级头（缺少这两行 Socket.io 将无法连接）
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # WebSocket 长连接需要更长的超时时间
+        proxy_read_timeout 86400s;
+    }
+
+    # -------------------------------------------------------
+    # 5. 静态资源缓存优化（JS/CSS/图片/3D模型文件）
+    # -------------------------------------------------------
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2|woff|ttf|glb|gltf|bin|hdr)$ {
+        # ⚠️ 与 location / 一致，替换为前端 dist 目录的绝对路径
+        root /path/to/your/project/dist;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+        # 如果资源不存在于 dist，不要回退到 index.html（避免 API 响应被当成静态文件）
+        try_files $uri =404;
+    }
+}
+
+# -------------------------------------------------------
+# HTTPS 配置示例 (使用 Certbot/Let's Encrypt 后自动生成)
+# -------------------------------------------------------
+# server {
+#     listen 443 ssl http2;
+#     server_name yourdomain.com www.yourdomain.com;
+#
+#     ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_ciphers HIGH:!aNULL:!MD5;
+#
+#     # ... 其余配置与 HTTP server 块相同 ...
+# }

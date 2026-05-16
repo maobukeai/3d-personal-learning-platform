@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# 环境变量文件 - 包含密码、密钥等敏感信息，绝对不能提交到 Git
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+
+# 用户上传的文件 - 不应纳入版本控制
+server/uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

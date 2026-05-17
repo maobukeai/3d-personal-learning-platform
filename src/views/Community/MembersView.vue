@@ -128,10 +128,10 @@ const handleChatWithMember = async (member: any) => {
 
     <!-- Filter Bar -->
     <div
-      class="border-b px-8 py-2 shrink-0 transition-colors duration-300"
+      class="border-b px-4 sm:px-8 py-2 shrink-0 overflow-x-auto scrollbar-hide transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 min-w-max">
         <button
           v-for="filter in filters"
           :key="filter"

@@ -21,7 +21,7 @@ const handleJoin = () => {
 <template>
   <el-dialog
     :model-value="props.visible"
-    width="900px"
+    width="min(900px, 95%)"
     class="detail-dialog"
     :show-close="false"
     align-center
@@ -37,10 +37,10 @@ const handleJoin = () => {
       </button>
 
       <div
-        class="flex flex-col md:flex-row h-[600px] overflow-hidden rounded-[24px] bg-white dark:bg-slate-900 shadow-2xl"
+        class="flex flex-col md:flex-row md:h-[600px] max-h-[90vh] overflow-hidden rounded-[24px] bg-white dark:bg-slate-900 shadow-2xl"
       >
         <!-- Left: Image & Quick Stats -->
-        <div class="md:w-5/12 relative">
+        <div class="h-64 md:h-auto md:w-5/12 relative shrink-0">
           <img
             :src="
               props.group.avatarUrl ||
@@ -54,20 +54,20 @@ const handleJoin = () => {
             class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"
           ></div>
 
-          <div class="absolute bottom-8 left-8 right-8 text-white">
+          <div class="absolute bottom-6 left-6 right-6 md:bottom-8 md:left-8 md:right-8 text-white">
             <span
               class="px-3 py-1 rounded-full bg-accent text-[10px] font-black uppercase tracking-widest"
             >
               {{ props.group.category || '公开小组' }}
             </span>
-            <h2 class="text-3xl font-black mt-3 leading-tight">{{ props.group.name }}</h2>
+            <h2 class="text-2xl md:text-3xl font-black mt-2 md:mt-3 leading-tight">{{ props.group.name }}</h2>
 
-            <div class="flex items-center gap-6 mt-6">
+            <div class="flex items-center gap-6 mt-4 md:mt-6">
               <div class="flex flex-col">
                 <span class="text-[10px] font-bold text-white/60 uppercase tracking-widest"
                   >成员</span
                 >
-                <span class="text-lg font-black mt-1">{{
+                <span class="text-base md:text-lg font-black mt-1">{{
                   props.group._count?.members || props.group.members || 1
                 }}</span>
               </div>
@@ -77,7 +77,7 @@ const handleJoin = () => {
                 >
                 <div class="flex items-center gap-1 mt-1">
                   <Star class="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span class="text-lg font-black">{{ props.group.rating || '5.0' }}</span>
+                  <span class="text-base md:text-lg font-black">{{ props.group.rating || '5.0' }}</span>
                 </div>
               </div>
             </div>
@@ -85,8 +85,8 @@ const handleJoin = () => {
         </div>
 
         <!-- Right: Detailed Content -->
-        <div class="md:w-7/12 bg-white dark:bg-slate-900 p-10 overflow-y-auto scrollbar-hide">
-          <div class="space-y-8">
+        <div class="flex-1 bg-white dark:bg-slate-900 p-6 md:p-10 overflow-y-auto scrollbar-hide">
+          <div class="space-y-6 md:space-y-8">
             <section>
               <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
                 关于小组

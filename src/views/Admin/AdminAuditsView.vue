@@ -546,7 +546,7 @@ onMounted(() => {
 
     <!-- 工具栏条 -->
     <div
-      class="px-8 py-4 border-b shrink-0 flex items-center justify-between transition-colors duration-300 relative"
+      class="p-4 sm:p-6 border-b flex flex-col sm:flex-row gap-4 sm:items-center justify-between shrink-0 transition-colors duration-300 relative"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-4">

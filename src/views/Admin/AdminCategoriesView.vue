@@ -404,65 +404,92 @@ onMounted(() => {
       <div v-else class="max-w-5xl mx-auto">
         <div
           v-if="filteredCategories.length > 0"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
         >
-          <div
-            v-for="cat in filteredCategories"
-            :key="typeof cat === 'string' ? cat : cat.id"
-            class="group rounded-3xl border p-6 transition-all hover:shadow-lg hover:border-accent/30"
-            style="background-color: var(--bg-card); border-color: var(--border-base)"
-          >
-            <div class="flex items-start justify-between mb-4">
-              <div
-                class="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent"
+          <table class="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr
+                class="border-b bg-slate-50/50 dark:bg-slate-800/50"
+                style="border-color: var(--border-base)"
               >
-                <span v-if="typeof cat !== 'string' && cat.icon" class="text-xl">{{
-                  cat.icon
-                }}</span>
-                <FolderTree v-else class="w-6 h-6" />
-              </div>
-              <div
-                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  图标
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  分类名称
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  排序权重
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  关联统计
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                  操作
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="cat in filteredCategories"
+                :key="typeof cat === 'string' ? cat : cat.id"
+                class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group"
+                style="border-color: var(--border-base)"
               >
-                <button
-                  class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"
-                  @click="openModal(cat)"
-                >
-                  <Edit2 class="w-4 h-4" />
-                </button>
-                <button
-                  class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                  @click="handleDeleteCategory(cat)"
-                >
-                  <Trash2 class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <h3 class="text-lg font-black tracking-tight" style="color: var(--text-primary)">
-                {{ typeof cat === 'string' ? cat : cat.name }}
-              </h3>
-              <div
-                class="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-              >
-                <template v-if="typeof cat !== 'string'">
-                  <span class="flex items-center gap-1"
-                    ><GripVertical class="w-3 h-3" /> 排序: {{ cat.order }}</span
+                <td class="px-6 py-4">
+                  <div
+                    class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent"
                   >
-                  <span>•</span>
-                  <span>{{
-                    activeTab === 'assets'
-                      ? (cat._count?.assets || 0) + ' 个资产'
-                      : (cat._count?.courses || 0) + ' 门课程'
-                  }}</span>
-                </template>
-                <template v-else>
-                  <span>系统预设分类</span>
-                </template>
-              </div>
-            </div>
-          </div>
+                    <span v-if="typeof cat !== 'string' && cat.icon" class="text-lg">{{
+                      cat.icon
+                    }}</span>
+                    <FolderTree v-else class="w-5 h-5" />
+                  </div>
+                </td>
+                <td class="px-6 py-4 font-bold text-sm" style="color: var(--text-primary)">
+                  {{ typeof cat === 'string' ? cat : cat.name }}
+                </td>
+                <td class="px-6 py-4 text-xs font-medium text-slate-500">
+                  <template v-if="typeof cat !== 'string'">
+                    {{ cat.order }}
+                  </template>
+                  <template v-else>
+                    -
+                  </template>
+                </td>
+                <td class="px-6 py-4 text-xs font-semibold text-slate-400">
+                  <template v-if="typeof cat !== 'string'">
+                    {{
+                      activeTab === 'assets'
+                        ? (cat._count?.assets || 0) + ' 个资产'
+                        : (cat._count?.courses || 0) + ' 门课程'
+                    }}
+                  </template>
+                  <template v-else>
+                    系统预设分类
+                  </template>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div
+                    class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <button
+                      class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"
+                      @click="openModal(cat)"
+                    >
+                      <Edit2 class="w-4 h-4" />
+                    </button>
+                    <button
+                      class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                      @click="handleDeleteCategory(cat)"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Empty State -->

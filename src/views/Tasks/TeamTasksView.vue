@@ -17,7 +17,6 @@ import {
   Users,
   Plus,
   Calendar,
-  KanbanSquare,
   FolderOpen,
   Tag,
   Zap,
@@ -902,7 +901,7 @@ onMounted(fetchAll);
               style="border-color: var(--border-base)"
             >
               <!-- Desktop Table -->
-              <div class="hidden md:block overflow-x-auto">
+              <div class="w-full overflow-x-auto scrollbar-hide">
                 <table class="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr
@@ -1049,110 +1048,6 @@ onMounted(fetchAll);
                     </tr>
                   </tbody>
                 </table>
-              </div>
-
-              <!-- Mobile Card List -->
-              <div class="md:hidden divide-y" style="border-color: var(--border-base)">
-                <div
-                  v-for="project in filteredProjects"
-                  :key="project.id"
-                  class="p-5 flex flex-col gap-4"
-                  @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-                >
-                  <div class="flex items-start justify-between">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-sm"
-                        :class="project.color"
-                      >
-                        {{ project.title.substring(0, 1) }}
-                      </div>
-                      <div class="min-w-0">
-                        <p class="text-sm font-black truncate" style="color: var(--text-primary)">
-                          {{ project.title }}
-                        </p>
-                        <p class="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
-                          {{ project.description || '暂无描述' }}
-                        </p>
-                      </div>
-                    </div>
-                    <el-dropdown trigger="click" @click.stop>
-                      <button class="p-2 -mr-2">
-                        <MoreHorizontal class="w-4 h-4 text-slate-400" />
-                      </button>
-                      <template #dropdown>
-                        <el-dropdown-menu class="!rounded-xl !p-2">
-                          <el-dropdown-item
-                            class="!rounded-lg !mb-1 font-bold"
-                            @click="
-                              router.push({ name: 'ProjectDetail', params: { id: project.id } })
-                            "
-                            >查看详情</el-dropdown-item
-                          >
-                          <el-dropdown-item
-                            class="!rounded-lg !mb-1 font-bold"
-                            @click="openEditDrawer(project)"
-                            >配置项目</el-dropdown-item
-                          >
-                          <el-divider class="!my-1" />
-                          <el-dropdown-item
-                            class="!rounded-lg !text-rose-500 font-bold hover:!bg-rose-50 dark:hover:!bg-rose-500/10"
-                            @click="deleteProject(project.id)"
-                            >删除项目</el-dropdown-item
-                          >
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </div>
-
-                  <!-- Progress Bar -->
-                  <div class="space-y-1.5">
-                    <div class="flex justify-between text-[10px] font-black">
-                      <span style="color: var(--text-secondary)">进度</span>
-                      <span :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'"
-                        >{{ project.progress }}%</span
-                      >
-                    </div>
-                    <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div
-                        class="h-full rounded-full transition-all"
-                        :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
-                        :style="{ width: project.progress + '%' }"
-                      ></div>
-                    </div>
-                  </div>
-
-                  <!-- Status & Members -->
-                  <div class="flex items-center justify-between mt-1">
-                    <div class="flex items-center -space-x-1.5">
-                      <UserAvatar
-                        v-for="m in project.members.slice(0, 3)"
-                        :key="m.userId"
-                        :user="m.user"
-                        size="xs"
-                        class="ring-2 ring-white dark:ring-slate-900"
-                      />
-                      <div
-                        v-if="project.members.length > 3"
-                        class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-500 ring-2 ring-white dark:ring-slate-900"
-                      >
-                        +{{ project.members.length - 3 }}
-                      </div>
-                    </div>
-                    <span
-                      class="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider"
-                      :class="
-                        project.status === 'COMPLETED'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : project.status === 'IN_PROGRESS'
-                            ? 'bg-accent/10 text-accent'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                      "
-                    >
-                      {{ getStatusLabel(project.status) }}
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

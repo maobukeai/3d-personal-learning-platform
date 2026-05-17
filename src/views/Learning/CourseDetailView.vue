@@ -311,36 +311,37 @@ onMounted(fetchCourse);
 
           <!-- Stats Bar -->
           <div
-            class="px-4 sm:px-6 md:px-8 py-6 border-b flex flex-wrap items-center gap-4 sm:gap-6 transition-colors duration-300"
+            class="px-4 sm:px-6 md:px-8 py-6 border-b flex overflow-x-auto sm:grid sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-y-4 gap-x-6 transition-colors duration-300 scrollbar-hide"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
               <Star class="w-4 h-4 text-amber-400 fill-amber-400" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
                 course.avgRating || '暂无'
               }}</span>
-              <span class="text-xs" style="color: var(--text-muted)"
+              <span class="text-xs hidden xs:inline" style="color: var(--text-muted)"
                 >({{ course._count?.reviews || 0 }} 评价)</span
               >
             </div>
-            <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
-            <div class="flex items-center gap-2">
+            <div class="h-4 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div class="flex items-center gap-2 shrink-0">
               <Users class="w-4 h-4" style="color: var(--text-muted)" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
                 course._count?.enrollments || 0
               }}</span>
-              <span class="text-xs" style="color: var(--text-muted)">人已参加</span>
+              <span class="text-xs hidden xs:inline" style="color: var(--text-muted)">人已参加</span>
+              <span class="text-xs inline xs:hidden" style="color: var(--text-muted)">人参加</span>
             </div>
-            <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
-            <div class="flex items-center gap-2">
+            <div class="h-4 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div class="flex items-center gap-2 shrink-0">
               <BookOpen class="w-4 h-4" style="color: var(--text-muted)" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
                 course.lessons?.length || 0
               }}</span>
               <span class="text-xs" style="color: var(--text-muted)">课时</span>
             </div>
-            <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
-            <div class="flex items-center gap-2">
+            <div class="h-4 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div class="flex items-center gap-2 shrink-0">
               <Timer class="w-4 h-4" style="color: var(--text-muted)" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
                 totalDurationFormatted
@@ -348,13 +349,13 @@ onMounted(fetchCourse);
             </div>
             <!-- Tags -->
             <template v-if="courseTags.length > 0">
-              <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
-              <div class="flex items-center gap-2">
+              <div class="h-4 w-px hidden lg:block shrink-0" style="background-color: var(--border-base)"></div>
+              <div class="flex items-center gap-2 flex-nowrap shrink-0 sm:shrink lg:shrink-0 overflow-x-visible">
                 <Tag class="w-3.5 h-3.5" style="color: var(--text-muted)" />
                 <span
                   v-for="tag in courseTags.slice(0, 4)"
                   :key="tag"
-                  class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-accent/10 text-accent"
+                  class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-accent/10 text-accent whitespace-nowrap"
                 >
                   {{ tag }}
                 </span>

@@ -184,7 +184,7 @@ onMounted(() => {
   >
     <!-- Header -->
     <div
-      class="h-16 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="h-16 border-b px-4 sm:px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
@@ -196,7 +196,7 @@ onMounted(() => {
     </div>
 
     <!-- Tabs -->
-    <div class="px-8 mt-4">
+    <div class="px-4 sm:px-8 mt-4">
       <div
         class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit border border-slate-200 dark:border-slate-700"
       >
@@ -234,7 +234,7 @@ onMounted(() => {
     </div>
 
     <!-- Content Area -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-3xl mx-auto">
         <!-- Submit Tab -->
         <template v-if="activeTab === 'submit'">
@@ -243,7 +243,7 @@ onMounted(() => {
             class="rounded-3xl border shadow-sm overflow-hidden transition-all"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="p-8 border-b bg-slate-50/30" style="border-color: var(--border-base)">
+            <div class="p-6 sm:p-8 border-b bg-slate-50/30" style="border-color: var(--border-base)">
               <h2 class="text-lg font-bold mb-2" style="color: var(--text-primary)">
                 遇到麻烦了吗？
               </h2>
@@ -252,9 +252,9 @@ onMounted(() => {
               </p>
             </div>
 
-            <div class="p-8 space-y-6">
+            <div class="p-6 sm:p-8 space-y-6">
               <!-- Form Group -->
-              <div class="grid grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label class="block text-xs font-bold text-slate-400 uppercase mb-2"
                     >反馈类型</label
@@ -327,7 +327,7 @@ onMounted(() => {
 
                 <div
                   v-if="!previewUrl"
-                  class="border-2 border-dashed border-slate-100 rounded-2xl p-8 flex flex-col items-center justify-center text-slate-400 hover:border-accent/20 hover:bg-accent-subtle/30 transition-all cursor-pointer group"
+                  class="border-2 border-dashed border-slate-100 rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center text-slate-400 hover:border-accent/20 hover:bg-accent-subtle/30 transition-all cursor-pointer group"
                   @click="triggerFileInput"
                 >
                   <template v-if="!isUploading">
@@ -366,14 +366,14 @@ onMounted(() => {
 
               <div class="h-px bg-slate-50 my-2"></div>
 
-              <div class="flex items-center justify-between">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-2 text-xs text-slate-400">
                   <Info class="w-3.5 h-3.5" />
                   我们将在 1-3 个工作日内通过邮件回复你。
                 </div>
                 <button
                   :disabled="isSubmitting"
-                  class="bg-accent text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full sm:w-auto bg-accent text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   @click="handleSubmit"
                 >
                   <Send v-if="!isSubmitting" class="w-4 h-4" />
@@ -438,16 +438,16 @@ onMounted(() => {
               <div
                 v-for="item in myFeedbacks"
                 :key="item.id"
-                class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 hover:shadow-lg transition-all"
+                class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all"
               >
-                <div class="flex items-start justify-between mb-3">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
                   <div class="flex items-center gap-2">
                     <span
-                      class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wider"
+                      class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[10px] font-bold uppercase tracking-wider shrink-0"
                     >
                       {{ item.type }}
                     </span>
-                    <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">
                       {{ item.title }}
                     </h3>
                   </div>
@@ -455,7 +455,7 @@ onMounted(() => {
                     :type="getStatusType(item.status)"
                     size="small"
                     effect="light"
-                    class="font-bold"
+                    class="font-bold w-fit"
                   >
                     {{ getStatusLabel(item.status) }}
                   </el-tag>
@@ -501,7 +501,7 @@ onMounted(() => {
                 </div>
 
                 <div
-                  class="flex items-center gap-4 text-[10px] text-slate-400 border-t border-slate-50 dark:border-slate-800 pt-3"
+                  class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-400 border-t border-slate-50 dark:border-slate-800 pt-3"
                 >
                   <div class="flex items-center gap-1">
                     <Clock class="w-3 h-3" />

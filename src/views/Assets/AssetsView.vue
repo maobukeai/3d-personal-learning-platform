@@ -256,17 +256,17 @@ onUnmounted(() => {
   <div class="flex flex-col h-full relative" style="background-color: var(--bg-card)">
     <!-- Top Bar -->
     <div
-      class="h-auto md:h-14 border-b flex flex-col md:flex-row md:items-center justify-between px-4 sm:px-6 py-3 md:py-0 shrink-0 gap-3"
+      class="h-auto md:h-14 border-b flex flex-col md:flex-row md:items-center justify-between px-3 sm:px-6 py-2.5 md:py-0 shrink-0 gap-2.5"
       style="border-color: var(--border-base)"
     >
-      <div class="flex items-center text-xs gap-1 font-medium" style="color: var(--text-secondary)">
-        <span class="hover:text-accent cursor-pointer transition-colors hidden sm:inline">3D 学习资源库</span>
-        <ChevronRight class="w-3.5 h-3.5 hidden sm:inline" />
-        <span style="color: var(--text-primary)">我的资源</span>
+      <div class="flex items-center text-[10px] sm:text-xs gap-1 font-medium" style="color: var(--text-secondary)">
+        <span class="hover:text-accent cursor-pointer transition-colors">3D 资源库</span>
+        <ChevronRight class="w-3 h-3" />
+        <span style="color: var(--text-primary)">模型资产</span>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-4 w-full md:w-auto">
-        <div class="relative flex-1 md:flex-none">
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <div class="relative flex-1">
           <Search
             class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-secondary)"
@@ -367,7 +367,7 @@ onUnmounted(() => {
         style="background-color: var(--bg-app)"
       >
         <!-- Asset Grid Scrollable Area -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide">
+        <div class="flex-1 overflow-y-auto p-3 sm:p-6 scrollbar-hide">
           <div
             v-if="filteredAssets.length > 0"
             class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5"
@@ -482,27 +482,27 @@ onUnmounted(() => {
           @click="isUploadDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6"
+          class="relative w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl space-y-4 sm:space-y-6"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">上传 3D 资产</h3>
+            <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">上传 3D 资产</h3>
             <button style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
           </div>
 
-          <div class="space-y-4">
+          <div class="space-y-3 sm:space-y-4">
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >资源名称</label
               >
               <input
                 v-model="uploadForm.title"
                 type="text"
-                class="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                class="w-full px-4 py-2.5 sm:py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
                 style="
                   background-color: var(--bg-app);
                   border-color: var(--border-base);
@@ -514,14 +514,14 @@ onUnmounted(() => {
 
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >描述 (可选)</label
               >
               <textarea
                 v-model="uploadForm.description"
-                rows="3"
-                class="w-full px-4 py-3 border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"
+                rows="2"
+                class="w-full px-4 py-2.5 sm:py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"
                 style="
                   background-color: var(--bg-app);
                   border-color: var(--border-base);

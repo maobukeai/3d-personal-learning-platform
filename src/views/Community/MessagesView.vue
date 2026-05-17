@@ -23,6 +23,7 @@ import {
   AtSign,
   SmilePlus,
   Trash2,
+  ChevronLeft,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
@@ -36,6 +37,7 @@ import { sanitizeHtml } from '@/utils/sanitize';
 const { t } = useI18n();
 const authStore = useAuthStore();
 const searchQuery = ref('');
+const showMobileChat = ref(false);
 const newMessage = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -288,6 +290,7 @@ const selectConversation = async (conv: any) => {
     socketService.emit('leave_conversation', activeConversation.value.id);
   }
   activeConversation.value = conv;
+  showMobileChat.value = true;
   hasMoreMessages.value = false;
   nextCursor.value = null;
   fetchMessages(conv.id);
@@ -884,7 +887,7 @@ watch(
 
 <template>
   <div
-    class="flex-1 flex h-full overflow-hidden"
+    class="flex-1 flex h-full overflow-hidden relative"
     style="background-color: var(--bg-app)"
     @click="
       closeContextMenu();
@@ -893,7 +896,10 @@ watch(
   >
     <!-- Contacts Sidebar -->
     <div
-      class="w-80 border-r flex flex-col shrink-0"
+      class="w-full md:w-80 border-r flex flex-col shrink-0 transition-all duration-300 z-20"
+      :class="[
+        showMobileChat ? 'hidden md:flex' : 'flex',
+      ]"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="p-6 border-b" style="border-color: var(--border-base)">
@@ -1060,7 +1066,10 @@ watch(
 
     <!-- Chat Area -->
     <div
-      class="flex-1 flex flex-col relative"
+      class="flex-1 flex flex-col relative transition-all duration-300 z-10"
+      :class="[
+        !showMobileChat ? 'hidden md:flex' : 'flex',
+      ]"
       style="background-color: var(--bg-app)"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
@@ -1081,10 +1090,18 @@ watch(
       <template v-if="activeConversation">
         <!-- Chat Header -->
         <div
-          class="h-16 border-b px-6 flex items-center justify-between shrink-0"
+          class="h-16 border-b px-4 md:px-6 flex items-center justify-between shrink-0"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 md:gap-3">
+            <!-- Mobile Back Button -->
+            <button
+              class="md:hidden p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500"
+              @click="showMobileChat = false"
+            >
+              <ChevronLeft class="w-6 h-6" />
+            </button>
+
             <template v-if="activeConversation.isGroup">
               <div
                 class="w-10 h-10 rounded-full flex items-center justify-center"
@@ -1638,7 +1655,7 @@ watch(
     <!-- Info Panel -->
     <div
       v-if="isInfoPanelOpen && activeConversation"
-      class="w-80 border-l flex flex-col shrink-0 overflow-hidden"
+      class="absolute right-0 top-0 bottom-0 w-full md:w-80 md:relative border-l flex flex-col shrink-0 overflow-hidden z-30 shadow-2xl md:shadow-none"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div
@@ -1927,7 +1944,7 @@ watch(
     <el-dialog
       v-model="isNewChatDialogOpen"
       :title="t('messages.startNewChat') || '发起新聊天'"
-      width="440px"
+      width="min(440px, 95%)"
       class="custom-dialog"
       :show-close="true"
       destroy-on-close
@@ -1986,15 +2003,15 @@ watch(
     <el-dialog
       v-model="isGroupChatDialogOpen"
       title="创建群聊"
-      width="480px"
+      width="min(480px, 95%)"
       class="custom-dialog"
       :show-close="true"
       destroy-on-close
     >
-      <div class="space-y-5">
+      <div class="space-y-4 md:space-y-5">
         <div>
           <label
-            class="text-xs font-bold uppercase tracking-wider mb-2 block"
+            class="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2 block"
             style="color: var(--text-muted)"
             >群聊名称</label
           >
@@ -2002,7 +2019,7 @@ watch(
             v-model="groupChatName"
             type="text"
             placeholder="输入群聊名称..."
-            class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            class="w-full px-4 py-2.5 md:py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl md:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
             style="color: var(--text-primary)"
           />
         </div>
@@ -2010,23 +2027,23 @@ watch(
         <!-- Selected Members -->
         <div v-if="groupChatParticipants.length > 0">
           <label
-            class="text-xs font-bold uppercase tracking-wider mb-2 block"
+            class="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2 block"
             style="color: var(--text-muted)"
             >已选择 ({{ groupChatParticipants.length }})</label
           >
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-1.5 md:gap-2 max-h-24 overflow-y-auto scrollbar-hide py-1">
             <div
               v-for="user in groupChatParticipants"
               :key="user.id"
-              class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+              class="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-xs font-medium"
               style="
                 background-color: var(--bg-app);
                 color: var(--text-primary);
                 border: 1px solid var(--border-base);
               "
             >
-              <UserAvatar :user="user" size="sm" />
-              {{ user.name || user.email }}
+              <UserAvatar :user="user" size="xs" />
+              <span class="max-w-[80px] md:max-w-[120px] truncate">{{ user.name || user.email }}</span>
               <button
                 class="hover:text-rose-500 transition-colors"
                 @click="removeGroupParticipant(user.id)"
@@ -2039,32 +2056,32 @@ watch(
 
         <div>
           <label
-            class="text-xs font-bold uppercase tracking-wider mb-2 block"
+            class="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2 block"
             style="color: var(--text-muted)"
             >添加成员</label
           >
           <div class="relative mb-3">
-            <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search class="w-3.5 h-3.5 md:w-4 md:h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               v-model="groupChatSearchQuery"
               type="text"
               placeholder="搜索用户..."
-              class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              class="w-full pl-10 pr-4 py-2.5 md:py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl md:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
               style="color: var(--text-primary)"
             />
           </div>
 
-          <div class="max-h-60 overflow-y-auto scrollbar-hide space-y-2">
+          <div class="max-h-48 md:max-h-60 overflow-y-auto scrollbar-hide space-y-1.5 md:space-y-2">
             <div v-if="isLoadingUsers" class="py-10 text-center">
               <div
-                class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"
+                class="w-5 h-5 md:w-6 md:h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"
               ></div>
             </div>
 
             <div
               v-for="user in filteredGroupUsers"
               :key="user.id"
-              class="p-3 flex items-center gap-3 rounded-2xl hover:bg-indigo-500/10 cursor-pointer transition-all group"
+              class="p-2.5 md:p-3 flex items-center gap-3 rounded-xl md:rounded-2xl hover:bg-indigo-500/10 cursor-pointer transition-all group"
               @click="addGroupParticipant(user)"
             >
               <UserAvatar :user="user" size="md" />
@@ -2075,9 +2092,9 @@ watch(
                 <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
               </div>
               <div
-                class="w-8 h-8 rounded-full bg-indigo-500/5 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-all"
+                class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-indigo-500/5 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-all"
               >
-                <Plus class="w-4 h-4" />
+                <Plus class="w-3.5 h-3.5 md:w-4 md:h-4" />
               </div>
             </div>
           </div>
@@ -2085,10 +2102,10 @@ watch(
 
         <button
           :disabled="!groupChatName.trim() || groupChatParticipants.length === 0"
-          class="w-full py-3.5 bg-indigo-500 text-white rounded-2xl font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          class="w-full py-3 md:py-3.5 bg-indigo-500 text-white rounded-xl md:rounded-2xl font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm md:text-base"
           @click="createGroupChat"
         >
-          <Users class="w-4 h-4" />
+          <Users class="w-3.5 h-3.5 md:w-4 md:h-4" />
           创建群聊
         </button>
       </div>

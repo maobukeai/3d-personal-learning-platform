@@ -223,7 +223,18 @@ onMounted(() => {
   if (!systemStore.isInitialized) {
     systemStore.fetchSettings();
   }
+  window.addEventListener('resize', updateIsMobile);
   fetchMaterials();
+});
+
+const isMobile = ref(window.innerWidth < 768);
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  window.removeEventListener('resize', updateIsMobile);
 });
 </script>
 
@@ -231,18 +242,18 @@ onMounted(() => {
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="h-16 border-b px-8 flex items-center justify-between shrink-0"
+      class="h-auto md:h-16 border-b px-4 md:px-8 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-3"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2.5">
         <div class="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
           <Layers class="w-5 h-5 text-orange-600 dark:text-orange-400" />
         </div>
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">材料与纹理库</h1>
+        <h1 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">材料与纹理库</h1>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div class="relative">
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <div class="relative flex-1">
           <Search
             class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-secondary)"
@@ -250,32 +261,33 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索材料库..."
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-72 transition-all"
+            placeholder="搜索材料..."
+            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-full md:w-72 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
             @keyup.enter="fetchMaterials"
           />
         </div>
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600"
+          class="flex items-center justify-center p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600 shrink-0"
           @click="isUploadDialogOpen = true"
         >
-          <Plus class="w-4 h-4" /> 上传新材料
+          <Plus class="w-5 h-5" />
+          <span class="hidden sm:inline ml-1.5 text-sm font-bold">上传</span>
         </button>
       </div>
     </div>
 
     <!-- Category Toolbar -->
     <div
-      class="border-b px-8 py-2 shrink-0 overflow-x-auto scrollbar-hide"
+      class="border-b px-4 md:px-8 py-2 shrink-0 overflow-x-auto scrollbar-hide"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
           <button
             v-for="cat in categories"
             :key="cat"
-            class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+            class="px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap"
             :class="
               activeCategory === cat
                 ? 'bg-slate-800 text-white dark:bg-accent dark:text-white'
@@ -295,10 +307,10 @@ onMounted(() => {
           </button>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0 ml-4">
+        <div class="flex items-center gap-2 shrink-0">
           <!-- Favorites Toggle -->
           <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
             :class="
               showFavoritesOnly
                 ? 'bg-rose-500/10 text-rose-500'
@@ -306,12 +318,13 @@ onMounted(() => {
             "
             @click="showFavoritesOnly = !showFavoritesOnly"
           >
-            <Heart class="w-3.5 h-3.5" :class="showFavoritesOnly ? 'fill-rose-500' : ''" /> 收藏
+            <Heart class="w-3.5 h-3.5" :class="showFavoritesOnly ? 'fill-rose-500' : ''" />
+            <span class="hidden sm:inline">收藏</span>
           </button>
 
           <div class="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl shrink-0">
             <button
-              class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+              class="px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
               :class="
                 sortBy === 'latest'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
@@ -325,7 +338,7 @@ onMounted(() => {
               最新
             </button>
             <button
-              class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+              class="px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
               :class="
                 sortBy === 'popular'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
@@ -344,11 +357,11 @@ onMounted(() => {
     </div>
 
     <!-- Content Area -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <div
           v-if="filteredMaterials.length > 0"
-          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5"
+          class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5"
         >
           <div
             v-for="mat in filteredMaterials"

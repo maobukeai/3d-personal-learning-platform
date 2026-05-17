@@ -464,6 +464,11 @@ const getTagsList = (tags: string | null) => {
     .filter((t) => t);
 };
 
+const isMobile = ref(window.innerWidth < 1024);
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth < 1024;
+};
+
 watch(
   () => route.params.id,
   (newId) => {
@@ -471,11 +476,19 @@ watch(
   },
 );
 
-onMounted(fetchProject);
+onMounted(() => {
+  window.addEventListener('resize', updateIsMobile);
+  fetchProject();
+});
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  window.removeEventListener('resize', updateIsMobile);
+});
 </script>
 
 <template>
-  <div class="flex-1 flex overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans relative">
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans relative">
     <!-- Global Loading -->
     <div
       v-if="isLoading"
@@ -489,7 +502,8 @@ onMounted(fetchProject);
     <template v-else-if="project">
       <!-- Left Sidebar (Project Meta) -->
       <aside
-        class="w-96 bg-white dark:bg-slate-900 border-r flex flex-col shrink-0 transition-colors z-10 shadow-[5px_0_30px_rgba(0,0,0,0.02)]"
+        v-if="!isMobile || activeTab === 'settings'"
+        class="w-full lg:w-96 bg-white dark:bg-slate-900 border-r flex flex-col shrink-0 transition-colors z-10 shadow-[5px_0_30px_rgba(0,0,0,0.02)] overflow-y-auto"
         style="border-color: var(--border-base)"
       >
         <!-- Back & Title -->
@@ -658,7 +672,10 @@ onMounted(fetchProject);
       </aside>
 
       <!-- Main Content Area -->
-      <main class="flex-1 flex flex-col min-w-0 bg-transparent">
+      <main
+        v-if="!isMobile || activeTab !== 'settings'"
+        class="flex-1 flex flex-col min-w-0 bg-transparent"
+      >
         <!-- Top Navigation -->
         <header
           class="h-20 px-10 flex items-center justify-between border-b bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shrink-0"
@@ -670,9 +687,10 @@ onMounted(fetchProject);
               v-for="tab in [
                 { id: 'tasks', label: '敏捷看板', icon: KanbanSquare },
                 { id: 'discussions', label: '协作空间', icon: MessageSquare },
+                ...(isMobile ? [{ id: 'settings', label: '项目详情', icon: AlignLeft }] : []),
               ]"
               :key="tab.id"
-              class="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-black transition-all"
+              class="flex items-center gap-2 px-3 lg:px-6 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-black transition-all"
               :class="
                 activeTab === tab.id
                   ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -680,8 +698,8 @@ onMounted(fetchProject);
               "
               @click="activeTab = tab.id"
             >
-              <component :is="tab.icon" class="w-4 h-4" />
-              {{ tab.label }}
+              <component :is="tab.icon" class="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span :class="isMobile ? 'inline' : 'hidden sm:inline'">{{ tab.label }}</span>
             </button>
           </div>
 

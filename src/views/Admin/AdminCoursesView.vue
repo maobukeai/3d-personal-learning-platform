@@ -672,10 +672,10 @@ onMounted(() => {
             class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="p-4 sm:p-6 flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+            <div class="p-4 sm:p-6 flex items-center gap-4 sm:gap-6">
               <!-- Thumbnail -->
               <div
-                class="w-full sm:w-40 aspect-video rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
+                class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
               >
                 <img
                   v-if="course.thumbnail"

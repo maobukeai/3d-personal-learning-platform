@@ -50,11 +50,12 @@ const startChat = () => {
 <template>
   <el-dialog
     :model-value="modelValue"
-    width="440px"
+    width="min(440px, 95%)"
     class="custom-dialog profile-dialog"
     :show-close="false"
     destroy-on-close
     append-to-body
+    align-center
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-if="isLoading" class="py-20 text-center">
@@ -63,7 +64,7 @@ const startChat = () => {
       ></div>
     </div>
     <template v-else-if="userProfile">
-      <div class="h-32 bg-gradient-to-br from-accent to-indigo-600 relative -mx-8 -mt-6 mb-12">
+      <div class="h-28 sm:h-32 bg-gradient-to-br from-accent to-indigo-600 relative -mx-4 sm:-mx-8 -mt-6 mb-10 sm:mb-12">
         <button
           class="absolute top-4 right-4 p-2 bg-black/20 text-white rounded-xl hover:bg-black/40 transition-all"
           @click="emit('update:modelValue', false)"
@@ -71,47 +72,47 @@ const startChat = () => {
           <X class="w-4 h-4" />
         </button>
       </div>
-      <div class="px-2 pb-2 -mt-20 relative">
+      <div class="px-1 sm:px-2 pb-2 -mt-16 sm:mt-20 relative">
         <UserAvatar :user="userProfile" size="xl" class="shadow-xl mb-4" />
         <div class="flex items-center justify-between mb-2">
           <div>
-            <h3 class="text-2xl font-bold" style="color: var(--text-primary)">
+            <h3 class="text-xl sm:text-2xl font-bold" style="color: var(--text-primary)">
               {{ userProfile.name || '未命名用户' }}
             </h3>
-            <p class="text-sm" style="color: var(--text-muted)">{{ userProfile.email }}</p>
+            <p class="text-xs sm:text-sm" style="color: var(--text-muted)">{{ userProfile.email }}</p>
           </div>
-          <div class="px-3 py-1 bg-accent/10 text-accent rounded-full text-xs font-bold">
+          <div class="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px] sm:text-xs font-bold">
             {{ userProfile.role === 'ADMIN' ? '管理员' : '正式成员' }}
           </div>
         </div>
 
-        <p class="text-sm mt-4 mb-6 italic" style="color: var(--text-secondary)">
+        <p class="text-xs sm:text-sm mt-4 mb-6 italic" style="color: var(--text-secondary)">
           {{ userProfile.bio || '这位小伙伴很神秘，什么都没写~' }}
         </p>
 
-        <div class="grid grid-cols-2 gap-4 mb-8">
-          <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-2xl">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div class="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-slate-50 dark:bg-white/5 rounded-xl sm:rounded-2xl">
             <div
-              class="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent"
+              class="w-8 h-8 sm:w-10 sm:h-10 bg-accent/10 rounded-lg sm:rounded-xl flex items-center justify-center text-accent shrink-0"
             >
-              <MapPin class="w-5 h-5" />
+              <MapPin class="w-4 h-4 sm:w-5 h-5" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] text-slate-400 font-bold uppercase">所在地</p>
-              <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
+              <p class="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase">所在地</p>
+              <p class="text-[10px] sm:text-xs font-bold truncate" style="color: var(--text-primary)">
                 {{ userProfile.location || '未知' }}
               </p>
             </div>
           </div>
-          <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-2xl">
+          <div class="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-slate-50 dark:bg-white/5 rounded-xl sm:rounded-2xl">
             <div
-              class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500"
+              class="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-500/10 rounded-lg sm:rounded-xl flex items-center justify-center text-indigo-500 shrink-0"
             >
-              <Calendar class="w-5 h-5" />
+              <Calendar class="w-4 h-4 sm:w-5 h-5" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] text-slate-400 font-bold uppercase">加入时间</p>
-              <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
+              <p class="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase">加入时间</p>
+              <p class="text-[10px] sm:text-xs font-bold truncate" style="color: var(--text-primary)">
                 {{ new Date(userProfile.createdAt).toLocaleDateString() }}
               </p>
             </div>
@@ -119,46 +120,46 @@ const startChat = () => {
         </div>
 
         <div
-          class="flex items-center justify-around py-6 border-y mb-8"
+          class="flex items-center justify-around py-4 sm:py-6 border-y mb-6 sm:mb-8"
           style="border-color: var(--border-base)"
         >
           <div class="text-center">
             <div class="flex items-center gap-2 mb-1 justify-center">
-              <Box class="w-4 h-4 text-accent" />
-              <span class="text-xl font-black" style="color: var(--text-primary)">{{
+              <Box class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent" />
+              <span class="text-lg sm:text-xl font-black" style="color: var(--text-primary)">{{
                 userProfile._count?.assets || 0
               }}</span>
             </div>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">发布资产</p>
+            <p class="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">发布资产</p>
           </div>
-          <div class="w-px h-8 bg-slate-200 dark:bg-slate-800"></div>
+          <div class="w-px h-6 sm:h-8 bg-slate-200 dark:bg-slate-800"></div>
           <div class="text-center">
             <div class="flex items-center gap-2 mb-1 justify-center">
-              <MessageSquare class="w-4 h-4 text-emerald-500" />
-              <span class="text-xl font-black" style="color: var(--text-primary)">{{
+              <MessageSquare class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
+              <span class="text-lg sm:text-xl font-black" style="color: var(--text-primary)">{{
                 userProfile._count?.discussions || 0
               }}</span>
             </div>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">发起讨论</p>
+            <p class="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">发起讨论</p>
           </div>
-          <div v-if="userProfile.website" class="w-px h-8 bg-slate-200 dark:bg-slate-800"></div>
+          <div v-if="userProfile.website" class="w-px h-6 sm:h-8 bg-slate-200 dark:bg-slate-800"></div>
           <div v-if="userProfile.website" class="text-center">
             <a
               :href="userProfile.website"
               target="_blank"
               class="flex items-center gap-2 mb-1 justify-center group"
             >
-              <LinkIcon class="w-4 h-4 text-orange-500 group-hover:scale-110 transition-all" />
+              <LinkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 group-hover:scale-110 transition-all" />
             </a>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">个人主页</p>
+            <p class="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider">个人主页</p>
           </div>
         </div>
 
         <button
-          class="w-full py-4 bg-accent text-white rounded-2xl font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          class="w-full py-3 sm:py-4 bg-accent text-white rounded-xl sm:rounded-2xl font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
           @click="startChat"
         >
-          <MessageSquare class="w-5 h-5" />
+          <MessageSquare class="w-4 h-4 sm:w-5 h-5" />
           立即联系
         </button>
       </div>
@@ -168,7 +169,7 @@ const startChat = () => {
 
 <style>
 .custom-dialog {
-  border-radius: 2rem !important;
+  border-radius: 1.5rem !important;
   overflow: hidden;
   background-color: var(--bg-card) !important;
   border: 1px solid var(--border-base) !important;
@@ -177,6 +178,6 @@ const startChat = () => {
   display: none;
 }
 .profile-dialog .el-dialog__body {
-  padding: 1.5rem 2rem 2rem;
+  padding: 1rem 1rem 1.5rem !important;
 }
 </style>

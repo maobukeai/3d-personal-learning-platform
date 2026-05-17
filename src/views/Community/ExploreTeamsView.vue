@@ -12,7 +12,6 @@ import {
   Loader2,
   ChevronLeft,
   Check,
-  Send,
   Layers,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -110,7 +109,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden relative"
+    class="flex-1 flex flex-col min-h-screen overflow-y-auto lg:overflow-hidden relative"
     style="background-color: var(--bg-app)"
   >
     <!-- Animated Background Elements -->
@@ -125,28 +124,28 @@ onMounted(() => {
     </div>
 
     <!-- Consolidated Hero Section -->
-    <div class="relative px-10 pt-6 pb-6 overflow-hidden shrink-0">
+    <div class="relative px-4 sm:px-6 lg:px-10 pt-4 lg:pt-6 pb-4 lg:pb-6 overflow-hidden shrink-0">
       <div class="w-full relative z-10">
         <!-- Back Button -->
         <button
-          class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm"
+          class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-3 lg:mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm"
           @click="router.back()"
         >
           <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
           <span class="text-[9px] font-black uppercase tracking-[0.2em]">返回</span>
         </button>
 
-        <div class="flex flex-col lg:flex-row items-center gap-12">
+        <div class="flex flex-col lg:flex-row items-center gap-6 lg:gap-12">
           <!-- Info Content -->
           <div class="flex-1 animate-in fade-in slide-in-from-left-6 duration-700">
             <div
-              class="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-3 shadow-sm"
+              class="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-2 lg:mb-3 shadow-sm"
             >
               <Sparkles class="w-3 h-3" />
               <span class="text-[10px] font-black uppercase tracking-wider">3D 协作社区</span>
             </div>
             <h1
-              class="text-3xl lg:text-5xl font-black tracking-tight leading-tight"
+              class="text-2xl lg:text-5xl font-black tracking-tight leading-tight"
               style="color: var(--text-primary)"
             >
               找到属于你的
@@ -156,13 +155,13 @@ onMounted(() => {
               >
             </h1>
             <p
-              class="mt-3 text-base text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl"
+              class="mt-2 lg:mt-3 text-sm lg:text-base text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl"
             >
               在这里，你可以创建自己的学习小组，或者加入志同道合的团队。共享资产、协作项目，共同见证创意的诞生。
             </p>
 
-            <!-- Small Benefits Tags -->
-            <div class="flex flex-wrap gap-3 mt-5">
+            <!-- Small Benefits Tags - Hidden on very small screens to save space -->
+            <div class="hidden sm:flex flex-wrap gap-3 mt-5">
               <div
                 class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
               >
@@ -186,25 +185,25 @@ onMounted(() => {
             class="w-full lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-6 duration-700"
           >
             <div
-              class="group relative bg-white/80 dark:bg-slate-800/80 p-6 rounded-[24px] border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-xl hover:border-accent transition-all duration-500 cursor-pointer overflow-hidden"
+              class="group relative bg-white/80 dark:bg-slate-800/80 p-4 lg:p-6 rounded-[24px] border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-xl hover:border-accent transition-all duration-500 cursor-pointer overflow-hidden"
               @click="isCreateTeamVisible = true"
             >
               <div
                 class="absolute -right-6 -top-6 w-32 h-32 bg-accent/10 rounded-full blur-2xl group-hover:bg-accent/20 transition-colors duration-700"
               ></div>
 
-              <div class="relative z-10 flex items-center gap-4 mb-4">
+              <div class="relative z-10 flex items-center gap-4 mb-3 lg:mb-4">
                 <div
-                  class="w-12 h-12 bg-gradient-to-br from-accent to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-accent/40 group-hover:rotate-6 transition-all"
+                  class="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-accent to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-accent/40 group-hover:rotate-6 transition-all"
                 >
-                  <Plus class="w-6 h-6 text-white" />
+                  <Plus class="w-5 h-5 lg:w-6 lg:h-6 text-white" />
                 </div>
                 <div>
-                  <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
+                  <h3 class="text-lg lg:text-xl font-black tracking-tight" style="color: var(--text-primary)">
                     创建团队
                   </h3>
                   <div
-                    class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
+                    class="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
                   >
                     Start Now
                   </div>
@@ -212,19 +211,19 @@ onMounted(() => {
               </div>
 
               <p
-                class="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed font-medium"
+                class="text-[11px] lg:text-xs text-slate-500 dark:text-slate-400 mb-4 lg:mb-5 leading-relaxed font-medium"
               >
                 主导项目架构，邀请精英成员加入协作。
               </p>
 
               <div class="flex items-center justify-between">
                 <div
-                  class="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-md shadow-accent/20"
+                  class="inline-flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 bg-accent text-white rounded-xl font-black text-[9px] lg:text-[10px] uppercase tracking-wider shadow-md shadow-accent/20"
                 >
-                  开始创建 <ArrowRight class="w-3.5 h-3.5" />
+                  开始创建 <ArrowRight class="w-3 h-3 lg:w-3.5 lg:h-3.5" />
                 </div>
                 <div class="text-right">
-                  <div class="text-xl font-black leading-none" style="color: var(--text-primary)">
+                  <div class="text-lg lg:text-xl font-black leading-none" style="color: var(--text-primary)">
                     100+
                   </div>
                   <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
@@ -239,16 +238,16 @@ onMounted(() => {
     </div>
 
     <!-- Main Content Section - Fills Width & Height -->
-    <div class="flex-1 flex flex-col min-h-0 px-10 pb-6">
+    <div class="flex-1 flex flex-col min-h-0 px-4 sm:px-6 lg:px-10 pb-6 overflow-visible lg:overflow-hidden">
       <div
-        class="w-full flex-1 flex flex-col min-h-0 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200"
+        class="w-full flex-1 flex flex-col min-h-0 space-y-4 lg:space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200"
       >
         <!-- Exploration Header -->
         <div
-          class="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-5 border-b border-slate-200 dark:border-slate-800 shrink-0"
+          class="flex flex-col md:flex-row md:items-center justify-between gap-4 lg:gap-6 pb-4 lg:pb-5 border-b border-slate-200 dark:border-slate-800 shrink-0"
         >
           <h2
-            class="text-2xl font-black flex items-center gap-3"
+            class="text-xl lg:text-2xl font-black flex items-center gap-3"
             style="color: var(--text-primary)"
           >
             <div
@@ -270,15 +269,15 @@ onMounted(() => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索小组名称、关键词..."
-              class="w-full pl-12 pr-6 py-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-xs font-medium shadow-sm"
+              placeholder="搜索小组名称..."
+              class="w-full pl-12 pr-6 py-2.5 lg:py-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-[11px] lg:text-xs font-medium shadow-sm"
               style="border-color: var(--border-base); color: var(--text-primary)"
             />
           </div>
         </div>
 
         <!-- Content Grid Container - Scrollable & Full Width -->
-        <div class="flex-1 overflow-y-auto pr-2 -mr-2 scrollbar-custom min-h-0">
+        <div class="flex-1 overflow-visible lg:overflow-y-auto pr-2 -mr-2 scrollbar-custom min-h-0">
           <!-- Loading -->
           <div v-if="isLoading" class="flex flex-col items-center justify-center h-full py-20">
             <Loader2 class="w-10 h-10 text-accent animate-spin" />
@@ -287,31 +286,31 @@ onMounted(() => {
             </p>
           </div>
 
-          <!-- Team Grid - Responsive Columns for Wide Screens -->
+          <!-- Team Grid - Responsive Columns -->
           <div
             v-else-if="publicTeams.length > 0"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6 pb-6"
+            class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3 lg:gap-6 pb-6"
           >
             <div
               v-for="(group, index) in publicTeams"
               :key="group.id"
-              class="group relative bg-white/70 dark:bg-slate-800/70 rounded-[24px] border border-white/50 dark:border-slate-700/50 overflow-hidden hover:shadow-xl hover:border-accent/30 hover:-translate-y-1 transition-all duration-500 cursor-pointer backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4"
+              class="group relative bg-white/70 dark:bg-slate-800/70 rounded-[20px] lg:rounded-[24px] border border-white/50 dark:border-slate-700/50 overflow-hidden hover:shadow-xl hover:border-accent/30 hover:-translate-y-1 transition-all duration-500 cursor-pointer backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4"
               :style="{
                 'animation-delay': `${index * 30}ms`,
                 'border-color': 'var(--border-base)',
               }"
               @click="handleViewTeam(group)"
             >
-              <!-- Joined Badge -->
+              <!-- Joined Badge - Smaller on mobile -->
               <div
                 v-if="myTeamIds.has(group.id)"
-                class="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/90 backdrop-blur-md text-white text-[9px] font-black rounded-xl uppercase tracking-wider shadow-md"
+                class="absolute top-2 right-2 lg:top-4 lg:right-4 z-20 flex items-center gap-1 px-1.5 lg:px-3 py-1 lg:py-1.5 bg-emerald-500/90 backdrop-blur-md text-white text-[7px] lg:text-[9px] font-black rounded-lg lg:rounded-xl uppercase tracking-wider shadow-md"
               >
-                <Check class="w-3 h-3" /> 已加入
+                <Check class="w-2.5 h-2.5 lg:w-3 h-3" /> <span class="hidden lg:inline">已加入</span>
               </div>
 
-              <!-- Card Header -->
-              <div class="h-36 relative overflow-hidden">
+              <!-- Card Header - Reduced height on mobile -->
+              <div class="h-24 lg:h-36 relative overflow-hidden">
                 <img
                   :src="
                     group.avatarUrl ||
@@ -324,66 +323,62 @@ onMounted(() => {
                 ></div>
               </div>
 
-              <div class="p-5">
+              <div class="p-3 lg:p-5">
                 <h3
-                  class="font-black text-slate-900 dark:text-white text-base group-hover:text-accent transition-colors truncate mb-1"
+                  class="font-black text-slate-900 dark:text-white text-xs lg:text-base group-hover:text-accent transition-colors truncate mb-0.5 lg:mb-1"
                 >
                   {{ group.name }}
                 </h3>
                 <p
-                  class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-8"
+                  class="text-[9px] lg:text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-6 lg:h-8"
                 >
                   {{ group.description || '探索 3D 的边界，开启创意之旅。' }}
                 </p>
 
                 <div
-                  class="flex items-center justify-between mt-4 pt-3 border-t border-slate-50 dark:border-slate-700/50"
+                  class="flex flex-col sm:flex-row sm:items-center justify-between mt-3 lg:mt-4 pt-2 lg:pt-3 border-t border-slate-50 dark:border-slate-700/50 gap-2"
                 >
                   <div class="flex items-center gap-2">
                     <div class="flex -space-x-1.5">
                       <template v-if="group.members?.length">
                         <UserAvatar
-                          v-for="member in group.members"
+                          v-for="member in group.members.slice(0, 3)"
                           :key="member.id"
                           :user="member.user"
-                          size="sm"
+                          size="xs"
                           class="ring-2 ring-white dark:ring-slate-800"
                         />
                       </template>
                       <div
                         v-else
-                        class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-black text-slate-400"
+                        class="w-5 h-5 lg:w-6 lg:h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[7px] lg:text-[8px] font-black text-slate-400"
                       >
-                        <Users class="w-3 h-3" />
+                        <Users class="w-2.5 h-2.5 lg:w-3 h-3" />
                       </div>
                     </div>
-                    <div>
+                    <div class="hidden sm:block">
                       <span
-                        class="text-[10px] font-black block"
+                        class="text-[8px] lg:text-[10px] font-black block leading-none"
                         style="color: var(--text-primary)"
                         >{{ group._count?.members || 0 }}</span
-                      >
-                      <span class="text-[8px] text-slate-400 font-black uppercase tracking-widest"
-                        >创作者</span
                       >
                     </div>
                   </div>
 
-                  <div @click.stop>
+                  <div @click.stop class="w-full sm:w-auto">
                     <button
                       v-if="myTeamIds.has(group.id)"
-                      class="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm"
+                      class="w-full sm:w-auto flex items-center justify-center gap-1 px-2 lg:px-3 py-1 lg:py-1.5 bg-accent text-white rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm"
                       @click="router.push(`/team/${group.id}`)"
                     >
-                      <ArrowRight class="w-3 h-3" /> 进入
+                      进入
                     </button>
                     <button
                       v-else
                       :disabled="applyingIds.has(group.id)"
-                      class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50"
+                      class="w-full sm:w-auto flex items-center justify-center gap-1 px-2 lg:px-3 py-1 lg:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50"
                       @click="handleApplyToJoin(group)"
                     >
-                      <Send class="w-3 h-3" />
                       {{ applyingIds.has(group.id) ? '提交' : '加入' }}
                     </button>
                   </div>

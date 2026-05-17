@@ -188,116 +188,95 @@ onMounted(() => {
     </div>
 
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-      <!-- Sidebar Filters (Horizontal scroll on mobile, fixed width sidebar on desktop) -->
+      <!-- Sidebar / Mobile Tabs -->
       <div
-        class="w-full md:w-72 border-b md:border-b-0 md:border-r p-3 md:p-6 shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10 overflow-x-auto scrollbar-hide"
+        class="w-full md:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10"
         style="border-color: var(--border-base)"
       >
-        <div class="flex flex-row md:flex-col gap-3 md:gap-8 items-center md:items-stretch">
-          <div class="relative shrink-0 w-48 md:w-full">
+        <div class="p-3 md:p-6 flex flex-col gap-3 md:gap-8">
+          <!-- Search box: Full width on mobile -->
+          <div class="relative w-full">
             <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索..."
-              class="w-full pl-9 pr-3 py-2 rounded-xl border bg-white/50 dark:bg-slate-800/50 text-[11px] md:text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+              placeholder="搜索通知..."
+              class="w-full pl-9 pr-3 py-2 rounded-xl border bg-white/50 dark:bg-slate-800/50 text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
               style="border-color: var(--border-base)"
             />
           </div>
 
-          <!-- Quick Filters: Horizontal scroll on mobile -->
-          <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
-            <button
-              v-for="filter in [
-                { id: 'all', label: '全部', icon: Inbox, count: notifications.length },
-                { id: 'unread', label: '未读', icon: Bell, count: unreadCount },
-              ]"
-              :key="filter.id"
-              class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0"
-              :class="
-                activeFilter === filter.id
-                  ? 'bg-accent text-white shadow-md md:shadow-lg shadow-accent/20'
-                  : 'text-slate-600 dark:text-slate-400 border border-transparent md:border-none bg-white/40 dark:bg-white/5'
-              "
-              @click="activeFilter = filter.id"
-            >
-              <div class="flex items-center gap-1.5 md:gap-2">
-                <component :is="filter.icon" class="w-3.5 h-3.5" />
-                {{ filter.label }}
-              </div>
-              <span
-                v-if="filter.count > 0"
-                class="ml-1.5 px-1.5 py-0.5 rounded-full text-[8px] md:text-[10px]"
+          <!-- Tabs / Filters: Horizontal scroll on mobile -->
+          <div class="flex md:flex-col gap-2 overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
+            <!-- Quick Filters (All/Unread) -->
+            <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
+              <button
+                v-for="filter in [
+                  { id: 'all', label: '全部', icon: Inbox, count: notifications.length },
+                  { id: 'unread', label: '未读', icon: Bell, count: unreadCount },
+                ]"
+                :key="filter.id"
+                class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0"
                 :class="
                   activeFilter === filter.id
-                    ? 'bg-white/20 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                    ? 'bg-accent text-white shadow-md shadow-accent/20'
+                    : 'text-slate-600 dark:text-slate-400 bg-white/40 dark:bg-white/5 hover:bg-white/60'
                 "
-                >{{ filter.count }}</span
+                @click="activeFilter = filter.id"
               >
-            </button>
-          </div>
-          
-          <!-- Category List on mobile: integrated into the same row -->
-          <div class="md:hidden w-px h-6 bg-slate-200 dark:bg-slate-800 shrink-0 mx-1"></div>
+                <div class="flex items-center gap-1.5 md:gap-2">
+                  <component :is="filter.icon" class="w-3.5 h-3.5" />
+                  {{ filter.label }}
+                </div>
+                <span
+                  v-if="filter.count > 0"
+                  class="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px]"
+                  :class="
+                    activeFilter === filter.id
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  "
+                  >{{ filter.count }}</span
+                >
+              </button>
+            </div>
 
-          <div class="flex md:hidden gap-1.5 shrink-0">
-            <button
-              v-for="cat in [
-                { id: 'SYSTEM', label: '系统', icon: Info, color: 'text-indigo-500' },
-                { id: 'TEAM', label: '团队', icon: Users, color: 'text-blue-500' },
-                { id: 'TASK', label: '任务', icon: Briefcase, color: 'text-amber-500' },
-                { id: 'MESSAGE', label: '消息', icon: MessageSquare, color: 'text-emerald-500' },
-              ]"
-              :key="cat.id"
-              class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] transition-all whitespace-nowrap shrink-0"
-              :class="
-                activeCategory === cat.id
-                  ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
-                  : 'text-slate-600 dark:text-slate-400 border border-transparent bg-white/40 dark:bg-white/5'
-              "
-              @click="handleCategoryChange(cat.id)"
-            >
-              <component :is="cat.icon" class="w-3.5 h-3.5 shrink-0" :class="cat.color" />
-              {{ cat.label }}
-            </button>
-          </div>
-        </div>
+            <!-- Separator on mobile -->
+            <div class="md:hidden w-px h-6 bg-slate-200 dark:bg-slate-800 shrink-0 my-auto mx-1"></div>
 
-        <!-- Desktop Categories -->
-        <div class="hidden md:block mt-8 pt-6 border-t" style="border-color: var(--border-base)">
-          <h3 class="px-4 mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            分类
-          </h3>
-          <div class="flex flex-col gap-1">
-            <button
-              v-for="cat in [
-                { id: 'all', label: '全部类型', icon: Inbox, color: 'text-slate-400' },
-                { id: 'SYSTEM', label: '系统通知', icon: Info, color: 'text-indigo-500' },
-                { id: 'TEAM', label: '团队动态', icon: Users, color: 'text-blue-500' },
-                { id: 'TASK', label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
-                { id: 'MESSAGE', label: '私信消息', icon: MessageSquare, color: 'text-emerald-500' },
-              ]"
-              :key="cat.id"
-              class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs transition-all"
-              :class="
-                activeCategory === cat.id
-                  ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/5'
-              "
-              @click="handleCategoryChange(cat.id)"
-            >
-              <component :is="cat.icon" class="w-4 h-4 shrink-0" :class="cat.color" />
-              {{ cat.label }}
-            </button>
+            <!-- Category List: Also in horizontal scroll on mobile -->
+            <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
+              <button
+                v-for="cat in [
+                  { id: 'all', label: '全部类型', icon: Inbox, color: 'text-slate-400', desktopOnly: true },
+                  { id: 'SYSTEM', label: '系统通知', icon: Info, color: 'text-indigo-500' },
+                  { id: 'TEAM', label: '团队动态', icon: Users, color: 'text-blue-500' },
+                  { id: 'TASK', label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
+                  { id: 'MESSAGE', label: '私信消息', icon: MessageSquare, color: 'text-emerald-500' },
+                ]"
+                :key="cat.id"
+                class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0"
+                :class="[
+                  cat.desktopOnly ? 'hidden md:flex' : 'flex',
+                  activeCategory === cat.id
+                    ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/5',
+                ]"
+                @click="handleCategoryChange(cat.id)"
+              >
+                <component :is="cat.icon" class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" :class="cat.color" />
+                {{ cat.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Content -->
       <div
-        class="flex-1 overflow-y-auto p-3 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
+        class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
       >
+
         <div class="max-w-4xl mx-auto space-y-4">
           <div v-if="isLoading" class="space-y-4">
             <div

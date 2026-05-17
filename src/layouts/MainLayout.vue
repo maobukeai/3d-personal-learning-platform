@@ -32,6 +32,8 @@ import {
   Search,
   ExternalLink,
   Share2,
+  Menu,
+  X,
 } from 'lucide-vue-next';
 import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue';
@@ -113,6 +115,12 @@ const isInvitationVisible = ref(false);
 const isSearchVisible = ref(false);
 const searchQuery = ref('');
 const activeInvitationId = ref<string | null>(null);
+const isMobileSidebarOpen = ref(false);
+const isMobile = ref(window.innerWidth < 768);
+
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
 
 const handleSearch = () => {
   isSearchVisible.value = true;
@@ -407,6 +415,7 @@ let statsInterval: any = null;
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('resize', updateIsMobile);
   socketService.connect();
 
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -449,6 +458,7 @@ onMounted(() => {
 watch(
   () => route.path,
   (path) => {
+    isMobileSidebarOpen.value = false;
     if (path.startsWith('/team/')) {
       const id = path.split('/')[2];
       workspaceStore.setWorkspaceById(id);
@@ -462,6 +472,7 @@ watch(
 onUnmounted(() => {
   if (statsInterval) clearInterval(statsInterval);
   window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('resize', updateIsMobile);
   socketService.off('new_notification', onNewNotification);
   socketService.off('message_received', onMessageReceived);
   socketService.off('online_users_list', onOnlineUsersList);
@@ -477,182 +488,198 @@ onUnmounted(() => {
   >
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-16 flex items-center justify-between px-6 shrink-0 border-b z-30"
+      class="topbar h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b z-30"
       style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
     >
-      <!-- Left: Workspace Switcher / Logo -->
-      <template v-if="!workspaceStore.isInitialized">
-        <div class="flex items-center gap-2.5 ml-4 animate-pulse">
-          <div class="w-7 h-7 rounded-xl bg-slate-200/50 dark:bg-white/10"></div>
-          <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
-        </div>
-      </template>
-      <template v-else>
-        <el-dropdown
-          v-if="workspaceStore.currentWorkspace"
-          trigger="click"
-          placement="bottom-start"
+      <!-- Left: Hamburger + Workspace Switcher / Logo -->
+      <div class="flex items-center gap-1 md:gap-3">
+        <button
+          class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors lg:hidden shrink-0 -ml-1"
+          @click="isMobileSidebarOpen = true"
         >
-          <div
-            class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 ml-4 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-            :style="{
-              transform: `translateX(${
-                workspaceStore.currentWorkspace?.type === 'personal'
-                  ? 0
-                  : workspaceStore.currentWorkspace?.type === 'team'
-                    ? 12
-                    : 24
-              }px)`,
-            }"
+          <Menu class="w-5 h-5" style="color: var(--text-muted)" />
+        </button>
+
+        <template v-if="!workspaceStore.isInitialized">
+          <div class="flex items-center gap-2.5 ml-2 md:ml-4 animate-pulse">
+            <div class="w-7 h-7 rounded-xl bg-slate-200/50 dark:bg-white/10"></div>
+            <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
+          </div>
+        </template>
+        <template v-else>
+          <el-dropdown
+            v-if="workspaceStore.currentWorkspace"
+            trigger="click"
+            placement="bottom-start"
           >
-            <div class="relative">
-              <div
-                class="w-7 h-7 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
-                :class="
-                  workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
-                "
-                :style="
-                  workspaceStore.isAdminWorkspace
-                    ? {
-                        background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
-                        boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)',
-                      }
-                    : {}
-                "
-              >
-                {{ workspaceStore.currentWorkspace.name.charAt(0) }}
-              </div>
-              <!-- Active Workspace Badge -->
-              <div
-                v-if="workspaceStore.currentWorkspace?.badgeCount"
-                class="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--bg-sidebar)] px-1 animate-in zoom-in duration-300"
-              >
-                {{
-                  workspaceStore.currentWorkspace.badgeCount > 99
-                    ? '99+'
-                    : workspaceStore.currentWorkspace.badgeCount
-                }}
-              </div>
-            </div>
-            <span
-              class="text-sm font-bold truncate max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-              :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
-              style="color: var(--text-primary)"
+            <div
+              class="flex items-center gap-2 md:gap-2.5 cursor-pointer hover:opacity-80 ml-1 md:ml-4 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
+              :style="{
+                transform: `translateX(${
+                  workspaceStore.currentWorkspace?.type === 'personal'
+                    ? 0
+                    : workspaceStore.currentWorkspace?.type === 'team'
+                      ? (isMobile ? 4 : 12)
+                      : (isMobile ? 8 : 24)
+                }px)`,
+              }"
             >
-              {{ workspaceStore.currentWorkspace.name }}
-            </span>
-            <ChevronDown
-              class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-              :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }"
-            />
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu class="w-72 p-2 rounded-2xl border-none shadow-2xl">
-              <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                切换工作空间
+              <div class="relative">
+                <div
+                  class="w-7 h-7 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
+                  :class="
+                    workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
+                  "
+                  :style="
+                    workspaceStore.isAdminWorkspace
+                      ? {
+                          background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
+                          boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)',
+                        }
+                      : {}
+                  "
+                >
+                  {{ workspaceStore.currentWorkspace.name.charAt(0) }}
+                </div>
+                <!-- Active Workspace Badge -->
+                <div
+                  v-if="workspaceStore.currentWorkspace?.badgeCount"
+                  class="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--bg-sidebar)] px-1 animate-in zoom-in duration-300"
+                >
+                  {{
+                    workspaceStore.currentWorkspace.badgeCount > 99
+                      ? '99+'
+                      : workspaceStore.currentWorkspace.badgeCount
+                  }}
+                </div>
               </div>
-              <el-dropdown-item
-                v-for="ws in workspaceStore.workspaces"
-                :key="ws.id"
-                class="rounded-2xl my-1 p-2 group transition-all duration-200"
-                :class="workspaceStore.activeWorkspaceId === ws.id ? 'bg-accent/5' : ''"
-                @click="handleSwitchWorkspace(ws)"
+              <span
+                class="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px] md:max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
+                :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
+                style="color: var(--text-primary)"
               >
-                <div class="flex items-center justify-between w-full">
-                  <div class="flex items-center gap-3">
-                    <!-- 玻璃质感头像 -->
-                    <div class="relative">
-                      <div
-                        class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
-                        :class="ws.color"
-                      >
-                        {{ ws.name.charAt(0) }}
+                {{ workspaceStore.currentWorkspace.name }}
+              </span>
+              <ChevronDown
+                class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
+                :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }"
+              />
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu class="w-72 p-2 rounded-2xl border-none shadow-2xl">
+                <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  切换工作空间
+                </div>
+                <el-dropdown-item
+                  v-for="ws in workspaceStore.workspaces"
+                  :key="ws.id"
+                  class="rounded-2xl my-1 p-2 group transition-all duration-200"
+                  :class="workspaceStore.activeWorkspaceId === ws.id ? 'bg-accent/5' : ''"
+                  @click="handleSwitchWorkspace(ws)"
+                >
+                  <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center gap-3">
+                      <!-- 玻璃质感头像 -->
+                      <div class="relative">
+                        <div
+                          class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
+                          :class="ws.color"
+                        >
+                          {{ ws.name.charAt(0) }}
+                        </div>
+                        <!-- 徽标 -->
+                        <div
+                          v-if="ws.badgeCount"
+                          class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 px-1"
+                        >
+                          {{ ws.badgeCount > 99 ? '99+' : ws.badgeCount }}
+                        </div>
                       </div>
-                      <!-- 徽标 -->
-                      <div
-                        v-if="ws.badgeCount"
-                        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 px-1"
-                      >
-                        {{ ws.badgeCount > 99 ? '99+' : ws.badgeCount }}
+                      <!-- 文字信息 -->
+                      <div class="flex flex-col text-left">
+                        <span
+                          class="font-semibold text-sm"
+                          :class="
+                            workspaceStore.activeWorkspaceId === ws.id
+                              ? 'text-accent'
+                              : 'text-slate-700 dark:text-slate-200'
+                          "
+                        >
+                          {{ ws.name }}
+                        </span>
+                        <span class="text-[10px] text-slate-400">
+                          {{ ws.description }}
+                        </span>
                       </div>
                     </div>
-                    <!-- 文字信息 -->
-                    <div class="flex flex-col text-left">
-                      <span
-                        class="font-semibold text-sm"
-                        :class="
-                          workspaceStore.activeWorkspaceId === ws.id
-                            ? 'text-accent'
-                            : 'text-slate-700 dark:text-slate-200'
-                        "
+                    <!-- 快捷按钮 -->
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
+                        @click.stop="handleQuickSettings(ws)"
                       >
-                        {{ ws.name }}
-                      </span>
-                      <span class="text-[10px] text-slate-400">
-                        {{ ws.description }}
-                      </span>
+                        <Settings class="w-4 h-4" />
+                      </button>
+                      <div
+                        v-if="workspaceStore.activeWorkspaceId === ws.id"
+                        class="w-1.5 h-1.5 rounded-full bg-accent"
+                      ></div>
                     </div>
                   </div>
-                  <!-- 快捷按钮 -->
-                  <div class="flex items-center gap-2">
-                    <button
-                      class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
-                      @click.stop="handleQuickSettings(ws)"
-                    >
-                      <Settings class="w-4 h-4" />
-                    </button>
-                    <div
-                      v-if="workspaceStore.activeWorkspaceId === ws.id"
-                      class="w-1.5 h-1.5 rounded-full bg-accent"
-                    ></div>
+                </el-dropdown-item>
+                <div class="border-t border-slate-100 dark:border-slate-800 my-2"></div>
+                <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
+                  <div class="flex items-center gap-3 py-1 text-slate-500">
+                    <Plus class="w-4 h-4" />
+                    <span class="font-medium">创建或加入团队</span>
                   </div>
-                </div>
-              </el-dropdown-item>
-              <div class="border-t border-slate-100 dark:border-slate-800 my-2"></div>
-              <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
-                <div class="flex items-center gap-3 py-1 text-slate-500">
-                  <Plus class="w-4 h-4" />
-                  <span class="font-medium">创建或加入团队</span>
-                </div>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-        <div v-else class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-            <Box class="w-4 h-4 text-white" />
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <div v-else class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+              <Box class="w-4 h-4 text-white" />
+            </div>
+            <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
           </div>
-          <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
-        </div>
-      </template>
+        </template>
+      </div>
 
       <!-- Center: Search Bar -->
       <div
-        class="topbar-search flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer hover:border-[var(--border-strong)] transition-colors"
-        style="background-color: var(--bg-card); border-color: var(--border-base); min-width: 320px"
+        class="topbar-search hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer hover:border-[var(--border-strong)] transition-colors"
+        style="background-color: var(--bg-card); border-color: var(--border-base); min-width: 240px; lg:min-width: 320px"
         @click="handleSearch"
       >
         <Search class="w-4 h-4 text-slate-400" />
         <span class="text-xs text-slate-400 flex-1">搜索功能、作品或文档...</span>
         <kbd
-          class="text-[10px] px-2 py-0.5 rounded border font-mono"
+          class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
           style="border-color: var(--border-base); color: var(--text-muted)"
           >Ctrl+K</kbd
         >
       </div>
 
       <!-- Right: Actions + Avatar -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 md:gap-3">
+        <!-- Mobile Search Button -->
+        <button
+          class="md:hidden w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          @click="handleSearch"
+        >
+          <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
+        </button>
         <!-- Share -->
         <button
-          class="topbar-icon-btn w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          class="topbar-icon-btn hidden sm:flex w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           @click="handleShare"
         >
           <Share2 class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- External Link -->
         <button
-          class="topbar-icon-btn w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          class="topbar-icon-btn hidden sm:flex w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           @click="handleExternalLink"
         >
           <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
@@ -726,62 +753,72 @@ onUnmounted(() => {
           </template>
         </el-dropdown>
 
-        <!-- User Avatar Dropdown -->
-        <el-dropdown trigger="click" placement="bottom-end" @command="handleProfileClick">
+        <!-- User Avatar or Login Button -->
+        <template v-if="authStore.isAuthenticated">
+          <el-dropdown trigger="click" placement="bottom-end" @command="handleProfileClick">
+            <button
+              class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none"
+            >
+              <UserAvatar :user="authStore.user ?? undefined" size="md" />
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu class="w-56 p-2 rounded-2xl border-none shadow-2xl">
+                <div class="px-3 py-2 border-b mb-1" style="border-color: var(--border-base)">
+                  <p class="text-sm font-bold" style="color: var(--text-primary)">
+                    {{ authStore.user?.name || '未命名用户' }}
+                  </p>
+                  <p class="text-[10px]" style="color: var(--text-muted)">
+                    {{ authStore.user?.email }}
+                  </p>
+                </div>
+                <el-dropdown-item command="profile" class="rounded-xl my-0.5">
+                  <div class="flex items-center gap-3 py-1">
+                    <UserIcon class="w-4 h-4 text-slate-400" /><span
+                      class="font-medium text-slate-600"
+                      >个人资料</span
+                    >
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item command="notifications" class="rounded-xl my-0.5">
+                  <div class="flex items-center gap-3 py-1">
+                    <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium text-slate-600"
+                      >消息通知</span
+                    >
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item command="billing" class="rounded-xl my-0.5">
+                  <div class="flex items-center gap-3 py-1">
+                    <CreditCard class="w-4 h-4 text-slate-400" /><span
+                      class="font-medium text-slate-600"
+                      >订阅与账单</span
+                    >
+                  </div>
+                </el-dropdown-item>
+                <div class="border-t border-slate-100 my-2"></div>
+                <el-dropdown-item command="logout" class="rounded-xl my-0.5 text-rose-600">
+                  <div class="flex items-center gap-3 py-1">
+                    <LogOut class="w-4 h-4" /><span class="font-bold">退出登录</span>
+                  </div>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template v-else>
           <button
-            class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none"
+            class="px-4 py-1.5 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20 hover:shadow-xl transition-all"
+            @click="router.push({ path: '/login', query: { redirect: route.fullPath } })"
           >
-            <UserAvatar :user="authStore.user ?? undefined" size="md" />
+            登录
           </button>
-          <template #dropdown>
-            <el-dropdown-menu class="w-56 p-2 rounded-2xl border-none shadow-2xl">
-              <div class="px-3 py-2 border-b mb-1" style="border-color: var(--border-base)">
-                <p class="text-sm font-bold" style="color: var(--text-primary)">
-                  {{ authStore.user?.name || '未命名用户' }}
-                </p>
-                <p class="text-[10px]" style="color: var(--text-muted)">
-                  {{ authStore.user?.email }}
-                </p>
-              </div>
-              <el-dropdown-item command="profile" class="rounded-xl my-0.5">
-                <div class="flex items-center gap-3 py-1">
-                  <UserIcon class="w-4 h-4 text-slate-400" /><span
-                    class="font-medium text-slate-600"
-                    >个人资料</span
-                  >
-                </div>
-              </el-dropdown-item>
-              <el-dropdown-item command="notifications" class="rounded-xl my-0.5">
-                <div class="flex items-center gap-3 py-1">
-                  <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium text-slate-600"
-                    >消息通知</span
-                  >
-                </div>
-              </el-dropdown-item>
-              <el-dropdown-item command="billing" class="rounded-xl my-0.5">
-                <div class="flex items-center gap-3 py-1">
-                  <CreditCard class="w-4 h-4 text-slate-400" /><span
-                    class="font-medium text-slate-600"
-                    >订阅与账单</span
-                  >
-                </div>
-              </el-dropdown-item>
-              <div class="border-t border-slate-100 my-2"></div>
-              <el-dropdown-item command="logout" class="rounded-xl my-0.5 text-rose-600">
-                <div class="flex items-center gap-3 py-1">
-                  <LogOut class="w-4 h-4" /><span class="font-bold">退出登录</span>
-                </div>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        </template>
       </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Global Sidebar -->
       <aside
-        class="w-60 flex flex-col h-full shrink-0 border-r transition-colors duration-300"
+        class="w-60 hidden lg:flex flex-col h-full shrink-0 border-r transition-colors duration-300"
         style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
       >
         <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-hide">
@@ -962,14 +999,6 @@ onUnmounted(() => {
         <div class="flex items-center justify-between text-[10px] text-slate-400">
           <div class="flex gap-4">
             <span class="flex items-center gap-1.5"
-              ><kbd class="px-1 py-0.5 rounded border bg-slate-50 dark:bg-slate-900">↵</kbd>
-              选择</span
-            >
-            <span class="flex items-center gap-1.5"
-              ><kbd class="px-1 py-0.5 rounded border bg-slate-50 dark:bg-slate-900">↑↓</kbd>
-              导航</span
-            >
-            <span class="flex items-center gap-1.5"
               ><kbd class="px-1 py-0.5 rounded border bg-slate-50 dark:bg-slate-900">esc</kbd>
               关闭</span
             >
@@ -977,6 +1006,129 @@ onUnmounted(() => {
         </div>
       </template>
     </el-dialog>
+
+    <!-- Mobile Sidebar Drawer -->
+    <Transition name="fade">
+      <div
+        v-if="isMobileSidebarOpen"
+        class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+        @click="isMobileSidebarOpen = false"
+      ></div>
+    </Transition>
+
+    <Transition name="slide-left">
+      <aside
+        v-if="isMobileSidebarOpen"
+        class="fixed inset-y-0 left-0 w-64 z-50 flex flex-col h-full border-r shadow-2xl transition-all duration-300 lg:hidden"
+        style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
+      >
+        <!-- Header -->
+        <div class="h-16 flex items-center justify-between px-6 border-b shrink-0" style="border-color: var(--border-base)">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+              <Box class="w-4 h-4 text-white" />
+            </div>
+            <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
+          </div>
+          <button
+            class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            @click="isMobileSidebarOpen = false"
+          >
+            <X class="w-4 h-4" style="color: var(--text-muted)" />
+          </button>
+        </div>
+
+        <!-- Navigation Menu -->
+        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-hide">
+          <div v-for="(group, index) in menuGroups" :key="index">
+            <h3
+              v-if="group.title"
+              class="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
+              :class="
+                workspaceStore.isAdminWorkspace
+                  ? 'text-rose-500 dark:text-rose-400'
+                  : 'text-slate-400 dark:text-slate-500'
+              "
+            >
+              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-3 h-3" />
+              {{ group.title }}
+            </h3>
+            <ul class="space-y-1">
+              <li v-for="item in group.items" :key="item.name">
+                <RouterLink
+                  :to="item.path"
+                  class="flex items-center justify-between px-3 py-2 rounded-md transition-colors duration-150"
+                  :class="
+                    route.path === item.path
+                      ? workspaceStore.isAdminWorkspace
+                        ? 'bg-rose-600 text-white font-medium shadow-md'
+                        : 'bg-accent-subtle dark:bg-accent/20 text-accent font-medium'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+                  "
+                  @click="isMobileSidebarOpen = false"
+                >
+                  <div class="flex items-center gap-3">
+                    <component
+                      :is="item.icon"
+                      class="w-4 h-4"
+                      :class="
+                        route.path === item.path
+                          ? workspaceStore.isAdminWorkspace
+                            ? 'text-white'
+                            : 'text-accent'
+                          : 'text-slate-400'
+                      "
+                    />
+                    <span class="flex-1">{{ item.name }}</span>
+
+                    <!-- High-Visibility Badge -->
+                    <div
+                      v-if="item.badge && item.badge > 0"
+                      class="px-1.5 py-0.5 min-w-[18px] h-4.5 rounded-full text-[10px] font-black flex items-center justify-center transition-all duration-300"
+                      :class="
+                        route.path === item.path
+                          ? 'bg-white text-rose-600 shadow-sm'
+                          : 'bg-rose-500 text-white'
+                      "
+                    >
+                      {{ item.badge > 99 ? '99+' : item.badge }}
+                    </div>
+                  </div>
+                </RouterLink>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t space-y-1 shrink-0" style="border-color: var(--border-base)">
+          <RouterLink
+            to="/settings"
+            class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            :class="
+              route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
+            "
+            @click="isMobileSidebarOpen = false"
+          >
+            <Settings
+              class="w-4 h-4"
+              :class="route.path === '/settings' ? 'text-accent' : 'text-slate-400'"
+            />
+            设置选项
+          </RouterLink>
+          <button
+            class="w-full flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            @click="
+              handleReportBug();
+              isMobileSidebarOpen = false;
+            "
+          >
+            <HelpCircle class="w-4 h-4 text-slate-400" />
+            问题反馈
+          </button>
+        </div>
+      </aside>
+    </Transition>
   </div>
 </template>
 
@@ -987,5 +1139,25 @@ onUnmounted(() => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Fade Transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Slide Left Transition */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-left-enter-from,
+.slide-left-leave-to {
+  transform: translateX(-100%);
 }
 </style>

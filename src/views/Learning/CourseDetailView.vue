@@ -105,6 +105,18 @@ const ratingDistribution = computed(() => {
 });
 
 const handleEnroll = async () => {
+  const { useAuthStore } = await import('@/stores/auth');
+  const authStore = useAuthStore();
+
+  if (!authStore.isAuthenticated) {
+    ElMessage.warning('请先登录后再加入课程');
+    router.push({
+      path: '/login',
+      query: { redirect: route.fullPath },
+    });
+    return;
+  }
+
   isEnrolling.value = true;
   try {
     await api.post('/api/courses/enroll', { courseId });
@@ -144,6 +156,19 @@ const handleShare = () => {
 
 const handleSubmitReview = async () => {
   if (!reviewComment.value.trim() && reviewRating.value === 0) return;
+
+  const { useAuthStore } = await import('@/stores/auth');
+  const authStore = useAuthStore();
+
+  if (!authStore.isAuthenticated) {
+    ElMessage.warning('请先登录后再发表评价');
+    router.push({
+      path: '/login',
+      query: { redirect: route.fullPath },
+    });
+    return;
+  }
+
   isSubmittingReview.value = true;
   try {
     await api.post('/api/courses/reviews', {
@@ -198,7 +223,7 @@ onMounted(fetchCourse);
   >
     <!-- Top Nav -->
     <div
-      class="h-14 px-8 flex items-center gap-4 shrink-0 border-b transition-colors duration-300"
+      class="h-14 px-4 sm:px-6 md:px-8 flex items-center gap-4 shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <button
@@ -254,7 +279,7 @@ onMounted(fetchCourse);
                 class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
               ></div>
             </div>
-            <div class="absolute bottom-0 left-0 right-0 p-8">
+            <div class="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8">
               <div class="flex items-end justify-between">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-3 mb-3">
@@ -273,7 +298,7 @@ onMounted(fetchCourse);
                       {{ difficultyMap[course.difficulty]?.label || '入门' }}
                     </span>
                   </div>
-                  <h1 class="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">
+                  <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 leading-tight">
                     {{ course.title }}
                   </h1>
                   <p class="text-white/70 text-sm line-clamp-2 max-w-2xl">
@@ -286,7 +311,7 @@ onMounted(fetchCourse);
 
           <!-- Stats Bar -->
           <div
-            class="px-8 py-6 border-b flex flex-wrap items-center gap-6 transition-colors duration-300"
+            class="px-4 sm:px-6 md:px-8 py-6 border-b flex flex-wrap items-center gap-4 sm:gap-6 transition-colors duration-300"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="flex items-center gap-2">
@@ -298,7 +323,7 @@ onMounted(fetchCourse);
                 >({{ course._count?.reviews || 0 }} 评价)</span
               >
             </div>
-            <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
+            <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
             <div class="flex items-center gap-2">
               <Users class="w-4 h-4" style="color: var(--text-muted)" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
@@ -306,7 +331,7 @@ onMounted(fetchCourse);
               }}</span>
               <span class="text-xs" style="color: var(--text-muted)">人已参加</span>
             </div>
-            <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
+            <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
             <div class="flex items-center gap-2">
               <BookOpen class="w-4 h-4" style="color: var(--text-muted)" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
@@ -314,7 +339,7 @@ onMounted(fetchCourse);
               }}</span>
               <span class="text-xs" style="color: var(--text-muted)">课时</span>
             </div>
-            <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
+            <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
             <div class="flex items-center gap-2">
               <Timer class="w-4 h-4" style="color: var(--text-muted)" />
               <span class="text-sm font-bold" style="color: var(--text-primary)">{{
@@ -323,7 +348,7 @@ onMounted(fetchCourse);
             </div>
             <!-- Tags -->
             <template v-if="courseTags.length > 0">
-              <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
+              <div class="h-4 w-px hidden sm:block" style="background-color: var(--border-base)"></div>
               <div class="flex items-center gap-2">
                 <Tag class="w-3.5 h-3.5" style="color: var(--text-muted)" />
                 <span
@@ -338,13 +363,13 @@ onMounted(fetchCourse);
           </div>
 
           <!-- Main Content + Sidebar -->
-          <div class="flex gap-8 p-8">
+          <div class="flex flex-col lg:flex-row gap-6 md:gap-8 p-4 sm:p-6 md:p-8">
             <!-- Left Content -->
             <div class="flex-1 min-w-0 space-y-8">
               <!-- Instructor Card -->
               <div
                 v-if="instructorInfo"
-                class="p-5 rounded-2xl border flex items-center gap-4"
+                class="p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-4"
                 style="background-color: var(--bg-card); border-color: var(--border-base)"
               >
                 <UserAvatar :user="instructorInfo" size="lg" />

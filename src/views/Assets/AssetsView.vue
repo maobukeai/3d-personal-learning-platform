@@ -19,6 +19,12 @@ import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
 const authStore = useAuthStore();
 const searchQuery = ref('');
 const activeCategory = ref('全部');
+const isMobile = ref(window.innerWidth < 768);
+const isFilterMenuOpen = ref(false);
+
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
 
 watch(searchQuery, () => {
   pagination.value.page = 1;
@@ -235,8 +241,14 @@ const deleteAsset = async (id: string) => {
 };
 
 onMounted(() => {
+  window.addEventListener('resize', updateIsMobile);
   fetchAssets();
   fetchCategories();
+});
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  window.removeEventListener('resize', updateIsMobile);
 });
 </script>
 
@@ -244,17 +256,17 @@ onMounted(() => {
   <div class="flex flex-col h-full relative" style="background-color: var(--bg-card)">
     <!-- Top Bar -->
     <div
-      class="h-14 border-b flex items-center justify-between px-6 shrink-0"
+      class="h-auto md:h-14 border-b flex flex-col md:flex-row md:items-center justify-between px-4 sm:px-6 py-3 md:py-0 shrink-0 gap-3"
       style="border-color: var(--border-base)"
     >
       <div class="flex items-center text-xs gap-1 font-medium" style="color: var(--text-secondary)">
-        <span class="hover:text-accent cursor-pointer transition-colors">3D 学习资源库</span>
-        <ChevronRight class="w-3.5 h-3.5" />
+        <span class="hover:text-accent cursor-pointer transition-colors hidden sm:inline">3D 学习资源库</span>
+        <ChevronRight class="w-3.5 h-3.5 hidden sm:inline" />
         <span style="color: var(--text-primary)">我的资源</span>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div class="relative">
+      <div class="flex items-center gap-2 sm:gap-4 w-full md:w-auto">
+        <div class="relative flex-1 md:flex-none">
           <Search
             class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-secondary)"
@@ -263,18 +275,24 @@ onMounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="在资源中搜索..."
-            class="pl-9 pr-4 py-1.5 border-none rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-64 transition-all"
+            class="pl-9 pr-4 py-1.5 border-none rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
+        <button
+          class="md:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          @click="isFilterMenuOpen = !isFilterMenuOpen"
+        >
+          <RotateCw class="w-4 h-4" :class="isFilterMenuOpen ? 'rotate-180' : ''" />
+        </button>
       </div>
     </div>
 
     <!-- Main Content Layout -->
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Inner Filter Sidebar -->
+    <div class="flex flex-1 overflow-hidden relative">
+      <!-- Inner Filter Sidebar (Desktop) -->
       <div
-        class="w-56 border-r flex flex-col shrink-0 overflow-y-auto"
+        class="hidden md:flex w-56 border-r flex flex-col shrink-0 overflow-y-auto"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="p-4">
@@ -314,28 +332,57 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Mobile Filter Dropdown/Bar -->
+      <Transition name="slide-down">
+        <div
+          v-if="isFilterMenuOpen && isMobile"
+          class="absolute inset-x-0 top-0 z-30 border-b shadow-xl md:hidden overflow-hidden transition-all duration-300"
+          style="background-color: var(--bg-card); border-color: var(--border-base)"
+        >
+          <div class="p-4 flex flex-col gap-4">
+            <button
+              class="w-full py-2.5 bg-accent text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20"
+              @click="isUploadDialogOpen = true; isFilterMenuOpen = false"
+            >
+              上传新作品
+            </button>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="cat in categories"
+                :key="cat.name"
+                class="px-4 py-1.5 rounded-full text-[11px] font-medium transition-all"
+                :class="activeCategory === cat.name ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
+                @click="activeCategory = cat.name; isFilterMenuOpen = false"
+              >
+                {{ cat.name }} ({{ cat.count }})
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <!-- Asset Grid Area -->
       <div
         class="flex-1 flex flex-col overflow-hidden relative"
         style="background-color: var(--bg-app)"
       >
         <!-- Asset Grid Scrollable Area -->
-        <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide">
           <div
             v-if="filteredAssets.length > 0"
-            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5"
+            class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5"
           >
             <!-- Asset Card -->
             <div
               v-for="asset in filteredAssets"
               :key="asset.id"
-              class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col relative aspect-[4/5]"
+              class="group rounded-xl sm:rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col relative aspect-[4/5]"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
               @click="openPreview(asset)"
             >
               <!-- Badge -->
               <div
-                class="absolute top-3 left-3 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold z-10 shadow-sm"
+                class="absolute top-2 left-2 sm:top-3 sm:left-3 backdrop-blur px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[8px] sm:text-[10px] font-bold z-10 shadow-sm"
                 style="
                   background-color: rgba(var(--bg-card-rgb, 255, 255, 255), 0.9);
                   color: var(--text-secondary);
@@ -360,9 +407,9 @@ onMounted(() => {
                   class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
 
-                <!-- Hover Overlay -->
+                <!-- Hover Overlay (Desktop only) -->
                 <div
-                  class="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  class="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center justify-center"
                 >
                   <div
                     class="p-2 rounded-full shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300"
@@ -375,25 +422,20 @@ onMounted(() => {
 
               <!-- Card Footer -->
               <div
-                class="p-4 border-t"
+                class="p-2 sm:p-4 border-t"
                 style="background-color: var(--bg-card); border-color: var(--border-base)"
               >
-                <div class="flex items-center justify-between mb-1">
-                  <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
+                <div class="flex items-center justify-between mb-0.5 sm:mb-1">
+                  <p class="text-[10px] sm:text-xs font-bold truncate" style="color: var(--text-primary)">
                     {{ asset.title }}
                   </p>
-                  <span
-                    v-if="asset.category"
-                    class="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-white/5 rounded text-slate-400"
-                    >{{ asset.category.name }}</span
-                  >
                 </div>
                 <div
-                  class="flex items-center justify-between text-[10px] font-medium"
+                  class="flex items-center justify-between text-[8px] sm:text-[10px] font-medium"
                   style="color: var(--text-secondary)"
                 >
-                  <span>{{ new Date(asset.createdAt).toLocaleDateString() }}</span>
-                  <span class="text-accent">{{ asset.type }}</span>
+                  <span class="truncate">{{ new Date(asset.createdAt).toLocaleDateString() }}</span>
+                  <span class="text-accent ml-1 shrink-0">{{ asset.type }}</span>
                 </div>
               </div>
             </div>
@@ -405,21 +447,22 @@ onMounted(() => {
             class="h-full flex flex-col items-center justify-center"
             style="color: var(--text-secondary)"
           >
-            <Box class="w-12 h-12 mb-4 opacity-20" />
-            <p class="text-sm">没有找到匹配的资源</p>
+            <Box class="w-10 h-10 sm:w-12 sm:h-12 mb-4 opacity-20" />
+            <p class="text-xs sm:text-sm">没有找到匹配的资源</p>
           </div>
         </div>
 
         <!-- Pagination Footer -->
         <div
           v-if="pagination.totalPages > 1"
-          class="h-16 border-t flex items-center justify-center shrink-0"
+          class="h-14 sm:h-16 border-t flex items-center justify-center shrink-0"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
           <el-pagination
             v-model:current-page="pagination.page"
             :page-size="pagination.limit"
             :total="pagination.total"
+            :pager-count="isMobile ? 5 : 7"
             layout="prev, pager, next"
             background
             @current-change="handlePageChange"
@@ -589,18 +632,18 @@ onMounted(() => {
         ></div>
 
         <div
-          class="relative w-full max-w-5xl h-full rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
+          class="relative w-full max-w-5xl h-full md:h-[80vh] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
           style="background-color: var(--bg-card)"
         >
           <button
-            class="absolute top-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white md:text-slate-400 md:bg-transparent md:hover:bg-white/10 transition-all"
+            class="absolute top-4 right-4 z-[60] p-2 bg-black/20 hover:bg-black/40 backdrop-blur rounded-full text-white transition-all shadow-lg"
             @click="isPreviewOpen = false"
           >
             <X class="w-5 h-5" />
           </button>
 
           <div
-            class="flex-1 relative group overflow-hidden"
+            class="h-1/2 md:h-full flex-1 relative group overflow-hidden"
             style="background-color: var(--bg-app)"
           >
             <ModelViewer
@@ -611,14 +654,14 @@ onMounted(() => {
             />
 
             <div
-              class="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 backdrop-blur px-4 py-2 rounded-full shadow-lg border"
+              class="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 backdrop-blur px-3 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-lg border z-10"
               style="
                 background-color: rgba(var(--bg-card-rgb, 255, 255, 255), 0.8);
                 border-color: var(--border-base);
               "
             >
               <button
-                class="p-2 rounded-full transition-colors"
+                class="p-1.5 sm:p-2 rounded-full transition-colors"
                 :class="
                   isAutoRotating
                     ? 'text-accent bg-accent-subtle'
@@ -626,92 +669,88 @@ onMounted(() => {
                 "
                 @click="isAutoRotating = !isAutoRotating"
               >
-                <RotateCw class="w-4 h-4" :class="isAutoRotating ? 'animate-spin-slow' : ''" />
+                <RotateCw class="w-3.5 h-3.5 sm:w-4 sm:h-4" :class="isAutoRotating ? 'animate-spin-slow' : ''" />
               </button>
-              <div class="w-px h-4 mx-1" style="background-color: var(--border-base)"></div>
+              <div class="w-px h-4 mx-0.5 sm:mx-1" style="background-color: var(--border-base)"></div>
               <button
                 v-if="
                   selectedAsset?.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'
                 "
-                class="p-2 text-red-400 hover:bg-red-50 rounded-full transition-colors"
+                class="p-1.5 sm:p-2 text-red-400 hover:bg-red-50 rounded-full transition-colors"
                 @click="deleteAsset(selectedAsset.id)"
               >
-                <X class="w-4 h-4" />
+                <X class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
 
           <!-- Side Info Panel -->
           <div
-            class="w-full md:w-80 p-6 flex flex-col border-l"
+            class="h-1/2 md:h-full w-full md:w-80 p-4 sm:p-6 flex flex-col border-t md:border-t-0 md:border-l overflow-y-auto"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <h2 class="text-xl font-bold mb-1" style="color: var(--text-primary)">
-              {{ selectedAsset?.title }}
-            </h2>
-            <p class="text-sm mb-6" style="color: var(--text-secondary)">
-              {{ selectedAsset?.type }} 模型资产
-            </p>
+            <div class="mb-4 sm:mb-6">
+              <h2 class="text-lg sm:text-xl font-bold mb-0.5 sm:mb-1" style="color: var(--text-primary)">
+                {{ selectedAsset?.title }}
+              </h2>
+              <p class="text-[11px] sm:text-sm" style="color: var(--text-secondary)">
+                {{ selectedAsset?.type }} 模型资产
+              </p>
+            </div>
 
             <div class="space-y-4 flex-1">
-              <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+              <p class="text-[11px] sm:text-xs leading-relaxed" style="color: var(--text-secondary)">
                 {{ selectedAsset?.description || '暂无描述' }}
               </p>
 
               <div
-                class="p-4 rounded-xl border"
+                class="p-3 sm:p-4 rounded-xl border"
                 style="background-color: var(--bg-app); border-color: var(--border-base)"
               >
                 <p
-                  class="text-[10px] uppercase font-bold mb-2 tracking-wider"
+                  class="text-[9px] sm:text-[10px] uppercase font-bold mb-2 tracking-wider"
                   style="color: var(--text-secondary)"
                 >
                   资产详情
                 </p>
-                <div class="grid grid-cols-2 gap-y-3 gap-x-4">
+                <div class="grid grid-cols-2 gap-y-2.5 sm:gap-y-3 gap-x-3 sm:gap-x-4">
                   <div>
-                    <p class="text-[10px]" style="color: var(--text-secondary)">格式</p>
-                    <p class="text-xs font-bold" style="color: var(--text-primary)">
+                    <p class="text-[9px] sm:text-[10px]" style="color: var(--text-secondary)">格式</p>
+                    <p class="text-[11px] sm:text-xs font-bold" style="color: var(--text-primary)">
                       {{ selectedAsset?.type }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-[10px]" style="color: var(--text-secondary)">文件大小</p>
-                    <p class="text-xs font-bold" style="color: var(--text-primary)">
+                    <p class="text-[9px] sm:text-[10px]" style="color: var(--text-secondary)">文件大小</p>
+                    <p class="text-[11px] sm:text-xs font-bold" style="color: var(--text-primary)">
                       {{ selectedAsset?.size || '未知' }} MB
                     </p>
                   </div>
                   <div v-if="selectedAsset?.vertices">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">顶点数</p>
-                    <p class="text-xs font-bold font-mono" style="color: var(--text-primary)">
+                    <p class="text-[9px] sm:text-[10px]" style="color: var(--text-secondary)">顶点数</p>
+                    <p class="text-[11px] sm:text-xs font-bold font-mono" style="color: var(--text-primary)">
                       {{ selectedAsset.vertices.toLocaleString() }}
                     </p>
                   </div>
                   <div v-if="selectedAsset?.faces">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">面数</p>
-                    <p class="text-xs font-bold font-mono" style="color: var(--text-primary)">
+                    <p class="text-[9px] sm:text-[10px]" style="color: var(--text-secondary)">面数</p>
+                    <p class="text-[11px] sm:text-xs font-bold font-mono" style="color: var(--text-primary)">
                       {{ selectedAsset.faces.toLocaleString() }}
                     </p>
                   </div>
-                  <div v-if="selectedAsset?.animations">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">动画</p>
-                    <p class="text-xs font-bold" style="color: var(--text-primary)">
-                      {{ selectedAsset.animations }} 个
-                    </p>
-                  </div>
                   <div v-if="selectedAsset?.category">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">分类</p>
-                    <p class="text-xs font-bold text-accent">{{ selectedAsset.category.name }}</p>
+                    <p class="text-[9px] sm:text-[10px]" style="color: var(--text-secondary)">分类</p>
+                    <p class="text-[11px] sm:text-xs font-bold text-accent">{{ selectedAsset.category.name }}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="mt-auto pt-6">
+            <div class="mt-6 md:mt-auto pt-4 md:pt-6">
               <a
                 :href="selectedAsset?.url"
                 download
-                class="w-full py-3 bg-accent hover:bg-accent text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center justify-center gap-2"
+                class="w-full py-2.5 sm:py-3 bg-accent hover:bg-accent text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center justify-center gap-2"
               >
                 <Download class="w-4 h-4" /> 下载模型文件
               </a>

@@ -583,29 +583,38 @@ onMounted(() => {
   >
     <!-- Header -->
     <div
-      class="h-16 px-8 flex items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="h-auto md:h-16 px-4 sm:px-8 py-4 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 border-b transition-colors duration-300 gap-4"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-accent/10 rounded-lg">
-          <CheckCircle2 class="w-5 h-5 text-accent" />
+      <div class="flex items-center justify-between w-full md:w-auto">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-accent/10 rounded-lg">
+            <CheckCircle2 class="w-5 h-5 text-accent" />
+          </div>
+          <h1 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">任务看板</h1>
         </div>
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">任务看板</h1>
+        
+        <button
+          class="md:hidden flex items-center gap-2 px-3 py-1.5 bg-accent text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 transition-all"
+          @click="openAddDialog('TODO')"
+        >
+          <Plus class="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div class="relative">
+      <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
+        <div class="relative flex-1 md:flex-none">
           <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索任务、标签..."
-            class="pl-10 pr-4 py-2 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-56 transition-all"
+            placeholder="搜索任务..."
+            class="pl-9 pr-4 py-2 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-48 lg:w-56 transition-all"
             style="color: var(--text-primary)"
           />
         </div>
 
-        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl shrink-0">
           <button
             class="p-1.5 rounded-lg transition-all"
             :class="
@@ -631,7 +640,7 @@ onMounted(() => {
         </div>
 
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
+          class="hidden md:flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all"
           @click="openAddDialog('TODO')"
         >
           <Plus class="w-4 h-4" /> 新建任务
@@ -765,12 +774,12 @@ onMounted(() => {
     </div>
 
     <!-- Board View -->
-    <div v-if="viewMode === 'board'" class="flex-1 overflow-x-auto p-8 scrollbar-hide">
-      <div class="flex gap-6 h-full min-w-[900px]">
+    <div v-if="viewMode === 'board'" class="flex-1 overflow-x-auto p-4 sm:p-8 scrollbar-hide">
+      <div class="flex gap-4 sm:gap-6 h-full min-w-max">
         <div
           v-for="col in columns"
           :key="col.id"
-          class="flex-1 flex flex-col min-w-[300px] h-full rounded-2xl transition-colors duration-300 overflow-hidden"
+          class="flex-1 flex flex-col w-[280px] sm:w-[320px] md:min-w-[300px] h-full rounded-2xl transition-colors duration-300 overflow-hidden"
           style="background-color: var(--bg-card)"
         >
           <!-- Column Header -->
@@ -1245,20 +1254,20 @@ onMounted(() => {
               </h2>
             </div>
 
-            <!-- Meta Information (Compacted) -->
+            <!-- Meta Information (Responsive Grid) -->
             <div
-              class="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/10 gap-2 overflow-x-auto scrollbar-hide"
+              class="grid grid-cols-2 p-3 sm:p-4 bg-slate-50 dark:bg-white/5 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-white/10 gap-4"
             >
               <!-- Status -->
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex items-center gap-2">
                 <div
-                  class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
+                  class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
                 >
-                  <Clock class="w-4 h-4 text-slate-400" />
+                  <Clock class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
                 </div>
                 <div>
-                  <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">状态</p>
-                  <p class="text-xs font-bold" style="color: var(--text-primary)">
+                  <p class="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-wider">状态</p>
+                  <p class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">
                     {{
                       previewingTask.status === 'TODO'
                         ? '待办'
@@ -1270,19 +1279,17 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
               <!-- Priority -->
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex items-center gap-2">
                 <div
-                  class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
+                  class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
                 >
-                  <Flame class="w-4 h-4 text-slate-400" />
+                  <Flame class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
                 </div>
                 <div>
-                  <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">优先级</p>
+                  <p class="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-wider">优先级</p>
                   <p
-                    class="text-xs font-bold"
+                    class="text-[10px] sm:text-xs font-bold"
                     :class="getPriorityConfig(previewingTask.priority).textColor"
                   >
                     {{ getPriorityConfig(previewingTask.priority).label }}
@@ -1290,21 +1297,19 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
               <!-- Due Date -->
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex items-center gap-2">
                 <div
-                  class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
+                  class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
                 >
-                  <Calendar class="w-4 h-4 text-slate-400" />
+                  <Calendar class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
                 </div>
                 <div>
-                  <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                  <p class="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-wider">
                     截止日期
                   </p>
                   <p
-                    class="text-xs font-bold"
+                    class="text-[10px] sm:text-xs font-bold"
                     :class="
                       previewingTask.dueDate &&
                       new Date(previewingTask.dueDate) < new Date() &&
@@ -1331,23 +1336,21 @@ onMounted(() => {
                 </div>
               </div>
 
-              <template v-if="previewingTask.project">
-                <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <div
-                    class="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
-                  >
-                    <FolderOpen class="w-4 h-4 text-slate-400" />
-                  </div>
-                  <div>
-                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">项目</p>
-                    <p class="text-xs font-bold text-accent truncate max-w-[80px]">
-                      {{ previewingTask.project.title }}
-                    </p>
-                  </div>
+              <div v-if="previewingTask.project" class="flex items-center gap-2">
+                <div
+                  class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm"
+                >
+                  <FolderOpen class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
                 </div>
-              </template>
+                <div class="min-w-0">
+                  <p class="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-wider">项目</p>
+                  <p class="text-[10px] sm:text-xs font-bold text-accent truncate">
+                    {{ previewingTask.project.title }}
+                  </p>
+                </div>
+              </div>
             </div>
+
 
             <!-- Description (Emphasized) -->
             <div v-if="previewingTask.description">

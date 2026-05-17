@@ -40,8 +40,11 @@ const handleLogin = async () => {
       ElMessage.info('请输入两步验证码');
     } else {
       ElMessage.success('欢迎回来！');
+      const redirect = router.currentRoute.value.query.redirect as string;
       if (router.currentRoute.value.query.onboarding === 'true') {
         router.push('/onboarding');
+      } else if (redirect) {
+        router.push(redirect);
       } else {
         router.push('/dashboard');
       }
@@ -59,7 +62,12 @@ const handle2FAVerify = async () => {
   try {
     await authStore.login2FA(tempUserId.value, twoFactorCode.value, rememberDevice.value);
     ElMessage.success('欢迎回来！');
-    router.push('/dashboard');
+    const redirect = router.currentRoute.value.query.redirect as string;
+    if (redirect) {
+      router.push(redirect);
+    } else {
+      router.push('/dashboard');
+    }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '验证码错误');
   } finally {

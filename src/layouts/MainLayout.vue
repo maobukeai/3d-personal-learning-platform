@@ -1161,4 +1161,16 @@ onUnmounted(() => {
 .slide-left-leave-to {
   transform: translateX(-100%);
 }
+
+:deep(.mobile-search-dialog) {
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+}
+:deep(.mobile-search-dialog .el-dialog__header) {
+  padding: 16px;
+  margin-right: 0;
+}
+:deep(.mobile-search-dialog .el-dialog__body) {
+  padding: 10px 16px;
+}
 </style>

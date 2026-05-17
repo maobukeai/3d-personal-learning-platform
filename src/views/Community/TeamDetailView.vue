@@ -439,7 +439,7 @@ watch(
         style="border-color: var(--border-base)"
       >
         <div class="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent"></div>
-        <div class="max-w-7xl mx-auto px-8 py-12 relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-8 lg:py-12 relative z-10">
           <div class="flex flex-col lg:flex-row items-center gap-10">
             <div class="relative group">
               <input
@@ -450,7 +450,7 @@ watch(
                 @change="handleAvatarChange"
               />
               <div
-                class="w-40 h-40 rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 transition-transform group-hover:scale-105 duration-500"
+                class="w-32 h-32 lg:w-40 lg:h-40 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 transition-transform group-hover:scale-105 duration-500"
               >
                 <img
                   v-if="team.avatarUrl"
@@ -475,7 +475,7 @@ watch(
 
             <div class="flex-1 text-center lg:text-left">
               <div class="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-4">
-                <h1 class="text-4xl font-black tracking-tight" style="color: var(--text-primary)">
+                <h1 class="text-3xl lg:text-4xl font-black tracking-tight" style="color: var(--text-primary)">
                   {{ team.name }}
                 </h1>
                 <div
@@ -488,18 +488,18 @@ watch(
                 {{ team.description || '这支团队还没有添加描述，协作从清晰的定义开始。' }}
               </p>
 
-              <div class="flex flex-wrap items-center justify-center lg:justify-start gap-8">
-                <div class="flex items-center gap-2">
-                  <div class="p-2 bg-slate-100 dark:bg-white/5 rounded-xl">
-                    <Users class="w-4 h-4 text-slate-400" />
+              <div class="flex flex-wrap items-center justify-center lg:justify-start gap-4 lg:gap-8">
+                <div class="flex items-center gap-2 bg-slate-100/50 dark:bg-white/5 px-3 py-1.5 rounded-xl">
+                  <div class="p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg">
+                    <Users class="w-3.5 h-3.5 text-slate-400" />
                   </div>
                   <span class="text-sm font-bold" style="color: var(--text-primary)"
                     >{{ team.members.length }} 位正式成员</span
                   >
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="p-2 bg-slate-100 dark:bg-white/5 rounded-xl">
-                    <Clock class="w-4 h-4 text-slate-400" />
+                <div class="flex items-center gap-2 bg-slate-100/50 dark:bg-white/5 px-3 py-1.5 rounded-xl">
+                  <div class="p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg">
+                    <Clock class="w-3.5 h-3.5 text-slate-400" />
                   </div>
                   <span class="text-sm font-bold" style="color: var(--text-primary)"
                     >{{ team.invitations?.length || 0 }} 个待处理邀请</span
@@ -508,17 +508,17 @@ watch(
               </div>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex flex-col sm:flex-row items-center gap-3 lg:gap-4 w-full lg:w-auto mt-8 lg:mt-0">
               <template v-if="canManageTeam">
                 <button
-                  class="flex items-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
+                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
                   @click="isAddModalOpen = true"
                 >
                   <UserPlus class="w-5 h-5" />
                   管理成员
                 </button>
                 <button
-                  class="p-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                  class="hidden sm:block p-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
                   style="border-color: var(--border-base)"
                   @click="activeTab = 'settings'"
                 >
@@ -527,7 +527,7 @@ watch(
               </template>
               <template v-else-if="isMember && isPersonalSpace">
                 <button
-                  class="flex items-center gap-2 px-8 py-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold"
+                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold"
                   style="border-color: var(--border-base); color: var(--text-primary)"
                   @click="activeTab = 'settings'"
                 >
@@ -537,7 +537,7 @@ watch(
               </template>
               <template v-if="!isMember && team?.visibility === 'PUBLIC'">
                 <button
-                  class="flex items-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
+                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
                   @click="handleApplyFromDetail"
                 >
                   <UserPlus class="w-5 h-5" />
@@ -546,7 +546,7 @@ watch(
               </template>
               <button
                 v-if="canLeaveTeam"
-                class="flex items-center gap-2 px-6 py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-2xl font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all"
+                class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-2xl font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all"
                 @click="handleLeaveTeam"
               >
                 <LogOut class="w-5 h-5" />

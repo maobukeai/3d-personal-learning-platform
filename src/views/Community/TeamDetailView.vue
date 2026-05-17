@@ -560,7 +560,7 @@ watch(
       <!-- Main Content Container -->
       <div class="max-w-7xl mx-auto px-8 py-10">
         <!-- Modern Tabs -->
-        <div class="flex gap-10 mb-10 border-b" style="border-color: var(--border-base)">
+        <div class="flex gap-6 lg:gap-10 mb-8 lg:mb-10 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
           <button
             v-for="t in [
               { id: 'people', label: '成员与协作', icon: Users },
@@ -580,7 +580,7 @@ watch(
             ]"
             v-show="!t.hidden"
             :key="t.id"
-            class="flex items-center gap-2 pb-6 text-sm font-bold transition-all relative"
+            class="flex items-center gap-2 pb-4 text-sm font-bold transition-all relative whitespace-nowrap shrink-0"
             :class="activeTab === t.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'"
             @click="activeTab = t.id"
           >

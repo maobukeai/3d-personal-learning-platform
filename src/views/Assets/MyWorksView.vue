@@ -380,12 +380,12 @@ onMounted(() => {
 
     <!-- Stats Bar -->
     <div
-      class="px-4 md:px-8 py-4 border-b shrink-0 overflow-x-auto scrollbar-hide"
+      class="px-4 md:px-8 py-4 border-b shrink-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-6 min-w-max md:min-w-0">
+      <div class="grid grid-cols-2 md:flex md:items-center gap-3 md:gap-6">
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
           <Box class="w-4 h-4 text-accent" />
@@ -395,7 +395,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
           <CheckCircle2 class="w-4 h-4 text-emerald-500" />
@@ -405,7 +405,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
           <Clock class="w-4 h-4 text-amber-500" />
@@ -415,7 +415,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
           <XCircle class="w-4 h-4 text-rose-500" />
@@ -425,7 +425,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[140px] md:w-auto"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl col-span-2 md:col-span-1"
           style="background-color: var(--bg-app)"
         >
           <HardDrive class="w-4 h-4 text-blue-500" />

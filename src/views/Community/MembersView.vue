@@ -152,12 +152,13 @@ const handleChatWithMember = async (member: any) => {
     </div>
 
     <!-- Members List Area -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div
         class="max-w-6xl mx-auto rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
-        <table class="w-full text-left border-collapse">
+        <!-- Desktop Table -->
+        <table class="hidden md:table w-full text-left border-collapse">
           <thead>
             <tr
               class="border-b transition-colors duration-300"
@@ -271,6 +272,74 @@ const handleChatWithMember = async (member: any) => {
             </tr>
           </tbody>
         </table>
+
+        <!-- Mobile Card List -->
+        <div class="md:hidden divide-y" style="border-color: var(--border-base)">
+          <div
+            v-for="member in filteredMembers"
+            :key="member.id"
+            class="p-4 flex flex-col gap-4"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <UserAvatar
+                  :user="member"
+                  size="md"
+                  class="cursor-pointer"
+                  @click="openUserProfile(member.id)"
+                />
+                <div>
+                  <p
+                    class="text-sm font-bold"
+                    style="color: var(--text-primary)"
+                    @click="openUserProfile(member.id)"
+                  >
+                    {{ member.name || '未设置昵称' }}
+                  </p>
+                  <p class="text-xs" style="color: var(--text-muted)">{{ member.email }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  class="p-2 bg-accent/10 text-accent rounded-lg transition-all"
+                  title="发送消息"
+                  @click="handleChatWithMember(member)"
+                >
+                  <MessageSquare class="w-4 h-4" />
+                </button>
+                <button
+                  class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
+                  style="color: var(--text-muted)"
+                >
+                  <MoreHorizontal class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[10px] font-bold">
+              <div class="flex items-center gap-1.5">
+                <ShieldCheck v-if="member.role === 'ADMIN'" class="w-3 h-3 text-accent" />
+                <span style="color: var(--text-secondary)">{{
+                  roleLabels[member.role] || member.role
+                }}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <Circle
+                  class="w-1.5 h-1.5 fill-current"
+                  :class="
+                    authStore.isUserOnline(member.id) ? 'text-emerald-500' : 'text-slate-300'
+                  "
+                />
+                <span style="color: var(--text-secondary)">{{
+                  authStore.isUserOnline(member.id) ? '在线' : '离线'
+                }}</span>
+              </div>
+              <div style="color: var(--text-muted)">
+                {{ new Date(member.createdAt).toLocaleDateString() }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

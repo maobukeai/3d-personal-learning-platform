@@ -418,7 +418,7 @@ export const login2FA = async (req: Request, res: Response) => {
 };
 
 export const refreshToken = async (req: Request, res: Response) => {
-  let token = req.body.refreshToken || (req.cookies ? req.cookies.refreshToken : null);
+  let token = req.body?.refreshToken || req.cookies?.refreshToken || null;
   if (!token) return res.status(400).json({ error: 'Refresh token required' });
 
   try {
@@ -458,7 +458,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  const refreshToken = req.body.refreshToken || (req.cookies ? req.cookies.refreshToken : null);
+  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken || null;
 
   const cookieOptions = {
     httpOnly: true,

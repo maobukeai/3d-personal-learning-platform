@@ -25,10 +25,8 @@ import api from '@/utils/api';
 import ModelViewer from '@/components/ModelViewer.vue';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
-import { useRouter } from 'vue-router';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 
-const router = useRouter();
 const searchQuery = ref('');
 const activeTab = ref('全部作品');
 const assets = ref<any[]>([]);
@@ -337,10 +335,6 @@ const handlePublishToShowcase = async () => {
   }
 };
 
-const goToShowcase = () => {
-  router.push('/showcase');
-};
-
 onMounted(() => {
   fetchMyAssets();
   fetchCategories();
@@ -386,7 +380,7 @@ onMounted(() => {
 
     <!-- Stats Bar -->
     <div
-      class="px-8 py-4 border-b shrink-0 overflow-x-auto scrollbar-hide"
+      class="px-4 md:px-8 py-4 border-b shrink-0 overflow-x-auto scrollbar-hide"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-6 min-w-max md:min-w-0">
@@ -524,7 +518,7 @@ onMounted(() => {
     </div>
 
     <!-- Works Grid/List Area -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <!-- Grid View -->
         <div
@@ -701,12 +695,12 @@ onMounted(() => {
             >
               <span
                 v-if="work.category"
-                class="px-2 py-0.5 rounded bg-accent/10 text-accent text-[10px] font-bold"
+                class="px-2 py-0.5 rounded bg-accent/10 text-accent text-[10px] font-bold hidden md:inline-flex"
                 >{{ work.category.name }}</span
               >
-              <span class="w-16 text-center">{{ getTypeLabel(work.type) }}</span>
-              <span v-if="work.size" class="w-16 text-right">{{ work.size }} MB</span>
-              <span class="w-20 text-right">{{
+              <span class="w-16 text-center hidden md:inline-block">{{ getTypeLabel(work.type) }}</span>
+              <span v-if="work.size" class="w-16 text-right hidden md:inline-block">{{ work.size }} MB</span>
+              <span class="w-20 text-right hidden md:inline-block">{{
                 new Date(work.createdAt).toLocaleDateString()
               }}</span>
             </div>
@@ -779,7 +773,7 @@ onMounted(() => {
           @click="isEditDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl space-y-6"
+          class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 md:p-8 rounded-3xl shadow-2xl space-y-6"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
@@ -878,7 +872,7 @@ onMounted(() => {
           @click="isPublishDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl space-y-6"
+          class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 md:p-8 rounded-3xl shadow-2xl space-y-6"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">

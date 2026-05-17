@@ -380,58 +380,58 @@ onMounted(() => {
 
     <!-- Stats Bar -->
     <div
-      class="px-4 md:px-8 py-4 border-b shrink-0"
+      class="px-2 md:px-8 py-3 border-b shrink-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="grid grid-cols-2 md:flex md:items-center gap-3 md:gap-6">
+      <div class="grid grid-cols-5 md:flex md:items-center gap-1 md:gap-6">
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
-          <Box class="w-4 h-4 text-accent" />
-          <div>
-            <p class="text-[10px]" style="color: var(--text-secondary)">总作品</p>
-            <p class="text-sm font-bold" style="color: var(--text-primary)">{{ stats.total }}</p>
+          <Box class="w-3.5 h-3.5 md:w-4 md:h-4 text-accent" />
+          <div class="text-center md:text-left mt-0.5 md:mt-0">
+            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">总作品</p>
+            <p class="text-xs md:text-sm font-bold" style="color: var(--text-primary)">{{ stats.total }}</p>
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
-          <CheckCircle2 class="w-4 h-4 text-emerald-500" />
-          <div>
-            <p class="text-[10px]" style="color: var(--text-secondary)">已发布</p>
-            <p class="text-sm font-bold text-emerald-500">{{ stats.approved }}</p>
+          <CheckCircle2 class="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-500" />
+          <div class="text-center md:text-left mt-0.5 md:mt-0">
+            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">已发布</p>
+            <p class="text-xs md:text-sm font-bold text-emerald-500">{{ stats.approved }}</p>
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
-          <Clock class="w-4 h-4 text-amber-500" />
-          <div>
-            <p class="text-[10px]" style="color: var(--text-secondary)">待审核</p>
-            <p class="text-sm font-bold text-amber-500">{{ stats.pending }}</p>
+          <Clock class="w-3.5 h-3.5 md:w-4 md:h-4 text-amber-500" />
+          <div class="text-center md:text-left mt-0.5 md:mt-0">
+            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">待审核</p>
+            <p class="text-xs md:text-sm font-bold text-amber-500">{{ stats.pending }}</p>
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
-          <XCircle class="w-4 h-4 text-rose-500" />
-          <div>
-            <p class="text-[10px]" style="color: var(--text-secondary)">未通过</p>
-            <p class="text-sm font-bold text-rose-500">{{ stats.rejected }}</p>
+          <XCircle class="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-500" />
+          <div class="text-center md:text-left mt-0.5 md:mt-0">
+            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">未通过</p>
+            <p class="text-xs md:text-sm font-bold text-rose-500">{{ stats.rejected }}</p>
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl col-span-2 md:col-span-1"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
           style="background-color: var(--bg-app)"
         >
-          <HardDrive class="w-4 h-4 text-blue-500" />
-          <div>
-            <p class="text-[10px]" style="color: var(--text-secondary)">存储用量</p>
-            <p class="text-sm font-bold text-blue-500">{{ stats.totalSize }} MB</p>
+          <HardDrive class="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-500" />
+          <div class="text-center md:text-left mt-0.5 md:mt-0">
+            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">容量</p>
+            <p class="text-xs md:text-sm font-bold text-blue-500">{{ stats.totalSize }}M</p>
           </div>
         </div>
       </div>

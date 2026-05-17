@@ -946,11 +946,12 @@ onUnmounted(() => {
     <!-- Global Search Dialog -->
     <el-dialog
       v-model="isSearchVisible"
-      title="全局搜索"
-      width="600px"
-      top="15vh"
-      class="search-dialog custom-rounded-dialog"
-      :show-close="false"
+      :title="isMobile ? '' : '全局搜索'"
+      :width="isMobile ? '100%' : '600px'"
+      :top="isMobile ? '0' : '15vh'"
+      :class="['search-dialog', 'custom-rounded-dialog', isMobile ? 'mobile-search-dialog' : '']"
+      :show-close="isMobile"
+      :fullscreen="isMobile"
     >
       <div class="relative">
         <el-input

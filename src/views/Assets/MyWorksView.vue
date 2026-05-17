@@ -174,6 +174,22 @@ const filteredWorks = computed(() => {
   return result;
 });
 
+const isMobile = ref(window.innerWidth < 768);
+const updateIsMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
+
+onMounted(() => {
+  window.addEventListener('resize', updateIsMobile);
+  fetchMyAssets();
+  fetchCategories();
+});
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  window.removeEventListener('resize', updateIsMobile);
+});
+
 const openPreview = (asset: any) => {
   selectedAsset.value = asset;
   isPreviewOpen.value = true;
@@ -335,18 +351,18 @@ onMounted(() => {
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="min-h-16 h-auto py-4 md:py-0 border-b px-4 md:px-8 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between shrink-0"
+      class="h-auto md:h-16 py-3 md:py-0 border-b px-4 md:px-8 flex flex-col md:flex-row md:items-center md:justify-between shrink-0 gap-3"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3">
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">我的作品</h1>
-        <span class="bg-accent-subtle text-accent text-[10px] font-bold px-2 py-0.5 rounded-full"
+      <div class="flex items-center gap-2.5">
+        <h1 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">我的作品</h1>
+        <span class="bg-accent/10 text-accent text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full"
           >共 {{ assets.length }} 个作品</span
         >
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 md:gap-4 w-full md:w-auto">
-        <div class="relative w-full md:w-auto">
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <div class="relative flex-1">
           <Search
             class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-secondary)"
@@ -354,37 +370,28 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索我的作品..."
+            placeholder="搜索作品..."
             class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
-        <div class="flex items-center gap-2 w-full md:w-auto">
-          <button
-            class="flex-1 md:flex-none border px-4 py-2 rounded-xl text-sm font-bold hover:opacity-80 transition-all flex items-center justify-center gap-2"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="goToShowcase"
-          >
-            <SendHorizonal class="w-4 h-4" /> <span class="whitespace-nowrap">作品展示</span>
-          </button>
-          <button
-            class="flex-1 md:flex-none bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center justify-center gap-2"
-            @click="isPublishWorkDialogOpen = true"
-          >
-            <Plus class="w-4 h-4" /> <span class="whitespace-nowrap">上传/发布</span>
-          </button>
-        </div>
+        <button
+          class="flex items-center justify-center p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/10 dark:shadow-none transition-all"
+          @click="isPublishWorkDialogOpen = true"
+        >
+          <Plus class="w-5 h-5" />
+        </button>
       </div>
     </div>
 
     <!-- Stats Bar -->
     <div
-      class="px-8 py-4 border-b shrink-0"
+      class="px-8 py-4 border-b shrink-0 overflow-x-auto scrollbar-hide"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-6">
+      <div class="flex items-center gap-6 min-w-max md:min-w-0">
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
           style="background-color: var(--bg-app)"
         >
           <Box class="w-4 h-4 text-accent" />
@@ -394,7 +401,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
           style="background-color: var(--bg-app)"
         >
           <CheckCircle2 class="w-4 h-4 text-emerald-500" />
@@ -404,7 +411,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
           style="background-color: var(--bg-app)"
         >
           <Clock class="w-4 h-4 text-amber-500" />
@@ -414,7 +421,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[120px] md:w-auto"
           style="background-color: var(--bg-app)"
         >
           <XCircle class="w-4 h-4 text-rose-500" />
@@ -424,7 +431,7 @@ onMounted(() => {
           </div>
         </div>
         <div
-          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+          class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl shrink-0 w-[140px] md:w-auto"
           style="background-color: var(--bg-app)"
         >
           <HardDrive class="w-4 h-4 text-blue-500" />
@@ -438,14 +445,14 @@ onMounted(() => {
 
     <!-- Tabs + Sort & View Controls -->
     <div
-      class="border-b px-8 py-2 shrink-0 flex items-center justify-between"
+      class="border-b px-4 md:px-8 py-2 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-6">
+      <div class="flex items-center gap-6 overflow-x-auto flex-nowrap scrollbar-hide pb-1 md:pb-0">
         <button
           v-for="tab in tabs"
           :key="tab.label"
-          class="relative py-2 text-sm font-medium transition-all flex items-center gap-2"
+          class="relative py-2 text-sm font-medium transition-all flex items-center gap-2 shrink-0"
           :class="activeTab === tab.label ? 'text-accent' : 'hover:text-accent'"
           :style="activeTab !== tab.label ? 'color: var(--text-secondary)' : ''"
           @click="activeTab = tab.label"
@@ -468,11 +475,11 @@ onMounted(() => {
         </button>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div class="relative">
+      <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+        <div class="relative flex-1 md:flex-initial">
           <select
             v-model="sortBy"
-            class="appearance-none pl-8 pr-8 py-1.5 border-none rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
+            class="w-full appearance-none pl-8 pr-8 py-1.5 border-none rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           >
             <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
@@ -485,7 +492,7 @@ onMounted(() => {
           />
         </div>
         <div
-          class="flex items-center rounded-lg overflow-hidden border"
+          class="flex items-center rounded-lg overflow-hidden border shrink-0"
           style="border-color: var(--border-base)"
         >
           <button

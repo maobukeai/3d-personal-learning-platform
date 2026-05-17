@@ -94,7 +94,7 @@ const handleChatWithMember = async (member: any) => {
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="h-16 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-16 py-4 lg:h-16 lg:py-0 border-b px-4 sm:px-8 flex flex-col lg:flex-row lg:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
@@ -104,8 +104,8 @@ const handleChatWithMember = async (member: any) => {
         <h1 class="text-xl font-bold" style="color: var(--text-primary)">平台成员</h1>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div class="relative">
+      <div class="flex items-center gap-3 w-full lg:w-auto mt-2 lg:mt-0">
+        <div class="relative flex-1 lg:flex-none">
           <Search
             class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-muted)"
@@ -114,14 +114,14 @@ const handleChatWithMember = async (member: any) => {
             v-model="searchQuery"
             type="text"
             placeholder="搜索姓名或邮箱..."
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 w-64 transition-all"
+            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 w-full lg:w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
         <button
-          class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2"
+          class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2 shrink-0"
         >
-          <UserPlus class="w-4 h-4" /> 邀请伙伴
+          <UserPlus class="w-4 h-4" /> <span class="hidden sm:inline">邀请伙伴</span>
         </button>
       </div>
     </div>

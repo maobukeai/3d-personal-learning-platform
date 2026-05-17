@@ -485,17 +485,17 @@ watch(activeSection, (newSection) => {
 
     <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
       <div
-        class="w-full lg:w-64 border-b lg:border-b-0 lg:border-r shrink-0 overflow-y-auto p-4 transition-colors duration-300"
+        class="w-full lg:w-64 border-b lg:border-b-0 lg:border-r shrink-0 overflow-x-auto lg:overflow-y-auto p-3 lg:p-4 transition-colors duration-300 scrollbar-hide"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="px-4 mb-4 hidden lg:block">
           <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置选项</h2>
         </div>
-        <nav class="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-hide">
+        <nav class="flex lg:flex-col gap-1.5 lg:gap-1 pb-2 lg:pb-0">
           <button
             v-for="section in sections"
             :key="section.id"
-            class="flex-1 lg:flex-none w-auto lg:w-full flex items-center justify-between px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all shrink-0 whitespace-nowrap"
+            class="flex-none lg:flex-none w-auto lg:w-full flex items-center justify-between px-3.5 py-2 lg:px-4 lg:py-3 rounded-lg lg:rounded-xl text-xs lg:text-sm font-medium transition-all shrink-0 whitespace-nowrap"
             :class="
               activeSection === section.id
                 ? 'bg-accent text-white shadow-lg shadow-accent/20'

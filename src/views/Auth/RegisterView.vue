@@ -167,12 +167,19 @@ const handleRegister = async () => {
               class="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10"
             >
               <div class="flex -space-x-2">
-                <img
-                  v-for="i in 4"
-                  :key="i"
-                  :src="`https://i.pravatar.cc/150?img=${i + 10}`"
-                  class="w-8 h-8 rounded-full border-2 border-slate-900"
-                />
+                <div
+                  v-for="(letter, idx) in ['A', 'T', 'L', 'S']"
+                  :key="idx"
+                  class="w-8 h-8 rounded-full border-2 border-slate-900 flex items-center justify-center text-[10px] font-black text-white shadow-md select-none"
+                  :class="[
+                    idx === 0 ? 'bg-gradient-to-tr from-pink-500 to-rose-400' : '',
+                    idx === 1 ? 'bg-gradient-to-tr from-amber-500 to-orange-400' : '',
+                    idx === 2 ? 'bg-gradient-to-tr from-emerald-500 to-teal-400' : '',
+                    idx === 3 ? 'bg-gradient-to-tr from-blue-500 to-indigo-400' : '',
+                  ]"
+                >
+                  {{ letter }}
+                </div>
               </div>
               <p class="text-xs text-slate-300 font-medium">已有超过 12,000+ 设计师加入我们</p>
             </div>

@@ -509,13 +509,20 @@ const handleActivityClick = (log: any) => {
                 加入一个兴趣小组，与志同道合的伙伴一起完成大型渲染项目。
               </p>
               <div class="flex -space-x-2 mb-8">
-                <img
-                  v-for="i in 4"
-                  :key="i"
-                  :src="`https://i.pravatar.cc/150?img=${i + 30}`"
-                  class="w-8 h-8 rounded-full border-2"
+                <div
+                  v-for="(letter, idx) in ['K', 'J', 'Y', 'H']"
+                  :key="idx"
+                  class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black text-white shadow-md select-none"
                   style="border-color: var(--bg-card)"
-                />
+                  :class="[
+                    idx === 0 ? 'bg-gradient-to-tr from-pink-500 to-rose-400' : '',
+                    idx === 1 ? 'bg-gradient-to-tr from-amber-500 to-orange-400' : '',
+                    idx === 2 ? 'bg-gradient-to-tr from-emerald-500 to-teal-400' : '',
+                    idx === 3 ? 'bg-gradient-to-tr from-blue-500 to-indigo-400' : '',
+                  ]"
+                >
+                  {{ letter }}
+                </div>
                 <div
                   class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold"
                   style="

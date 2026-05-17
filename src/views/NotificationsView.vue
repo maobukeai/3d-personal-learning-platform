@@ -270,14 +270,14 @@ onMounted(() => {
 
       <!-- Content -->
       <div
-        class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
+        class="flex-1 overflow-y-auto p-3 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
       >
         <div class="max-w-4xl mx-auto space-y-4">
           <div v-if="isLoading" class="space-y-4">
             <div
               v-for="i in 5"
               :key="i"
-              class="h-24 rounded-3xl bg-white/40 dark:bg-slate-800/40 animate-pulse border border-white/20"
+              class="h-24 rounded-2xl md:rounded-3xl bg-white/40 dark:bg-slate-800/40 animate-pulse border border-white/20"
             ></div>
           </div>
 
@@ -285,7 +285,7 @@ onMounted(() => {
             <div
               v-for="n in filteredNotifications"
               :key="n.id"
-              class="group p-4 md:p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5 backdrop-blur-md"
+              class="group p-3.5 md:p-6 rounded-2xl md:rounded-3xl border transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5 backdrop-blur-md"
               :class="[
                 n.isRead
                   ? 'bg-white/30 dark:bg-slate-900/30'
@@ -296,10 +296,10 @@ onMounted(() => {
             >
               <div class="flex gap-3 md:gap-4">
                 <div
-                  class="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
+                  class="w-9 h-9 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
                   :class="getIconColor(n.type)"
                 >
-                  <component :is="getIcon(n.type)" class="w-5 h-5 md:w-6 md:h-6" />
+                  <component :is="getIcon(n.type)" class="w-[18px] h-[18px] md:w-6 md:h-6" />
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4 mb-1">

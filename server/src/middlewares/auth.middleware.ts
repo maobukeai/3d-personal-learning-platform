@@ -76,6 +76,60 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+export const optionalAuthenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  let token = authHeader && authHeader.split(' ')[1];
+
+  if (!token && req.cookies) {
+    token = req.cookies.token;
+  }
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
+    req.userId = decoded.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      include: {
+        subscription: {
+          include: { plan: true },
+        },
+      },
+    });
+
+    if (user && user.status !== 'BANNED') {
+      req.user = user;
+
+      const workspaceId = req.headers['x-workspace-id'] as string;
+      if (workspaceId) {
+        const isMember = await prisma.teamMember.findFirst({
+          where: { teamId: workspaceId, userId: decoded.id },
+        });
+        if (isMember) {
+          req.workspaceId = workspaceId;
+        }
+      }
+
+      if (!req.workspaceId) {
+        const personalTeam = await prisma.team.findFirst({
+          where: { ownerId: decoded.id, type: 'PERSONAL' },
+        });
+        if (personalTeam) {
+          req.workspaceId = personalTeam.id;
+        }
+      }
+    }
+    next();
+  } catch (error) {
+    // If token is invalid, just proceed as guest
+    next();
+  }
+};
+
 export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (req.user?.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Admin access required' });

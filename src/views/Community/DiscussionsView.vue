@@ -368,28 +368,37 @@ onMounted(() => {
   <div class="flex flex-col h-full" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="border-b flex items-center justify-between px-6 py-4 shrink-0"
+      class="border-b flex flex-col md:flex-row md:items-center justify-between px-4 sm:px-6 py-3 md:py-4 shrink-0 gap-3"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-semibold" style="color: var(--text-primary)">交流社区</h1>
-        <span
-          class="text-xs px-2.5 py-1 rounded-full font-medium"
-          style="background-color: var(--bg-app); color: var(--text-muted)"
-          >{{ pagination.total }} 篇讨论</span
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h1 class="text-lg md:text-xl font-semibold" style="color: var(--text-primary)">交流社区</h1>
+          <span
+            class="text-[10px] px-2 py-0.5 rounded-full font-medium"
+            style="background-color: var(--bg-app); color: var(--text-muted)"
+            >{{ pagination.total }} 篇</span
+          >
+        </div>
+        <button
+          class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20"
+          @click="showCreateModal = true"
         >
+          <Edit3 class="w-4 h-4" />
+        </button>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="relative">
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div class="relative flex-1 md:flex-none">
           <Search
-            class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-muted)"
           />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="搜索讨论..."
-            class="pl-9 pr-4 py-2 border rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-48 md:w-60 transition-all"
+            class="pl-9 pr-4 py-1.5 border rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-48 lg:w-60 transition-all"
             style="
               background-color: var(--bg-app);
               border-color: var(--border-base);
@@ -398,7 +407,7 @@ onMounted(() => {
           />
         </div>
         <button
-          class="bg-accent hover:bg-accent text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20"
+          class="hidden md:flex bg-accent hover:bg-accent text-white px-4 py-2 rounded-full text-sm font-medium items-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20"
           @click="showCreateModal = true"
         >
           <Edit3 class="w-4 h-4" /> 发起讨论
@@ -408,15 +417,15 @@ onMounted(() => {
 
     <!-- Filter Bar -->
     <div
-      class="px-6 py-3 border-b flex items-center gap-3 flex-wrap shrink-0"
+      class="px-4 sm:px-6 py-2.5 border-b flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <!-- Sort Options -->
-      <div class="flex items-center gap-1 mr-2">
+      <div class="flex items-center gap-1 shrink-0">
         <button
           v-for="opt in sortOptions"
           :key="opt.value"
-          class="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+          class="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all whitespace-nowrap"
           :style="
             sortBy === opt.value
               ? 'background-color: var(--accent); color: white'
@@ -428,11 +437,13 @@ onMounted(() => {
         </button>
       </div>
 
+      <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 shrink-0 mx-1"></div>
+
       <!-- Tags -->
-      <div v-if="availableTags.length > 0" class="flex items-center gap-1.5 ml-2">
-        <Tag class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+      <div v-if="availableTags.length > 0" class="flex items-center gap-1.5 shrink-0">
+        <Tag class="w-3 h-3" style="color: var(--text-muted)" />
         <button
-          class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all"
+          class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap"
           :style="
             !selectedTag
               ? 'background-color: var(--accent); color: white'
@@ -445,7 +456,7 @@ onMounted(() => {
         <button
           v-for="tag in availableTags"
           :key="tag"
-          class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all"
+          class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap"
           :style="
             selectedTag === tag
               ? 'background-color: var(--accent); color: white'
@@ -458,14 +469,15 @@ onMounted(() => {
       </div>
     </div>
 
+
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide">
       <div class="max-w-4xl mx-auto space-y-3">
         <div v-if="filteredDiscussions.length > 0" class="space-y-3">
           <div
             v-for="d in filteredDiscussions"
             :key="d.id"
-            class="group p-5 rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer relative"
+            class="group p-4 sm:p-5 rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer relative"
             :style="
               d.isPinned
                 ? 'background-color: var(--bg-card); border-color: var(--accent); border-width: 1.5px'
@@ -476,40 +488,40 @@ onMounted(() => {
             <!-- Pinned Badge -->
             <div
               v-if="d.isPinned"
-              class="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+              class="absolute top-2.5 right-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
               style="background-color: var(--accent); color: white"
             >
-              <Pin class="w-3 h-3" /> 置顶
+              <Pin class="w-2.5 h-2.5" /> 置顶
             </div>
 
-            <div class="flex gap-4">
-              <UserAvatar :user="d.user" size="md" class="shrink-0" />
+            <div class="flex gap-3 sm:gap-4">
+              <UserAvatar :user="d.user" size="sm" class="shrink-0 sm:size-md" />
 
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1.5">
-                  <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs sm:text-sm font-bold" style="color: var(--text-primary)">{{
                     d.user?.name || '匿名用户'
                   }}</span>
-                  <span class="text-[11px]" style="color: var(--text-muted)">{{
+                  <span class="text-[10px]" style="color: var(--text-muted)">{{
                     formatTime(d.createdAt)
                   }}</span>
                 </div>
 
                 <h3
-                  class="text-base font-bold mb-1.5 group-hover:text-accent transition-colors pr-16"
+                  class="text-sm sm:text-base font-bold mb-1 group-hover:text-accent transition-colors pr-12 sm:pr-16"
                 >
                   {{ d.title }}
                 </h3>
-                <p class="text-sm line-clamp-2 mb-3" style="color: var(--text-secondary)">
+                <p class="text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3" style="color: var(--text-secondary)">
                   {{ d.content }}
                 </p>
 
                 <!-- Tags -->
-                <div v-if="parseTags(d.tags).length > 0" class="flex flex-wrap gap-1.5 mb-3">
+                <div v-if="parseTags(d.tags).length > 0" class="flex flex-wrap gap-1 mb-2 sm:mb-3">
                   <span
                     v-for="tag in parseTags(d.tags)"
                     :key="tag"
-                    class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                    class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium"
                     style="background-color: var(--bg-app); color: var(--accent)"
                     >#{{ tag }}</span
                   >
@@ -518,60 +530,60 @@ onMounted(() => {
                 <!-- Image Preview in List -->
                 <div
                   v-if="parseImages(d.images).length > 0"
-                  class="flex gap-2 mb-3 overflow-hidden h-20"
+                  class="flex gap-2 mb-2 sm:mb-3 overflow-hidden h-16 sm:h-20"
                 >
                   <div
                     v-for="(img, idx) in parseImages(d.images).slice(0, 3)"
                     :key="idx"
-                    class="w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-slate-100 dark:border-white/5"
+                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-slate-100 dark:border-white/5"
                   >
                     <img :src="img" class="w-full h-full object-cover" />
                   </div>
                   <div
                     v-if="parseImages(d.images).length > 3"
-                    class="w-20 h-20 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-slate-400"
+                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[10px] font-bold text-slate-400"
                   >
                     +{{ parseImages(d.images).length - 3 }}
                   </div>
                 </div>
 
                 <div
-                  class="flex items-center gap-5 text-[11px] font-bold"
+                  class="flex items-center gap-4 sm:gap-5 text-[10px] sm:text-[11px] font-bold"
                   style="color: var(--text-muted)"
                 >
                   <button
-                    class="flex items-center gap-1.5 hover:text-red-500 transition-colors"
+                    class="flex items-center gap-1 hover:text-red-500 transition-colors"
                     :class="{ 'text-red-500': d.isLiked }"
                     @click.stop="toggleLikeDiscussion(d)"
                   >
-                    <Heart class="w-3.5 h-3.5" :class="{ 'fill-red-500': d.isLiked }" />
+                    <Heart class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'fill-red-500': d.isLiked }" />
                     <span>{{ d._count?.likes || 0 }}</span>
                   </button>
-                  <div class="flex items-center gap-1.5">
-                    <MessageSquare class="w-3.5 h-3.5" />
+                  <div class="flex items-center gap-1">
+                    <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>{{ d._count?.comments || 0 }}</span>
                   </div>
-                  <div class="flex items-center gap-1.5">
-                    <Eye class="w-3.5 h-3.5" />
+                  <div class="flex items-center gap-1">
+                    <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>{{ d.viewCount || 0 }}</span>
                   </div>
                   <!-- Admin/Owner Actions -->
                   <div
                     v-if="currentUserId === d.user?.id || isAdmin"
-                    class="flex items-center gap-2 ml-auto"
+                    class="flex items-center gap-1.5 sm:gap-2 ml-auto"
                   >
                     <button
                       v-if="isAdmin"
-                      class="hover:text-accent transition-colors flex items-center gap-1"
+                      class="hover:text-accent transition-colors p-1"
                       @click.stop="togglePinDiscussion(d)"
                     >
-                      <Pin class="w-3.5 h-3.5" />
+                      <Pin class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </button>
                     <button
-                      class="hover:text-red-500 transition-colors flex items-center gap-1"
+                      class="hover:text-red-500 transition-colors p-1"
                       @click.stop="deleteDiscussion(d)"
                     >
-                      <Trash2 class="w-3.5 h-3.5" />
+                      <Trash2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -613,82 +625,82 @@ onMounted(() => {
     <Transition name="fade">
       <div
         v-if="isDetailOpen && selectedDiscussion"
-        class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4"
       >
         <div
           class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           @click="isDetailOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl overflow-hidden"
+          class="relative w-full max-w-3xl max-h-[95vh] flex flex-col rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden"
           style="background-color: var(--bg-card)"
         >
           <!-- Modal Header -->
           <div
-            class="p-5 border-b flex items-center justify-between shrink-0"
+            class="p-4 sm:p-5 border-b flex items-center justify-between shrink-0"
             style="border-color: var(--border-base)"
           >
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3">
               <UserAvatar :user="selectedDiscussion.user" size="sm" />
               <div>
                 <div class="flex items-center gap-2">
-                  <p class="text-xs font-bold" style="color: var(--text-primary)">
+                  <p class="text-[11px] sm:text-xs font-bold" style="color: var(--text-primary)">
                     {{ selectedDiscussion.user?.name || '匿名用户' }}
                   </p>
                   <span
                     v-if="selectedDiscussion.isPinned"
-                    class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                    class="px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold"
                     style="background-color: var(--accent); color: white"
                     >置顶</span
                   >
                 </div>
-                <p class="text-[10px]" style="color: var(--text-muted)">
+                <p class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">
                   {{ formatTime(selectedDiscussion.createdAt) }}
                 </p>
               </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 sm:gap-2">
               <button
                 v-if="isAdmin"
-                class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                class="p-1.5 sm:p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 style="color: var(--text-secondary)"
                 @click="togglePinDiscussion(selectedDiscussion)"
               >
-                <Pin class="w-4 h-4" :class="{ 'text-accent': selectedDiscussion.isPinned }" />
+                <Pin class="w-3.5 h-3.5 sm:w-4 sm:h-4" :class="{ 'text-accent': selectedDiscussion.isPinned }" />
               </button>
               <button
                 v-if="currentUserId === selectedDiscussion.user?.id || isAdmin"
-                class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                class="p-1.5 sm:p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 style="color: var(--text-secondary)"
                 @click="deleteDiscussion(selectedDiscussion)"
               >
-                <Trash2 class="w-4 h-4" />
+                <Trash2 class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
-                class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                class="p-1.5 sm:p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 style="color: var(--text-secondary)"
                 @click="isDetailOpen = false"
               >
-                <X class="w-5 h-5" />
+                <X class="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
           <!-- Modal Scrollable Content -->
-          <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
-            <h2 class="text-2xl font-black mb-4" style="color: var(--text-primary)">
+          <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+            <h2 class="text-xl sm:text-2xl font-black mb-3 sm:mb-4 leading-tight" style="color: var(--text-primary)">
               {{ selectedDiscussion.title }}
             </h2>
 
             <!-- Tags -->
             <div
               v-if="parseTags(selectedDiscussion.tags).length > 0"
-              class="flex flex-wrap gap-1.5 mb-4"
+              class="flex flex-wrap gap-1 mb-3 sm:mb-4"
             >
               <span
                 v-for="tag in parseTags(selectedDiscussion.tags)"
                 :key="tag"
-                class="px-2.5 py-0.5 rounded-full text-[11px] font-medium"
+                class="px-2 py-0.5 rounded-full text-[9px] sm:text-[11px] font-medium"
                 style="background-color: var(--bg-app); color: var(--accent)"
                 >#{{ tag }}</span
               >
@@ -696,62 +708,63 @@ onMounted(() => {
 
             <!-- Stats Bar -->
             <div
-              class="flex items-center gap-5 mb-6 pb-4 border-b"
+              class="flex items-center gap-4 sm:gap-5 mb-5 sm:mb-6 pb-3 sm:pb-4 border-b"
               style="border-color: var(--border-base)"
             >
               <button
-                class="flex items-center gap-1.5 text-xs font-bold transition-colors"
+                class="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold transition-colors"
                 :class="selectedDiscussion.isLiked ? 'text-red-500' : ''"
                 :style="!selectedDiscussion.isLiked ? 'color: var(--text-muted)' : ''"
                 @click="toggleLikeDiscussion(selectedDiscussion)"
               >
-                <Heart class="w-4 h-4" :class="{ 'fill-red-500': selectedDiscussion.isLiked }" />
-                {{ selectedDiscussion._count?.likes || 0 }} 赞
+                <Heart class="w-3.5 h-3.5 sm:w-4 sm:h-4" :class="{ 'fill-red-500': selectedDiscussion.isLiked }" />
+                {{ selectedDiscussion._count?.likes || 0 }} <span class="hidden sm:inline">赞</span>
               </button>
               <div
-                class="flex items-center gap-1.5 text-xs font-bold"
+                class="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold"
                 style="color: var(--text-muted)"
               >
-                <MessageSquare class="w-4 h-4" />
-                {{ selectedDiscussion._count?.comments || 0 }} 回复
+                <MessageSquare class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                {{ selectedDiscussion._count?.comments || 0 }} <span class="hidden sm:inline">回复</span>
               </div>
               <div
-                class="flex items-center gap-1.5 text-xs font-bold"
+                class="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-bold"
                 style="color: var(--text-muted)"
               >
-                <Eye class="w-4 h-4" />
-                {{ selectedDiscussion.viewCount || 0 }} 浏览
+                <Eye class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                {{ selectedDiscussion.viewCount || 0 }} <span class="hidden sm:inline">浏览</span>
               </div>
             </div>
 
-            <div class="mb-8">
+            <div class="mb-6 sm:mb-8 text-sm sm:text-base leading-relaxed">
               <MarkdownEditor :model-value="selectedDiscussion.content" preview-only />
             </div>
 
             <!-- Post Images -->
             <div
               v-if="parseImages(selectedDiscussion.images).length > 0"
-              class="grid grid-cols-1 gap-4 mb-10"
+              class="grid grid-cols-1 gap-3 sm:gap-4 mb-8 sm:mb-10"
             >
               <img
                 v-for="(img, idx) in parseImages(selectedDiscussion.images)"
                 :key="idx"
                 :src="img"
-                class="w-full rounded-2xl shadow-sm border border-slate-100 dark:border-white/5"
+                class="w-full rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 dark:border-white/5"
               />
             </div>
 
             <!-- Comments Section -->
-            <div class="space-y-6">
+            <div class="space-y-5 sm:space-y-6">
               <div
-                class="flex items-center gap-2 border-b pb-4"
+                class="flex items-center gap-2 border-b pb-3 sm:pb-4"
                 style="border-color: var(--border-base)"
               >
-                <MessageSquare class="w-4 h-4 text-accent" />
-                <h3 class="text-sm font-black uppercase tracking-widest">
+                <MessageSquare class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent" />
+                <h3 class="text-xs sm:text-sm font-black uppercase tracking-widest">
                   全部回复 ({{ selectedDiscussion.comments?.length || 0 }})
                 </h3>
               </div>
+
 
               <div
                 v-for="comment in selectedDiscussion.comments"

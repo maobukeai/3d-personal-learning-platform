@@ -87,6 +87,9 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
           orderBy: { order: 'asc' },
         },
         category: true,
+        user: {
+          select: { id: true, name: true, avatarUrl: true, bio: true, email: true },
+        },
         reviews: {
           include: {
             user: { select: { id: true, name: true, avatarUrl: true } },
@@ -94,7 +97,7 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
           orderBy: { createdAt: 'desc' },
         },
         _count: {
-          select: { enrollments: true, reviews: true },
+          select: { enrollments: true, reviews: true, lessons: true },
         },
       },
     });

@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import * as courseController from '../controllers/course.controller';
-import { authenticate, isAdmin } from '../middlewares/auth.middleware';
+import { authenticate, isAdmin, optionalAuthenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-router.get('/', courseController.getAllCourses);
+router.get('/', optionalAuthenticate, courseController.getAllCourses);
 router.get('/categories', courseController.getCourseCategories);
 router.get('/my-enrollments', authenticate, courseController.getMyEnrollments);
 router.post('/enroll', authenticate, courseController.enrollInCourse);
 router.patch('/progress', authenticate, courseController.updateProgress);
 router.post('/parse-bilibili', authenticate, isAdmin, courseController.parseBilibili);
 
-router.get('/:id', authenticate, courseController.getCourseById);
+router.get('/:id', optionalAuthenticate, courseController.getCourseById);
 
 router.post('/', authenticate, isAdmin, courseController.createCourse);
 router.put('/:id', authenticate, isAdmin, courseController.updateCourse);

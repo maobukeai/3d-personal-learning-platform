@@ -558,7 +558,7 @@ watch(
       </div>
 
       <!-- Main Content Container -->
-      <div class="max-w-7xl mx-auto px-8 py-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8 py-6 lg:py-10">
         <!-- Modern Tabs -->
         <div class="flex gap-6 lg:gap-10 mb-8 lg:mb-10 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
           <button
@@ -605,8 +605,8 @@ watch(
         >
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 class="text-2xl font-black mb-1" style="color: var(--text-primary)">全员看板</h2>
-              <p class="text-xs text-slate-400 font-medium">
+              <h2 class="text-xl lg:text-2xl font-black mb-1" style="color: var(--text-primary)">全员看板</h2>
+              <p class="text-[10px] lg:text-xs text-slate-400 font-medium">
                 查看并管理团队内的所有成员及其访问权限
               </p>
             </div>
@@ -615,14 +615,14 @@ watch(
               <input
                 v-model="memberSearchQuery"
                 type="text"
-                placeholder="搜索成员姓名或邮箱..."
+                placeholder="搜索成员姓名..."
                 class="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border rounded-2xl text-xs focus:ring-4 focus:ring-accent/10 outline-none transition-all"
                 style="border-color: var(--border-base); color: var(--text-primary)"
               />
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
             <div
               v-for="person in filteredPeople"
               :key="person.id"

@@ -296,15 +296,15 @@ onMounted(() => {
   >
     <!-- Header -->
     <div
-      class="h-20 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-4">
-        <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-          <Users class="w-6 h-6 text-indigo-600" />
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl shrink-0">
+          <Users class="w-5.5 h-5.5 sm:w-6 sm:h-6 text-indigo-600" />
         </div>
         <div>
-          <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+          <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
             全平台用户管理
           </h1>
           <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
@@ -313,22 +313,22 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
         <div
-          class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-slate-200 transition-all"
+          class="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-slate-200 transition-all shrink-0"
         >
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">总计</span>
           <span class="text-sm font-black text-indigo-600">{{ users.length }}</span>
         </div>
         <button
-          class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg shadow-indigo-200 dark:shadow-none shrink-0 whitespace-nowrap"
           @click="openCreateDialog"
         >
-          <Plus class="w-4 h-4" />
+          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           创建新用户
         </button>
         <button
-          class="p-2.5 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors text-slate-400"
+          class="p-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors text-slate-400 shrink-0"
           @click="fetchUsers"
         >
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
@@ -338,10 +338,10 @@ onMounted(() => {
 
     <!-- Filters Bar -->
     <div
-      class="p-6 border-b shrink-0 transition-colors duration-300"
+      class="p-4 sm:p-6 border-b shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-center">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
         <div class="relative w-full md:w-96">
           <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input

@@ -257,15 +257,18 @@ const filteredCourses = computed(() => {
 });
 
 const handleParseExternal = async () => {
-  if (!externalUrl.value) return;
+  const url = externalUrl.value?.trim();
+  if (!url) return;
   try {
     isParsing.value = true;
     const { data } = await api.post('/api/admin/courses/parse-external', {
-      url: externalUrl.value,
+      url,
     });
     parsedMetadata.value = data;
+    ElMessage.success('解析成功');
   } catch (error: any) {
-    alert(error.response?.data?.error || '解析失败，请检查链接是否正确');
+    const errorMsg = error.response?.data?.error || error.message || '解析失败，请检查链接是否正确';
+    ElMessage.error(errorMsg);
   } finally {
     isParsing.value = false;
   }
@@ -280,13 +283,16 @@ const handleImportExternal = async () => {
       description: parsedMetadata.value.description,
       thumbnail: parsedMetadata.value.thumbnail,
       lessons: parsedMetadata.value.lessons,
+      categoryId: courseForm.value.categoryId,
     });
     showImportModal.value = false;
     externalUrl.value = '';
     parsedMetadata.value = null;
     fetchCourses();
+    ElMessage.success('课程导入成功');
   } catch (error: any) {
-    alert(error.response?.data?.error || '导入失败');
+    const errorMsg = error.response?.data?.error || error.message || '导入失败';
+    ElMessage.error(errorMsg);
   } finally {
     isParsing.value = false;
   }
@@ -471,11 +477,11 @@ onMounted(() => {
   >
     <!-- Header -->
     <div
-      class="h-20 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div>
-        <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+        <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
           学院课程管理
         </h1>
         <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
@@ -483,13 +489,13 @@ onMounted(() => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
         <div
-          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300"
+          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300 overflow-x-auto scrollbar-hide max-w-full shrink-0"
           style="background-color: var(--bg-app)"
         >
           <button
-            class="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+            class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'courses'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -500,7 +506,7 @@ onMounted(() => {
             课程列表
           </button>
           <button
-            class="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+            class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'categories'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -513,31 +519,31 @@ onMounted(() => {
         </div>
 
         <div
-          class="h-8 w-[1px] mx-2 transition-colors duration-300"
+          class="hidden sm:block h-8 w-[1px] mx-1 transition-colors duration-300 shrink-0"
           style="background-color: var(--border-base)"
         ></div>
 
         <button
-          class="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-bold text-sm transition-all shadow-sm"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-bold text-xs sm:text-sm transition-all shadow-sm shrink-0 whitespace-nowrap"
           @click="showImportModal = true"
         >
-          <LinkIcon class="w-4 h-4" />
+          <LinkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           外部导入
         </button>
         <button
           v-if="activeTab === 'courses'"
-          class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-sm transition-all shadow-lg shadow-accent/20"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
           @click="openCourseModal()"
         >
-          <Plus class="w-4 h-4" />
+          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           新建课程
         </button>
         <button
           v-if="activeTab === 'categories'"
-          class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-sm transition-all shadow-lg shadow-accent/20"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
           @click="openCategoryModal()"
         >
-          <Plus class="w-4 h-4" />
+          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           新建分类
         </button>
       </div>
@@ -546,10 +552,10 @@ onMounted(() => {
     <!-- Search Bar -->
     <div
       v-if="activeTab === 'courses'"
-      class="px-8 py-4 border-b transition-colors duration-300"
+      class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-4 max-w-5xl">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 max-w-5xl">
         <div class="relative flex-1">
           <Search class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -573,7 +579,7 @@ onMounted(() => {
         </div>
         <select
           v-model="sortBy"
-          class="px-4 py-2.5 rounded-2xl border text-sm outline-none"
+          class="px-4 py-2.5 rounded-2xl border text-sm outline-none shrink-0"
           style="
             background-color: var(--bg-app);
             border-color: var(--border-base);
@@ -590,10 +596,10 @@ onMounted(() => {
     <!-- Stats Panel -->
     <div
       v-if="activeTab === 'courses'"
-      class="px-8 py-4 border-b transition-colors duration-300"
+      class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="grid grid-cols-5 gap-4 max-w-5xl">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 max-w-5xl">
         <div
           class="p-3 rounded-xl border transition-colors duration-300"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
@@ -637,7 +643,7 @@ onMounted(() => {
           <p class="text-xl font-black text-indigo-500">{{ courseStats.totalEnrollments }}</p>
         </div>
         <div
-          class="p-3 rounded-xl border transition-colors duration-300"
+          class="p-3 rounded-xl border transition-colors duration-300 col-span-2 sm:col-span-1"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between mb-1">
@@ -650,7 +656,7 @@ onMounted(() => {
     </div>
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
@@ -666,10 +672,10 @@ onMounted(() => {
             class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="p-6 flex items-start gap-6">
+            <div class="p-4 sm:p-6 flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
               <!-- Thumbnail -->
               <div
-                class="w-40 aspect-video rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0 relative"
+                class="w-full sm:w-40 aspect-video rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
               >
                 <img
                   v-if="course.thumbnail"

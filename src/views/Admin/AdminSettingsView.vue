@@ -265,15 +265,15 @@ window.addEventListener('beforeunload', (e) => {
     style="background-color: var(--bg-app)"
   >
     <div
-      class="h-20 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-4">
-        <div class="p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl">
-          <Settings class="w-6 h-6 text-slate-600" />
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div class="p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl shrink-0">
+          <Settings class="w-5.5 h-5.5 sm:w-6 sm:h-6 text-slate-600" />
         </div>
         <div>
-          <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+          <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
             全局系统设置
           </h1>
           <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
@@ -281,49 +281,49 @@ window.addEventListener('beforeunload', (e) => {
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
         <div
           v-if="hasUnsavedChanges"
-          class="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
+          class="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 shrink-0"
         >
           <AlertTriangle class="w-3.5 h-3.5 text-amber-500" />
-          <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400"
+          <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"
             >有未保存的更改</span
           >
         </div>
         <button
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all hover:bg-slate-50 dark:hover:bg-white/5 shrink-0 whitespace-nowrap"
           style="border-color: var(--border-base); color: var(--text-secondary)"
           @click="resetToDefaults"
         >
-          <RotateCcw class="w-4 h-4" />
+          <RotateCcw class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>恢复默认</span>
         </button>
         <button
           :disabled="isSaving"
-          class="flex items-center gap-2 px-6 py-2.5 bg-accent text-white rounded-xl font-bold text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 bg-accent text-white rounded-xl font-bold text-xs sm:text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0 whitespace-nowrap"
           @click="saveSettings"
         >
-          <Save v-if="!isSaving" class="w-4 h-4" />
-          <RefreshCw v-else class="w-4 h-4 animate-spin" />
+          <Save v-if="!isSaving" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <RefreshCw v-else class="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
           <span>{{ isSaving ? '正在保存...' : '保存全局设置' }}</span>
         </button>
       </div>
     </div>
 
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
       <div
-        class="w-56 border-r shrink-0 overflow-y-auto p-4 transition-colors duration-300"
+        class="w-full lg:w-56 border-b lg:border-b-0 lg:border-r shrink-0 overflow-y-auto p-4 transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
-        <div class="px-3 mb-4">
+        <div class="px-3 mb-4 hidden lg:block">
           <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置分类</h2>
         </div>
-        <nav class="space-y-1">
+        <nav class="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-hide">
           <button
             v-for="tab in tabs"
             :key="tab.id"
-            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
+            class="flex-1 lg:flex-none w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === tab.id
                 ? 'bg-accent text-white shadow-lg shadow-accent/20'
@@ -331,13 +331,13 @@ window.addEventListener('beforeunload', (e) => {
             "
             @click="activeTab = tab.id"
           >
-            <component :is="tab.icon" class="w-4 h-4" />
-            {{ tab.label }}
+            <component :is="tab.icon" class="w-4 h-4 shrink-0" />
+            <span>{{ tab.label }}</span>
           </button>
         </nav>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+      <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
         <div class="max-w-3xl mx-auto space-y-8 pb-12">
           <!-- General Settings -->
           <div
@@ -345,7 +345,7 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <section
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -438,7 +438,7 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <section
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -535,7 +535,7 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <section
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -646,7 +646,7 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <section
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -712,7 +712,7 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <section
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center justify-between mb-8">
@@ -862,7 +862,7 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <section
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center justify-between mb-8">
@@ -918,7 +918,7 @@ window.addEventListener('beforeunload', (e) => {
 
             <section
               v-if="showEmailPreview"
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-6">

@@ -473,7 +473,7 @@ watch(activeSection, (newSection) => {
     style="background-color: var(--bg-app)"
   >
     <div
-      class="h-16 px-8 flex items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="h-16 px-4 sm:px-8 flex items-center justify-between shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
@@ -483,19 +483,19 @@ watch(activeSection, (newSection) => {
       </div>
     </div>
 
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
       <div
-        class="w-64 border-r shrink-0 overflow-y-auto p-4 transition-colors duration-300"
+        class="w-full lg:w-64 border-b lg:border-b-0 lg:border-r shrink-0 overflow-y-auto p-4 transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
-        <div class="px-4 mb-4">
+        <div class="px-4 mb-4 hidden lg:block">
           <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置选项</h2>
         </div>
-        <nav class="space-y-1">
+        <nav class="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-hide">
           <button
             v-for="section in sections"
             :key="section.id"
-            class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all"
+            class="flex-1 lg:flex-none w-auto lg:w-full flex items-center justify-between px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all shrink-0 whitespace-nowrap"
             :class="
               activeSection === section.id
                 ? 'bg-accent text-white shadow-lg shadow-accent/20'
@@ -503,24 +503,24 @@ watch(activeSection, (newSection) => {
             "
             @click="activeSection = section.id"
           >
-            <div class="flex items-center gap-3">
-              <component :is="section.icon" class="w-4 h-4" />
-              {{ section.label }}
+            <div class="flex items-center gap-2 lg:gap-3">
+              <component :is="section.icon" class="w-4 h-4 shrink-0" />
+              <span>{{ section.label }}</span>
             </div>
-            <ChevronRight class="w-3.5 h-3.5 opacity-50" />
+            <ChevronRight class="w-3.5 h-3.5 opacity-50 hidden lg:block" />
           </button>
         </nav>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-12 scrollbar-hide">
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 scrollbar-hide">
         <div class="max-w-2xl mx-auto">
           <!-- Profile Section -->
           <div
             v-if="activeSection === 'profile'"
             class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
-            <div class="flex items-center gap-8">
-              <label class="relative group/avatar-upload cursor-pointer block">
+            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8 text-center sm:text-left">
+              <label class="relative group/avatar-upload cursor-pointer block shrink-0">
                 <UserAvatar :user="authStore.user ?? undefined" size="xl" />
                 <div
                   class="absolute inset-0 rounded-2xl bg-black/0 group-hover/avatar-upload:bg-black/40 transition-all duration-300 flex items-center justify-center z-10"
@@ -545,7 +545,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div class="space-y-6">
-              <div class="grid grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div class="space-y-2">
                   <label
                     class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"

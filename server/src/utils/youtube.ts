@@ -10,11 +10,14 @@ export interface YoutubeMetadata {
 }
 
 export async function parseYoutubeUrl(url: string): Promise<YoutubeMetadata> {
+  const urlMatch = url.match(/https?:\/\/[^\s]+/);
+  const targetUrl = urlMatch ? urlMatch[0] : url;
+
   // Extract Video ID or Playlist ID
-  const videoIdMatch = url.match(
+  const videoIdMatch = targetUrl.match(
     /(?:v=|\/embed\/|\/watch\?v=|\/v\/|youtu\.be\/|\/shorts\/|watch\?.*v=)([^#\&\?]*).*/,
   );
-  const playlistIdMatch = url.match(/[&?]list=([^#\&\?]*).*/);
+  const playlistIdMatch = targetUrl.match(/[&?]list=([^#\&\?]*).*/);
 
   const videoId = videoIdMatch ? videoIdMatch[1] : null;
   const playlistId = playlistIdMatch ? playlistIdMatch[1] : null;

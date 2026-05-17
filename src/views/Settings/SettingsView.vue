@@ -512,14 +512,14 @@ watch(activeSection, (newSection) => {
         </nav>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-12 scrollbar-hide">
+      <div class="flex-1 overflow-y-auto p-4 lg:p-12 scrollbar-hide">
         <div class="max-w-2xl mx-auto">
           <!-- Profile Section -->
           <div
             v-if="activeSection === 'profile'"
             class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
-            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8 text-center sm:text-left">
+            <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 lg:gap-8 text-center lg:text-left">
               <label class="relative group/avatar-upload cursor-pointer block shrink-0">
                 <UserAvatar :user="authStore.user ?? undefined" size="xl" />
                 <div
@@ -640,7 +640,7 @@ watch(activeSection, (newSection) => {
             class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <div
-              class="p-8 rounded-3xl border border-accent/20 bg-accent/[0.02] flex items-center justify-between transition-all hover:bg-accent/[0.05]"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border border-accent/20 bg-accent/[0.02] flex items-center justify-between transition-all hover:bg-accent/[0.05]"
             >
               <div class="flex items-center gap-4">
                 <div
@@ -663,7 +663,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -716,7 +716,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -769,7 +769,7 @@ watch(activeSection, (newSection) => {
           >
             <!-- Email Change -->
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -863,7 +863,7 @@ watch(activeSection, (newSection) => {
 
             <!-- Password Change -->
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -890,7 +890,7 @@ watch(activeSection, (newSection) => {
                     "
                   />
                 </div>
-                <div class="grid grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                   <div class="space-y-2">
                     <label
                       class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
@@ -937,7 +937,7 @@ watch(activeSection, (newSection) => {
 
             <!-- Two Factor Auth -->
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center justify-between mb-8">
@@ -1004,7 +1004,7 @@ watch(activeSection, (newSection) => {
                         >
                           <ShieldAlert class="w-3 h-3" /> 请保存这些恢复代码
                         </p>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:gap-3">
                           <code
                             v-for="code in recoveryCodes"
                             :key="code"
@@ -1068,7 +1068,7 @@ watch(activeSection, (newSection) => {
                         <RefreshCw class="w-3 h-3" /> 重新生成
                       </button>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:gap-3">
                       <code
                         v-for="code in recoveryCodes"
                         :key="code"
@@ -1104,7 +1104,7 @@ watch(activeSection, (newSection) => {
 
             <!-- Trusted Devices -->
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -1163,13 +1163,13 @@ watch(activeSection, (newSection) => {
             class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">
                 {{ t('settings.theme') }}
               </h3>
-              <div class="grid grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
                 <button
                   v-for="theme in [
                     { id: 'light', label: t('settings.themeLight'), icon: Sun },
@@ -1205,7 +1205,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">
@@ -1231,14 +1231,14 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-6">
                 <Languages class="w-5 h-5 text-accent" />
                 <h3 class="text-lg font-bold" style="color: var(--text-primary)">语言偏好</h3>
               </div>
-              <div class="grid grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
                 <button
                   v-for="lang in languageOptions"
                   :key="lang.value"
@@ -1337,7 +1337,7 @@ watch(activeSection, (newSection) => {
             class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <div
-              class="p-8 rounded-3xl border transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -1363,7 +1363,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-8 rounded-3xl border border-rose-200 dark:border-rose-900/50 transition-colors duration-300"
+              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border border-rose-200 dark:border-rose-900/50 transition-colors duration-300"
               style="background-color: var(--bg-card)"
             >
               <div class="flex items-center gap-3 mb-8">

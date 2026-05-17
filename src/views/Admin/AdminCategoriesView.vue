@@ -9,7 +9,6 @@ import {
   X,
   Layers,
   GraduationCap,
-  GripVertical,
   Type,
   Hash,
   Smile,

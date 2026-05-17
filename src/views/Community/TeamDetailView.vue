@@ -439,72 +439,76 @@ watch(
         style="border-color: var(--border-base)"
       >
         <div class="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent"></div>
-        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-6 lg:py-12 relative z-10">
-          <div class="flex flex-col lg:flex-row items-center gap-6 lg:gap-10">
-            <div class="relative group">
-              <input
-                ref="avatarInput"
-                type="file"
-                class="hidden"
-                accept="image/*"
-                @change="handleAvatarChange"
-              />
-              <div
-                class="w-24 h-24 lg:w-40 lg:h-40 rounded-2xl lg:rounded-[2.5rem] overflow-hidden shadow-2xl border-2 lg:border-4 border-white dark:border-slate-800 transition-transform group-hover:scale-105 duration-500"
-              >
-                <img
-                  v-if="team.avatarUrl"
-                  :src="team.avatarUrl"
-                  class="w-full h-full object-cover"
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-4 lg:py-12 relative z-10">
+          <div class="flex flex-col lg:flex-row items-center lg:items-center gap-4 lg:gap-10">
+            <!-- Avatar and Title Row for Mobile -->
+            <div class="flex items-center gap-4 w-full lg:w-auto">
+              <div class="relative group shrink-0">
+                <input
+                  ref="avatarInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="handleAvatarChange"
                 />
                 <div
-                  v-else
-                  class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-3xl lg:text-5xl font-black"
+                  class="w-16 h-16 lg:w-40 lg:h-40 rounded-xl lg:rounded-[2.5rem] overflow-hidden shadow-xl border-2 lg:border-4 border-white dark:border-slate-800 transition-transform group-hover:scale-105 duration-500"
                 >
-                  {{ team.name.charAt(0).toUpperCase() }}
+                  <img
+                    v-if="team.avatarUrl"
+                    :src="team.avatarUrl"
+                    class="w-full h-full object-cover"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-xl lg:text-5xl font-black"
+                  >
+                    {{ team.name.charAt(0).toUpperCase() }}
+                  </div>
+                </div>
+                <button
+                  v-if="isOwnerOrAdmin"
+                  class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-xl hover:scale-110 active:scale-95 transition-all"
+                  @click="triggerAvatarUpload"
+                >
+                  <Camera class="w-3 h-3" />
+                </button>
+              </div>
+
+              <div class="flex-1 text-left">
+                <div class="flex flex-wrap items-center gap-2 mb-1 lg:mb-3">
+                  <h1 class="text-xl lg:text-4xl font-black tracking-tight" style="color: var(--text-primary)">
+                    {{ team.name }}
+                  </h1>
+                  <div
+                    class="px-1.5 py-0.5 bg-accent/10 text-accent text-[8px] lg:text-[10px] font-black rounded uppercase tracking-widest border border-accent/20"
+                  >
+                    协作空间
+                  </div>
+                </div>
+                <!-- Hidden on mobile, shown on larger screens -->
+                <p class="hidden lg:block text-slate-500 dark:text-slate-400 max-w-2xl text-sm leading-relaxed mb-6">
+                  {{ team.description || '这支团队还没有添加描述，协作从清晰的定义开始。' }}
+                </p>
+
+                <div class="flex flex-wrap items-center gap-2 lg:gap-8">
+                  <div class="flex items-center gap-1.5 bg-slate-100/50 dark:bg-white/5 px-2 py-0.5 rounded-lg">
+                    <Users class="w-3 h-3 text-slate-400" />
+                    <span class="text-[10px] lg:text-xs font-bold" style="color: var(--text-primary)"
+                      >{{ team.members.length }} 成员</span
+                    >
+                  </div>
+                  <div class="flex items-center gap-1.5 bg-slate-100/50 dark:bg-white/5 px-2 py-0.5 rounded-lg">
+                    <Clock class="w-3 h-3 text-slate-400" />
+                    <span class="text-[10px] lg:text-xs font-bold" style="color: var(--text-primary)"
+                      >{{ team.invitations?.length || 0 }} 待处理</span
+                    >
+                  </div>
                 </div>
               </div>
-              <button
-                v-if="isOwnerOrAdmin"
-                class="absolute -bottom-1 -right-1 p-2 bg-accent text-white rounded-xl shadow-xl hover:scale-110 active:scale-95 transition-all"
-                @click="triggerAvatarUpload"
-              >
-                <Camera class="w-4 h-4" />
-              </button>
             </div>
 
-            <div class="flex-1 text-center lg:text-left">
-              <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 mb-3">
-                <h1 class="text-2xl lg:text-4xl font-black tracking-tight" style="color: var(--text-primary)">
-                  {{ team.name }}
-                </h1>
-                <div
-                  class="px-2 py-0.5 bg-accent/10 text-accent text-[10px] font-black rounded-lg uppercase tracking-widest border border-accent/20"
-                >
-                  团队协作空间
-                </div>
-              </div>
-              <p class="text-slate-500 dark:text-slate-400 max-w-2xl text-xs lg:text-sm leading-relaxed mb-6">
-                {{ team.description || '这支团队还没有添加描述，协作从清晰的定义开始。' }}
-              </p>
-
-              <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 lg:gap-8">
-                <div class="flex items-center gap-2 bg-slate-100/50 dark:bg-white/5 px-2.5 py-1 rounded-lg">
-                  <Users class="w-3 h-3 text-slate-400" />
-                  <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ team.members.length }} 成员</span
-                  >
-                </div>
-                <div class="flex items-center gap-2 bg-slate-100/50 dark:bg-white/5 px-2.5 py-1 rounded-lg">
-                  <Clock class="w-3 h-3 text-slate-400" />
-                  <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ team.invitations?.length || 0 }} 待处理</span
-                  >
-                </div>
-              </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto mt-6 lg:mt-0">
+            <div class="flex flex-col sm:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto mt-2 lg:mt-0">
               <template v-if="canManageTeam">
                 <button
                   class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"

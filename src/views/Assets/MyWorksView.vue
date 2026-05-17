@@ -766,18 +766,18 @@ onMounted(() => {
     <Transition name="fade">
       <div
         v-if="isEditDialogOpen"
-        class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[60] flex items-center justify-center p-0 md:p-4"
       >
         <div
           class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           @click="isEditDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 md:p-8 rounded-3xl shadow-2xl space-y-6"
+          class="relative w-full md:max-w-3xl h-full md:h-auto md:max-h-[90vh] overflow-y-auto p-4 md:p-8 rounded-none md:rounded-3xl shadow-2xl space-y-6"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">编辑作品信息</h3>
+            <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">编辑作品信息</h3>
             <button style="color: var(--text-secondary)" @click="isEditDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
@@ -786,7 +786,7 @@ onMounted(() => {
           <div class="space-y-4">
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >作品名称</label
               >
@@ -804,20 +804,20 @@ onMounted(() => {
 
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >描述 (支持 Markdown)</label
               >
               <MarkdownEditor
                 v-model="editForm.description"
                 placeholder="添加作品描述... 支持 Markdown 格式"
-                height="250px"
+                :height="isMobile ? '200px' : '250px'"
               />
             </div>
 
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >资源分类</label
               >
@@ -865,18 +865,18 @@ onMounted(() => {
     <Transition name="fade">
       <div
         v-if="isPublishDialogOpen"
-        class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[60] flex items-center justify-center p-0 md:p-4"
       >
         <div
           class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           @click="isPublishDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 md:p-8 rounded-3xl shadow-2xl space-y-6"
+          class="relative w-full md:max-w-3xl h-full md:h-auto md:max-h-[90vh] overflow-y-auto p-4 md:p-8 rounded-none md:rounded-3xl shadow-2xl space-y-6"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">发布到展示墙</h3>
+            <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">发布到展示墙</h3>
             <button style="color: var(--text-secondary)" @click="isPublishDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
@@ -904,7 +904,7 @@ onMounted(() => {
           <div class="space-y-4">
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >展示标题</label
               >
@@ -923,20 +923,20 @@ onMounted(() => {
 
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >展示描述 (支持 Markdown)</label
               >
               <MarkdownEditor
                 v-model="publishForm.description"
                 placeholder="描述你的创作灵感... 支持 Markdown 格式"
-                height="250px"
+                :height="isMobile ? '200px' : '250px'"
               />
             </div>
 
             <div>
               <label
-                class="block text-xs font-bold uppercase mb-2 ml-1"
+                class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >标签</label
               >
@@ -982,7 +982,7 @@ onMounted(() => {
     <Transition name="fade">
       <div
         v-if="isPreviewOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-10"
+        class="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-10"
       >
         <div
           class="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -990,7 +990,7 @@ onMounted(() => {
         ></div>
 
         <div
-          class="relative w-full max-w-5xl h-full rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
+          class="relative w-full max-w-5xl h-full rounded-none md:rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
           style="background-color: var(--bg-card)"
         >
           <button
@@ -1001,7 +1001,7 @@ onMounted(() => {
           </button>
 
           <div
-            class="flex-1 relative group overflow-hidden"
+            class="flex-1 relative group overflow-hidden h-[40vh] md:h-full"
             style="background-color: var(--bg-app)"
           >
             <ModelViewer
@@ -1090,16 +1090,16 @@ onMounted(() => {
 
           <!-- Side Info Panel -->
           <div
-            class="w-full md:w-80 p-6 flex flex-col border-l overflow-y-auto"
+            class="flex-1 md:w-80 p-4 md:p-6 flex flex-col border-t md:border-t-0 md:border-l overflow-y-auto min-h-0"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="flex items-center justify-between mb-1">
-              <h2 class="text-xl font-bold" style="color: var(--text-primary)">
+              <h2 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">
                 {{ selectedAsset?.title }}
               </h2>
             </div>
-            <div class="flex items-center gap-2 mb-6">
-              <span class="text-sm" style="color: var(--text-secondary)">{{
+            <div class="flex items-center gap-2 mb-4 md:mb-6">
+              <span class="text-xs md:text-sm" style="color: var(--text-secondary)">{{
                 getTypeLabel(selectedAsset?.type)
               }}</span>
               <span
@@ -1116,7 +1116,7 @@ onMounted(() => {
               </p>
 
               <div
-                class="p-4 rounded-xl border"
+                class="p-3 md:p-4 rounded-xl border"
                 style="background-color: var(--bg-app); border-color: var(--border-base)"
               >
                 <p
@@ -1186,7 +1186,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="mt-auto pt-6 space-y-2">
+            <div class="mt-4 md:mt-auto pt-4 md:pt-6 space-y-2 shrink-0">
               <a
                 v-if="!selectedAsset?.isIndependentShowcase"
                 :href="selectedAsset?.url"

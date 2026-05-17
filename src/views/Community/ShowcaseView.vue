@@ -310,18 +310,18 @@ onMounted(fetchShowcases);
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="h-16 border-b px-8 flex items-center justify-between shrink-0"
+      class="min-h-16 py-3 sm:py-0 sm:h-16 border-b px-4 sm:px-8 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
-        <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+        <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg shrink-0">
           <MonitorPlay class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
         </div>
         <h1 class="text-xl font-bold" style="color: var(--text-primary)">作品展示</h1>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div class="relative">
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+        <div class="relative flex-1 sm:flex-initial">
           <Search
             class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-muted)"
@@ -330,29 +330,30 @@ onMounted(fetchShowcases);
             v-model="searchQuery"
             type="text"
             placeholder="搜索优秀作品..."
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
+            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full sm:w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
         <button
-          class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center gap-2"
+          class="bg-indigo-600 text-white px-3 py-2 sm:px-4 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shrink-0 flex items-center gap-2 whitespace-nowrap"
           @click="openPublishDialog"
         >
           <Plus class="w-4 h-4" />
-          发布我的作品
+          <span class="hidden sm:inline">发布我的作品</span>
+          <span class="sm:hidden">发布</span>
         </button>
       </div>
     </div>
 
     <!-- Featured Banner -->
-    <div class="px-8 py-6 shrink-0">
+    <div class="px-4 sm:px-8 py-4 sm:py-6 shrink-0">
       <div class="relative h-48 rounded-3xl overflow-hidden bg-slate-900 group cursor-pointer">
         <img
           src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=80"
           class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
         />
         <div
-          class="absolute inset-0 p-8 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent"
+          class="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent"
         >
           <div class="flex items-center gap-2 mb-2">
             <span
@@ -363,8 +364,8 @@ onMounted(fetchShowcases);
               <Flame class="w-3 h-3 text-orange-500" /> 推荐作品
             </div>
           </div>
-          <h2 class="text-2xl font-bold text-white mb-2">展示你的创意作品</h2>
-          <p class="text-white/70 text-sm max-w-xl">
+          <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">展示你的创意作品</h2>
+          <p class="text-white/70 text-xs sm:text-sm max-w-xl line-clamp-2 sm:line-clamp-none">
             发布你的渲染成品、3D模型、动画短片或任何创意作品，与全球创作者交流心得。
           </p>
         </div>
@@ -372,13 +373,13 @@ onMounted(fetchShowcases);
     </div>
 
     <!-- Filter Bar -->
-    <div class="px-8 mb-6 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-2">
+    <div class="px-4 sm:px-8 mb-6 flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
+      <div class="flex items-center gap-3 sm:gap-4 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4 sm:mx-0 sm:px-0 max-w-full">
+        <div class="flex items-center gap-2 shrink-0">
           <button
             v-for="f in filters"
             :key="f"
-            class="px-5 py-1.5 rounded-full text-xs font-bold transition-all"
+            class="px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0"
             :class="activeFilter === f ? 'bg-indigo-600 text-white shadow-md' : 'hover:opacity-80'"
             :style="
               activeFilter !== f
@@ -393,12 +394,12 @@ onMounted(fetchShowcases);
             {{ f }}
           </button>
         </div>
-        <div class="w-px h-5" style="background-color: var(--border-base)"></div>
-        <div class="flex items-center gap-1.5">
+        <div class="w-px h-5 shrink-0" style="background-color: var(--border-base)"></div>
+        <div class="flex items-center gap-1.5 shrink-0">
           <button
             v-for="tf in typeFilters"
             :key="tf"
-            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all"
+            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all shrink-0"
             :class="
               activeTypeFilter === tf
                 ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
@@ -418,15 +419,15 @@ onMounted(fetchShowcases);
           </button>
         </div>
       </div>
-      <div class="flex items-center gap-2 text-xs font-bold" style="color: var(--text-muted)">
-        <Trophy class="w-4 h-4 text-amber-500" />
-        年度优秀作品选拔进行中
-        <ChevronRight class="w-3 h-3" />
+      <div class="flex items-center gap-2 text-xs font-bold shrink-0 self-start lg:self-auto" style="color: var(--text-muted)">
+        <Trophy class="w-4 h-4 text-amber-500 shrink-0" />
+        <span class="truncate">年度优秀作品选拔进行中</span>
+        <ChevronRight class="w-3 h-3 shrink-0" />
       </div>
     </div>
 
     <!-- Showcase Grid -->
-    <div class="flex-1 overflow-y-auto p-8 pt-0 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 pt-0 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <div
           v-if="filteredShowcases.length > 0"

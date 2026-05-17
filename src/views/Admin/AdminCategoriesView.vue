@@ -281,11 +281,11 @@ onMounted(() => {
   >
     <!-- Header -->
     <div
-      class="h-20 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div>
-        <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+        <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
           平台分类管理
         </h1>
         <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
@@ -293,13 +293,13 @@ onMounted(() => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
         <div
-          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300"
+          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300 overflow-x-auto scrollbar-hide max-w-full shrink-0"
           style="background-color: var(--bg-app)"
         >
           <button
-            class="px-3 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2"
+            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'assets'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -311,7 +311,7 @@ onMounted(() => {
             资产库
           </button>
           <button
-            class="px-3 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2"
+            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'courses'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -323,7 +323,7 @@ onMounted(() => {
             课程
           </button>
           <button
-            class="px-3 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2"
+            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'materials'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -335,7 +335,7 @@ onMounted(() => {
             材质
           </button>
           <button
-            class="px-3 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2"
+            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'showcases'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -349,15 +349,15 @@ onMounted(() => {
         </div>
 
         <div
-          class="h-8 w-[1px] mx-2 transition-colors duration-300"
+          class="hidden sm:block h-8 w-[1px] mx-1 transition-colors duration-300 shrink-0"
           style="background-color: var(--border-base)"
         ></div>
 
         <button
-          class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-sm transition-all shadow-lg shadow-accent/20"
+          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
           @click="openModal()"
         >
-          <Plus class="w-4 h-4" />
+          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           新建分类
         </button>
       </div>
@@ -365,7 +365,7 @@ onMounted(() => {
 
     <!-- Search & Filters -->
     <div
-      class="px-8 py-4 border-b transition-colors duration-300"
+      class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-4 max-w-5xl">
@@ -394,7 +394,7 @@ onMounted(() => {
     </div>
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"

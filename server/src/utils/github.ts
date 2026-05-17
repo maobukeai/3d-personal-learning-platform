@@ -10,10 +10,12 @@ export interface GithubMetadata {
 }
 
 export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
-  console.log(`[GitHub] Parsing URL: ${url}`);
+  const urlMatch = url.match(/https?:\/\/[^\s]+/);
+  const targetUrl = urlMatch ? urlMatch[0] : url;
+  console.log(`[GitHub] Parsing URL: ${targetUrl}`);
 
   // Extract owner and repo
-  const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+  const match = targetUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) {
     throw new Error('无效的 GitHub 仓库链接');
   }

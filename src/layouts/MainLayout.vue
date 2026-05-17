@@ -980,7 +980,7 @@ onUnmounted(() => {
             <Layers class="w-4 h-4 text-slate-400" />
             <span class="text-sm flex-1">3D 模型资源库</span>
             <kbd
-              class="text-[10px] px-1.5 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity"
+              class="text-[10px] px-1.5 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity hidden md:inline-block"
               >Enter</kbd
             >
           </div>
@@ -990,13 +990,13 @@ onUnmounted(() => {
             <GraduationCap class="w-4 h-4 text-slate-400" />
             <span class="text-sm flex-1">Blender 进阶教程</span>
             <kbd
-              class="text-[10px] px-1.5 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity"
+              class="text-[10px] px-1.5 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity hidden md:inline-block"
               >Enter</kbd
             >
           </div>
         </div>
       </div>
-      <template #footer>
+      <template v-if="!isMobile" #footer>
         <div class="flex items-center justify-between text-[10px] text-slate-400">
           <div class="flex gap-4">
             <span class="flex items-center gap-1.5"

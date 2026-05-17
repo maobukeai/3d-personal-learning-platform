@@ -984,7 +984,7 @@ onMounted(() => {
     </div>
 
     <!-- List View -->
-    <div v-slot:default v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+    <div v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="overflow-x-auto w-full scrollbar-hide">
         <div class="min-w-[800px] max-w-5xl mx-auto space-y-2">
         <div

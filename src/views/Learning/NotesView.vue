@@ -101,8 +101,6 @@ const loadNotes = async () => {
       params.visibility = 'PUBLIC';
     } else if (activeTab.value === 'POPULAR') {
       endpoint = '/api/notes/popular';
-      // Popular notes endpoint might not support pagination in the same way,
-      // but I updated it to take 12.
     }
 
     if (searchQuery.value) params.search = searchQuery.value;
@@ -127,19 +125,6 @@ const loadNotes = async () => {
 const handleTabChange = () => {
   currentPage.value = 1;
   loadNotes();
-};
-
-const handlePromote = async (note: Note) => {
-  try {
-    const res = await api.post(`/api/notes/${note.id}/popular`);
-    note.isPopular = res.data.isPopular;
-    ElMessage.success(note.isPopular ? '已推流到热门' : '已取消热门推流');
-    if (activeTab.value === 'POPULAR' && !note.isPopular) {
-      loadNotes();
-    }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
-  }
 };
 
 const loadTagsAndCategories = async () => {
@@ -310,43 +295,43 @@ onMounted(() => {
   <div class="flex-1 flex flex-col h-full overflow-hidden">
     <!-- Header Section -->
     <div
-      class="px-8 py-6 flex items-center justify-between shrink-0 border-b"
+      class="px-4 md:px-8 py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 border-b gap-4"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-4">
-        <div class="p-3 bg-accent-subtle rounded-2xl">
-          <Notebook class="w-6 h-6 text-accent" />
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="p-2 md:p-3 bg-accent-subtle rounded-xl md:rounded-2xl">
+          <Notebook class="w-5 h-5 md:w-6 md:h-6 text-accent" />
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-[var(--text-primary)]">学习笔记</h1>
-          <p class="text-xs text-[var(--text-muted)] mt-0.5">记录学习心得，分享知识见解</p>
+          <h1 class="text-xl md:text-2xl font-bold text-[var(--text-primary)]">学习笔记</h1>
+          <p class="text-[10px] md:text-xs text-[var(--text-muted)] mt-0.5">记录学习心得，分享知识见解</p>
         </div>
       </div>
-      <el-button type="primary" :icon="Plus" size="large" round @click="openCreateDialog">
+      <el-button type="primary" :icon="Plus" size="default" round @click="openCreateDialog" class="w-full sm:w-auto">
         发布笔记
       </el-button>
     </div>
 
     <!-- Main Content Area -->
-    <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
       <div class="max-w-[1600px] mx-auto">
-        <div class="mb-8">
+        <div class="mb-4 md:mb-8">
           <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
-            <el-tab-pane label="我的笔记" name="MY" />
-            <el-tab-pane label="笔记动态" name="ACTIVITY" />
-            <el-tab-pane label="热门推荐" name="POPULAR" />
+            <el-tab-pane label="我的" name="MY" />
+            <el-tab-pane label="动态" name="ACTIVITY" />
+            <el-tab-pane label="热门" name="POPULAR" />
           </el-tabs>
         </div>
 
-        <div class="flex flex-col gap-6">
+        <div class="flex flex-col gap-4 md:gap-6">
           <div class="flex-1 min-w-0">
-            <div class="flex flex-wrap items-center gap-4 mb-6">
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 md:gap-4 mb-6">
               <el-input
                 v-model="searchQuery"
-                placeholder="搜索笔记..."
+                placeholder="搜索..."
                 :prefix-icon="Search"
                 clearable
-                class="!w-64"
+                class="col-span-2 !w-full sm:!w-64"
                 @keyup.enter="loadNotes"
                 @clear="loadNotes"
               />
@@ -355,11 +340,10 @@ onMounted(() => {
                 class="flex items-center gap-1 p-1 rounded-xl"
                 style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
               >
-                <el-select v-model="sortBy" placeholder="排序" class="!w-32" @change="loadNotes">
-                  <el-option label="最新发布" value="latest" />
-                  <el-option label="最多浏览" value="most_viewed" />
-                  <el-option label="最多点赞" value="most_liked" />
-                  <el-option label="最早发布" value="oldest" />
+                <el-select v-model="sortBy" placeholder="排序" class="!w-full sm:!w-32" @change="loadNotes">
+                  <el-option label="最新" value="latest" />
+                  <el-option label="浏览" value="most_viewed" />
+                  <el-option label="点赞" value="most_liked" />
                 </el-select>
               </div>
 
@@ -370,8 +354,8 @@ onMounted(() => {
               >
                 <el-select
                   v-model="filterTag"
-                  placeholder="所有标签"
-                  class="!w-32"
+                  placeholder="标签"
+                  class="!w-full sm:!w-32"
                   clearable
                   @change="loadNotes"
                 >
@@ -386,8 +370,8 @@ onMounted(() => {
               >
                 <el-select
                   v-model="filterCategory"
-                  placeholder="所有分类"
-                  class="!w-32"
+                  placeholder="分类"
+                  class="!w-full sm:!w-32"
                   clearable
                   @change="loadNotes"
                 >
@@ -414,17 +398,6 @@ onMounted(() => {
                 <BookOpen class="w-12 h-12 text-[var(--text-muted)] opacity-40" />
               </div>
               <p class="text-[var(--text-secondary)] font-medium">暂无相关笔记内容</p>
-              <el-button
-                v-if="searchQuery"
-                link
-                type="primary"
-                class="mt-2"
-                @click="
-                  searchQuery = '';
-                  loadNotes();
-                "
-                >清除搜索</el-button
-              >
             </div>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -447,9 +420,7 @@ onMounted(() => {
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark"
-                      >热门</el-tag
-                    >
+                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark">热门</el-tag>
                     <el-tag :type="getVisibilityTag(note.visibility)" size="small" round>
                       {{ getVisibilityLabel(note.visibility) }}
                     </el-tag>
@@ -537,6 +508,7 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Immersive Editor Dialog -->
     <el-dialog
       v-model="showCreateDialog"
       fullscreen
@@ -546,83 +518,61 @@ onMounted(() => {
     >
       <div class="fixed inset-0 bg-[var(--bg-app)] overflow-y-auto custom-scrollbar h-screen">
         <header
-          class="sticky top-0 z-50 h-16 flex items-center justify-between px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
+          class="sticky top-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
         >
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2 md:gap-4">
             <el-button
               circle
+              size="small"
               class="hover:bg-slate-100 dark:hover:bg-white/10 shrink-0"
               @click="showCreateDialog = false"
             >
-              <Plus class="w-5 h-5 rotate-45 text-[var(--text-secondary)]" />
+              <Plus class="w-4 h-4 md:w-5 md:h-5 rotate-45 text-[var(--text-secondary)]" />
             </el-button>
           </div>
 
-          <div class="flex items-center gap-3">
-            <!-- Preview Mode Toggle -->
-            <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle mr-4">
+          <div class="flex items-center gap-2 md:gap-3 min-w-0">
+            <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
               <el-radio-button label="edit">
-                <div class="flex items-center gap-1.5 px-1">
-                  <Edit3 class="w-3.5 h-3.5" /> 编辑
+                <div class="flex items-center gap-1 px-1">
+                  <Edit3 class="w-3.5 h-3.5" /> <span class="hidden sm:inline">编辑</span>
                 </div>
               </el-radio-button>
               <el-radio-button label="live">
-                <div class="flex items-center gap-1.5 px-1">
-                  <Layout class="w-3.5 h-3.5" /> 实时
+                <div class="flex items-center gap-1 px-1">
+                  <Layout class="w-3.5 h-3.5" /> <span class="hidden sm:inline">实时</span>
                 </div>
               </el-radio-button>
               <el-radio-button label="preview">
-                <div class="flex items-center gap-1.5 px-1">
-                  <Eye class="w-3.5 h-3.5" /> 预览
+                <div class="flex items-center gap-1 px-1">
+                  <Eye class="w-3.5 h-3.5" /> <span class="hidden sm:inline">预览</span>
                 </div>
               </el-radio-button>
             </el-radio-group>
 
             <el-dropdown trigger="click">
-              <el-button round class="!bg-[var(--bg-card)]">
-                <Settings class="w-4 h-4 mr-2" /> 设置
+              <el-button circle class="!bg-[var(--bg-card)]">
+                <Settings class="w-4 h-4" />
               </el-button>
               <template #dropdown>
-                <div class="p-4 w-80 space-y-4">
+                <div class="p-4 w-72 md:w-80 space-y-4">
                   <div>
-                    <p
-                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
-                    >
-                      笔记摘要
-                    </p>
-                    <el-input
-                      v-model="formSummary"
-                      type="textarea"
-                      :rows="2"
-                      placeholder="简短摘要..."
-                      size="small"
-                    />
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
+                    <el-input v-model="formSummary" type="textarea" :rows="2" placeholder="简短摘要..." size="small" />
                   </div>
                   <div>
-                    <p
-                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
-                    >
-                      可见性
-                    </p>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
                     <el-radio-group v-model="formVisibility" size="small" class="w-full">
                       <el-radio-button label="PRIVATE">私有</el-radio-button>
                       <el-radio-button label="PUBLIC">公开</el-radio-button>
                     </el-radio-group>
                   </div>
                   <div>
-                    <p
-                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
-                    >
-                      分类
-                    </p>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类</p>
                     <el-input v-model="formCategory" placeholder="例如：前端开发" size="small" />
                   </div>
                   <div>
-                    <p
-                      class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
-                    >
-                      标签
-                    </p>
+                    <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
                     <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
                   </div>
                 </div>
@@ -630,21 +580,19 @@ onMounted(() => {
             </el-dropdown>
             <el-button
               type="primary"
-              size="large"
+              size="default"
               round
-              class="!px-8 font-bold shadow-lg"
+              class="font-bold shadow-lg shrink-0"
               :loading="saving"
               @click="handleSave"
             >
-              {{ editingNote ? '保存更新' : '发布笔记' }}
+              发布
             </el-button>
           </div>
         </header>
 
         <main class="max-w-6xl mx-auto px-4 pb-32 pt-10">
-          <div
-            class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-lg min-h-[80vh] px-8 md:px-16 py-12 md:py-20"
-          >
+          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-lg min-h-[80vh] px-8 md:px-16 py-12 md:py-20">
             <el-input v-model="formTitle" placeholder="无标题" class="editor-modern-title mb-4" />
             <MarkdownEditor
               v-model="formContent"
@@ -654,15 +602,10 @@ onMounted(() => {
               :preview="previewMode === 'live'"
               :html-preview="previewMode === 'preview'"
             />
-
-            <div
-              class="mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-8 border-t border-[var(--border-base)]"
-            >
+            <div class="mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-8 border-t border-[var(--border-base)]">
               <div class="flex items-center gap-4">
                 <span class="flex items-center gap-1"><Check class="w-3 h-3" /> 自动保存</span>
-                <span class="flex items-center gap-1"
-                  ><BookOpen class="w-3 h-3" /> Markdown 支持</span
-                >
+                <span class="flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
               </div>
               <span>共 {{ formContent.length }} 字符</span>
             </div>
@@ -671,7 +614,7 @@ onMounted(() => {
       </div>
     </el-dialog>
 
-    <!-- Modern Professional Note Detail View -->
+    <!-- Note Detail Dialog -->
     <el-dialog
       v-model="showDetailDialog"
       width="95%"
@@ -680,155 +623,82 @@ onMounted(() => {
       destroy-on-close
       :show-close="false"
     >
-      <div v-if="detailNote" class="flex h-[92vh] overflow-hidden">
-        <!-- Left Sidebar: Meta & Actions -->
-        <aside class="w-72 bg-slate-50/50 dark:bg-white/[0.02] p-8 flex flex-col shrink-0">
-          <div class="mb-8">
-            <el-button
-              circle
-              class="hover:bg-white dark:hover:bg-white/10 shadow-sm"
-              @click="showDetailDialog = false"
-            >
+      <div v-if="detailNote" class="flex flex-col md:flex-row h-[92vh] overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-full md:w-72 bg-slate-50/50 dark:bg-white/[0.02] p-4 md:p-8 flex flex-col shrink-0 border-b md:border-b-0 md:border-r" style="border-color: var(--border-base)">
+          <div class="mb-4 md:mb-8 flex items-center justify-between">
+            <el-button circle class="hover:bg-white dark:hover:bg-white/10 shadow-sm" @click="showDetailDialog = false">
               <Plus class="w-5 h-5 rotate-45 text-[var(--text-secondary)]" />
             </el-button>
+            <div class="md:hidden flex gap-2">
+              <el-button circle :type="detailNote.isLiked ? 'danger' : ''" @click="handleLike(detailNote)">
+                <ThumbsUp class="w-4 h-4" :class="{ 'fill-current': detailNote.isLiked }" />
+              </el-button>
+              <el-button circle @click="handleCopy">
+                <component :is="isCopying ? Check : Copy" class="w-4 h-4" />
+              </el-button>
+            </div>
           </div>
 
-          <!-- Author Info -->
-          <div class="mb-10">
-            <UserAvatar :user="detailNote.user" size="lg" class="mb-4" />
-            <h4 class="font-bold text-[var(--text-primary)] mb-1">{{ detailNote.user.name }}</h4>
-            <p class="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed">
-              {{ detailNote.user.bio || '探索者' }}
-            </p>
-          </div>
-
-          <div class="space-y-8 flex-1 overflow-y-auto pr-2 scrollbar-hide">
-            <!-- Stats -->
-            <div>
-              <p
-                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-4"
-              >
-                数据统计
+          <div class="mb-6 md:mb-10 flex items-center md:items-start md:flex-col gap-3 md:gap-0">
+            <UserAvatar :user="detailNote.user" size="md" md-size="lg" class="md:mb-4 shrink-0" />
+            <div class="min-w-0">
+              <h4 class="font-bold text-[var(--text-primary)] mb-1 truncate">{{ detailNote.user.name }}</h4>
+              <p class="text-[10px] md:text-xs text-[var(--text-muted)] line-clamp-1 md:line-clamp-2 leading-relaxed">
+                {{ detailNote.user.bio || '探索者' }}
               </p>
+            </div>
+          </div>
+
+          <div class="hidden md:block space-y-8 flex-1 overflow-y-auto pr-2 scrollbar-hide">
+            <div>
+              <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-4">数据统计</p>
               <div class="grid grid-cols-2 gap-4">
-                <div
-                  class="bg-white dark:bg-white/5 p-3 rounded-xl border border-[var(--border-base)]"
-                >
+                <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-[var(--border-base)]">
                   <p class="text-[10px] text-[var(--text-muted)] mb-1">阅读</p>
-                  <p class="text-sm font-black text-[var(--text-primary)]">
-                    {{ detailNote.views }}
-                  </p>
+                  <p class="text-sm font-black text-[var(--text-primary)]">{{ detailNote.views }}</p>
                 </div>
-                <div
-                  class="bg-white dark:bg-white/5 p-3 rounded-xl border border-[var(--border-base)]"
-                >
+                <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-[var(--border-base)]">
                   <p class="text-[10px] text-[var(--text-muted)] mb-1">点赞</p>
-                  <p class="text-sm font-black text-[var(--text-primary)]">
-                    {{ detailNote._count.likes }}
-                  </p>
+                  <p class="text-sm font-black text-[var(--text-primary)]">{{ detailNote._count.likes }}</p>
                 </div>
               </div>
             </div>
-
-            <!-- Tags & Category -->
             <div>
-              <p
-                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-4"
-              >
-                分类标签
-              </p>
+              <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-4">分类标签</p>
               <div class="flex flex-wrap gap-2">
-                <span
-                  v-if="detailNote.category"
-                  class="px-2 py-1 rounded bg-accent/10 text-accent text-[10px] font-bold"
-                >
-                  {{ detailNote.category }}
-                </span>
-                <span
-                  v-for="tag in parseTags(detailNote)"
-                  :key="tag"
-                  class="px-2 py-1 rounded bg-slate-100 dark:bg-white/5 text-[var(--text-secondary)] text-[10px] font-bold border border-[var(--border-base)]"
-                >
-                  #{{ tag }}
-                </span>
+                <span v-if="detailNote.category" class="px-2 py-1 rounded bg-accent/10 text-accent text-[10px] font-bold">{{ detailNote.category }}</span>
+                <span v-for="tag in parseTags(detailNote)" :key="tag" class="px-2 py-1 rounded bg-slate-100 dark:bg-white/5 text-[var(--text-secondary)] text-[10px] font-bold border border-[var(--border-base)]">#{{ tag }}</span>
               </div>
-            </div>
-
-            <!-- Date -->
-            <div>
-              <p
-                class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
-              >
-                发布日期
-              </p>
-              <p class="text-xs font-bold text-[var(--text-secondary)]">
-                {{ formatDate(detailNote.createdAt) }}
-              </p>
             </div>
           </div>
 
-          <!-- Actions Footer -->
-          <div class="pt-8 border-t border-[var(--border-base)] flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-              <el-button
-                class="flex-1 !rounded-xl font-bold"
-                :type="detailNote.isLiked ? 'danger' : ''"
-                @click="handleLike(detailNote)"
-              >
-                <ThumbsUp class="w-4 h-4 mr-2" :class="{ 'fill-current': detailNote.isLiked }" />
-                {{ detailNote.isLiked ? '已赞' : '点赞' }}
-              </el-button>
-              <el-button
-                v-if="authStore.user?.role === 'ADMIN'"
-                circle
-                :type="detailNote.isPopular ? 'warning' : ''"
-                @click="handlePromote(detailNote)"
-              >
-                <ThumbsUp class="w-4 h-4" :class="{ 'fill-current': detailNote.isPopular }" />
-              </el-button>
-            </div>
-
-            <el-button
-              class="w-full !rounded-xl font-bold"
-              :loading="isCopying"
-              @click="handleCopy"
-            >
+          <div class="hidden md:flex pt-8 border-t border-[var(--border-base)] flex-col gap-3">
+            <el-button class="w-full !rounded-xl font-bold" :type="detailNote.isLiked ? 'danger' : ''" @click="handleLike(detailNote)">
+              <ThumbsUp class="w-4 h-4 mr-2" :class="{ 'fill-current': detailNote.isLiked }" />
+              {{ detailNote.isLiked ? '已赞' : '点赞' }}
+            </el-button>
+            <el-button class="w-full !rounded-xl font-bold" :loading="isCopying" @click="handleCopy">
               <component :is="isCopying ? Check : Copy" class="w-4 h-4 mr-2" />
               {{ isCopying ? '已复制' : '复制全文' }}
             </el-button>
           </div>
         </aside>
 
-        <!-- Right: Content Area -->
         <div class="flex-1 bg-white dark:bg-[var(--bg-card)] overflow-y-auto custom-scrollbar">
-          <div class="max-w-[800px] mx-auto px-12 py-16">
-            <!-- Header -->
-            <header class="mb-12">
-              <h1 class="text-4xl font-extrabold text-[var(--text-primary)] leading-tight mb-6">
-                {{ detailNote.title }}
-              </h1>
-              <div
-                v-if="detailNote.summary"
-                class="bg-slate-50 dark:bg-white/[0.02] rounded-2xl p-6 text-[var(--text-secondary)] text-sm leading-relaxed border-l-4 border-l-accent"
-              >
-                <span
-                  class="block text-[10px] font-black text-accent mb-2 tracking-widest uppercase"
-                  >Abstract</span
-                >
+          <div class="max-w-[800px] mx-auto px-4 md:px-12 py-8 md:py-16">
+            <header class="mb-8 md:mb-12">
+              <h1 class="text-2xl md:text-4xl font-extrabold text-[var(--text-primary)] leading-tight mb-4 md:mb-6">{{ detailNote.title }}</h1>
+              <div v-if="detailNote.summary" class="bg-slate-50 dark:bg-white/[0.02] rounded-xl md:rounded-2xl p-4 md:p-6 text-[var(--text-secondary)] text-xs md:text-sm leading-relaxed border-l-4 border-l-accent">
+                <span class="block text-[8px] md:text-[10px] font-black text-accent mb-1 md:mb-2 tracking-widest uppercase">Abstract</span>
                 {{ detailNote.summary }}
               </div>
             </header>
-
-            <!-- Content -->
             <div class="modern-markdown-content">
               <MarkdownEditor :model-value="detailNote.content" preview-only />
             </div>
-
-            <!-- Footer -->
-            <footer class="mt-24 pt-12 border-t border-[var(--border-base)] text-center">
-              <div
-                class="inline-flex items-center gap-2 text-[var(--text-muted)] text-sm font-medium"
-              >
+            <footer class="mt-12 md:mt-24 pt-8 md:pt-12 border-t border-[var(--border-base)] text-center">
+              <div class="inline-flex items-center gap-2 text-[var(--text-muted)] text-xs md:text-sm font-medium">
                 <BookOpen class="w-4 h-4" />
                 <span>END OF ARTICLE</span>
               </div>
@@ -844,166 +714,71 @@ onMounted(() => {
 :deep(.immersive-editor-dialog) {
   padding: 0 !important;
 }
-
 :deep(.immersive-editor-dialog .el-dialog__header) {
   display: none;
 }
-
 :deep(.immersive-editor-dialog .el-dialog__body) {
   padding: 0;
   height: 100%;
 }
-
 .preview-mode-toggle :deep(.el-radio-button__inner) {
   background-color: transparent !important;
   border: none !important;
   padding: 8px 12px !important;
   font-weight: 600 !important;
   color: var(--text-muted) !important;
-  transition: all 0.2s ease !important;
 }
-
 .preview-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
   background-color: var(--bg-card) !important;
   color: var(--accent) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
   border-radius: 6px !important;
 }
-
 .preview-mode-toggle {
   background-color: var(--bg-app) !important;
   padding: 2px !important;
   border-radius: 8px !important;
   border: 1px solid var(--border-base) !important;
 }
-
 .editor-modern-title :deep(.el-input__wrapper) {
   box-shadow: none !important;
   background-color: transparent !important;
   padding-left: 0 !important;
-  padding-right: 0 !important;
 }
-
 .editor-modern-title :deep(.el-input__inner) {
   font-size: 1.5rem !important;
   font-weight: 800 !important;
   color: var(--text-primary) !important;
-  line-height: 1.2 !important;
-  height: auto !important;
   border: none !important;
 }
-
-.editor-modern-title :deep(.el-input__inner::placeholder) {
-  color: var(--text-muted) !important;
-  font-weight: 800 !important;
-}
-
-:deep(.modern-paper-theme .md-editor-content) {
-  line-height: 1.8 !important;
-  font-size: 16px !important;
-}
-
 :deep(.custom-note-tabs .el-tabs__nav-wrap::after) {
   display: none;
 }
-
-:deep(.custom-note-tabs .el-tabs__active-bar) {
-  height: 3px;
-  border-radius: 3px;
-}
-
-:deep(.custom-note-tabs .el-tabs__item) {
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 0 1.5rem;
-  color: var(--text-muted);
-}
-
-:deep(.custom-note-tabs .el-tabs__item.is-active) {
-  color: var(--text-primary);
-}
-
 :deep(.modern-note-dialog) {
   border-radius: 1.5rem;
   overflow: hidden;
   border: none !important;
 }
-
 :deep(.modern-note-dialog .el-dialog__header) {
   display: none;
 }
-
 :deep(.modern-note-dialog .el-dialog__body) {
   padding: 0;
 }
-
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border-base);
   border-radius: 10px;
 }
-
 .modern-markdown-content :deep(.md-preview-custom) {
-  font-family: var(
-    --font-sans,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif
-  ) !important;
   font-size: 15px !important;
   line-height: 1.7 !important;
   color: var(--text-primary) !important;
 }
-
-:deep(.md-preview-custom h1),
-:deep(.md-preview-custom h2),
-:deep(.md-preview-custom h3) {
-  font-family: var(--font-sans) !important;
-  margin-top: 2.5rem !important;
-  margin-bottom: 1.25rem !important;
-  font-weight: 700 !important;
-  color: var(--text-primary) !important;
-}
-
 :deep(.md-preview-custom h2) {
   font-size: 1.75rem !important;
   border-bottom: 1px solid var(--border-base) !important;
-  padding-bottom: 0.5rem !important;
-}
-:deep(.md-preview-custom h3) {
-  font-size: 1.4rem !important;
-}
-
-:deep(.md-preview-custom p) {
-  margin-bottom: 1.25rem !important;
-}
-
-:deep(.md-preview-custom blockquote) {
-  border-left: 4px solid var(--accent) !important;
-  background: var(--bg-app) !important;
-  padding: 1rem 1.5rem !important;
-  border-radius: 0 0.75rem 0.75rem 0 !important;
-  margin: 1.5rem 0 !important;
-  color: var(--text-secondary) !important;
-  font-style: normal !important;
-}
-
-:deep(.md-preview-custom pre) {
-  background: #1e293b !important;
-  border-radius: 1rem !important;
-  padding: 1.5rem !important;
-  margin: 1.5rem 0 !important;
-}
-
-:deep(.md-preview-custom img) {
-  border-radius: 1rem;
-  margin: 2rem auto !important;
 }
 </style>

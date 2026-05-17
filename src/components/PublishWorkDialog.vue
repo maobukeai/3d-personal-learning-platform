@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { X, Box, UploadCloud, Image, Film, FileText, File } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
@@ -19,6 +19,11 @@ const publishCategory = ref<'model' | 'asset' | 'work'>('work');
 const myApprovedAssets = ref<any[]>([]);
 const selectedAssetId = ref('');
 const assetCategories = ref<any[]>([]);
+const isMobile = ref(false);
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768;
+};
 
 const publishForm = ref({
   title: '',
@@ -227,10 +232,16 @@ const closeDialog = () => {
 };
 
 onMounted(() => {
+  handleResize();
+  window.addEventListener('resize', handleResize);
   if (props.modelValue) {
     fetchMyApprovedAssets();
     fetchCategories();
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
@@ -239,7 +250,7 @@ onMounted(() => {
     <div v-if="modelValue" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeDialog"></div>
       <div
-        class="relative w-full max-w-[80vw] max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl scrollbar-hide"
+        class="relative w-full max-w-[95vw] md:max-w-[80vw] max-h-[90vh] overflow-y-auto p-5 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl scrollbar-hide"
         style="background-color: var(--bg-card)"
       >
         <div class="flex items-center justify-between mb-6">
@@ -251,11 +262,11 @@ onMounted(() => {
 
         <!-- Category Tabs -->
         <div
-          class="flex items-center gap-2 p-1 rounded-xl mb-6"
+          class="flex items-center gap-2 p-1 rounded-xl mb-6 overflow-x-auto whitespace-nowrap scrollbar-hide"
           style="background-color: var(--bg-app)"
         >
           <button
-            class="flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'model'"
@@ -264,7 +275,7 @@ onMounted(() => {
             3D模型展示
           </button>
           <button
-            class="flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'asset'"
@@ -273,7 +284,7 @@ onMounted(() => {
             资产上传与同步展示
           </button>
           <button
-            class="flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'work'"
@@ -286,7 +297,7 @@ onMounted(() => {
         <!-- Model Category: Select existing approved asset -->
         <template v-if="publishCategory === 'model'">
           <div class="space-y-5">
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-5">
                 <div>
                   <label
@@ -352,7 +363,7 @@ onMounted(() => {
                 <MarkdownEditor
                   v-model="publishForm.description"
                   placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式"
-                  height="350px"
+                  :height="isMobile ? '300px' : '350px'"
                 />
               </div>
             </div>
@@ -362,7 +373,7 @@ onMounted(() => {
         <!-- Asset Category: Upload a new 3D model file -->
         <template v-if="publishCategory === 'asset'">
           <div class="space-y-5">
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-5">
                 <div>
                   <label
@@ -475,7 +486,7 @@ onMounted(() => {
                 <MarkdownEditor
                   v-model="publishForm.description"
                   placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式"
-                  height="350px"
+                  :height="isMobile ? '300px' : '350px'"
                 />
               </div>
             </div>
@@ -484,19 +495,19 @@ onMounted(() => {
 
         <!-- Work Category: Create a work showcase (two-column layout) -->
         <template v-if="publishCategory === 'work'">
-          <div class="flex gap-6">
+          <div class="flex flex-col md:flex-row gap-6">
             <!-- Left side: Form fields -->
-            <div class="w-[40%] space-y-5 shrink-0">
+            <div class="w-full md:w-[40%] space-y-5 shrink-0">
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >作品类型</label
                 >
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1">
                   <button
                     v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']"
                     :key="t"
-                    class="flex-1 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
+                    class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
                     :class="publishForm.type === t ? 'bg-indigo-600 text-white shadow-md' : ''"
                     :style="
                       publishForm.type !== t
@@ -647,7 +658,7 @@ onMounted(() => {
             </div>
 
             <!-- Right side: Markdown editor -->
-            <div class="w-[60%] min-w-0">
+            <div class="w-full md:w-[60%] min-w-0">
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                 >作品描述</label
@@ -655,7 +666,7 @@ onMounted(() => {
               <MarkdownEditor
                 v-model="publishForm.description"
                 placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式"
-                height="500px"
+                :height="isMobile ? '400px' : '500px'"
               />
             </div>
           </div>

@@ -278,14 +278,14 @@ onMounted(fetchCourseData);
         </div>
 
         <div class="flex items-center gap-3">
-          <div class="hidden md:flex flex-col items-end mr-2">
-            <div class="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+          <div class="flex flex-col items-end mr-1 sm:mr-2">
+            <div class="w-16 sm:w-32 h-1 bg-white/10 rounded-full overflow-hidden">
               <div
                 class="h-full bg-accent transition-all duration-1000"
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
-            <span class="text-[9px] font-bold mt-1 text-accent">已完成 {{ progress }}%</span>
+            <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 sm:mt-1 text-accent">已完成 {{ progress }}%</span>
           </div>
           <button
             class="p-2 hover:bg-white/10 rounded-lg transition-colors lg:hidden"

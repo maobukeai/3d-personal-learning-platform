@@ -188,7 +188,7 @@ onMounted(fetchFeedbacks);
   >
     <!-- Header -->
     <div
-      class="h-16 border-b px-8 flex items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-16 py-3 lg:py-0 lg:h-16 px-4 sm:px-8 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">

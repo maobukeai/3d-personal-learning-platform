@@ -650,41 +650,41 @@ onMounted(() => {
 
     <!-- Stats + Filter Bar -->
     <div
-      class="px-8 py-4 border-b flex items-center gap-6 overflow-x-auto scrollbar-hide shrink-0"
+      class="px-4 sm:px-8 py-3 sm:py-4 border-b flex flex-wrap items-center gap-3 sm:gap-6 shrink-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <!-- Stats Cards -->
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10">
-          <TrendingUp class="w-3.5 h-3.5 text-emerald-500" />
-          <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+        <div class="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-xl bg-emerald-500/10 whitespace-nowrap">
+          <TrendingUp class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500" />
+          <span class="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
             >{{ completionRate }}% 完成</span
           >
         </div>
         <div
           v-if="overdueCount > 0"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/10"
+          class="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-xl bg-rose-500/10 whitespace-nowrap"
         >
-          <AlertCircle class="w-3.5 h-3.5 text-rose-500" />
-          <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400"
+          <AlertCircle class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-rose-500" />
+          <span class="text-[9px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400"
             >{{ overdueCount }} 逾期</span
           >
         </div>
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5">
-          <BarChart3 class="w-3.5 h-3.5 text-slate-400" />
-          <span class="text-[10px] font-bold text-slate-500">{{ tasks.length }} 总计</span>
+        <div class="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 whitespace-nowrap">
+          <BarChart3 class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+          <span class="text-[9px] sm:text-[10px] font-bold text-slate-500">{{ tasks.length }} 总计</span>
         </div>
       </div>
 
-      <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+      <div class="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
 
       <!-- Date Filter -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
         <span
-          class="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
           >时间:</span
         >
-        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide">
           <button
             v-for="f in [
               { id: 'all', label: '全部' },
@@ -693,7 +693,7 @@ onMounted(() => {
               { id: 'week', label: '本周' },
             ]"
             :key="f.id"
-            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all"
+            class="px-2 sm:px-3 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap"
             :class="
               dateFilter === f.id
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -704,34 +704,19 @@ onMounted(() => {
             {{ f.label }}
           </button>
         </div>
-        <el-date-picker
-          v-if="dateFilter === 'custom'"
-          v-model="customDate"
-          type="date"
-          placeholder="选择日期"
-          class="!w-32 !rounded-xl custom-filter-date"
-          size="small"
-        />
-        <button
-          v-if="dateFilter !== 'custom'"
-          class="text-[10px] font-bold text-slate-400 hover:text-accent transition-all flex items-center gap-1"
-          @click="dateFilter = 'custom'"
-        >
-          <Calendar class="w-3 h-3" /> 自定义
-        </button>
       </div>
 
-      <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+      <div class="hidden sm:block h-6 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
 
       <!-- Priority Filter -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
         <span
-          class="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
           >优先级:</span
         >
-        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide">
           <button
-            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all"
+            class="px-2 sm:px-3 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap"
             :class="
               priorityFilter === 'all'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -744,7 +729,7 @@ onMounted(() => {
           <button
             v-for="p in priorityOptions"
             :key="p.id"
-            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
+            class="px-2 sm:px-3 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap"
             :class="
               priorityFilter === p.id
                 ? 'bg-white dark:bg-slate-700 shadow-sm ' + p.textColor
@@ -757,29 +742,15 @@ onMounted(() => {
           </button>
         </div>
       </div>
-
-      <div class="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
-
-      <!-- Column Counts -->
-      <div class="flex items-center gap-4">
-        <div
-          v-for="col in columns"
-          :key="col.id"
-          class="flex items-center gap-2 text-[10px] font-bold text-slate-500"
-        >
-          <div class="w-1.5 h-1.5 rounded-full" :class="col.color"></div>
-          {{ col.title }}: {{ tasks.filter((t) => t.status === col.id).length }}
-        </div>
-      </div>
     </div>
 
     <!-- Board View -->
-    <div v-if="viewMode === 'board'" class="flex-1 overflow-x-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="flex gap-4 sm:gap-6 h-full min-w-max">
+    <div v-if="viewMode === 'board'" class="flex-1 overflow-x-auto overflow-y-hidden p-4 sm:p-8 scroll-smooth scrollbar-hide">
+      <div class="flex gap-6 h-full">
         <div
           v-for="col in columns"
           :key="col.id"
-          class="flex-1 flex flex-col w-[280px] sm:w-[320px] md:min-w-[300px] h-full rounded-2xl transition-colors duration-300 overflow-hidden"
+          class="flex flex-col w-[300px] sm:w-[320px] h-full rounded-2xl transition-colors duration-300 overflow-hidden shrink-0"
           style="background-color: var(--bg-card)"
         >
           <!-- Column Header -->
@@ -1013,8 +984,9 @@ onMounted(() => {
     </div>
 
     <!-- List View -->
-    <div v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-8 scrollbar-hide">
-      <div class="max-w-5xl mx-auto space-y-2">
+    <div v-slot:default v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+      <div class="overflow-x-auto w-full scrollbar-hide">
+        <div class="min-w-[800px] max-w-5xl mx-auto space-y-2">
         <div
           v-for="task in listFilteredTasks"
           :key="task.id"
@@ -1192,6 +1164,7 @@ onMounted(() => {
           >
             <Plus class="w-4 h-4" /> 新建任务
           </button>
+        </div>
         </div>
       </div>
     </div>
@@ -1427,17 +1400,17 @@ onMounted(() => {
 
     <!-- Add Task Dialog -->
     <Transition name="fade">
-      <div v-if="isAddDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div v-if="isAddDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
         <div
           class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           @click="isAddDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-4xl p-12 rounded-[2.5rem] shadow-2xl space-y-8 max-h-[95vh] overflow-y-auto"
+          class="relative w-full max-w-4xl p-6 sm:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl space-y-6 sm:space-y-8 max-h-[95vh] overflow-y-auto"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-3xl font-black tracking-tight" style="color: var(--text-primary)">
+            <h3 class="text-xl sm:text-3xl font-black tracking-tight" style="color: var(--text-primary)">
               新建学习任务
             </h3>
             <button
@@ -1445,39 +1418,39 @@ onMounted(() => {
               class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
               @click="isAddDialogOpen = false"
             >
-              <X class="w-8 h-8" />
+              <X class="w-6 h-6 sm:w-8 sm:h-8" />
             </button>
           </div>
 
-          <div class="space-y-6">
+          <div class="space-y-4 sm:space-y-6">
             <div>
               <label
-                class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest"
+                class="block text-[10px] sm:text-sm font-bold uppercase mb-2 sm:mb-3 ml-1 text-slate-400 tracking-widest"
                 >任务标题</label
               >
               <input
                 v-model="newTask.title"
                 type="text"
-                class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
+                class="w-full px-4 sm:px-6 py-3 sm:py-5 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-base sm:text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
                 placeholder="例如：深入学习 Blender 几何节点系统"
               />
             </div>
 
             <div>
               <label
-                class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest"
+                class="block text-[10px] sm:text-sm font-bold uppercase mb-2 sm:mb-3 ml-1 text-slate-400 tracking-widest"
                 >详细描述 (可选)</label
               >
               <textarea
                 v-model="newTask.description"
-                rows="12"
-                class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-[2rem] text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
+                rows="6"
+                class="w-full px-4 sm:px-6 py-3 sm:py-5 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-[2rem] text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
                 placeholder="在此输入任务的详细背景、目标、步骤及参考资料..."
               ></textarea>
             </div>
 
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+              <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                 >所属团队</label
               >
               <el-select
@@ -1505,9 +1478,9 @@ onMounted(() => {
               </el-select>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >优先级</label
                 >
                 <el-select v-model="newTask.priority" class="!w-full custom-select">
@@ -1525,7 +1498,7 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >截止日期</label
                 >
                 <el-date-picker
@@ -1538,9 +1511,9 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >负责人</label
                 >
                 <el-select
@@ -1562,7 +1535,7 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >关联项目</label
                 >
                 <el-select
@@ -1577,13 +1550,13 @@ onMounted(() => {
             </div>
 
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+              <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                 >参与人员</label
               >
               <el-select
                 v-model="newTask.participantIds"
                 multiple
-                placeholder="选择参与人员（必须为团队成员）"
+                placeholder="选择参与人员"
                 class="!w-full custom-select"
               >
                 <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
@@ -1601,7 +1574,7 @@ onMounted(() => {
 
             <!-- Tags -->
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">标签</label>
+              <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400">标签</label>
               <div class="flex flex-wrap gap-1.5 mb-2">
                 <span
                   v-for="tag in newTask.tags"
@@ -1637,7 +1610,7 @@ onMounted(() => {
           </div>
 
           <button
-            class="w-full py-4 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all"
+            class="w-full py-3 sm:py-4 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all text-sm sm:text-base"
             @click="handleAddTask"
           >
             创建任务
@@ -1648,17 +1621,17 @@ onMounted(() => {
 
     <!-- Edit Task Dialog -->
     <Transition name="fade">
-      <div v-if="isEditDrawerOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div v-if="isEditDrawerOpen" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
         <div
           class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           @click="isEditDrawerOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-4xl p-12 rounded-[2.5rem] shadow-2xl space-y-8 max-h-[95vh] overflow-y-auto"
+          class="relative w-full max-w-4xl p-6 sm:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl space-y-6 sm:space-y-8 max-h-[95vh] overflow-y-auto"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-3xl font-black tracking-tight" style="color: var(--text-primary)">
+            <h3 class="text-xl sm:text-3xl font-black tracking-tight" style="color: var(--text-primary)">
               修改任务
             </h3>
             <button
@@ -1666,38 +1639,38 @@ onMounted(() => {
               class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
               @click="isEditDrawerOpen = false"
             >
-              <X class="w-8 h-8" />
+              <X class="w-6 h-6 sm:w-8 sm:h-8" />
             </button>
           </div>
 
-          <div class="space-y-6">
+          <div class="space-y-4 sm:space-y-6">
             <div>
               <label
-                class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest"
+                class="block text-[10px] sm:text-sm font-bold uppercase mb-2 sm:mb-3 ml-1 text-slate-400 tracking-widest"
                 >任务标题</label
               >
               <input
                 v-model="editForm.title"
                 type="text"
-                class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
+                class="w-full px-4 sm:px-6 py-3 sm:py-5 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-base sm:text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
               />
             </div>
 
             <div>
               <label
-                class="block text-sm font-bold uppercase mb-3 ml-1 text-slate-400 tracking-widest"
+                class="block text-[10px] sm:text-sm font-bold uppercase mb-2 sm:mb-3 ml-1 text-slate-400 tracking-widest"
                 >详细描述</label
               >
               <textarea
                 v-model="editForm.description"
-                rows="15"
-                class="w-full px-6 py-5 bg-slate-100 dark:bg-white/5 border-none rounded-[2rem] text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
+                rows="8"
+                class="w-full px-4 sm:px-6 py-3 sm:py-5 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-[2rem] text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >状态</label
                 >
                 <el-select v-model="editForm.status" class="!w-full custom-select">
@@ -1705,7 +1678,7 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >优先级</label
                 >
                 <el-select v-model="editForm.priority" class="!w-full custom-select">
@@ -1723,7 +1696,7 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >截止日期</label
                 >
                 <el-date-picker
@@ -1735,9 +1708,9 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >负责人</label
                 >
                 <el-select
@@ -1759,7 +1732,7 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                   >关联项目</label
                 >
                 <el-select
@@ -1774,13 +1747,13 @@ onMounted(() => {
             </div>
 
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+              <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
                 >参与人员</label
               >
               <el-select
                 v-model="editForm.participantIds"
                 multiple
-                placeholder="选择参与人员（必须为团队成员）"
+                placeholder="选择参与人员"
                 class="!w-full custom-select"
               >
                 <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
@@ -1798,7 +1771,7 @@ onMounted(() => {
 
             <!-- Tags -->
             <div>
-              <label class="block text-xs font-bold uppercase mb-2 ml-1 text-slate-400">标签</label>
+              <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400">标签</label>
               <div class="flex flex-wrap gap-1.5 mb-2">
                 <span
                   v-for="tag in editForm.tags"
@@ -1833,15 +1806,15 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="flex gap-4 pt-2">
+          <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2">
             <button
-              class="flex-1 py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-2xl font-bold hover:bg-rose-100 transition-all"
+              class="w-full sm:flex-1 py-3 sm:py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl sm:rounded-2xl font-bold hover:bg-rose-100 transition-all text-sm sm:text-base order-2 sm:order-1"
               @click="deleteTask(editingTask)"
             >
               删除
             </button>
             <button
-              class="flex-[2] py-4 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all"
+              class="w-full sm:flex-[2] py-3 sm:py-4 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all text-sm sm:text-base order-1 sm:order-2"
               @click="handleUpdateTask"
             >
               保存修改

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Search,
@@ -27,6 +27,22 @@ const searchQuery = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
 const projects = ref<any[]>([]);
 const isLoading = ref(true);
+
+const windowWidth = ref(window.innerWidth);
+const isMobile = computed(() => windowWidth.value < 768);
+
+const updateWidth = () => {
+  windowWidth.value = window.innerWidth;
+};
+
+onMounted(() => {
+  window.addEventListener('resize', updateWidth);
+  fetchProjects();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateWidth);
+});
 
 // Create/Edit Project related
 const isDrawerOpen = ref(false);

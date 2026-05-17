@@ -64,12 +64,12 @@ const handleCreate = async () => {
   <el-dialog
     :model-value="visible"
     :title="t('team.createTitle')"
-    width="500px"
+    width="min(500px, 95%)"
     class="custom-rounded-dialog"
     :show-close="true"
     @update:model-value="(val: any) => emit('update:visible', val)"
   >
-    <div class="space-y-6 py-2">
+    <div class="space-y-4 md:space-y-6 py-2">
       <div class="space-y-2">
         <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{
           t('team.name')
@@ -116,7 +116,7 @@ const handleCreate = async () => {
         <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] ml-1">{{
           t('team.type')
         }}</label>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
             :class="
               teamType === 'public'

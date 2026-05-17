@@ -294,7 +294,7 @@ onMounted(() => {
 <template>
   <div class="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg-app)]">
     <div
-      class="h-16 px-8 flex items-center justify-between shrink-0 border-b border-[var(--border-base)] bg-[var(--bg-card)]"
+      class="min-h-16 py-3 lg:py-0 lg:h-16 px-4 sm:px-8 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shrink-0 border-b border-[var(--border-base)] bg-[var(--bg-card)]"
     >
       <div class="flex items-center gap-3">
         <div class="p-2 bg-violet-50 dark:bg-violet-900/20 rounded-xl text-violet-600">
@@ -458,9 +458,9 @@ onMounted(() => {
             </button>
           </div>
           <div
-            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden"
+            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
           >
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
                   <th

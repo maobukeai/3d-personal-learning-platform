@@ -310,7 +310,7 @@ onMounted(fetchShowcases);
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="min-h-16 py-3 sm:py-0 sm:h-16 border-b px-4 sm:px-8 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shrink-0 transition-colors duration-300"
+      class="min-h-16 py-4 md:py-0 md:h-16 border-b px-4 md:px-8 flex flex-col md:flex-row gap-4 md:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
@@ -320,8 +320,8 @@ onMounted(fetchShowcases);
         <h1 class="text-xl font-bold" style="color: var(--text-primary)">作品展示</h1>
       </div>
 
-      <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-        <div class="relative flex-1 sm:flex-initial">
+      <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+        <div class="relative w-full sm:w-64">
           <Search
             class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-muted)"
@@ -330,17 +330,16 @@ onMounted(fetchShowcases);
             v-model="searchQuery"
             type="text"
             placeholder="搜索优秀作品..."
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full sm:w-64 transition-all"
+            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
         <button
-          class="bg-indigo-600 text-white px-3 py-2 sm:px-4 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shrink-0 flex items-center gap-2 whitespace-nowrap"
+          class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shrink-0 flex items-center justify-center gap-2 whitespace-nowrap"
           @click="openPublishDialog"
         >
           <Plus class="w-4 h-4" />
-          <span class="hidden sm:inline">发布我的作品</span>
-          <span class="sm:hidden">发布</span>
+          <span>发布我的作品</span>
         </button>
       </div>
     </div>

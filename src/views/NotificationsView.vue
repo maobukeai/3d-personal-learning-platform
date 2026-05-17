@@ -147,41 +147,42 @@ onMounted(() => {
 
 <template>
   <div class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 dark:bg-black/20">
-    <!-- Header -->
     <div
-      class="min-h-[4rem] py-3 px-4 md:px-8 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 border-b backdrop-blur-md bg-white/40 dark:bg-slate-900/40 sticky top-0 z-20 gap-2 md:gap-4"
+      class="min-h-[3.5rem] md:min-h-[4rem] py-2 md:py-3 px-4 md:px-8 flex items-center justify-between shrink-0 border-b backdrop-blur-md bg-white/40 dark:bg-slate-900/40 sticky top-0 z-20 gap-4"
       style="border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-2 md:gap-4">
+      <div class="flex items-center gap-2 md:gap-4 min-w-0">
         <div
-          class="w-9 h-9 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-accent/10 flex items-center justify-center text-accent shrink-0"
+          class="w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-2xl bg-accent/10 flex items-center justify-center text-accent shrink-0"
         >
           <Bell class="w-4 h-4 md:w-6 md:h-6" />
         </div>
         <div class="min-w-0">
-          <h1 class="text-base md:text-xl font-bold text-slate-900 dark:text-white truncate">通知中心</h1>
-          <p class="hidden sm:block text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate">
+          <h1 class="text-sm md:text-xl font-bold text-slate-900 dark:text-white truncate">通知中心</h1>
+          <p class="hidden md:block text-xs text-slate-500 dark:text-slate-400 truncate">
             管理系统通知、团队动态和个人消息
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-1.5 md:gap-3">
+      <div class="flex items-center gap-1.5 md:gap-3 shrink-0">
         <button
           :disabled="unreadCount === 0"
-          class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40"
+          class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40"
+          title="全部已读"
           @click="handleMarkAllRead"
         >
-          <CheckCheck class="w-3 h-3 md:w-4 md:h-4" />
-          <span class="whitespace-nowrap">全部已读</span>
+          <CheckCheck class="w-3.5 h-3.5 md:w-4 md:h-4" />
+          <span class="hidden sm:inline whitespace-nowrap">全部已读</span>
         </button>
         <button
           :disabled="notifications.length === 0"
-          class="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40"
+          class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40"
+          title="清空"
           @click="handleDeleteAll"
         >
-          <Trash2 class="w-3 h-3 md:w-4 md:h-4" />
-          <span class="whitespace-nowrap">清空</span>
+          <Trash2 class="w-3.5 h-3.5 md:w-4 md:h-4" />
+          <span class="hidden sm:inline whitespace-nowrap">清空</span>
         </button>
       </div>
     </div>
@@ -192,14 +193,14 @@ onMounted(() => {
         class="w-full md:w-72 border-b md:border-b-0 md:border-r p-3 md:p-6 shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10 overflow-x-auto scrollbar-hide"
         style="border-color: var(--border-base)"
       >
-        <div class="flex flex-col gap-4 md:gap-8">
-          <div class="relative shrink-0 md:w-full min-w-[200px] md:min-w-0">
-            <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div class="flex flex-row md:flex-col gap-3 md:gap-8 items-center md:items-stretch">
+          <div class="relative shrink-0 w-48 md:w-full">
+            <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索通知..."
-              class="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-white/50 dark:bg-slate-800/50 text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+              placeholder="搜索..."
+              class="w-full pl-9 pr-3 py-2 rounded-xl border bg-white/50 dark:bg-slate-800/50 text-[11px] md:text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
               style="border-color: var(--border-base)"
             />
           </div>
@@ -208,11 +209,11 @@ onMounted(() => {
           <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
             <button
               v-for="filter in [
-                { id: 'all', label: '全部通知', icon: Inbox, count: notifications.length },
-                { id: 'unread', label: '未读通知', icon: Bell, count: unreadCount },
+                { id: 'all', label: '全部', icon: Inbox, count: notifications.length },
+                { id: 'unread', label: '未读', icon: Bell, count: unreadCount },
               ]"
               :key="filter.id"
-              class="flex items-center justify-between px-4 py-2.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[120px] md:min-w-0"
+              class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0"
               :class="
                 activeFilter === filter.id
                   ? 'bg-accent text-white shadow-md md:shadow-lg shadow-accent/20'
@@ -220,13 +221,13 @@ onMounted(() => {
               "
               @click="activeFilter = filter.id"
             >
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5 md:gap-2">
                 <component :is="filter.icon" class="w-3.5 h-3.5" />
                 {{ filter.label }}
               </div>
               <span
                 v-if="filter.count > 0"
-                class="px-1.5 py-0.5 rounded-full text-[8px] md:text-[10px]"
+                class="ml-1.5 px-1.5 py-0.5 rounded-full text-[8px] md:text-[10px]"
                 :class="
                   activeFilter === filter.id
                     ? 'bg-white/20 text-white'
@@ -236,32 +237,57 @@ onMounted(() => {
               >
             </button>
           </div>
-        </div>
+          
+          <!-- Category List on mobile: integrated into the same row -->
+          <div class="md:hidden w-px h-6 bg-slate-200 dark:bg-slate-800 shrink-0 mx-1"></div>
 
-        <div class="mt-0 md:mt-8 pt-0 md:pt-6 border-t md:border-t" style="border-color: var(--border-base)">
-          <h3 class="hidden md:block px-4 mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            分类
-          </h3>
-          <!-- Category List: Horizontal scroll on mobile -->
-          <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
+          <div class="flex md:hidden gap-1.5 shrink-0">
             <button
               v-for="cat in [
-                { id: 'all', label: '全部', icon: Inbox, color: 'text-slate-400' },
                 { id: 'SYSTEM', label: '系统', icon: Info, color: 'text-indigo-500' },
                 { id: 'TEAM', label: '团队', icon: Users, color: 'text-blue-500' },
                 { id: 'TASK', label: '任务', icon: Briefcase, color: 'text-amber-500' },
                 { id: 'MESSAGE', label: '消息', icon: MessageSquare, color: 'text-emerald-500' },
               ]"
               :key="cat.id"
-              class="flex flex-row md:flex-row items-center gap-1.5 md:gap-3 px-4 py-2.5 rounded-lg md:rounded-xl text-[10px] md:text-xs transition-all whitespace-nowrap shrink-0 min-w-[80px] md:min-w-0"
+              class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] transition-all whitespace-nowrap shrink-0"
               :class="
                 activeCategory === cat.id
                   ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
-                  : 'text-slate-600 dark:text-slate-400 border border-transparent md:border-none bg-white/40 dark:bg-white/5'
+                  : 'text-slate-600 dark:text-slate-400 border border-transparent bg-white/40 dark:bg-white/5'
               "
               @click="handleCategoryChange(cat.id)"
             >
-              <component :is="cat.icon" class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" :class="cat.color" />
+              <component :is="cat.icon" class="w-3.5 h-3.5 shrink-0" :class="cat.color" />
+              {{ cat.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Desktop Categories -->
+        <div class="hidden md:block mt-8 pt-6 border-t" style="border-color: var(--border-base)">
+          <h3 class="px-4 mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            分类
+          </h3>
+          <div class="flex flex-col gap-1">
+            <button
+              v-for="cat in [
+                { id: 'all', label: '全部类型', icon: Inbox, color: 'text-slate-400' },
+                { id: 'SYSTEM', label: '系统通知', icon: Info, color: 'text-indigo-500' },
+                { id: 'TEAM', label: '团队动态', icon: Users, color: 'text-blue-500' },
+                { id: 'TASK', label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
+                { id: 'MESSAGE', label: '私信消息', icon: MessageSquare, color: 'text-emerald-500' },
+              ]"
+              :key="cat.id"
+              class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs transition-all"
+              :class="
+                activeCategory === cat.id
+                  ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/5'
+              "
+              @click="handleCategoryChange(cat.id)"
+            >
+              <component :is="cat.icon" class="w-4 h-4 shrink-0" :class="cat.color" />
               {{ cat.label }}
             </button>
           </div>

@@ -39,6 +39,7 @@ import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import InvitationDialog from '@/components/InvitationDialog.vue';
+import AssetDetailsDrawer from '@/components/AssetDetailsDrawer.vue';
 
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
@@ -1070,6 +1071,9 @@ onUnmounted(() => {
     />
 
     <ExploreGroupsDialog v-model:visible="isExploreGroupsVisible" />
+
+    <!-- Global Asset Details Drawer -->
+    <AssetDetailsDrawer />
 
     <!-- Global Search Dialog -->
     <el-dialog

@@ -56,11 +56,16 @@ export const parseExternalLink = async (req: AuthRequest, res: Response) => {
 };
 
 export const createCourseWithLessons = async (req: AuthRequest, res: Response) => {
-  const { title, description, thumbnail, lessons } = req.body;
+  const { title, description, thumbnail, lessons, categoryId } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const course = await tx.course.create({
-        data: { title, description, thumbnail, categoryId: req.body.categoryId },
+        data: {
+          title,
+          description,
+          thumbnail,
+          categoryId: categoryId || null,
+        },
       });
 
       if (lessons && Array.isArray(lessons)) {
@@ -191,7 +196,7 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
 
     // Ensure array fields are actually arrays before saving
     const arrayFields = ['ALLOWED_EXTENSIONS', 'ALLOWED_FILE_TYPES', 'MATERIAL_CATEGORIES'];
-    arrayFields.forEach(field => {
+    arrayFields.forEach((field) => {
       if (settingsObj[field] !== undefined) {
         if (typeof settingsObj[field] === 'string') {
           const valStr = settingsObj[field].trim();
@@ -204,13 +209,22 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
               if (Array.isArray(parsed)) {
                 settingsObj[field] = parsed;
               } else {
-                settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+                settingsObj[field] = valStr
+                  .split(',')
+                  .map((s: string) => s.trim())
+                  .filter(Boolean);
               }
             } catch (e) {
-              settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+              settingsObj[field] = valStr
+                .split(',')
+                .map((s: string) => s.trim())
+                .filter(Boolean);
             }
           } else {
-            settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+            settingsObj[field] = valStr
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean);
           }
         }
       }

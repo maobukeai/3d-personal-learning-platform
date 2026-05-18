@@ -214,22 +214,26 @@ const handleDeleteWork = (work: any) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
-  }).then(async () => {
-    try {
-      if (work.isIndependentShowcase) {
-        await api.delete(`/api/showcase/${work.id}`);
-      } else {
-        await api.delete(`/api/assets/${work.id}`);
+  })
+    .then(async () => {
+      try {
+        if (work.isIndependentShowcase) {
+          await api.delete(`/api/showcase/${work.id}`);
+        } else {
+          await api.delete(`/api/assets/${work.id}`);
+        }
+        assets.value = assets.value.filter((w) => w.id !== work.id);
+        if (isPreviewOpen.value && selectedAsset.value?.id === work.id) {
+          isPreviewOpen.value = false;
+        }
+        ElMessage.success('作品已删除');
+      } catch (error) {
+        ElMessage.error('删除失败');
       }
-      assets.value = assets.value.filter((w) => w.id !== work.id);
-      if (isPreviewOpen.value && selectedAsset.value?.id === work.id) {
-        isPreviewOpen.value = false;
-      }
-      ElMessage.success('作品已删除');
-    } catch (error) {
-      ElMessage.error('删除失败');
-    }
-  });
+    })
+    .catch(() => {
+      // Silently catch cancellation to avoid console error
+    });
 };
 
 const assetCategories = ref<any[]>([]);
@@ -380,58 +384,58 @@ onMounted(() => {
 
     <!-- Stats Bar -->
     <div
-      class="px-2 md:px-8 py-3 border-b shrink-0"
+      class="px-2 md:px-8 py-2 md:py-3 border-b shrink-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="grid grid-cols-5 md:flex md:items-center gap-1 md:gap-6">
+      <div class="flex items-center justify-between md:justify-start gap-1 md:gap-6 overflow-x-auto scrollbar-hide">
         <div
-          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl shrink-0"
           style="background-color: var(--bg-app)"
         >
-          <Box class="w-3.5 h-3.5 md:w-4 md:h-4 text-accent" />
+          <Box class="w-3 h-3 md:w-4 md:h-4 text-accent" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">总作品</p>
-            <p class="text-xs md:text-sm font-bold" style="color: var(--text-primary)">{{ stats.total }}</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">总数</p>
+            <p class="text-[10px] md:text-sm font-bold" style="color: var(--text-primary)">{{ stats.total }}</p>
           </div>
         </div>
         <div
-          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl shrink-0"
           style="background-color: var(--bg-app)"
         >
-          <CheckCircle2 class="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-500" />
+          <CheckCircle2 class="w-3 h-3 md:w-4 md:h-4 text-emerald-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">已发布</p>
-            <p class="text-xs md:text-sm font-bold text-emerald-500">{{ stats.approved }}</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">已发布</p>
+            <p class="text-[10px] md:text-sm font-bold text-emerald-500">{{ stats.approved }}</p>
           </div>
         </div>
         <div
-          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl shrink-0"
           style="background-color: var(--bg-app)"
         >
-          <Clock class="w-3.5 h-3.5 md:w-4 md:h-4 text-amber-500" />
+          <Clock class="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">待审核</p>
-            <p class="text-xs md:text-sm font-bold text-amber-500">{{ stats.pending }}</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">审核中</p>
+            <p class="text-[10px] md:text-sm font-bold text-amber-500">{{ stats.pending }}</p>
           </div>
         </div>
         <div
-          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl shrink-0"
           style="background-color: var(--bg-app)"
         >
-          <XCircle class="w-3.5 h-3.5 md:w-4 md:h-4 text-rose-500" />
+          <XCircle class="w-3 h-3 md:w-4 md:h-4 text-rose-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">未通过</p>
-            <p class="text-xs md:text-sm font-bold text-rose-500">{{ stats.rejected }}</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">驳回</p>
+            <p class="text-[10px] md:text-sm font-bold text-rose-500">{{ stats.rejected }}</p>
           </div>
         </div>
         <div
-          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl"
+          class="flex flex-col items-center justify-center p-1.5 md:flex-row md:gap-2.5 md:px-4 md:py-2.5 rounded-xl shrink-0"
           style="background-color: var(--bg-app)"
         >
-          <HardDrive class="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-500" />
+          <HardDrive class="w-3 h-3 md:w-4 md:h-4 text-blue-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[9px] md:text-[10px]" style="color: var(--text-secondary)">容量</p>
-            <p class="text-xs md:text-sm font-bold text-blue-500">{{ stats.totalSize }}M</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">容量</p>
+            <p class="text-[10px] md:text-sm font-bold text-blue-500">{{ stats.totalSize }}M</p>
           </div>
         </div>
       </div>
@@ -439,21 +443,21 @@ onMounted(() => {
 
     <!-- Tabs + Sort & View Controls -->
     <div
-      class="border-b px-4 md:px-8 py-2 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0"
+      class="border-b px-4 md:px-8 py-2 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-6 overflow-x-auto flex-nowrap scrollbar-hide pb-1 md:pb-0">
+      <div class="flex items-center justify-between md:justify-start gap-4 md:gap-6 overflow-x-auto flex-nowrap scrollbar-hide">
         <button
           v-for="tab in tabs"
           :key="tab.label"
-          class="relative py-2 text-sm font-medium transition-all flex items-center gap-2 shrink-0"
+          class="relative py-2 text-xs md:text-sm font-medium transition-all flex items-center gap-1 md:gap-2 shrink-0"
           :class="activeTab === tab.label ? 'text-accent' : 'hover:text-accent'"
           :style="activeTab !== tab.label ? 'color: var(--text-secondary)' : ''"
           @click="activeTab = tab.label"
         >
           {{ tab.label }}
           <span
-            class="text-[10px] px-1.5 py-0.5 rounded-full"
+            class="text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded-full"
             :class="
               activeTab === tab.label
                 ? 'bg-accent/10 text-accent'
@@ -469,11 +473,11 @@ onMounted(() => {
         </button>
       </div>
 
-      <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+      <div class="flex items-center justify-between md:justify-end gap-2 md:gap-3 w-full md:w-auto">
         <div class="relative flex-1 md:flex-initial">
           <select
             v-model="sortBy"
-            class="w-full appearance-none pl-8 pr-8 py-1.5 border-none rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
+            class="w-full appearance-none pl-7 pr-7 py-1 md:py-1.5 border-none rounded-lg text-[10px] md:text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           >
             <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
@@ -481,7 +485,7 @@ onMounted(() => {
             </option>
           </select>
           <ArrowUpDown
-            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2"
+            class="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2"
             style="color: var(--text-secondary)"
           />
         </div>
@@ -490,7 +494,7 @@ onMounted(() => {
           style="border-color: var(--border-base)"
         >
           <button
-            class="p-1.5 transition-all"
+            class="p-1 md:p-1.5 transition-all"
             :class="viewMode === 'grid' ? 'bg-accent text-white' : ''"
             :style="
               viewMode !== 'grid'
@@ -499,10 +503,10 @@ onMounted(() => {
             "
             @click="viewMode = 'grid'"
           >
-            <LayoutGrid class="w-3.5 h-3.5" />
+            <LayoutGrid class="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
           <button
-            class="p-1.5 transition-all"
+            class="p-1 md:p-1.5 transition-all"
             :class="viewMode === 'list' ? 'bg-accent text-white' : ''"
             :style="
               viewMode !== 'list'
@@ -511,33 +515,34 @@ onMounted(() => {
             "
             @click="viewMode = 'list'"
           >
-            <List class="w-3.5 h-3.5" />
+            <List class="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
         </div>
       </div>
     </div>
 
     <!-- Works Grid/List Area -->
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-2 md:p-8 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <!-- Grid View -->
         <div
           v-if="viewMode === 'grid' && filteredWorks.length > 0"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          class="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-6"
         >
           <div
             v-for="work in filteredWorks"
             :key="work.id"
-            class="group rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col relative"
+            class="group rounded-lg md:rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col relative"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div
-              class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5 flex items-center justify-center"
+              class="aspect-square md:aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5 flex items-center justify-center"
             >
               <img
                 v-if="work.thumbnail"
                 :src="work.thumbnail"
                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                @error="($event.target as HTMLImageElement).src = getDefaultThumbnailUrl(work.type)"
               />
               <img
                 v-else
@@ -545,103 +550,61 @@ onMounted(() => {
                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
 
-              <div class="absolute top-3 left-3">
+              <div class="absolute top-1 left-1 md:top-3 md:left-3">
                 <div
-                  class="backdrop-blur px-2 py-1 rounded text-[10px] font-bold text-white shadow-sm"
+                  class="backdrop-blur px-1 py-0.5 rounded-[2px] text-[7px] md:text-[10px] font-bold text-white shadow-sm"
                   :class="getStatusBg(work.status)"
                 >
                   {{ getStatusLabel(work.status) }}
                 </div>
               </div>
 
-              <div class="absolute top-3 right-3">
-                <span
-                  class="backdrop-blur px-2 py-1 rounded text-[10px] font-bold text-white/90 shadow-sm bg-black/40"
-                >
-                  {{ getTypeLabel(work.type) }}
-                </span>
-              </div>
-
               <div
-                class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2"
+                class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 md:gap-2"
               >
                 <button
-                  class="p-2.5 rounded-xl hover:bg-accent-subtle hover:text-accent transition-all shadow-lg"
+                  class="p-1 md:p-2.5 rounded-md md:rounded-xl hover:bg-accent-subtle hover:text-accent transition-all shadow-lg"
                   style="background-color: var(--bg-card); color: var(--text-primary)"
                   @click="openPreview(work)"
                 >
-                  <Eye class="w-4 h-4" />
+                  <Eye class="w-3 md:w-4 md:h-4" />
                 </button>
                 <button
-                  v-if="work.status === 'APPROVED' && !work.isIndependentShowcase"
-                  class="p-2.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-500 transition-all shadow-lg"
-                  style="background-color: var(--bg-card); color: var(--text-primary)"
-                  @click="openPublishDialog(work)"
-                >
-                  <SendHorizonal class="w-4 h-4" />
-                </button>
-                <button
-                  class="p-2.5 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-500 transition-all shadow-lg"
-                  style="background-color: var(--bg-card); color: var(--text-primary)"
-                  @click="openEditDialog(work)"
-                >
-                  <Edit3 class="w-4 h-4" />
-                </button>
-                <button
-                  class="p-2.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/40 transition-all shadow-lg"
+                  class="p-1 md:p-2.5 rounded-md md:rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/40 transition-all shadow-lg"
                   style="background-color: var(--bg-card)"
                   @click="handleDeleteWork(work)"
                 >
-                  <Trash2 class="w-4 h-4" />
+                  <Trash2 class="w-3 md:w-4 md:h-4" />
                 </button>
               </div>
             </div>
 
-            <div class="p-4 flex-1 flex flex-col">
-              <div class="flex items-center justify-between mb-1">
-                <h3 class="text-sm font-bold truncate pr-2" style="color: var(--text-primary)">
-                  {{ work.title }}
-                </h3>
-                <span
-                  v-if="work.category"
-                  class="text-[10px] font-bold text-accent px-1.5 py-0.5 bg-accent/10 rounded shrink-0"
-                  >{{ work.category.name }}</span
-                >
-              </div>
-              <p
-                v-if="work.description"
-                class="text-[11px] line-clamp-1 mb-2"
-                style="color: var(--text-secondary)"
-              >
-                {{ work.description }}
-              </p>
-              <p class="text-[10px] text-slate-400">
-                {{ new Date(work.createdAt).toLocaleDateString() }}
+            <div class="p-1.5 md:p-4 flex-1 flex flex-col">
+              <h3 class="text-[10px] md:text-sm font-bold truncate mb-0.5" style="color: var(--text-primary)">
+                {{ work.title }}
+              </h3>
+              <p class="text-[8px] md:text-[10px] text-slate-400">
+                {{ new Date(work.createdAt).toLocaleDateString([], { month: 'numeric', day: 'numeric' }) }}
               </p>
 
               <div
-                class="mt-3 pt-3 border-t flex items-center justify-between"
+                class="mt-1.5 pt-1.5 border-t flex items-center justify-between"
                 style="border-color: var(--border-base)"
               >
                 <div
-                  class="flex items-center gap-3 text-[10px]"
+                  class="flex items-center gap-1 md:gap-3 text-[8px] md:text-[10px]"
                   style="color: var(--text-secondary)"
                 >
-                  <span v-if="work.size" class="flex items-center gap-1"
-                    ><HardDrive class="w-3 h-3" /> {{ work.size }} MB</span
-                  >
-                  <span v-if="work.vertices" class="flex items-center gap-1"
-                    ><Box class="w-3 h-3" /> {{ (work.vertices / 1000).toFixed(1) }}K 顶点</span
-                  >
+                  <span v-if="work.size" class="flex items-center gap-0.5"><HardDrive class="w-2 h-2" /> {{ Math.round(work.size) }}M</span>
                 </div>
                 <a
                   v-if="!work.isIndependentShowcase"
                   :href="work.url"
                   download
-                  class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1"
+                  class="text-accent"
                   @click.stop
                 >
-                  <Download class="w-3 h-3" />
+                  <Download class="w-2.5 h-2.5" />
                 </a>
               </div>
             </div>

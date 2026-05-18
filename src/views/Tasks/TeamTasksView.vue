@@ -17,7 +17,6 @@ import {
   Users,
   Plus,
   Calendar,
-  FolderOpen,
   Tag,
   Zap,
   ArrowUp,
@@ -472,23 +471,7 @@ const quickStatusChange = async (task: any, newStatus: string) => {
   }
 };
 
-const deleteTask = (task: any) => {
-  ElMessageBox.confirm('确定删除该任务吗？', '提示', {
-    type: 'warning',
-    confirmButtonText: '确定删除',
-    cancelButtonText: '取消',
-  }).then(async () => {
-    try {
-      await api.delete(`/api/tasks/${task.id}`);
-      ElMessage.success('已删除');
-      isTaskDialogOpen.value = false;
-      fetchTasks();
-      fetchStats();
-    } catch (error) {
-      ElMessage.error('删除失败');
-    }
-  });
-};
+
 
 watch(
   () => workspaceStore.activeTeamId,
@@ -622,9 +605,9 @@ onMounted(fetchAll);
       <template v-else>
         <div v-show="activeTab === 'projects'" class="p-4 sm:p-10">
           <div class="max-w-[1600px] mx-auto space-y-6 sm:space-y-10">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+            <div class="grid grid-cols-4 gap-2 sm:gap-6">
               <div
-                class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-[2rem] p-3 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
+                class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-[2rem] p-2 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
                 style="border-color: var(--border-base)"
               >
                 <div
@@ -1055,9 +1038,9 @@ onMounted(fetchAll);
 
         <div v-show="activeTab === 'tasks'" class="p-4 sm:p-10">
           <div class="max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+            <div class="grid grid-cols-4 gap-2 sm:gap-6">
               <div
-                class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-[2rem] p-3 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
+                class="bg-white dark:bg-slate-900 rounded-xl sm:rounded-[2rem] p-2 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
                 style="border-color: var(--border-base)"
               >
                 <div
@@ -1193,25 +1176,25 @@ onMounted(fetchAll);
               </div>
             </div>
 
-            <div class="flex gap-4 sm:gap-6 min-h-[500px] overflow-x-auto pb-4 scrollbar-hide">
+            <div class="flex gap-2 sm:gap-6 min-h-[500px] overflow-hidden pb-4 scrollbar-hide">
               <div
                 v-for="col in columns"
                 :key="col.id"
-                class="flex-1 flex flex-col min-w-[280px] sm:min-w-[320px] rounded-2xl transition-colors duration-300 overflow-hidden"
+                class="flex-1 flex flex-col min-w-0 rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden"
                 style="background-color: var(--bg-card)"
               >
-                <div class="px-4 sm:px-5 pt-4 sm:pt-5 pb-2 sm:pb-3" :class="'bg-gradient-to-b ' + col.headerBg">
+                <div class="px-2 sm:px-5 pt-3 sm:pt-5 pb-2 sm:pb-3" :class="'bg-gradient-to-b ' + col.headerBg">
                   <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full" :class="col.color"></div>
+                    <div class="flex items-center gap-1 sm:gap-2 min-w-0">
+                      <div class="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full shrink-0" :class="col.color"></div>
                       <h2
-                        class="text-xs sm:text-sm font-black uppercase tracking-wider"
+                        class="text-[10px] sm:text-sm font-black uppercase tracking-wider truncate"
                         style="color: var(--text-primary)"
                       >
                         {{ col.title }}
                       </h2>
                       <span
-                        class="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500"
+                        class="hidden xs:inline-block text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500"
                       >
                         {{ tasks.filter((t) => t.status === col.id).length }}
                       </span>
@@ -1219,35 +1202,29 @@ onMounted(fetchAll);
                   </div>
                 </div>
                 <div
-                  class="flex-1 overflow-y-auto space-y-3 px-3 sm:px-4 pb-4 scrollbar-hide min-h-[100px]"
+                  class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 px-1.5 sm:px-4 pb-4 scrollbar-hide min-h-[100px]"
                 >
                   <div
                     v-for="task in (tasksByStatus as Record<string, any[]>)[col.id]"
                     :key="task.id"
-                    class="group p-3 sm:p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-pointer relative"
+                    class="group p-2 sm:p-4 rounded-lg sm:rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-pointer relative"
                     style="background-color: var(--bg-app); border-color: var(--border-base)"
                   >
-                    <div class="flex justify-between items-start mb-1.5 sm:mb-2">
-                      <div class="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                    <div class="flex justify-between items-start mb-1 sm:mb-2">
+                      <div class="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
                         <div
-                          class="shrink-0 w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full"
+                          class="shrink-0 w-1 h-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full"
                           :class="getPriorityConfig(task.priority).color"
                         ></div>
                         <h3
-                          class="text-xs sm:text-sm font-bold leading-snug group-hover:text-accent transition-colors truncate"
+                          class="text-[10px] sm:text-sm font-bold leading-tight group-hover:text-accent transition-colors line-clamp-2"
                           style="color: var(--text-primary)"
                         >
                           {{ task.title }}
                         </h3>
                       </div>
-                      <button
-                        class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 transition-all shrink-0"
-                        @click.stop="deleteTask(task)"
-                      >
-                        <X class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                      </button>
                     </div>
-                    <div class="flex items-center gap-1.5 sm:gap-2 mb-2">
+                    <div class="hidden xs:flex items-center gap-1 sm:gap-2 mb-2">
                       <span
                         class="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold"
                         :class="
@@ -1260,19 +1237,12 @@ onMounted(fetchAll);
                           :is="getPriorityConfig(task.priority).icon"
                           class="w-2 sm:w-2.5 h-2 sm:h-2.5"
                         />
-                        {{ getPriorityConfig(task.priority).label }}
-                      </span>
-                      <span
-                        v-if="task.project"
-                        class="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-accent/10 text-accent truncate max-w-[100px]"
-                      >
-                        <FolderOpen class="w-2 sm:w-2.5 h-2 sm:h-2.5" />
-                        {{ task.project.title }}
+                        <span class="hidden sm:inline">{{ getPriorityConfig(task.priority).label }}</span>
                       </span>
                     </div>
                     <p
                       v-if="task.description"
-                      class="text-[10px] sm:text-xs mb-3 line-clamp-2"
+                      class="hidden sm:block text-[10px] sm:text-xs mb-3 line-clamp-2"
                       style="color: var(--text-secondary)"
                     >
                       {{ task.description }}
@@ -1406,22 +1376,22 @@ onMounted(fetchAll);
             placeholder="一句话概括这个项目的终极目标..."
           ></textarea>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div class="grid grid-cols-2 gap-3 sm:gap-6">
           <div>
             <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 sm:mb-3 ml-1"
+              class="block text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 sm:mb-3 ml-1"
               >交付日</label
             >
             <el-date-picker
               v-model="projectForm.dueDate"
               type="date"
-              placeholder="选择 Deadline"
+              placeholder="Deadline"
               class="!w-full !rounded-2xl custom-date-picker"
             />
           </div>
           <div>
             <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 sm:mb-3 ml-1"
+              class="block text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 sm:mb-3 ml-1"
               >视觉色彩</label
             >
             <el-select
@@ -1653,7 +1623,7 @@ onMounted(fetchAll);
             </div>
             <div class="grid grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >优先级</label
                 >
                 <el-select v-model="taskForm.priority" class="!w-full custom-select">
@@ -1671,13 +1641,13 @@ onMounted(fetchAll);
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >截止日期</label
                 >
                 <el-date-picker
                   v-model="taskForm.dueDate"
                   type="date"
-                  placeholder="选择截止日期"
+                  placeholder="Deadline"
                   class="!w-full !rounded-2xl custom-date-picker"
                   popper-class="custom-date-popper"
                 />
@@ -1685,13 +1655,13 @@ onMounted(fetchAll);
             </div>
             <div class="grid grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >负责人</label
                 >
                 <el-select
                   v-model="taskForm.assigneeId"
                   clearable
-                  placeholder="选择负责人"
+                  placeholder="负责人"
                   class="!w-full custom-select"
                 >
                   <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
@@ -1703,13 +1673,13 @@ onMounted(fetchAll);
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >关联项目</label
                 >
                 <el-select
                   v-model="taskForm.projectId"
                   clearable
-                  placeholder="选择项目"
+                  placeholder="关联项目"
                   class="!w-full custom-select"
                 >
                   <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />

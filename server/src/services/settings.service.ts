@@ -142,11 +142,25 @@ class SettingsService {
     for (const s of dbSettings) {
       try {
         const key = s.key as keyof SystemSettings;
-        if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_') || s.key.endsWith('_ENABLED')) {
+        if (
+          s.key.endsWith('_MODE') ||
+          s.key.startsWith('ALLOW_') ||
+          s.key.startsWith('AUTO_') ||
+          s.key.endsWith('_ENABLED')
+        ) {
           (settings as any)[key] = s.value === 'true';
-        } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE') || s.key.endsWith('_LENGTH') || s.key === 'MAX_UPLOAD_SIZE_MB') {
+        } else if (
+          s.key.endsWith('_PORT') ||
+          s.key.endsWith('_SIZE') ||
+          s.key.endsWith('_LENGTH') ||
+          s.key === 'MAX_UPLOAD_SIZE_MB'
+        ) {
           (settings as any)[key] = parseInt(s.value, 10);
-        } else if (s.key.endsWith('_CATEGORIES') || s.key.endsWith('_EXTENSIONS') || s.key === 'ALLOWED_FILE_TYPES') {
+        } else if (
+          s.key.endsWith('_CATEGORIES') ||
+          s.key.endsWith('_EXTENSIONS') ||
+          s.key === 'ALLOWED_FILE_TYPES'
+        ) {
           try {
             // Safe JSON parse to extract actual array
             let parsed = JSON.parse(s.value);
@@ -163,11 +177,17 @@ class SettingsService {
             if (Array.isArray(parsed)) {
               (settings as any)[key] = parsed;
             } else if (typeof parsed === 'string') {
-              (settings as any)[key] = parsed.split(',').map(v => v.trim()).filter(Boolean);
+              (settings as any)[key] = parsed
+                .split(',')
+                .map((v) => v.trim())
+                .filter(Boolean);
             }
           } catch (e) {
             console.warn(`Recovering malformed setting ${s.key}`);
-            const arr = s.value.split(',').map(v => v.trim()).filter(Boolean);
+            const arr = s.value
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean);
             (settings as any)[key] = arr;
           }
         } else {
@@ -204,7 +224,7 @@ class SettingsService {
 
   async update(key: string, value: any): Promise<void> {
     let stringValue: string;
-    
+
     if (Array.isArray(value)) {
       stringValue = JSON.stringify(value);
     } else if (typeof value === 'string') {

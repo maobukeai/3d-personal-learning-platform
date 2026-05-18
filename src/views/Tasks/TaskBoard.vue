@@ -17,12 +17,10 @@ import {
   ArrowUp,
   Minus,
   ArrowDown,
-  Tag,
   User,
   FolderOpen,
   TrendingUp,
   BarChart3,
-  Zap,
   Eye,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -745,36 +743,36 @@ onMounted(() => {
     </div>
 
     <!-- Board View -->
-    <div v-if="viewMode === 'board'" class="flex-1 overflow-x-auto overflow-y-hidden p-4 sm:p-8 scroll-smooth scrollbar-hide">
-      <div class="flex gap-6 h-full">
+    <div v-if="viewMode === 'board'" class="flex-1 overflow-hidden p-2 sm:p-8">
+      <div class="flex gap-2 sm:gap-6 h-full">
         <div
           v-for="col in columns"
           :key="col.id"
-          class="flex flex-col w-[300px] sm:w-[320px] h-full rounded-2xl transition-colors duration-300 overflow-hidden shrink-0"
+          class="flex flex-col flex-1 min-w-0 h-full rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden"
           style="background-color: var(--bg-card)"
         >
           <!-- Column Header -->
-          <div class="px-5 pt-5 pb-3" :class="'bg-gradient-to-b ' + col.headerBg">
+          <div class="px-2 sm:px-5 pt-3 sm:pt-5 pb-2 sm:pb-3" :class="'bg-gradient-to-b ' + col.headerBg">
             <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full" :class="col.color"></div>
+              <div class="flex items-center gap-1 sm:gap-2 min-w-0">
+                <div class="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full shrink-0" :class="col.color"></div>
                 <h2
-                  class="text-sm font-black uppercase tracking-wider"
+                  class="text-[10px] sm:text-sm font-black uppercase tracking-wider truncate"
                   style="color: var(--text-primary)"
                 >
                   {{ col.title }}
                 </h2>
                 <span
-                  class="text-[10px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500"
+                  class="hidden xs:inline-block text-[8px] sm:text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500"
                 >
                   {{ tasks.filter((t) => t.status === col.id).length }}
                 </span>
               </div>
               <button
-                class="p-1.5 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
+                class="p-1 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all shrink-0"
                 @click="openAddDialog(col.id)"
               >
-                <Plus class="w-4 h-4" />
+                <Plus class="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
@@ -784,184 +782,96 @@ onMounted(() => {
             :list="(tasksByStatus as Record<string, any[]>)[col.id]"
             group="tasks"
             item-key="id"
-            class="flex-1 overflow-y-auto space-y-3 px-4 pb-4 scrollbar-hide min-h-[100px]"
+            class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 px-1.5 sm:px-4 pb-4 scrollbar-hide min-h-[100px]"
             :animation="200"
             ghost-class="opacity-50"
             @change="(e: any) => onDragChange(e, col.id)"
           >
             <template #item="{ element: task }">
               <div
-                class="group p-4 rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative"
+                class="group p-2 sm:p-4 rounded-lg sm:rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative"
                 style="background-color: var(--bg-app); border-color: var(--border-base)"
                 @click="openPreviewDialog(task)"
               >
                 <!-- Priority + Title Row -->
-                <div class="flex justify-between items-start mb-2">
-                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                <div class="flex justify-between items-start mb-1 sm:mb-2">
+                  <div class="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
                     <div
-                      class="shrink-0 w-1.5 h-1.5 rounded-full"
+                      class="shrink-0 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full"
                       :class="getPriorityConfig(task.priority).color"
                     ></div>
                     <h3
-                      class="text-sm font-bold leading-snug group-hover:text-accent transition-colors truncate"
+                      class="text-[10px] sm:text-sm font-bold leading-tight group-hover:text-accent transition-colors line-clamp-2"
                       style="color: var(--text-primary)"
                     >
                       {{ task.title }}
                     </h3>
                   </div>
-                  <button
-                    class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 transition-all shrink-0"
-                    @click.stop="deleteTask(task)"
-                  >
-                    <Trash2 class="w-3 h-3" />
-                  </button>
                 </div>
 
-                <!-- Priority Badge -->
-                <div class="flex items-center gap-2 mb-2">
+                <!-- Priority Badge (Hidden on very small screens to save space) -->
+                <div class="hidden xs:flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
                   <span
-                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                    class="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold"
                     :class="
                       getPriorityConfig(task.priority).color +
                       '/10 ' +
                       getPriorityConfig(task.priority).textColor
                     "
                   >
-                    <component :is="getPriorityConfig(task.priority).icon" class="w-2.5 h-2.5" />
-                    {{ getPriorityConfig(task.priority).label }}
-                  </span>
-                  <span
-                    v-if="task.project"
-                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-accent/10 text-accent"
-                  >
-                    <FolderOpen class="w-2.5 h-2.5" />
-                    {{ task.project.title }}
+                    <component :is="getPriorityConfig(task.priority).icon" class="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                    <span class="hidden sm:inline">{{ getPriorityConfig(task.priority).label }}</span>
                   </span>
                 </div>
 
-                <!-- Description -->
+                <!-- Description (Hidden on mobile board view for compactness) -->
                 <p
                   v-if="task.description"
-                  class="text-xs mb-3 line-clamp-2"
+                  class="hidden sm:block text-xs mb-3 line-clamp-2"
                   style="color: var(--text-secondary)"
                 >
                   {{ task.description }}
                 </p>
 
-                <!-- Tags -->
-                <div v-if="parseTags(task.tags).length > 0" class="flex flex-wrap gap-1 mb-3">
-                  <span
-                    v-for="tag in parseTags(task.tags)"
-                    :key="tag"
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold"
-                    :class="getTagClass(tag)"
-                  >
-                    <Tag class="w-2 h-2" />
-                    {{ tag }}
-                  </span>
-                </div>
-
-                <!-- Footer: Date + Assignee + Quick Actions -->
+                <!-- Footer: Date + Assignee -->
                 <div
-                  class="flex items-center justify-between pt-3 border-t"
+                  class="flex items-center justify-between pt-1.5 sm:pt-3 border-t"
                   style="border-color: var(--border-base)"
                 >
-                  <div class="flex items-center gap-2">
-                    <!-- Due Date -->
+                  <div class="flex items-center gap-1 min-w-0">
+                    <!-- Due Date Icon Only on Mobile -->
                     <div
                       v-if="task.dueDate"
-                      class="flex items-center gap-1 text-[10px] font-medium"
+                      class="flex items-center gap-0.5 text-[8px] font-medium shrink-0"
                       :class="
                         new Date(task.dueDate) < new Date() && task.status !== 'DONE'
                           ? 'text-rose-500'
                           : 'text-slate-400'
                       "
                     >
-                      <Calendar class="w-3 h-3" />
-                      <span>{{ formatDueDate(task.dueDate) }}</span>
+                      <Calendar class="w-2.5 h-2.5" />
+                      <span class="hidden sm:inline">{{ formatDueDate(task.dueDate) }}</span>
                     </div>
-                    <!-- Assignee -->
-                    <div v-if="task.assignee" class="flex items-center gap-1.5 ml-1">
+                    <!-- Assignee Avatar -->
+                    <div v-if="task.assignee" class="shrink-0">
                       <div
-                        class="relative cursor-pointer hover:ring-2 hover:ring-accent rounded-lg transition-all"
+                        class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
                         @click.stop="openUserProfile(task.assignee.id)"
                       >
                         <img
                           v-if="task.assignee.avatarUrl"
                           :src="task.assignee.avatarUrl"
-                          class="w-5 h-5 rounded-lg object-cover"
+                          class="w-4 h-4 sm:w-5 sm:h-5 rounded-md object-cover"
                           :alt="task.assignee.name"
                         />
                         <div
                           v-else
-                          class="w-5 h-5 rounded-lg bg-accent/10 flex items-center justify-center"
+                          class="w-4 h-4 sm:w-5 sm:h-5 rounded-md bg-accent/10 flex items-center justify-center"
                         >
-                          <User class="w-3 h-3 text-accent" />
+                          <User class="w-2.5 h-2.5 text-accent" />
                         </div>
                       </div>
-                      <span
-                        class="text-[10px] text-slate-400 font-medium cursor-pointer hover:text-accent"
-                        @click.stop="openUserProfile(task.assignee.id)"
-                        >{{ task.assignee.name }}</span
-                      >
                     </div>
-                    <!-- Participants -->
-                    <div
-                      v-if="task.participants && task.participants.length > 0"
-                      class="flex items-center -space-x-1.5 ml-1"
-                    >
-                      <UserAvatar
-                        v-for="p in task.participants.slice(0, 3)"
-                        :key="p.userId"
-                        :user="p.user"
-                        size="sm"
-                        class="border border-white dark:border-slate-800 cursor-pointer hover:z-10 hover:scale-110 transition-all"
-                        :title="p.user.name"
-                        @click.stop="openUserProfile(p.user.id)"
-                      />
-                      <div
-                        v-if="task.participants.length > 3"
-                        class="w-5 h-5 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-white dark:border-slate-800"
-                      >
-                        +{{ task.participants.length - 3 }}
-                      </div>
-                    </div>
-                  </div>
-                  <!-- Quick Status Actions -->
-                  <div
-                    class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <button
-                      class="p-1 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-                      title="查看详情"
-                      @click.stop="openPreviewDialog(task)"
-                    >
-                      <Eye class="w-3 h-3" />
-                    </button>
-                    <button
-                      v-if="task.status !== 'TODO'"
-                      class="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="移到待办"
-                      @click.stop="quickStatusChange(task, 'TODO')"
-                    >
-                      <Clock class="w-3 h-3" />
-                    </button>
-                    <button
-                      v-if="task.status !== 'IN_PROGRESS'"
-                      class="p-1 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-                      title="移到进行中"
-                      @click.stop="quickStatusChange(task, 'IN_PROGRESS')"
-                    >
-                      <Zap class="w-3 h-3" />
-                    </button>
-                    <button
-                      v-if="task.status !== 'DONE'"
-                      class="p-1 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
-                      title="移到已完成"
-                      @click.stop="quickStatusChange(task, 'DONE')"
-                    >
-                      <CheckCircle2 class="w-3 h-3" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -970,12 +880,12 @@ onMounted(() => {
             <template #header>
               <div
                 v-if="tasks.filter((t) => t.status === col.id).length === 0"
-                class="h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-xl opacity-20 hover:opacity-100 hover:border-accent hover:text-accent cursor-pointer transition-all m-1"
+                class="h-16 sm:h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg sm:rounded-xl opacity-20 hover:opacity-100 hover:border-accent hover:text-accent cursor-pointer transition-all m-0.5 sm:m-1"
                 style="border-color: var(--border-base)"
                 @click="openAddDialog(col.id)"
               >
-                <Plus class="w-6 h-6 mb-2" />
-                <p class="text-[10px] font-bold">拖拽或点击新建</p>
+                <Plus class="w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
+                <p class="hidden sm:block text-[10px] font-bold">拖拽或点击新建</p>
               </div>
             </template>
           </draggable>
@@ -984,60 +894,50 @@ onMounted(() => {
     </div>
 
     <!-- List View -->
-    <div v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="overflow-x-auto w-full scrollbar-hide">
-        <div class="min-w-[800px] max-w-5xl mx-auto space-y-2">
+    <div v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-2 sm:p-8 scrollbar-hide">
+      <div class="w-full max-w-5xl mx-auto space-y-2">
         <div
           v-for="task in listFilteredTasks"
           :key="task.id"
-          class="group flex items-center gap-4 p-4 rounded-xl border hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer"
+          class="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
           @click="openPreviewDialog(task)"
         >
-          <!-- Priority Dot -->
-          <div
-            class="w-2 h-2 rounded-full shrink-0"
-            :class="getPriorityConfig(task.priority).color"
-          ></div>
+          <!-- Top Row: Priority + Status + Title -->
+          <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+            <!-- Priority Dot -->
+            <div
+              class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
+              :class="getPriorityConfig(task.priority).color"
+            ></div>
 
-          <!-- Status Badge -->
-          <span
-            class="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold"
-            :class="
-              task.status === 'TODO'
-                ? 'bg-slate-500/10 text-slate-500'
-                : task.status === 'IN_PROGRESS'
-                  ? 'bg-accent/10 text-accent'
-                  : 'bg-emerald-500/10 text-emerald-500'
-            "
-          >
-            {{
-              task.status === 'TODO' ? '待办' : task.status === 'IN_PROGRESS' ? '进行中' : '已完成'
-            }}
-          </span>
+            <!-- Status Badge -->
+            <span
+              class="shrink-0 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold"
+              :class="
+                task.status === 'TODO'
+                  ? 'bg-slate-500/10 text-slate-500'
+                  : task.status === 'IN_PROGRESS'
+                    ? 'bg-accent/10 text-accent'
+                    : 'bg-emerald-500/10 text-emerald-500'
+              "
+            >
+              {{
+                task.status === 'TODO' ? '待办' : task.status === 'IN_PROGRESS' ? '进行中' : '已完成'
+              }}
+            </span>
 
-          <!-- Title + Tags -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span
-                class="text-sm font-bold truncate group-hover:text-accent transition-colors"
-                style="color: var(--text-primary)"
-                >{{ task.title }}</span
-              >
-              <span
-                v-if="task.priority === 'URGENT' || task.priority === 'HIGH'"
-                class="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold"
-                :class="
-                  getPriorityConfig(task.priority).color +
-                  '/10 ' +
-                  getPriorityConfig(task.priority).textColor
-                "
-              >
-                <component :is="getPriorityConfig(task.priority).icon" class="w-2.5 h-2.5" />
-                {{ getPriorityConfig(task.priority).label }}
-              </span>
-            </div>
-            <div v-if="parseTags(task.tags).length > 0" class="flex flex-wrap gap-1 mt-1">
+            <span
+              class="text-xs sm:text-sm font-bold truncate group-hover:text-accent transition-colors"
+              style="color: var(--text-primary)"
+              >{{ task.title }}</span
+            >
+          </div>
+
+          <!-- Mid/Bottom Row: Metadata -->
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 sm:flex-1 sm:justify-end min-w-0">
+            <!-- Tags (Hidden on very small screens in list view) -->
+            <div v-if="parseTags(task.tags).length > 0" class="hidden md:flex flex-wrap gap-1">
               <span
                 v-for="tag in parseTags(task.tags)"
                 :key="tag"
@@ -1047,82 +947,60 @@ onMounted(() => {
                 {{ tag }}
               </span>
             </div>
-          </div>
 
-          <!-- Project -->
-          <div
-            v-if="task.project"
-            class="shrink-0 flex items-center gap-1 text-[10px] font-medium text-accent"
-          >
-            <FolderOpen class="w-3 h-3" />
-            {{ task.project.title }}
-          </div>
-
-          <!-- Assignee -->
-          <div
-            v-if="task.assignee"
-            class="shrink-0 flex items-center gap-1.5 cursor-pointer group/as"
-            @click.stop="openUserProfile(task.assignee.id)"
-          >
-            <img
-              v-if="task.assignee.avatarUrl"
-              :src="task.assignee.avatarUrl"
-              class="w-5 h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all"
-            />
+            <!-- Project -->
             <div
-              v-else
-              class="w-5 h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"
+              v-if="task.project"
+              class="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium text-accent max-w-[120px] truncate"
             >
-              <User class="w-3 h-3 text-accent group-hover/as:text-white" />
+              <FolderOpen class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              {{ task.project.title }}
             </div>
-            <span
-              class="text-[10px] text-slate-400 font-medium group-hover/as:text-accent transition-colors"
-              >{{ task.assignee.name }}</span
-            >
-          </div>
 
-          <!-- Participants -->
-          <div
-            v-if="task.participants && task.participants.length > 0"
-            class="shrink-0 flex items-center -space-x-1.5"
-          >
-            <UserAvatar
-              v-for="p in task.participants.slice(0, 3)"
-              :key="p.userId"
-              :user="p.user"
-              size="sm"
-              class="border border-white dark:border-slate-800 cursor-pointer hover:z-10 hover:scale-110 transition-all"
-              :title="p.user.name"
-              @click.stop="openUserProfile(p.user.id)"
-            />
+            <!-- Assignee -->
             <div
-              v-if="task.participants.length > 3"
-              class="w-5 h-5 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-white dark:border-slate-800"
+              v-if="task.assignee"
+              class="flex items-center gap-1.5 cursor-pointer group/as"
+              @click.stop="openUserProfile(task.assignee.id)"
             >
-              +{{ task.participants.length - 3 }}
+              <img
+                v-if="task.assignee.avatarUrl"
+                :src="task.assignee.avatarUrl"
+                class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all"
+              />
+              <div
+                v-else
+                class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"
+              >
+                <User class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-accent group-hover/as:text-white" />
+              </div>
+              <span
+                class="text-[9px] sm:text-[10px] text-slate-400 font-medium group-hover/as:text-accent transition-colors"
+                >{{ task.assignee.name }}</span
+              >
             </div>
-          </div>
 
-          <!-- Due Date -->
-          <div
-            v-if="task.dueDate"
-            class="shrink-0 flex items-center gap-1 text-[10px] font-medium min-w-[80px] justify-end"
-            :class="
-              new Date(task.dueDate) < new Date() && task.status !== 'DONE'
-                ? 'text-rose-500'
-                : 'text-slate-400'
-            "
-          >
-            <Calendar class="w-3 h-3" />
-            {{ new Date(task.dueDate).toLocaleDateString() }}
+            <!-- Due Date -->
+            <div
+              v-if="task.dueDate"
+              class="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium"
+              :class="
+                new Date(task.dueDate) < new Date() && task.status !== 'DONE'
+                  ? 'text-rose-500'
+                  : 'text-slate-400'
+              "
+            >
+              <Calendar class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span class="whitespace-nowrap">{{ new Date(task.dueDate).toLocaleDateString() }}</span>
+            </div>
           </div>
 
           <!-- Quick Actions -->
           <div
-            class="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            class="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity justify-end sm:justify-start"
           >
             <button
-              class="p-1 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
+              class="p-1.5 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
               title="查看详情"
               @click.stop="openPreviewDialog(task)"
             >
@@ -1130,14 +1008,14 @@ onMounted(() => {
             </button>
             <button
               v-if="task.status !== 'DONE'"
-              class="p-1 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
+              class="p-1.5 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
               title="标记完成"
               @click.stop="quickStatusChange(task, 'DONE')"
             >
               <CheckCircle2 class="w-3.5 h-3.5" />
             </button>
             <button
-              class="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+              class="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
               title="删除"
               @click.stop="deleteTask(task)"
             >
@@ -1164,7 +1042,6 @@ onMounted(() => {
           >
             <Plus class="w-4 h-4" /> 新建任务
           </button>
-        </div>
         </div>
       </div>
     </div>
@@ -1478,9 +1355,9 @@ onMounted(() => {
               </el-select>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-2 sm:gap-4">
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >优先级</label
                 >
                 <el-select v-model="newTask.priority" class="!w-full custom-select">
@@ -1492,34 +1369,34 @@ onMounted(() => {
                   >
                     <div class="flex items-center gap-2">
                       <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                      <span>{{ p.label }}</span>
+                      <span class="text-xs sm:text-sm">{{ p.label }}</span>
                     </div>
                   </el-option>
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >截止日期</label
                 >
                 <el-date-picker
                   v-model="newTask.dueDate"
                   type="date"
-                  placeholder="选择截止日期"
+                  placeholder="日期"
                   class="!w-full !rounded-2xl custom-date-picker"
                   popper-class="custom-date-popper"
                 />
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-2 sm:gap-4">
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >负责人</label
                 >
                 <el-select
                   v-model="newTask.assigneeId"
                   clearable
-                  placeholder="选择负责人"
+                  placeholder="负责人"
                   class="!w-full custom-select"
                 >
                   <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
@@ -1529,19 +1406,19 @@ onMounted(() => {
                         :src="m.avatarUrl"
                         class="w-5 h-5 rounded-lg object-cover"
                       />
-                      <span>{{ m.name }}</span>
+                      <span class="text-xs sm:text-sm">{{ m.name }}</span>
                     </div>
                   </el-option>
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >关联项目</label
                 >
                 <el-select
                   v-model="newTask.projectId"
                   clearable
-                  placeholder="选择项目"
+                  placeholder="项目"
                   class="!w-full custom-select"
                 >
                   <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
@@ -1668,9 +1545,9 @@ onMounted(() => {
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-3 gap-2 sm:gap-4">
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >状态</label
                 >
                 <el-select v-model="editForm.status" class="!w-full custom-select">
@@ -1678,7 +1555,7 @@ onMounted(() => {
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >优先级</label
                 >
                 <el-select v-model="editForm.priority" class="!w-full custom-select">
@@ -1690,33 +1567,33 @@ onMounted(() => {
                   >
                     <div class="flex items-center gap-2">
                       <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                      <span>{{ p.label }}</span>
+                      <span class="text-xs sm:text-sm">{{ p.label }}</span>
                     </div>
                   </el-option>
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >截止日期</label
                 >
                 <el-date-picker
                   v-model="editForm.dueDate"
                   type="date"
-                  placeholder="选择日期"
+                  placeholder="日期"
                   class="!w-full custom-date-picker"
                 />
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-2 sm:gap-4">
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >负责人</label
                 >
                 <el-select
                   v-model="editForm.assigneeId"
                   clearable
-                  placeholder="选择负责人"
+                  placeholder="负责人"
                   class="!w-full custom-select"
                 >
                   <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
@@ -1726,19 +1603,19 @@ onMounted(() => {
                         :src="m.avatarUrl"
                         class="w-5 h-5 rounded-lg object-cover"
                       />
-                      <span>{{ m.name }}</span>
+                      <span class="text-xs sm:text-sm">{{ m.name }}</span>
                     </div>
                   </el-option>
                 </el-select>
               </div>
               <div>
-                <label class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
+                <label class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
                   >关联项目</label
                 >
                 <el-select
                   v-model="editForm.projectId"
                   clearable
-                  placeholder="选择项目"
+                  placeholder="项目"
                   class="!w-full custom-select"
                 >
                   <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />

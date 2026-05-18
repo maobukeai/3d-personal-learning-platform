@@ -646,3 +646,36 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const translateMessage = async (req: AuthRequest, res: Response) => {
+  const { content, targetLang } = req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: 'Content is required' });
+  }
+
+  try {
+    // This is a mock translation service.
+    // In a real production environment, you would integrate with services like Google Translate API, DeepL, etc.
+    // For now, we simulate a translation by appending the language code.
+
+    let translation = '';
+    const lang = targetLang || 'zh';
+
+    if (lang === 'zh') {
+      translation = `[译自英文]: ${content} (模拟翻译内容)`;
+    } else if (lang === 'en') {
+      translation = `[Translated from Chinese]: ${content} (Mock translated content)`;
+    } else {
+      translation = `[Translated to ${lang}]: ${content}`;
+    }
+
+    // Small delay to simulate network latency of an external API
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    res.json({ translation });
+  } catch (error) {
+    console.error('Translate message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

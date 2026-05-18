@@ -10,7 +10,7 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
@@ -50,12 +50,12 @@ const emit = defineEmits(['metadata-loaded', 'screenshot-captured', 'hotspot-add
 
 const envMaps: Record<string, string> = {
   sunset:
-    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/venice_sunset_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/venice_sunset_1k.hdr',
   studio:
-    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/royal_esplanade_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/royal_esplanade_1k.hdr',
   forest:
-    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/pedestrian_overpass_1k.hdr',
-  room: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/quarry_01_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/pedestrian_overpass_1k.hdr',
+  room: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/quarry_01_1k.hdr',
 };
 
 const container = ref<HTMLElement | null>(null);
@@ -71,6 +71,15 @@ const viewMode = ref<ViewMode>('solid');
 const showStats = ref(false);
 const activeHotspot = ref<number | null>(null);
 const isFullscreen = ref(false);
+
+// Clay Mode State
+const isClayMode = ref(false);
+const originalMaterials = new Map<string, any>();
+const clayMaterial = new THREE.MeshStandardMaterial({
+  color: 0xdddddd,
+  roughness: 0.7,
+  metalness: 0.05,
+});
 const stats = ref({
   vertices: 0,
   faces: 0,
@@ -139,7 +148,7 @@ const updateSceneConfig = () => {
 
   // Environment
   if (config.environment && envMaps[config.environment]) {
-    new RGBELoader().load(envMaps[config.environment], (texture) => {
+    new HDRLoader().load(envMaps[config.environment], (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       scene.environment = texture;
     });
@@ -275,21 +284,82 @@ const addPlaceholder = () => {
 };
 
 const centerAndScaleModel = (object: THREE.Object3D) => {
+  // Explicitly update all world matrices first to avoid stale/NaN transform bounds
+  object.updateWorldMatrix(true, true);
+
   const box = new THREE.Box3().setFromObject(object);
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
 
   const maxDim = Math.max(size.x, size.y, size.z);
-  const scale = 3 / maxDim;
+  const scale = maxDim > 0.0001 ? 3 / maxDim : 1;
   object.scale.setScalar(scale);
 
-  box.setFromObject(object);
-  box.getCenter(center);
+  // Re-update world matrices with the new scale and center the model
+  object.updateWorldMatrix(true, true);
+  const newBox = new THREE.Box3().setFromObject(object);
+  newBox.getCenter(center);
   object.position.sub(center);
+};
+
+const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
+  if (!renderer) return;
+  const maxTextures = renderer.capabilities.maxTextures || 16;
+  // Reserve 3 slots for environment mapping, shadow maps, etc.
+  const maxAllowed = Math.max(8, maxTextures - 3);
+
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        if (!material) return;
+
+        const textureSlots = [
+          'map',
+          'normalMap',
+          'roughnessMap',
+          'metalnessMap',
+          'emissiveMap',
+          'specularMap',
+          'aoMap',
+          'bumpMap',
+          'alphaMap',
+          'displacementMap',
+          'lightMap'
+        ];
+
+        let activeSlots = textureSlots.filter(slot => material[slot] && material[slot] instanceof THREE.Texture);
+
+        if (activeSlots.length > maxAllowed) {
+          console.warn(`Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`);
+          
+          const slotsToPrune = [
+            'lightMap',
+            'displacementMap',
+            'alphaMap',
+            'bumpMap',
+            'aoMap',
+            'specularMap',
+            'emissiveMap'
+          ];
+
+          for (const slot of slotsToPrune) {
+            if (material[slot]) {
+              material[slot] = null;
+              activeSlots = textureSlots.filter(s => material[s] && material[s] instanceof THREE.Texture);
+              if (activeSlots.length <= maxAllowed) break;
+            }
+          }
+          material.needsUpdate = true;
+        }
+      });
+    }
+  });
 };
 
 const onModelLoaded = (object: THREE.Object3D, animCount: number = 0) => {
   loadedModel = object;
+  optimizeTexturesForGPULimit(loadedModel);
   scene.add(loadedModel);
   centerAndScaleModel(loadedModel);
   calculateStats(loadedModel, animCount);
@@ -304,6 +374,10 @@ const onModelLoaded = (object: THREE.Object3D, animCount: number = 0) => {
 };
 
 const loadModel = (url: string) => {
+  // Reset Clay Mode
+  isClayMode.value = false;
+  originalMaterials.clear();
+
   if (loadedModel) {
     scene.remove(loadedModel);
     if (wireframeOverlay) {
@@ -335,10 +409,25 @@ const loadModel = (url: string) => {
     addPlaceholder();
   };
 
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) => {
+    // Detect relative texture requests that are bound to 404
+    const isImage = /\.(png|jpg|jpeg|tga|dds|gif|bmp|webp|tiff)$/i.test(url);
+    const isAssetPath = url.includes('/uploads/') || url.includes('/assets/');
+    const isRenamedAsset = url.includes('asset-');
+
+    if (isImage && isAssetPath && !isRenamedAsset) {
+      console.log(`Intercepted missing texture request to prevent 404: ${url}`);
+      // Return 1x1 transparent PNG data URL
+      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+    }
+    return url;
+  });
+
   switch (ext) {
     case '.glb':
     case '.gltf': {
-      const loader = new GLTFLoader();
+      const loader = new GLTFLoader(manager);
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
       loader.setDRACOLoader(dracoLoader);
@@ -363,7 +452,7 @@ const loadModel = (url: string) => {
       break;
     }
     case '.fbx': {
-      const loader = new FBXLoader();
+      const loader = new FBXLoader(manager);
       loader.load(
         url,
         (fbx) => {
@@ -383,7 +472,7 @@ const loadModel = (url: string) => {
       break;
     }
     case '.obj': {
-      const loader = new OBJLoader();
+      const loader = new OBJLoader(manager);
       loader.load(
         url,
         (obj) => {
@@ -395,7 +484,7 @@ const loadModel = (url: string) => {
       break;
     }
     case '.stl': {
-      const loader = new STLLoader();
+      const loader = new STLLoader(manager);
       loader.load(
         url,
         (geometry) => {
@@ -432,6 +521,32 @@ const applyViewMode = () => {
 const setViewMode = (mode: ViewMode) => {
   viewMode.value = mode;
   applyViewMode();
+};
+
+const applyClayMode = () => {
+  if (!loadedModel) return;
+  loadedModel.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      if (isClayMode.value) {
+        // Backup original material
+        if (!originalMaterials.has(child.uuid)) {
+          originalMaterials.set(child.uuid, child.material);
+        }
+        child.material = clayMaterial;
+      } else {
+        // Restore original material
+        const orig = originalMaterials.get(child.uuid);
+        if (orig) {
+          child.material = orig;
+        }
+      }
+    }
+  });
+};
+
+const toggleClayMode = () => {
+  isClayMode.value = !isClayMode.value;
+  applyClayMode();
 };
 
 const calculateStats = (model: THREE.Object3D, animCount: number = 0) => {
@@ -543,7 +658,7 @@ watch(
   { deep: true },
 );
 
-defineExpose({ getCameraState, flyTo, isFullscreen, handleCanvasClick, setViewMode, togglePause });
+defineExpose({ getCameraState, flyTo, isFullscreen, handleCanvasClick, setViewMode, togglePause, isClayMode, toggleClayMode });
 </script>
 
 <template>

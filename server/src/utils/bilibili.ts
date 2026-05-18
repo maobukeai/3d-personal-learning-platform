@@ -11,7 +11,7 @@ export interface BilibiliMetadata {
 
 export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   console.log(`[Bilibili] Parsing input: ${url}`);
-  
+
   // Extract actual URL from potential share text
   const urlMatch = url.match(/https?:\/\/[^\s]+/);
   if (!urlMatch) {
@@ -42,19 +42,23 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   // 2. Extract BVID or AVID
   const bvidMatch = targetUrl.match(/(BV[a-zA-Z0-9]+)/);
   const avidMatch = targetUrl.match(/[?&]aid=(\d+)/) || targetUrl.match(/\/av(\d+)/);
-  
-    const bvid = (bvidMatch ? bvidMatch[1] : null) as string | null;
-    const avid = (avidMatch ? avidMatch[1] : null) as string | null;
-  
-    if (!bvid && !avid) {
-      throw new Error('无法从链接中识别 B站 视频 ID (BVID/AVID)。目前支持普通视频、系列视频和播放列表。');
-    }
-  
-    const videoId = bvid || `av${avid}`;
-    console.log(`[Bilibili] Detected ID: ${videoId}`);
-  
-    // Fetch video page HTML
-    const fetchUrl = bvid ? `https://www.bilibili.com/video/${bvid}` : `https://www.bilibili.com/video/av${avid}`;
+
+  const bvid = (bvidMatch ? bvidMatch[1] : null) as string | null;
+  const avid = (avidMatch ? avidMatch[1] : null) as string | null;
+
+  if (!bvid && !avid) {
+    throw new Error(
+      '无法从链接中识别 B站 视频 ID (BVID/AVID)。目前支持普通视频、系列视频和播放列表。',
+    );
+  }
+
+  const videoId = bvid || `av${avid}`;
+  console.log(`[Bilibili] Detected ID: ${videoId}`);
+
+  // Fetch video page HTML
+  const fetchUrl = bvid
+    ? `https://www.bilibili.com/video/${bvid}`
+    : `https://www.bilibili.com/video/av${avid}`;
   const htmlResponse = await fetch(fetchUrl, {
     headers: {
       'User-Agent':
@@ -64,7 +68,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   });
 
   const html = await htmlResponse.text();
-  
+
   // Try multiple regex patterns for INITIAL_STATE
   const stateMatch =
     html.match(/window\.__INITIAL_STATE__=(.+?);\(function\(\)/) ||
@@ -73,7 +77,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
 
   if (!stateMatch || !stateMatch[1]) {
     console.log('[Bilibili] HTML parse failed or INITIAL_STATE not found, falling back to API');
-    const apiUrl = bvid 
+    const apiUrl = bvid
       ? `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
       : `https://api.bilibili.com/x/web-interface/view?aid=${avid}`;
 
@@ -93,11 +97,11 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
 
   try {
     const state = JSON.parse(stateMatch[1]);
-    
+
     // Bilibili state structure can be very inconsistent
     const bvidFromState = state.bvid || (state.videoData && state.videoData.bvid);
     const aidFromState = state.aid || (state.videoData && state.videoData.aid);
-    
+
     // Use API if state is missing basic info
     if (!bvidFromState && !aidFromState) {
       console.log('[Bilibili] State missing ID, falling back to API');
@@ -107,7 +111,10 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
     // Try to find video metadata in state
     const title = state.videoData?.title || state.title || '';
     const pic = state.videoData?.pic || state.pic || '';
-    const cid = state.cid || state.videoData?.cid || (state.videoData?.pages && state.videoData.pages[0]?.cid);
+    const cid =
+      state.cid ||
+      state.videoData?.cid ||
+      (state.videoData?.pages && state.videoData.pages[0]?.cid);
 
     // If we have critical info missing, API is safer
     if (!title || !cid) {
@@ -115,8 +122,8 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
       return await fetchFromApi(bvid, avid);
     }
 
-    const mergedData = { 
-      ...state.videoData, 
+    const mergedData = {
+      ...state.videoData,
       bvid: bvidFromState,
       aid: aidFromState,
       title,
@@ -124,7 +131,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
       cid,
       ugc_season: state.ugc_season || state.videoData?.ugc_season,
       archive_series: state.archive_series || state.videoData?.archive_series,
-      pages: state.videoData?.pages || state.pages
+      pages: state.videoData?.pages || state.pages,
     };
     return await parseFromBilibiliData(mergedData, bvid || bvidFromState);
   } catch (error: any) {
@@ -134,7 +141,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
 }
 
 async function fetchFromApi(bvid: string | null, avid: string | null): Promise<BilibiliMetadata> {
-  const apiUrl = bvid 
+  const apiUrl = bvid
     ? `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
     : `https://api.bilibili.com/x/web-interface/view?aid=${avid}`;
 
@@ -173,11 +180,11 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
         });
       }
     }
-    return { 
-      title: data.title || (data.ugc_season && data.ugc_season.title) || 'B站 视频课程', 
-      description: data.desc || (data.ugc_season && data.ugc_season.intro) || '', 
-      thumbnail: fixPic(data.pic || (data.ugc_season && data.ugc_season.cover)), 
-      lessons 
+    return {
+      title: data.title || (data.ugc_season && data.ugc_season.title) || 'B站 视频课程',
+      description: data.desc || (data.ugc_season && data.ugc_season.intro) || '',
+      thumbnail: fixPic(data.pic || (data.ugc_season && data.ugc_season.cover)),
+      lessons,
     };
   }
 
@@ -196,7 +203,7 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
   if (data.pages && data.pages.length > 1) {
     console.log(`[Bilibili] Handling as Multi-part Video (${data.pages.length} pages)`);
     const lessons = data.pages.map((page: any) => ({
-      title: page.part || (data.title + ` (P${page.page})`),
+      title: page.part || data.title + ` (P${page.page})`,
       videoUrl: `https://player.bilibili.com/player.html?bvid=${currentBvid}&cid=${page.cid}&page=${page.page}&high_quality=1&as_wide=1&danmaku=0`,
       order: page.page,
     }));

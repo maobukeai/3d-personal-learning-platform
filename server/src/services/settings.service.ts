@@ -14,6 +14,12 @@ export interface SystemSettings {
   SMTP_PASS: string;
   SMTP_FROM: string;
   MATERIAL_CATEGORIES: string[];
+  OAUTH_GOOGLE_ENABLED: boolean;
+  OAUTH_GOOGLE_CLIENT_ID: string;
+  OAUTH_GOOGLE_CLIENT_SECRET: string;
+  OAUTH_GITHUB_ENABLED: boolean;
+  OAUTH_GITHUB_CLIENT_ID: string;
+  OAUTH_GITHUB_CLIENT_SECRET: string;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -61,6 +67,12 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SMTP_PASS: '',
   SMTP_FROM: 'noreply@3d-learning.com',
   MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件'],
+  OAUTH_GOOGLE_ENABLED: false,
+  OAUTH_GOOGLE_CLIENT_ID: '',
+  OAUTH_GOOGLE_CLIENT_SECRET: '',
+  OAUTH_GITHUB_ENABLED: false,
+  OAUTH_GITHUB_CLIENT_ID: '',
+  OAUTH_GITHUB_CLIENT_SECRET: '',
 };
 
 class SettingsService {
@@ -79,7 +91,7 @@ class SettingsService {
     for (const s of dbSettings) {
       try {
         const key = s.key as keyof SystemSettings;
-        if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_')) {
+        if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_') || s.key.endsWith('_ENABLED')) {
           (settings as any)[key] = s.value === 'true';
         } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE')) {
           (settings as any)[key] = parseInt(s.value, 10);

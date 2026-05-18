@@ -16,6 +16,8 @@ interface SystemSettings {
   ALLOWED_FILE_TYPES: string[];
   DEFAULT_USER_ROLE: string;
   FOOTER_TEXT: string;
+  OAUTH_GOOGLE_ENABLED: boolean;
+  OAUTH_GITHUB_ENABLED: boolean;
 }
 
 export const useSystemStore = defineStore('system', {
@@ -35,6 +37,8 @@ export const useSystemStore = defineStore('system', {
       ALLOWED_FILE_TYPES: ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'],
       DEFAULT_USER_ROLE: 'USER',
       FOOTER_TEXT: '',
+      OAUTH_GOOGLE_ENABLED: false,
+      OAUTH_GITHUB_ENABLED: false,
     } as SystemSettings,
     isInitialized: false,
   }),
@@ -68,6 +72,8 @@ export const useSystemStore = defineStore('system', {
               : ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip'],
           DEFAULT_USER_ROLE: data.DEFAULT_USER_ROLE || 'USER',
           FOOTER_TEXT: data.FOOTER_TEXT || '',
+          OAUTH_GOOGLE_ENABLED: data.OAUTH_GOOGLE_ENABLED === true || data.OAUTH_GOOGLE_ENABLED === 'true',
+          OAUTH_GITHUB_ENABLED: data.OAUTH_GITHUB_ENABLED === true || data.OAUTH_GITHUB_ENABLED === 'true',
         };
         this.isInitialized = true;
 

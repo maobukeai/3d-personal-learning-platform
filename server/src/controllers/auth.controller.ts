@@ -148,6 +148,8 @@ export const getPublicSettings = async (req: Request, res: Response) => {
       ALLOW_REGISTRATION: settings.ALLOW_REGISTRATION,
       MAINTENANCE_MODE: settings.MAINTENANCE_MODE,
       MATERIAL_CATEGORIES: settings.MATERIAL_CATEGORIES,
+      OAUTH_GOOGLE_ENABLED: settings.OAUTH_GOOGLE_ENABLED,
+      OAUTH_GITHUB_ENABLED: settings.OAUTH_GITHUB_ENABLED,
     };
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(publicSettings);

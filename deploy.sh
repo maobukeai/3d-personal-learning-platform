@@ -62,6 +62,19 @@ if [ -f .env ]; then
     if grep -q "mysql://" .env; then
         echo "⚙️  检测到数据库配置使用 MySQL，自动调整 schema.prisma 的 provider 为 mysql..."
         sed -i 's/provider = "sqlite"/provider = "mysql"/g' prisma/schema.prisma
+        
+        echo "⚙️  正在为 MySQL 优化 String 字段映射，防范 P2000 (超长文本) 错误..."
+        # 使用 sed -i -E 匹配各种间距，将大文本/JSON 字段在 MySQL 下映射为 @db.Text 或 @db.LongText
+        sed -i -E 's/([[:space:]]+value[[:space:]]+String)/\1 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+content[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+description[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+sceneConfig[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+hotspots[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+adminReply[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+comment[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+summary[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+oldValue[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+newValue[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
     elif grep -q "postgresql://" .env; then
         echo "⚙️  检测到数据库配置使用 PostgreSQL，自动调整 schema.prisma 的 provider 为 postgresql..."
         sed -i 's/provider = "sqlite"/provider = "postgresql"/g' prisma/schema.prisma
@@ -76,9 +89,15 @@ npm install
 echo "-> 生成 Prisma Client (使用国内镜像)..."
 npx prisma generate
 
-echo "-> 应用数据库变更 (仅追加 migration，不会清空数据)..."
-# 注意: migrate deploy 是安全的线上操作，不会重置数据，只会将新的 schema 变更应用到数据库
-npx prisma migrate deploy
+echo "-> 应用数据库变更..."
+if [ -f .env ] && (grep -q "mysql://" .env || grep -q "postgresql://" .env); then
+    echo "-> 检测到生产环境数据库，正在使用 npx prisma db push 自动同步并拓宽字段长度..."
+    npx prisma db push --skip-generate
+else
+    echo "-> 默认使用 SQLite，应用数据库变更 (仅追加 migration)..."
+    # 注意: migrate deploy 是安全的线上操作，不会重置数据，只会将新的 schema 变更应用到数据库
+    npx prisma migrate deploy
+fi
 
 echo "-> 编译 TypeScript..."
 npm run build

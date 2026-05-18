@@ -114,6 +114,19 @@ const isExploreGroupsVisible = ref(false);
 const isInvitationVisible = ref(false);
 const isSearchVisible = ref(false);
 const searchQuery = ref('');
+const searchResults = ref<{
+  assets: any[];
+  courses: any[];
+  teams: any[];
+}>({
+  assets: [],
+  courses: [],
+  teams: [],
+});
+const isSearching = ref(false);
+const selectedResultIndex = ref(-1);
+const searchHistory = ref<string[]>(JSON.parse(localStorage.getItem('searchHistory') || '[]'));
+
 const activeInvitationId = ref<string | null>(null);
 const isMobileSidebarOpen = ref(false);
 const isMobile = ref(window.innerWidth < 768);
@@ -124,7 +137,29 @@ const updateIsMobile = () => {
 
 const handleSearch = () => {
   isSearchVisible.value = true;
+  selectedResultIndex.value = -1;
 };
+
+const addToHistory = (query: string) => {
+  if (!query.trim()) return;
+  const history = searchHistory.value.filter((h) => h !== query);
+  history.unshift(query);
+  searchHistory.value = history.slice(0, 5);
+  localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value));
+};
+
+const clearHistory = () => {
+  searchHistory.value = [];
+  localStorage.removeItem('searchHistory');
+};
+
+const flattenedResults = computed(() => {
+  const items: any[] = [];
+  searchResults.value.assets.forEach((item) => items.push({ ...item, searchType: 'asset' }));
+  searchResults.value.courses.forEach((item) => items.push({ ...item, searchType: 'course' }));
+  searchResults.value.teams.forEach((item) => items.push({ ...item, searchType: 'team' }));
+  return items;
+});
 
 const handleShare = async () => {
   try {
@@ -139,10 +174,79 @@ const handleExternalLink = () => {
   window.open(window.location.href, '_blank');
 };
 
+let searchTimeout: any = null;
+const performSearch = async (query: string) => {
+  if (!query.trim()) {
+    searchResults.value = { assets: [], courses: [], teams: [] };
+    selectedResultIndex.value = -1;
+    return;
+  }
+
+  isSearching.value = true;
+  try {
+    const [assetsRes, coursesRes, teamsRes] = await Promise.all([
+      api.get('/api/assets/public', { params: { search: query, limit: 5 } }),
+      api.get('/api/courses', { params: { search: query } }),
+      api.get('/api/teams/public', { params: { search: query } }),
+    ]);
+
+    searchResults.value = {
+      assets: assetsRes.data.assets || [],
+      courses: (coursesRes.data || []).slice(0, 5),
+      teams: (teamsRes.data || []).slice(0, 5),
+    };
+    selectedResultIndex.value = -1;
+  } catch (error) {
+    console.error('Search error:', error);
+  } finally {
+    isSearching.value = false;
+  }
+};
+
+watch(searchQuery, (newQuery) => {
+  if (searchTimeout) clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    performSearch(newQuery);
+  }, 300);
+});
+
+const navigateToResult = (type: string, id: string) => {
+  addToHistory(searchQuery.value);
+  isSearchVisible.value = false;
+  searchQuery.value = '';
+  searchResults.value = { assets: [], courses: [], teams: [] };
+  
+  if (type === 'asset') {
+    router.push(`/assets?id=${id}`);
+  } else if (type === 'course') {
+    router.push(`/academy/course/${id}`);
+  } else if (type === 'team') {
+    router.push(`/team/${id}`);
+  }
+};
+
 const handleKeyDown = (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
     e.preventDefault();
     handleSearch();
+    return;
+  }
+
+  if (!isSearchVisible.value) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedResultIndex.value = (selectedResultIndex.value + 1) % flattenedResults.value.length;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedResultIndex.value = (selectedResultIndex.value - 1 + flattenedResults.value.length) % flattenedResults.value.length;
+  } else if (e.key === 'Enter') {
+    if (selectedResultIndex.value >= 0 && flattenedResults.value[selectedResultIndex.value]) {
+      const item = flattenedResults.value[selectedResultIndex.value];
+      navigateToResult(item.searchType, item.id);
+    }
+  } else if (e.key === 'Escape') {
+    isSearchVisible.value = false;
   }
 };
 
@@ -201,9 +305,9 @@ const handleReportBug = () => {
   router.push('/report-bug');
 };
 
-const handleLogout = () => {
+const handleLogout = async () => {
   socketService.disconnect();
-  authStore.logout();
+  await authStore.logout();
   ElMessage.success('已成功退出登录');
   router.push('/login');
 };
@@ -400,6 +504,16 @@ const onMessageReceived = ({ conversationId: _conversationId, message }: any) =>
     });
   }
 };
+
+// Watch for auth changes to re-initialize workspaces
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      workspaceStore.initialize(route.path);
+    }
+  },
+);
 
 // Watch for workspace changes to refresh stats
 watch(
@@ -952,57 +1066,176 @@ onUnmounted(() => {
       :class="['search-dialog', 'custom-rounded-dialog', isMobile ? 'mobile-search-dialog' : '']"
       :show-close="isMobile"
       :fullscreen="isMobile"
+      @opened="() => $refs.searchInput?.focus()"
     >
       <div class="relative">
         <el-input
+          ref="searchInput"
           v-model="searchQuery"
-          placeholder="搜索作品、素材、课程或文档..."
+          placeholder="搜索作品、素材、课程或团队..."
           size="large"
           clearable
-          @keyup.enter="isSearchVisible = false"
+          @keyup.enter="() => { if (selectedResultIndex === -1 && flattenedResults.length > 0) selectedResultIndex = 0 }"
         >
           <template #prefix>
             <Search class="w-5 h-5 text-slate-400" />
           </template>
+          <template #suffix>
+            <div v-if="isSearching" class="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+          </template>
         </el-input>
       </div>
-      <div class="mt-4">
-        <div class="flex items-center justify-between px-2 mb-2">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-            >最近搜索</span
-          >
-          <el-button link size="small" class="text-[10px]">清空</el-button>
-        </div>
-        <div class="space-y-1">
-          <div
-            class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group"
-          >
-            <Layers class="w-4 h-4 text-slate-400" />
-            <span class="text-sm flex-1">3D 模型资源库</span>
-            <kbd
-              class="text-[10px] px-1.5 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity hidden md:inline-block"
-              >Enter</kbd
-            >
+
+      <div class="mt-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+        <!-- Result Sections -->
+        <template v-if="searchQuery.trim()">
+          <!-- Assets -->
+          <div v-if="searchResults.assets.length > 0" class="mb-6">
+            <h3 class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Box class="w-3 h-3" /> 3D 资产 ({{ searchResults.assets.length }})
+            </h3>
+            <div class="space-y-1">
+              <div
+                v-for="(asset, index) in searchResults.assets"
+                :key="asset.id"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
+                :class="{ 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === index }"
+                @click="navigateToResult('asset', asset.id)"
+                @mouseenter="selectedResultIndex = index"
+              >
+                <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 overflow-hidden shrink-0">
+                  <img v-if="asset.thumbnail" :src="asset.thumbnail" class="w-full h-full object-cover" />
+                  <ImageIcon v-else class="w-full h-full p-2 text-slate-400" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">{{ asset.title }}</p>
+                  <p class="text-[10px] text-slate-400 truncate">{{ asset.category?.name || '未分类' }} · {{ asset.type }}</p>
+                </div>
+                <ArrowRight class="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
           </div>
-          <div
-            class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group"
-          >
-            <GraduationCap class="w-4 h-4 text-slate-400" />
-            <span class="text-sm flex-1">Blender 进阶教程</span>
-            <kbd
-              class="text-[10px] px-1.5 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity hidden md:inline-block"
-              >Enter</kbd
-            >
+
+          <!-- Courses -->
+          <div v-if="searchResults.courses.length > 0" class="mb-6">
+            <h3 class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <GraduationCap class="w-3 h-3" /> 学习课程 ({{ searchResults.courses.length }})
+            </h3>
+            <div class="space-y-1">
+              <div
+                v-for="(course, index) in searchResults.courses"
+                :key="course.id"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
+                :class="{ 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === (index + searchResults.assets.length) }"
+                @click="navigateToResult('course', course.id)"
+                @mouseenter="selectedResultIndex = index + searchResults.assets.length"
+              >
+                <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                  <GraduationCap class="w-5 h-5 text-accent" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">{{ course.title }}</p>
+                  <p class="text-[10px] text-slate-400">{{ course.difficulty }} · {{ course._count?.lessons || 0 }} 课时</p>
+                </div>
+                <ArrowRight class="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
           </div>
-        </div>
+
+          <!-- Teams -->
+          <div v-if="searchResults.teams.length > 0" class="mb-6">
+            <h3 class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Users class="w-3 h-3" /> 活跃团队 ({{ searchResults.teams.length }})
+            </h3>
+            <div class="space-y-1">
+              <div
+                v-for="(team, index) in searchResults.teams"
+                :key="team.id"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
+                :class="{ 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === (index + searchResults.assets.length + searchResults.courses.length) }"
+                @click="navigateToResult('team', team.id)"
+                @mouseenter="selectedResultIndex = index + searchResults.assets.length + searchResults.courses.length"
+              >
+                <div class="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                  <Users class="w-5 h-5 text-orange-500" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">{{ team.name }}</p>
+                  <p class="text-[10px] text-slate-400">{{ team.category }} · {{ team._count?.members || 0 }} 成员</p>
+                </div>
+                <ArrowRight class="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="!isSearching && flattenedResults.length === 0" class="py-12 text-center">
+            <Search class="w-12 h-12 mx-auto mb-4 text-slate-200" />
+            <p class="text-sm text-slate-400">未找到与 "{{ searchQuery }}" 相关的结果</p>
+          </div>
+        </template>
+
+        <!-- Initial State / Recent Search -->
+        <template v-else>
+          <div v-if="searchHistory.length > 0" class="mb-8">
+            <div class="flex items-center justify-between px-2 mb-2">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">搜索历史</span>
+              <el-button link size="small" class="text-[10px]" @click="clearHistory">清空历史</el-button>
+            </div>
+            <div class="flex flex-wrap gap-2 px-1">
+              <button
+                v-for="h in searchHistory"
+                :key="h"
+                class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20"
+                @click="searchQuery = h"
+              >
+                {{ h }}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between px-2 mb-4">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">常用功能</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 px-1">
+            <div
+              class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-accent/50 hover:bg-accent/[0.02] cursor-pointer transition-all group"
+              @click="router.push('/assets'); isSearchVisible = false"
+            >
+              <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                <ImageIcon class="w-5 h-5" />
+              </div>
+              <div>
+                <p class="text-sm font-bold">浏览资产库</p>
+                <p class="text-[10px] text-slate-400">发现高质量 3D 模型</p>
+              </div>
+            </div>
+            <div
+              class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-accent/50 hover:bg-accent/[0.02] cursor-pointer transition-all group"
+              @click="router.push('/academy'); isSearchVisible = false"
+            >
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                <GraduationCap class="w-5 h-5" />
+              </div>
+              <div>
+                <p class="text-sm font-bold">开始学习</p>
+                <p class="text-[10px] text-slate-400">从基础到进阶的课程</p>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
+
       <template v-if="!isMobile" #footer>
-        <div class="flex items-center justify-between text-[10px] text-slate-400">
+        <div class="flex items-center justify-between text-[10px] text-slate-400 border-t pt-4 mt-2" style="border-color: var(--border-base)">
           <div class="flex gap-4">
-            <span class="flex items-center gap-1.5"
-              ><kbd class="px-1 py-0.5 rounded border bg-slate-50 dark:bg-slate-900">esc</kbd>
-              关闭</span
-            >
+            <span class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm">↑↓</kbd> 选择</span>
+            <span class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm">Enter</kbd> 确认</span>
+            <span class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm">esc</kbd> 关闭</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="opacity-50">Powered by</span>
+            <span class="font-bold text-accent">3D Studio Search</span>
           </div>
         </div>
       </template>

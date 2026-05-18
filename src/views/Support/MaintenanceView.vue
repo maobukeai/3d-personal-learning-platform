@@ -10,6 +10,10 @@ const authStore = useAuthStore();
 
 const goToLogin = async () => {
   if (authStore.isAuthenticated) {
+    if (authStore.user?.role === 'ADMIN') {
+      router.push('/admin/dashboard');
+      return;
+    }
     authStore.logout();
   }
   router.push('/login');

@@ -39,7 +39,7 @@ onMounted(async () => {
     try {
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
-      await authStore.fetchUser();
+      await authStore.fetchMe();
       ElMessage.success('社交登录成功！');
       router.push('/dashboard');
     } catch (err) {

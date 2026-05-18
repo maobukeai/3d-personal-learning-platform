@@ -21,10 +21,8 @@ const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const showPassword = ref(false);
 const isLoading = ref(false);
-const isEmailVerified = ref(false);
 const verificationCode = ref('');
 const isSendingCode = ref(false);
-const isVerifying = ref(false);
 const countdown = ref(0);
 let timer: any = null;
 
@@ -57,20 +55,6 @@ const sendVerificationCode = async () => {
   }
 };
 
-const verifyEmailCode = async () => {
-  if (!verificationCode.value) return;
-  try {
-    isVerifying.value = true;
-    await authStore.verifyPublicEmail(registerForm.value.email, verificationCode.value);
-    isEmailVerified.value = true;
-    ElMessage.success('邮箱验证成功');
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '验证失败');
-  } finally {
-    isVerifying.value = false;
-  }
-};
-
 const registerForm = ref({
   name: '',
   email: '',
@@ -80,13 +64,13 @@ const registerForm = ref({
 });
 
 const handleRegister = async () => {
-  if (!registerForm.value.name || !registerForm.value.email || !registerForm.value.password) {
-    ElMessage.warning('请填写所有必填字段');
-    return;
-  }
-
-  if (!isEmailVerified.value) {
-    ElMessage.warning('请先验证您的邮箱');
+  if (
+    !registerForm.value.name ||
+    !registerForm.value.email ||
+    !registerForm.value.password ||
+    !verificationCode.value
+  ) {
+    ElMessage.warning('请填写所有字段，包括验证码');
     return;
   }
 
@@ -103,6 +87,7 @@ const handleRegister = async () => {
   isLoading.value = true;
 
   try {
+    // Implicitly verifies code during register on backend
     await authStore.register({
       name: registerForm.value.name,
       email: registerForm.value.email,
@@ -112,7 +97,7 @@ const handleRegister = async () => {
     ElMessage.success('账号创建成功，请登录！');
     router.push({ path: '/login', query: { onboarding: 'true' } });
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '注册失败，请稍后重试');
+    ElMessage.error(error.response?.data?.error || '注册失败，验证码可能错误或已过期');
   } finally {
     isLoading.value = false;
   }
@@ -273,11 +258,10 @@ const handleRegister = async () => {
                       border-color: var(--border-base);
                       color: var(--text-primary);
                     "
-                    :disabled="isEmailVerified"
                   />
                 </div>
                 <button
-                  :disabled="isSendingCode || countdown > 0 || isEmailVerified"
+                  :disabled="isSendingCode || countdown > 0"
                   class="px-4 py-3 bg-accent/10 text-accent font-bold rounded-2xl text-xs hover:bg-accent hover:text-white transition-all disabled:opacity-50 shrink-0"
                   @click="sendVerificationCode"
                 >
@@ -286,41 +270,25 @@ const handleRegister = async () => {
               </div>
             </div>
 
-            <div v-if="!isEmailVerified" class="animate-in slide-in-from-top-2 duration-300">
+            <div>
               <label
                 class="block text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
                 >验证码</label
               >
-              <div class="flex gap-3">
-                <input
-                  v-model="verificationCode"
-                  type="text"
-                  maxlength="6"
-                  placeholder="000000"
-                  class="flex-1 px-4 py-3 border rounded-2xl text-sm text-center font-black tracking-widest focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all"
-                  style="
-                    background-color: var(--bg-app);
-                    border-color: var(--border-base);
-                    color: var(--text-primary);
-                  "
-                />
-                <button
-                  :disabled="verificationCode.length !== 6 || isVerifying"
-                  class="px-6 py-3 bg-accent text-white font-bold rounded-2xl text-xs hover:scale-105 transition-all disabled:opacity-50"
-                  @click="verifyEmailCode"
-                >
-                  {{ isVerifying ? '验证中...' : '验证邮箱' }}
-                </button>
-              </div>
-            </div>
-
-            <div
-              v-else
-              class="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-2 text-emerald-600"
-            >
-              <CheckCircle2 class="w-4 h-4" />
-              <span class="text-xs font-bold">邮箱已验证</span>
+              <input
+                v-model="verificationCode"
+                type="text"
+                maxlength="6"
+                placeholder="请输入 6 位验证码"
+                autocomplete="one-time-code"
+                class="w-full px-4 py-3 border rounded-2xl text-sm text-center font-black tracking-widest focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
+              />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

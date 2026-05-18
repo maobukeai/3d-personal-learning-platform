@@ -33,7 +33,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: storageQuota.message });
     }
 
-    const { title, description, categoryId } = req.body;
+    const { title, description, categoryId, formats } = req.body;
     if (!categoryId) {
       return res.status(400).json({ error: 'Category is required' });
     }
@@ -63,6 +63,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         categoryId,
         userId,
         teamId: workspaceId,
+        formats: formats ? JSON.stringify(formats) : null,
       },
       include: { category: true },
     });
@@ -486,7 +487,7 @@ export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) =>
 
 export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { title, description, status, categoryId } = req.body;
+  const { title, description, status, categoryId, formats } = req.body;
 
   try {
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
@@ -494,7 +495,13 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
 
     const asset = await prisma.asset.update({
       where: { id },
-      data: { title, description, status, categoryId },
+      data: { 
+        title, 
+        description, 
+        status, 
+        categoryId: categoryId || null,
+        formats: formats ? JSON.stringify(formats) : undefined
+      },
     });
 
     await auditService.log({

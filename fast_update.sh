@@ -3,10 +3,9 @@ echo "================================================"
 echo "📥 [1/3] 开始尝试通过多个备用加速节点下载最新代码..."
 
 URLS=(
-    "https://kkgithub.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
     "https://gh-proxy.com/https://github.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
-    "https://mirror.ghproxy.com/https://github.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
     "https://ghproxy.net/https://github.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
+    "https://gh.ddlc.top/https://github.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
 )
 
 SUCCESS=0

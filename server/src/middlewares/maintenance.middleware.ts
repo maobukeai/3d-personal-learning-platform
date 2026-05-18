@@ -11,18 +11,22 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
     if (isMaintenance) {
       // Check if it's an admin trying to bypass
       const authHeader = req.headers.authorization;
-      if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        if (token) {
-          try {
-            const decoded = jwt.verify(token, config.JWT_SECRET!) as unknown as { id: string };
-            const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-            if (user && user.role === 'ADMIN') {
-              return next(); // Allow admin to bypass
-            }
-          } catch (e) {
-            // Token invalid or other error
+      let token = authHeader && authHeader.split(' ')[1];
+
+      // Also check cookies if no token in header
+      if (!token && req.cookies) {
+        token = req.cookies.token;
+      }
+
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, config.JWT_SECRET!) as unknown as { id: string };
+          const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+          if (user && user.role === 'ADMIN') {
+            return next(); // Allow admin to bypass
           }
+        } catch (e) {
+          // Token invalid or other error
         }
       }
 

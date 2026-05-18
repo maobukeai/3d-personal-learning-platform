@@ -835,6 +835,7 @@ watch(activeSection, (newSection) => {
                       v-model="emailChangeForm.code"
                       type="text"
                       maxlength="6"
+                      autocomplete="one-time-code"
                       class="flex-1 px-4 py-3 rounded-2xl border text-center font-black tracking-[0.5em] transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
                       style="
                         background-color: var(--bg-app);
@@ -1022,6 +1023,7 @@ watch(activeSection, (newSection) => {
                           v-model="tfaCode"
                           type="text"
                           maxlength="6"
+                          autocomplete="one-time-code"
                           class="flex-1 px-4 py-2 rounded-xl border text-sm text-center font-black tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-accent/20"
                           placeholder="000000"
                         />

@@ -179,6 +179,7 @@ const handleResetWith2FA = async () => {
                     type="text"
                     maxlength="6"
                     placeholder="000000"
+                    autocomplete="one-time-code"
                     class="w-full pl-11 pr-4 py-3 border rounded-2xl text-sm tracking-[0.2em] font-bold focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all"
                     style="
                       background-color: var(--bg-app);

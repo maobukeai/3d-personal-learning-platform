@@ -272,16 +272,19 @@ router.beforeEach(async (to) => {
     await systemStore.fetchSettings();
   }
 
-  // If we have a user in localStorage (initial load), ensure it's still valid
-  if (authStore.user && to.meta.requiresAuth) {
-    // Optional: Refresh user info on transition to protected route if needed
-    // await authStore.fetchMe()
-  } else if (!authStore.user && to.meta.requiresAuth) {
-    // If no user in state but route needs auth, try fetching (it will use cookies)
+  // If no user in state but route needs auth, try fetching (it will use cookies)
+  if (!authStore.user && to.meta.requiresAuth) {
     try {
       await authStore.fetchMe();
     } catch (e) {
       // fetchMe handles logout/redirect if it fails
+    }
+  } else if (!authStore.user && systemStore.settings.MAINTENANCE_MODE && to.name !== 'Maintenance' && to.name !== 'Login') {
+    // If in maintenance mode and no user in state, try fetching to see if it's an admin
+    try {
+      await authStore.fetchMe();
+    } catch (e) {
+      // If it fails, they are likely not logged in or not an admin
     }
   }
 

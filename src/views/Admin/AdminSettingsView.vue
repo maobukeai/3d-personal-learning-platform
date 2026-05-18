@@ -907,7 +907,7 @@ window.addEventListener('beforeunload', (e) => {
                   </div>
                   <div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Google 回调地址 (Authorized Redirect URI)</p>
-                    <code class="text-xs break-all text-accent font-mono">{{ $api.defaults.baseURL }}/api/auth/google/callback</code>
+                    <code class="text-xs break-all text-accent font-mono">{{ api.defaults.baseURL }}/api/auth/google/callback</code>
                   </div>
                 </div>
               </div>
@@ -951,7 +951,7 @@ window.addEventListener('beforeunload', (e) => {
                   </div>
                   <div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">GitHub 回调地址 (Authorization callback URL)</p>
-                    <code class="text-xs break-all text-accent font-mono">{{ $api.defaults.baseURL }}/api/auth/github/callback</code>
+                    <code class="text-xs break-all text-accent font-mono">{{ api.defaults.baseURL }}/api/auth/github/callback</code>
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight, CheckCircle2 } from 'lucide-vue-next';
+import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';

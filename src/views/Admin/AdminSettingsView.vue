@@ -60,6 +60,12 @@ const defaultSettings = {
   MAX_UPLOAD_SIZE_MB: '100',
   ALLOWED_FILE_TYPES: '.glb, .gltf, .fbx, .obj, .stl, .zip',
   FOOTER_TEXT: '',
+  OAUTH_GOOGLE_ENABLED: false,
+  OAUTH_GOOGLE_CLIENT_ID: '',
+  OAUTH_GOOGLE_CLIENT_SECRET: '',
+  OAUTH_GITHUB_ENABLED: false,
+  OAUTH_GITHUB_CLIENT_ID: '',
+  OAUTH_GITHUB_CLIENT_SECRET: '',
 };
 
 const settings = ref({ ...defaultSettings });
@@ -71,6 +77,7 @@ const tabs = [
   { id: 'security', label: '安全策略', icon: Shield },
   { id: 'upload', label: '上传限制', icon: Upload },
   { id: 'smtp', label: '邮件服务', icon: Mail },
+  { id: 'social', label: '社交登录', icon: Sparkles },
   { id: 'template', label: '邮件模板', icon: Layout },
 ];
 
@@ -116,7 +123,8 @@ const fetchSettings = async () => {
           s.key === 'ALLOW_REGISTRATION' ||
           s.key === 'MAINTENANCE_MODE' ||
           s.key === 'AUTO_APPROVE_MATERIALS' ||
-          s.key === 'AUTO_APPROVE_SHOWCASES'
+          s.key === 'AUTO_APPROVE_SHOWCASES' ||
+          s.key.endsWith('_ENABLED')
         ) {
           (settings.value as any)[s.key] = s.value === 'true';
         } else if (
@@ -851,6 +859,100 @@ window.addEventListener('beforeunload', (e) => {
                   <span class="text-[10px] ml-2" style="color: var(--text-muted)"
                     >端口 465 通常需要开启，587 通常关闭</span
                   >
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- OAuth Settings -->
+          <div
+            v-if="activeTab === 'social'"
+            class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          >
+            <section
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            >
+              <div class="flex items-center gap-3 mb-8">
+                <Chrome class="w-5 h-5 text-accent" />
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">Google OAuth 配置</h2>
+              </div>
+
+              <div class="space-y-6">
+                <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all">
+                  <div class="flex items-center gap-3">
+                    <Chrome class="w-4 h-4 text-accent" />
+                    <div>
+                      <span class="text-xs font-bold" style="color: var(--text-primary)">开启 Google 登录</span>
+                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">允许用户使用 Google 账号直接登录平台</p>
+                    </div>
+                  </div>
+                  <el-switch v-model="settings.OAUTH_GOOGLE_ENABLED" active-color="#4f46e5" />
+                </div>
+
+                <div v-if="settings.OAUTH_GOOGLE_ENABLED" class="grid grid-cols-1 gap-6 animate-in fade-in duration-300">
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client ID</label>
+                    <input v-model="settings.OAUTH_GOOGLE_CLIENT_ID" type="text" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
+                  </div>
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client Secret</label>
+                    <div class="relative">
+                      <input v-model="settings.OAUTH_GOOGLE_CLIENT_SECRET" :type="showPassword ? 'text' : 'password'" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
+                      <button class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" @click="showPassword = !showPassword">
+                        <Eye v-if="!showPassword" class="w-4 h-4" />
+                        <EyeOff v-else class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Google 回调地址 (Authorized Redirect URI)</p>
+                    <code class="text-xs break-all text-accent font-mono">{{ $api.defaults.baseURL }}/api/auth/google/callback</code>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            >
+              <div class="flex items-center gap-3 mb-8">
+                <Github class="w-5 h-5 text-slate-800 dark:text-white" />
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">GitHub OAuth 配置</h2>
+              </div>
+
+              <div class="space-y-6">
+                <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all">
+                  <div class="flex items-center gap-3">
+                    <Github class="w-4 h-4 text-slate-800 dark:text-white" />
+                    <div>
+                      <span class="text-xs font-bold" style="color: var(--text-primary)">开启 GitHub 登录</span>
+                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">允许用户使用 GitHub 账号直接登录平台</p>
+                    </div>
+                  </div>
+                  <el-switch v-model="settings.OAUTH_GITHUB_ENABLED" active-color="#000" />
+                </div>
+
+                <div v-if="settings.OAUTH_GITHUB_ENABLED" class="grid grid-cols-1 gap-6 animate-in fade-in duration-300">
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client ID</label>
+                    <input v-model="settings.OAUTH_GITHUB_CLIENT_ID" type="text" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
+                  </div>
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client Secret</label>
+                    <div class="relative">
+                      <input v-model="settings.OAUTH_GITHUB_CLIENT_SECRET" :type="showPassword ? 'text' : 'password'" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
+                      <button class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" @click="showPassword = !showPassword">
+                        <Eye v-if="!showPassword" class="w-4 h-4" />
+                        <EyeOff v-else class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">GitHub 回调地址 (Authorization callback URL)</p>
+                    <code class="text-xs break-all text-accent font-mono">{{ $api.defaults.baseURL }}/api/auth/github/callback</code>
+                  </div>
                 </div>
               </div>
             </section>

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight, CheckCircle2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
+import { useSystemStore } from '@/stores/system';
+import api from '@/utils/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const systemStore = useSystemStore();
 const showPassword = ref(false);
 const isLoading = ref(false);
 const is2FARequired = ref(false);
@@ -19,6 +22,42 @@ const loginForm = ref({
   password: '',
   remember: false,
 });
+
+onMounted(async () => {
+  // Handle OAuth callback tokens from URL
+  const query = router.currentRoute.value.query;
+  const token = query.token as string;
+  const refreshToken = query.refreshToken as string;
+  const error = query.error as string;
+
+  if (error) {
+    ElMessage.error(error === 'oauth_failed' ? '社交登录失败，请重试' : '认证过程中出现错误');
+    // Clear URL
+    router.replace({ query: {} });
+  } else if (token && refreshToken) {
+    isLoading.value = true;
+    try {
+      localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
+      await authStore.fetchUser();
+      ElMessage.success('社交登录成功！');
+      router.push('/dashboard');
+    } catch (err) {
+      ElMessage.error('获取用户信息失败');
+    } finally {
+      isLoading.value = false;
+      router.replace({ query: {} });
+    }
+  }
+  
+  if (!systemStore.isInitialized) {
+    await systemStore.fetchSettings();
+  }
+});
+
+const handleSocialLogin = (provider: 'google' | 'github') => {
+  window.location.href = `${api.defaults.baseURL}/api/auth/${provider}`;
+};
 
 const handleLogin = async () => {
   if (!loginForm.value.email || !loginForm.value.password) {
@@ -178,30 +217,34 @@ const handle2FAVerify = async () => {
 
         <div v-if="!is2FARequired" class="space-y-6">
           <!-- Social Logins -->
-          <div class="grid grid-cols-2 gap-4">
+          <div v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED || systemStore.settings.OAUTH_GITHUB_ENABLED" class="grid grid-cols-2 gap-4">
             <button
-              class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all"
+              v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED"
+              class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
               style="
                 border-color: var(--border-base);
                 background-color: var(--bg-card);
                 color: var(--text-primary);
               "
+              @click="handleSocialLogin('google')"
             >
               <Chrome class="w-4 h-4" /> Google
             </button>
             <button
-              class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all"
+              v-if="systemStore.settings.OAUTH_GITHUB_ENABLED"
+              class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
               style="
                 border-color: var(--border-base);
                 background-color: var(--bg-card);
                 color: var(--text-primary);
               "
+              @click="handleSocialLogin('github')"
             >
               <Github class="w-4 h-4" /> GitHub
             </button>
           </div>
 
-          <div class="relative py-4 flex items-center">
+          <div v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED || systemStore.settings.OAUTH_GITHUB_ENABLED" class="relative py-4 flex items-center">
             <div class="flex-grow border-t" style="border-color: var(--border-base)"></div>
             <span
               class="flex-shrink mx-4 text-xs font-bold uppercase tracking-widest"
@@ -329,6 +372,7 @@ const handle2FAVerify = async () => {
               type="text"
               maxlength="6"
               placeholder="000000"
+              autocomplete="one-time-code"
               class="w-full text-center text-2xl tracking-[0.5em] font-bold py-4 border rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all"
               style="
                 background-color: var(--bg-app);

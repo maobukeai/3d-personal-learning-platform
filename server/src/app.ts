@@ -62,8 +62,8 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Serve uploads folder statically
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve uploads folder statically using process.cwd() to resolve correctly in both dev (src/) and prod (dist/src/)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Maintenance check
 app.use(checkMaintenanceMode);

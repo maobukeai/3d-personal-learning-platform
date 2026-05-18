@@ -23,6 +23,8 @@ const storage = multer.diskStorage({
       dir = './uploads/showcase';
     } else if (file.fieldname === 'thumbnail') {
       dir = './uploads/assets';
+    } else if (file.fieldname === 'logo' || file.fieldname === 'favicon') {
+      dir = './uploads/branding';
     } else if (file.fieldname === 'images') {
       dir = './uploads/discussions';
     }

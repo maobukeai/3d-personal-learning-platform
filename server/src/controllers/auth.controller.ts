@@ -145,9 +145,14 @@ export const getPublicSettings = async (req: Request, res: Response) => {
     const settings = await settingsService.getAll();
     const publicSettings = {
       PLATFORM_NAME: settings.PLATFORM_NAME,
+      BROWSER_TITLE: settings.BROWSER_TITLE,
+      PLATFORM_LOGO_URL: settings.PLATFORM_LOGO_URL,
+      PLATFORM_FAVICON_URL: settings.PLATFORM_FAVICON_URL,
+      PLATFORM_DESCRIPTION: settings.PLATFORM_DESCRIPTION,
       ALLOW_REGISTRATION: settings.ALLOW_REGISTRATION,
       MAINTENANCE_MODE: settings.MAINTENANCE_MODE,
       MATERIAL_CATEGORIES: settings.MATERIAL_CATEGORIES,
+      FOOTER_TEXT: settings.FOOTER_TEXT,
       OAUTH_GOOGLE_ENABLED: settings.OAUTH_GOOGLE_ENABLED,
       OAUTH_GITHUB_ENABLED: settings.OAUTH_GITHUB_ENABLED,
     };
@@ -364,12 +369,12 @@ export const login = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ error: '邮箱或密码错误' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ error: '邮箱或密码错误' });
     }
 
     if (user.status === 'BANNED') {

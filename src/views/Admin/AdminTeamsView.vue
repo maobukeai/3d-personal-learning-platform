@@ -330,7 +330,7 @@ onMounted(() => {
     </div>
 
     <!-- Content: Grid Layout -->
-    <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide">
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 text-slate-400">
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
@@ -338,116 +338,181 @@ onMounted(() => {
         <p class="text-sm font-bold tracking-widest uppercase">Loading Teams...</p>
       </div>
 
-      <div
-        v-else
-        class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
-      >
-        <table class="w-full text-left border-collapse min-w-[1000px]">
-          <thead>
-            <tr
-              class="border-b bg-slate-50/50 dark:bg-slate-800/50"
-              style="border-color: var(--border-base)"
-            >
-              <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                团队名称
-              </th>
-              <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                负责人
-              </th>
-              <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                描述
-              </th>
-              <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                团队规模
-              </th>
-              <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
-                操作管理
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="team in filteredTeams"
-              :key="team.id"
-              class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group cursor-pointer"
-              style="border-color: var(--border-base)"
-              @click="openMemberDrawer(team)"
-            >
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0 shadow-inner"
-                  >
-                    <img
-                      v-if="team.avatarUrl"
-                      :src="team.avatarUrl"
-                      class="w-full h-full object-cover"
-                    />
-                    <Users v-else class="w-full h-full p-2.5 text-slate-400" />
+      <template v-else>
+        <!-- Desktop Table View -->
+        <div
+          class="hidden md:block rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
+        >
+          <table class="w-full text-left border-collapse min-w-[1000px]">
+            <thead>
+              <tr
+                class="border-b bg-slate-50/50 dark:bg-slate-800/50"
+                style="border-color: var(--border-base)"
+              >
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  团队名称
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  负责人
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  描述
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  团队规模
+                </th>
+                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                  操作管理
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="team in filteredTeams"
+                :key="team.id"
+                class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group cursor-pointer"
+                style="border-color: var(--border-base)"
+                @click="openMemberDrawer(team)"
+              >
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0 shadow-inner"
+                    >
+                      <img
+                        v-if="team.avatarUrl"
+                        :src="team.avatarUrl"
+                        class="w-full h-full object-cover"
+                      />
+                      <Users v-else class="w-full h-full p-2.5 text-slate-400" />
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
+                        {{ team.name }}
+                      </p>
+                    </div>
                   </div>
-                  <div class="min-w-0">
-                    <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
-                      {{ team.name }}
-                    </p>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <UserAvatar :user="team.owner" size="xs" />
+                    <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                      team.owner?.name || team.owner?.email || '无'
+                    }}</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-xs text-slate-400 max-w-[300px] truncate">
+                  {{ team.description || '暂无团队描述' }}
+                </td>
+                <td class="px-6 py-4">
+                  <span
+                    class="px-2.5 py-0.5 rounded-lg bg-accent/5 text-accent text-[10px] font-black uppercase tracking-widest"
+                  >
+                    {{ team._count?.members || 0 }} 成员
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right" @click.stop>
+                  <div class="flex items-center justify-end gap-2">
+                    <button
+                      class="p-2 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/5 transition-all"
+                      @click="openEditModal(team)"
+                    >
+                      <Edit3 class="w-4 h-4" />
+                    </button>
+                    <button
+                      class="p-2 rounded-lg text-slate-400 hover:text-rose-50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
+                      @click="deleteTeam(team.id)"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                    <button
+                      class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
+                      @click="openMemberDrawer(team)"
+                    >
+                      <ChevronRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Add Team Row -->
+              <tr
+                class="hover:bg-accent/5 transition-colors cursor-pointer"
+                @click="openCreateModal"
+              >
+                <td colspan="5" class="px-6 py-4 text-center text-xs font-bold text-accent tracking-widest uppercase">
+                  <div class="flex items-center justify-center gap-2">
+                    <Plus class="w-4 h-4" />
+                    创建新团队
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="md:hidden space-y-4">
+          <div
+            v-for="team in filteredTeams"
+            :key="team.id"
+            class="p-4 rounded-2xl border bg-[var(--bg-card)] transition-all active:scale-[0.98]"
+            style="border-color: var(--border-base)"
+            @click="openMemberDrawer(team)"
+          >
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 shadow-sm border border-[var(--border-base)]">
+                  <img v-if="team.avatarUrl" :src="team.avatarUrl" class="w-full h-full object-cover" />
+                  <Users v-else class="w-full h-full p-3 text-slate-400" />
+                </div>
+                <div class="min-w-0">
+                  <h4 class="font-black text-base truncate" style="color: var(--text-primary)">{{ team.name }}</h4>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <UserAvatar :user="team.owner" size="xs" />
+                    <span class="text-[10px] font-bold text-slate-400">{{ team.owner?.name || '管理员' }}</span>
                   </div>
                 </div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-2">
-                  <UserAvatar :user="team.owner" size="xs" />
-                  <span class="text-xs font-bold" style="color: var(--text-primary)">{{
-                    team.owner?.name || team.owner?.email || '无'
-                  }}</span>
-                </div>
-              </td>
-              <td class="px-6 py-4 text-xs text-slate-400 max-w-[300px] truncate">
-                {{ team.description || '暂无团队描述' }}
-              </td>
-              <td class="px-6 py-4">
-                <span
-                  class="px-2.5 py-0.5 rounded-lg bg-accent/5 text-accent text-[10px] font-black uppercase tracking-widest"
-                >
-                  {{ team._count?.members || 0 }} 成员
-                </span>
-              </td>
-              <td class="px-6 py-4 text-right" @click.stop>
-                <div class="flex items-center justify-end gap-2">
-                  <button
-                    class="p-2 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/5 transition-all"
-                    @click="openEditModal(team)"
-                  >
-                    <Edit3 class="w-4 h-4" />
-                  </button>
-                  <button
-                    class="p-2 rounded-lg text-slate-400 hover:text-rose-50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
-                    @click="deleteTeam(team.id)"
-                  >
-                    <Trash2 class="w-4 h-4" />
-                  </button>
-                  <button
-                    class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-                    @click="openMemberDrawer(team)"
-                  >
-                    <ChevronRight class="w-4 h-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <!-- Add Team Row -->
-            <tr
-              class="hover:bg-accent/5 transition-colors cursor-pointer"
-              @click="openCreateModal"
-            >
-              <td colspan="5" class="px-6 py-4 text-center text-xs font-bold text-accent tracking-widest uppercase">
-                <div class="flex items-center justify-center gap-2">
-                  <Plus class="w-4 h-4" />
-                  创建新团队
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-lg bg-accent/10 text-accent text-[9px] font-black uppercase tracking-widest">
+                {{ team._count?.members || 0 }} 成员
+              </span>
+            </div>
+
+            <p class="text-[11px] text-slate-500 line-clamp-2 mb-4 leading-relaxed px-1">
+              {{ team.description || '暂无团队描述' }}
+            </p>
+
+            <div class="flex items-center gap-2" @click.stop>
+              <button
+                class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] font-bold text-[10px] text-slate-600 dark:text-slate-400 transition-all flex items-center justify-center gap-1.5"
+                @click="openEditModal(team)"
+              >
+                <Edit3 class="w-3.5 h-3.5" /> 编辑资料
+              </button>
+              <button
+                class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-transparent active:border-rose-200 transition-all"
+                @click="deleteTeam(team.id)"
+              >
+                <Trash2 class="w-4 h-4" />
+              </button>
+              <button
+                class="p-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/20 active:scale-90 transition-all"
+                @click="openMemberDrawer(team)"
+              >
+                <ChevronRight class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile Create Button -->
+          <button
+            class="w-full py-4 rounded-2xl border-2 border-dashed border-accent/20 bg-accent/5 flex items-center justify-center gap-2 text-accent font-black text-xs uppercase tracking-widest active:bg-accent/10 transition-all"
+            @click="openCreateModal"
+          >
+            <Plus class="w-4 h-4" /> 创建新团队协作
+          </button>
+        </div>
+      </template>
 
       <div v-if="filteredTeams.length === 0 && !isLoading" class="py-24 text-center text-slate-400">
         <Users class="w-16 h-16 mx-auto mb-4 opacity-20" />

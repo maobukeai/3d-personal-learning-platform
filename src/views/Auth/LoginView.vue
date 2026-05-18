@@ -5,7 +5,7 @@ import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -133,10 +133,22 @@ const handle2FAVerify = async () => {
       <div class="w-full">
         <!-- Logo -->
         <div class="mb-8 flex items-center justify-center gap-3">
-          <div class="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/30">
-            <span class="text-white font-bold text-xl">3D</span>
+          <div
+            class="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
+            :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent shadow-lg shadow-accent/30'"
+          >
+            <img
+              v-if="systemStore.settings.PLATFORM_LOGO_URL"
+              :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+              class="w-full h-full object-contain"
+            />
+            <span v-else class="text-white font-bold text-xl">{{
+              systemStore.settings.PLATFORM_NAME.substring(0, 2).toUpperCase()
+            }}</span>
           </div>
-          <span class="font-bold text-xl tracking-tight" style="color: var(--text-primary)">Learn Platform</span>
+          <span class="font-bold text-xl tracking-tight" style="color: var(--text-primary)">{{
+            systemStore.settings.PLATFORM_NAME
+          }}</span>
         </div>
 
         <div class="mb-8 text-center">
@@ -147,7 +159,7 @@ const handle2FAVerify = async () => {
             {{
               is2FARequired
                 ? '请输入 Google Authenticator 中的 6 位验证码'
-                : '请输入你的账号信息以登录平台'
+                : systemStore.settings.PLATFORM_DESCRIPTION || '请输入你的账号信息以登录平台'
             }}
           </p>
         </div>

@@ -43,7 +43,7 @@ import InvitationDialog from '@/components/InvitationDialog.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useWorkspaceStore } from '@/stores/workspace';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { socketService } from '@/utils/socket';
 
 const { t } = useI18n();
@@ -538,6 +538,10 @@ onMounted(() => {
   const savedAccent = localStorage.getItem('accentColor') || '#3b82f6';
   applyAccentColor(savedAccent);
 
+  if (!systemStore.isInitialized) {
+    systemStore.fetchSettings();
+  }
+
   fetchNotifications();
   workspaceStore.initialize(route.path);
   fetchUnreadMessagesCount();
@@ -614,7 +618,7 @@ onUnmounted(() => {
           <Menu class="w-5 h-5" style="color: var(--text-muted)" />
         </button>
 
-        <template v-if="!workspaceStore.isInitialized">
+        <template v-if="!workspaceStore.isInitialized && authStore.isAuthenticated">
           <div class="flex items-center gap-2.5 ml-2 md:ml-4 animate-pulse">
             <div class="w-7 h-7 rounded-xl bg-slate-200/50 dark:bg-white/10"></div>
             <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
@@ -752,10 +756,20 @@ onUnmounted(() => {
             </template>
           </el-dropdown>
           <div v-else class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-              <Box class="w-4 h-4 text-white" />
+            <div
+              class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+              :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
+            >
+              <img
+                v-if="systemStore.settings.PLATFORM_LOGO_URL"
+                :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+                class="w-full h-full object-contain"
+              />
+              <Box v-else class="w-4 h-4 text-white" />
             </div>
-            <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
+            <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+              systemStore.settings.PLATFORM_NAME
+            }}</span>
           </div>
         </template>
       </div>
@@ -1235,7 +1249,7 @@ onUnmounted(() => {
           </div>
           <div class="flex items-center gap-1">
             <span class="opacity-50">Powered by</span>
-            <span class="font-bold text-accent">3D Studio Search</span>
+            <span class="font-bold text-accent">{{ systemStore.settings.PLATFORM_NAME }} Search</span>
           </div>
         </div>
       </template>
@@ -1259,10 +1273,20 @@ onUnmounted(() => {
         <!-- Header -->
         <div class="h-16 flex items-center justify-between px-6 border-b shrink-0" style="border-color: var(--border-base)">
           <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-              <Box class="w-4 h-4 text-white" />
+            <div
+              class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+              :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
+            >
+              <img
+                v-if="systemStore.settings.PLATFORM_LOGO_URL"
+                :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+                class="w-full h-full object-contain"
+              />
+              <Box v-else class="w-4 h-4 text-white" />
             </div>
-            <span class="text-sm font-bold" style="color: var(--text-primary)">3D Studio</span>
+            <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+              systemStore.settings.PLATFORM_NAME
+            }}</span>
           </div>
           <button
             class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"

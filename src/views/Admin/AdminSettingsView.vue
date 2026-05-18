@@ -26,14 +26,67 @@ import {
   Github,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import { sanitizeHtml } from '@/utils/sanitize';
 
 const systemStore = useSystemStore();
 const isLoading = ref(false);
 const isSaving = ref(false);
+const isUploadingLogo = ref(false);
+const isUploadingFavicon = ref(false);
 const isTestingSmtp = ref(false);
+
+const handleLogoUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 2 * 1024 * 1024) {
+    return ElMessage.warning('Logo 图片大小不能超过 2MB');
+  }
+
+  try {
+    isUploadingLogo.value = true;
+    const formData = new FormData();
+    formData.append('logo', file);
+    const { data } = await api.post('/api/admin/settings/upload-logo', formData);
+    settings.value.PLATFORM_LOGO_URL = data.url;
+    ElMessage.success('Logo 上传成功，点击保存以生效');
+  } catch (error) {
+    console.error('Logo upload error:', error);
+    ElMessage.error('Logo 上传失败');
+  } finally {
+    isUploadingLogo.value = false;
+    target.value = '';
+  }
+};
+
+const handleFaviconUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 1 * 1024 * 1024) {
+    return ElMessage.warning('Favicon 图片大小不能超过 1MB');
+  }
+
+  try {
+    isUploadingFavicon.value = true;
+    const formData = new FormData();
+    formData.append('favicon', file);
+    const { data } = await api.post('/api/admin/settings/upload-favicon', formData);
+    settings.value.PLATFORM_FAVICON_URL = data.url;
+    ElMessage.success('Favicon 上传成功，点击保存以生效');
+  } catch (error) {
+    console.error('Favicon upload error:', error);
+    ElMessage.error('Favicon 上传失败');
+  } finally {
+    isUploadingFavicon.value = false;
+    target.value = '';
+  }
+};
+
 const showPassword = ref(false);
 const hasUnsavedChanges = ref(false);
 const showEmailPreview = ref(false);
@@ -50,7 +103,9 @@ const defaultSettings = {
   EMAIL_VERIFY_SUBJECT: '您的邮箱验证码',
   EMAIL_VERIFY_BODY: '您好，您的验证码是：{{code}}。请在 10 分钟内输入。',
   PLATFORM_NAME: '3D Personal Learning Hub',
+  BROWSER_TITLE: '',
   PLATFORM_LOGO_URL: '',
+  PLATFORM_FAVICON_URL: '',
   PLATFORM_DESCRIPTION: '',
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
@@ -152,6 +207,15 @@ const fetchSettings = async () => {
         } else if (Array.isArray(value)) {
           (settings.value as any)[key] = value.join(', ');
         } else if (Object.keys(settings.value).includes(key)) {
+          if (typeof value === 'string' && value.trim().startsWith('[')) {
+            try {
+              const parsed = JSON.parse(value);
+              if (Array.isArray(parsed)) {
+                (settings.value as any)[key] = parsed.join(', ');
+                return;
+              }
+            } catch (e) {}
+          }
           (settings.value as any)[key] = value;
         }
       });
@@ -175,13 +239,6 @@ const saveSettings = async () => {
   try {
     isSaving.value = true;
     const settingsPayload = Object.entries(settings.value).map(([key, value]) => {
-      if (key === 'MATERIAL_CATEGORIES' || key === 'ALLOWED_FILE_TYPES') {
-        const arr = (value as string)
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s);
-        return { key, value: JSON.stringify(arr) };
-      }
       return { key, value: typeof value === 'boolean' ? String(value) : value };
     });
 
@@ -193,9 +250,14 @@ const saveSettings = async () => {
 
     if (systemStore.settings) {
       systemStore.settings.PLATFORM_NAME = settings.value.PLATFORM_NAME;
+      systemStore.settings.BROWSER_TITLE = settings.value.BROWSER_TITLE;
+      systemStore.settings.PLATFORM_LOGO_URL = settings.value.PLATFORM_LOGO_URL;
+      systemStore.settings.PLATFORM_FAVICON_URL = settings.value.PLATFORM_FAVICON_URL;
+      systemStore.settings.PLATFORM_DESCRIPTION = settings.value.PLATFORM_DESCRIPTION;
       systemStore.settings.ALLOW_REGISTRATION = settings.value.ALLOW_REGISTRATION === true;
       systemStore.settings.MAINTENANCE_MODE = settings.value.MAINTENANCE_MODE === true;
-      document.title = settings.value.PLATFORM_NAME;
+      systemStore.settings.FOOTER_TEXT = settings.value.FOOTER_TEXT;
+      systemStore.updateBrowserBranding();
     }
   } catch (error: any) {
     console.error('Save settings error:', error);
@@ -459,41 +521,84 @@ window.addEventListener('beforeunload', (e) => {
               <div class="space-y-6">
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >平台 Logo URL</label
+                    >平台 Logo</label
                   >
                   <div class="flex items-center gap-4">
                     <div
-                      v-if="settings.PLATFORM_LOGO_URL"
-                      class="w-12 h-12 rounded-xl border overflow-hidden flex items-center justify-center shrink-0"
-                      style="border-color: var(--border-base)"
-                    >
-                      <img
-                        :src="settings.PLATFORM_LOGO_URL"
-                        class="w-full h-full object-contain p-1"
-                      />
-                    </div>
-                    <div
-                      v-else
-                      class="w-12 h-12 rounded-xl border flex items-center justify-center shrink-0"
+                      class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
                       style="border-color: var(--border-base); background-color: var(--bg-app)"
                     >
-                      <Image class="w-5 h-5 text-slate-300" />
+                      <img
+                        v-if="settings.PLATFORM_LOGO_URL"
+                        :src="getAssetUrl(settings.PLATFORM_LOGO_URL)"
+                        class="w-full h-full object-contain p-1"
+                      />
+                      <Image v-else class="w-6 h-6 text-slate-300" />
+                      
+                      <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                        <Upload v-if="!isUploadingLogo" class="w-5 h-5 text-white" />
+                        <RefreshCw v-else class="w-5 h-5 text-white animate-spin" />
+                        <input type="file" accept="image/*" class="hidden" @change="handleLogoUpload" />
+                      </label>
                     </div>
-                    <input
-                      v-model="settings.PLATFORM_LOGO_URL"
-                      type="text"
-                      placeholder="https://example.com/logo.png"
-                      class="flex-1 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                    />
+                    <div class="flex-1 space-y-2">
+                      <input
+                        v-model="settings.PLATFORM_LOGO_URL"
+                        type="text"
+                        placeholder="或者输入 Logo 图片 URL"
+                        class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      />
+                      <p class="text-[10px] px-1" style="color: var(--text-muted)">
+                        推荐尺寸 128x128px，支持 PNG/SVG/JPG，文件小于 2MB
+                      </p>
+                    </div>
                   </div>
-                  <p class="text-[10px] px-1" style="color: var(--text-muted)">
-                    推荐尺寸 128x128px，支持 PNG/SVG 格式
-                  </p>
+                </div>
+
+                <div class="space-y-2">
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                    >浏览器 Favicon</label
+                  >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
+                      style="border-color: var(--border-base); background-color: var(--bg-app)"
+                    >
+                      <img
+                        v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
+                        :src="getAssetUrl(settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL)"
+                        class="w-8 h-8 object-contain"
+                      />
+                      <Sparkles v-else class="w-6 h-6 text-slate-300" />
+                      
+                      <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                        <Upload v-if="!isUploadingFavicon" class="w-5 h-5 text-white" />
+                        <RefreshCw v-else class="w-5 h-5 text-white animate-spin" />
+                        <input type="file" accept="image/*" class="hidden" @change="handleFaviconUpload" />
+                      </label>
+                    </div>
+                    <div class="flex-1 space-y-2">
+                      <input
+                        v-model="settings.PLATFORM_FAVICON_URL"
+                        type="text"
+                        placeholder="不填则默认使用平台 Logo"
+                        class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      />
+                      <p class="text-[10px] px-1" style="color: var(--text-muted)">
+                        推荐尺寸 32x32px 或 64x64px，支持 .ico/PNG/SVG
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="space-y-2">
@@ -513,6 +618,26 @@ window.addEventListener('beforeunload', (e) => {
                   ></textarea>
                   <p class="text-[10px] px-1" style="color: var(--text-muted)">
                     将显示在登录页面和 SEO 元数据中
+                  </p>
+                </div>
+
+                <div class="space-y-2">
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                    >浏览器窗口标题</label
+                  >
+                  <input
+                    v-model="settings.BROWSER_TITLE"
+                    type="text"
+                    placeholder="例如：3D 社区 - 建模与设计学习中心"
+                    class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                    style="
+                      background-color: var(--bg-app);
+                      border-color: var(--border-base);
+                      color: var(--text-primary);
+                    "
+                  />
+                  <p class="text-[10px] px-1" style="color: var(--text-muted)">
+                    显示在浏览器标签页上的文字，不填则默认与平台名称一致
                   </p>
                 </div>
 
@@ -575,9 +700,6 @@ window.addEventListener('beforeunload', (e) => {
                         color: var(--text-primary);
                       "
                     />
-                    <p class="text-[10px] px-1" style="color: var(--text-muted)">
-                      用户注册和修改密码时的最低长度要求
-                    </p>
                   </div>
 
                   <div class="space-y-2">

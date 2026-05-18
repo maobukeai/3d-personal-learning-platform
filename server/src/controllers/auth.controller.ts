@@ -17,6 +17,129 @@ import {
 import { settingsService } from '../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../services/audit.service';
 
+import { OAuthService } from '../services/oauth.service';
+
+export const googleLogin = async (req: Request, res: Response) => {
+  try {
+    const url = await OAuthService.getGoogleAuthUrl();
+    res.redirect(url);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const googleCallback = async (req: Request, res: Response) => {
+  const { code } = req.query;
+  if (!code) return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+
+  try {
+    const oauthUser = await OAuthService.getGoogleUser(code as string);
+    let user = await prisma.user.findUnique({ where: { googleId: oauthUser.id } });
+
+    if (!user) {
+      // Try by email for automatic linking
+      user = await prisma.user.findUnique({ where: { email: oauthUser.email } });
+      if (user) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: oauthUser.id },
+        });
+      } else {
+        // Create new user
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+        user = await prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              email: oauthUser.email,
+              password: hashedPassword,
+              name: oauthUser.name,
+              avatarUrl: oauthUser.avatarUrl,
+              googleId: oauthUser.id,
+              emailVerified: true,
+            },
+          });
+          // Initial setup (teams etc)
+          await tx.team.create({
+            data: {
+              name: `${oauthUser.name} 的个人空间`,
+              type: 'PERSONAL',
+              visibility: 'PRIVATE',
+              ownerId: newUser.id,
+              members: { create: { userId: newUser.id, role: 'OWNER' } },
+            },
+          });
+          return newUser;
+        });
+      }
+    }
+
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+    res.redirect(`${process.env.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
+  } catch (error) {
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
+  }
+};
+
+export const githubLogin = async (req: Request, res: Response) => {
+  try {
+    const url = await OAuthService.getGithubAuthUrl();
+    res.redirect(url);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const githubCallback = async (req: Request, res: Response) => {
+  const { code } = req.query;
+  if (!code) return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+
+  try {
+    const oauthUser = await OAuthService.getGithubUser(code as string);
+    let user = await prisma.user.findUnique({ where: { githubId: oauthUser.id } });
+
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { email: oauthUser.email } });
+      if (user) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { githubId: oauthUser.id },
+        });
+      } else {
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+        user = await prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              email: oauthUser.email,
+              password: hashedPassword,
+              name: oauthUser.name,
+              avatarUrl: oauthUser.avatarUrl,
+              githubId: oauthUser.id,
+              emailVerified: true,
+            },
+          });
+          await tx.team.create({
+            data: {
+              name: `${oauthUser.name} 的个人空间`,
+              type: 'PERSONAL',
+              visibility: 'PRIVATE',
+              ownerId: newUser.id,
+              members: { create: { userId: newUser.id, role: 'OWNER' } },
+            },
+          });
+          return newUser;
+        });
+      }
+    }
+
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+    res.redirect(`${process.env.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
+  } catch (error) {
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
+  }
+};
+
 export const getPublicSettings = async (req: Request, res: Response) => {
   try {
     const settings = await settingsService.getAll();

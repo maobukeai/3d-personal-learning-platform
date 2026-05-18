@@ -57,6 +57,19 @@ echo "================================================"
 echo "🛠️  开始构建后端 (Node.js + Express)..."
 cd server
 
+# 🌟 自动检测并适配 Prisma 数据库 Provider（根据 .env 中的数据库 URL）
+if [ -f .env ]; then
+    if grep -q "mysql://" .env; then
+        echo "⚙️  检测到数据库配置使用 MySQL，自动调整 schema.prisma 的 provider 为 mysql..."
+        sed -i 's/provider = "sqlite"/provider = "mysql"/g' prisma/schema.prisma
+    elif grep -q "postgresql://" .env; then
+        echo "⚙️  检测到数据库配置使用 PostgreSQL，自动调整 schema.prisma 的 provider 为 postgresql..."
+        sed -i 's/provider = "sqlite"/provider = "postgresql"/g' prisma/schema.prisma
+    else
+        echo "⚙️  默认使用 SQLite 数据库配置。"
+    fi
+fi
+
 echo "-> 安装后端依赖..."
 npm install
 

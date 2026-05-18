@@ -1066,7 +1066,7 @@ onUnmounted(() => {
       :class="['search-dialog', 'custom-rounded-dialog', isMobile ? 'mobile-search-dialog' : '']"
       :show-close="isMobile"
       :fullscreen="isMobile"
-      @opened="() => $refs.searchInput?.focus()"
+      @opened="() => ($refs.searchInput as any)?.focus()"
     >
       <div class="relative">
         <el-input

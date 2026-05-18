@@ -10,7 +10,6 @@ import {
   Chrome,
   Github,
   ArrowRight,
-  CheckCircle2,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';

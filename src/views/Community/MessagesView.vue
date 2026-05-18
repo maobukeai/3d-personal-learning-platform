@@ -24,6 +24,8 @@ import {
   SmilePlus,
   Trash2,
   ChevronLeft,
+  Pause,
+  Play,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
@@ -175,6 +177,97 @@ const isDragOver = ref(false);
 const dragCounter = ref(0);
 const translations = ref<Record<string, string>>({});
 
+// Voice Recording & Playback State
+const isRecording = ref(false);
+const recordingDuration = ref(0);
+const currentlyPlaying = ref<string | null>(null);
+let mediaRecorder: MediaRecorder | null = null;
+let audioChunks: Blob[] = [];
+let recordingTimer: any = null;
+
+const playVoiceMessage = (msgId: string, _url: string) => {
+  const audioId = `audio-${msgId}`;
+  const audioElement = document.getElementById(audioId) as HTMLAudioElement;
+  
+  if (!audioElement) return;
+
+  if (currentlyPlaying.value === msgId) {
+    audioElement.pause();
+    currentlyPlaying.value = null;
+  } else {
+    // Stop other playing audio if any
+    if (currentlyPlaying.value) {
+      const prevAudio = document.getElementById(`audio-${currentlyPlaying.value}`) as HTMLAudioElement;
+      if (prevAudio) prevAudio.pause();
+    }
+    
+    audioElement.currentTime = 0;
+    audioElement.play();
+    currentlyPlaying.value = msgId;
+    
+    audioElement.onended = () => {
+      currentlyPlaying.value = null;
+    };
+  }
+};
+
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      if (audioBlob.size < 1000) return; // Ignore very short recordings
+
+      const formData = new FormData();
+      formData.append('message_file', audioBlob, `voice_${Date.now()}.webm`);
+
+      isUploading.value = true;
+      try {
+        const res = await api.post('/api/messages/upload', formData);
+        const { url } = res.data;
+        handleSendMessage('VOICE', url);
+      } catch (error) {
+        ElMessage.error('语音上传失败');
+      } finally {
+        isUploading.value = false;
+      }
+
+      // Stop all tracks to release the microphone
+      stream.getTracks().forEach((track) => track.stop());
+    };
+
+    mediaRecorder.start();
+    isRecording.value = true;
+    recordingDuration.value = 0;
+    recordingTimer = setInterval(() => {
+      recordingDuration.value++;
+    }, 1000);
+  } catch (error) {
+    ElMessage.error('无法访问麦克风');
+  }
+};
+
+const stopRecording = () => {
+  if (mediaRecorder && isRecording.value) {
+    mediaRecorder.stop();
+    isRecording.value = false;
+    if (recordingTimer) clearInterval(recordingTimer);
+  }
+};
+
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 const handleTranslate = async (message: any) => {
   if (translations.value[message.id]) {
     delete translations.value[message.id];
@@ -256,6 +349,8 @@ const getLastMessagePreview = (conv: any) => {
   switch (lastMsg.type) {
     case 'IMAGE':
       return `${prefix}[图片]`;
+    case 'VOICE':
+      return `${prefix}[语音]`;
     case 'FILE':
       return `${prefix}[文件] ${lastMsg.content.split('/').pop()}`;
     case 'SYSTEM':
@@ -1195,15 +1290,18 @@ watch(
             </el-popover>
             <button
               class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
-              style="color: var(--text-muted)"
+              :class="isRecording ? 'text-rose-500 animate-pulse bg-rose-50 dark:bg-rose-900/20' : 'text-slate-400'"
               :title="t('messages.voiceMessage')"
+              @click="isRecording ? stopRecording() : startRecording()"
             >
               <Mic class="w-4 h-4" />
             </button>
+            <span v-if="isRecording" class="text-[10px] font-black text-rose-500 animate-pulse">{{ formatDuration(recordingDuration) }}</span>
             <button
               class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
               style="color: var(--text-muted)"
               :title="t('messages.translate')"
+              @click="messages.length > 0 && handleTranslate(messages[messages.length - 1])"
             >
               <Languages class="w-4 h-4" />
             </button>
@@ -1350,6 +1448,35 @@ watch(
                         class="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                         @click="openLink(api.defaults.baseURL + msg.content)"
                       />
+                    </template>
+                    <template v-else-if="msg.type === 'VOICE'">
+                      <div class="flex items-center gap-3 py-1 min-w-[140px]">
+                        <button 
+                          class="w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 shadow-sm"
+                          :class="[
+                            msg.senderId === authStore.user?.id 
+                              ? 'bg-white/20 hover:bg-white/30 text-white' 
+                              : 'bg-accent/10 hover:bg-accent/20 text-accent'
+                          ]"
+                          @click.stop="playVoiceMessage(msg.id, msg.content)"
+                        >
+                          <component :is="currentlyPlaying === msg.id ? Pause : Play" class="w-4 h-4" :class="currentlyPlaying === msg.id ? '' : 'ml-0.5'" />
+                          <audio :id="`audio-${msg.id}`" :src="api.defaults.baseURL + msg.content" class="hidden"></audio>
+                        </button>
+                        <div class="flex-1 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            class="h-full transition-all duration-300"
+                            :class="msg.senderId === authStore.user?.id ? 'bg-white/60' : 'bg-accent'"
+                            :style="{ width: currentlyPlaying === msg.id ? '100%' : '20%' }"
+                          ></div>
+                        </div>
+                        <span 
+                          class="text-[10px] font-black uppercase tracking-widest opacity-70"
+                          :class="msg.senderId === authStore.user?.id ? 'text-white' : 'text-accent'"
+                        >
+                          {{ currentlyPlaying === msg.id ? '播放中' : '语音' }}
+                        </span>
+                      </div>
                     </template>
                     <template v-else-if="msg.type === 'FILE'">
                       <div
@@ -1589,10 +1716,12 @@ watch(
               </button>
               <button
                 class="p-2 hover:text-accent transition-colors"
-                style="color: var(--text-muted)"
+                :class="isRecording ? 'text-rose-500 animate-pulse' : 'text-slate-400'"
+                @click="isRecording ? stopRecording() : startRecording()"
               >
                 <Mic class="w-5 h-5" />
               </button>
+              <span v-if="isRecording" class="text-[10px] font-black text-rose-500 animate-pulse ml-1">{{ formatDuration(recordingDuration) }}</span>
             </div>
 
             <input ref="fileInput" type="file" class="hidden" @change="handleFileUpload" />

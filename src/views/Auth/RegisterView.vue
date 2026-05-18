@@ -127,7 +127,8 @@ const handleRegister = async () => {
     </div>
 
     <!-- Center Section: Register Form -->
-    <div class="w-full max-w-md relative z-10 p-8 md:p-10 mx-4 rounded-[2rem] shadow-2xl border"
+    <div
+class="w-full max-w-md relative z-10 p-8 md:p-10 mx-4 rounded-[2rem] shadow-2xl border"
          style="background-color: var(--bg-card); border-color: var(--border-base);">
       <div class="w-full">
         <!-- Logo -->

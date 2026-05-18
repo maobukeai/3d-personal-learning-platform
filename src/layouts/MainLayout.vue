@@ -34,6 +34,7 @@ import {
   Share2,
   Menu,
   X,
+  ArrowRight,
 } from 'lucide-vue-next';
 import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue';
@@ -1072,9 +1073,6 @@ onUnmounted(() => {
 
     <ExploreGroupsDialog v-model:visible="isExploreGroupsVisible" />
 
-    <!-- Global Asset Details Drawer -->
-    <AssetDetailsDrawer />
-
     <!-- Global Search Dialog -->
     <el-dialog
       v-model="isSearchVisible"
@@ -1258,6 +1256,9 @@ onUnmounted(() => {
         </div>
       </template>
     </el-dialog>
+
+    <!-- Asset Details Drawer -->
+    <AssetDetailsDrawer />
 
     <!-- Mobile Sidebar Drawer -->
     <Transition name="fade">

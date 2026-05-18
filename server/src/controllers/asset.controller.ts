@@ -14,11 +14,12 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId as string;
     const workspaceId = req.workspaceId;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const assetFile = files?.asset?.[0];
+    const externalUrl = req.body.externalUrl;
 
-    if (!assetFile) {
-      return res.status(400).json({ error: 'No asset file uploaded' });
+    if (!assetFile && !externalUrl) {
+      return res.status(400).json({ error: 'No asset file or external link provided' });
     }
 
     // Check quotas with workspace context
@@ -27,7 +28,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: assetQuota.message });
     }
 
-    const fileSizeMB = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
+    const fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
     const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
     if (!storageQuota.allowed) {
       return res.status(403).json({ error: storageQuota.message });
@@ -38,23 +39,36 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Category is required' });
     }
 
-    const assetsDir = path.join(__dirname, '../../uploads/assets');
-    if (!fs.existsSync(assetsDir)) {
-      fs.mkdirSync(assetsDir, { recursive: true });
-    }
+    let url = externalUrl;
+    let type = 'LINK';
+    let size = fileSizeMB;
 
-    const url = `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
-    const type = path.extname(assetFile.originalname).slice(1).toUpperCase();
-    const size = fileSizeMB;
+    if (assetFile) {
+      const assetsDir = path.join(__dirname, '../../uploads/assets');
+      if (!fs.existsSync(assetsDir)) {
+        fs.mkdirSync(assetsDir, { recursive: true });
+      }
+      url = `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
+      type = path.extname(assetFile.originalname).slice(1).toUpperCase();
+    }
 
     let thumbnailUrl = null;
     if (files?.thumbnail?.[0]) {
       thumbnailUrl = `${req.protocol}://${req.get('host')}/uploads/assets/${files.thumbnail[0].filename}`;
     }
 
+    let parsedFormats = formats;
+    if (typeof formats === 'string') {
+      try {
+        parsedFormats = JSON.parse(formats);
+      } catch (e) {
+        // fallback
+      }
+    }
+
     const asset = await prisma.asset.create({
       data: {
-        title: title || assetFile.originalname,
+        title: title || (assetFile ? assetFile.originalname : 'External Link'),
         description,
         url,
         thumbnail: thumbnailUrl,
@@ -63,7 +77,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
         categoryId,
         userId,
         teamId: workspaceId,
-        formats: formats ? JSON.stringify(formats) : null,
+        formats: parsedFormats ? JSON.stringify(parsedFormats) : null,
       },
       include: { category: true },
     });
@@ -72,7 +86,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
     res.status(201).json(asset);
 
     // Process 3D metadata asynchronously in the background
-    if (type === 'GLB' || type === 'GLTF') {
+    if (assetFile && (type === 'GLB' || type === 'GLTF')) {
       const fullPath = path.join(__dirname, '../../uploads/assets', assetFile.filename);
 
       // We don't await this, letting it run in the background
@@ -119,7 +133,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
 
 export const updateAsset = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
-  const { title, description, categoryId } = req.body;
+  const { title, description, categoryId, formats } = req.body;
 
   try {
     const existingAsset = await prisma.asset.findFirst({
@@ -134,6 +148,17 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (formats !== undefined) {
+      let parsedFormats = formats;
+      if (typeof formats === 'string') {
+        try {
+          parsedFormats = JSON.parse(formats);
+        } catch (e) {
+          // fallback
+        }
+      }
+      updateData.formats = parsedFormats ? JSON.stringify(parsedFormats) : null;
+    }
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -305,7 +330,14 @@ export const getAssetById = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
-      where: { id, teamId: req.workspaceId },
+      where: {
+        id,
+        OR: [{ teamId: req.workspaceId }, { status: 'APPROVED' }],
+      },
+      include: {
+        category: true,
+        user: { select: { name: true, avatarUrl: true } },
+      },
     });
 
     if (!asset) {
@@ -493,15 +525,18 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
     if (!oldAsset) return res.status(404).json({ error: 'Asset not found' });
 
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (formats !== undefined) {
+      updateData.formats = formats ? JSON.stringify(formats) : null;
+    }
+
     const asset = await prisma.asset.update({
       where: { id },
-      data: { 
-        title, 
-        description, 
-        status, 
-        categoryId: categoryId || null,
-        formats: formats ? JSON.stringify(formats) : undefined
-      },
+      data: updateData,
     });
 
     await auditService.log({

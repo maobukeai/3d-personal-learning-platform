@@ -22,7 +22,7 @@ export class OAuthService {
   static async getGoogleAuthUrl(): Promise<string> {
     const clientId = await this.getSetting('OAUTH_GOOGLE_CLIENT_ID');
     const redirectUri = `${process.env.BACKEND_URL}/api/auth/google/callback`;
-    
+
     if (!clientId) throw new Error('Google OAuth is not configured');
 
     const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -68,7 +68,7 @@ export class OAuthService {
       `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${access_token}`,
       {
         headers: { Authorization: `Bearer ${access_token}` },
-      }
+      },
     );
 
     return {
@@ -126,7 +126,8 @@ export class OAuthService {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    const primaryEmail = emailsRes.data.find((e: any) => e.primary && e.verified)?.email || emailsRes.data[0].email;
+    const primaryEmail =
+      emailsRes.data.find((e: any) => e.primary && e.verified)?.email || emailsRes.data[0].email;
 
     return {
       id: String(userRes.data.id),

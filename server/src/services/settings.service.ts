@@ -2,10 +2,16 @@ import prisma from './prisma';
 
 export interface SystemSettings {
   PLATFORM_NAME: string;
+  BROWSER_TITLE: string;
+  PLATFORM_LOGO_URL: string;
+  PLATFORM_FAVICON_URL: string;
+  PLATFORM_DESCRIPTION: string;
   ALLOW_REGISTRATION: boolean;
   MAINTENANCE_MODE: boolean;
   MAX_FILE_SIZE: number; // in MB
+  MAX_UPLOAD_SIZE_MB: number; // in MB
   ALLOWED_EXTENSIONS: string[];
+  ALLOWED_FILE_TYPES: string[];
   AUTO_APPROVE_MATERIALS: boolean;
   AUTO_APPROVE_SHOWCASES: boolean;
   SMTP_HOST: string;
@@ -14,20 +20,61 @@ export interface SystemSettings {
   SMTP_PASS: string;
   SMTP_FROM: string;
   MATERIAL_CATEGORIES: string[];
+  FOOTER_TEXT: string;
   OAUTH_GOOGLE_ENABLED: boolean;
   OAUTH_GOOGLE_CLIENT_ID: string;
   OAUTH_GOOGLE_CLIENT_SECRET: string;
   OAUTH_GITHUB_ENABLED: boolean;
   OAUTH_GITHUB_CLIENT_ID: string;
   OAUTH_GITHUB_CLIENT_SECRET: string;
+  PASSWORD_MIN_LENGTH: number;
+  SESSION_TIMEOUT: string;
+  DEFAULT_USER_ROLE: string;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
   PLATFORM_NAME: '3D Personal Learning Platform',
+  BROWSER_TITLE: '3D Personal Learning Hub',
+  PLATFORM_LOGO_URL: '',
+  PLATFORM_FAVICON_URL: '',
+  PLATFORM_DESCRIPTION: '',
   ALLOW_REGISTRATION: true,
   MAINTENANCE_MODE: false,
   MAX_FILE_SIZE: 100,
+  MAX_UPLOAD_SIZE_MB: 100,
   ALLOWED_EXTENSIONS: [
+    '.jpeg',
+    '.jpg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.svg',
+    '.bmp',
+    '.pdf',
+    '.zip',
+    '.rar',
+    '.7z',
+    '.glb',
+    '.gltf',
+    '.fbx',
+    '.obj',
+    '.stl',
+    '.dae',
+    '.3ds',
+    '.blend',
+    '.usdz',
+    '.abc',
+    '.mp4',
+    '.webm',
+    '.mov',
+    '.avi',
+    '.mkv',
+    '.mp3',
+    '.wav',
+    '.ogg',
+    '.flac',
+  ],
+  ALLOWED_FILE_TYPES: [
     '.jpeg',
     '.jpg',
     '.png',
@@ -67,12 +114,16 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SMTP_PASS: '',
   SMTP_FROM: 'noreply@3d-learning.com',
   MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件'],
+  FOOTER_TEXT: '',
   OAUTH_GOOGLE_ENABLED: false,
   OAUTH_GOOGLE_CLIENT_ID: '',
   OAUTH_GOOGLE_CLIENT_SECRET: '',
   OAUTH_GITHUB_ENABLED: false,
   OAUTH_GITHUB_CLIENT_ID: '',
   OAUTH_GITHUB_CLIENT_SECRET: '',
+  PASSWORD_MIN_LENGTH: 6,
+  SESSION_TIMEOUT: '7d',
+  DEFAULT_USER_ROLE: 'USER',
 };
 
 class SettingsService {
@@ -93,16 +144,52 @@ class SettingsService {
         const key = s.key as keyof SystemSettings;
         if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_') || s.key.endsWith('_ENABLED')) {
           (settings as any)[key] = s.value === 'true';
-        } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE')) {
+        } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE') || s.key.endsWith('_LENGTH') || s.key === 'MAX_UPLOAD_SIZE_MB') {
           (settings as any)[key] = parseInt(s.value, 10);
-        } else if (s.key.endsWith('_CATEGORIES') || s.key.endsWith('_EXTENSIONS')) {
-          (settings as any)[key] = JSON.parse(s.value);
+        } else if (s.key.endsWith('_CATEGORIES') || s.key.endsWith('_EXTENSIONS') || s.key === 'ALLOWED_FILE_TYPES') {
+          try {
+            // Safe JSON parse to extract actual array
+            let parsed = JSON.parse(s.value);
+            // If the database has a double stringified JSON (due to legacy bugs), try to parse again
+            while (typeof parsed === 'string' && parsed.trim().startsWith('[')) {
+              try {
+                const next = JSON.parse(parsed);
+                if (typeof next === 'string' && next === parsed) break; // Prevent infinite loop
+                parsed = next;
+              } catch (e) {
+                break;
+              }
+            }
+            if (Array.isArray(parsed)) {
+              (settings as any)[key] = parsed;
+            } else if (typeof parsed === 'string') {
+              (settings as any)[key] = parsed.split(',').map(v => v.trim()).filter(Boolean);
+            }
+          } catch (e) {
+            console.warn(`Recovering malformed setting ${s.key}`);
+            const arr = s.value.split(',').map(v => v.trim()).filter(Boolean);
+            (settings as any)[key] = arr;
+          }
         } else {
           (settings as any)[key] = s.value;
         }
       } catch (e) {
         console.error(`Error parsing setting ${s.key}:`, e);
       }
+    }
+
+    // Keep ALLOWED_FILE_TYPES and ALLOWED_EXTENSIONS synchronized
+    if (settings.ALLOWED_FILE_TYPES && !settings.ALLOWED_EXTENSIONS) {
+      settings.ALLOWED_EXTENSIONS = settings.ALLOWED_FILE_TYPES;
+    } else if (settings.ALLOWED_EXTENSIONS && !settings.ALLOWED_FILE_TYPES) {
+      settings.ALLOWED_FILE_TYPES = settings.ALLOWED_EXTENSIONS;
+    }
+
+    // Keep MAX_UPLOAD_SIZE_MB and MAX_FILE_SIZE synchronized
+    if (settings.MAX_UPLOAD_SIZE_MB !== undefined && settings.MAX_FILE_SIZE === undefined) {
+      settings.MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE_MB;
+    } else if (settings.MAX_FILE_SIZE !== undefined && settings.MAX_UPLOAD_SIZE_MB === undefined) {
+      settings.MAX_UPLOAD_SIZE_MB = settings.MAX_FILE_SIZE;
     }
 
     this.cache = settings;
@@ -117,7 +204,23 @@ class SettingsService {
 
   async update(key: string, value: any): Promise<void> {
     let stringValue: string;
-    if (typeof value === 'object') {
+    
+    if (Array.isArray(value)) {
+      stringValue = JSON.stringify(value);
+    } else if (typeof value === 'string') {
+      // If it's already a JSON array string, don't stringify it again
+      const trimmed = value.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          JSON.parse(trimmed);
+          stringValue = trimmed;
+        } catch (e) {
+          stringValue = value;
+        }
+      } else {
+        stringValue = value;
+      }
+    } else if (typeof value === 'object' && value !== null) {
       stringValue = JSON.stringify(value);
     } else {
       stringValue = String(value);
@@ -128,6 +231,33 @@ class SettingsService {
       update: { value: stringValue },
       create: { key, value: stringValue },
     });
+
+    // Mirror synced keys
+    if (key === 'ALLOWED_FILE_TYPES') {
+      await prisma.systemSetting.upsert({
+        where: { key: 'ALLOWED_EXTENSIONS' },
+        update: { value: stringValue },
+        create: { key: 'ALLOWED_EXTENSIONS', value: stringValue },
+      });
+    } else if (key === 'ALLOWED_EXTENSIONS') {
+      await prisma.systemSetting.upsert({
+        where: { key: 'ALLOWED_FILE_TYPES' },
+        update: { value: stringValue },
+        create: { key: 'ALLOWED_FILE_TYPES', value: stringValue },
+      });
+    } else if (key === 'MAX_UPLOAD_SIZE_MB') {
+      await prisma.systemSetting.upsert({
+        where: { key: 'MAX_FILE_SIZE' },
+        update: { value: stringValue },
+        create: { key: 'MAX_FILE_SIZE', value: stringValue },
+      });
+    } else if (key === 'MAX_FILE_SIZE') {
+      await prisma.systemSetting.upsert({
+        where: { key: 'MAX_UPLOAD_SIZE_MB' },
+        update: { value: stringValue },
+        create: { key: 'MAX_UPLOAD_SIZE_MB', value: stringValue },
+      });
+    }
 
     this.cache = null; // Invalidate cache
   }

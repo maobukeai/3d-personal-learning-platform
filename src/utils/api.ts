@@ -1,10 +1,28 @@
 import axios from 'axios';
 import router from '@/router';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
+
+export const getAssetUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  // Fix corrupted 'undefined/' urls from previous bugs
+  if (url.startsWith('undefined/')) {
+    const clean = url.replace('undefined/', '/');
+    return `${API_BASE_URL.replace(/\/$/, '')}${clean}`;
+  }
+  // Return absolute urls as is
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  // Prepend base url for relative paths
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  return `${API_BASE_URL.replace(/\/$/, '')}${cleanPath}`;
+};
 
 // 请求拦截器：自动注入 Workspace ID
 api.interceptors.request.use((config) => {

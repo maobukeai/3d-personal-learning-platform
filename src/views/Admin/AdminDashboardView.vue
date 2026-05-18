@@ -193,164 +193,165 @@ onMounted(() => {
 
     <!-- Main Content Scroll Area -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-8">
+      <div class="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         <!-- Quick Actions -->
         <div
-          class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+          class="p-4 sm:p-8 rounded-2xl sm:rounded-3xl border transition-colors duration-300"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <h3 class="font-bold text-lg mb-6 px-2 sm:px-0" style="color: var(--text-primary)">管理操作</h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <h3 class="font-bold text-base sm:text-lg mb-4 sm:mb-6 px-1 sm:px-0" style="color: var(--text-primary)">管理操作</h3>
+          <div class="grid grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-4">
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/users')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 group-hover:scale-110 transition-transform"
               >
-                <Users class="w-5 h-5 sm:w-6 h-6" />
+                <Users class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">用户管理</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">用户管理</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/audits')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 group-hover:scale-110 transition-transform"
               >
-                <CheckCircle2 class="w-5 h-5 sm:w-6 h-6" />
+                <CheckCircle2 class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">内容审核</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">内容审核</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/courses')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 group-hover:scale-110 transition-transform"
               >
-                <BookOpen class="w-5 h-5 sm:w-6 h-6" />
+                <BookOpen class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">课程管理</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">课程管理</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/roadmaps')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 group-hover:scale-110 transition-transform"
               >
-                <Clock class="w-5 h-5 sm:w-6 h-6" />
+                <Clock class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">学习路线</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">学习路线</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/teams')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 group-hover:scale-110 transition-transform"
               >
-                <UserPlus class="w-5 h-5 sm:w-6 h-6" />
+                <UserPlus class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">团队管理</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">团队管理</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/feedback')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 group-hover:scale-110 transition-transform"
               >
-                <MessageSquare class="w-5 h-5 sm:w-6 h-6" />
+                <MessageSquare class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">反馈中心</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">反馈中心</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="router.push('/admin/settings')"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-slate-50 dark:bg-white/10 text-slate-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-white/10 text-slate-600 group-hover:scale-110 transition-transform"
               >
-                <Layout class="w-5 h-5 sm:w-6 h-6" />
+                <Layout class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">系统设置</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">系统设置</span>
             </button>
             <button
-              class="flex flex-col items-center gap-3 p-4 sm:p-6 rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
+              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
               style="border-color: var(--border-base)"
               @click="showBroadcastModal = true"
             >
               <div
-                class="p-2 sm:p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 group-hover:scale-110 transition-transform"
+                class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 group-hover:scale-110 transition-transform"
               >
-                <Megaphone class="w-5 h-5 sm:w-6 h-6" />
+                <Megaphone class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-primary)">全站广播</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">全站广播</span>
             </button>
           </div>
         </div>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div class="grid grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-6">
           <div
             v-for="stat in stats"
             :key="stat.label"
-            class="p-4 sm:p-6 rounded-3xl border shadow-sm transition-all hover:shadow-md cursor-pointer group"
+            class="p-2 sm:p-6 rounded-xl sm:rounded-3xl border shadow-sm transition-all hover:shadow-md cursor-pointer group"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
             @click="router.push(stat.route)"
           >
-            <div class="flex items-start justify-between mb-4">
-              <div class="p-2.5 sm:p-3 rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
-                <component :is="stat.icon" class="w-5 h-5 sm:w-6 h-6" />
+            <div class="flex items-start justify-between mb-2 sm:mb-4">
+              <div class="p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
+                <component :is="stat.icon" class="w-4 h-4 sm:w-6 h-6" />
               </div>
               <TrendingUp
                 v-if="stat.value !== '0'"
-                class="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block"
               />
             </div>
             <p
-              class="text-[10px] font-bold uppercase tracking-wider mb-1"
+              class="text-[8px] sm:text-[10px] font-black uppercase tracking-wider mb-1 truncate"
               style="color: var(--text-muted)"
+              :title="stat.label"
             >
               {{ stat.label }}
             </p>
-            <h2 class="text-2xl sm:text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
+            <h2 class="text-base sm:text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
           </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           <!-- Recent Users -->
           <div
-            class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+            class="p-5 sm:p-8 rounded-2xl sm:rounded-3xl border transition-colors duration-300"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <h3 class="font-bold text-lg" style="color: var(--text-primary)">最新注册用户</h3>
+            <div class="flex items-center justify-between gap-4 mb-6 sm:mb-8">
+              <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新注册用户</h3>
               <button
-                class="text-xs font-bold text-accent hover:underline w-fit"
+                class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap"
                 @click="router.push('/admin/users')"
               >
-                管理所有用户
+                管理所有
               </button>
             </div>
             <div class="space-y-3 sm:space-y-4">
               <div
                 v-for="user in recentUsers"
                 :key="user.id"
-                class="flex items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
+                class="flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
                 style="border-color: var(--border-base)"
               >
-                <div class="flex items-center gap-3 sm:gap-4">
+                <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div
                     class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden shrink-0"
                   >
@@ -380,28 +381,28 @@ onMounted(() => {
 
           <!-- Recent Assets -->
           <div
-            class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+            class="p-5 sm:p-8 rounded-2xl sm:rounded-3xl border transition-colors duration-300"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <h3 class="font-bold text-lg" style="color: var(--text-primary)">最新提交资产</h3>
+            <div class="flex items-center justify-between gap-4 mb-6 sm:mb-8">
+              <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新提交资产</h3>
               <button
-                class="text-xs font-bold text-accent hover:underline w-fit"
+                class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap"
                 @click="router.push('/admin/assets')"
               >
-                审核所有资产
+                审核所有
               </button>
             </div>
             <div class="space-y-3 sm:space-y-4">
               <div
                 v-for="asset in recentAssets"
                 :key="asset.id"
-                class="flex items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
+                class="flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
                 style="border-color: var(--border-base)"
               >
                 <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div
-                    class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0"
+                    class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0"
                   >
                     <img
                       v-if="asset.thumbnail"

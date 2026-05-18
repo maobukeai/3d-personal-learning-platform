@@ -189,6 +189,33 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
       settingsObj = settings;
     }
 
+    // Ensure array fields are actually arrays before saving
+    const arrayFields = ['ALLOWED_EXTENSIONS', 'ALLOWED_FILE_TYPES', 'MATERIAL_CATEGORIES'];
+    arrayFields.forEach(field => {
+      if (settingsObj[field] !== undefined) {
+        if (typeof settingsObj[field] === 'string') {
+          const valStr = settingsObj[field].trim();
+          if (valStr.startsWith('[')) {
+            try {
+              let parsed = JSON.parse(valStr);
+              while (typeof parsed === 'string' && parsed.trim().startsWith('[')) {
+                parsed = JSON.parse(parsed);
+              }
+              if (Array.isArray(parsed)) {
+                settingsObj[field] = parsed;
+              } else {
+                settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+              }
+            } catch (e) {
+              settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+            }
+          } else {
+            settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+        }
+      }
+    });
+
     await settingsService.updateMany(settingsObj);
 
     await auditService.log({
@@ -527,6 +554,34 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
 
     res.json(updatedUser);
   } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const uploadBrandingLogo = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileUrl = `/uploads/branding/${req.file.filename}`;
+    res.json({ url: fileUrl });
+  } catch (error) {
+    console.error('Upload branding logo error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const uploadBrandingFavicon = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileUrl = `/uploads/branding/${req.file.filename}`;
+    res.json({ url: fileUrl });
+  } catch (error) {
+    console.error('Upload branding favicon error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

@@ -126,16 +126,16 @@ onMounted(fetchLogs);
 
     <!-- Filters -->
     <div
-      class="p-6 border-b shrink-0 transition-colors duration-300"
+      class="p-4 sm:p-6 border-b shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div class="flex items-center gap-4 w-full md:w-auto">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">模块</span>
+      <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div class="flex items-center gap-4 w-full sm:w-auto">
+          <div class="flex items-center gap-2 flex-1 sm:flex-none">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">模块筛选</span>
             <select
               v-model="moduleFilter"
-              class="px-4 py-2 rounded-xl border outline-none font-bold text-xs"
+              class="w-full sm:w-auto px-4 py-2 rounded-xl border outline-none font-bold text-xs"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);
@@ -147,17 +147,18 @@ onMounted(fetchLogs);
           </div>
         </div>
 
-        <div class="text-xs font-bold text-slate-400">共 {{ total }} 条记录</div>
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">共 {{ total }} 条记录</div>
       </div>
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-hidden flex flex-col p-8">
+    <div class="flex-1 overflow-hidden flex flex-col p-4 sm:p-8">
       <div
-        class="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] border shadow-sm flex flex-col overflow-hidden transition-colors duration-300"
+        class="flex-1 bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border shadow-sm flex flex-col overflow-hidden transition-colors duration-300"
         style="border-color: var(--border-base)"
       >
-        <div class="overflow-x-auto flex-1 scrollbar-hide">
+        <!-- Desktop Table View -->
+        <div class="hidden md:block overflow-x-auto flex-1 scrollbar-hide">
           <table class="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr
@@ -263,6 +264,63 @@ onMounted(fetchLogs);
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="md:hidden flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+          <template v-if="isLoading">
+            <div
+              v-for="i in 5"
+              :key="i"
+              class="p-4 rounded-2xl border animate-pulse space-y-3"
+              style="border-color: var(--border-base); background-color: var(--bg-app)"
+            >
+              <div class="flex justify-between items-center">
+                <div class="h-4 bg-slate-100 dark:bg-white/5 rounded w-24"></div>
+                <div class="h-4 bg-slate-100 dark:bg-white/5 rounded w-16"></div>
+              </div>
+              <div class="h-4 bg-slate-100 dark:bg-white/5 rounded w-full"></div>
+              <div class="h-4 bg-slate-100 dark:bg-white/5 rounded w-2/3"></div>
+            </div>
+          </template>
+          <div
+            v-for="log in logs"
+            v-else
+            :key="log.id"
+            class="p-4 rounded-2xl border transition-all"
+            style="border-color: var(--border-base); background-color: var(--bg-app)"
+          >
+            <div class="flex justify-between items-start mb-3">
+              <div class="flex items-center gap-3">
+                <UserAvatar :user="log.user" size="sm" />
+                <div class="flex flex-col min-w-0">
+                  <span class="text-xs font-black truncate" style="color: var(--text-primary)">{{
+                    log.user?.name || '系统'
+                  }}</span>
+                  <span class="text-[10px] text-slate-400">{{
+                    formatDate(log.createdAt).split(' ')[1]
+                  }}</span>
+                </div>
+              </div>
+              <span
+                class="px-2 py-0.5 rounded-lg text-[8px] font-black text-white uppercase tracking-wider"
+                :class="getModuleColor(log.module)"
+              >
+                {{ log.module }}
+              </span>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                  getActionLabel(log.action)
+                }}</span>
+                <span class="text-[10px] font-mono text-slate-400">{{ log.ipAddress }}</span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed">
+                {{ log.description || '-' }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- Pagination -->

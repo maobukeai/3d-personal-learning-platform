@@ -267,9 +267,17 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   const systemStore = useSystemStore();
 
+  console.log('Router: Navigating to', to.name);
+
   // Fetch system settings if not already fetched
   if (!systemStore.isInitialized) {
-    await systemStore.fetchSettings();
+    try {
+      console.log('Router: Initializing system settings...');
+      await systemStore.fetchSettings();
+      console.log('Router: System settings initialized');
+    } catch (e) {
+      console.error('Router: System initialization failed', e);
+    }
   }
 
   // If no user in state but route needs auth, try fetching (it will use cookies)

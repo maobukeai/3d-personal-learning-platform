@@ -432,10 +432,10 @@ onMounted(() => {
       </div>
 
       <!-- 绝美状态数据看板卡片区 -->
-      <div class="px-8 pb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="px-4 sm:px-8 pb-6 grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-4">
         <!-- 待审核卡片 -->
         <div
-          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
+          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === 'PENDING'
               ? 'ring-2 ring-amber-500 bg-amber-500/5 border-amber-500/30'
@@ -445,25 +445,21 @@ onMounted(() => {
           @click="setStatusFilter('PENDING')"
         >
           <div
-            class="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
+            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-amber-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
           ></div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold text-amber-500 flex items-center gap-1.5">
-              <Clock class="w-3.5 h-3.5" /> 待审核待办
+          <div class="flex items-center justify-between mb-1 sm:mb-2">
+            <span class="text-[8px] sm:text-xs font-bold text-amber-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+              <Clock class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">待审核待办</span><span class="sm:hidden">待审核</span>
             </span>
-            <span
-              v-if="statusFilter === 'PENDING'"
-              class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"
-            ></span>
           </div>
-          <p class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
             {{ stats.pending }}
           </p>
         </div>
 
         <!-- 已通过卡片 -->
         <div
-          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
+          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === 'APPROVED'
               ? 'ring-2 ring-emerald-500 bg-emerald-500/5 border-emerald-500/30'
@@ -473,25 +469,21 @@ onMounted(() => {
           @click="setStatusFilter('APPROVED')"
         >
           <div
-            class="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
+            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
           ></div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold text-emerald-500 flex items-center gap-1.5">
-              <CheckCircle2 class="w-3.5 h-3.5" /> 已批准上线
+          <div class="flex items-center justify-between mb-1 sm:mb-2">
+            <span class="text-[8px] sm:text-xs font-bold text-emerald-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+              <CheckCircle2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">已批准上线</span><span class="sm:hidden">已通过</span>
             </span>
-            <span
-              v-if="statusFilter === 'APPROVED'"
-              class="w-2 h-2 rounded-full bg-emerald-500"
-            ></span>
           </div>
-          <p class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
             {{ stats.approved }}
           </p>
         </div>
 
         <!-- 打回卡片 -->
         <div
-          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
+          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === 'REJECTED'
               ? 'ring-2 ring-rose-500 bg-rose-500/5 border-rose-500/30'
@@ -501,25 +493,21 @@ onMounted(() => {
           @click="setStatusFilter('REJECTED')"
         >
           <div
-            class="absolute top-0 right-0 w-20 h-20 bg-rose-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
+            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-rose-50/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
           ></div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold text-rose-500 flex items-center gap-1.5">
-              <XCircle class="w-3.5 h-3.5" /> 已拒绝打回
+          <div class="flex items-center justify-between mb-1 sm:mb-2">
+            <span class="text-[8px] sm:text-xs font-bold text-rose-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+              <XCircle class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">已拒绝打回</span><span class="sm:hidden">未通过</span>
             </span>
-            <span
-              v-if="statusFilter === 'REJECTED'"
-              class="w-2 h-2 rounded-full bg-rose-500"
-            ></span>
           </div>
-          <p class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
             {{ stats.rejected }}
           </p>
         </div>
 
         <!-- 全部卡片 -->
         <div
-          class="p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
+          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
           :class="
             statusFilter === ''
               ? 'ring-2 ring-indigo-500 bg-indigo-500/5 border-indigo-500/30'
@@ -529,15 +517,14 @@ onMounted(() => {
           @click="setStatusFilter('')"
         >
           <div
-            class="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
+            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-indigo-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
           ></div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold text-indigo-500 flex items-center gap-1.5">
-              <Tag class="w-3.5 h-3.5" /> 全部记录流
+          <div class="flex items-center justify-between mb-1 sm:mb-2">
+            <span class="text-[8px] sm:text-xs font-bold text-indigo-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
+              <Tag class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">全部记录流</span><span class="sm:hidden">全部记录</span>
             </span>
-            <span v-if="statusFilter === ''" class="w-2 h-2 rounded-full bg-indigo-500"></span>
           </div>
-          <p class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
             {{ stats.total }}
           </p>
         </div>

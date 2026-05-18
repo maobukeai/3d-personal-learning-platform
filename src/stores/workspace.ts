@@ -114,9 +114,18 @@ export const useWorkspaceStore = defineStore('workspace', {
 
     async initialize(currentPath?: string) {
       const authStore = useAuthStore();
-      // If already initialized with workspaces, or if we are a guest and already tried, skip
-      if (this.isInitialized && (this.rawWorkspaces.length > 0 || !authStore.isAuthenticated)) return;
+      
+      // If not authenticated, we are a guest, no workspaces to fetch
+      if (!authStore.isAuthenticated) {
+        this.isInitialized = true;
+        this.isLoading = false;
+        return;
+      }
 
+      // If already initialized with workspaces, skip
+      if (this.isInitialized && this.rawWorkspaces.length > 0) return;
+
+      this.isInitialized = false;
       this.isLoading = true;
       await this.fetchWorkspaces();
 

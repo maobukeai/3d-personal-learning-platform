@@ -390,7 +390,7 @@ onMounted(() => {
     </div>
 
     <!-- Users List -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-[1600px] mx-auto">
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
           <div
@@ -399,58 +399,192 @@ onMounted(() => {
           <p class="text-sm font-bold text-slate-400">正在同步用户数据...</p>
         </div>
 
-        <div
-          v-else
-          class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
-        >
-          <table class="w-full text-left border-collapse min-w-[1000px]">
-            <thead>
-              <tr
-                class="border-b bg-slate-50/50 dark:bg-slate-800/50"
-                style="border-color: var(--border-base)"
-              >
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  用户信息
-                </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  角色
-                </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  状态
-                </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  订阅情况
-                </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  注册日期
-                </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
-                  操作管理
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="user in filteredUsers"
-                :key="user.id"
-                class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors"
-                :class="{ 'opacity-60 grayscale-[0.5]': user.status === 'BANNED' }"
-                style="border-color: var(--border-base)"
-              >
-                <td class="px-6 py-4">
-                  <div class="flex items-center gap-3">
-                    <UserAvatar :user="user" size="md" shadow />
-                    <div class="min-w-0">
-                      <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
-                        {{ user.name || '未命名用户' }}
-                      </p>
-                      <p class="text-xs text-slate-400 truncate">{{ user.email }}</p>
+        <template v-else>
+          <!-- Desktop Table View -->
+          <div
+            class="hidden md:block rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
+          >
+            <table class="w-full text-left border-collapse min-w-[1000px]">
+              <thead>
+                <tr
+                  class="border-b bg-slate-50/50 dark:bg-slate-800/50"
+                  style="border-color: var(--border-base)"
+                >
+                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    用户信息
+                  </th>
+                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    角色
+                  </th>
+                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    状态
+                  </th>
+                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    订阅情况
+                  </th>
+                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    注册日期
+                  </th>
+                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                    操作管理
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="user in filteredUsers"
+                  :key="user.id"
+                  class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors"
+                  :class="{ 'opacity-60 grayscale-[0.5]': user.status === 'BANNED' }"
+                  style="border-color: var(--border-base)"
+                >
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <UserAvatar :user="user" size="md" shadow />
+                      <div class="min-w-0">
+                        <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
+                          {{ user.name || '未命名用户' }}
+                        </p>
+                        <p class="text-xs text-slate-400 truncate">{{ user.email }}</p>
+                      </div>
                     </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm"
+                      :class="{
+                        'bg-rose-100 text-rose-600': user.role === 'ADMIN',
+                        'bg-blue-100 text-blue-600': user.role === 'INSTRUCTOR',
+                        'bg-slate-100 text-slate-500': user.role === 'USER',
+                      }"
+                    >
+                      {{ roleMap[user.role] || user.role }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm"
+                      :class="
+                        user.status === 'ACTIVE'
+                          ? 'bg-emerald-100 text-emerald-600'
+                          : 'bg-rose-100 text-rose-600'
+                      "
+                    >
+                      {{ statusMap[user.status] || user.status }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div v-if="user.subscription" class="flex flex-col gap-0.5">
+                      <span
+                        v-if="user.subscription.plan.name === 'SVIP'"
+                        class="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md bg-amber-100 text-amber-600 text-[9px] font-black"
+                      >
+                        <Crown class="w-2.5 h-2.5" /> SVIP
+                      </span>
+                      <span
+                        v-else-if="user.subscription.plan.name === 'VIP'"
+                        class="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md bg-purple-100 text-purple-600 text-[9px] font-black"
+                      >
+                        <Zap class="w-2.5 h-2.5" /> VIP
+                      </span>
+                      <span
+                        v-else
+                        class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[9px] font-black uppercase"
+                      >
+                        {{ user.subscription.plan.name }}
+                      </span>
+                      <span class="text-[9px] text-slate-400 mt-0.5">
+                        到期: {{ user.subscription.endDate ? new Date(user.subscription.endDate).toLocaleDateString() : '永久' }}
+                      </span>
+                    </div>
+                    <span v-else class="text-xs text-slate-400">-</span>
+                  </td>
+                  <td class="px-6 py-4 text-xs text-slate-400">
+                    {{ new Date(user.createdAt).toLocaleDateString() }}
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <el-dropdown trigger="click">
+                        <button
+                          class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-xs transition-all flex items-center gap-1.5"
+                        >
+                          <MoreVertical class="w-3.5 h-3.5" />
+                          管理
+                        </button>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item @click="openEditDialog(user)">
+                              <div class="flex items-center gap-2 font-bold">
+                                <Users class="w-3.5 h-3.5" /> 编辑资料
+                              </div>
+                            </el-dropdown-item>
+                            <el-dropdown-item @click="openSubDialog(user)">
+                              <div class="flex items-center gap-2 font-bold text-indigo-600">
+                                <CreditCard class="w-3.5 h-3.5" /> 订阅管理
+                              </div>
+                            </el-dropdown-item>
+                            <el-dropdown-item @click="handleResetPassword(user)">
+                              <div class="flex items-center gap-2 font-bold text-amber-600">
+                                <Key class="w-3.5 h-3.5" /> 重置密码
+                              </div>
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+
+                      <button
+                        class="p-2 rounded-xl transition-all shadow-sm"
+                        :title="user.status === 'BANNED' ? '解封' : '封禁'"
+                        :class="
+                          user.status === 'BANNED'
+                            ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white'
+                        "
+                        @click="handleToggleStatus(user)"
+                      >
+                        <UserCheck v-if="user.status === 'BANNED'" class="w-3.5 h-3.5" />
+                        <UserX v-else class="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        title="永久删除"
+                        class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                        @click="handleDeleteUser(user)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Card View -->
+          <div class="md:hidden space-y-4">
+            <div
+              v-for="user in filteredUsers"
+              :key="user.id"
+              class="p-4 rounded-2xl border transition-all relative overflow-hidden"
+              :class="{
+                'opacity-60 grayscale-[0.5]': user.status === 'BANNED',
+                'bg-white dark:bg-slate-900': true
+              }"
+              style="border-color: var(--border-base)"
+            >
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <UserAvatar :user="user" size="md" shadow />
+                  <div class="min-w-0">
+                    <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
+                      {{ user.name || '未命名用户' }}
+                    </p>
+                    <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
                   </div>
-                </td>
-                <td class="px-6 py-4">
+                </div>
+                <div class="flex flex-col items-end gap-1.5">
                   <span
-                    class="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm"
+                    class="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider"
                     :class="{
                       'bg-rose-100 text-rose-600': user.role === 'ADMIN',
                       'bg-blue-100 text-blue-600': user.role === 'INSTRUCTOR',
@@ -459,10 +593,8 @@ onMounted(() => {
                   >
                     {{ roleMap[user.role] || user.role }}
                   </span>
-                </td>
-                <td class="px-6 py-4">
                   <span
-                    class="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm"
+                    class="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider"
                     :class="
                       user.status === 'ACTIVE'
                         ? 'bg-emerald-100 text-emerald-600'
@@ -471,93 +603,67 @@ onMounted(() => {
                   >
                     {{ statusMap[user.status] || user.status }}
                   </span>
-                </td>
-                <td class="px-6 py-4">
-                  <div v-if="user.subscription" class="flex flex-col gap-0.5">
-                    <span
-                      v-if="user.subscription.plan.name === 'SVIP'"
-                      class="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md bg-amber-100 text-amber-600 text-[9px] font-black"
-                    >
-                      <Crown class="w-2.5 h-2.5" /> SVIP
-                    </span>
-                    <span
-                      v-else-if="user.subscription.plan.name === 'VIP'"
-                      class="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md bg-purple-100 text-purple-600 text-[9px] font-black"
-                    >
-                      <Zap class="w-2.5 h-2.5" /> VIP
-                    </span>
-                    <span
-                      v-else
-                      class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[9px] font-black uppercase"
-                    >
-                      {{ user.subscription.plan.name }}
-                    </span>
-                    <span class="text-[9px] text-slate-400 mt-0.5">
-                      到期: {{ user.subscription.endDate ? new Date(user.subscription.endDate).toLocaleDateString() : '永久' }}
-                    </span>
-                  </div>
-                  <span v-else class="text-xs text-slate-400">-</span>
-                </td>
-                <td class="px-6 py-4 text-xs text-slate-400">
-                  {{ new Date(user.createdAt).toLocaleDateString() }}
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-2">
-                    <el-dropdown trigger="click">
-                      <button
-                        class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-xs transition-all flex items-center gap-1.5"
-                      >
-                        <MoreVertical class="w-3.5 h-3.5" />
-                        管理
-                      </button>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item @click="openEditDialog(user)">
-                            <div class="flex items-center gap-2 font-bold">
-                              <Users class="w-3.5 h-3.5" /> 编辑资料
-                            </div>
-                          </el-dropdown-item>
-                          <el-dropdown-item @click="openSubDialog(user)">
-                            <div class="flex items-center gap-2 font-bold text-indigo-600">
-                              <CreditCard class="w-3.5 h-3.5" /> 订阅管理
-                            </div>
-                          </el-dropdown-item>
-                          <el-dropdown-item @click="handleResetPassword(user)">
-                            <div class="flex items-center gap-2 font-bold text-amber-600">
-                              <Key class="w-3.5 h-3.5" /> 重置密码
-                            </div>
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
+                </div>
+              </div>
 
-                    <button
-                      class="p-2 rounded-xl transition-all shadow-sm"
-                      :title="user.status === 'BANNED' ? '解封' : '封禁'"
-                      :class="
-                        user.status === 'BANNED'
-                          ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
-                          : 'bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white'
-                      "
-                      @click="handleToggleStatus(user)"
-                    >
-                      <UserCheck v-if="user.status === 'BANNED'" class="w-3.5 h-3.5" />
-                      <UserX v-else class="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      title="永久删除"
-                      class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                      @click="handleDeleteUser(user)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
+              <div class="grid grid-cols-2 gap-4 py-3 border-y border-dashed mb-4" style="border-color: var(--border-base)">
+                <div>
+                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">注册日期</p>
+                  <p class="text-[10px] font-bold" style="color: var(--text-secondary)">{{ new Date(user.createdAt).toLocaleDateString() }}</p>
+                </div>
+                <div>
+                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">当前订阅</p>
+                  <div v-if="user.subscription" class="flex items-center gap-1.5">
+                    <Crown v-if="user.subscription.plan.name === 'SVIP'" class="w-2.5 h-2.5 text-amber-500" />
+                    <Zap v-else-if="user.subscription.plan.name === 'VIP'" class="w-2.5 h-2.5 text-purple-500" />
+                    <span class="text-[10px] font-black" style="color: var(--text-primary)">{{ user.subscription.plan.name }}</span>
                   </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                  <p v-else class="text-[10px] font-bold text-slate-400">无活跃订阅</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button
+                  class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-[10px] transition-all flex items-center justify-center gap-1.5"
+                  style="border-color: var(--border-base)"
+                  @click="openEditDialog(user)"
+                >
+                  <Users class="w-3.5 h-3.5" />
+                  编辑资料
+                </button>
+                <button
+                  class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-[10px] transition-all flex items-center justify-center gap-1.5"
+                  style="border-color: var(--border-base)"
+                  @click="openSubDialog(user)"
+                >
+                  <CreditCard class="w-3.5 h-3.5" />
+                  订阅管理
+                </button>
+                <div class="flex gap-2">
+                  <button
+                    class="p-2 rounded-xl border transition-all"
+                    style="border-color: var(--border-base)"
+                    :class="
+                      user.status === 'BANNED'
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'bg-slate-50 text-slate-600'
+                    "
+                    @click="handleToggleStatus(user)"
+                  >
+                    <UserCheck v-if="user.status === 'BANNED'" class="w-3.5 h-3.5" />
+                    <UserX v-else class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-transparent hover:border-rose-200 transition-all"
+                    @click="handleDeleteUser(user)"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
 
         <div
           v-if="filteredUsers.length === 0 && !isLoading"

@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +16,7 @@ model User {
   password                   String
   name                       String?
   avatarUrl                  String?
-  bio                        String? @db.Text
+  bio                        String?
   location                   String?
   website                    String?
   role                       String                      @default("USER") // 'USER' or 'ADMIN'
@@ -24,7 +24,7 @@ model User {
   emailVerified              Boolean                     @default(false)
   twoFactorEnabled           Boolean                     @default(false)
   twoFactorSecret            String?
-  twoFactorRecoveryCodes     String? @db.Text // Hashed JSON string of recovery codes
+  twoFactorRecoveryCodes     String? // Hashed JSON string of recovery codes
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
   assets                     Asset[]
@@ -73,6 +73,9 @@ model User {
   transactions Transaction[]
   userSettings UserSetting[]
   auditLogs    AuditLog[]
+
+  googleId   String? @unique
+  githubId   String? @unique
 }
 
 model Conversation {
@@ -88,7 +91,7 @@ model Conversation {
 
 model Message {
   id             String            @id @default(uuid())
-  content        String @db.Text
+  content        String
   type           String            @default("TEXT")
   senderId       String
   sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -128,7 +131,7 @@ model MessageReaction {
 model Team {
   id           String            @id @default(uuid())
   name         String
-  description  String? @db.Text
+  description  String?
   avatarUrl    String?
   type         String            @default("TEAM") // 'PERSONAL', 'TEAM'
   visibility   String            @default("PRIVATE") // 'PUBLIC', 'PRIVATE'
@@ -181,7 +184,7 @@ model Notification {
   id          String     @id @default(uuid())
   type        String // 'REPLY', 'COURSE_UPDATE', 'SYSTEM'
   title       String
-  content     String @db.Text
+  content     String
   isRead      Boolean    @default(false)
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -207,7 +210,7 @@ model NotificationPreference {
 model Broadcast {
   id            String         @id @default(uuid())
   title         String
-  content       String @db.Text
+  content       String
   link          String?
   notifications Notification[]
   createdAt     DateTime       @default(now())
@@ -252,7 +255,7 @@ model SystemSetting {
 model Asset {
   id           String  @id @default(uuid())
   title        String
-  description  String? @db.Text
+  description  String?
   url          String
   thumbnail    String?
   type         String // e.g., 'GLB', 'GLTF', 'FBX'
@@ -293,7 +296,7 @@ model Category {
 model Course {
   id          String          @id @default(uuid())
   title       String
-  description String? @db.Text
+  description String?
   thumbnail   String?
   difficulty  String          @default("BEGINNER") // 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'
   status      String          @default("PUBLISHED") // 'DRAFT', 'PUBLISHED'
@@ -319,10 +322,10 @@ model CourseCategory {
 model Lesson {
   id          String           @id @default(uuid())
   title       String
-  content     String? @db.Text // Markdown or HTML
+  content     String? // Markdown or HTML
   videoUrl    String?
-  hotspots    String? @db.Text // JSON string for 3D hotspots
-  sceneConfig String? @db.Text // JSON string for environment, lighting, post-processing
+  hotspots    String? // JSON string for 3D hotspots
+  sceneConfig String? // JSON string for environment, lighting, post-processing
   duration    Int              @default(0) // Duration in minutes
   courseId    String
   course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -351,9 +354,9 @@ model Enrollment {
 model Discussion {
   id        String           @id @default(uuid())
   title     String
-  content   String @db.Text
-  images    String? @db.Text // JSON array of image URLs
-  tags      String? @db.Text // JSON array of tag names
+  content   String
+  images    String? // JSON array of image URLs
+  tags      String? // JSON array of tag names
   userId    String
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String? // Optional: link to a course
@@ -379,7 +382,7 @@ model DiscussionLike {
 
 model Comment {
   id           String        @id @default(uuid())
-  content      String @db.Text
+  content      String
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   discussionId String
@@ -406,10 +409,10 @@ model CommentLike {
 model Task {
   id           String            @id @default(uuid())
   title        String
-  description  String? @db.Text
+  description  String?
   status       String // 'TODO', 'IN_PROGRESS', 'DONE'
   priority     String            @default("MEDIUM") // 'LOW', 'MEDIUM', 'HIGH', 'URGENT'
-  tags         String? @db.Text // JSON string of tag names
+  tags         String? // JSON string of tag names
   dueDate      DateTime?
   userId       String
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -441,7 +444,7 @@ model TeamApplication {
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message   String? @db.Text
+  message   String?
   status    String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -453,11 +456,11 @@ model Feedback {
   id            String    @id @default(uuid())
   type          String // 'Bug', 'Feature', 'UI', 'Other'
   title         String
-  description   String @db.Text
+  description   String
   priority      String // 'LOW', 'MEDIUM', 'HIGH'
   status        String    @default("OPEN") // 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'
   attachmentUrl String?
-  adminReply    String? @db.Text // Admin's response
+  adminReply    String? // Admin's response
   repliedAt     DateTime?
   adminId       String? // ID of the admin who replied
 
@@ -478,7 +481,7 @@ model VerificationCode {
 model Roadmap {
   id          String        @id @default(uuid())
   title       String
-  description String? @db.Text
+  description String?
   steps       RoadmapStep[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -487,7 +490,7 @@ model Roadmap {
 model RoadmapStep {
   id           String                @id @default(uuid())
   title        String
-  description  String? @db.Text
+  description  String?
   order        Int
   roadmapId    String
   roadmap      Roadmap               @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
@@ -512,12 +515,12 @@ model UserRoadmapProgress {
 model Project {
   id          String              @id @default(uuid())
   title       String
-  description String? @db.Text
+  description String?
   progress    Int                 @default(0)
   status      String              @default("IN_PROGRESS") // 'IN_PROGRESS', 'COMPLETED', 'PAUSED'
   dueDate     DateTime?
   color       String              @default("bg-accent")
-  tags        String? @db.Text // JSON string or comma separated
+  tags        String? // JSON string or comma separated
   visibility  String              @default("PRIVATE") // 'PUBLIC', 'PRIVATE' (Team internal)
   maxMembers  Int                 @default(10)
   members     ProjectMember[]
@@ -544,10 +547,10 @@ model ProjectMember {
 
 model ProjectDiscussion {
   id        String                      @id @default(uuid())
-  content   String @db.Text
+  content   String
   type      String                      @default("TEXT")
-  images    String? @db.Text
-  fileUrl   String? @db.Text
+  images    String?
+  fileUrl   String?
   fileName  String?
   fileSize  Float?
   projectId String
@@ -586,13 +589,13 @@ model ProjectInvitation {
 model Material {
   id           String             @id @default(uuid())
   title        String
-  description  String? @db.Text
+  description  String?
   category     String
   resolution   String? // '4K', '8K', '矢量', etc.
   previewUrl   String?
-  fileUrl      String @db.Text
+  fileUrl      String
   fileSize     Float? // in MB
-  tags         String? @db.Text
+  tags         String?
   isProcedural Boolean            @default(false)
   downloads    Int                @default(0)
   status       String             @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
@@ -620,12 +623,12 @@ model MaterialFavorite {
 model Showcase {
   id           String            @id @default(uuid())
   title        String
-  description  String? @db.Text
-  tags         String? @db.Text
+  description  String?
+  tags         String?
   type         String            @default("IMAGE") // 'IMAGE', 'VIDEO', 'MODEL', 'OTHER'
   thumbnailUrl String
-  images       String? @db.Text // JSON array of image URLs
-  videoUrl     String? @db.Text
+  images       String? // JSON array of image URLs
+  videoUrl     String?
   isVideo      Boolean           @default(false)
   views        Int               @default(0)
   status       String            @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
@@ -654,7 +657,7 @@ model ShowcaseLike {
 
 model ShowcaseComment {
   id         String   @id @default(uuid())
-  content    String @db.Text
+  content    String
   showcaseId String
   showcase   Showcase @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
   userId     String
@@ -670,7 +673,7 @@ model SubscriptionPlan {
   price         Float
   yearlyPrice   Float?
   interval      String         @default("MONTHLY")
-  features      String? @db.Text
+  features      String?
   maxStorage    Float          @default(1)
   maxTeams      Int            @default(1)
   maxProjects   Int            @default(5)
@@ -709,12 +712,12 @@ model Transaction {
   status        String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'
   paymentMethod String? // 'ALIPAY', 'WECHAT', 'MOCK'
   paymentId     String?  @unique // Third-party payment ID
-  description   String? @db.Text
+  description   String?
   planId        String?
   planName      String?
   interval      String?
   invoiceNo     String?  @unique
-  metadata      String? @db.Text // JSON string for additional data
+  metadata      String? // JSON string for additional data
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
 }
@@ -726,7 +729,7 @@ model CourseReview {
   courseId  String
   course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   rating    Int // 1-5
-  comment   String? @db.Text
+  comment   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -753,7 +756,7 @@ model CourseNote {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId  String
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  content   String @db.Text
+  content   String
   timestamp Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -762,10 +765,10 @@ model CourseNote {
 model Note {
   id         String     @id @default(uuid())
   title      String
-  content    String @db.Text
-  summary    String? @db.Text
+  content    String
+  summary    String?
   visibility String     @default("PRIVATE")
-  tags       String? @db.Text
+  tags       String?
   category   String?
   views      Int        @default(0)
   isPinned   Boolean    @default(false)
@@ -791,7 +794,7 @@ model AuditLog {
   id          String   @id @default(uuid())
   action      String // e.g., 'UPDATE_SETTINGS', 'DELETE_USER', 'APPROVE_ASSET'
   module      String // e.g., 'SETTINGS', 'USER', 'ASSET'
-  description String? @db.Text // Human readable description
+  description String? // Human readable description
   oldValue    String? // JSON string of before state
   newValue    String? // JSON string of after state
   ipAddress   String?

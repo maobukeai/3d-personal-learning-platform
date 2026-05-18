@@ -31,7 +31,8 @@ server {
     # -------------------------------------------------------
     # 2. 用户上传文件托管（让 Nginx 直接提供，比经过 Node.js 更高效）
     # -------------------------------------------------------
-    location /uploads/ {
+    # 关键：必须使用 ^~ 前缀，确保优先级高于下方的静态资源正则（否则 .png 会被误导向前端 dist 目录！）
+    location ^~ /uploads/ {
         # ⚠️ 替换为你服务器上 server/uploads 目录的绝对路径
         alias /path/to/your/project/server/uploads/;
         expires 7d;

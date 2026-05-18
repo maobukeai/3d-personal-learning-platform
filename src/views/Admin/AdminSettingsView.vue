@@ -22,6 +22,8 @@ import {
   MonitorSmartphone,
   Sparkles,
   Palette,
+  Chrome,
+  Github,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';

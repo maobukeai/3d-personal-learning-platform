@@ -83,8 +83,14 @@ export const useWorkspaceStore = defineStore('workspace', {
           this.fetchAdminStats();
         }
 
-        if (!this.activeWorkspaceId && this.rawWorkspaces.length > 0) {
+        // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
+        const exists = this.rawWorkspaces.some((ws) => ws.id === this.activeWorkspaceId);
+        if (!exists && this.rawWorkspaces.length > 0) {
           this.activeWorkspaceId = this.rawWorkspaces[0].id;
+        }
+
+        if (this.activeWorkspaceId) {
+          localStorage.setItem('activeWorkspaceId', this.activeWorkspaceId);
         }
       } catch (error) {
         console.error('Fetch workspaces error:', error);
@@ -107,7 +113,9 @@ export const useWorkspaceStore = defineStore('workspace', {
     },
 
     async initialize(currentPath?: string) {
-      if (this.isInitialized) return;
+      const authStore = useAuthStore();
+      // If already initialized with workspaces, or if we are a guest and already tried, skip
+      if (this.isInitialized && (this.rawWorkspaces.length > 0 || !authStore.isAuthenticated)) return;
 
       this.isLoading = true;
       await this.fetchWorkspaces();
@@ -144,6 +152,19 @@ export const useWorkspaceStore = defineStore('workspace', {
       if (id === 'admin-workspace') {
         this.fetchAdminStats();
       }
+    },
+
+    reset() {
+      this.rawWorkspaces = [];
+      this.activeWorkspaceId = null;
+      this.isInitialized = false;
+      this.isLoading = false;
+      this.adminStats = {
+        pendingAssets: 0,
+        openFeedbacks: 0,
+        pendingMaterials: 0,
+        pendingShowcases: 0,
+      };
     },
   },
 });

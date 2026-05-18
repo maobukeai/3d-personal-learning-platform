@@ -238,9 +238,15 @@ export const useAuthStore = defineStore('auth', {
         throw error;
       }
     },
-    logout() {
+    async logout() {
       socketService.disconnect();
       api.post('/api/auth/logout').catch(() => {});
+      
+      // Reset workspace store
+      const { useWorkspaceStore } = await import('./workspace');
+      const workspaceStore = useWorkspaceStore();
+      workspaceStore.reset();
+
       this.user = null;
       this.deviceToken = '';
       this.onlineUserIds = new Set<string>();

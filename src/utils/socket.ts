@@ -92,8 +92,21 @@ class SocketService {
     if (this.socket?.connected) {
       this.socket.emit(event, ...args);
     } else {
-      console.warn(`Socket: 尝试发送 "${event}" 事件但未连接，正在重连...`);
+      // If not connected, attempt to connect and wait briefly
       this.connect();
+      
+      // We'll wait up to 2 seconds for a connection before giving up on this emit
+      let attempts = 0;
+      const checkInterval = setInterval(() => {
+        if (this.socket?.connected) {
+          this.socket.emit(event, ...args);
+          clearInterval(checkInterval);
+        } else if (attempts > 20) { // 2 seconds
+          console.warn(`Socket: 发送 "${event}" 失败，连接超时`);
+          clearInterval(checkInterval);
+        }
+        attempts++;
+      }, 100);
     }
   }
 

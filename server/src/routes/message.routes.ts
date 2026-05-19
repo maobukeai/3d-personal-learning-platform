@@ -21,5 +21,6 @@ router.delete('/messages/:messageId', messageController.deleteMessage);
 router.post('/upload', upload.single('message_file'), messageController.uploadFile);
 router.post('/messages/:messageId/reactions', messageController.addReaction);
 router.delete('/messages/:messageId/reactions/:emoji', messageController.removeReaction);
+router.post('/translate', messageController.translateMessage);
 
 export default router;

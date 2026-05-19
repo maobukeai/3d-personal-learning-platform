@@ -119,8 +119,9 @@ const createUploadMiddleware = (config: {
               if (!file) continue;
               const ext = path.extname(file.originalname).toLowerCase();
 
-              // 针对系统 Logo、Favicon 和用户头像等特定用途 of 图片，使用专属安全后缀白名单而非全局用户上传类型限制
+              // 针对系统 Logo、Favicon 和用户头像等特定用途的图片，使用专属安全后缀白名单而非全局用户上传类型限制
               let finalAllowedExtensions = allowedExtensions;
+              let finalMaxFileSize = maxFileSize;
 
               if (
                 file.fieldname === 'logo' ||
@@ -133,6 +134,18 @@ const createUploadMiddleware = (config: {
               if (!finalAllowedExtensions.includes(ext)) {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 return res.status(400).json({ error: `不支持的文件类型: ${ext}` });
+              }
+              if (file.size > finalMaxFileSize) {
+                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                const displayLimit =
+                  file.fieldname === 'logo' ||
+                  file.fieldname === 'favicon' ||
+                  file.fieldname === 'avatar'
+                    ? '5'
+                    : settings.MAX_FILE_SIZE;
+                return res.status(400).json({
+                  error: `文件 ${file.originalname} 超过大小限制 (${displayLimit}MB)`,
+                });
               }
             }
           }

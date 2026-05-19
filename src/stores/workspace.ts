@@ -24,6 +24,8 @@ export const useWorkspaceStore = defineStore('workspace', {
       pendingMaterials: 0,
       pendingShowcases: 0,
     },
+    selectedAsset: null as any,
+    isDetailDrawerOpen: false,
   }),
   getters: {
     workspaces: (state): Workspace[] => {
@@ -184,11 +186,22 @@ export const useWorkspaceStore = defineStore('workspace', {
       }
     },
 
+    openDetails(asset: any) {
+      this.selectedAsset = asset;
+      this.isDetailDrawerOpen = true;
+    },
+
+    closeDetails() {
+      this.isDetailDrawerOpen = false;
+    },
+
     reset() {
       this.rawWorkspaces = [];
       this.activeWorkspaceId = null;
       this.isInitialized = false;
       this.isLoading = false;
+      this.selectedAsset = null;
+      this.isDetailDrawerOpen = false;
       this.adminStats = {
         pendingAssets: 0,
         openFeedbacks: 0,

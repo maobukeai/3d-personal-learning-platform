@@ -307,7 +307,7 @@ onMounted(() => {
           <p class="text-[10px] md:text-xs text-[var(--text-muted)] mt-0.5">记录学习心得，分享知识见解</p>
         </div>
       </div>
-      <el-button type="primary" :icon="Plus" size="default" round @click="openCreateDialog" class="w-full sm:w-auto">
+      <el-button type="primary" :icon="Plus" size="default" round class="w-full sm:w-auto" @click="openCreateDialog">
         发布笔记
       </el-button>
     </div>

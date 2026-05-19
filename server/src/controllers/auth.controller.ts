@@ -21,7 +21,18 @@ import { OAuthService } from '../services/oauth.service';
 
 export const googleLogin = async (req: Request, res: Response) => {
   try {
-    const url = await OAuthService.getGoogleAuthUrl();
+    const settings = await settingsService.getAll();
+    if (!settings.OAUTH_GOOGLE_ENABLED) {
+      return res.status(400).json({ error: 'Google OAuth is not enabled' });
+    }
+    const state = crypto.randomBytes(16).toString('hex');
+    res.cookie('oauth_state', state, {
+      httpOnly: true,
+      secure: config.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+    const url = await OAuthService.getGoogleAuthUrl(state);
     res.redirect(url);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -29,10 +40,21 @@ export const googleLogin = async (req: Request, res: Response) => {
 };
 
 export const googleCallback = async (req: Request, res: Response) => {
-  const { code } = req.query;
-  if (!code) return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+  const { code, state } = req.query;
+  const cookieState = req.cookies?.oauth_state;
+  res.clearCookie('oauth_state');
+
+  if (!state || state !== cookieState) {
+    return res.redirect(`${config.FRONTEND_URL}/login?error=csrf_detected`);
+  }
+
+  if (!code) return res.redirect(`${config.FRONTEND_URL}/login?error=no_code`);
 
   try {
+    const settings = await settingsService.getAll();
+    if (!settings.OAUTH_GOOGLE_ENABLED) {
+      return res.redirect(`${config.FRONTEND_URL}/login?error=oauth_not_enabled`);
+    }
     const oauthUser = await OAuthService.getGoogleUser(code as string);
     let user = await prisma.user.findUnique({ where: { googleId: oauthUser.id } });
 
@@ -75,15 +97,28 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    res.redirect(`${process.env.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
+    res.redirect(
+      `${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`,
+    );
   } catch (error) {
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
+    res.redirect(`${config.FRONTEND_URL}/login?error=oauth_failed`);
   }
 };
 
 export const githubLogin = async (req: Request, res: Response) => {
   try {
-    const url = await OAuthService.getGithubAuthUrl();
+    const settings = await settingsService.getAll();
+    if (!settings.OAUTH_GITHUB_ENABLED) {
+      return res.status(400).json({ error: 'GitHub OAuth is not enabled' });
+    }
+    const state = crypto.randomBytes(16).toString('hex');
+    res.cookie('oauth_state', state, {
+      httpOnly: true,
+      secure: config.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+    const url = await OAuthService.getGithubAuthUrl(state);
     res.redirect(url);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -91,10 +126,21 @@ export const githubLogin = async (req: Request, res: Response) => {
 };
 
 export const githubCallback = async (req: Request, res: Response) => {
-  const { code } = req.query;
-  if (!code) return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+  const { code, state } = req.query;
+  const cookieState = req.cookies?.oauth_state;
+  res.clearCookie('oauth_state');
+
+  if (!state || state !== cookieState) {
+    return res.redirect(`${config.FRONTEND_URL}/login?error=csrf_detected`);
+  }
+
+  if (!code) return res.redirect(`${config.FRONTEND_URL}/login?error=no_code`);
 
   try {
+    const settings = await settingsService.getAll();
+    if (!settings.OAUTH_GITHUB_ENABLED) {
+      return res.redirect(`${config.FRONTEND_URL}/login?error=oauth_not_enabled`);
+    }
     const oauthUser = await OAuthService.getGithubUser(code as string);
     let user = await prisma.user.findUnique({ where: { githubId: oauthUser.id } });
 
@@ -134,9 +180,11 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    res.redirect(`${process.env.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
+    res.redirect(
+      `${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`,
+    );
   } catch (error) {
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
+    res.redirect(`${config.FRONTEND_URL}/login?error=oauth_failed`);
   }
 };
 
@@ -189,6 +237,9 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ error: '验证码错误或已过期' });
     }
 
+    // Delete the used code immediately to prevent reuse attack
+    await prisma.verificationCode.delete({ where: { id: record.id } });
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 使用事务同时创建用户、个人团队和加入公共团队
@@ -202,9 +253,6 @@ export const register = async (req: Request, res: Response) => {
             emailVerified: true,
           },
         });
-
-        // Cleanup
-        await tx.verificationCode.deleteMany({ where: { email } });
 
         // 1. 创建个人工作区（PERSONAL 类型团队）
         const personalTeam = await tx.team.create({
@@ -358,6 +406,9 @@ export const verifyPublicEmail = async (req: Request, res: Response) => {
       return res.status(400).json({ error: '验证码错误或已过期' });
     }
 
+    // Delete the used code to prevent reuse
+    await prisma.verificationCode.delete({ where: { id: record.id } });
+
     res.json({ message: '邮箱验证成功' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -367,7 +418,14 @@ export const verifyPublicEmail = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   const { email, password, deviceToken } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        subscription: {
+          include: { plan: true },
+        },
+      },
+    });
     if (!user) {
       return res.status(400).json({ error: '邮箱或密码错误' });
     }
@@ -402,18 +460,7 @@ export const login = async (req: Request, res: Response) => {
           return res.json({
             accessToken,
             refreshToken,
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: user.role,
-              avatarUrl: user.avatarUrl,
-              bio: user.bio,
-              location: user.location,
-              website: user.website,
-              twoFactorEnabled: user.twoFactorEnabled,
-              createdAt: user.createdAt,
-            },
+            user: sanitizeUser(user),
           });
         }
       }
@@ -444,18 +491,7 @@ export const login = async (req: Request, res: Response) => {
     res.json({
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-        bio: user.bio,
-        location: user.location,
-        website: user.website,
-        twoFactorEnabled: user.twoFactorEnabled,
-        createdAt: user.createdAt,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
     console.error(error);
@@ -527,19 +563,7 @@ export const login2FA = async (req: Request, res: Response) => {
       accessToken,
       refreshToken,
       deviceToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-        bio: user.bio,
-        location: user.location,
-        website: user.website,
-        twoFactorEnabled: user.twoFactorEnabled,
-        createdAt: user.createdAt,
-        subscription: user.subscription,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
     console.error(error);
@@ -629,23 +653,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
   const user = req.user!;
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  // Return only the fields the frontend expects
-  const safeUser = {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    avatarUrl: user.avatarUrl,
-    bio: user.bio,
-    location: user.location,
-    website: user.website,
-    twoFactorEnabled: user.twoFactorEnabled,
-    emailVerified: user.emailVerified,
-    createdAt: user.createdAt,
-    subscription: user.subscription,
-  };
-
-  res.json(safeUser);
+  res.json(sanitizeUser(user));
 };
 
 export const setup2FA = async (req: AuthRequest, res: Response) => {
@@ -1180,9 +1188,13 @@ export const getActivity = async (req: AuthRequest, res: Response) => {
   try {
     const where: any = {};
     if (date) {
-      const startOfDay = new Date(date as string);
+      const parsedDate = new Date(date as string);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ error: '无效的日期格式' });
+      }
+      const startOfDay = new Date(parsedDate);
       startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date as string);
+      const endOfDay = new Date(parsedDate);
       endOfDay.setHours(23, 59, 59, 999);
       where.createdAt = {
         gte: startOfDay,

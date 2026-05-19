@@ -142,11 +142,25 @@ class SettingsService {
     for (const s of dbSettings) {
       try {
         const key = s.key as keyof SystemSettings;
-        if (s.key.endsWith('_MODE') || s.key.startsWith('ALLOW_') || s.key.startsWith('AUTO_') || s.key.endsWith('_ENABLED')) {
+        if (
+          s.key.endsWith('_MODE') ||
+          s.key.startsWith('ALLOW_') ||
+          s.key.startsWith('AUTO_') ||
+          s.key.endsWith('_ENABLED')
+        ) {
           (settings as any)[key] = s.value === 'true';
-        } else if (s.key.endsWith('_PORT') || s.key.endsWith('_SIZE') || s.key.endsWith('_LENGTH') || s.key === 'MAX_UPLOAD_SIZE_MB') {
+        } else if (
+          s.key.endsWith('_PORT') ||
+          s.key.endsWith('_SIZE') ||
+          s.key.endsWith('_LENGTH') ||
+          s.key === 'MAX_UPLOAD_SIZE_MB'
+        ) {
           (settings as any)[key] = parseInt(s.value, 10);
-        } else if (s.key.endsWith('_CATEGORIES') || s.key.endsWith('_EXTENSIONS') || s.key === 'ALLOWED_FILE_TYPES') {
+        } else if (
+          s.key.endsWith('_CATEGORIES') ||
+          s.key.endsWith('_EXTENSIONS') ||
+          s.key === 'ALLOWED_FILE_TYPES'
+        ) {
           try {
             // Safe JSON parse to extract actual array
             let parsed = JSON.parse(s.value);
@@ -163,11 +177,17 @@ class SettingsService {
             if (Array.isArray(parsed)) {
               (settings as any)[key] = parsed;
             } else if (typeof parsed === 'string') {
-              (settings as any)[key] = parsed.split(',').map(v => v.trim()).filter(Boolean);
+              (settings as any)[key] = parsed
+                .split(',')
+                .map((v) => v.trim())
+                .filter(Boolean);
             }
           } catch (e) {
             console.warn(`Recovering malformed setting ${s.key}`);
-            const arr = s.value.split(',').map(v => v.trim()).filter(Boolean);
+            const arr = s.value
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean);
             (settings as any)[key] = arr;
           }
         } else {
@@ -204,7 +224,7 @@ class SettingsService {
 
   async update(key: string, value: any): Promise<void> {
     let stringValue: string;
-    
+
     if (Array.isArray(value)) {
       stringValue = JSON.stringify(value);
     } else if (typeof value === 'string') {
@@ -226,40 +246,42 @@ class SettingsService {
       stringValue = String(value);
     }
 
-    await prisma.systemSetting.upsert({
-      where: { key },
-      update: { value: stringValue },
-      create: { key, value: stringValue },
-    });
+    // Determine if we need to update synced keys
+    const syncedKey = this.getSyncedKey(key);
 
-    // Mirror synced keys
-    if (key === 'ALLOWED_FILE_TYPES') {
+    if (syncedKey) {
+      // Use transaction to ensure atomic updates
+      await prisma.$transaction([
+        prisma.systemSetting.upsert({
+          where: { key },
+          update: { value: stringValue },
+          create: { key, value: stringValue },
+        }),
+        prisma.systemSetting.upsert({
+          where: { key: syncedKey },
+          update: { value: stringValue },
+          create: { key: syncedKey, value: stringValue },
+        }),
+      ]);
+    } else {
       await prisma.systemSetting.upsert({
-        where: { key: 'ALLOWED_EXTENSIONS' },
+        where: { key },
         update: { value: stringValue },
-        create: { key: 'ALLOWED_EXTENSIONS', value: stringValue },
-      });
-    } else if (key === 'ALLOWED_EXTENSIONS') {
-      await prisma.systemSetting.upsert({
-        where: { key: 'ALLOWED_FILE_TYPES' },
-        update: { value: stringValue },
-        create: { key: 'ALLOWED_FILE_TYPES', value: stringValue },
-      });
-    } else if (key === 'MAX_UPLOAD_SIZE_MB') {
-      await prisma.systemSetting.upsert({
-        where: { key: 'MAX_FILE_SIZE' },
-        update: { value: stringValue },
-        create: { key: 'MAX_FILE_SIZE', value: stringValue },
-      });
-    } else if (key === 'MAX_FILE_SIZE') {
-      await prisma.systemSetting.upsert({
-        where: { key: 'MAX_UPLOAD_SIZE_MB' },
-        update: { value: stringValue },
-        create: { key: 'MAX_UPLOAD_SIZE_MB', value: stringValue },
+        create: { key, value: stringValue },
       });
     }
 
     this.cache = null; // Invalidate cache
+  }
+
+  private getSyncedKey(key: string): string | null {
+    const syncMap: Record<string, string> = {
+      ALLOWED_FILE_TYPES: 'ALLOWED_EXTENSIONS',
+      ALLOWED_EXTENSIONS: 'ALLOWED_FILE_TYPES',
+      MAX_UPLOAD_SIZE_MB: 'MAX_FILE_SIZE',
+      MAX_FILE_SIZE: 'MAX_UPLOAD_SIZE_MB',
+    };
+    return syncMap[key] || null;
   }
 
   async updateMany(settings: Partial<SystemSettings>): Promise<void> {

@@ -177,6 +177,19 @@ const router = createRouter({
               name: 'Notifications',
               component: () => import('@/views/NotificationsView.vue'),
             },
+
+            {
+              path: 'mirror/source/:id',
+              name: 'MirrorSource',
+              component: () => import('@/views/Mirror/MirrorSourceView.vue'),
+              meta: { requiresAuth: true },
+            },
+            {
+              path: 'mirror/resource/:id',
+              name: 'MirrorResourceDetail',
+              component: () => import('@/views/Mirror/MirrorResourceDetail.vue'),
+              meta: { requiresAuth: true },
+            },
             // Admin Routes
             {
               path: 'admin/dashboard',
@@ -256,6 +269,12 @@ const router = createRouter({
               component: () => import('@/views/Admin/AdminSettingsView.vue'),
               meta: { requiresAdmin: true },
             },
+            {
+              path: 'admin/mirror',
+              name: 'AdminMirror',
+              component: () => import('@/views/Admin/AdminMirrorView.vue'),
+              meta: { requiresAdmin: true },
+            },
           ],
         },
       ],
@@ -267,14 +286,10 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   const systemStore = useSystemStore();
 
-  console.log('Router: Navigating to', to.name);
-
   // Fetch system settings if not already fetched
   if (!systemStore.isInitialized) {
     try {
-      console.log('Router: Initializing system settings...');
       await systemStore.fetchSettings();
-      console.log('Router: System settings initialized');
     } catch (e) {
       console.error('Router: System initialization failed', e);
     }

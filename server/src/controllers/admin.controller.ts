@@ -174,24 +174,93 @@ export const getSettings = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const validateSettings = (
+  settingsObj: Record<string, any>,
+): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  const numericFields = [
+    { key: 'MAX_FILE_SIZE', min: 1, max: 1024, label: '最大文件大小' },
+    { key: 'MAX_UPLOAD_SIZE_MB', min: 1, max: 1024, label: '最大上传大小' },
+    { key: 'SMTP_PORT', min: 1, max: 65535, label: 'SMTP端口' },
+    { key: 'PASSWORD_MIN_LENGTH', min: 4, max: 128, label: '密码最小长度' },
+  ];
+
+  for (const { key, min, max, label } of numericFields) {
+    if (settingsObj[key] !== undefined) {
+      const value = parseInt(settingsObj[key], 10);
+      if (isNaN(value)) {
+        errors.push(`${label}必须是数字`);
+      } else if (value < min || value > max) {
+        errors.push(`${label}必须在 ${min}-${max} 范围内`);
+      }
+    }
+  }
+
+  const booleanFields = [
+    'ALLOW_REGISTRATION',
+    'MAINTENANCE_MODE',
+    'AUTO_APPROVE_MATERIALS',
+    'AUTO_APPROVE_SHOWCASES',
+    'OAUTH_GOOGLE_ENABLED',
+    'OAUTH_GITHUB_ENABLED',
+  ];
+
+  for (const field of booleanFields) {
+    if (settingsObj[field] !== undefined) {
+      const val = settingsObj[field];
+      if (val !== true && val !== false && val !== 'true' && val !== 'false') {
+        errors.push(`${field}必须是布尔值`);
+      }
+    }
+  }
+
+  if (settingsObj.SESSION_TIMEOUT !== undefined) {
+    const timeout = settingsObj.SESSION_TIMEOUT;
+    if (!/^\d+[hdwm]$/.test(timeout)) {
+      errors.push('SESSION_TIMEOUT格式不正确，应为数字加单位(如: 7d, 1h)');
+    }
+  }
+
+  if (settingsObj.DEFAULT_USER_ROLE !== undefined) {
+    const validRoles = ['USER', 'ADMIN', 'INSTRUCTOR'];
+    if (!validRoles.includes(settingsObj.DEFAULT_USER_ROLE)) {
+      errors.push('DEFAULT_USER_ROLE必须是 USER、ADMIN 或 INSTRUCTOR');
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+};
+
 export const updateSettings = async (req: AuthRequest, res: Response) => {
   try {
     const { settings } = req.body; // Expecting { key: value, ... } or [{key, value}, ...]
+
+    if (!settings || (Array.isArray(settings) && settings.length === 0)) {
+      return res.status(400).json({ error: '设置数据不能为空' });
+    }
 
     const oldSettings = await settingsService.getAll();
     let settingsObj: any = {};
 
     if (Array.isArray(settings)) {
       settings.forEach((s: any) => {
-        settingsObj[s.key] = s.value;
+        if (s.key && s.value !== undefined) {
+          settingsObj[s.key] = s.value;
+        }
       });
     } else {
       settingsObj = settings;
     }
 
+    const { valid, errors } = validateSettings(settingsObj);
+    if (!valid) {
+      return res.status(400).json({ error: '设置验证失败', details: errors });
+    }
+
     // Ensure array fields are actually arrays before saving
     const arrayFields = ['ALLOWED_EXTENSIONS', 'ALLOWED_FILE_TYPES', 'MATERIAL_CATEGORIES'];
-    arrayFields.forEach(field => {
+    arrayFields.forEach((field) => {
       if (settingsObj[field] !== undefined) {
         if (typeof settingsObj[field] === 'string') {
           const valStr = settingsObj[field].trim();
@@ -204,13 +273,22 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
               if (Array.isArray(parsed)) {
                 settingsObj[field] = parsed;
               } else {
-                settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+                settingsObj[field] = valStr
+                  .split(',')
+                  .map((s: string) => s.trim())
+                  .filter(Boolean);
               }
             } catch (e) {
-              settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+              settingsObj[field] = valStr
+                .split(',')
+                .map((s: string) => s.trim())
+                .filter(Boolean);
             }
           } else {
-            settingsObj[field] = valStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+            settingsObj[field] = valStr
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean);
           }
         }
       }

@@ -19,6 +19,7 @@ interface User {
       name: string;
       displayName?: string;
       badgeColor?: string;
+      priority?: number;
     };
     status?: string;
     interval?: string;

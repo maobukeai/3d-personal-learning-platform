@@ -34,6 +34,15 @@ import {
   Share2,
   Menu,
   X,
+  Globe,
+  Video,
+  Palette,
+  Cpu,
+  Sparkles,
+  Camera,
+  Tv,
+  Compass,
+  Folder,
 } from 'lucide-vue-next';
 import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue';
@@ -43,6 +52,7 @@ import InvitationDialog from '@/components/InvitationDialog.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useMirrorStore } from '@/stores/mirror';
 import api, { getAssetUrl } from '@/utils/api';
 import { socketService } from '@/utils/socket';
 
@@ -52,8 +62,57 @@ const router = useRouter();
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const workspaceStore = useWorkspaceStore();
+const mirrorStore = useMirrorStore();
 
-const adminGroups = computed(() => [
+// Dynamic icon mapper for categories to make sidebar look premium and diverse
+function getCategoryIcon(name: string) {
+  const lowercaseName = name.toLowerCase();
+  
+  if (lowercaseName.includes('视频') || lowercaseName.includes('剪辑') || lowercaseName.includes('播放') || lowercaseName.includes('影视')) {
+    return Video;
+  }
+  if (lowercaseName.includes('建模') || lowercaseName.includes('模型') || lowercaseName.includes('渲染') || lowercaseName.includes('室内') || lowercaseName.includes('3d')) {
+    return Box;
+  }
+  if (lowercaseName.includes('绘画') || lowercaseName.includes('插画') || lowercaseName.includes('设计') || lowercaseName.includes('平面') || lowercaseName.includes('ui') || lowercaseName.includes('美术')) {
+    return Palette;
+  }
+  if (lowercaseName.includes('摄影') || lowercaseName.includes('拍照') || lowercaseName.includes('相机') || lowercaseName.includes('特效')) {
+    return Camera;
+  }
+  if (lowercaseName.includes('场景') || lowercaseName.includes('环境') || lowercaseName.includes('地图') || lowercaseName.includes('关卡')) {
+    return Compass;
+  }
+  if (lowercaseName.includes('软件') || lowercaseName.includes('工具') || lowercaseName.includes('系统') || lowercaseName.includes('引擎')) {
+    return Cpu;
+  }
+  if (lowercaseName.includes('aigc') || lowercaseName.includes('ai') || lowercaseName.includes('智能') || lowercaseName.includes('生成')) {
+    return Sparkles;
+  }
+  
+  // Deterministic fallback hash to keep it consistent
+  const icons = [Folder, Layers, Database, MonitorPlay, Tv];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % icons.length;
+  return icons[index];
+}
+
+interface SidebarMenuItem {
+  name: string;
+  icon: any;
+  path: string;
+  badge?: number;
+}
+
+interface SidebarMenuGroup {
+  title: string;
+  items: SidebarMenuItem[];
+}
+
+const adminGroups = computed<SidebarMenuGroup[]>(() => [
   {
     title: '系统概览',
     items: [
@@ -104,6 +163,7 @@ const adminGroups = computed(() => [
     title: '运营管理',
     items: [
       { name: '订阅管理', icon: CreditCard, path: '/admin/subscriptions' },
+      { name: '镜像源管理', icon: Globe, path: '/admin/mirror' },
       { name: '系统设置', icon: Settings, path: '/admin/settings' },
     ],
   },
@@ -266,6 +326,12 @@ const handleSwitchWorkspace = (ws: any) => {
   workspaceStore.setWorkspace(ws);
   if (ws.type === 'admin') {
     router.push('/admin/dashboard');
+  } else if (ws.type === 'mirror') {
+    if (ws.mirrorSourceId) {
+      router.push(`/mirror/source/${ws.mirrorSourceId}`);
+    } else {
+      router.push('/mirror');
+    }
   } else {
     router.push('/dashboard');
   }
@@ -274,6 +340,8 @@ const handleSwitchWorkspace = (ws: any) => {
 const handleQuickSettings = (ws: any) => {
   if (ws.type === 'admin') {
     router.push('/admin/settings');
+  } else if (ws.type === 'mirror') {
+    router.push('/mirror');
   } else if (ws.type === 'personal') {
     router.push({ path: '/settings', query: { tab: 'profile' } });
   } else {
@@ -312,9 +380,40 @@ const handleLogout = async () => {
   router.push('/login');
 };
 
-const menuGroups = computed(() => {
+const mirrorGroups = computed<SidebarMenuGroup[]>(() => {
+  const currentSourceId = workspaceStore.currentWorkspace?.mirrorSourceId;
+  const groups: SidebarMenuGroup[] = [
+    {
+      title: workspaceStore.currentWorkspace?.name || '镜像资源',
+      items: [
+        { 
+          name: '全部资源', 
+          icon: Database, 
+          path: `/mirror/source/${currentSourceId}` 
+        },
+      ],
+    },
+  ];
+
+  if (currentSourceId && mirrorStore.categories?.length) {
+    mirrorStore.categories.forEach(cat => {
+      groups[0].items.push({
+        name: cat.name,
+        icon: getCategoryIcon(cat.name),
+        path: `/mirror/source/${currentSourceId}?categoryId=${cat.id}`,
+      });
+    });
+  }
+
+  return groups;
+});
+
+const menuGroups = computed<SidebarMenuGroup[]>(() => {
   if (workspaceStore.isAdminWorkspace) {
     return adminGroups.value;
+  }
+  if (workspaceStore.currentWorkspace?.type === 'mirror') {
+    return mirrorGroups.value;
   }
 
   return [
@@ -525,6 +624,45 @@ watch(
   },
 );
 
+const onMirrorSyncStarted = ({ sourceName, type }: any) => {
+  ElNotification({
+    title: '镜像同步开始',
+    message: `镜像源「${sourceName}」的${type === 'FULL' ? '全量' : '增量'}同步任务已启动...`,
+    type: 'info',
+    duration: 4000,
+    position: 'top-right',
+  });
+};
+
+const onMirrorSyncFinished = ({ sourceName, status, result, error }: any) => {
+  if (status === 'SUCCESS') {
+    ElNotification({
+      title: '镜像同步成功',
+      message: `镜像源「${sourceName}」同步完成！新增 ${result?.resourcesCreated || 0} 个资源，更新 ${result?.resourcesUpdated || 0} 个资源。`,
+      type: 'success',
+      duration: 6000,
+      position: 'top-right',
+    });
+  } else if (status === 'CANCELLED') {
+    ElNotification({
+      title: '镜像同步已取消',
+      message: `镜像源「${sourceName}」的同步任务已由用户手动取消。`,
+      type: 'warning',
+      duration: 4000,
+      position: 'top-right',
+    });
+  } else {
+    ElNotification({
+      title: '镜像同步失败',
+      message: `镜像源「${sourceName}」同步遇到错误：${error || '未知错误'}`,
+      type: 'error',
+      duration: 6000,
+      position: 'top-right',
+    });
+  }
+  workspaceStore.fetchWorkspaces();
+};
+
 let statsInterval: any = null;
 
 onMounted(() => {
@@ -563,6 +701,8 @@ onMounted(() => {
   socketService.on('online_users_list', onOnlineUsersList);
   socketService.on('user_status', onUserStatus);
   socketService.on('message_received', onMessageReceived);
+  socketService.on('mirror_sync_started', onMirrorSyncStarted);
+  socketService.on('mirror_sync_finished', onMirrorSyncFinished);
 
   // Custom event for immediate admin stat refresh
   socketService.on('refresh_admin_stats', () => {
@@ -582,6 +722,9 @@ watch(
       workspaceStore.setWorkspaceById(id);
     } else if (path.startsWith('/admin/')) {
       workspaceStore.setWorkspaceById('admin-workspace');
+    } else if (path.startsWith('/mirror/source/')) {
+      const sourceId = path.split('/')[3];
+      workspaceStore.setWorkspaceById(`mirror-${sourceId}`);
     }
   },
   { immediate: false },
@@ -595,6 +738,8 @@ onUnmounted(() => {
   socketService.off('message_received', onMessageReceived);
   socketService.off('online_users_list', onOnlineUsersList);
   socketService.off('user_status', onUserStatus);
+  socketService.off('mirror_sync_started', onMirrorSyncStarted);
+  socketService.off('mirror_sync_finished', onMirrorSyncFinished);
   socketService.off('refresh_admin_stats');
 });
 </script>
@@ -969,7 +1114,7 @@ onUnmounted(() => {
                   :to="item.path"
                   class="flex items-center justify-between px-3 py-2 rounded-md transition-colors duration-150"
                   :class="
-                    route.path === item.path
+                    route.fullPath === item.path
                       ? workspaceStore.isAdminWorkspace
                         ? 'bg-rose-600 text-white font-medium shadow-md'
                         : 'bg-accent-subtle dark:bg-accent/20 text-accent font-medium'
@@ -979,9 +1124,10 @@ onUnmounted(() => {
                   <div class="flex items-center gap-3">
                     <component
                       :is="item.icon"
+                      v-if="item.icon"
                       class="w-4 h-4"
                       :class="
-                        route.path === item.path
+                        route.fullPath === item.path
                           ? workspaceStore.isAdminWorkspace
                             ? 'text-white'
                             : 'text-accent'
@@ -995,7 +1141,7 @@ onUnmounted(() => {
                       v-if="item.badge && item.badge > 0"
                       class="px-1.5 py-0.5 min-w-[18px] h-4.5 rounded-full text-[10px] font-black flex items-center justify-center transition-all duration-300"
                       :class="
-                        route.path === item.path
+                        route.fullPath === item.path
                           ? 'bg-white text-rose-600 shadow-sm'
                           : workspaceStore.isAdminWorkspace
                             ? 'bg-rose-500 text-white'

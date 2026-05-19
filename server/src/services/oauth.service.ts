@@ -1,7 +1,6 @@
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from './prisma';
+import { config } from '../config/env';
 
 export interface OAuthUserInfo {
   id: string;
@@ -19,10 +18,10 @@ export class OAuthService {
   }
 
   // --- Google ---
-  static async getGoogleAuthUrl(): Promise<string> {
+  static async getGoogleAuthUrl(state: string): Promise<string> {
     const clientId = await this.getSetting('OAUTH_GOOGLE_CLIENT_ID');
-    const redirectUri = `${process.env.BACKEND_URL}/api/auth/google/callback`;
-    
+    const redirectUri = `${config.BACKEND_URL}/api/auth/google/callback`;
+
     if (!clientId) throw new Error('Google OAuth is not configured');
 
     const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -36,6 +35,7 @@ export class OAuthService {
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/userinfo.email',
       ].join(' '),
+      state,
     };
 
     const qs = new URLSearchParams(options);
@@ -45,7 +45,7 @@ export class OAuthService {
   static async getGoogleUser(code: string): Promise<OAuthUserInfo> {
     const clientId = await this.getSetting('OAUTH_GOOGLE_CLIENT_ID');
     const clientSecret = await this.getSetting('OAUTH_GOOGLE_CLIENT_SECRET');
-    const redirectUri = `${process.env.BACKEND_URL}/api/auth/google/callback`;
+    const redirectUri = `${config.BACKEND_URL}/api/auth/google/callback`;
 
     if (!clientId || !clientSecret) throw new Error('Google OAuth is not configured');
 
@@ -68,7 +68,7 @@ export class OAuthService {
       `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${access_token}`,
       {
         headers: { Authorization: `Bearer ${access_token}` },
-      }
+      },
     );
 
     return {
@@ -80,9 +80,9 @@ export class OAuthService {
   }
 
   // --- GitHub ---
-  static async getGithubAuthUrl(): Promise<string> {
+  static async getGithubAuthUrl(state: string): Promise<string> {
     const clientId = await this.getSetting('OAUTH_GITHUB_CLIENT_ID');
-    const redirectUri = `${process.env.BACKEND_URL}/api/auth/github/callback`;
+    const redirectUri = `${config.BACKEND_URL}/api/auth/github/callback`;
 
     if (!clientId) throw new Error('GitHub OAuth is not configured');
 
@@ -91,7 +91,7 @@ export class OAuthService {
       client_id: clientId,
       redirect_uri: redirectUri,
       scope: 'read:user user:email',
-      state: Math.random().toString(36).substring(7),
+      state,
     };
 
     const qs = new URLSearchParams(options);
@@ -126,7 +126,8 @@ export class OAuthService {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    const primaryEmail = emailsRes.data.find((e: any) => e.primary && e.verified)?.email || emailsRes.data[0].email;
+    const primaryEmail =
+      emailsRes.data.find((e: any) => e.primary && e.verified)?.email || emailsRes.data[0].email;
 
     return {
       id: String(userRes.data.id),

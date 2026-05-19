@@ -365,7 +365,7 @@ onMounted(() => {
                     </div>
                   </div>
 
-                  <div @click.stop class="w-full sm:w-auto">
+                  <div class="w-full sm:w-auto" @click.stop>
                     <button
                       v-if="myTeamIds.has(group.id)"
                       class="w-full sm:w-auto flex items-center justify-center gap-1 px-2 lg:px-3 py-1 lg:py-1.5 bg-accent text-white rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm"

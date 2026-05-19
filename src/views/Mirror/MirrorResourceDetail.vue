@@ -1,0 +1,584 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import {
+  ArrowLeft,
+  Clock,
+  Eye,
+  Tag,
+  Globe,
+  Calendar,
+  Loader2,
+  AlertCircle,
+  Heart,
+  MessageSquare,
+  Copy,
+  Trash2,
+  Link2,
+  Lock,
+} from 'lucide-vue-next';
+import { useMirrorStore } from '@/stores/mirror';
+import { useAuthStore } from '@/stores/auth';
+import { ElMessage } from 'element-plus';
+import { sanitizeHtml } from '@/utils/sanitize';
+import api, { getAssetUrl } from '@/utils/api';
+
+const route = useRoute();
+const router = useRouter();
+const mirrorStore = useMirrorStore();
+const authStore = useAuthStore();
+
+const resourceId = computed(() => route.params.id as string);
+const resource = ref<any>(null);
+const isLoading = ref(true);
+const error = ref<string | null>(null);
+
+async function loadResource() {
+  isLoading.value = true;
+  error.value = null;
+  try {
+    const data = await mirrorStore.fetchResource(resourceId.value);
+    if (!data) {
+      error.value = '资源不存在';
+    } else {
+      resource.value = data;
+    }
+  } catch (e: any) {
+    error.value = e.response?.data?.message || '加载失败';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function formatDate(date: string | null) {
+  if (!date) return '-';
+  return new Date(date).toLocaleString('zh-CN');
+}
+
+function parseTags(tags: string | null) {
+  if (!tags) return [];
+  try {
+    return JSON.parse(tags);
+  } catch {
+    return [];
+  }
+}
+
+function goBack() {
+  if (resource.value?.sourceId) {
+    router.push(`/mirror/source/${resource.value.sourceId}`);
+  } else {
+    router.push('/mirror');
+  }
+}
+
+const comments = ref<any[]>([]);
+const likeStatus = ref({ liked: false, count: 0 });
+const newCommentText = ref('');
+const isSubmittingComment = ref(false);
+const isTogglingLike = ref(false);
+
+async function fetchComments() {
+  try {
+    const res = await api.get(`/api/mirror/resources/${resourceId.value}/comments`);
+    comments.value = res.data;
+  } catch (e) {
+    console.error('加载评论失败', e);
+  }
+}
+
+async function fetchLikeStatus() {
+  try {
+    const res = await api.get(`/api/mirror/resources/${resourceId.value}/like-status`);
+    likeStatus.value = res.data;
+  } catch (e) {
+    console.error('加载点赞状态失败', e);
+  }
+}
+
+async function toggleLike() {
+  if (isTogglingLike.value) return;
+  isTogglingLike.value = true;
+  try {
+    const res = await api.post(`/api/mirror/resources/${resourceId.value}/like`);
+    likeStatus.value = res.data;
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.error || '操作失败');
+  } finally {
+    isTogglingLike.value = false;
+  }
+}
+
+async function submitComment() {
+  if (!newCommentText.value.trim() || isSubmittingComment.value) return;
+  isSubmittingComment.value = true;
+  try {
+    const res = await api.post(`/api/mirror/resources/${resourceId.value}/comments`, {
+      content: newCommentText.value,
+    });
+    comments.value.unshift(res.data);
+    newCommentText.value = '';
+    ElMessage.success('发表成功');
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.error || '发表评论失败');
+  } finally {
+    isSubmittingComment.value = false;
+  }
+}
+
+async function deleteComment(commentId: string) {
+  try {
+    await api.delete(`/api/mirror/resources/comments/${commentId}`);
+    comments.value = comments.value.filter(c => c.id !== commentId);
+    ElMessage.success('删除成功');
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.error || '删除评论失败');
+  }
+}
+
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text);
+  ElMessage.success('提取码已复制到剪贴板！');
+}
+
+function getLinkTypeColor(type: string) {
+  switch (type) {
+    case 'baidu': return 'bg-blue-500';
+    case 'quark': return 'bg-teal-500';
+    case 'aliyun': return 'bg-orange-500';
+    case '123pan': return 'bg-indigo-500';
+    case 'tianyi': return 'bg-cyan-500';
+    case 'lanzou': return 'bg-rose-500';
+    default: return 'bg-slate-400';
+  }
+}
+
+const extractedLinks = computed(() => {
+  if (!resource.value) return [];
+  const html = resource.value.contentHtml || '';
+  const fallbackUrl = resource.value.contentUrl || '';
+  const links: Array<{ name: string; url: string; code?: string; type: string }> = [];
+
+  const text = html.replace(/<[^>]*>/g, ' ');
+
+  const drivePatterns = [
+    { name: '百度网盘', pattern: /(https?:\/\/(?:pan|yun)\.baidu\.com\/s\/[a-zA-Z0-9_-]+)/gi, type: 'baidu' },
+    { name: '夸克网盘', pattern: /(https?:\/\/pan\.quark\.cn\/s\/[a-zA-Z0-9_-]+)/gi, type: 'quark' },
+    { name: '阿里云盘', pattern: /(https?:\/\/(?:www\.)?(?:aliyundrive|alipan)\.com\/s\/[a-zA-Z0-9_-]+)/gi, type: 'aliyun' },
+    { name: '123云盘', pattern: /(https?:\/\/(?:www\.)?123(?:pan|system)\.com\/s\/[a-zA-Z0-9_-]+)/gi, type: '123pan' },
+    { name: '天翼云盘', pattern: /(https?:\/\/cloud\.189\.cn\/t\/[a-zA-Z0-9_-]+)/gi, type: 'tianyi' },
+    { name: '蓝奏云', pattern: /(https?:\/\/[a-zA-Z0-9_-]+\.lanzou[a-z]\.com\/[a-zA-Z0-9_-]+)/gi, type: 'lanzou' },
+  ];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const anchors = doc.querySelectorAll('a');
+  anchors.forEach(a => {
+    const href = a.getAttribute('href');
+    if (href) {
+      const isKnownDrive = drivePatterns.some(p => {
+        if (href.match(p.pattern)) {
+          let code: string | undefined;
+          const textAround = a.parentElement?.textContent || '';
+          const codeMatch = textAround.match(/(?:提取码|密码|🔑|访问码)\s*[:：]?\s*([a-zA-Z0-9]{4,6})/i);
+          if (codeMatch) {
+            code = codeMatch[1];
+          }
+          links.push({ name: p.name, url: href, code, type: p.type });
+          return true;
+        }
+        return false;
+      });
+      if (!isKnownDrive && href.startsWith('http') && !href.includes(window.location.host)) {
+        links.push({ name: a.textContent?.trim() || '外部链接', url: href, type: 'generic' });
+      }
+    }
+  });
+
+  if (links.length === 0) {
+    drivePatterns.forEach(p => {
+      let match;
+      p.pattern.lastIndex = 0;
+      while ((match = p.pattern.exec(text)) !== null) {
+        const url = match[1];
+        const urlIndex = text.indexOf(url);
+        const textAfterUrl = text.substring(urlIndex, urlIndex + 100);
+        const codeMatch = textAfterUrl.match(/(?:提取码|密码|🔑|访问码)\s*[:：]?\s*([a-zA-Z0-9]{4,6})/i);
+        const code = codeMatch ? codeMatch[1] : undefined;
+        links.push({ name: p.name, url, code, type: p.type });
+      }
+    });
+  }
+
+  if (links.length === 0 && fallbackUrl) {
+    links.push({ name: '访问源站提取资源', url: fallbackUrl, type: 'source' });
+  }
+
+  const uniqueLinks: typeof links = [];
+  const seenUrls = new Set<string>();
+  links.forEach(l => {
+    if (!seenUrls.has(l.url)) {
+      seenUrls.add(l.url);
+      uniqueLinks.push(l);
+    }
+  });
+
+  return uniqueLinks;
+});
+
+onMounted(() => {
+  loadResource().then(() => {
+    if (resource.value) {
+      fetchComments();
+      fetchLikeStatus();
+    }
+  });
+});
+
+watch(resourceId, () => {
+  loadResource().then(() => {
+    if (resource.value) {
+      fetchComments();
+      fetchLikeStatus();
+    }
+  });
+});
+</script>
+
+<template>
+  <div class="mirror-resource-detail h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1400px] mx-auto scrollbar-hide">
+    <div class="flex items-center gap-3 mb-6">
+      <button
+        class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        @click="goBack"
+      >
+        <ArrowLeft class="w-5 h-5" />
+      </button>
+      <span class="text-sm text-slate-400">返回</span>
+    </div>
+
+    <div v-if="isLoading" class="flex items-center justify-center py-20">
+      <Loader2 class="w-6 h-6 animate-spin text-blue-500" />
+      <span class="ml-2 text-slate-500">加载中...</span>
+    </div>
+
+    <div v-else-if="error" class="text-center py-20">
+      <AlertCircle class="w-12 h-12 text-red-300 mx-auto mb-4" />
+      <p class="text-red-500">{{ error }}</p>
+      <button
+        class="mt-4 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm text-slate-600 hover:bg-slate-200 transition-colors"
+        @click="goBack"
+      >
+        返回列表
+      </button>
+    </div>
+
+    <template v-else-if="resource">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <!-- Left content -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
+            <div v-if="resource.thumbnailUrl" class="w-full aspect-[16/9] max-h-[500px] bg-slate-100 dark:bg-slate-700 overflow-hidden">
+              <img
+                :src="getAssetUrl(resource.thumbnailUrl)"
+                :alt="resource.title"
+                class="w-full h-full object-cover"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
+            </div>
+            <div class="p-6">
+              <div class="flex items-start gap-3 mb-4">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span v-if="resource.category" class="px-2 py-0.5 text-xs rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500">
+                      {{ resource.category.name }}
+                    </span>
+                    <span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500">
+                      {{ resource.resourceType }}
+                    </span>
+                  </div>
+                  <h1 class="text-xl font-bold text-slate-900 dark:text-white">
+                    {{ resource.title }}
+                  </h1>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-4 text-sm text-slate-400 mb-6">
+                <span class="flex items-center gap-1.5">
+                  <Globe class="w-4 h-4" />
+                  {{ resource.source?.displayName || resource.source?.name }}
+                </span>
+                <span v-if="resource.publishedAt" class="flex items-center gap-1.5">
+                  <Calendar class="w-4 h-4" />
+                  {{ formatDate(resource.publishedAt) }}
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <Clock class="w-4 h-4" />
+                  同步于 {{ formatDate(resource.syncedAt) }}
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <Eye class="w-4 h-4" />
+                  {{ resource.viewCount }} 次浏览
+                </span>
+              </div>
+
+              <div v-if="parseTags(resource.tags).length > 0" class="flex flex-wrap gap-1.5 mb-6">
+                <span
+                  v-for="tag in parseTags(resource.tags)"
+                  :key="tag"
+                  class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                >
+                  <Tag class="w-3 h-3" />
+                  {{ tag }}
+                </span>
+              </div>
+
+              <!-- Prominent Link Box on Mobile -->
+              <div class="block lg:hidden mb-6">
+                <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-5 shadow-sm">
+                  <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <Link2 class="w-4 h-4 text-blue-500" />
+                    提取资源链接
+                  </h3>
+                  
+                  <div class="space-y-3.5">
+                    <div v-if="extractedLinks.length === 0" class="text-slate-400 text-xs text-center py-4">
+                      暂无提取链接
+                    </div>
+                    <div v-else class="space-y-3">
+                      <div
+                        v-for="(link, idx) in extractedLinks"
+                        :key="idx"
+                        class="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex flex-col gap-2"
+                      >
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" :class="getLinkTypeColor(link.type)"></div>
+                            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ link.name }}</span>
+                          </div>
+                          <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-400">
+                            {{ link.type }}
+                          </span>
+                        </div>
+                        
+                        <div v-if="link.code" class="flex items-center justify-between bg-slate-100 dark:bg-slate-700/60 px-2.5 py-1.5 rounded-md text-xs">
+                          <span class="text-slate-500">提取码：<strong class="text-slate-800 dark:text-white select-all">{{ link.code }}</strong></span>
+                          <button
+                            class="text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                            @click="copyToClipboard(link.code)"
+                          >
+                            <Copy class="w-3.5 h-3.5" />
+                            <span>复制</span>
+                          </button>
+                        </div>
+
+                        <button
+                          class="mt-1 w-full py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700/30"
+                          @click.prevent
+                        >
+                          <Lock class="w-3.5 h-3.5" />
+                          <span>链接提取维护中</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Like Status for Mobile -->
+                <div class="mt-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between">
+                  <span class="text-xs text-slate-500 font-medium">
+                    {{ likeStatus.count }} 人觉得很棒
+                  </span>
+                  <button
+                    :disabled="isTogglingLike"
+                    class="flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all duration-300 border"
+                    :class="likeStatus.liked ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'"
+                    @click="toggleLike"
+                  >
+                    <Heart class="w-4 h-4" :class="{ 'fill-current animate-bounce text-red-500': likeStatus.liked }" />
+                    <span class="font-bold text-xs">{{ likeStatus.liked ? '已点赞' : '点赞' }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="resource.contentHtml" class="mirror-content prose prose-sm dark:prose-invert max-w-none" v-html="sanitizeHtml(resource.contentHtml)"></div>
+              <div v-else-if="resource.description" class="prose prose-sm dark:prose-invert max-w-none">
+                <h3 class="text-sm font-medium text-slate-900 dark:text-white mb-2">简介</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                  {{ resource.description }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comments Section -->
+          <div class="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 p-6 space-y-6">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <MessageSquare class="w-5 h-5 text-blue-500" />
+              评论 ({{ comments.length }})
+            </h3>
+
+            <!-- Write Comment -->
+            <div class="flex gap-3">
+              <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                {{ authStore.user?.name?.[0]?.toUpperCase() || 'U' }}
+              </div>
+              <div class="flex-1 space-y-3">
+                <textarea
+                  v-model="newCommentText"
+                  placeholder="写下你的看法，与大家一起讨论..."
+                  rows="3"
+                  class="w-full text-sm p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                ></textarea>
+                <div class="flex justify-end">
+                  <button
+                    :disabled="isSubmittingComment || !newCommentText.trim()"
+                    class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs transition-colors flex items-center gap-1.5"
+                    @click="submitComment"
+                  >
+                    <Loader2 v-if="isSubmittingComment" class="w-3.5 h-3.5 animate-spin" />
+                    <span>发表评论</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Comment List -->
+            <div v-if="comments.length === 0" class="text-center py-10 text-slate-400 text-sm">
+              暂无评论，快来抢沙发吧~
+            </div>
+            <div v-else class="space-y-4 divide-y divide-slate-100 dark:divide-slate-800">
+              <div
+                v-for="comment in comments"
+                :key="comment.id"
+                class="flex gap-3 pt-4 first:pt-0"
+              >
+                <div class="w-8 h-8 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
+                  <img
+                    v-if="comment.user?.avatarUrl"
+                    :src="getAssetUrl(comment.user.avatarUrl)"
+                    class="w-full h-full object-cover"
+                  />
+                  <div v-else class="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 text-xs font-bold">
+                    {{ comment.user?.name?.[0]?.toUpperCase() || 'U' }}
+                  </div>
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ comment.user?.name }}</span>
+                    <span class="text-[10px] text-slate-400">{{ formatDate(comment.createdAt) }}</span>
+                  </div>
+                  <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words leading-relaxed">
+                    {{ comment.content }}
+                  </p>
+                  
+                  <div v-if="comment.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'" class="flex justify-end mt-1.5">
+                    <button
+                      class="text-[10px] text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1"
+                      @click="deleteComment(comment.id)"
+                    >
+                      <Trash2 class="w-3 h-3" />
+                      <span>删除</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right sidebar (Desktop only) -->
+        <div class="hidden lg:block lg:sticky lg:top-4 space-y-6">
+          <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-5 shadow-sm">
+            <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <Link2 class="w-4 h-4 text-blue-500" />
+              提取资源链接
+            </h3>
+            
+            <div class="space-y-3.5">
+              <div v-if="extractedLinks.length === 0" class="text-slate-400 text-xs text-center py-4">
+                暂无提取链接
+              </div>
+              <div v-else class="space-y-3">
+                <div
+                  v-for="(link, idx) in extractedLinks"
+                  :key="idx"
+                  class="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex flex-col gap-2"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <div class="w-2 h-2 rounded-full" :class="getLinkTypeColor(link.type)"></div>
+                      <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ link.name }}</span>
+                    </div>
+                    <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-400">
+                      {{ link.type }}
+                    </span>
+                  </div>
+                  
+                  <div v-if="link.code" class="flex items-center justify-between bg-slate-100 dark:bg-slate-700/60 px-2.5 py-1.5 rounded-md text-xs">
+                    <span class="text-slate-500">提取码：<strong class="text-slate-800 dark:text-white select-all">{{ link.code }}</strong></span>
+                    <button
+                      class="text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                      @click="copyToClipboard(link.code)"
+                    >
+                      <Copy class="w-3.5 h-3.5" />
+                      <span>复制</span>
+                    </button>
+                  </div>
+
+                  <button
+                    class="mt-1 w-full py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700/30"
+                    @click.prevent
+                  >
+                    <Lock class="w-3.5 h-3.5" />
+                    <span>链接提取维护中</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Likes -->
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm flex items-center justify-between">
+            <span class="text-xs text-slate-500 font-medium">
+              {{ likeStatus.count }} 人觉得很棒
+            </span>
+            <button
+              :disabled="isTogglingLike"
+              class="flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all duration-300 border"
+              :class="likeStatus.liked ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'"
+              @click="toggleLike"
+            >
+              <Heart class="w-4.5 h-4.5" :class="{ 'fill-current animate-bounce text-red-500': likeStatus.liked }" />
+              <span class="font-bold text-xs">{{ likeStatus.liked ? '已点赞' : '点赞' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.mirror-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+.mirror-content :deep(p) {
+  margin: 8px 0;
+  line-height: 1.7;
+}
+
+.mirror-content :deep(a) {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.mirror-content :deep(a:hover) {
+  text-decoration: underline;
+}
+</style>

@@ -41,19 +41,16 @@ const storage = multer.diskStorage({
   },
 });
 
-const multerInstance = multer({
-  storage: storage,
-  limits: {
-    fileSize: 500 * 1024 * 1024, // High upper limit for multer, we validate lower in wrapper
-    files: 10,
-  },
-});
-
-const createUploadMiddleware = (multerAction: any) => {
+const createUploadMiddleware = (config: {
+  type: 'single' | 'array' | 'fields';
+  fieldname?: string;
+  maxCount?: number;
+  fields?: multer.Field[];
+}) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = await settingsService.getAll();
-      const maxFileSize = (settings.MAX_FILE_SIZE || 100) * 1024 * 1024;
+      let maxFileSize = (settings.MAX_FILE_SIZE || 100) * 1024 * 1024;
       let allowedExtensions: string[] = ['.jpeg', '.jpg', '.png', '.glb', '.gltf'];
 
       // 处理允许的扩展名 - 支持字符串和数组格式
@@ -69,14 +66,46 @@ const createUploadMiddleware = (multerAction: any) => {
         }
       }
 
+      // Check if it's logo, favicon, or avatar to set lower default limit (5MB) before upload
+      const isSystemImage =
+        config.fieldname === 'logo' ||
+        config.fieldname === 'favicon' ||
+        config.fieldname === 'avatar' ||
+        (config.fields && config.fields.some((f) => ['logo', 'favicon', 'avatar'].includes(f.name)));
+
+      if (isSystemImage) {
+        maxFileSize = 5 * 1024 * 1024;
+      }
+
+      const dynamicMulter = multer({
+        storage: storage,
+        limits: {
+          fileSize: maxFileSize,
+          files: 10,
+        },
+      });
+
+      let multerAction;
+      if (config.type === 'single') {
+        multerAction = dynamicMulter.single(config.fieldname!);
+      } else if (config.type === 'array') {
+        multerAction = dynamicMulter.array(config.fieldname!, config.maxCount);
+      } else {
+        multerAction = dynamicMulter.fields(config.fields!);
+      }
+
       multerAction(req, res, (err: any) => {
         if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            const displayLimit = isSystemImage ? '5' : settings.MAX_FILE_SIZE || '100';
+            return res.status(400).json({ error: `文件大小超过限制 (${displayLimit}MB)` });
+          }
           return res.status(400).json({ error: err.message });
         } else if (err) {
           return res.status(400).json({ error: err.message });
         }
 
-        // Manual extension and size check for dynamic settings
+        // Manual extension check for dynamic settings
         const files = req.file
           ? { [req.file.fieldname]: [req.file] }
           : (req.files as { [fieldname: string]: Express.Multer.File[] });
@@ -89,28 +118,21 @@ const createUploadMiddleware = (multerAction: any) => {
             for (const file of fileList) {
               if (!file) continue;
               const ext = path.extname(file.originalname).toLowerCase();
-              
-              // 针对系统 Logo、Favicon 和用户头像等特定用途的图片，使用专属安全后缀白名单而非全局用户上传类型限制
+
+              // 针对系统 Logo、Favicon 和用户头像等特定用途 of 图片，使用专属安全后缀白名单而非全局用户上传类型限制
               let finalAllowedExtensions = allowedExtensions;
-              let finalMaxFileSize = maxFileSize;
-              
-              if (file.fieldname === 'logo' || file.fieldname === 'favicon' || file.fieldname === 'avatar') {
+
+              if (
+                file.fieldname === 'logo' ||
+                file.fieldname === 'favicon' ||
+                file.fieldname === 'avatar'
+              ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
-                finalMaxFileSize = 5 * 1024 * 1024; // 限制系统图片最大为 5MB
               }
 
               if (!finalAllowedExtensions.includes(ext)) {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 return res.status(400).json({ error: `不支持的文件类型: ${ext}` });
-              }
-              if (file.size > finalMaxFileSize) {
-                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-                const displayLimit = (file.fieldname === 'logo' || file.fieldname === 'favicon' || file.fieldname === 'avatar')
-                  ? '5'
-                  : settings.MAX_FILE_SIZE;
-                return res.status(400).json({
-                  error: `文件 ${file.originalname} 超过大小限制 (${displayLimit}MB)`,
-                });
               }
             }
           }
@@ -124,10 +146,10 @@ const createUploadMiddleware = (multerAction: any) => {
 };
 
 export const upload = {
-  single: (fieldname: string) => createUploadMiddleware(multerInstance.single(fieldname)),
+  single: (fieldname: string) => createUploadMiddleware({ type: 'single', fieldname }),
   array: (fieldname: string, maxCount?: number) =>
-    createUploadMiddleware(multerInstance.array(fieldname, maxCount)),
-  fields: (fields: multer.Field[]) => createUploadMiddleware(multerInstance.fields(fields)),
+    createUploadMiddleware({ type: 'array', fieldname, maxCount }),
+  fields: (fields: multer.Field[]) => createUploadMiddleware({ type: 'fields', fields }),
 };
 
 const model3dExtensions = [

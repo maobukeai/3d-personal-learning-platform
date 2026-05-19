@@ -51,7 +51,7 @@ describe('Auth Controller Integration', () => {
         .send({ email: 'nonexistent@example.com', password: 'password' });
 
       expect(res.status).toBe(400);
-      expect(res.body).toHaveProperty('error', 'Invalid credentials');
+      expect(res.body).toHaveProperty('error', '邮箱或密码错误');
     });
 
     it('should login successfully and set cookies', async () => {

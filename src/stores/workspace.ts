@@ -5,10 +5,11 @@ import { useAuthStore } from './auth';
 export interface Workspace {
   id: string;
   name: string;
-  type: 'personal' | 'team' | 'admin';
+  type: 'personal' | 'team' | 'admin' | 'mirror';
   color: string;
   description?: string;
   badgeCount?: number;
+  mirrorSourceId?: string;
 }
 
 export const useWorkspaceStore = defineStore('workspace', {
@@ -83,6 +84,23 @@ export const useWorkspaceStore = defineStore('workspace', {
           this.fetchAdminStats();
         }
 
+        try {
+          const mirrorRes = await api.get('/api/mirror/sources');
+          const mirrorSources = mirrorRes.data || [];
+          for (const ms of mirrorSources) {
+            this.rawWorkspaces.push({
+              id: `mirror-${ms.id}`,
+              name: ms.displayName,
+              type: 'mirror',
+              color: 'bg-violet-600',
+              description: ms.description || `${ms.totalResources} 个资源`,
+              mirrorSourceId: ms.id,
+            });
+          }
+        } catch (e) {
+          // Mirror sources not available, skip
+        }
+
         // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
         const exists = this.rawWorkspaces.some((ws) => ws.id === this.activeWorkspaceId);
         if (!exists && this.rawWorkspaces.length > 0) {
@@ -134,6 +152,9 @@ export const useWorkspaceStore = defineStore('workspace', {
         this.activeWorkspaceId = currentPath.split('/')[2];
       } else if (currentPath?.startsWith('/admin/')) {
         this.activeWorkspaceId = 'admin-workspace';
+      } else if (currentPath?.startsWith('/mirror/source/')) {
+        const sourceId = currentPath.split('/')[3];
+        this.activeWorkspaceId = `mirror-${sourceId}`;
       }
 
       if (this.activeWorkspaceId) {

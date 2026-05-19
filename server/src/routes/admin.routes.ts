@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/admin.controller';
 import { authenticate, isAdmin } from '../middlewares/auth.middleware';
-import { upload } from '../middlewares/upload.middleware';
+import { upload, validateFileContent } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -11,8 +11,18 @@ router.use(authenticate, isAdmin);
 router.get('/stats', adminController.getAdminStats);
 router.get('/settings', adminController.getSettings);
 router.post('/settings', adminController.updateSettings);
-router.post('/settings/upload-logo', upload.single('logo'), adminController.uploadBrandingLogo);
-router.post('/settings/upload-favicon', upload.single('favicon'), adminController.uploadBrandingFavicon);
+router.post(
+  '/settings/upload-logo',
+  upload.single('logo'),
+  validateFileContent,
+  adminController.uploadBrandingLogo,
+);
+router.post(
+  '/settings/upload-favicon',
+  upload.single('favicon'),
+  validateFileContent,
+  adminController.uploadBrandingFavicon,
+);
 router.post('/settings/test-smtp', adminController.testSmtp);
 router.get('/audit-logs', adminController.getAuditLogs);
 

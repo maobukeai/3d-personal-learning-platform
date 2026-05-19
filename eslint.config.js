@@ -9,7 +9,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "public/**", "server/**"],
+    ignores: ["dist/**", "node_modules/**", "public/**", "server/**", "ecosystem.config.cjs"],
   },
   js.configs.recommended,
   ...vuePlugin.configs["flat/recommended"],

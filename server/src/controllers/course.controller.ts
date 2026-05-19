@@ -87,9 +87,6 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
           orderBy: { order: 'asc' },
         },
         category: true,
-        user: {
-          select: { id: true, name: true, avatarUrl: true, bio: true, email: true },
-        },
         reviews: {
           include: {
             user: { select: { id: true, name: true, avatarUrl: true } },

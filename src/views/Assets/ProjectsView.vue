@@ -282,10 +282,10 @@ onMounted(fetchProjects);
       <div class="max-w-[1600px] mx-auto space-y-6 sm:space-y-10">
         <!-- Dashboard Stats -->
         <div
-          class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
+          class="grid grid-cols-4 gap-2 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
         >
           <div
-            class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] p-3 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
+            class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] p-2 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
             style="border-color: var(--border-base)"
           >
             <div

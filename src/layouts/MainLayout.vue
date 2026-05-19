@@ -48,6 +48,7 @@ import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
 import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import InvitationDialog from '@/components/InvitationDialog.vue';
+import AssetDetailsDrawer from '@/components/AssetDetailsDrawer.vue';
 
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
@@ -1400,6 +1401,9 @@ onUnmounted(() => {
         </div>
       </template>
     </el-dialog>
+
+    <!-- Asset Details Drawer -->
+    <AssetDetailsDrawer />
 
     <!-- Mobile Sidebar Drawer -->
     <Transition name="fade">

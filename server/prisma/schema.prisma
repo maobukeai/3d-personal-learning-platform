@@ -263,6 +263,7 @@ model Asset {
   type         String // e.g., 'GLB', 'GLTF', 'FBX'
   status       String  @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
   rejectReason String?
+  formats      String? // 存储 JSON 字符串，如 ["FBX", "OBJ"]
 
   // 3D Metadata
   vertices      Int?

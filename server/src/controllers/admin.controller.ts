@@ -56,11 +56,16 @@ export const parseExternalLink = async (req: AuthRequest, res: Response) => {
 };
 
 export const createCourseWithLessons = async (req: AuthRequest, res: Response) => {
-  const { title, description, thumbnail, lessons } = req.body;
+  const { title, description, thumbnail, lessons, categoryId } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const course = await tx.course.create({
-        data: { title, description, thumbnail, categoryId: req.body.categoryId },
+        data: {
+          title,
+          description,
+          thumbnail,
+          categoryId: categoryId || null,
+        },
       });
 
       if (lessons && Array.isArray(lessons)) {

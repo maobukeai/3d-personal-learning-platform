@@ -30,7 +30,7 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
 
     const notifications = await prisma.notification.findMany(queryOptions);
 
-    const nextCursor = notifications.length === limit ? notifications[notifications.length - 1].id : null;
+    const nextCursor = notifications.length === limit ? notifications[notifications.length - 1]?.id : null;
 
     res.json({
       notifications,

@@ -2,6 +2,7 @@ import prisma from '../../services/prisma';
 import { getAdapter } from '../adapters';
 import { thumbnailLocalizer } from './thumbnail-localizer.service';
 import { emitToAll } from '../../services/socket.service';
+import crypto from 'crypto';
 
 async function runWithLimit<T>(
   limit: number,
@@ -57,7 +58,7 @@ export class SyncEngine {
   private activeSyncs: Set<string> = new Set();
   private progressMap: Map<string, SyncProgress> = new Map();
   private abortControllers: Map<string, AbortController> = new Map();
-  private schedulerIntervals: NodeJS.Timeout[] = [];
+  private schedulerIntervals: Map<string, NodeJS.Timeout> = new Map();
   private schedulerStarted = false;
 
   getProgress(sourceId: string): SyncProgress | null {
@@ -154,75 +155,42 @@ export class SyncEngine {
       const seenExternalIds = new Set<string>();
       const newResourceIds: ResourceMinimal[] = [];
 
-      for (let catIdx = 0; catIdx < rawCategories.length; catIdx++) {
-        if (signal.aborted) throw new Error('AbortError');
-        const rawCat = rawCategories[catIdx]!;
-        progress.currentCategory = rawCat.name;
-        progress.currentCategoryIndex = catIdx + 1;
-        progress.estimatedProgress = Math.round((catIdx / rawCategories.length) * 50);
+      // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
+      const existingResources = await prisma.mirrorResource.findMany({
+        where: { sourceId },
+        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true },
+      });
+      const existingMap = new Map(
+        existingResources.map((r) => [
+          r.externalId,
+          {
+            id: r.id,
+            externalId: r.externalId,
+            contentHash: r.contentHash,
+            description: r.description || null,
+            thumbnailUrl: r.thumbnailUrl || null,
+          },
+        ]),
+      );
 
-        const categoryId = categoryMap.get(rawCat.externalId);
-        let page = 1;
-        let hasMore = true;
+      const pendingCreates: any[] = [];
+      const pendingUpdates: any[] = [];
 
-        while (hasMore) {
-          if (signal.aborted) throw new Error('AbortError');
-          progress.currentPage = page;
-          const pageResult = await adapter.fetchResources(
-            page,
-            rawCat.slug || rawCat.externalId,
-            signal,
-          );
-          result.resourcesFound += pageResult.resources.length;
-          progress.resourcesFound = result.resourcesFound;
+      const processPage = (resources: any[], categoryId: string | null, rawCatExternalId: string) => {
+        for (const rawRes of resources) {
+          if (seenExternalIds.has(rawRes.externalId)) continue;
+          seenExternalIds.add(rawRes.externalId);
 
-          const batch: any[] = [];
+          const resCategoryExternalId = rawRes.categoryExternalId || rawCatExternalId;
+          const resCategoryId = categoryMap.get(resCategoryExternalId) || categoryId;
 
-          for (const rawRes of pageResult.resources) {
-            if (signal.aborted) throw new Error('AbortError');
-            if (seenExternalIds.has(rawRes.externalId)) continue;
-            seenExternalIds.add(rawRes.externalId);
+          const existing = existingMap.get(rawRes.externalId);
 
-            const resCategoryExternalId = rawRes.categoryExternalId || rawCat.externalId;
-            const resCategoryId = categoryMap.get(resCategoryExternalId) || categoryId;
-
-            const existing = await prisma.mirrorResource.findUnique({
-              where: { sourceId_externalId: { sourceId, externalId: rawRes.externalId } },
-            });
-
-            if (existing) {
-              if (existing.contentHash !== rawRes.contentHash) {
-                batch.push(
-                  prisma.mirrorResource.update({
-                    where: { id: existing.id },
-                    data: {
-                      title: rawRes.title,
-                      description: rawRes.description,
-                      thumbnailUrl: rawRes.thumbnailUrl,
-                      contentUrl: rawRes.contentUrl,
-                      tags: rawRes.tags ? JSON.stringify(rawRes.tags) : null,
-                      resourceType: rawRes.resourceType,
-                      publishedAt: rawRes.publishedAt,
-                      contentHash: rawRes.contentHash,
-                      categoryId: resCategoryId,
-                      syncedAt: new Date(),
-                    },
-                  }),
-                );
-                result.resourcesUpdated++;
-                newResourceIds.push({
-                  id: existing.id,
-                  externalId: rawRes.externalId,
-                  description: rawRes.description || existing.description,
-                  thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
-                });
-              }
-            } else {
-              const created = await prisma.mirrorResource.create({
+          if (existing) {
+            if (existing.contentHash !== rawRes.contentHash) {
+              pendingUpdates.push({
+                where: { id: existing.id },
                 data: {
-                  sourceId,
-                  externalId: rawRes.externalId,
-                  categoryId: resCategoryId,
                   title: rawRes.title,
                   description: rawRes.description,
                   thumbnailUrl: rawRes.thumbnailUrl,
@@ -231,31 +199,125 @@ export class SyncEngine {
                   resourceType: rawRes.resourceType,
                   publishedAt: rawRes.publishedAt,
                   contentHash: rawRes.contentHash,
+                  categoryId: resCategoryId,
+                  syncedAt: new Date(),
                 },
               });
-              result.resourcesCreated++;
+              result.resourcesUpdated++;
               newResourceIds.push({
-                id: created.id,
-                externalId: created.externalId,
-                description: created.description,
-                thumbnailUrl: created.thumbnailUrl,
+                id: existing.id,
+                externalId: rawRes.externalId,
+                description: rawRes.description || existing.description,
+                thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
+              });
+              existingMap.set(rawRes.externalId, {
+                id: existing.id,
+                externalId: rawRes.externalId,
+                contentHash: rawRes.contentHash || null,
+                description: rawRes.description || existing.description,
+                thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
               });
             }
-          }
-
-          if (batch.length > 0) {
-            await prisma.$transaction(batch);
-          }
-          progress.resourcesCreated = result.resourcesCreated;
-          progress.resourcesUpdated = result.resourcesUpdated;
-
-          hasMore = page < pageResult.totalPages && pageResult.resources.length > 0;
-          page++;
-
-          if (hasMore) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
+          } else {
+            const newId = crypto.randomUUID();
+            pendingCreates.push({
+              id: newId,
+              sourceId,
+              externalId: rawRes.externalId,
+              categoryId: resCategoryId,
+              title: rawRes.title,
+              description: rawRes.description,
+              thumbnailUrl: rawRes.thumbnailUrl,
+              contentUrl: rawRes.contentUrl,
+              tags: rawRes.tags ? JSON.stringify(rawRes.tags) : null,
+              resourceType: rawRes.resourceType,
+              publishedAt: rawRes.publishedAt,
+              contentHash: rawRes.contentHash,
+            });
+            result.resourcesCreated++;
+            newResourceIds.push({
+              id: newId,
+              externalId: rawRes.externalId,
+              description: rawRes.description || null,
+              thumbnailUrl: rawRes.thumbnailUrl || null,
+            });
+            existingMap.set(rawRes.externalId, {
+              id: newId,
+              externalId: rawRes.externalId,
+              contentHash: rawRes.contentHash || null,
+              description: rawRes.description || null,
+              thumbnailUrl: rawRes.thumbnailUrl || null,
+            });
           }
         }
+
+        progress.resourcesCreated = result.resourcesCreated;
+        progress.resourcesUpdated = result.resourcesUpdated;
+      };
+
+      const categoryConcurrency = 4;
+      let categoriesCompleted = 0;
+
+      await runWithLimit(categoryConcurrency, rawCategories, async (rawCat) => {
+        if (signal.aborted) return;
+        const categoryId = categoryMap.get(rawCat.externalId) || null;
+
+        const page1Result = await adapter.fetchResources(1, rawCat.slug || rawCat.externalId, signal);
+        if (signal.aborted) return;
+
+        result.resourcesFound += page1Result.resources.length;
+        progress.resourcesFound = result.resourcesFound;
+
+        processPage(page1Result.resources, categoryId, rawCat.externalId);
+
+        const totalPages = page1Result.totalPages;
+        if (totalPages > 1) {
+          const pagesToFetch = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+          const pageConcurrency = 5;
+
+          await runWithLimit(pageConcurrency, pagesToFetch, async (page) => {
+            if (signal.aborted) return;
+            const pageResult = await adapter.fetchResources(page, rawCat.slug || rawCat.externalId, signal);
+            if (signal.aborted) return;
+
+            result.resourcesFound += pageResult.resources.length;
+            progress.resourcesFound = result.resourcesFound;
+
+            if (page > progress.currentPage) {
+              progress.currentPage = page;
+            }
+
+            processPage(pageResult.resources, categoryId, rawCat.externalId);
+          });
+        }
+
+        categoriesCompleted++;
+        progress.currentCategory = rawCat.name;
+        progress.currentCategoryIndex = categoriesCompleted;
+        progress.estimatedProgress = Math.round((categoriesCompleted / rawCategories.length) * 50);
+      });
+
+      const dbChunkSize = 100;
+
+      for (let i = 0; i < pendingCreates.length; i += dbChunkSize) {
+        if (signal.aborted) throw new Error('AbortError');
+        const chunk = pendingCreates.slice(i, i + dbChunkSize);
+        await prisma.mirrorResource.createMany({
+          data: chunk,
+        });
+      }
+
+      for (let i = 0; i < pendingUpdates.length; i += dbChunkSize) {
+        if (signal.aborted) throw new Error('AbortError');
+        const chunk = pendingUpdates.slice(i, i + dbChunkSize);
+        await prisma.$transaction(
+          chunk.map((item) =>
+            prisma.mirrorResource.update({
+              where: item.where,
+              data: item.data,
+            })
+          )
+        );
       }
 
       // Phase 3: Fetch details for all new/updated resources
@@ -265,7 +327,9 @@ export class SyncEngine {
       progress.currentCategory = '抓取详情页';
       progress.estimatedProgress = 50;
 
-      const detailBatchSize = 25;
+      const detailBatchSize = 15;
+      const detailUpdates: { id: string; data: any }[] = [];
+
       await runWithLimit(detailBatchSize, newResourceIds, async (resource) => {
         if (signal.aborted) return;
 
@@ -292,12 +356,21 @@ export class SyncEngine {
               updateData.contentHash = detail.contentHash;
             }
             if (detail.contentHtml) {
-              updateData.contentHtml = detail.contentHtml;
+              try {
+                const localizedHtml = await thumbnailLocalizer.localizeHtmlContent(
+                  detail.contentHtml,
+                  sourceId,
+                );
+                updateData.contentHtml = localizedHtml || detail.contentHtml;
+              } catch (e: any) {
+                console.warn(`[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`, e.message);
+                updateData.contentHtml = detail.contentHtml;
+              }
             }
 
             if (Object.keys(updateData).length > 0) {
-              await prisma.mirrorResource.update({
-                where: { id: resource.id },
+              detailUpdates.push({
+                id: resource.id,
                 data: updateData,
               });
             }
@@ -309,13 +382,30 @@ export class SyncEngine {
 
         progress.detailsFetched++;
         progress.estimatedProgress =
-          50 + Math.round((progress.detailsFetched / progress.totalDetailsToFetch) * 50);
+          50 + Math.round((progress.detailsFetched / progress.totalDetailsToFetch) * 40);
       });
+
+      // Batch update resource details in chunks of 50
+      const detailChunkSize = 50;
+      for (let i = 0; i < detailUpdates.length; i += detailChunkSize) {
+        if (signal.aborted) throw new Error('AbortError');
+        const chunk = detailUpdates.slice(i, i + detailChunkSize);
+        await prisma.$transaction(
+          chunk.map((item) =>
+            prisma.mirrorResource.update({
+              where: { id: item.id },
+              data: item.data,
+            })
+          )
+        );
+      }
 
       // Phase 4: Localize thumbnails
       if (signal.aborted) throw new Error('AbortError');
       progress.phase = 'DETAILS';
       progress.currentCategory = '本地化缩略图';
+      progress.estimatedProgress = 90;
+
       const resourcesWithThumbs = await prisma.mirrorResource.findMany({
         where: { sourceId, thumbnailUrl: { not: null, startsWith: 'http' } },
         select: { id: true, thumbnailUrl: true },
@@ -339,6 +429,7 @@ export class SyncEngine {
           await prisma.$transaction(updates);
         }
       }
+      progress.estimatedProgress = 100;
 
       await prisma.mirrorSource.update({
         where: { id: sourceId },
@@ -479,7 +570,7 @@ export class SyncEngine {
       });
 
       if (signal.aborted) throw new Error('AbortError');
-      const hasUpdate = await adapter.hasUpdates(source.lastSyncAt, signal);
+      const hasUpdate = await adapter.hasUpdates(source.lastSyncAt || new Date(0), signal);
       if (!hasUpdate) {
         const duration = Math.round((Date.now() - startTime) / 1000);
         await prisma.syncLog.update({
@@ -493,7 +584,7 @@ export class SyncEngine {
       progress.estimatedProgress = 20;
 
       if (signal.aborted) throw new Error('AbortError');
-      const updates = await adapter.fetchUpdates(source.lastSyncAt, signal);
+      const updates = await adapter.fetchUpdates(source.lastSyncAt || new Date(0), signal);
       result.resourcesFound = updates.length;
       progress.resourcesFound = updates.length;
       progress.estimatedProgress = 40;
@@ -504,15 +595,31 @@ export class SyncEngine {
       const newResourceIds: ResourceMinimal[] = [];
       const batch: any[] = [];
 
+      // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
+      const existingResources = await prisma.mirrorResource.findMany({
+        where: { sourceId },
+        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true },
+      });
+      const existingMap = new Map(
+        existingResources.map((r) => [
+          r.externalId,
+          {
+            id: r.id,
+            externalId: r.externalId,
+            contentHash: r.contentHash,
+            description: r.description || null,
+            thumbnailUrl: r.thumbnailUrl || null,
+          },
+        ]),
+      );
+
       for (const rawRes of updates) {
         if (signal.aborted) throw new Error('AbortError');
         const categoryId = rawRes.categoryExternalId
           ? categoryMap.get(rawRes.categoryExternalId) || null
           : null;
 
-        const existing = await prisma.mirrorResource.findUnique({
-          where: { sourceId_externalId: { sourceId, externalId: rawRes.externalId } },
-        });
+        const existing = existingMap.get(rawRes.externalId);
 
         if (existing) {
           if (existing.contentHash !== rawRes.contentHash) {
@@ -540,29 +647,47 @@ export class SyncEngine {
               description: rawRes.description || existing.description,
               thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
             });
+            existingMap.set(rawRes.externalId, {
+              id: existing.id,
+              externalId: rawRes.externalId,
+              contentHash: rawRes.contentHash || null,
+              description: rawRes.description || existing.description,
+              thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
+            });
           }
         } else {
-          const created = await prisma.mirrorResource.create({
-            data: {
-              sourceId,
-              externalId: rawRes.externalId,
-              categoryId,
-              title: rawRes.title,
-              description: rawRes.description,
-              thumbnailUrl: rawRes.thumbnailUrl,
-              contentUrl: rawRes.contentUrl,
-              tags: rawRes.tags ? JSON.stringify(rawRes.tags) : null,
-              resourceType: rawRes.resourceType,
-              publishedAt: rawRes.publishedAt,
-              contentHash: rawRes.contentHash,
-            },
-          });
+          const newId = crypto.randomUUID();
+          batch.push(
+            prisma.mirrorResource.create({
+              data: {
+                id: newId,
+                sourceId,
+                externalId: rawRes.externalId,
+                categoryId,
+                title: rawRes.title,
+                description: rawRes.description,
+                thumbnailUrl: rawRes.thumbnailUrl,
+                contentUrl: rawRes.contentUrl,
+                tags: rawRes.tags ? JSON.stringify(rawRes.tags) : null,
+                resourceType: rawRes.resourceType,
+                publishedAt: rawRes.publishedAt,
+                contentHash: rawRes.contentHash,
+              },
+            }),
+          );
           result.resourcesCreated++;
           newResourceIds.push({
-            id: created.id,
-            externalId: created.externalId,
-            description: created.description,
-            thumbnailUrl: created.thumbnailUrl,
+            id: newId,
+            externalId: rawRes.externalId,
+            description: rawRes.description || null,
+            thumbnailUrl: rawRes.thumbnailUrl || null,
+          });
+          existingMap.set(rawRes.externalId, {
+            id: newId,
+            externalId: rawRes.externalId,
+            contentHash: rawRes.contentHash || null,
+            description: rawRes.description || null,
+            thumbnailUrl: rawRes.thumbnailUrl || null,
           });
         }
       }
@@ -579,7 +704,9 @@ export class SyncEngine {
       progress.totalDetailsToFetch = newResourceIds.length;
       progress.detailsFetched = 0;
 
-      const incDetailBatch = 25;
+      const incDetailBatch = 15;
+      const detailUpdates: { id: string; data: any }[] = [];
+
       await runWithLimit(incDetailBatch, newResourceIds, async (resource) => {
         if (signal.aborted) return;
 
@@ -603,12 +730,21 @@ export class SyncEngine {
               updateData.publishedAt = detail.publishedAt;
             }
             if (detail.contentHtml) {
-              updateData.contentHtml = detail.contentHtml;
+              try {
+                const localizedHtml = await thumbnailLocalizer.localizeHtmlContent(
+                  detail.contentHtml,
+                  sourceId,
+                );
+                updateData.contentHtml = localizedHtml || detail.contentHtml;
+              } catch (e: any) {
+                console.warn(`[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`, e.message);
+                updateData.contentHtml = detail.contentHtml;
+              }
             }
 
             if (Object.keys(updateData).length > 0) {
-              await prisma.mirrorResource.update({
-                where: { id: resource.id },
+              detailUpdates.push({
+                id: resource.id,
                 data: updateData,
               });
             }
@@ -623,10 +759,24 @@ export class SyncEngine {
           60 + Math.round((progress.detailsFetched / progress.totalDetailsToFetch) * 30);
       });
 
-      progress.estimatedProgress = 90;
+      // Batch update resource details in chunks of 50
+      const detailChunkSize = 50;
+      for (let i = 0; i < detailUpdates.length; i += detailChunkSize) {
+        if (signal.aborted) throw new Error('AbortError');
+        const chunk = detailUpdates.slice(i, i + detailChunkSize);
+        await prisma.$transaction(
+          chunk.map((item) =>
+            prisma.mirrorResource.update({
+              where: { id: item.id },
+              data: item.data,
+            })
+          )
+        );
+      }
 
       // Localize thumbnails for new/updated resources
       if (signal.aborted) throw new Error('AbortError');
+      progress.estimatedProgress = 90;
       const newResourcesWithThumbs = await prisma.mirrorResource.findMany({
         where: {
           id: { in: newResourceIds.map((r) => r.id) },
@@ -790,10 +940,10 @@ export class SyncEngine {
   }
 
   stopScheduler(): void {
-    for (const interval of this.schedulerIntervals) {
+    for (const interval of this.schedulerIntervals.values()) {
       clearInterval(interval);
     }
-    this.schedulerIntervals = [];
+    this.schedulerIntervals.clear();
     this.schedulerStarted = false;
   }
 
@@ -815,6 +965,31 @@ export class SyncEngine {
     console.log(`[MirrorSync] Scheduler started for ${sources.length} source(s)`);
   }
 
+  reloadSourceScheduler(sourceId: string, status: string, syncInterval: number): void {
+    const existing = this.schedulerIntervals.get(sourceId);
+    if (existing) {
+      clearInterval(existing);
+      this.schedulerIntervals.delete(sourceId);
+    }
+
+    if (status === 'ACTIVE') {
+      const intervalMs = syncInterval * 1000;
+      this.scheduleSourceSync(sourceId, intervalMs);
+      console.log(`[MirrorSync] Scheduler scheduled/reloaded for source ${sourceId} with interval ${syncInterval}s`);
+    } else {
+      console.log(`[MirrorSync] Scheduler removed/skipped for inactive source ${sourceId}`);
+    }
+  }
+
+  removeSourceScheduler(sourceId: string): void {
+    const existing = this.schedulerIntervals.get(sourceId);
+    if (existing) {
+      clearInterval(existing);
+      this.schedulerIntervals.delete(sourceId);
+      console.log(`[MirrorSync] Scheduler removed for source ${sourceId}`);
+    }
+  }
+
   private scheduleSourceSync(sourceId: string, intervalMs: number): void {
     const run = async () => {
       if (this.activeSyncs.has(sourceId)) return;
@@ -826,7 +1001,7 @@ export class SyncEngine {
     };
 
     const interval = setInterval(run, intervalMs);
-    this.schedulerIntervals.push(interval);
+    this.schedulerIntervals.set(sourceId, interval);
   }
 }
 

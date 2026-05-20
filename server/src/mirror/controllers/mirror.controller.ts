@@ -135,6 +135,18 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
     }
 
+    // Rewrite relative image/link paths in contentHtml and thumbnailUrl to include the request host
+    const hostUrl = `${req.protocol}://${req.get('host')}`;
+    if (resource.contentHtml) {
+      resource.contentHtml = resource.contentHtml.replace(
+        /(src|href)=["'](\/uploads\/[^"']+)["']/gi,
+        `$1="${hostUrl}$2"`
+      );
+    }
+    if (resource.thumbnailUrl && resource.thumbnailUrl.startsWith('/uploads/')) {
+      resource.thumbnailUrl = `${hostUrl}${resource.thumbnailUrl}`;
+    }
+
     res.json(resource);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

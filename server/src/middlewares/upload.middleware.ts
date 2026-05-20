@@ -130,6 +130,8 @@ const createUploadMiddleware = (config: {
                 file.fieldname === 'avatar'
               ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
+              } else if (file.fieldname === 'file' || file.fieldname === 'excel') {
+                finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls'];
               }
 
               if (!finalAllowedExtensions.includes(ext)) {

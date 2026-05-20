@@ -16,6 +16,7 @@ import {
   Square,
   Sparkles,
   Layers,
+  Link2,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
@@ -78,9 +79,14 @@ const isLoading = ref(false);
 const showCreateDialog = ref(false);
 const showEditDialog = ref(false);
 const showSyncLogsDialog = ref(false);
+const showMatchDialog = ref(false);
 const editingSource = ref<MirrorSource | null>(null);
+const selectedSource = ref<MirrorSource | null>(null);
 const syncLogs = ref<SyncLog[]>([]);
 const isLoadingLogs = ref(false);
+const excelFile = ref<File | null>(null);
+const isUploading = ref(false);
+const matchResult = ref<{ totalLinks: number; matchedCount: number } | null>(null);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const adapterTypes = [
@@ -224,6 +230,48 @@ async function viewSyncLogs(source: MirrorSource) {
     ElMessage.error('加载日志失败');
   } finally {
     isLoadingLogs.value = false;
+  }
+}
+
+function openMatchLinks(source: MirrorSource) {
+  selectedSource.value = source;
+  excelFile.value = null;
+  matchResult.value = null;
+  showMatchDialog.value = true;
+}
+
+function handleFileChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    excelFile.value = target.files[0];
+  }
+}
+
+async function uploadAndMatch() {
+  if (!excelFile.value || !selectedSource.value) {
+    ElMessage.warning('请先选择一个 Excel 文件');
+    return;
+  }
+
+  isUploading.value = true;
+  const formData = new FormData();
+  formData.append('file', excelFile.value);
+
+  try {
+    const res = await api.post(`/api/admin/mirror/sources/${selectedSource.value.id}/match-links`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    ElMessage.success(res.data.message || '匹配成功');
+    matchResult.value = {
+      totalLinks: res.data.totalLinks,
+      matchedCount: res.data.matchedCount,
+    };
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.error || '匹配失败');
+  } finally {
+    isUploading.value = false;
   }
 }
 
@@ -456,6 +504,13 @@ onUnmounted(() => {
                 @click="viewSyncLogs(source)"
               >
                 <History class="w-4 h-4" />
+              </button>
+              <button
+                class="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                title="匹配提取链接"
+                @click="openMatchLinks(source)"
+              >
+                <Link2 class="w-4 h-4" />
               </button>
               <button
                 class="p-2 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
@@ -710,6 +765,98 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-    </Teleport>
-  </div>
-</template>
+
+      <!-- Match Links Dialog -->
+        <div
+          v-if="showMatchDialog"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          @click.self="showMatchDialog = false"
+        >
+          <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+              <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <Link2 class="w-5 h-5 text-indigo-500" />
+                匹配提取链接 - {{ selectedSource?.displayName }}
+              </h2>
+              <button
+                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                @click="showMatchDialog = false"
+              >
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+              <div class="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg text-xs text-slate-500 dark:text-slate-400 space-y-1.5">
+                <p class="font-bold text-slate-700 dark:text-slate-300">💡 上传说明：</p>
+                <p>1. 支持 <strong class="text-slate-700 dark:text-slate-300">.xlsx</strong> 格式的 Excel 数据。</p>
+                <p>2. 数据表中应包含以下列头名称：</p>
+                <ul class="list-disc pl-4 space-y-0.5 mt-1 text-slate-600 dark:text-slate-400">
+                  <li><strong class="text-indigo-500">课程名称</strong>（用于匹配系统内已有课程）</li>
+                  <li><strong class="text-indigo-500">链接</strong>（如百度网盘、夸克网盘链接）</li>
+                  <li><strong class="text-indigo-500">链接密码</strong> / 提取码（选填）</li>
+                  <li><strong class="text-indigo-500">课程备注</strong> / 备注（包含原站链接如 zycku.com/xxxx.html 可实现100%精准匹配）</li>
+                </ul>
+              </div>
+
+              <div class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl p-6 text-center cursor-pointer transition-all relative">
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  @change="handleFileChange"
+                />
+                <div class="flex flex-col items-center justify-center space-y-2">
+                  <div class="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-full text-indigo-500">
+                    <Database class="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {{ excelFile ? excelFile.name : '点击或拖拽上传 Excel 文件' }}
+                  </div>
+                  <div class="text-xs text-slate-400">
+                    {{ excelFile ? `${(excelFile.size / 1024).toFixed(1)} KB` : '仅限 .xlsx 格式文件' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Match Results -->
+              <div v-if="matchResult" class="p-4 bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 rounded-lg text-sm text-emerald-600 dark:text-emerald-400">
+                <p class="font-semibold flex items-center gap-1.5 mb-1">
+                  <Sparkles class="w-4 h-4 text-emerald-500" />
+                  自动匹配完成！
+                </p>
+                <div class="grid grid-cols-2 gap-4 mt-2">
+                  <div class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center">
+                    <div class="text-xs text-slate-400">发现课程链接</div>
+                    <div class="text-lg font-bold text-slate-800 dark:text-slate-200">{{ matchResult.totalLinks }}</div>
+                  </div>
+                  <div class="bg-white dark:bg-slate-800/40 p-2.5 rounded-lg border border-emerald-100/50 dark:border-emerald-500/5 text-center">
+                    <div class="text-xs text-slate-400">成功匹配绑定</div>
+                    <div class="text-lg font-bold text-emerald-500">{{ matchResult.matchedCount }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+              <button
+                class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                :disabled="isUploading"
+                @click="showMatchDialog = false"
+              >
+                关闭
+              </button>
+              <button
+                class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5"
+                :disabled="!excelFile || isUploading"
+                @click="uploadAndMatch"
+              >
+                <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
+                {{ isUploading ? '匹配中...' : '开始匹配' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+    </div>
+  </template>

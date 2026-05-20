@@ -158,7 +158,7 @@ export class SyncEngine {
       // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
       const existingResources = await prisma.mirrorResource.findMany({
         where: { sourceId },
-        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true },
+        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true, contentHtml: true },
       });
       const existingMap = new Map(
         existingResources.map((r) => [
@@ -169,6 +169,7 @@ export class SyncEngine {
             contentHash: r.contentHash,
             description: r.description || null,
             thumbnailUrl: r.thumbnailUrl || null,
+            hasHtml: !!r.contentHtml,
           },
         ]),
       );
@@ -187,7 +188,10 @@ export class SyncEngine {
           const existing = existingMap.get(rawRes.externalId);
 
           if (existing) {
-            if (existing.contentHash !== rawRes.contentHash) {
+            const needsDetails = !existing.hasHtml;
+            const needsUpdate = existing.contentHash !== rawRes.contentHash;
+
+            if (needsUpdate) {
               pendingUpdates.push({
                 where: { id: existing.id },
                 data: {
@@ -204,16 +208,20 @@ export class SyncEngine {
                 },
               });
               result.resourcesUpdated++;
-              newResourceIds.push({
-                id: existing.id,
-                externalId: rawRes.externalId,
-                description: rawRes.description || existing.description,
-                thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
-              });
               existingMap.set(rawRes.externalId, {
                 id: existing.id,
                 externalId: rawRes.externalId,
                 contentHash: rawRes.contentHash || null,
+                description: rawRes.description || existing.description,
+                thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
+                hasHtml: true,
+              });
+            }
+
+            if (needsUpdate || needsDetails) {
+              newResourceIds.push({
+                id: existing.id,
+                externalId: rawRes.externalId,
                 description: rawRes.description || existing.description,
                 thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
               });
@@ -247,6 +255,7 @@ export class SyncEngine {
               contentHash: rawRes.contentHash || null,
               description: rawRes.description || null,
               thumbnailUrl: rawRes.thumbnailUrl || null,
+              hasHtml: false,
             });
           }
         }
@@ -598,7 +607,7 @@ export class SyncEngine {
       // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
       const existingResources = await prisma.mirrorResource.findMany({
         where: { sourceId },
-        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true },
+        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true, contentHtml: true },
       });
       const existingMap = new Map(
         existingResources.map((r) => [
@@ -609,6 +618,7 @@ export class SyncEngine {
             contentHash: r.contentHash,
             description: r.description || null,
             thumbnailUrl: r.thumbnailUrl || null,
+            hasHtml: !!r.contentHtml,
           },
         ]),
       );
@@ -622,7 +632,10 @@ export class SyncEngine {
         const existing = existingMap.get(rawRes.externalId);
 
         if (existing) {
-          if (existing.contentHash !== rawRes.contentHash) {
+          const needsDetails = !existing.hasHtml;
+          const needsUpdate = existing.contentHash !== rawRes.contentHash;
+
+          if (needsUpdate) {
             batch.push(
               prisma.mirrorResource.update({
                 where: { id: existing.id },
@@ -641,16 +654,20 @@ export class SyncEngine {
               }),
             );
             result.resourcesUpdated++;
-            newResourceIds.push({
-              id: existing.id,
-              externalId: rawRes.externalId,
-              description: rawRes.description || existing.description,
-              thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
-            });
             existingMap.set(rawRes.externalId, {
               id: existing.id,
               externalId: rawRes.externalId,
               contentHash: rawRes.contentHash || null,
+              description: rawRes.description || existing.description,
+              thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
+              hasHtml: true,
+            });
+          }
+
+          if (needsUpdate || needsDetails) {
+            newResourceIds.push({
+              id: existing.id,
+              externalId: rawRes.externalId,
               description: rawRes.description || existing.description,
               thumbnailUrl: rawRes.thumbnailUrl || existing.thumbnailUrl,
             });
@@ -688,6 +705,7 @@ export class SyncEngine {
             contentHash: rawRes.contentHash || null,
             description: rawRes.description || null,
             thumbnailUrl: rawRes.thumbnailUrl || null,
+            hasHtml: false,
           });
         }
       }

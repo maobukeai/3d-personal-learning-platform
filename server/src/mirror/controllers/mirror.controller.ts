@@ -3,6 +3,7 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { mirrorService } from '../services/mirror.service';
 import prisma from '../../services/prisma';
 import { getPlanName } from '../../utils/plan-utils';
+import { encryptText } from '../../utils/crypto';
 
 export const getSources = async (req: AuthRequest, res: Response) => {
   try {
@@ -81,9 +82,9 @@ const checkSourceAccess = async (sourceId: string, req: AuthRequest) => {
 export const getCategories = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
-    const access = await checkSourceAccess(sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+    if (!sourceExists) {
+      return res.status(404).json({ error: '镜像源不存在' });
     }
 
     const categories = await mirrorService.getCategories(sourceId);
@@ -96,13 +97,13 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
 export const getResources = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
-    const access = await checkSourceAccess(sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+    if (!sourceExists) {
+      return res.status(404).json({ error: '镜像源不存在' });
     }
 
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const pageSize = parseInt(req.query.pageSize as string) || 21;
     const categoryId = (req.query.categoryId as string) || undefined;
     const search = (req.query.search as string) || undefined;
     const sort = (req.query.sort as string) || undefined;
@@ -124,30 +125,74 @@ export const getResources = async (req: AuthRequest, res: Response) => {
 export const getResource = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const resource = await mirrorService.getResource(id);
+
+    // Fetch resource and check source access in parallel to avoid a sequential waterfall
+    const [resource, _placeholder] = await Promise.all([
+      mirrorService.getResource(id),
+      Promise.resolve(null), // room for future parallel fetches
+    ]);
 
     if (!resource) {
       return res.status(404).json({ error: '资源不存在' });
     }
 
+    // Access check runs after resource fetch (needs resource.sourceId)
     const access = await checkSourceAccess(resource.sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    if (!access.hasAccess && access.error === '镜像源不存在') {
+      return res.status(404).json({ error: '镜像源不存在' });
     }
 
     // Rewrite relative image/link paths in contentHtml and thumbnailUrl to include the request host
     const hostUrl = `${req.protocol}://${req.get('host')}`;
-    if (resource.contentHtml) {
-      resource.contentHtml = resource.contentHtml.replace(
+    let cleanHtml = resource.contentHtml || '';
+    if (cleanHtml) {
+      cleanHtml = cleanHtml.replace(
         /(src|href)=["'](\/uploads\/[^"']+)["']/gi,
         `$1="${hostUrl}$2"`
       );
     }
-    if (resource.thumbnailUrl && resource.thumbnailUrl.startsWith('/uploads/')) {
-      resource.thumbnailUrl = `${hostUrl}${resource.thumbnailUrl}`;
+
+    // Check if it has a matched manual download link block
+    const manualLinkRegex = /<!-- MANUAL_DOWNLOAD_LINK_START -->([\s\S]*?)<!-- MANUAL_DOWNLOAD_LINK_END -->/;
+    const manualMatch = cleanHtml.match(manualLinkRegex);
+    const hasManualLink = !!manualMatch;
+
+    const linksMeta: Array<{ name: string; type: string }> = [];
+    if (manualMatch && manualMatch[1]) {
+      const block = manualMatch[1];
+      const hrefMatch = block.match(/href="([^"]+)"/);
+      if (hrefMatch && hrefMatch[1]) {
+        const href = hrefMatch[1];
+        const type = href.includes('quark.cn') ? 'quark' :
+                     href.includes('baidu.com') ? 'baidu' :
+                     href.includes('alipan.com') || href.includes('aliyundrive.com') ? 'aliyun' :
+                     href.includes('123pan.com') ? '123pan' : 'generic';
+        const name = href.includes('quark.cn') ? '夸克网盘' :
+                     href.includes('baidu.com') ? '百度网盘' :
+                     href.includes('alipan.com') || href.includes('aliyundrive.com') ? '阿里云盘' :
+                     href.includes('123pan.com') ? '123云盘' : '资源网盘';
+        linksMeta.push({ name, type });
+      }
     }
 
-    res.json(resource);
+    // Strip download link markup entirely from contentHtml to protect it from scrapers/crawlers
+    const strippedHtml = cleanHtml.replace(/<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g, '');
+
+    let finalThumbnail = resource.thumbnailUrl;
+    if (finalThumbnail && finalThumbnail.startsWith('/uploads/')) {
+      finalThumbnail = `${hostUrl}${finalThumbnail}`;
+    }
+
+    res.json({
+      ...resource,
+      contentHtml: strippedHtml,
+      thumbnailUrl: finalThumbnail,
+      hasAccess: access.hasAccess,
+      hasLinks: hasManualLink,
+      links: linksMeta,
+      requiredPlan: access.requiredPlan,
+      currentPlan: access.currentPlan,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -156,14 +201,14 @@ export const getResource = async (req: AuthRequest, res: Response) => {
 export const searchResources = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
-    const access = await checkSourceAccess(sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+    if (!sourceExists) {
+      return res.status(404).json({ error: '镜像源不存在' });
     }
 
     const q = (req.query.q as string) || '';
     const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const pageSize = parseInt(req.query.pageSize as string) || 21;
 
     const result = await mirrorService.getResources(sourceId, {
       page,
@@ -180,9 +225,9 @@ export const searchResources = async (req: AuthRequest, res: Response) => {
 export const getSourceStats = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
-    const access = await checkSourceAccess(sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+    if (!sourceExists) {
+      return res.status(404).json({ error: '镜像源不存在' });
     }
 
     const stats = await mirrorService.getSourceStats(sourceId);
@@ -225,11 +270,6 @@ export const getResourceComments = async (req: AuthRequest, res: Response) => {
 
     if (!resource) {
       return res.status(404).json({ error: '资源不存在' });
-    }
-
-    const access = await checkSourceAccess(resource.sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
     }
 
     const comments = await prisma.mirrorResourceComment.findMany({
@@ -411,11 +451,6 @@ export const getResourceLikeStatus = async (req: AuthRequest, res: Response) => 
       return res.status(404).json({ error: '资源不存在' });
     }
 
-    const access = await checkSourceAccess(resource.sourceId, req);
-    if (!access.hasAccess) {
-      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
-    }
-
     const count = await prisma.mirrorResourceLike.count({
       where: { resourceId },
     });
@@ -434,6 +469,65 @@ export const getResourceLikeStatus = async (req: AuthRequest, res: Response) => 
     }
 
     res.json({ liked, count });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const extractResourceLink = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const resource = await mirrorService.getResource(id);
+
+    if (!resource) {
+      return res.status(404).json({ error: '资源不存在' });
+    }
+
+    // Must check access to resource source
+    const access = await checkSourceAccess(resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
+
+    // Parse the download link and password from contentHtml
+    let link = '';
+    let password = '';
+
+    const contentHtml = resource.contentHtml || '';
+    const manualLinkRegex = /<!-- MANUAL_DOWNLOAD_LINK_START -->([\s\S]*?)<!-- MANUAL_DOWNLOAD_LINK_END -->/;
+    const manualMatch = contentHtml.match(manualLinkRegex);
+
+    if (manualMatch && manualMatch[1]) {
+      const block = manualMatch[1];
+      const hrefMatch = block.match(/href="([^"]+)"/);
+      if (hrefMatch && hrefMatch[1]) {
+        link = hrefMatch[1];
+      }
+      
+      // Match passcode inside the span tags
+      const passMatch = block.match(/提取密码\/访问码：<\/strong><span[^>]*>([^<]+)<\/span>/) || block.match(/提取密码：([^<]+)/);
+      if (passMatch && passMatch[1]) {
+        password = passMatch[1].trim();
+      }
+    }
+
+    if (!link) {
+      return res.status(404).json({ error: '该资源暂未配置下载提取链接' });
+    }
+
+    // Encrypt link and password with shared key
+    const key = process.env.EXTRACT_ENCRYPTION_KEY || '3d_learning_platform_secure_extract_key_2026';
+    const encryptedLink = encryptText(link, key);
+    const encryptedPassword = password ? encryptText(password, key) : '';
+
+    res.json({
+      encryptedLink,
+      encryptedPassword,
+      driveName: link.includes('quark.cn') ? '夸克网盘' :
+                 link.includes('baidu.com') ? '百度网盘' :
+                 link.includes('alipan.com') || link.includes('aliyundrive.com') ? '阿里云盘' :
+                 link.includes('123pan.com') ? '123云盘' : '资源网盘'
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

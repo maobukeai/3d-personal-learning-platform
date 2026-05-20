@@ -16,6 +16,11 @@
   /* Shadows */
   --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
   --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.08);
+
+  /* Colors mapped to CSS variables for dynamic themes */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
 }
 
 /* ============================================================
@@ -40,16 +45,16 @@
 
   /* Accent */
   --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-subtle: #eff6ff;
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+  --accent-subtle: color-mix(in srgb, var(--accent) 8%, white);
 
   /* Element Plus overrides – Light */
-  --el-color-primary: #3b82f6;
-  --el-color-primary-light-3: #93c5fd;
-  --el-color-primary-light-5: #bfdbfe;
-  --el-color-primary-light-7: #dbeafe;
-  --el-color-primary-light-9: #eff6ff;
-  --el-color-primary-dark-2: #2563eb;
+  --el-color-primary: var(--accent);
+  --el-color-primary-light-3: color-mix(in srgb, var(--accent) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--accent) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--accent) 30%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--accent) 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--accent) 80%, black);
 
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
@@ -91,9 +96,9 @@
   color-scheme: dark;
 
   /* Layout backgrounds */
-  --bg-app: #030712;
-  --bg-card: #0b0f19;
-  --bg-sidebar: #070a13;
+  --bg-app: #000000;
+  --bg-card: #09090b;
+  --bg-sidebar: #000000;
 
   /* Text */
   --text-primary: #f8fafc;
@@ -101,22 +106,23 @@
   --text-muted: #94a3b8;
 
   /* Borders */
-  --border-base: #1e293b;
-  --border-strong: #334155;
+  --border-base: #18181b;
+  --border-strong: #27272a;
 
   /* Accent */
-  --accent-subtle: #1e293b;
+  --accent-subtle: color-mix(in srgb, var(--accent) 12%, #09090b);
 
   /* Element Plus overrides – Dark */
-  --el-color-primary: #3b82f6;
-  --el-color-primary-light-3: #2563eb;
-  --el-color-primary-light-5: #1d4ed8;
-  --el-color-primary-light-7: #1e3a8a;
-  --el-color-primary-light-9: #172554;
+  --el-color-primary: var(--accent);
+  --el-color-primary-light-3: color-mix(in srgb, var(--accent) 70%, #000000);
+  --el-color-primary-light-5: color-mix(in srgb, var(--accent) 50%, #000000);
+  --el-color-primary-light-7: color-mix(in srgb, var(--accent) 30%, #000000);
+  --el-color-primary-light-9: color-mix(in srgb, var(--accent) 10%, #000000);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--accent) 85%, white);
 
-  --el-bg-color: #0b0f19;
-  --el-bg-color-overlay: #111827;
-  --el-bg-color-page: #030712;
+  --el-bg-color: #09090b;
+  --el-bg-color-overlay: #0d0d0f;
+  --el-bg-color-page: #000000;
 
   --el-text-color-primary: #f8fafc;
   --el-text-color-regular: #e2e8f0;
@@ -124,23 +130,23 @@
   --el-text-color-placeholder: #64748b;
   --el-text-color-disabled: #475569;
 
-  --el-border-color: #1e293b;
-  --el-border-color-light: #334155;
-  --el-border-color-lighter: #0f172a;
-  --el-border-color-extra-light: #030712;
-  --el-border-color-dark: #475569;
-  --el-border-color-darker: #64748b;
+  --el-border-color: #18181b;
+  --el-border-color-light: #27272a;
+  --el-border-color-lighter: #09090b;
+  --el-border-color-extra-light: #050505;
+  --el-border-color-dark: #3f3f46;
+  --el-border-color-darker: #52525b;
 
-  --el-fill-color: #111827;
-  --el-fill-color-light: #0f172a;
-  --el-fill-color-lighter: #0b0f19;
-  --el-fill-color-extra-light: #0b0f19;
-  --el-fill-color-blank: #0b0f19;
-  --el-fill-color-dark: #334155;
-  --el-fill-color-darker: #475569;
+  --el-fill-color: #121214;
+  --el-fill-color-light: #18181b;
+  --el-fill-color-lighter: #09090b;
+  --el-fill-color-extra-light: #050505;
+  --el-fill-color-blank: #09090b;
+  --el-fill-color-dark: #27272a;
+  --el-fill-color-darker: #3f3f46;
 
-  --el-box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
-  --el-box-shadow-light: 0 4px 12px -5px rgba(0, 0, 0, 0.5);
+  --el-box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.85);
+  --el-box-shadow-light: 0 4px 12px -5px rgba(0, 0, 0, 0.6);
 }
 
 /* ============================================================
@@ -202,25 +208,25 @@ body {
    Scrollbar
    ============================================================ */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.3) !important;
+  border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(148, 163, 184, 0.6) !important;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: rgba(148, 163, 184, 0.15) !important;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: rgba(148, 163, 184, 0.35) !important;
 }
 
 /* ============================================================
@@ -298,14 +304,28 @@ body {
 }
 
 /* Dialog */
+.el-overlay {
+  backdrop-filter: blur(6px) !important;
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
 .el-dialog {
-  background-color: var(--el-bg-color-overlay) !important;
-  border: 1px solid var(--el-border-color-light) !important;
-  border-radius: 20px !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+}
+.dark .el-dialog {
+  background-color: rgba(9, 9, 11, 0.82) !important;
+  border: 1px solid rgba(63, 63, 70, 0.45) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7) !important;
 }
 .el-dialog__header {
   color: var(--el-text-color-primary) !important;
-  border-bottom: 1px solid var(--el-border-color-light) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+.dark .el-dialog__header {
+  border-bottom: 1px solid rgba(63, 63, 70, 0.3) !important;
 }
 .el-dialog__title {
   color: var(--el-text-color-primary) !important;
@@ -314,13 +334,20 @@ body {
   color: var(--el-text-color-regular) !important;
 }
 .el-overlay-dialog {
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
 
 /* Message / Notification */
 .el-message {
-  background-color: var(--el-bg-color-overlay) !important;
-  border-color: var(--el-border-color) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+.dark .el-message {
+  background-color: rgba(9, 9, 11, 0.85) !important;
+  border: 1px solid rgba(63, 63, 70, 0.4) !important;
 }
 
 /* DatePicker Popover */
@@ -409,8 +436,8 @@ body {
 }
 
 .dark .notification-glass .el-popper__arrow::before {
-  background: rgba(24, 24, 27, 0.6) !important;
-  border-color: rgba(63, 63, 70, 0.4) !important;
+  background: rgba(9, 9, 11, 0.7) !important;
+  border-color: rgba(63, 63, 70, 0.5) !important;
 }
 
 .notification-panel {
@@ -425,11 +452,11 @@ body {
 }
 
 .dark .notification-panel {
-  background: rgba(15, 15, 18, 0.55);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(9, 9, 11, 0.7);
+  border-color: rgba(63, 63, 70, 0.4);
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.4),
-    0 5px 15px rgba(0, 0, 0, 0.2),
+    0 20px 50px rgba(0, 0, 0, 0.65),
+    0 5px 15px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -481,12 +508,12 @@ body {
 }
 
 .dark .glass-card {
-  background: rgba(11, 15, 25, 0.65);
+  background: rgba(9, 9, 11, 0.65);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 
-    0 10px 40px -10px rgba(0, 0, 0, 0.5),
+    0 10px 40px -10px rgba(0, 0, 0, 0.65),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -559,27 +586,27 @@ body {
 /* Keyframe Animations */
 @keyframes float-blob {
   0% {
-    transform: translate(0px, 0px) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   33% {
-    transform: translate(30px, -50px) scale(1.1);
+    transform: translate3d(30px, -50px, 0) scale(1.1);
   }
   66% {
-    transform: translate(-20px, 20px) scale(0.95);
+    transform: translate3d(-20px, 20px, 0) scale(0.95);
   }
   100% {
-    transform: translate(0px, 0px) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes pulse-slow {
   0%, 100% {
     opacity: 0.2;
-    transform: scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
     opacity: 0.35;
-    transform: scale(1.05);
+    transform: translate3d(0, 0, 0) scale(1.05);
   }
 }
 
@@ -622,4 +649,404 @@ body {
   opacity: 0;
   filter: blur(4px);
 }
+
+/* Mobile Dialog Optimization */
+@media (max-width: 640px) {
+  .el-dialog {
+    width: 88% !important;
+    max-width: 480px !important;
+    margin: 30px auto !important;
+    border-radius: 16px !important;
+  }
+  .el-dialog__header {
+    padding: 12px 16px !important;
+    margin-right: 0 !important;
+  }
+  .el-dialog__title {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+  }
+  .el-dialog__body {
+    padding: 12px 16px 16px !important;
+    font-size: 12px !important;
+  }
+  .el-dialog__footer {
+    padding: 8px 16px 12px !important;
+  }
+  
+  /* Scale down images/content inside dialogs on mobile */
+  .el-dialog img {
+    max-height: 180px !important;
+    object-fit: contain !important;
+  }
+  .el-dialog h1,
+  .el-dialog h2,
+  .el-dialog h3 {
+    font-size: 1.1em !important;
+  }
+  .el-dialog p,
+  .el-dialog span,
+  .el-dialog div {
+    font-size: 11px !important;
+  }
+  .el-dialog .el-form-item__label {
+    font-size: 11px !important;
+  }
+  .el-dialog .el-input__inner,
+  .el-dialog .el-textarea__inner {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+  .el-dialog .el-button {
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+    height: auto !important;
+  }
+}
+
+/* ============================================================
+   Glassmorphism Layout utilities
+   ============================================================ */
+.glass-header {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+  transform: translateZ(0);
+}
+.dark .glass-header {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border-bottom: 1px solid rgba(63, 63, 70, 0.4) !important;
+}
+
+.glass-sidebar {
+  background-color: rgba(248, 250, 252, 0.7) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
+  transform: translateZ(0);
+}
+.dark .glass-sidebar {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(63, 63, 70, 0.4) !important;
+}
+
+.glass-dialog {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  transform: translateZ(0);
+}
+.dark .glass-dialog {
+  background-color: rgba(9, 9, 11, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Global fallback selectors for any custom modals in standard layout */
+.fixed.inset-0.z-50 > div[class*="bg-white"],
+.fixed.inset-0.z-50 > div[class*="bg-slate-800"],
+.fixed.inset-0.z-50 > div[style*="background-color: var(--bg-card)"],
+.fixed.inset-0.z-\[60\] > div[class*="bg-white"],
+.fixed.inset-0.z-\[60\] > div[class*="bg-slate-800"],
+.fixed.inset-0.z-\[70\] > div[class*="bg-white"],
+.fixed.inset-0.z-\[100\] > div[class*="bg-white"],
+.fixed.inset-0.z-\[100\] > div[class*="bg-slate-800"] {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  transform: translateZ(0);
+}
+
+.dark .fixed.inset-0.z-50 > div[class*="bg-white"],
+.dark .fixed.inset-0.z-50 > div[class*="bg-slate-800"],
+.dark .fixed.inset-0.z-50 > div[style*="background-color: var(--bg-card)"],
+.dark .fixed.inset-0.z-\[60\] > div[class*="bg-white"],
+.dark .fixed.inset-0.z-\[60\] > div[class*="bg-slate-800"],
+.dark .fixed.inset-0.z-\[70\] > div[class*="bg-white"],
+.dark .fixed.inset-0.z-\[100\] > div[class*="bg-white"],
+.dark .fixed.inset-0.z-\[100\] > div[class*="bg-slate-800"] {
+  background-color: rgba(9, 9, 11, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* ============================================================
+   Glassmorphism Theme Style Definition
+   ============================================================ */
+/* Light Glassmorphism Style Definition */
+html.theme-glass {
+  color-scheme: light;
+
+  /* Layout backgrounds – transparent/translucent frosted white */
+  --bg-app: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.45);
+  --bg-sidebar: rgba(255, 255, 255, 0.5);
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  /* Borders – very subtle semi-transparent white/slate */
+  --border-base: rgba(255, 255, 255, 0.4);
+  --border-strong: rgba(255, 255, 255, 0.6);
+
+  /* Accent subtle - light */
+  --accent-subtle: color-mix(in srgb, var(--accent) 15%, rgba(255, 255, 255, 0.45));
+
+  /* Element Plus overrides – Light Glass */
+  --el-color-primary: var(--accent);
+  --el-color-primary-light-3: color-mix(in srgb, var(--accent) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--accent) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--accent) 30%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--accent) 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--accent) 80%, black);
+
+  --el-bg-color: rgba(255, 255, 255, 0.45);
+  --el-bg-color-overlay: rgba(255, 255, 255, 0.85);
+  --el-bg-color-page: #f1f5f9;
+
+  --el-text-color-primary: #0f172a;
+  --el-text-color-regular: #334155;
+  --el-text-color-secondary: #64748b;
+  --el-text-color-placeholder: #94a3b8;
+  --el-text-color-disabled: #cbd5e1;
+
+  --el-border-color: rgba(0, 0, 0, 0.08);
+  --el-border-color-light: rgba(0, 0, 0, 0.06);
+  --el-border-color-lighter: rgba(0, 0, 0, 0.04);
+  --el-border-color-extra-light: rgba(0, 0, 0, 0.02);
+  --el-border-color-dark: rgba(0, 0, 0, 0.15);
+  --el-border-color-darker: rgba(0, 0, 0, 0.25);
+
+  --el-fill-color: rgba(0, 0, 0, 0.04);
+  --el-fill-color-light: rgba(0, 0, 0, 0.02);
+  --el-fill-color-lighter: rgba(0, 0, 0, 0.01);
+  --el-fill-color-extra-light: rgba(0, 0, 0, 0.005);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.25);
+  --el-fill-color-dark: rgba(0, 0, 0, 0.06);
+  --el-fill-color-darker: rgba(0, 0, 0, 0.1);
+
+  --el-box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+  --el-box-shadow-light: 0 4px 16px 0 rgba(31, 38, 135, 0.04);
+
+  /* Glass specifics */
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.3) 100%);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.45);
+  --glass-border-color: rgba(255, 255, 255, 0.45);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Dark Glassmorphism Override Definition */
+html.dark.theme-glass {
+  color-scheme: dark;
+
+  /* Layout backgrounds – transparent/translucent frosted dark */
+  --bg-app: #070709;
+  --bg-card: rgba(18, 18, 24, 0.45);
+  --bg-sidebar: rgba(10, 10, 15, 0.5);
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* Borders – very subtle semi-transparent white/zinc */
+  --border-base: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  /* Accent subtle - dark */
+  --accent-subtle: color-mix(in srgb, var(--accent) 15%, rgba(18, 18, 24, 0.45));
+
+  /* Element Plus overrides – Dark Glass */
+  --el-color-primary: var(--accent);
+  --el-color-primary-light-3: color-mix(in srgb, var(--accent) 70%, #000000);
+  --el-color-primary-light-5: color-mix(in srgb, var(--accent) 50%, #000000);
+  --el-color-primary-light-7: color-mix(in srgb, var(--accent) 30%, #000000);
+  --el-color-primary-light-9: color-mix(in srgb, var(--accent) 10%, #000000);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--accent) 85%, white);
+
+  --el-bg-color: rgba(18, 18, 24, 0.45);
+  --el-bg-color-overlay: rgba(24, 24, 32, 0.85);
+  --el-bg-color-page: #070709;
+
+  --el-text-color-primary: #ffffff;
+  --el-text-color-regular: #e2e8f0;
+  --el-text-color-secondary: #cbd5e1;
+  --el-text-color-placeholder: #71717a;
+  --el-text-color-disabled: #4f4f56;
+
+  --el-border-color: rgba(255, 255, 255, 0.08);
+  --el-border-color-light: rgba(255, 255, 255, 0.12);
+  --el-border-color-lighter: rgba(255, 255, 255, 0.04);
+  --el-border-color-extra-light: rgba(255, 255, 255, 0.02);
+  --el-border-color-dark: rgba(255, 255, 255, 0.2);
+  --el-border-color-darker: rgba(255, 255, 255, 0.35);
+
+  --el-fill-color: rgba(255, 255, 255, 0.06);
+  --el-fill-color-light: rgba(255, 255, 255, 0.1);
+  --el-fill-color-lighter: rgba(255, 255, 255, 0.04);
+  --el-fill-color-extra-light: rgba(255, 255, 255, 0.02);
+  --el-fill-color-blank: rgba(18, 18, 24, 0.25);
+  --el-fill-color-dark: rgba(255, 255, 255, 0.15);
+  --el-fill-color-darker: rgba(255, 255, 255, 0.25);
+
+  --el-box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --el-box-shadow-light: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+
+  /* Glass specifics */
+  --glass-bg: linear-gradient(135deg, rgba(24, 24, 37, 0.6) 0%, rgba(10, 10, 15, 0.4) 100%);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.09);
+  --glass-border-color: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Glass element styles - Tier 1: Heavy Frosted (Top-level layout & overlays) */
+html.theme-glass .glass-header,
+html.theme-glass .glass-sidebar,
+html.theme-glass .el-dialog,
+html.theme-glass .notification-panel,
+html.theme-glass .el-popper,
+html.theme-glass .el-dropdown__popper,
+html.theme-glass .el-select__popper,
+html.theme-glass .el-cascader__dropdown,
+html.theme-glass .el-popover {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transform: translateZ(0);
+}
+
+/* Glass element styles - Tier 2: High-Performance Light Cards (Repeating grids, lists & content blocks) */
+html.theme-glass .glass-card,
+html.theme-glass .el-card,
+/* Glass overrides for common Tailwind background containers */
+.theme-glass .bg-white,
+.theme-glass .bg-slate-50,
+.theme-glass .bg-slate-100,
+.theme-glass .bg-slate-800,
+.theme-glass .bg-slate-900,
+.theme-glass .bg-zinc-50,
+.theme-glass .bg-zinc-800,
+.theme-glass .bg-zinc-900,
+.theme-glass .bg-gray-50,
+.theme-glass .bg-gray-100,
+.theme-glass .bg-gray-800,
+.theme-glass .bg-gray-900,
+.theme-glass .bg-neutral-50,
+.theme-glass .bg-neutral-800,
+.theme-glass .bg-neutral-900,
+.theme-glass .bg-black,
+/* Compiled Tailwind dark mode utility classes in Dark Glass theme */
+.theme-glass .dark\:bg-slate-800,
+.theme-glass .dark\:bg-slate-900,
+.theme-glass .dark\:bg-slate-950,
+.theme-glass .dark\:bg-zinc-800,
+.theme-glass .dark\:bg-zinc-900,
+.theme-glass .dark\:bg-gray-800,
+.theme-glass .dark\:bg-gray-900,
+.theme-glass .dark\:bg-neutral-800,
+.theme-glass .dark\:bg-neutral-900,
+.theme-glass .dark\:bg-black,
+/* Style-based inline background overrides */
+.theme-glass [style*="background-color: var(--bg-card)"] {
+  background: var(--glass-bg) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  /* Disable expensive backdrop-filter calculations on cards to optimize scroll FPS */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: translateZ(0);
+}
+
+/* Prevent double-layer glass nesting inside teleported poppers */
+html.theme-glass .el-dropdown-menu,
+html.theme-glass .el-select-dropdown,
+html.theme-glass .el-picker-panel,
+html.theme-glass .el-popper .el-dropdown-menu,
+html.theme-glass .el-popper .el-select-dropdown,
+html.theme-glass .el-popper .el-picker-panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Style popper arrow to match glass styling */
+html.theme-glass .el-popper__arrow::before {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-color: var(--glass-border-color) !important;
+}
+html.theme-glass.dark .el-popper__arrow::before,
+html.dark.theme-glass .el-popper__arrow::before {
+  background: rgba(18, 18, 24, 0.5) !important;
+  border-color: var(--glass-border-color) !important;
+}
+
+/* 
+ * Dark Glass Mode text legibility overrides.
+ * Makes hardcoded dark slate text colors perfectly readable on dark frosted glass.
+ */
+html.dark.theme-glass .text-slate-500,
+html.dark.theme-glass .text-slate-600,
+html.dark.theme-glass .text-slate-700 {
+  color: var(--text-secondary) !important;
+}
+html.dark.theme-glass .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+/* 
+ * Glass-friendly translucent hover states for interactive items 
+ * (lists, tables, buttons) to prevent flashing opaque colors on hover.
+ */
+.theme-glass .hover\:bg-slate-50:hover,
+.theme-glass .hover\:bg-slate-100:hover,
+.theme-glass .hover\:bg-gray-50:hover,
+.theme-glass .hover\:bg-gray-100:hover,
+.theme-glass .hover\:bg-white:hover {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.theme-glass .dark\:hover\:bg-slate-800:hover,
+.theme-glass .dark\:hover\:bg-slate-900:hover,
+.theme-glass .dark\:hover\:bg-zinc-800:hover,
+.theme-glass .dark\:hover\:bg-zinc-900:hover,
+.theme-glass .dark\:hover\:bg-white\/10:hover,
+.theme-glass .dark\:hover\:bg-white\/5:hover,
+.theme-glass .hover\:bg-slate-800:hover,
+.theme-glass .hover\:bg-slate-900:hover,
+.theme-glass .hover\:bg-zinc-800:hover,
+.theme-glass .hover\:bg-zinc-900:hover,
+.theme-glass .hover\:bg-black:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Ensure the body remains solid to provide the base canvas */
+html.theme-glass body {
+  background-color: var(--bg-app) !important;
+}
+
+/* Make all inner elements transparent so neon background blobs shine through */
+.theme-glass [style*="background-color: var(--bg-app)"],
+.theme-glass [style*="background-color:var(--bg-app)"] {
+  background-color: transparent !important;
+}
+
 

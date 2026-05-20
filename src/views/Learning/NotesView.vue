@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Loading } from '@element-plus/icons-vue';
 import {
   Plus,
   Search,
@@ -285,9 +286,21 @@ const parseTags = (note: Note): string[] => {
   }
 };
 
+const isMobile = ref(false);
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
+
 onMounted(() => {
   loadNotes();
   loadTagsAndCategories();
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile);
 });
 </script>
 
@@ -400,75 +413,77 @@ onMounted(() => {
               <p class="text-[var(--text-secondary)] font-medium">暂无相关笔记内容</p>
             </div>
 
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div v-else class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
               <div
                 v-for="note in notes"
                 :key="note.id"
-                class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full relative"
+                class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl md:rounded-2xl p-3 md:p-6 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full relative"
                 @click="viewDetail(note)"
               >
-                <div class="flex items-start justify-between mb-4">
-                  <div class="flex items-center gap-2.5">
-                    <UserAvatar :user="note.user" size="sm" />
-                    <div>
-                      <p class="text-sm font-bold text-[var(--text-primary)] leading-none">
+                <div class="flex items-start justify-between mb-2 md:mb-4 gap-1 min-w-0">
+                  <div class="flex items-center gap-1.5 md:gap-2.5 min-w-0">
+                    <UserAvatar :user="note.user" size="xs" class="md:hidden shrink-0" />
+                    <UserAvatar :user="note.user" size="sm" class="hidden md:inline-flex shrink-0" />
+                    <div class="min-w-0">
+                      <p class="text-xs md:text-sm font-bold text-[var(--text-primary)] leading-none truncate">
                         {{ note.user.name }}
                       </p>
-                      <p class="text-[10px] text-[var(--text-muted)] mt-1">
+                      <p class="hidden sm:block text-[9px] md:text-[10px] text-[var(--text-muted)] mt-1">
                         {{ formatDate(note.createdAt) }}
                       </p>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark">热门</el-tag>
-                    <el-tag :type="getVisibilityTag(note.visibility)" size="small" round>
-                      {{ getVisibilityLabel(note.visibility) }}
+                  <div class="flex items-center gap-1 shrink-0">
+                    <el-tag v-if="note.isPopular" type="warning" size="small" round effect="dark" class="px-1 md:px-2">热</el-tag>
+                    <el-tag :type="getVisibilityTag(note.visibility)" size="small" round class="px-1 md:px-2">
+                      <span class="hidden sm:inline">{{ getVisibilityLabel(note.visibility) }}</span>
+                      <span class="sm:hidden">{{ note.visibility === 'PUBLIC' ? '公' : '私' }}</span>
                     </el-tag>
                   </div>
                 </div>
 
                 <h3
-                  class="text-lg font-bold text-[var(--text-primary)] mb-3 line-clamp-1 group-hover:text-accent transition-colors"
+                  class="text-sm md:text-lg font-bold text-[var(--text-primary)] mb-1 md:mb-3 line-clamp-1 group-hover:text-accent transition-colors"
                 >
                   {{ note.title }}
                 </h3>
                 <p
-                  class="text-sm text-[var(--text-secondary)] line-clamp-3 mb-4 flex-1 leading-relaxed"
+                  class="text-xs md:text-sm text-[var(--text-secondary)] line-clamp-2 md:line-clamp-3 mb-2 md:mb-4 flex-1 leading-relaxed"
                 >
                   {{ note.summary || note.content.replace(/[#*`>]/g, '').slice(0, 150) }}
                 </p>
 
-                <div v-if="parseTags(note).length" class="flex flex-wrap gap-1.5 mb-5">
+                <div v-if="parseTags(note).length" class="flex flex-wrap gap-1 mb-3 md:mb-5">
                   <span
-                    v-for="tag in parseTags(note).slice(0, 3)"
+                    v-for="tag in parseTags(note).slice(0, isMobile ? 1 : 3)"
                     :key="tag"
-                    class="px-2 py-0.5 rounded-md bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[10px] font-bold border border-[var(--border-base)]"
+                    class="px-1.5 py-0.5 rounded bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[9px] md:text-[10px] font-bold border border-[var(--border-base)] whitespace-nowrap truncate max-w-[80px]"
                   >
                     #{{ tag }}
                   </span>
                 </div>
 
                 <div
-                  class="flex items-center justify-between mt-auto pt-4 border-t border-[var(--border-base)]"
+                  class="flex items-center justify-between mt-auto pt-2 md:pt-4 border-t border-[var(--border-base)] gap-1"
                 >
                   <div
-                    class="flex items-center gap-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider"
+                    class="flex items-center gap-2 md:gap-4 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0"
                   >
-                    <span class="flex items-center gap-1.5">
-                      <Eye class="w-3.5 h-3.5" /> {{ note.views }}
+                    <span class="flex items-center gap-1">
+                      <Eye class="w-3 md:w-3.5 h-3 md:h-3.5" /> {{ note.views }}
                     </span>
                     <span
-                      class="flex items-center gap-1.5 cursor-pointer hover:text-red-500 transition-colors"
+                      class="flex items-center gap-1 cursor-pointer hover:text-red-500 transition-colors"
                       :class="{ 'text-red-500': note.isLiked }"
                       @click.stop="handleLike(note)"
                     >
-                      <ThumbsUp class="w-3.5 h-3.5" :class="{ 'fill-current': note.isLiked }" />
+                      <ThumbsUp class="w-3 md:w-3.5 h-3 md:h-3.5" :class="{ 'fill-current': note.isLiked }" />
                       {{ note._count.likes }}
                     </span>
                   </div>
                   <span
                     v-if="note.category"
-                    class="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded uppercase"
+                    class="text-[8px] md:text-[10px] font-black text-accent bg-accent/10 px-1.5 py-0.5 rounded uppercase truncate max-w-[50px] sm:max-w-[80px]"
                   >
                     {{ note.category }}
                   </span>
@@ -476,14 +491,14 @@ onMounted(() => {
 
                 <!-- Hover Actions -->
                 <div
-                  class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0"
+                  class="absolute top-2 md:top-4 right-2 md:right-4 flex gap-1 md:gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0"
                 >
                   <template v-if="note.userId === authStore.user?.id">
-                    <el-button circle size="small" @click.stop="openEditDialog(note)">
-                      <Edit3 class="w-3.5 h-3.5" />
+                    <el-button circle size="small" class="!p-1" @click.stop="openEditDialog(note)">
+                      <Edit3 class="w-3 h-3 md:w-3.5 md:h-3.5" />
                     </el-button>
-                    <el-button circle size="small" type="danger" @click.stop="handleDelete(note)">
-                      <Trash2 class="w-3.5 h-3.5" />
+                    <el-button circle size="small" type="danger" class="!p-1" @click.stop="handleDelete(note)">
+                      <Trash2 class="w-3 h-3 md:w-3.5 md:h-3.5" />
                     </el-button>
                   </template>
                 </div>
@@ -533,17 +548,17 @@ onMounted(() => {
 
           <div class="flex items-center gap-2 md:gap-3 min-w-0">
             <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
-              <el-radio-button label="edit">
+              <el-radio-button value="edit">
                 <div class="flex items-center gap-1 px-1">
                   <Edit3 class="w-3.5 h-3.5" /> <span class="hidden sm:inline">编辑</span>
                 </div>
               </el-radio-button>
-              <el-radio-button label="live">
+              <el-radio-button value="live">
                 <div class="flex items-center gap-1 px-1">
                   <Layout class="w-3.5 h-3.5" /> <span class="hidden sm:inline">实时</span>
                 </div>
               </el-radio-button>
-              <el-radio-button label="preview">
+              <el-radio-button value="preview">
                 <div class="flex items-center gap-1 px-1">
                   <Eye class="w-3.5 h-3.5" /> <span class="hidden sm:inline">预览</span>
                 </div>
@@ -563,8 +578,8 @@ onMounted(() => {
                   <div>
                     <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
                     <el-radio-group v-model="formVisibility" size="small" class="w-full">
-                      <el-radio-button label="PRIVATE">私有</el-radio-button>
-                      <el-radio-button label="PUBLIC">公开</el-radio-button>
+                      <el-radio-button value="PRIVATE">私有</el-radio-button>
+                      <el-radio-button value="PUBLIC">公开</el-radio-button>
                     </el-radio-group>
                   </div>
                   <div>
@@ -591,8 +606,8 @@ onMounted(() => {
           </div>
         </header>
 
-        <main class="max-w-6xl mx-auto px-4 pb-32 pt-10">
-          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-lg min-h-[80vh] px-8 md:px-16 py-12 md:py-20">
+        <main class="max-w-6xl mx-auto px-2 md:px-4 pb-20 md:pb-32 pt-4 md:pt-10">
+          <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-xl min-h-[80vh] px-4 md:px-16 py-6 md:py-20">
             <el-input v-model="formTitle" placeholder="无标题" class="editor-modern-title mb-4" />
             <MarkdownEditor
               v-model="formContent"
@@ -600,12 +615,12 @@ onMounted(() => {
               class="modern-paper-theme"
               :auto-focus="true"
               :preview="previewMode === 'live'"
-              :html-preview="previewMode === 'preview'"
+              :preview-only="previewMode === 'preview'"
             />
-            <div class="mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-8 border-t border-[var(--border-base)]">
+            <div class="mt-6 md:mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-4 md:pt-8 border-t border-[var(--border-base)]">
               <div class="flex items-center gap-4">
                 <span class="flex items-center gap-1"><Check class="w-3 h-3" /> 自动保存</span>
-                <span class="flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
+                <span class="hidden sm:flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
               </div>
               <span>共 {{ formContent.length }} 字符</span>
             </div>
@@ -746,10 +761,15 @@ onMounted(() => {
   padding-left: 0 !important;
 }
 .editor-modern-title :deep(.el-input__inner) {
-  font-size: 1.5rem !important;
+  font-size: 1.25rem !important;
   font-weight: 800 !important;
   color: var(--text-primary) !important;
   border: none !important;
+}
+@media (min-width: 768px) {
+  .editor-modern-title :deep(.el-input__inner) {
+    font-size: 1.75rem !important;
+  }
 }
 :deep(.custom-note-tabs .el-tabs__nav-wrap::after) {
   display: none;

@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Calendar,
-  Trash2,
   X,
   LayoutGrid,
   List,
@@ -21,11 +20,11 @@ import {
   FolderOpen,
   TrendingUp,
   BarChart3,
-  Eye,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
+import TaskCard from '@/components/TaskCard.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 
@@ -540,20 +539,6 @@ const quickStatusChange = async (task: any, newStatus: string) => {
   }
 };
 
-const formatDueDate = (dateStr: string | null) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = d.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return `逾期 ${Math.abs(diffDays)} 天`;
-  if (diffDays === 0) return '今天截止';
-  if (diffDays === 1) return '明天截止';
-  if (diffDays <= 7) return `${diffDays} 天后截止`;
-  return d.toLocaleDateString();
-};
-
 watch(
   () => workspaceStore.activeTeamId,
   () => {
@@ -593,10 +578,10 @@ onMounted(() => {
         </div>
         
         <button
-          class="md:hidden flex items-center gap-2 px-3 py-1.5 bg-accent text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/20 transition-all"
+          class="md:hidden p-2 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:shadow-none transition-all flex items-center justify-center shrink-0"
           @click="openAddDialog('TODO')"
         >
-          <Plus class="w-3.5 h-3.5" />
+          <Plus class="w-4 h-4" />
         </button>
       </div>
 
@@ -648,7 +633,7 @@ onMounted(() => {
 
     <!-- Stats + Filter Bar -->
     <div
-      class="px-4 sm:px-8 py-3 sm:py-4 border-b flex flex-wrap items-center gap-3 sm:gap-6 shrink-0"
+      class="px-4 sm:px-8 py-3 border-b flex flex-nowrap md:flex-wrap items-center gap-3 sm:gap-6 shrink-0 overflow-x-auto md:overflow-x-visible scrollbar-hide"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <!-- Stats Cards -->
@@ -743,12 +728,15 @@ onMounted(() => {
     </div>
 
     <!-- Board View -->
-    <div v-if="viewMode === 'board'" class="flex-1 overflow-hidden p-2 sm:p-8">
-      <div class="md:gap-6 gap-3 h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
+    <!-- Board View -->
+    <div v-if="viewMode === 'board'" class="flex-1 overflow-hidden p-1.5 sm:p-8">
+      <div
+        class="md:gap-6 gap-1.5 sm:gap-3 h-full flex w-full"
+      >
         <div
           v-for="col in columns"
           :key="col.id"
-          class="flex flex-col min-w-0 h-full rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden flex-shrink-0 w-[85vw] md:flex-1 snap-center"
+          class="flex flex-col min-w-0 h-full rounded-lg sm:rounded-2xl transition-colors duration-300 overflow-hidden flex-1 relative"
           style="background-color: var(--bg-card)"
         >
           <!-- Column Header -->
@@ -785,254 +773,50 @@ onMounted(() => {
             class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 px-1.5 sm:px-4 pb-4 scrollbar-hide min-h-[100px]"
             :animation="200"
             ghost-class="opacity-50"
+            :delay="100"
+            :delay-on-touch-only="true"
+            :touch-start-threshold="5"
             @change="(e: any) => onDragChange(e, col.id)"
           >
             <template #item="{ element: task }">
-              <div
-                class="group p-2 sm:p-4 rounded-lg sm:rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative"
-                style="background-color: var(--bg-app); border-color: var(--border-base)"
-                @click="openPreviewDialog(task)"
-              >
-                <!-- Priority + Title Row -->
-                <div class="flex justify-between items-start mb-1 sm:mb-2">
-                  <div class="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                    <div
-                      class="shrink-0 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full"
-                      :class="getPriorityConfig(task.priority).color"
-                    ></div>
-                    <h3
-                      class="text-[10px] sm:text-sm font-bold leading-tight group-hover:text-accent transition-colors line-clamp-2"
-                      style="color: var(--text-primary)"
-                    >
-                      {{ task.title }}
-                    </h3>
-                  </div>
-                </div>
-
-                <!-- Priority Badge (Hidden on very small screens to save space) -->
-                <div class="hidden xs:flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
-                  <span
-                    class="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold"
-                    :class="
-                      getPriorityConfig(task.priority).color +
-                      '/10 ' +
-                      getPriorityConfig(task.priority).textColor
-                    "
-                  >
-                    <component :is="getPriorityConfig(task.priority).icon" class="w-2 h-2 sm:w-2.5 sm:h-2.5" />
-                    <span class="hidden sm:inline">{{ getPriorityConfig(task.priority).label }}</span>
-                  </span>
-                </div>
-
-                <!-- Description (Hidden on mobile board view for compactness) -->
-                <p
-                  v-if="task.description"
-                  class="hidden sm:block text-xs mb-3 line-clamp-2"
-                  style="color: var(--text-secondary)"
-                >
-                  {{ task.description }}
-                </p>
-
-                <!-- Footer: Date + Assignee -->
-                <div
-                  class="flex items-center justify-between pt-1.5 sm:pt-3 border-t"
-                  style="border-color: var(--border-base)"
-                >
-                  <div class="flex items-center gap-1 min-w-0">
-                    <!-- Due Date Icon Only on Mobile -->
-                    <div
-                      v-if="task.dueDate"
-                      class="flex items-center gap-0.5 text-[8px] font-medium shrink-0"
-                      :class="
-                        new Date(task.dueDate) < new Date() && task.status !== 'DONE'
-                          ? 'text-rose-500'
-                          : 'text-slate-400'
-                      "
-                    >
-                      <Calendar class="w-2.5 h-2.5" />
-                      <span class="hidden sm:inline">{{ formatDueDate(task.dueDate) }}</span>
-                    </div>
-                    <!-- Assignee Avatar -->
-                    <div v-if="task.assignee" class="shrink-0">
-                      <div
-                        class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
-                        @click.stop="openUserProfile(task.assignee.id)"
-                      >
-                        <img
-                          v-if="task.assignee.avatarUrl"
-                          :src="task.assignee.avatarUrl"
-                          class="w-4 h-4 sm:w-5 sm:h-5 rounded-md object-cover"
-                          :alt="task.assignee.name"
-                        />
-                        <div
-                          v-else
-                          class="w-4 h-4 sm:w-5 sm:h-5 rounded-md bg-accent/10 flex items-center justify-center"
-                        >
-                          <User class="w-2.5 h-2.5 text-accent" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <template #header>
-              <div
-                v-if="tasks.filter((t) => t.status === col.id).length === 0"
-                class="h-16 sm:h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg sm:rounded-xl opacity-20 hover:opacity-100 hover:border-accent hover:text-accent cursor-pointer transition-all m-0.5 sm:m-1"
-                style="border-color: var(--border-base)"
-                @click="openAddDialog(col.id)"
-              >
-                <Plus class="w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                <p class="hidden sm:block text-[10px] font-bold">拖拽或点击新建</p>
+              <div>
+                <TaskCard
+                  :task="task"
+                  layout="board"
+                  @click="openPreviewDialog"
+                  @user-click="openUserProfile"
+                />
               </div>
             </template>
           </draggable>
-        </div>
-      </div>
 
-      <!-- Mobile scroll indicator -->
-      <div class="flex md:hidden justify-center gap-1.5 mt-3">
-        <div
-          v-for="col in columns"
-          :key="'dot-' + col.id"
-          class="w-1.5 h-1.5 rounded-full"
-          :class="col.id === 'TODO' ? 'bg-slate-400' : col.id === 'IN_PROGRESS' ? 'bg-accent' : 'bg-emerald-500'"
-        ></div>
+          <!-- Empty State (rendered outside draggable to avoid SortableJS indexing errors) -->
+          <div
+            v-if="(tasksByStatus as Record<string, any[]>)[col.id].length === 0"
+            class="h-16 sm:h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-lg sm:rounded-xl opacity-20 hover:opacity-100 hover:border-accent hover:text-accent cursor-pointer transition-all m-4 mt-0 shrink-0"
+            style="border-color: var(--border-base)"
+            @click="openAddDialog(col.id)"
+          >
+            <Plus class="w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
+            <p class="hidden sm:block text-[10px] font-bold">拖拽或点击新建</p>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- List View -->
     <div v-if="viewMode === 'list'" class="flex-1 overflow-y-auto p-2 sm:p-8 scrollbar-hide">
       <div class="w-full max-w-5xl mx-auto space-y-2">
-        <div
+        <TaskCard
           v-for="task in listFilteredTasks"
           :key="task.id"
-          class="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer"
-          style="background-color: var(--bg-card); border-color: var(--border-base)"
-          @click="openPreviewDialog(task)"
-        >
-          <!-- Top Row: Priority + Status + Title -->
-          <div class="flex items-center gap-2 sm:gap-4 min-w-0">
-            <!-- Priority Dot -->
-            <div
-              class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
-              :class="getPriorityConfig(task.priority).color"
-            ></div>
-
-            <!-- Status Badge -->
-            <span
-              class="shrink-0 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold"
-              :class="
-                task.status === 'TODO'
-                  ? 'bg-slate-500/10 text-slate-500'
-                  : task.status === 'IN_PROGRESS'
-                    ? 'bg-accent/10 text-accent'
-                    : 'bg-emerald-500/10 text-emerald-500'
-              "
-            >
-              {{
-                task.status === 'TODO' ? '待办' : task.status === 'IN_PROGRESS' ? '进行中' : '已完成'
-              }}
-            </span>
-
-            <span
-              class="text-xs sm:text-sm font-bold truncate group-hover:text-accent transition-colors"
-              style="color: var(--text-primary)"
-              >{{ task.title }}</span
-            >
-          </div>
-
-          <!-- Mid/Bottom Row: Metadata -->
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 sm:flex-1 sm:justify-end min-w-0">
-            <!-- Tags (Hidden on very small screens in list view) -->
-            <div v-if="parseTags(task.tags).length > 0" class="hidden md:flex flex-wrap gap-1">
-              <span
-                v-for="tag in parseTags(task.tags)"
-                :key="tag"
-                class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold"
-                :class="getTagClass(tag)"
-              >
-                {{ tag }}
-              </span>
-            </div>
-
-            <!-- Project -->
-            <div
-              v-if="task.project"
-              class="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium text-accent max-w-[120px] truncate"
-            >
-              <FolderOpen class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              {{ task.project.title }}
-            </div>
-
-            <!-- Assignee -->
-            <div
-              v-if="task.assignee"
-              class="flex items-center gap-1.5 cursor-pointer group/as"
-              @click.stop="openUserProfile(task.assignee.id)"
-            >
-              <img
-                v-if="task.assignee.avatarUrl"
-                :src="task.assignee.avatarUrl"
-                class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all"
-              />
-              <div
-                v-else
-                class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"
-              >
-                <User class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-accent group-hover/as:text-white" />
-              </div>
-              <span
-                class="text-[9px] sm:text-[10px] text-slate-400 font-medium group-hover/as:text-accent transition-colors"
-                >{{ task.assignee.name }}</span
-              >
-            </div>
-
-            <!-- Due Date -->
-            <div
-              v-if="task.dueDate"
-              class="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium"
-              :class="
-                new Date(task.dueDate) < new Date() && task.status !== 'DONE'
-                  ? 'text-rose-500'
-                  : 'text-slate-400'
-              "
-            >
-              <Calendar class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              <span class="whitespace-nowrap">{{ new Date(task.dueDate).toLocaleDateString() }}</span>
-            </div>
-          </div>
-
-          <!-- Quick Actions -->
-          <div
-            class="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity justify-end sm:justify-start"
-          >
-            <button
-              class="p-1.5 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-              title="查看详情"
-              @click.stop="openPreviewDialog(task)"
-            >
-              <Eye class="w-3.5 h-3.5" />
-            </button>
-            <button
-              v-if="task.status !== 'DONE'"
-              class="p-1.5 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
-              title="标记完成"
-              @click.stop="quickStatusChange(task, 'DONE')"
-            >
-              <CheckCircle2 class="w-3.5 h-3.5" />
-            </button>
-            <button
-              class="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
-              title="删除"
-              @click.stop="deleteTask(task)"
-            >
-              <Trash2 class="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+          :task="task"
+          layout="list"
+          @click="openPreviewDialog"
+          @status-change="quickStatusChange"
+          @delete="deleteTask"
+          @user-click="openUserProfile"
+        />
 
         <!-- Empty State -->
         <div

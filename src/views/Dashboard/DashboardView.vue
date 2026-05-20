@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
-  BookOpen,
-  Users,
   Box,
   MessageSquare,
   TrendingUp,
   Calendar,
-  Layout,
   Plus,
   X,
 } from 'lucide-vue-next';
@@ -17,10 +13,14 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { socketService } from '@/utils/socket';
-import UserAvatar from '@/components/UserAvatar.vue';
+import StatCard from '@/components/StatCard.vue';
+import ActiveLearningCard from './components/ActiveLearningCard.vue';
+import RecentTasksCard from './components/RecentTasksCard.vue';
+import RecentAssetsCard from './components/RecentAssetsCard.vue';
+import TeamActivityCard from './components/TeamActivityCard.vue';
+import CollaborationInviteCard from './components/CollaborationInviteCard.vue';
 
 const { t } = useI18n();
-const router = useRouter();
 const authStore = useAuthStore();
 
 const stats = ref([
@@ -149,17 +149,6 @@ const handleAddTask = async () => {
   }
 };
 
-const formatTime = (date: string) => {
-  const now = new Date();
-  const then = new Date(date);
-  const diff = now.getTime() - then.getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return t('dashboard.time.minutesAgo', { n: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('dashboard.time.hoursAgo', { n: hours });
-  return then.toLocaleDateString();
-};
-
 onMounted(() => {
   fetchDashboardData();
 
@@ -184,12 +173,6 @@ onMounted(() => {
   });
 });
 
-const handleActivityClick = (log: any) => {
-  const [prefix] = log.id.split('-');
-  if (prefix === 'a') router.push('/assets');
-  else if (prefix === 'd') router.push('/discussions');
-  else if (prefix === 'e') router.push('/academy');
-};
 </script>
 
 <template>
@@ -237,305 +220,38 @@ const handleActivityClick = (log: any) => {
     <div class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 scrollbar-hide">
       <div class="max-w-7xl mx-auto space-y-6 md:space-y-8 min-w-0">
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6">
-          <div
+        <div class="grid grid-cols-4 gap-2 sm:gap-6">
+          <StatCard
             v-for="stat in stats"
             :key="stat.label"
-            class="p-4 md:p-6 glass-card glass-card-hover"
-          >
-            <div class="flex items-start justify-between mb-2 sm:mb-4">
-              <div
-                v-if="stat.trend && stat.trend !== '0' && stat.trend !== '0%'"
-                class="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-white/5"
-                :class="stat.color"
-              >
-                <component :is="stat.icon" class="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div v-else class="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
-                <component :is="stat.icon" class="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <span
-                v-if="stat.trend && stat.trend !== '0' && stat.trend !== '0%'"
-                class="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full"
-                :class="
-                  stat.trend.startsWith('-')
-                    ? 'bg-rose-50 text-rose-600'
-                    : 'bg-emerald-50 text-emerald-600'
-                "
-                >{{ stat.trend }}</span
-              >
-            </div>
-            <p
-              class="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5 sm:mb-1 truncate"
-              style="color: var(--text-muted)"
-            >
-              {{ stat.label }}
-            </p>
-            <h2 class="text-xl md:text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
-          </div>
+            :label="stat.label"
+            :value="stat.value"
+            :trend="stat.trend"
+            :color="stat.color"
+            :icon="stat.icon"
+          />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           <!-- Left Column: Tasks & Assets -->
           <div class="lg:col-span-2 space-y-6 md:space-y-8">
             <!-- Active Learning Card -->
-            <div
-              v-if="activeEnrollment"
-              class="relative overflow-hidden rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-2xl group cursor-pointer"
-              style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%)"
-            >
-              <div class="relative z-10">
-                <div class="flex items-center gap-2 mb-3 sm:mb-4">
-                  <div
-                    class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center"
-                  >
-                    <BookOpen class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </div>
-                  <span class="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest opacity-80"
-                    >继续学习</span
-                  >
-                </div>
-                <h2 class="text-xl sm:text-2xl font-black mb-1 sm:mb-2">{{ activeEnrollment.course.title }}</h2>
-                <p class="text-xs sm:text-sm opacity-80 mb-6 sm:mb-8 max-w-md">
-                  进度: {{ activeEnrollment.progress }}% | 还剩下
-                  {{ activeEnrollment.course._count.lessons }} 个章节
-                </p>
-                <button
-                  class="px-5 py-2 sm:px-6 sm:py-2.5 bg-white text-indigo-600 rounded-xl font-bold text-[10px] sm:text-xs shadow-xl hover:scale-105 transition-all"
-                  @click="router.push(`/academy/player/${activeEnrollment.courseId}`)"
-                >
-                  开始学习
-                </button>
-              </div>
-              <div
-                class="absolute right-0 bottom-0 opacity-10 group-hover:scale-110 transition-transform duration-700"
-              >
-                <Layout class="w-48 h-48 sm:w-64 sm:h-64 -mb-8 -mr-8 sm:-mb-10 sm:-mr-10" />
-              </div>
-            </div>
-
-            <!-- Empty Enrollment State -->
-            <div
-              v-else
-              class="relative overflow-hidden rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center text-center group cursor-pointer hover:border-accent/50 transition-all"
-              @click="router.push('/academy')"
-            >
-              <div
-                class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-slate-50 dark:bg-white/5 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform"
-              >
-                <BookOpen class="w-6 h-6 sm:w-8 sm:h-8 text-slate-300 group-hover:text-accent" />
-              </div>
-              <h2 class="text-base sm:text-lg font-bold mb-1" style="color: var(--text-primary)">
-                开启你的学习之旅
-              </h2>
-              <p class="text-[10px] sm:text-xs text-slate-400 mb-5 sm:mb-6 max-w-[240px]">
-                您还没有加入任何课程。前往学院探索海量 3D 创作课程，提升您的技能。
-              </p>
-              <button
-                class="px-5 py-1.5 sm:px-6 sm:py-2 border-2 border-accent text-accent rounded-xl font-bold text-[10px] sm:text-xs hover:bg-accent hover:text-white transition-all"
-              >
-                浏览课程
-              </button>
-            </div>
+            <ActiveLearningCard :activeEnrollment="activeEnrollment" />
 
             <!-- Recent Tasks -->
-            <div
-              class="p-6 sm:p-8 glass-card"
-            >
-              <div class="flex items-center justify-between mb-6 sm:mb-8">
-                <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">待办学习任务</h3>
-                <button
-                  class="text-[10px] sm:text-xs font-bold text-accent hover:underline"
-                  @click="router.push('/work')"
-                >
-                  查看全部任务
-                </button>
-              </div>
-              <div class="space-y-3 sm:space-y-4">
-                <div
-                  v-for="task in recentTasks"
-                  :key="task.id"
-                  class="flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
-                  style="border-color: var(--border-base)"
-                >
-                  <div class="flex items-center gap-3 sm:gap-4">
-                    <div
-                      class="w-2 h-2 rounded-full shrink-0"
-                      :class="
-                        task.status === 'IN_PROGRESS'
-                          ? 'bg-accent'
-                          : task.status === 'DONE'
-                            ? 'bg-emerald-500'
-                            : 'bg-slate-300'
-                      "
-                    ></div>
-                    <div class="min-w-0">
-                      <p class="text-xs sm:text-sm font-bold truncate" style="color: var(--text-primary)">
-                        {{ task.title }}
-                      </p>
-                      <p class="text-[9px] sm:text-[10px] mt-0.5" style="color: var(--text-muted)">
-                        截止于:
-                        {{ task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '无' }}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    class="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-lg shrink-0 ml-2"
-                    style="background-color: var(--bg-app); color: var(--text-secondary)"
-                    >{{ task.status }}</span
-                  >
-                </div>
-                <div v-if="recentTasks.length === 0" class="py-8 sm:py-12 text-center text-slate-400">
-                  <p class="text-xs sm:text-sm font-bold">暂无近期任务</p>
-                </div>
-              </div>
-            </div>
+            <RecentTasksCard :recentTasks="recentTasks" />
 
             <!-- Recent Assets -->
-            <div class="space-y-3 sm:space-y-4">
-              <div class="flex items-center justify-between px-1">
-                <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新创作资产</h3>
-                <button
-                  class="text-[10px] sm:text-xs font-bold text-accent hover:underline"
-                  @click="router.push('/my-works')"
-                >
-                  管理作品集
-                </button>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                  v-for="asset in recentAssets"
-                  :key="asset.id"
-                  class="group p-3 sm:p-4 glass-card glass-card-hover flex items-center gap-3 sm:gap-4 cursor-pointer"
-                  @click="router.push('/assets')"
-                >
-                  <div
-                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl overflow-hidden flex items-center justify-center p-0.5 shrink-0 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
-                  >
-                    <img
-                      v-if="asset.thumbnail"
-                      :src="asset.thumbnail"
-                      class="w-full h-full object-cover rounded-lg sm:rounded-xl group-hover:scale-110 transition-transform"
-                    />
-                    <div
-                      v-else
-                      class="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-white/5 rounded-lg sm:rounded-xl"
-                    >
-                      <Box class="w-5 h-5 sm:w-6 sm:h-6 mb-0.5 sm:mb-1" />
-                      <span class="text-[7px] sm:text-[8px] font-bold uppercase">NO THUMB</span>
-                    </div>
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-xs sm:text-sm font-bold truncate" style="color: var(--text-primary)">
-                      {{ asset.title }}
-                    </p>
-                    <span
-                      class="text-[9px] sm:text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded mt-1 inline-block"
-                      >{{ asset.type }}</span
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
+            <RecentAssetsCard :recentAssets="recentAssets" />
           </div>
 
           <!-- Right Column: Community & Feed -->
           <div class="space-y-6 md:space-y-8">
             <!-- Activity Feed -->
-            <div
-              class="glass-card overflow-hidden"
-            >
-              <div
-                class="p-4 sm:p-6 border-b flex items-center justify-between"
-                style="border-color: var(--border-base)"
-              >
-                <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">团队动态</h3>
-                <span class="text-[8px] sm:text-[9px] font-black uppercase text-emerald-500 animate-pulse"
-                  >实时</span
-                >
-              </div>
-              <div class="p-4 sm:p-6 space-y-5 sm:space-y-6">
-                <div
-                  v-for="log in activityLog"
-                  :key="log.id"
-                  class="flex gap-3 sm:gap-4 group cursor-pointer"
-                  @click="handleActivityClick(log)"
-                >
-                  <UserAvatar :user="log.user" size="sm" class="shrink-0" />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-[11px] sm:text-xs leading-relaxed" style="color: var(--text-secondary)">
-                      <span
-                        class="font-bold group-hover:text-accent transition-colors"
-                        style="color: var(--text-primary)"
-                        >{{ log.user.name }}</span
-                      >
-                      {{ log.action }}
-                      <span class="text-accent font-bold">#{{ log.target }}</span>
-                    </p>
-                    <p class="text-[9px] sm:text-[10px] mt-1" style="color: var(--text-muted)">
-                      {{ formatTime(log.createdAt) }}
-                    </p>
-                  </div>
-                </div>
-                <div v-if="activityLog.length === 0" class="py-10 sm:py-12 text-center text-slate-400">
-                  <p class="text-xs sm:text-sm font-bold">暂无动态</p>
-                </div>
-              </div>
-              <button
-                class="w-full py-3 sm:py-4 text-[11px] sm:text-xs font-bold border-t transition-colors hover:bg-slate-50 dark:hover:bg-white/5"
-                style="color: var(--text-secondary); border-color: var(--border-base)"
-                @click="router.push('/discussions')"
-              >
-                进入社区交流
-              </button>
-            </div>
+            <TeamActivityCard :activityLog="activityLog" />
 
             <!-- Collaboration Invite -->
-            <div
-              class="p-6 sm:p-8 glass-card bg-gradient-to-br from-indigo-500/5 to-purple-500/5"
-            >
-              <div class="flex items-center gap-3 mb-4">
-                <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-                  <Users class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
-                </div>
-                <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">团队协作</h3>
-              </div>
-              <p class="text-[11px] sm:text-xs leading-relaxed mb-5 sm:mb-6" style="color: var(--text-secondary)">
-                加入一个兴趣小组，与志同道合的伙伴一起完成大型渲染项目。
-              </p>
-              <div class="flex -space-x-2 mb-6 sm:mb-8">
-                <div
-                  v-for="(letter, idx) in ['K', 'J', 'Y', 'H']"
-                  :key="idx"
-                  class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-[9px] sm:text-[10px] font-black text-white shadow-md select-none"
-                  style="border-color: var(--bg-card)"
-                  :class="[
-                    idx === 0 ? 'bg-gradient-to-tr from-pink-500 to-rose-400' : '',
-                    idx === 1 ? 'bg-gradient-to-tr from-amber-500 to-orange-400' : '',
-                    idx === 2 ? 'bg-gradient-to-tr from-emerald-500 to-teal-400' : '',
-                    idx === 3 ? 'bg-gradient-to-tr from-blue-500 to-indigo-400' : '',
-                  ]"
-                >
-                  {{ letter }}
-                </div>
-                <div
-                  class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-[9px] sm:text-[10px] font-bold"
-                  style="
-                    background-color: var(--bg-app);
-                    border-color: var(--border-base);
-                    color: var(--text-secondary);
-                  "
-                >
-                  +5
-                </div>
-              </div>
-              <button
-                class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[11px] sm:text-xs font-bold transition-transform hover:scale-[1.02]"
-                @click="router.push('/explore-teams')"
-              >
-                寻找团队伙伴
-              </button>
-            </div>
+            <CollaborationInviteCard />
           </div>
         </div>
       </div>

@@ -6,7 +6,6 @@ import {
   Zap,
   Crown,
   History,
-  ShieldCheck,
   ArrowUpRight,
   Download,
   X,
@@ -20,7 +19,7 @@ import {
   RefreshCw,
   TrendingUp,
 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -44,6 +43,9 @@ const isVerifying2FA = ref(false);
 const cancelStep = ref<'confirm' | '2fa' | 'success'>('confirm');
 const showUpgradeDialog = ref(false);
 const upgradePlan = ref<any>(null);
+
+const activationCode = ref('');
+const isRedeeming = ref(false);
 
 const fetchBillingData = async () => {
   isLoading.value = true;
@@ -79,6 +81,28 @@ const checkCancel2FA = async () => {
   }
 };
 
+const handleRedeemCode = async () => {
+  if (!activationCode.value.trim()) {
+    ElMessage.warning('请输入激活码');
+    return;
+  }
+  isRedeeming.value = true;
+  try {
+    const res = await api.post('/api/subscriptions/redeem', {
+      code: activationCode.value.trim(),
+    });
+    ElMessage.success(res.data.message || '激活成功！');
+    activationCode.value = '';
+    fetchBillingData();
+    const authStore = useAuthStore();
+    await authStore.fetchMe();
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '兑换失败，请检查激活码是否有效');
+  } finally {
+    isRedeeming.value = false;
+  }
+};
+
 const handleSubscribe = async (plan: any) => {
   if (plan.id === mySubscription.value?.plan?.id && mySubscription.value?.status === 'ACTIVE') {
     ElMessage.info('您已订阅此计划');
@@ -96,46 +120,48 @@ const handleSubscribe = async (plan: any) => {
     return;
   }
 
-  try {
-    const { data } = await api.post('/api/subscriptions/create-order', {
-      planId: plan.id,
-      interval: billingInterval.value,
-    });
-
-    router.push({
-      name: 'Checkout',
-      query: {
-        orderId: data.orderId,
-        amount: data.amount,
-        planName: plan.displayName || plan.name,
-      },
-    });
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '创建订单失败');
-  }
+  ElMessageBox.prompt(`请输入用于激活 ${plan.displayName || plan.name} 的激活码：`, '激活订阅计划', {
+    confirmButtonText: '确认激活',
+    cancelButtonText: '取消',
+    inputPlaceholder: '请输入激活码...',
+    inputPattern: /\S+/,
+    inputErrorMessage: '激活码不能为空',
+  }).then(async ({ value }) => {
+    if (!value || !value.trim()) return;
+    try {
+      const res = await api.post('/api/subscriptions/redeem', { code: value.trim() });
+      ElMessage.success(res.data.message || '激活成功！');
+      fetchBillingData();
+      const authStore = useAuthStore();
+      await authStore.fetchMe();
+    } catch (error: any) {
+      ElMessage.error(error.response?.data?.error || '激活失败，请检查激活码是否有效');
+    }
+  }).catch(() => {});
 };
 
 const handleConfirmUpgrade = async () => {
   if (!upgradePlan.value) return;
+  showUpgradeDialog.value = false;
 
-  try {
-    const { data } = await api.post('/api/subscriptions/create-order', {
-      planId: upgradePlan.value.id,
-      interval: billingInterval.value,
-    });
-
-    router.push({
-      name: 'Checkout',
-      query: {
-        orderId: data.orderId,
-        amount: data.amount,
-        planName: upgradePlan.value.displayName || upgradePlan.value.name,
-      },
-    });
-    showUpgradeDialog.value = false;
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
-  }
+  ElMessageBox.prompt(`请输入用于激活 ${upgradePlan.value.displayName || upgradePlan.value.name} 的激活码：`, '升级/续费订阅', {
+    confirmButtonText: '确认激活',
+    cancelButtonText: '取消',
+    inputPlaceholder: '请输入激活码...',
+    inputPattern: /\S+/,
+    inputErrorMessage: '激活码不能为空',
+  }).then(async ({ value }) => {
+    if (!value || !value.trim()) return;
+    try {
+      const res = await api.post('/api/subscriptions/redeem', { code: value.trim() });
+      ElMessage.success(res.data.message || '激活成功！');
+      fetchBillingData();
+      const authStore = useAuthStore();
+      await authStore.fetchMe();
+    } catch (error: any) {
+      ElMessage.error(error.response?.data?.error || '激活失败，请检查激活码是否有效');
+    }
+  }).catch(() => {});
 };
 
 const openCancelDialog = async () => {
@@ -378,13 +404,30 @@ onMounted(() => {
             class="p-4 md:p-8 rounded-2xl md:rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] shadow-sm flex flex-col justify-between overflow-hidden"
           >
             <div class="space-y-2 md:space-y-4">
-              <div class="flex items-center gap-2 md:gap-3 text-emerald-500">
-                <ShieldCheck class="w-4 h-4 md:w-6 md:h-6" />
-                <h3 class="text-[9px] md:text-base font-bold">支付安全</h3>
+              <div class="flex items-center gap-2 md:gap-3 text-violet-500">
+                <KeyRound class="w-4 h-4 md:w-6 md:h-6" />
+                <h3 class="text-[9px] md:text-base font-bold">激活码兑换</h3>
               </div>
               <p class="hidden md:block text-xs text-[var(--text-secondary)] leading-relaxed">
-                我们采用业界标准的加密技术保护您的支付信息。
+                输入您的激活码，立即激活或延长您的订阅计划。
               </p>
+              <div class="flex gap-2 mt-2">
+                <input
+                  v-model="activationCode"
+                  type="text"
+                  class="flex-1 px-3 py-2 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 bg-[var(--bg-app)] border-[var(--border-base)] text-[var(--text-primary)]"
+                  placeholder="请输入激活码..."
+                  @keyup.enter="handleRedeemCode"
+                />
+                <button
+                  :disabled="isRedeeming"
+                  class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 active:scale-95 disabled:opacity-50 transition-all shadow-lg shadow-accent/20 shrink-0"
+                  @click="handleRedeemCode"
+                >
+                  <template v-if="isRedeeming">兑换中...</template>
+                  <template v-else>兑换</template>
+                </button>
+              </div>
             </div>
 
             <div v-if="isPaidPlan" class="space-y-2 md:space-y-3 mt-4 md:mt-6">

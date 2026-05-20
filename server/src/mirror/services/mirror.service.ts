@@ -123,13 +123,12 @@ export class MirrorService {
 
     if (!resource) return null;
 
-    // Increment viewCount
-    await prisma.mirrorResource.update({
-      where: { id: resourceId },
-      data: { viewCount: { increment: 1 } },
-    });
+    // Increment viewCount — fire-and-forget, do NOT block the response
+    prisma.mirrorResource
+      .update({ where: { id: resourceId }, data: { viewCount: { increment: 1 } } })
+      .catch(() => {});
 
-    // If detail contentHtml is missing, fetch it on-demand
+    // If detail contentHtml is missing, fetch it on-demand with a timeout guard
     if (!resource.contentHtml) {
       try {
         const { getAdapter } = require('../adapters');
@@ -140,14 +139,19 @@ export class MirrorService {
           syncConfig: resource.source.syncConfig ? JSON.parse(resource.source.syncConfig) : undefined,
         });
 
-        const detail = await adapter.fetchResourceDetail(resource.externalId);
+        const FETCH_TIMEOUT_MS = 8000;
+        const fetchPromise = adapter.fetchResourceDetail(resource.externalId);
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('On-demand fetch timeout')), FETCH_TIMEOUT_MS),
+        );
+
+        const detail = await Promise.race([fetchPromise, timeoutPromise]);
         if (detail) {
           const localHtml = await thumbnailLocalizer.localizeHtmlContent(
             detail.contentHtml || '',
             resource.sourceId,
           );
 
-          // Update tags if they are fetched from detail page
           let tags = resource.tags;
           if (detail.tags && detail.tags.length > 0) {
             tags = JSON.stringify(detail.tags);

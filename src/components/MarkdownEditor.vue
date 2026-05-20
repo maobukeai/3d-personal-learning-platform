@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { MdEditor, MdPreview } from 'md-editor-v3';
+import type { ToolbarNames } from 'md-editor-v3';
 import { useI18n } from 'vue-i18n';
 import 'md-editor-v3/lib/style.css';
 
@@ -42,10 +43,64 @@ const editorLanguage = computed(() => {
   return locale.value === 'zh-CN' ? 'zh-CN' : 'en-US';
 });
 
+const isMobile = ref(false);
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768;
+};
+
+const toolbars = computed<ToolbarNames[]>(() => {
+  if (isMobile.value) {
+    return [
+      'bold',
+      'italic',
+      'title',
+      'quote',
+      'unorderedList',
+      'orderedList',
+      'code',
+      'link',
+      'image',
+      'table',
+      'revoke',
+      'next'
+    ];
+  }
+  return [
+    'bold',
+    'underline',
+    'italic',
+    '-',
+    'strikeThrough',
+    'title',
+    'sub',
+    'sup',
+    'quote',
+    'unorderedList',
+    'orderedList',
+    'task',
+    '-',
+    'codeRow',
+    'code',
+    'link',
+    'image',
+    'table',
+    'mermaid',
+    'katex',
+    '-',
+    'revoke',
+    'next',
+    'save'
+  ];
+});
+
 const isDark = ref(document.documentElement.classList.contains('dark'));
 let observer: MutationObserver | null = null;
 
 onMounted(() => {
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+
   observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
@@ -61,6 +116,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile);
   if (observer) {
     observer.disconnect();
   }
@@ -79,16 +135,17 @@ onUnmounted(() => {
     <MdEditor
       v-else
       :id="editorId"
+      :key="String(props.preview)"
       v-model="text"
       :placeholder="placeholder"
       :style="{ height }"
       :theme="isDark ? 'dark' : 'light'"
       :language="editorLanguage"
-      :preview="preview"
-      :html-preview="htmlPreview"
+      :preview="props.preview"
+      :html-preview="props.htmlPreview"
       :auto-focus="autoFocus"
       :auto-height="autoHeight"
-      :toolbars-exclude="['github', 'htmlPreview', 'catalog']"
+      :toolbars="toolbars"
     />
   </div>
 </template>
@@ -186,5 +243,34 @@ onUnmounted(() => {
 
 .markdown-editor-wrapper.modern-paper-theme .md-editor-content {
   background-color: transparent !important;
+}
+
+/* Mobile responsive compact toolbar */
+@media (max-width: 767px) {
+  .markdown-editor-wrapper .md-editor-toolbar-wrapper {
+    padding: 4px 6px !important;
+    overflow-x: hidden !important;
+  }
+  .markdown-editor-wrapper .md-editor-toolbar {
+    display: flex !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+  .markdown-editor-wrapper .md-editor-toolbar-item {
+    min-width: 26px !important;
+    height: 26px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+  .markdown-editor-wrapper .md-editor-toolbar-item svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
 }
 </style>

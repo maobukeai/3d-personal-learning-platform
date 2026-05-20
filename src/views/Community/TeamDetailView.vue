@@ -956,7 +956,7 @@ watch(
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md"
     >
       <div
-        class="w-full max-w-xl bg-white dark:bg-slate-900 rounded-[3rem] p-10 shadow-2xl transition-colors duration-300"
+        class="glass-dialog w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl transition-colors duration-300"
       >
         <div class="flex items-center justify-between mb-8">
           <div>
@@ -985,21 +985,20 @@ watch(
                 v-model="userSearchQuery"
                 type="text"
                 placeholder="输入用户名或邮箱搜索..."
-                class="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
-                style="border-color: var(--border-base); color: var(--text-primary)"
+                class="w-full pl-11 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
+                style="color: var(--text-primary)"
               />
             </div>
 
             <!-- Search Results -->
             <div
               v-if="searchResults.length > 0"
-              class="max-h-60 overflow-y-auto space-y-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl scrollbar-hide"
+              class="max-h-60 overflow-y-auto space-y-2 p-2 bg-black/5 dark:bg-white/5 rounded-2xl scrollbar-hide border border-black/5 dark:border-white/5"
             >
               <div
                 v-for="user in searchResults"
                 :key="user.id"
-                class="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border hover:border-accent transition-all group"
-                style="border-color: var(--border-base)"
+                class="flex items-center justify-between p-3 bg-white/20 dark:bg-slate-900/20 rounded-xl border border-black/10 dark:border-white/10 hover:border-accent transition-all group"
               >
                 <div class="flex items-center gap-3">
                   <UserAvatar :user="user" size="md" />
@@ -1028,10 +1027,10 @@ watch(
 
           <div class="relative flex items-center justify-center">
             <div class="absolute inset-0 flex items-center">
-              <div class="w-full border-t border-slate-100 dark:border-white/5"></div>
+              <div class="w-full border-t border-black/10 dark:border-white/10"></div>
             </div>
             <span
-              class="relative px-4 bg-white dark:bg-slate-900 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]"
+              class="relative px-4 bg-[var(--bg-card)] dark:bg-slate-800/80 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]"
               >或者</span
             >
           </div>
@@ -1048,8 +1047,8 @@ watch(
                   v-model="inviteEmailInput"
                   type="email"
                   placeholder="example@email.com"
-                  class="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
+                  class="w-full pl-11 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
+                  style="color: var(--text-primary)"
                 />
               </div>
               <button
@@ -1071,7 +1070,7 @@ watch(
       class="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md"
     >
       <div
-        class="w-full max-w-md bg-white dark:bg-slate-900 rounded-[3rem] p-10 shadow-2xl animate-in fade-in zoom-in-95 duration-300"
+        class="glass-dialog w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in fade-in zoom-in-95 duration-300"
       >
         <div class="flex items-center justify-between mb-8">
           <div class="p-4 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500">
@@ -1104,8 +1103,8 @@ watch(
                 type="text"
                 maxlength="6"
                 placeholder="000000"
-                class="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
-                style="border-color: var(--border-base); color: var(--text-primary)"
+                class="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
+                style="color: var(--text-primary)"
               />
             </div>
             <div v-else class="space-y-2">
@@ -1118,8 +1117,8 @@ watch(
                   type="text"
                   maxlength="6"
                   placeholder="000000"
-                  class="flex-1 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
+                  class="flex-1 px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
+                  style="color: var(--text-primary)"
                 />
                 <button
                   :disabled="dissolveCountdown > 0"

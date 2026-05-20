@@ -6,7 +6,7 @@ const props = defineProps<{
   user?: {
     name?: string;
     email?: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     role?: string;
     subscription?: {
       plan: {

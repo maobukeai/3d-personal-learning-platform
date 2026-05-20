@@ -27,6 +27,7 @@ export default {
     theme: 'Theme',
     themeLight: 'Light',
     themeDark: 'Dark',
+    themeGlass: 'Glassmorphism',
     themeSystem: 'System',
     accentColor: 'Accent Color',
     successUpdate: 'Settings updated',

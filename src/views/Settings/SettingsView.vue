@@ -27,6 +27,7 @@ import {
   AtSign,
   ShieldAlert,
   RefreshCw,
+  Sparkles,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -200,14 +201,32 @@ const applyTheme = (theme: string) => {
   currentTheme.value = theme;
   localStorage.setItem('theme', theme);
   const root = document.documentElement;
-  if (theme === 'dark') {
-    root.classList.add('dark');
-  } else if (theme === 'light') {
-    root.classList.remove('dark');
+
+  // Batch all class changes into a single operation to avoid multiple repaints
+  const classes = new Set(root.classList);
+  classes.delete('dark');
+  classes.delete('theme-glass');
+
+  if (theme === 'light') {
+    localStorage.setItem('lastBaseTheme', 'light');
+  } else if (theme === 'dark') {
+    localStorage.setItem('lastBaseTheme', 'dark');
+    classes.add('dark');
   } else if (theme === 'system') {
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.toggle('dark', isDark);
+    localStorage.setItem('lastBaseTheme', isDark ? 'dark' : 'light');
+    if (isDark) classes.add('dark');
+  } else if (theme === 'glass') {
+    const lastBase = localStorage.getItem('lastBaseTheme') || 'light';
+    classes.add('theme-glass');
+    if (lastBase === 'dark') classes.add('dark');
   }
+
+  // Apply all classes in one shot – triggers only a single style recalculation
+  root.className = Array.from(classes).join(' ');
+  
+  // Trigger event to notify layout
+  window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
 };
 
 const applyAccentColor = (color: string) => {
@@ -1171,11 +1190,12 @@ watch(activeSection, (newSection) => {
               <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">
                 {{ t('settings.theme') }}
               </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 lg:gap-4">
                 <button
                   v-for="theme in [
                     { id: 'light', label: t('settings.themeLight'), icon: Sun },
                     { id: 'dark', label: t('settings.themeDark'), icon: Moon },
+                    { id: 'glass', label: t('settings.themeGlass'), icon: Sparkles },
                     { id: 'system', label: t('settings.themeSystem'), icon: Monitor },
                   ]"
                   :key="theme.id"

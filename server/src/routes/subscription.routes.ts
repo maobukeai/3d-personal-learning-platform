@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as subscriptionController from '../controllers/subscription.controller';
+import { redeemActivationCode } from '../controllers/activationCode.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -7,6 +8,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/plans', subscriptionController.getPlans);
+router.post('/redeem', redeemActivationCode);
 router.get('/me', subscriptionController.getMySubscription);
 router.post('/subscribe', subscriptionController.subscribe);
 router.post('/create-order', subscriptionController.createOrder);

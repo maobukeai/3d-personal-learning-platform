@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import {
   Search,
   FolderPlus,
   LayoutGrid,
   List,
-  MoreHorizontal,
-  Clock,
   Layers,
   CheckCircle2,
   X,
@@ -16,9 +13,6 @@ import {
   Award,
   Users,
   Plus,
-  Calendar,
-  Tag,
-  Zap,
   ArrowUp,
   Minus,
   ArrowDown,
@@ -31,8 +25,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
+import ProjectCard from '@/components/ProjectCard.vue';
+import TaskCard from '@/components/TaskCard.vue';
 
-const router = useRouter();
 const workspaceStore = useWorkspaceStore();
 
 const activeTab = ref<'projects' | 'tasks'>('projects');
@@ -63,21 +58,6 @@ const priorityOptions = [
   { id: 'MEDIUM', label: '中', color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus },
   { id: 'LOW', label: '低', color: 'bg-slate-400', textColor: 'text-slate-400', icon: ArrowDown },
 ];
-
-const tagColorMap: Record<string, string> = {
-  设计: 'bg-pink-500/10 text-pink-500',
-  开发: 'bg-blue-500/10 text-blue-500',
-  学习: 'bg-emerald-500/10 text-emerald-500',
-  '3D': 'bg-violet-500/10 text-violet-500',
-  建模: 'bg-cyan-500/10 text-cyan-500',
-  渲染: 'bg-amber-500/10 text-amber-500',
-  动画: 'bg-rose-500/10 text-rose-500',
-  研究: 'bg-indigo-500/10 text-indigo-500',
-  文档: 'bg-teal-500/10 text-teal-500',
-  优化: 'bg-lime-500/10 text-lime-500',
-};
-const defaultTagClass = 'bg-slate-500/10 text-slate-500';
-const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
 
 const isDrawerOpen = ref(false);
 const isEditMode = ref(false);
@@ -111,10 +91,6 @@ const statusOptions = [
   { value: 'PAUSED', label: '已暂停' },
   { value: 'COMPLETED', label: '已完成' },
 ];
-
-const getStatusLabel = (status: string) => {
-  return statusOptions.find((o) => o.value === status)?.label || status;
-};
 
 const isTaskDialogOpen = ref(false);
 const taskForm = ref({
@@ -238,40 +214,6 @@ const tasksByStatus = computed(() => {
     DONE: filtered.filter((t) => t.status === 'DONE'),
   } as Record<string, any[]>;
 });
-
-const parseTags = (tags: string | null | undefined): string[] => {
-  if (!tags) return [];
-  try {
-    return JSON.parse(tags);
-  } catch {
-    return [];
-  }
-};
-
-const getTagsList = (tags: string | null) => {
-  if (!tags) return [];
-  return tags
-    .split(',')
-    .map((t) => t.trim())
-    .filter((t) => t);
-};
-
-const getPriorityConfig = (priority: string) => {
-  return priorityOptions.find((p) => p.id === priority) || priorityOptions[2];
-};
-
-const formatDueDate = (dateStr: string | null) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = d.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return `逾期 ${Math.abs(diffDays)} 天`;
-  if (diffDays === 0) return '今天截止';
-  if (diffDays === 1) return '明天截止';
-  if (diffDays <= 7) return `${diffDays} 天后截止`;
-  return d.toLocaleDateString();
-};
 
 const fetchProjects = async () => {
   try {
@@ -742,149 +684,43 @@ onMounted(fetchAll);
 
             <div
               v-else-if="viewMode === 'grid'"
-              class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8"
+              class="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8"
             >
-              <div
-                v-for="project in filteredProjects"
+              <ProjectCard
+                v-for="(project, index) in filteredProjects"
                 :key="project.id"
-                class="bg-white dark:bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 border shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden"
-                style="border-color: var(--border-base)"
-                @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-              >
-                <div
-                  class="absolute -top-10 -right-10 w-32 h-32 opacity-20 blur-3xl transition-opacity group-hover:opacity-40"
-                  :class="project.color"
-                ></div>
-                <div class="relative z-10 flex flex-col h-full">
-                  <div class="flex items-start justify-between mb-4 sm:mb-6">
-                    <div
-                      class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-lg"
-                      :class="project.color"
-                    >
-                      <span class="text-lg sm:text-xl font-black uppercase">{{
-                        project.title.substring(0, 2)
-                      }}</span>
-                    </div>
-                    <el-dropdown trigger="click" @click.stop>
-                      <button
-                        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                        style="color: var(--text-secondary)"
-                      >
-                        <MoreHorizontal class="w-5 h-5" />
-                      </button>
-                      <template #dropdown>
-                        <el-dropdown-menu class="!rounded-xl !p-2">
-                          <el-dropdown-item
-                            class="!rounded-lg !mb-1 font-bold"
-                            @click="
-                              router.push({ name: 'ProjectDetail', params: { id: project.id } })
-                            "
-                            >查看详情</el-dropdown-item
-                          >
-                          <el-dropdown-item
-                            class="!rounded-lg !mb-1 font-bold"
-                            @click="openEditDrawer(project)"
-                            >配置项目</el-dropdown-item
-                          >
-                          <el-divider class="!my-1" />
-                          <el-dropdown-item
-                            class="!rounded-lg !text-rose-500 font-bold hover:!bg-rose-50 dark:hover:!bg-rose-500/10"
-                            @click="deleteProject(project.id)"
-                            >删除项目</el-dropdown-item
-                          >
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </div>
-                  <h3
-                    class="text-base sm:text-lg font-black group-hover:text-accent transition-colors mb-2 line-clamp-1"
-                    style="color: var(--text-primary)"
-                  >
-                    {{ project.title }}
-                  </h3>
-                  <p
-                    class="text-[10px] sm:text-xs leading-relaxed mb-4 sm:mb-6 line-clamp-2"
-                    style="color: var(--text-secondary)"
-                  >
-                    {{ project.description || '暂无项目描述。' }}
-                  </p>
-                  <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-6 sm:mb-8">
-                    <span
-                      v-for="tag in getTagsList(project.tags).slice(0, 3)"
-                      :key="tag"
-                      class="text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500"
-                      >#{{ tag }}</span
-                    >
-                    <span
-                      v-if="getTagsList(project.tags).length > 3"
-                      class="text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500"
-                      >+{{ getTagsList(project.tags).length - 3 }}</span
-                    >
-                  </div>
-                  <div class="mt-auto space-y-2 sm:space-y-3 mb-6 sm:mb-8">
-                    <div
-                      class="flex items-center justify-between text-[9px] sm:text-[10px] font-black uppercase tracking-widest"
-                    >
-                      <span style="color: var(--text-secondary)">完成度</span>
-                      <span :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'"
-                        >{{ project.progress }}%</span
-                      >
-                    </div>
-                    <div class="h-1.5 sm:h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                      <div
-                        class="h-full rounded-full transition-all duration-1000"
-                        :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
-                        :style="{ width: project.progress + '%' }"
-                      ></div>
-                    </div>
-                  </div>
-                  <div
-                    class="flex items-center justify-between pt-4 sm:pt-5 border-t"
-                    style="border-color: var(--border-base)"
-                  >
-                    <div class="flex items-center -space-x-1.5">
-                      <div
-                        v-for="(m, i) in project.members.slice(0, 4)"
-                        :key="m.userId"
-                        class="z-10"
-                        :style="{ 'z-index': 10 - Number(i) }"
-                      >
-                        <UserAvatar :user="m.user" size="sm" />
-                      </div>
-                      <div
-                        v-if="project.members.length > 4"
-                        class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[8px] sm:text-[10px] font-bold text-slate-500"
-                      >
-                        +{{ (project.members?.length || 0) - 4 }}
-                      </div>
-                    </div>
-                    <div
-                      class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[9px] sm:text-[10px] font-black tracking-wider"
-                      :class="
-                        project.status === 'COMPLETED'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : project.status === 'IN_PROGRESS'
-                            ? 'bg-accent/10 text-accent'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                      "
-                    >
-                      <CheckCircle2 v-if="project.status === 'COMPLETED'" class="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                      <Activity v-else-if="project.status === 'IN_PROGRESS'" class="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                      <Clock v-else class="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                      {{ getStatusLabel(project.status) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                :project="project"
+                layout="grid"
+                :style="{ 'animation-delay': `${index * 50}ms` }"
+                @edit="openEditDrawer"
+                @delete="deleteProject"
+              />
             </div>
 
             <div
               v-else
-              class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border shadow-sm overflow-hidden"
+              class="bg-transparent md:bg-white dark:md:bg-slate-900 md:rounded-2xl sm:md:rounded-[2.5rem] md:border md:shadow-sm md:overflow-hidden"
               style="border-color: var(--border-base)"
             >
-              <!-- Desktop Table -->
-              <div class="w-full overflow-x-auto scrollbar-hide">
+              <!-- Mobile List View (Card Simple Mode) -->
+              <div class="block md:hidden space-y-3">
+                <div
+                  v-for="project in filteredProjects"
+                  :key="project.id"
+                  class="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm"
+                  style="border-color: var(--border-base)"
+                >
+                  <ProjectCard
+                    :project="project"
+                    layout="card-simple"
+                    @edit="openEditDrawer"
+                    @delete="deleteProject"
+                  />
+                </div>
+              </div>
+
+              <!-- Desktop Table View -->
+              <div class="hidden md:block w-full overflow-x-auto scrollbar-hide">
                 <table class="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr
@@ -919,116 +755,14 @@ onMounted(fetchAll);
                     </tr>
                   </thead>
                   <tbody>
-                    <tr
+                    <ProjectCard
                       v-for="project in filteredProjects"
                       :key="project.id"
-                      class="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
-                      style="border-color: var(--border-base)"
-                      @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-                    >
-                      <td class="px-8 py-6">
-                        <div class="flex items-center gap-4">
-                          <div
-                            class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-sm"
-                            :class="project.color"
-                          >
-                            {{ project.title.substring(0, 1) }}
-                          </div>
-                          <div>
-                            <p
-                              class="text-sm font-black group-hover:text-accent transition-colors"
-                              style="color: var(--text-primary)"
-                            >
-                              {{ project.title }}
-                            </p>
-                            <p class="text-[10px] font-bold text-slate-400 mt-1 line-clamp-1 w-48">
-                              {{ project.description || '暂无描述' }}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-8 py-6">
-                        <div class="w-40">
-                          <div
-                            class="flex items-center justify-between text-[10px] font-black mb-2"
-                          >
-                            <span
-                              :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'"
-                              >{{ project.progress }}%</span
-                            >
-                          </div>
-                          <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                            <div
-                              class="h-full rounded-full transition-all"
-                              :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
-                              :style="{ width: project.progress + '%' }"
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-8 py-6">
-                        <span
-                          class="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider"
-                          :class="
-                            project.status === 'COMPLETED'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : project.status === 'IN_PROGRESS'
-                                ? 'bg-accent/10 text-accent'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                          "
-                        >
-                          {{ getStatusLabel(project.status) }}
-                        </span>
-                      </td>
-                      <td class="px-8 py-6">
-                        <div class="flex items-center -space-x-1.5">
-                          <UserAvatar
-                            v-for="m in project.members.slice(0, 3)"
-                            :key="m.userId"
-                            :user="m.user"
-                            size="sm"
-                          />
-                          <div
-                            v-if="project.members.length > 3"
-                            class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500"
-                          >
-                            +{{ (project.members?.length || 0) - 3 }}
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-8 py-6 text-right">
-                        <el-dropdown trigger="click" @click.stop>
-                          <button
-                            class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                            style="color: var(--text-secondary)"
-                          >
-                            <MoreHorizontal class="w-5 h-5" />
-                          </button>
-                          <template #dropdown>
-                            <el-dropdown-menu class="!rounded-xl !p-2">
-                              <el-dropdown-item
-                                class="!rounded-lg !mb-1 font-bold"
-                                @click="
-                                  router.push({ name: 'ProjectDetail', params: { id: project.id } })
-                                "
-                                >查看详情</el-dropdown-item
-                              >
-                              <el-dropdown-item
-                                class="!rounded-lg !mb-1 font-bold"
-                                @click="openEditDrawer(project)"
-                                >配置项目</el-dropdown-item
-                              >
-                              <el-divider class="!my-1" />
-                              <el-dropdown-item
-                                class="!rounded-lg !text-rose-500 font-bold hover:!bg-rose-50 dark:hover:!bg-rose-500/10"
-                                @click="deleteProject(project.id)"
-                                >删除项目</el-dropdown-item
-                              >
-                            </el-dropdown-menu>
-                          </template>
-                        </el-dropdown>
-                      </td>
-                    </tr>
+                      :project="project"
+                      layout="row"
+                      @edit="openEditDrawer"
+                      @delete="deleteProject"
+                    />
                   </tbody>
                 </table>
               </div>
@@ -1176,11 +910,11 @@ onMounted(fetchAll);
               </div>
             </div>
 
-            <div class="flex gap-2 sm:gap-6 min-h-[500px] overflow-hidden pb-4 scrollbar-hide">
+            <div class="flex gap-3 md:gap-6 min-h-[500px] overflow-x-auto md:overflow-x-visible pb-4 scrollbar-hide snap-x">
               <div
                 v-for="col in columns"
                 :key="col.id"
-                class="flex-1 flex flex-col min-w-0 rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden"
+                class="w-[280px] xs:w-[320px] md:w-auto md:flex-1 flex flex-col shrink-0 md:shrink rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden snap-center"
                 style="background-color: var(--bg-card)"
               >
                 <div class="px-2 sm:px-5 pt-3 sm:pt-5 pb-2 sm:pb-3" :class="'bg-gradient-to-b ' + col.headerBg">
@@ -1204,114 +938,13 @@ onMounted(fetchAll);
                 <div
                   class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 px-1.5 sm:px-4 pb-4 scrollbar-hide min-h-[100px]"
                 >
-                  <div
+                  <TaskCard
                     v-for="task in (tasksByStatus as Record<string, any[]>)[col.id]"
                     :key="task.id"
-                    class="group p-2 sm:p-4 rounded-lg sm:rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-pointer relative"
-                    style="background-color: var(--bg-app); border-color: var(--border-base)"
-                  >
-                    <div class="flex justify-between items-start mb-1 sm:mb-2">
-                      <div class="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                        <div
-                          class="shrink-0 w-1 h-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full"
-                          :class="getPriorityConfig(task.priority).color"
-                        ></div>
-                        <h3
-                          class="text-[10px] sm:text-sm font-bold leading-tight group-hover:text-accent transition-colors line-clamp-2"
-                          style="color: var(--text-primary)"
-                        >
-                          {{ task.title }}
-                        </h3>
-                      </div>
-                    </div>
-                    <div class="hidden xs:flex items-center gap-1 sm:gap-2 mb-2">
-                      <span
-                        class="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold"
-                        :class="
-                          getPriorityConfig(task.priority).color +
-                          '/10 ' +
-                          getPriorityConfig(task.priority).textColor
-                        "
-                      >
-                        <component
-                          :is="getPriorityConfig(task.priority).icon"
-                          class="w-2 sm:w-2.5 h-2 sm:h-2.5"
-                        />
-                        <span class="hidden sm:inline">{{ getPriorityConfig(task.priority).label }}</span>
-                      </span>
-                    </div>
-                    <p
-                      v-if="task.description"
-                      class="hidden sm:block text-[10px] sm:text-xs mb-3 line-clamp-2"
-                      style="color: var(--text-secondary)"
-                    >
-                      {{ task.description }}
-                    </p>
-                    <div v-if="parseTags(task.tags).length > 0" class="flex flex-wrap gap-1 mb-3">
-                      <span
-                        v-for="tag in parseTags(task.tags)"
-                        :key="tag"
-                        class="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-bold"
-                        :class="getTagClass(tag)"
-                      >
-                        <Tag class="w-1.5 sm:w-2 h-1.5 sm:h-2" /> {{ tag }}
-                      </span>
-                    </div>
-                    <div
-                      class="flex items-center justify-between pt-2.5 sm:pt-3 border-t"
-                      style="border-color: var(--border-base)"
-                    >
-                      <div class="flex items-center gap-2 overflow-hidden">
-                        <div
-                          v-if="task.dueDate"
-                          class="flex items-center gap-1 text-[8px] sm:text-[10px] font-medium shrink-0"
-                          :class="
-                            new Date(task.dueDate) < new Date() && task.status !== 'DONE'
-                              ? 'text-rose-500'
-                              : 'text-slate-400'
-                          "
-                        >
-                          <Calendar class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
-                          <span>{{ formatDueDate(task.dueDate) }}</span>
-                        </div>
-                        <div v-if="task.assignee" class="flex items-center gap-1 sm:gap-1.5 ml-1 shrink-0">
-                          <UserAvatar :user="task.assignee" size="xs" />
-                          <span class="text-[8px] sm:text-[10px] text-slate-400 font-medium truncate max-w-[40px]">{{
-                            task.assignee.name
-                          }}</span>
-                        </div>
-                      </div>
-
-                      <div
-                        class="flex items-center gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      >
-                        <button
-                          v-if="task.status !== 'TODO'"
-                          class="p-0.5 sm:p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                          title="移到待办"
-                          @click.stop="quickStatusChange(task, 'TODO')"
-                        >
-                          <Clock class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
-                        </button>
-                        <button
-                          v-if="task.status !== 'IN_PROGRESS'"
-                          class="p-0.5 sm:p-1 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-                          title="移到进行中"
-                          @click.stop="quickStatusChange(task, 'IN_PROGRESS')"
-                        >
-                          <Zap class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
-                        </button>
-                        <button
-                          v-if="task.status !== 'DONE'"
-                          class="p-0.5 sm:p-1 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
-                          title="移到已完成"
-                          @click.stop="quickStatusChange(task, 'DONE')"
-                        >
-                          <CheckCircle2 v-if="task.status === 'DONE'" class="w-2.5 sm:w-3 h-2.5 sm:h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                    :task="task"
+                    layout="board"
+                    @status-change="quickStatusChange"
+                  />
 
                   <div
                     v-if="(tasksByStatus as Record<string, any[]>)[col.id].length === 0"

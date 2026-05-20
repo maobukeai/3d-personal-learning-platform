@@ -22,6 +22,8 @@ import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import DiscussionCard from '@/components/DiscussionCard.vue';
 
 const authStore = useAuthStore();
 const currentUserId = computed(() => authStore.user?.id);
@@ -367,28 +369,12 @@ onMounted(() => {
 <template>
   <div class="flex flex-col h-full" style="background-color: var(--bg-app)">
     <!-- Header -->
-    <div
-      class="border-b flex flex-col md:flex-row md:items-center justify-between px-4 sm:px-6 py-3 md:py-4 shrink-0 gap-3"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    <PageHeader
+      title="交流社区"
+      :subtitle="`${pagination.total} 篇`"
+      :icon="MessageSquare"
     >
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <h1 class="text-lg md:text-xl font-semibold" style="color: var(--text-primary)">交流社区</h1>
-          <span
-            class="text-[10px] px-2 py-0.5 rounded-full font-medium"
-            style="background-color: var(--bg-app); color: var(--text-muted)"
-            >{{ pagination.total }} 篇</span
-          >
-        </div>
-        <button
-          class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20"
-          @click="showCreateModal = true"
-        >
-          <Edit3 class="w-4 h-4" />
-        </button>
-      </div>
-
-      <div class="flex items-center gap-2 sm:gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
         <div class="relative flex-1 md:flex-none">
           <Search
             class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2"
@@ -412,8 +398,14 @@ onMounted(() => {
         >
           <Edit3 class="w-4 h-4" /> 发起讨论
         </button>
+        <button
+          class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20"
+          @click="showCreateModal = true"
+        >
+          <Edit3 class="w-4 h-4" />
+        </button>
       </div>
-    </div>
+    </PageHeader>
 
     <!-- Filter Bar -->
     <div
@@ -474,118 +466,17 @@ onMounted(() => {
     <div class="flex-1 overflow-y-auto p-3 sm:p-5 scrollbar-hide">
       <div class="max-w-4xl mx-auto space-y-3">
         <div v-if="filteredDiscussions.length > 0" class="space-y-3">
-          <div
+          <DiscussionCard
             v-for="d in filteredDiscussions"
             :key="d.id"
-            class="group p-3 sm:p-5 glass-card glass-card-hover cursor-pointer relative"
-            :class="d.isPinned ? 'ring-1 ring-accent' : ''"
-            @click="openDiscussion(d.id)"
-          >
-            <!-- Pinned Badge -->
-            <div
-              v-if="d.isPinned"
-              class="absolute top-2.5 right-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-              style="background-color: var(--accent); color: white"
-            >
-              <Pin class="w-2.5 h-2.5" /> 置顶
-            </div>
-
-            <div class="flex gap-3 sm:gap-4">
-              <UserAvatar :user="d.user" size="sm" class="shrink-0 sm:size-md" />
-
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs sm:text-sm font-bold" style="color: var(--text-primary)">{{
-                    d.user?.name || '匿名用户'
-                  }}</span>
-                  <span class="text-[10px]" style="color: var(--text-muted)">{{
-                    formatTime(d.createdAt)
-                  }}</span>
-                </div>
-
-                <h3
-                  class="text-sm sm:text-base font-bold mb-1 group-hover:text-accent transition-colors pr-12 sm:pr-16"
-                >
-                  {{ d.title }}
-                </h3>
-                <p class="text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3" style="color: var(--text-secondary)">
-                  {{ d.content }}
-                </p>
-
-                <!-- Tags -->
-                <div v-if="parseTags(d.tags).length > 0" class="flex flex-wrap gap-1 mb-2 sm:mb-3">
-                  <span
-                    v-for="tag in parseTags(d.tags)"
-                    :key="tag"
-                    class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium"
-                    style="background-color: var(--bg-app); color: var(--accent)"
-                    >#{{ tag }}</span
-                  >
-                </div>
-
-                <!-- Image Preview in List -->
-                <div
-                  v-if="parseImages(d.images).length > 0"
-                  class="flex gap-2 mb-2 sm:mb-3 overflow-hidden h-16 sm:h-20"
-                >
-                  <div
-                    v-for="(img, idx) in parseImages(d.images).slice(0, 3)"
-                    :key="idx"
-                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-slate-100 dark:border-white/5"
-                  >
-                    <img :src="img" class="w-full h-full object-cover" />
-                  </div>
-                  <div
-                    v-if="parseImages(d.images).length > 3"
-                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[10px] font-bold text-slate-400"
-                  >
-                    +{{ parseImages(d.images).length - 3 }}
-                  </div>
-                </div>
-
-                <div
-                  class="flex items-center gap-4 sm:gap-5 text-[10px] sm:text-[11px] font-bold"
-                  style="color: var(--text-muted)"
-                >
-                  <button
-                    class="flex items-center gap-1 hover:text-red-500 transition-colors"
-                    :class="{ 'text-red-500': d.isLiked }"
-                    @click.stop="toggleLikeDiscussion(d)"
-                  >
-                    <Heart class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'fill-red-500': d.isLiked }" />
-                    <span>{{ d._count?.likes || 0 }}</span>
-                  </button>
-                  <div class="flex items-center gap-1">
-                    <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    <span>{{ d._count?.comments || 0 }}</span>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    <span>{{ d.viewCount || 0 }}</span>
-                  </div>
-                  <!-- Admin/Owner Actions -->
-                  <div
-                    v-if="currentUserId === d.user?.id || isAdmin"
-                    class="flex items-center gap-1.5 sm:gap-2 ml-auto"
-                  >
-                    <button
-                      v-if="isAdmin"
-                      class="hover:text-accent transition-colors p-1"
-                      @click.stop="togglePinDiscussion(d)"
-                    >
-                      <Pin class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </button>
-                    <button
-                      class="hover:text-red-500 transition-colors p-1"
-                      @click.stop="deleteDiscussion(d)"
-                    >
-                      <Trash2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            :discussion="d"
+            :current-user-id="currentUserId"
+            :is-admin="isAdmin"
+            @click="openDiscussion"
+            @like="toggleLikeDiscussion"
+            @pin="togglePinDiscussion"
+            @delete="deleteDiscussion"
+          />
         </div>
 
         <!-- Empty State -->

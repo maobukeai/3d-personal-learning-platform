@@ -150,7 +150,7 @@ onMounted(() => {
     </div>
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 text-slate-400">
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
@@ -158,37 +158,37 @@ onMounted(() => {
         <p class="text-sm font-bold">加载学习路线...</p>
       </div>
 
-      <div v-else class="max-w-5xl mx-auto space-y-8">
+      <div v-else class="max-w-5xl mx-auto space-y-6 sm:space-y-8">
         <div
           v-for="roadmap in roadmaps"
           :key="roadmap.id"
           class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <div class="p-8">
-            <div class="flex items-start justify-between mb-6">
-              <div class="flex items-center gap-4">
+          <div class="p-4 sm:p-8">
+            <div class="flex items-start justify-between mb-6 gap-3">
+              <div class="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div
-                  class="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 flex items-center justify-center"
+                  class="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 flex items-center justify-center shrink-0"
                 >
                   <Milestone class="w-6 h-6" />
                 </div>
-                <div>
-                  <h3 class="font-bold text-xl mb-1 truncate" style="color: var(--text-primary)">
+                <div class="min-w-0">
+                  <h3 class="font-bold text-lg sm:text-xl mb-1 truncate" style="color: var(--text-primary)">
                     {{ roadmap.title }}
                   </h3>
-                  <p class="text-xs text-slate-400 max-w-2xl">{{ roadmap.description }}</p>
+                  <p class="text-xs text-slate-400 max-w-2xl truncate">{{ roadmap.description }}</p>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1 sm:gap-2 shrink-0">
                 <button
-                  class="p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors"
+                  class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors"
                   @click="openRoadmapModal(roadmap)"
                 >
                   <Edit2 class="w-4 h-4" />
                 </button>
                 <button
-                  class="p-2.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                  class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
                   @click="handleDeleteRoadmap(roadmap.id)"
                 >
                   <Trash2 class="w-4 h-4" />
@@ -198,7 +198,7 @@ onMounted(() => {
 
             <!-- Steps Progress Line -->
             <div
-              class="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5"
+              class="relative pl-5 sm:pl-6 space-y-4 sm:space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5"
             >
               <div v-for="step in roadmap.steps" :key="step.id" class="relative group/step">
                 <div
@@ -206,19 +206,19 @@ onMounted(() => {
                 ></div>
 
                 <div
-                  class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all"
+                  class="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all gap-3"
                 >
-                  <div class="flex items-center gap-4">
-                    <span class="text-[10px] font-black text-slate-400 w-4">{{ step.order }}</span>
-                    <div>
-                      <h4 class="text-sm font-bold" style="color: var(--text-primary)">
+                  <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <span class="text-[10px] font-black text-slate-400 w-4 shrink-0">{{ step.order }}</span>
+                    <div class="min-w-0">
+                      <h4 class="text-xs sm:text-sm font-bold truncate" style="color: var(--text-primary)">
                         {{ step.title }}
                       </h4>
-                      <p class="text-[10px] text-slate-400 mt-0.5">{{ step.description }}</p>
+                      <p class="text-[10px] text-slate-400 mt-0.5 truncate">{{ step.description }}</p>
                     </div>
                   </div>
                   <div
-                    class="flex items-center gap-1 opacity-0 group-hover/step:opacity-100 transition-opacity"
+                    class="flex items-center gap-1 md:opacity-0 md:group-hover/step:opacity-100 transition-opacity shrink-0"
                   >
                     <button
                       class="p-1.5 rounded-lg text-slate-400 hover:text-accent"
@@ -254,7 +254,7 @@ onMounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-xl rounded-3xl p-8 shadow-2xl transition-colors duration-300"
+        class="w-full max-w-xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
         style="background-color: var(--bg-card)"
       >
         <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
@@ -317,7 +317,7 @@ onMounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-xl rounded-3xl p-8 shadow-2xl transition-colors duration-300"
+        class="w-full max-w-xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
         style="background-color: var(--bg-card)"
       >
         <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">

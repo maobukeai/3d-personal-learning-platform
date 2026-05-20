@@ -20,4 +20,11 @@ router.get('/sources/:id/sync-status', adminMirrorController.getSyncStatus);
 router.get('/sources/:id/sync-logs', adminMirrorController.getSyncLogs);
 router.post('/sources/:id/match-links', upload.single('file'), adminMirrorController.matchLinks);
 
+// Resource CRUD
+router.get('/sources/:sourceId/resources', adminMirrorController.getSourceResources);
+router.post('/sources/:sourceId/resources', adminMirrorController.createResource);
+router.get('/resources/:id', adminMirrorController.getResourceDetail);
+router.put('/resources/:id', adminMirrorController.updateResource);
+router.delete('/resources/:id', adminMirrorController.deleteResource);
+
 export default router;

@@ -30,6 +30,8 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import { MdPreview } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import ShowcaseCard from '@/components/ShowcaseCard.vue';
 
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
@@ -309,19 +311,12 @@ onMounted(fetchShowcases);
 <template>
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
-    <div
-      class="min-h-16 py-4 md:py-0 md:h-16 border-b px-4 md:px-8 flex flex-col md:flex-row gap-4 md:items-center justify-between shrink-0 transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    <PageHeader
+      title="作品展示"
+      :icon="MonitorPlay"
     >
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg shrink-0">
-          <MonitorPlay class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-        </div>
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">作品展示</h1>
-      </div>
-
-      <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-        <div class="relative w-full sm:w-64">
+      <div class="flex flex-row items-center gap-2 sm:gap-3 w-full md:w-auto">
+        <div class="relative flex-1 min-w-0 sm:w-64">
           <Search
             class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
             style="color: var(--text-muted)"
@@ -330,19 +325,20 @@ onMounted(fetchShowcases);
             v-model="searchQuery"
             type="text"
             placeholder="搜索优秀作品..."
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full transition-all"
+            class="pl-10 pr-4 py-2 border-none rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
         <button
-          class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shrink-0 flex items-center justify-center gap-2 whitespace-nowrap"
+          class="bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap"
           @click="openPublishDialog"
         >
-          <Plus class="w-4 h-4" />
-          <span>发布我的作品</span>
+          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span class="hidden xs:inline">发布我的作品</span>
+          <span class="xs:hidden">发布</span>
         </button>
       </div>
-    </div>
+    </PageHeader>
 
     <!-- Featured Banner -->
     <div class="px-4 sm:px-8 py-4 sm:py-6 shrink-0">
@@ -432,127 +428,14 @@ onMounted(fetchShowcases);
           v-if="filteredShowcases.length > 0"
           class="grid grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          <div
+          <ShowcaseCard
             v-for="item in filteredShowcases"
             :key="item.id"
-            class="group glass-card glass-card-hover overflow-hidden flex flex-col cursor-pointer"
-            @click="openDetail(item)"
-          >
-            <!-- Cover -->
-            <div
-              v-if="item.type === 'TEXT' && !item.thumbnailUrl"
-              class="aspect-video relative overflow-hidden flex items-center justify-center p-6"
-              style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-            >
-              <p class="text-white text-sm font-bold text-center line-clamp-3">{{ item.title }}</p>
-              <div class="absolute top-2 left-2">
-                <span
-                  class="backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm"
-                  :class="getTypeBg(item.type)"
-                >
-                  {{ getTypeLabel(item.type) }}
-                </span>
-              </div>
-              <div
-                class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white"
-              >
-                <Eye class="w-3 h-3" /> {{ item.views || 0 }}
-              </div>
-            </div>
-            <div
-              v-else
-              class="aspect-video relative overflow-hidden"
-              style="background-color: var(--bg-app)"
-            >
-              <img
-                :src="item.thumbnailUrl"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div
-                v-if="item.isVideo"
-                class="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1"
-              >
-                <Play class="w-2.5 h-2.5 fill-white" /> 视频
-              </div>
-              <div class="absolute top-2 left-2">
-                <span
-                  class="backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm"
-                  :class="getTypeBg(item.type)"
-                >
-                  {{ getTypeLabel(item.type) }}
-                </span>
-              </div>
-              <div
-                v-if="item.asset"
-                class="absolute bottom-2 left-2 bg-blue-500/80 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1"
-              >
-                <Box class="w-2.5 h-2.5" /> 关联3D模型
-              </div>
-              <div
-                class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white"
-              >
-                <Eye class="w-3 h-3" /> {{ item.views || 0 }}
-              </div>
-              <div
-                class="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"
-              ></div>
-            </div>
-
-            <!-- Content -->
-            <div class="p-5 flex-1 flex flex-col">
-              <h3
-                class="text-sm font-bold mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors"
-                style="color: var(--text-primary)"
-              >
-                {{ item.title }}
-              </h3>
-
-              <div
-                v-if="parseTags(item.tags).length"
-                class="flex items-center gap-1.5 mb-3 flex-wrap"
-              >
-                <span
-                  v-for="tag in parseTags(item.tags).slice(0, 3)"
-                  :key="tag"
-                  class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
-                >
-                  {{ tag }}
-                </span>
-              </div>
-
-              <div class="flex items-center justify-between mt-auto">
-                <div
-                  class="flex items-center gap-2 cursor-pointer group/author"
-                  @click.stop="openUserProfile(item.user.id)"
-                >
-                  <UserAvatar
-                    :user="item.user"
-                    size="sm"
-                    class="group-hover/author:ring-2 group-hover/author:ring-indigo-500 transition-all"
-                  />
-                  <span
-                    class="text-[11px] font-bold group-hover/author:text-indigo-600 transition-colors"
-                    style="color: var(--text-secondary)"
-                    >{{ item.user.name || item.user.email }}</span
-                  >
-                </div>
-
-                <div class="flex items-center gap-3">
-                  <button
-                    class="flex items-center gap-1 text-[10px] font-bold transition-all"
-                    :class="item.isLiked ? 'text-rose-500' : 'text-slate-400'"
-                    @click.stop="toggleLike(item)"
-                  >
-                    <Heart class="w-3 h-3" :class="item.isLiked ? 'fill-rose-500' : ''" />
-                    {{ item.likesCount }}
-                  </button>
-                  <div class="flex items-center gap-1 text-[10px] font-bold text-slate-400">
-                    <MessageCircle class="w-3 h-3" /> {{ item.commentsCount }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            :item="item"
+            @click="openDetail"
+            @like="toggleLike"
+            @user-click="openUserProfile"
+          />
         </div>
 
         <div v-else class="h-64 flex flex-col items-center justify-center text-slate-400">

@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Heart,
   MessageSquare,
-  Copy,
   Trash2,
   Link2,
   Lock,
@@ -24,6 +23,8 @@ import { useAuthStore } from '@/stores/auth';
 import { ElMessage } from 'element-plus';
 import { sanitizeHtml } from '@/utils/sanitize';
 import api, { getAssetUrl } from '@/utils/api';
+import { decryptText } from '@/utils/crypto';
+import { getPlanName } from '@/utils/plans';
 
 const route = useRoute();
 const router = useRouter();
@@ -36,17 +37,31 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 
 async function loadResource() {
-  isLoading.value = true;
+  // Check Pinia store cache first for instant visual rendering
+  const cached = mirrorStore.resources.find((r: any) => r.id === resourceId.value);
+  if (cached) {
+    resource.value = { ...cached };
+    isLoading.value = false;
+  } else {
+    isLoading.value = true;
+  }
   error.value = null;
+  
   try {
     const data = await mirrorStore.fetchResource(resourceId.value);
     if (!data) {
-      error.value = '资源不存在';
+      if (!resource.value) {
+        error.value = '资源不存在';
+      }
     } else {
       resource.value = data;
     }
   } catch (e: any) {
-    error.value = e.response?.data?.message || '加载失败';
+    if (!resource.value) {
+      error.value = e.response?.data?.message || '加载失败';
+    } else {
+      console.warn('Failed to refresh resource details in background:', e);
+    }
   } finally {
     isLoading.value = false;
   }
@@ -145,10 +160,44 @@ function copyToClipboard(text: string) {
 
 const showLinkDialog = ref(false);
 const activeLink = ref<{ name: string; url: string; code?: string; type: string } | null>(null);
+const isExtracting = ref(false);
 
-function openLinkDialog(link: { name: string; url: string; code?: string; type: string }) {
-  activeLink.value = link;
-  showLinkDialog.value = true;
+async function handleExtract(link: { name: string; type: string }) {
+  if (!authStore.isAuthenticated) {
+    ElMessage.warning('请先登录后提取资源');
+    router.push(`/login?redirect=${route.fullPath}`);
+    return;
+  }
+  if (!resource.value?.hasAccess) {
+    ElMessage.error('您的账号权限不足，请先升级会员');
+    return;
+  }
+  
+  isExtracting.value = true;
+  try {
+    const res = await api.post(`/api/mirror/resources/${resourceId.value}/extract`);
+    const key = import.meta.env.VITE_EXTRACT_ENCRYPTION_KEY || '3d_learning_platform_secure_extract_key_2026';
+    
+    const decryptedUrl = decryptText(res.data.encryptedLink, key);
+    const decryptedCode = res.data.encryptedPassword ? decryptText(res.data.encryptedPassword, key) : '';
+    
+    activeLink.value = {
+      name: link.name,
+      url: decryptedUrl,
+      code: decryptedCode,
+      type: link.type
+    };
+    showLinkDialog.value = true;
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.error || '提取失败，请重试');
+  } finally {
+    isExtracting.value = false;
+  }
+}
+
+function stripManualDownloadLink(html: string): string {
+  if (!html) return '';
+  return html.replace(/<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g, '');
 }
 
 function getLinkTypeColor(type: string) {
@@ -165,79 +214,13 @@ function getLinkTypeColor(type: string) {
 
 const extractedLinks = computed(() => {
   if (!resource.value) return [];
-  const html = resource.value.contentHtml || '';
-  const fallbackUrl = resource.value.contentUrl || '';
-  const links: Array<{ name: string; url: string; code?: string; type: string }> = [];
-
-  const text = html.replace(/<[^>]*>/g, ' ');
-
-  const drivePatterns = [
-    { name: '百度网盘', pattern: /(https?:\/\/(?:pan|yun)\.baidu\.com\/(?:s\/|share\/init\?surl=)[a-zA-Z0-9_-]+)/gi, type: 'baidu' },
-    { name: '夸克网盘', pattern: /(https?:\/\/pan\.quark\.cn\/(?:s\/|init\?code=)[a-zA-Z0-9_-]+)/gi, type: 'quark' },
-    { name: '阿里云盘', pattern: /(https?:\/\/(?:www\.)?(?:aliyundrive|alipan)\.com\/(?:s\/|init\?code=)[a-zA-Z0-9_-]+)/gi, type: 'aliyun' },
-    { name: '123云盘', pattern: /(https?:\/\/(?:www\.)?123(?:pan|system)\.com\/(?:s\/|init\?code=)[a-zA-Z0-9_-]+)/gi, type: '123pan' },
-    { name: '天翼云盘', pattern: /(https?:\/\/cloud\.189\.cn\/t\/[a-zA-Z0-9_-]+)/gi, type: 'tianyi' },
-    { name: '蓝奏云', pattern: /(https?:\/\/[a-zA-Z0-9_-]+\.lanzou[a-z]\.com\/[a-zA-Z0-9_-]+)/gi, type: 'lanzou' },
-  ];
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const anchors = doc.querySelectorAll('a');
-  anchors.forEach(a => {
-    const href = a.getAttribute('href');
-    if (href) {
-      // Find passcode from grandparent tag container (to cover sibling paragraphs)
-      let code: string | undefined;
-      const textAround = a.parentElement?.parentElement?.textContent || a.parentElement?.textContent || '';
-      const codeMatch = textAround.match(/(?:提取码|密码|🔑|访问码)\s*[:：]?\s*([a-zA-Z0-9]{4,6})/i);
-      if (codeMatch) {
-        code = codeMatch[1];
-      }
-
-      const isKnownDrive = drivePatterns.some(p => {
-        p.pattern.lastIndex = 0;
-        if (href.match(p.pattern)) {
-          links.push({ name: p.name, url: href, code, type: p.type });
-          return true;
-        }
-        return false;
-      });
-      if (!isKnownDrive && href.startsWith('http') && !href.includes(window.location.host)) {
-        const linkName = a.textContent?.trim() || '外部链接';
-        links.push({ name: linkName, url: href, code, type: 'generic' });
-      }
-    }
-  });
-
-  if (links.length === 0) {
-    drivePatterns.forEach(p => {
-      let match;
-      p.pattern.lastIndex = 0;
-      while ((match = p.pattern.exec(text)) !== null) {
-        const url = match[1];
-        const urlIndex = text.indexOf(url);
-        const textAfterUrl = text.substring(urlIndex, urlIndex + 100);
-        const codeMatch = textAfterUrl.match(/(?:提取码|密码|🔑|访问码)\s*[:：]?\s*([a-zA-Z0-9]{4,6})/i);
-        const code = codeMatch ? codeMatch[1] : undefined;
-        links.push({ name: p.name, url, code, type: p.type });
-      }
-    });
+  if (resource.value.links && resource.value.links.length > 0) {
+    return resource.value.links;
   }
-
-  if (links.length === 0 && fallbackUrl) {
-    links.push({ name: '访问源站提取资源', url: fallbackUrl, type: 'source' });
+  if (resource.value.hasLinks) {
+    return [{ name: '资源下载', type: 'generic' }];
   }
-
-  const uniqueLinks: typeof links = [];
-  const seenUrls = new Set<string>();
-  links.forEach(l => {
-    if (!seenUrls.has(l.url)) {
-      seenUrls.add(l.url);
-      uniqueLinks.push(l);
-    }
-  });
-
-  return uniqueLinks;
+  return [];
 });
 
 onMounted(() => {
@@ -288,6 +271,37 @@ watch(resourceId, () => {
     </div>
 
     <template v-else-if="resource">
+      <!-- Auth or Plan Access Alert Banner -->
+      <div v-if="!authStore.isAuthenticated" class="mb-6 p-4 rounded-xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/50 dark:border-blue-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <AlertCircle class="w-5 h-5 text-blue-500 shrink-0" />
+          <div class="text-sm text-blue-800 dark:text-blue-200 font-medium">
+            您当前以游客身份浏览。如需提取该镜像源的下载链接，请登录您的账号。
+          </div>
+        </div>
+        <button 
+          class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shrink-0 shadow-sm transition-colors cursor-pointer"
+          @click="router.push(`/login?redirect=${route.fullPath}`)"
+        >
+          立即登录
+        </button>
+      </div>
+
+      <div v-else-if="!resource.hasAccess" class="mb-6 p-4 rounded-xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <Lock class="w-5 h-5 text-amber-500 shrink-0" />
+          <div class="text-sm text-amber-800 dark:text-amber-200 font-medium">
+            会员权限不足。提取该资源需要更高的会员权限（需要级别: {{ getPlanName(resource.requiredPlan) }}，您当前的级别: {{ getPlanName(resource.currentPlan) || '普通用户' }}）。
+          </div>
+        </div>
+        <button 
+          class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shrink-0 shadow-sm transition-colors cursor-pointer"
+          @click="router.push('/billing')"
+        >
+          升级会员
+        </button>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <!-- Left content -->
         <div class="lg:col-span-2 space-y-6">
@@ -375,33 +389,29 @@ watch(resourceId, () => {
                           </span>
                         </div>
                         
-                        <div v-if="link.code" class="flex items-center justify-between bg-slate-100 dark:bg-slate-700/60 px-2.5 py-1.5 rounded-md text-xs">
-                          <span class="text-slate-500">提取码：<strong class="text-slate-800 dark:text-white select-all">{{ link.code }}</strong></span>
-                          <button
-                            class="text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
-                            @click="copyToClipboard(link.code)"
-                          >
-                            <Copy class="w-3.5 h-3.5" />
-                            <span>复制</span>
-                          </button>
-                        </div>
+
 
                         <!-- Trigger Link Dialog if matched, otherwise show lock "暂未提取" -->
                         <button
-                          v-if="link.type !== 'source'"
-                          class="mt-1 w-full py-2 px-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
-                          @click="openLinkDialog(link)"
+                          :class="[
+                            'mt-1 w-full py-2.5 px-3 rounded-lg font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-all duration-300 shadow-sm cursor-pointer border border-transparent',
+                            !authStore.isAuthenticated 
+                              ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-blue-500/20' 
+                              : !resource.hasAccess 
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' 
+                                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                          ]"
+                          :disabled="isExtracting"
+                          @click="handleExtract(link)"
                         >
-                          <ExternalLink class="w-3.5 h-3.5" />
-                          <span>提取资源</span>
-                        </button>
-                        <button
-                          v-else
-                          class="mt-1 w-full py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700/30"
-                          @click.prevent
-                        >
-                          <Lock class="w-3.5 h-3.5" />
-                          <span>暂未提取</span>
+                          <Loader2 v-if="isExtracting" class="w-3.5 h-3.5 animate-spin" />
+                          <Lock v-else-if="authStore.isAuthenticated && !resource.hasAccess" class="w-3.5 h-3.5" />
+                          <ExternalLink v-else class="w-3.5 h-3.5" />
+                          
+                          <span v-if="isExtracting">正在提取...</span>
+                          <span v-else-if="!authStore.isAuthenticated">登录后提取</span>
+                          <span v-else-if="!resource.hasAccess">升级会员后提取</span>
+                          <span v-else>提取资源</span>
                         </button>
                       </div>
                     </div>
@@ -425,7 +435,7 @@ watch(resourceId, () => {
                 </div>
               </div>
 
-              <div v-if="resource.contentHtml" class="mirror-content prose prose-sm dark:prose-invert max-w-none" v-html="sanitizeHtml(resource.contentHtml)"></div>
+              <div v-if="resource.contentHtml" class="mirror-content prose prose-sm dark:prose-invert max-w-none" v-html="sanitizeHtml(stripManualDownloadLink(resource.contentHtml))"></div>
               <div v-else-if="resource.description" class="prose prose-sm dark:prose-invert max-w-none">
                 <h3 class="text-sm font-medium text-slate-900 dark:text-white mb-2">简介</h3>
                 <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
@@ -540,33 +550,29 @@ watch(resourceId, () => {
                     </span>
                   </div>
                   
-                  <div v-if="link.code" class="flex items-center justify-between bg-slate-100 dark:bg-slate-700/60 px-2.5 py-1.5 rounded-md text-xs">
-                    <span class="text-slate-500">提取码：<strong class="text-slate-800 dark:text-white select-all">{{ link.code }}</strong></span>
-                    <button
-                      class="text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
-                      @click="copyToClipboard(link.code)"
-                    >
-                      <Copy class="w-3.5 h-3.5" />
-                      <span>复制</span>
-                    </button>
-                  </div>
+
 
                   <!-- Trigger Link Dialog if matched, otherwise show lock "暂未提取" -->
                   <button
-                    v-if="link.type !== 'source'"
-                    class="mt-1 w-full py-2 px-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
-                    @click="openLinkDialog(link)"
+                    :class="[
+                      'mt-1 w-full py-2.5 px-3 rounded-lg font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-all duration-300 shadow-sm cursor-pointer border border-transparent',
+                      !authStore.isAuthenticated 
+                        ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-blue-500/20' 
+                        : !resource.hasAccess 
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' 
+                          : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                    ]"
+                    :disabled="isExtracting"
+                    @click="handleExtract(link)"
                   >
-                    <ExternalLink class="w-3.5 h-3.5" />
-                    <span>提取资源</span>
-                  </button>
-                  <button
-                    v-else
-                    class="mt-1 w-full py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700/30"
-                    @click.prevent
-                  >
-                    <Lock class="w-3.5 h-3.5" />
-                    <span>暂未提取</span>
+                    <Loader2 v-slot:default v-if="isExtracting" class="w-3.5 h-3.5 animate-spin" />
+                    <Lock v-else-if="authStore.isAuthenticated && !resource.hasAccess" class="w-3.5 h-3.5" />
+                    <ExternalLink v-else class="w-3.5 h-3.5" />
+                    
+                    <span v-if="isExtracting">正在提取...</span>
+                    <span v-else-if="!authStore.isAuthenticated">登录后提取</span>
+                    <span v-else-if="!resource.hasAccess">升级会员后提取</span>
+                    <span v-else>提取资源</span>
                   </button>
                 </div>
               </div>
@@ -599,15 +605,15 @@ watch(resourceId, () => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         @click.self="showLinkDialog = false"
       >
-        <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700">
+        <div class="glass-dialog rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden">
           <!-- Header -->
-          <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between p-5 border-b border-black/5 dark:border-white/5">
             <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Link2 class="w-5 h-5 text-blue-500" />
               提取网盘资源
             </h2>
             <button
-              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
               @click="showLinkDialog = false"
             >
               <X class="w-5 h-5" />
@@ -617,7 +623,7 @@ watch(resourceId, () => {
           <!-- Body -->
           <div class="p-5 space-y-4">
             <!-- Drive Info Card -->
-            <div class="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+            <div class="p-4 bg-black/[0.02] dark:bg-white/[0.02] rounded-xl border border-black/5 dark:border-white/5 flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <div class="w-2.5 h-2.5 rounded-full animate-pulse" :class="getLinkTypeColor(activeLink.type)"></div>
                 <div>
@@ -637,10 +643,10 @@ watch(resourceId, () => {
                   type="text"
                   readonly
                   :value="activeLink.url"
-                  class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 focus:outline-none"
+                  class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-slate-600 dark:text-slate-300 focus:outline-none"
                 />
                 <button
-                  class="px-3 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors border border-slate-200 dark:border-slate-600 cursor-pointer"
+                  class="px-3 py-2 text-xs font-semibold rounded-lg bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 transition-colors border border-black/10 dark:border-white/10 cursor-pointer"
                   @click="copyToClipboard(activeLink.url); ElMessage.success('下载链接已复制到剪贴板！')"
                 >
                   复制链接
@@ -656,10 +662,10 @@ watch(resourceId, () => {
                   type="text"
                   readonly
                   :value="activeLink.code"
-                  class="flex-1 min-w-0 px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-red-50/20 dark:bg-red-500/5 text-red-500 text-center tracking-wider focus:outline-none select-all"
+                  class="flex-1 min-w-0 px-4 py-2 text-sm font-bold rounded-lg border border-black/10 dark:border-white/10 bg-red-500/10 dark:bg-red-500/5 text-red-500 text-center tracking-wider focus:outline-none select-all"
                 />
                 <button
-                  class="px-3 py-2 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-500 transition-colors border border-red-150 dark:border-red-500/20 cursor-pointer"
+                  class="px-3 py-2 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-500 transition-colors border border-red-500/20 cursor-pointer"
                   @click="copyToClipboard(activeLink.code)"
                 >
                   复制密码
@@ -669,7 +675,7 @@ watch(resourceId, () => {
           </div>
 
           <!-- Footer -->
-          <div class="flex gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+          <div class="flex gap-2 p-5 border-t border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02]">
             <button
               class="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold transition-colors cursor-pointer"
               @click="showLinkDialog = false"

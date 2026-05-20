@@ -68,6 +68,9 @@ if [ -f .env ]; then
         sed -i -E 's/([[:space:]]+value[[:space:]]+String)/\1 @db.LongText/g' prisma/schema.prisma
         sed -i -E 's/([[:space:]]+content[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
         sed -i -E 's/([[:space:]]+description[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+contentHtml[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+externalData[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E 's/([[:space:]]+tags[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
         sed -i -E 's/([[:space:]]+sceneConfig[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
         sed -i -E 's/([[:space:]]+hotspots[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
         sed -i -E 's/([[:space:]]+adminReply[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma

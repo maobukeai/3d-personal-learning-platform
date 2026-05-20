@@ -11,8 +11,18 @@ router.use(authenticate, isAdmin);
 router.get('/stats', adminController.getAdminStats);
 router.get('/settings', adminController.getSettings);
 router.post('/settings', adminController.updateSettings);
-router.post('/settings/upload-logo', upload.single('logo'), validateFileContent, adminController.uploadBrandingLogo);
-router.post('/settings/upload-favicon', upload.single('favicon'), validateFileContent, adminController.uploadBrandingFavicon);
+router.post(
+  '/settings/upload-logo',
+  upload.single('logo'),
+  validateFileContent,
+  adminController.uploadBrandingLogo,
+);
+router.post(
+  '/settings/upload-favicon',
+  upload.single('favicon'),
+  validateFileContent,
+  adminController.uploadBrandingFavicon,
+);
 router.post('/settings/test-smtp', adminController.testSmtp);
 router.get('/audit-logs', adminController.getAuditLogs);
 

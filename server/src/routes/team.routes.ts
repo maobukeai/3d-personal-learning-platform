@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as teamController from '../controllers/team.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
-import { sanitizeInput, validate } from '../middlewares/validation.middleware';
+import { sanitizeInput } from '../middlewares/validation.middleware';
 
 const router = Router();
 

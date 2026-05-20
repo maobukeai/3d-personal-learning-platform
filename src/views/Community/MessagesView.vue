@@ -385,7 +385,6 @@ const selectConversation = async (conv: any) => {
     socketService.emit('leave_conversation', activeConversation.value.id);
   }
   activeConversation.value = conv;
-  showMobileChat.value = true;
   hasMoreMessages.value = false;
   nextCursor.value = null;
   fetchMessages(conv.id);
@@ -991,10 +990,8 @@ watch(
   >
     <!-- Contacts Sidebar -->
     <div
-      class="w-full md:w-80 border-r flex flex-col shrink-0 transition-all duration-300 z-20"
-      :class="[
-        showMobileChat ? 'hidden md:flex' : 'flex',
-      ]"
+      class="w-full lg:w-80 border-r flex flex-col shrink-0 transition-all duration-300 z-20"
+      :class="activeConversation ? 'hidden lg:flex' : 'flex'"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="p-6 border-b" style="border-color: var(--border-base)">
@@ -1162,9 +1159,7 @@ watch(
     <!-- Chat Area -->
     <div
       class="flex-1 flex flex-col relative transition-all duration-300 z-10"
-      :class="[
-        !showMobileChat ? 'hidden md:flex' : 'flex',
-      ]"
+      :class="activeConversation ? 'flex' : 'hidden lg:flex'"
       style="background-color: var(--bg-app)"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
@@ -1191,8 +1186,8 @@ watch(
           <div class="flex items-center gap-2 md:gap-3">
             <!-- Mobile Back Button -->
             <button
-              class="md:hidden p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500"
-              @click="showMobileChat = false"
+              class="lg:hidden p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500"
+              @click="activeConversation = null"
             >
               <ChevronLeft class="w-6 h-6" />
             </button>

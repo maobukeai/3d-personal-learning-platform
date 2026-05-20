@@ -473,7 +473,7 @@ watch(activeSection, (newSection) => {
     style="background-color: var(--bg-app)"
   >
     <div
-      class="h-16 px-4 sm:px-8 flex items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="h-14 md:h-16 px-3 sm:px-6 flex items-center justify-between shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
@@ -485,7 +485,7 @@ watch(activeSection, (newSection) => {
 
     <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
       <div
-        class="w-full lg:w-64 border-b lg:border-b-0 lg:border-r shrink-0 overflow-x-auto lg:overflow-y-auto px-4 py-3 lg:p-4 transition-colors duration-300 scrollbar-hide"
+        class="w-full lg:w-64 border-b lg:border-b-0 lg:border-r shrink-0 overflow-x-auto lg:overflow-y-auto px-4 py-3 lg:p-4 transition-colors duration-300 scrollbar-hide sticky top-0 z-10"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="px-4 mb-4 hidden lg:block">
@@ -495,7 +495,7 @@ watch(activeSection, (newSection) => {
           <button
             v-for="section in sections"
             :key="section.id"
-            class="flex-none w-auto lg:w-full flex items-center justify-between px-4 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all shrink-0 whitespace-nowrap"
+            class="flex-none w-auto lg:w-full flex items-center justify-between px-3 py-2.5 lg:px-4 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all shrink-0 whitespace-nowrap"
             :class="
               activeSection === section.id
                 ? 'bg-accent text-white shadow-lg shadow-accent/20'
@@ -512,7 +512,7 @@ watch(activeSection, (newSection) => {
         </nav>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-4 py-8 lg:p-12 scrollbar-hide">
+      <div class="flex-1 overflow-y-auto px-4 py-6 lg:p-12 scrollbar-hide">
         <div class="max-w-2xl mx-auto">
           <!-- Profile Section -->
           <div
@@ -640,7 +640,7 @@ watch(activeSection, (newSection) => {
             class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border border-accent/20 bg-accent/[0.02] flex items-center justify-between transition-all hover:bg-accent/[0.05]"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border border-accent/20 bg-accent/[0.02] flex items-center justify-between transition-all hover:bg-accent/[0.05]"
             >
               <div class="flex items-center gap-4">
                 <div
@@ -663,7 +663,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -716,7 +716,7 @@ watch(activeSection, (newSection) => {
             </div>
 
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -769,7 +769,7 @@ watch(activeSection, (newSection) => {
           >
             <!-- Email Change -->
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -864,7 +864,7 @@ watch(activeSection, (newSection) => {
 
             <!-- Password Change -->
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">
@@ -938,7 +938,7 @@ watch(activeSection, (newSection) => {
 
             <!-- Two Factor Auth -->
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center justify-between mb-8">
@@ -1106,7 +1106,7 @@ watch(activeSection, (newSection) => {
 
             <!-- Trusted Devices -->
             <div
-              class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
+              class="p-4 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-3 mb-8">

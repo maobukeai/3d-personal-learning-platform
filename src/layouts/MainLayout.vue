@@ -488,9 +488,11 @@ const notifications = ref<any[]>([]);
 const unreadCount = computed(() => notifications.value.filter((n) => !n.isRead).length);
 
 const fetchNotifications = async () => {
+  if (!authStore.isAuthenticated) return;
+
   try {
     const response = await api.get('/api/notifications');
-    notifications.value = response.data;
+    notifications.value = response.data.notifications || [];
 
     // Also refresh admin stats if applicable
     if (authStore.user?.role === 'ADMIN') {
@@ -541,6 +543,8 @@ const handleMarkAllRead = async () => {
 };
 
 const fetchUnreadMessagesCount = async () => {
+  if (!authStore.isAuthenticated) return;
+
   try {
     const response = await api.get('/api/messages/conversations');
     const total = response.data.reduce(
@@ -752,7 +756,7 @@ onUnmounted(() => {
   >
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b z-30"
+      class="topbar h-14 md:h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b z-30"
       style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
     >
       <!-- Left: Hamburger + Workspace Switcher / Logo -->
@@ -1184,7 +1188,7 @@ onUnmounted(() => {
 
       <!-- Main Content Area -->
       <main
-        class="flex-1 flex flex-col overflow-hidden relative transition-colors duration-300"
+        class="flex-1 flex flex-col overflow-hidden relative transition-colors duration-300 pb-14 lg:pb-0"
         style="background-color: var(--bg-app)"
       >
         <div
@@ -1203,9 +1207,91 @@ onUnmounted(() => {
             >前往关闭</RouterLink
           >
         </div>
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <Transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
       </main>
     </div>
+
+    <!-- Mobile Bottom Tab Bar -->
+    <nav
+      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 border-t backdrop-blur-xl bg-white/90 dark:bg-slate-900/90"
+      style="border-color: var(--border-base); padding-bottom: env(safe-area-inset-bottom);"
+    >
+      <RouterLink
+        to="/dashboard"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 transition-colors relative"
+        :class="route.path === '/dashboard' || route.path.startsWith('/dashboard') ? 'text-accent' : ''"
+        style="color: route.path === '/dashboard' || route.path.startsWith('/dashboard') ? '' : 'var(--text-muted)'"
+      >
+        <LayoutDashboard class="w-5 h-5" />
+        <span class="text-[10px] font-medium">首页</span>
+        <div
+          v-if="route.path === '/dashboard' || route.path.startsWith('/dashboard')"
+          class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
+        ></div>
+      </RouterLink>
+      <RouterLink
+        to="/academy"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 transition-colors relative"
+        :class="route.path.startsWith('/academy') ? 'text-accent' : ''"
+        :style="route.path.startsWith('/academy') ? {} : { color: 'var(--text-muted)' }"
+      >
+        <GraduationCap class="w-5 h-5" />
+        <span class="text-[10px] font-medium">学习</span>
+        <div
+          v-if="route.path.startsWith('/academy')"
+          class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
+        ></div>
+      </RouterLink>
+      <RouterLink
+        to="/showcase"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 transition-colors relative"
+        :class="route.path.startsWith('/showcase') ? 'text-accent' : ''"
+        :style="route.path.startsWith('/showcase') ? {} : { color: 'var(--text-muted)' }"
+      >
+        <MonitorPlay class="w-5 h-5" />
+        <span class="text-[10px] font-medium">作品</span>
+        <div
+          v-if="route.path.startsWith('/showcase')"
+          class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
+        ></div>
+      </RouterLink>
+      <RouterLink
+        to="/discussions"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 transition-colors relative"
+        :class="route.path.startsWith('/discussions') ? 'text-accent' : ''"
+        :style="route.path.startsWith('/discussions') ? {} : { color: 'var(--text-muted)' }"
+      >
+        <MessageSquare class="w-5 h-5" />
+        <span class="text-[10px] font-medium">社区</span>
+        <div
+          v-if="route.path.startsWith('/discussions')"
+          class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
+        ></div>
+      </RouterLink>
+      <RouterLink
+        to="/messages"
+        class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 transition-colors relative"
+        :class="route.path.startsWith('/messages') ? 'text-accent' : ''"
+        :style="route.path.startsWith('/messages') ? {} : { color: 'var(--text-muted)' }"
+      >
+        <MessageCircle class="w-5 h-5" />
+        <span class="text-[10px] font-medium">消息</span>
+        <div
+          v-if="authStore.unreadMessagesCount > 0"
+          class="absolute -top-0.5 right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+        >
+          {{ authStore.unreadMessagesCount > 99 ? '99+' : authStore.unreadMessagesCount }}
+        </div>
+        <div
+          v-if="route.path.startsWith('/messages')"
+          class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
+        ></div>
+      </RouterLink>
+    </nav>
 
     <!-- Create Team Dialog -->
     <CreateTeamDialog v-model:visible="isCreateTeamVisible" @success="handleTeamCreated" />

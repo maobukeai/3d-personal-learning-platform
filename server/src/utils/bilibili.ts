@@ -21,7 +21,14 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   console.log(`[Bilibili] Extracted URL: ${targetUrl}`);
 
   // Resolve short links (b23.tv)
-  if (targetUrl.includes('b23.tv')) {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(targetUrl);
+  } catch (e) {
+    throw new Error('未在输入中找到有效的链接格式');
+  }
+
+  if (parsedUrl.hostname === 'b23.tv' || parsedUrl.hostname.endsWith('.b23.tv')) {
     try {
       const response = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
       targetUrl = response.url;

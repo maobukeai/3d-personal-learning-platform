@@ -744,11 +744,11 @@ onMounted(() => {
 
     <!-- Board View -->
     <div v-if="viewMode === 'board'" class="flex-1 overflow-hidden p-2 sm:p-8">
-      <div class="flex gap-2 sm:gap-6 h-full">
+      <div class="md:gap-6 gap-3 h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
         <div
           v-for="col in columns"
           :key="col.id"
-          class="flex flex-col flex-1 min-w-0 h-full rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden"
+          class="flex flex-col min-w-0 h-full rounded-xl sm:rounded-2xl transition-colors duration-300 overflow-hidden flex-shrink-0 w-[85vw] md:flex-1 snap-center"
           style="background-color: var(--bg-card)"
         >
           <!-- Column Header -->
@@ -890,6 +890,16 @@ onMounted(() => {
             </template>
           </draggable>
         </div>
+      </div>
+
+      <!-- Mobile scroll indicator -->
+      <div class="flex md:hidden justify-center gap-1.5 mt-3">
+        <div
+          v-for="col in columns"
+          :key="'dot-' + col.id"
+          class="w-1.5 h-1.5 rounded-full"
+          :class="col.id === 'TODO' ? 'bg-slate-400' : col.id === 'IN_PROGRESS' ? 'bg-accent' : 'bg-emerald-500'"
+        ></div>
       </div>
     </div>
 

@@ -471,18 +471,14 @@ onMounted(() => {
 
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-3 sm:p-5 scrollbar-hide">
       <div class="max-w-4xl mx-auto space-y-3">
         <div v-if="filteredDiscussions.length > 0" class="space-y-3">
           <div
             v-for="d in filteredDiscussions"
             :key="d.id"
-            class="group p-4 sm:p-5 rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer relative"
-            :style="
-              d.isPinned
-                ? 'background-color: var(--bg-card); border-color: var(--accent); border-width: 1.5px'
-                : 'background-color: var(--bg-card); border-color: var(--border-base)'
-            "
+            class="group p-3 sm:p-5 glass-card glass-card-hover cursor-pointer relative"
+            :class="d.isPinned ? 'ring-1 ring-accent' : ''"
             @click="openDiscussion(d.id)"
           >
             <!-- Pinned Badge -->
@@ -632,8 +628,7 @@ onMounted(() => {
           @click="isDetailOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-3xl max-h-[95vh] flex flex-col rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden"
-          style="background-color: var(--bg-card)"
+          class="relative w-full max-w-3xl max-h-[95vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden"
         >
           <!-- Modal Header -->
           <div
@@ -968,7 +963,7 @@ onMounted(() => {
           @click="showCreateModal = false"
         ></div>
         <div
-          class="relative w-full max-w-[80vw] max-h-[90vh] p-8 rounded-3xl shadow-2xl space-y-5 overflow-y-auto scrollbar-hide"
+          class="relative w-full max-w-[90vw] md:max-w-[80vw] max-h-[85vh] p-4 sm:p-8 rounded-3xl shadow-2xl space-y-5 overflow-y-auto scrollbar-hide"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
@@ -1007,6 +1002,7 @@ onMounted(() => {
               <MarkdownEditor
                 v-model="postForm.content"
                 height="450px"
+                class="h-[250px] sm:h-[450px]"
                 placeholder="你想说点什么？支持 Markdown 格式..."
               />
             </div>

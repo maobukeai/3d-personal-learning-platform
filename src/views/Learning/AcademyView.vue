@@ -188,7 +188,7 @@ onMounted(() => {
   >
     <!-- Top Header -->
     <div
-      class="flex flex-col lg:flex-row gap-4 py-4 lg:py-5 px-4 sm:px-6 lg:px-8 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="flex flex-col lg:flex-row gap-4 py-3 lg:py-5 px-3 sm:px-5 lg:px-6 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
@@ -196,7 +196,7 @@ onMounted(() => {
           <GraduationCap class="w-5 h-5 text-accent" />
         </div>
         <div>
-          <h1 class="text-xl font-bold" style="color: var(--text-primary)">学院课程</h1>
+          <h1 class="text-lg md:text-2xl lg:text-3xl font-bold" style="color: var(--text-primary)">学院课程</h1>
           <p class="text-[10px] font-medium" style="color: var(--text-muted)">
             探索 3D 设计的无限可能
           </p>
@@ -269,7 +269,7 @@ onMounted(() => {
     <!-- Filter Bar -->
     <div
       v-if="showFilters"
-      class="px-4 sm:px-6 lg:px-8 py-3 border-b flex flex-wrap items-center gap-3 sm:gap-4 transition-colors duration-300"
+      class="px-3 sm:px-5 lg:px-6 py-2 sm:py-3 border-b flex flex-wrap items-center gap-3 sm:gap-4 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
@@ -297,7 +297,7 @@ onMounted(() => {
 
     <!-- Category Tabs -->
     <div
-      class="px-4 sm:px-6 lg:px-8 py-3 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300"
+      class="px-3 sm:px-5 lg:px-6 py-2 sm:py-3 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <button
@@ -356,7 +356,7 @@ onMounted(() => {
     </div>
 
     <!-- Content Area -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 scrollbar-hide">
       <div class="max-w-7xl mx-auto space-y-10">
         <!-- My Courses: Learning Stats & Continue Learning -->
         <template v-if="activeCategoryId === 'mine' && myEnrollments.length > 0">
@@ -369,8 +369,7 @@ onMounted(() => {
             <!-- Stats Container: Fixed 5 columns on mobile, Grid on desktop -->
             <div class="grid grid-cols-5 gap-1.5 sm:gap-4">
               <div
-                class="p-2 sm:p-5 rounded-xl sm:rounded-2xl border transition-colors duration-300 flex flex-col items-center text-center"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
               >
                 <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">在学</span>
@@ -379,8 +378,7 @@ onMounted(() => {
                 <p class="text-sm sm:text-3xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
               </div>
               <div
-                class="p-2 sm:p-5 rounded-xl sm:rounded-2xl border transition-colors duration-300 flex flex-col items-center text-center"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
               >
                 <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">已完成</span>
@@ -391,8 +389,7 @@ onMounted(() => {
                 </p>
               </div>
               <div
-                class="p-2 sm:p-5 rounded-xl sm:rounded-2xl border transition-colors duration-300 flex flex-col items-center text-center"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
               >
                 <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">课时</span>
@@ -401,8 +398,7 @@ onMounted(() => {
                 <p class="text-sm sm:text-3xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
               </div>
               <div
-                class="p-2 sm:p-5 rounded-xl sm:rounded-2xl border transition-colors duration-300 flex flex-col items-center text-center"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
               >
                 <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">平均</span>
@@ -411,8 +407,7 @@ onMounted(() => {
                 <p class="text-sm sm:text-3xl font-black text-emerald-500">{{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span></p>
               </div>
               <div
-                class="p-2 sm:p-5 rounded-xl sm:rounded-2xl border transition-colors duration-300 flex flex-col items-center text-center"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
               >
                 <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">报名</span>
@@ -433,8 +428,7 @@ onMounted(() => {
               <div
                 v-for="enrollment in continueLearningCourses"
                 :key="enrollment.id"
-                class="group flex gap-4 p-3.5 sm:p-4 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                style="background-color: var(--bg-card); border-color: var(--border-base)"
+                class="group flex gap-4 p-3.5 sm:p-4 glass-card glass-card-hover overflow-hidden cursor-pointer"
                 @click="continueLearning(enrollment.course.id)"
               >
                 <div
@@ -495,8 +489,7 @@ onMounted(() => {
             <div
               v-for="course in featuredCourses"
               :key="course.id"
-              class="group flex flex-col sm:flex-row gap-4 sm:gap-5 p-4 sm:p-5 rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="group flex flex-col sm:flex-row gap-4 sm:gap-5 p-4 sm:p-5 glass-card glass-card-hover overflow-hidden cursor-pointer"
               @click="handleCourseClick(course.id)"
             >
               <div
@@ -577,8 +570,7 @@ onMounted(() => {
             <div
               v-for="course in recommendedCourses"
               :key="course.id"
-              class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="group glass-card glass-card-hover overflow-hidden cursor-pointer"
               @click="handleCourseClick(course.id)"
             >
               <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
@@ -644,13 +636,12 @@ onMounted(() => {
 
           <div
             v-if="filteredCourses.length > 0"
-            class="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
           >
             <div
               v-for="course in filteredCourses"
               :key="course.id"
-              class="group rounded-2xl border overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="group glass-card glass-card-hover overflow-hidden cursor-pointer"
               @click="handleCourseClick(course.id)"
             >
               <!-- Course Cover -->

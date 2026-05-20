@@ -97,9 +97,7 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    res.redirect(
-      `${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`,
-    );
+    res.redirect(`${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
   } catch (error) {
     res.redirect(`${config.FRONTEND_URL}/login?error=oauth_failed`);
   }
@@ -180,9 +178,7 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    res.redirect(
-      `${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`,
-    );
+    res.redirect(`${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
   } catch (error) {
     res.redirect(`${config.FRONTEND_URL}/login?error=oauth_failed`);
   }

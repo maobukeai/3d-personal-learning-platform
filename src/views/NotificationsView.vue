@@ -28,7 +28,7 @@ const fetchNotifications = async () => {
     isLoading.value = true;
     const type = activeCategory.value === 'all' ? '' : activeCategory.value;
     const response = await api.get(`/api/notifications${type ? `?type=${type}` : ''}`);
-    notifications.value = response.data;
+    notifications.value = response.data.notifications || [];
   } catch (error) {
     console.error('Fetch notifications error:', error);
     ElMessage.error('无法获取通知列表');
@@ -190,7 +190,7 @@ onMounted(() => {
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
       <!-- Sidebar / Mobile Tabs -->
       <div
-        class="w-full md:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10"
+        class="hidden lg:block lg:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10"
         style="border-color: var(--border-base)"
       >
         <div class="p-3 md:p-6 flex flex-col gap-3 md:gap-8">
@@ -277,6 +277,25 @@ onMounted(() => {
         class="flex-1 overflow-y-auto p-3.5 md:p-8 scrollbar-hide bg-gradient-to-br from-transparent to-accent/5"
       >
 
+        <div class="lg:hidden flex overflow-x-auto gap-2 px-4 py-2 -mx-3.5 mb-4 scrollbar-hide">
+          <button
+            v-for="cat in [
+              { id: 'all', label: '全部', icon: Inbox },
+              { id: 'SYSTEM', label: '系统', icon: Info },
+              { id: 'TEAM', label: '团队', icon: Users },
+              { id: 'TASK', label: '任务', icon: Briefcase },
+              { id: 'MESSAGE', label: '私信', icon: MessageSquare },
+            ]"
+            :key="cat.id"
+            class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors"
+            :class="activeCategory === cat.id ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
+            @click="handleCategoryChange(cat.id)"
+          >
+            <component :is="cat.icon" class="w-3.5 h-3.5" />
+            {{ cat.label }}
+          </button>
+        </div>
+
         <div class="max-w-4xl mx-auto space-y-4">
           <div v-if="isLoading" class="space-y-4">
             <div
@@ -290,12 +309,9 @@ onMounted(() => {
             <div
               v-for="n in filteredNotifications"
               :key="n.id"
-              class="group p-3.5 md:p-6 rounded-2xl md:rounded-3xl border transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5 backdrop-blur-md"
+              class="group px-4 py-3.5 md:p-6 glass-card transition-all duration-300 cursor-pointer hover:shadow-xl hover:shadow-accent/5"
               :class="[
-                n.isRead
-                  ? 'bg-white/30 dark:bg-slate-900/30'
-                  : 'bg-white/80 dark:bg-slate-800/80 border-accent/20 ring-1 ring-accent/10 shadow-lg shadow-accent/5',
-                'border-white/20 dark:border-slate-800/50',
+                !n.isRead ? 'ring-1 ring-accent/30' : '',
               ]"
               @click="handleMarkAsRead(n)"
             >

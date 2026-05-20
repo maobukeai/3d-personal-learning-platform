@@ -234,15 +234,14 @@ const handleActivityClick = (log: any) => {
     </div>
 
     <!-- Main Content Scroll Area -->
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-6 md:space-y-8">
+    <div class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 scrollbar-hide">
+      <div class="max-w-7xl mx-auto space-y-6 md:space-y-8 min-w-0">
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6">
           <div
             v-for="stat in stats"
             :key="stat.label"
-            class="p-4 sm:p-6 rounded-2xl sm:rounded-3xl border shadow-sm transition-all hover:shadow-md"
-            style="background-color: var(--bg-card); border-color: var(--border-base)"
+            class="p-4 md:p-6 glass-card glass-card-hover"
           >
             <div class="flex items-start justify-between mb-2 sm:mb-4">
               <div
@@ -272,7 +271,7 @@ const handleActivityClick = (log: any) => {
             >
               {{ stat.label }}
             </p>
-            <h2 class="text-xl sm:text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
+            <h2 class="text-xl md:text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
           </div>
         </div>
 
@@ -341,8 +340,7 @@ const handleActivityClick = (log: any) => {
 
             <!-- Recent Tasks -->
             <div
-              class="p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-colors duration-300"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="p-6 sm:p-8 glass-card"
             >
               <div class="flex items-center justify-between mb-6 sm:mb-8">
                 <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">待办学习任务</h3>
@@ -408,8 +406,7 @@ const handleActivityClick = (log: any) => {
                 <div
                   v-for="asset in recentAssets"
                   :key="asset.id"
-                  class="group p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-sm hover:shadow-md transition-all flex items-center gap-3 sm:gap-4 cursor-pointer"
-                  style="background-color: var(--bg-card); border-color: var(--border-base)"
+                  class="group p-3 sm:p-4 glass-card glass-card-hover flex items-center gap-3 sm:gap-4 cursor-pointer"
                   @click="router.push('/assets')"
                 >
                   <div
@@ -446,8 +443,7 @@ const handleActivityClick = (log: any) => {
           <div class="space-y-6 md:space-y-8">
             <!-- Activity Feed -->
             <div
-              class="rounded-2xl sm:rounded-3xl border shadow-sm overflow-hidden"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="glass-card overflow-hidden"
             >
               <div
                 class="p-4 sm:p-6 border-b flex items-center justify-between"
@@ -496,8 +492,7 @@ const handleActivityClick = (log: any) => {
 
             <!-- Collaboration Invite -->
             <div
-              class="p-6 sm:p-8 rounded-2xl sm:rounded-3xl border shadow-sm bg-gradient-to-br from-indigo-500/5 to-purple-500/5"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+              class="p-6 sm:p-8 glass-card bg-gradient-to-br from-indigo-500/5 to-purple-500/5"
             >
               <div class="flex items-center gap-3 mb-4">
                 <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
@@ -557,8 +552,7 @@ const handleActivityClick = (log: any) => {
           @click="isAddDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6"
-          style="background-color: var(--bg-card)"
+          class="relative w-full max-w-md p-8 glass-card border border-white/20 dark:border-white/5 space-y-6"
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold" style="color: var(--text-primary)">新建学习任务</h3>

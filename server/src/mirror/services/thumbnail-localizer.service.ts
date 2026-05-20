@@ -21,6 +21,9 @@ class ThumbnailLocalizer {
 
     try {
       const url = new URL(originalUrl);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return null;
+      }
       const ext = this.getExtension(url.pathname) || '.jpg';
       const hash = crypto.createHash('md5').update(originalUrl).digest('hex').slice(0, 12);
       const sourceDir = path.join(this.baseDir, sourceId);

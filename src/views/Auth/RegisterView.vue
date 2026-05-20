@@ -119,17 +119,20 @@ const handleRegister = async () => {
     <!-- Background Abstract Shapes -->
     <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
       <div
-        class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-accent/20 blur-[120px] rounded-full"
+        class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-accent/15 blur-[120px] rounded-full animate-float-blob"
       ></div>
       <div
-        class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/20 blur-[100px] rounded-full"
+        class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/15 blur-[100px] rounded-full animate-float-blob-reverse"
+      ></div>
+      <div
+        class="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-pink-500/5 blur-[80px] rounded-full animate-pulse-slow"
       ></div>
     </div>
 
     <!-- Center Section: Register Form -->
     <div
-class="w-full max-w-md relative z-10 p-8 md:p-10 mx-4 rounded-[2rem] shadow-2xl border"
-         style="background-color: var(--bg-card); border-color: var(--border-base);">
+      class="w-full max-w-md relative z-10 p-8 md:p-10 mx-4 glass-card border border-white/20 dark:border-white/5"
+    >
       <div class="w-full">
         <!-- Logo -->
         <div
@@ -341,7 +344,7 @@ class="w-full max-w-md relative z-10 p-8 md:p-10 mx-4 rounded-[2rem] shadow-2xl 
 
           <button
             :disabled="isLoading"
-            class="w-full bg-accent text-white py-3.5 rounded-xl font-bold shadow-lg shadow-accent/30 hover:bg-accent hover:shadow-accent/40 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+            class="w-full btn-premium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
             @click="handleRegister"
           >
             <span v-if="!isLoading">立即注册</span>

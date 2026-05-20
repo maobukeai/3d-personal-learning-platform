@@ -69,11 +69,11 @@ export async function createNotificationBatch(
 
   if (filtered.length === 0) return [];
 
-  const data = filtered.map(({ category, enabled, ...rest }) => rest);
+  const data = filtered.map(({ category: _category, enabled: _enabled, ...rest }) => rest);
   await prisma.notification.createMany({ data });
 
   for (const item of filtered) {
-    const { category, enabled, ...notificationData } = item;
+    const { category: _category, enabled: _enabled, ...notificationData } = item;
     emitToUser(notificationData.userId, 'new_notification', notificationData);
   }
 

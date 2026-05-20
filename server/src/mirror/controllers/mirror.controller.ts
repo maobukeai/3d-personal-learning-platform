@@ -49,9 +49,43 @@ export const getSource = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const checkSourceAccess = async (sourceId: string, req: AuthRequest) => {
+  const source = await prisma.mirrorSource.findUnique({
+    where: { id: sourceId },
+    select: { minPlanPriority: true },
+  });
+
+  if (!source) {
+    return { hasAccess: false, error: '镜像源不存在' };
+  }
+
+  if (source.minPlanPriority > 0) {
+    let userPlanPriority = 0;
+    if (req.userId) {
+      userPlanPriority = await mirrorService.getUserPlanPriority(req.userId);
+    }
+    if (userPlanPriority < source.minPlanPriority) {
+      return {
+        hasAccess: false,
+        error: '权限不足',
+        message: `当前内容需要更高会员权限才能查看`,
+        requiredPlan: source.minPlanPriority,
+        currentPlan: userPlanPriority,
+      };
+    }
+  }
+
+  return { hasAccess: true };
+};
+
 export const getCategories = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
+    const access = await checkSourceAccess(sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
+
     const categories = await mirrorService.getCategories(sourceId);
     res.json(categories);
   } catch (error: any) {
@@ -62,6 +96,11 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
 export const getResources = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
+    const access = await checkSourceAccess(sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
+
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const categoryId = (req.query.categoryId as string) || undefined;
@@ -91,21 +130,9 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '资源不存在' });
     }
 
-    const source = await prisma.mirrorSource.findUnique({
-      where: { id: resource.sourceId },
-      select: { minPlanPriority: true },
-    });
-
-    if (source && source.minPlanPriority > 0) {
-      const userPlanPriority = req.user?.subscription?.plan?.priority ?? 0;
-      if (userPlanPriority < source.minPlanPriority) {
-        return res.status(403).json({
-          error: '权限不足',
-          message: `当前内容需要更高会员权限才能查看详情`,
-          requiredPlan: source.minPlanPriority,
-          currentPlan: userPlanPriority,
-        });
-      }
+    const access = await checkSourceAccess(resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
     }
 
     res.json(resource);
@@ -117,6 +144,11 @@ export const getResource = async (req: AuthRequest, res: Response) => {
 export const searchResources = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
+    const access = await checkSourceAccess(sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
+
     const q = (req.query.q as string) || '';
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -136,6 +168,11 @@ export const searchResources = async (req: AuthRequest, res: Response) => {
 export const getSourceStats = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
+    const access = await checkSourceAccess(sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
+
     const stats = await mirrorService.getSourceStats(sourceId);
     res.json(stats);
   } catch (error: any) {
@@ -169,6 +206,20 @@ export const getPlanRequiredForSource = async (req: Request, res: Response) => {
 export const getResourceComments = async (req: AuthRequest, res: Response) => {
   try {
     const resourceId = req.params.id as string;
+    const resource = await prisma.mirrorResource.findUnique({
+      where: { id: resourceId },
+      select: { sourceId: true },
+    });
+
+    if (!resource) {
+      return res.status(404).json({ error: '资源不存在' });
+    }
+
+    const access = await checkSourceAccess(resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
+
     const comments = await prisma.mirrorResourceComment.findMany({
       where: { resourceId },
       include: {
@@ -196,6 +247,20 @@ export const createResourceComment = async (req: AuthRequest, res: Response) => 
 
     if (!userId) {
       return res.status(401).json({ error: '未登录' });
+    }
+
+    const resource = await prisma.mirrorResource.findUnique({
+      where: { id: resourceId },
+      select: { sourceId: true },
+    });
+
+    if (!resource) {
+      return res.status(404).json({ error: '资源不存在' });
+    }
+
+    const access = await checkSourceAccess(resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
     }
 
     if (!content || !content.trim()) {
@@ -236,10 +301,16 @@ export const deleteResourceComment = async (req: AuthRequest, res: Response) => 
 
     const comment = await prisma.mirrorResourceComment.findUnique({
       where: { id: commentId },
+      include: { resource: { select: { sourceId: true } } },
     });
 
     if (!comment) {
       return res.status(404).json({ error: '评论不存在' });
+    }
+
+    const access = await checkSourceAccess(comment.resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
     }
 
     if (comment.userId !== userId && req.user?.role !== 'ADMIN') {
@@ -263,6 +334,20 @@ export const toggleResourceLike = async (req: AuthRequest, res: Response) => {
 
     if (!userId) {
       return res.status(401).json({ error: '未登录' });
+    }
+
+    const resource = await prisma.mirrorResource.findUnique({
+      where: { id: resourceId },
+      select: { sourceId: true },
+    });
+
+    if (!resource) {
+      return res.status(404).json({ error: '资源不存在' });
+    }
+
+    const access = await checkSourceAccess(resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
     }
 
     const existingLike = await prisma.mirrorResourceLike.findUnique({
@@ -304,6 +389,20 @@ export const getResourceLikeStatus = async (req: AuthRequest, res: Response) => 
   try {
     const resourceId = req.params.id as string;
     const userId = req.userId;
+
+    const resource = await prisma.mirrorResource.findUnique({
+      where: { id: resourceId },
+      select: { sourceId: true },
+    });
+
+    if (!resource) {
+      return res.status(404).json({ error: '资源不存在' });
+    }
+
+    const access = await checkSourceAccess(resource.sourceId, req);
+    if (!access.hasAccess) {
+      return res.status(access.error === '镜像源不存在' ? 404 : 403).json(access);
+    }
 
     const count = await prisma.mirrorResourceLike.count({
       where: { resourceId },

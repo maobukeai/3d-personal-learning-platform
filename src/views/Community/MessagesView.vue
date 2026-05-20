@@ -39,7 +39,6 @@ import { sanitizeHtml } from '@/utils/sanitize';
 const { t } = useI18n();
 const authStore = useAuthStore();
 const searchQuery = ref('');
-const showMobileChat = ref(false);
 const newMessage = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);

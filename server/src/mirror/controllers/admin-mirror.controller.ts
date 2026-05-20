@@ -42,6 +42,9 @@ export const createSource = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Schedule the newly created source
+    syncEngine.reloadSourceScheduler(source.id, source.status, source.syncInterval);
+
     res.status(201).json(source);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -81,6 +84,9 @@ export const updateSource = async (req: AuthRequest, res: Response) => {
       data: updateData,
     });
 
+    // Reload the scheduler with the updated status and interval
+    syncEngine.reloadSourceScheduler(source.id, source.status, source.syncInterval);
+
     res.json(source);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -91,7 +97,19 @@ export const deleteSource = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
 
+    // Cancel any active sync task first
+    syncEngine.cancelSync(id);
+
+    // Unschedule the deleted source before database removal
+    syncEngine.removeSourceScheduler(id);
+
     await prisma.$transaction([
+      prisma.mirrorResourceComment.deleteMany({
+        where: { resource: { sourceId: id } },
+      }),
+      prisma.mirrorResourceLike.deleteMany({
+        where: { resource: { sourceId: id } },
+      }),
       prisma.syncLog.deleteMany({ where: { sourceId: id } }),
       prisma.mirrorResource.deleteMany({ where: { sourceId: id } }),
       prisma.mirrorCategory.deleteMany({ where: { sourceId: id } }),

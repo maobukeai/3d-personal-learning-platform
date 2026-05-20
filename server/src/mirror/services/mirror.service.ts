@@ -107,16 +107,82 @@ export class MirrorService {
     const resource = await prisma.mirrorResource.findUnique({
       where: { id: resourceId },
       include: {
-        source: { select: { name: true, displayName: true, baseUrl: true } },
+        source: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+            baseUrl: true,
+            adapterType: true,
+            syncConfig: true,
+          },
+        },
         category: { select: { name: true } },
       },
     });
 
-    if (resource) {
-      await prisma.mirrorResource.update({
-        where: { id: resourceId },
-        data: { viewCount: { increment: 1 } },
-      });
+    if (!resource) return null;
+
+    // Increment viewCount
+    await prisma.mirrorResource.update({
+      where: { id: resourceId },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    // If detail contentHtml is missing, fetch it on-demand
+    if (!resource.contentHtml) {
+      try {
+        const { getAdapter } = require('../adapters');
+        const { thumbnailLocalizer } = require('./thumbnail-localizer.service');
+
+        const adapter = getAdapter(resource.source.adapterType, {
+          baseUrl: resource.source.baseUrl,
+          syncConfig: resource.source.syncConfig ? JSON.parse(resource.source.syncConfig) : undefined,
+        });
+
+        const detail = await adapter.fetchResourceDetail(resource.externalId);
+        if (detail) {
+          const localHtml = await thumbnailLocalizer.localizeHtmlContent(
+            detail.contentHtml || '',
+            resource.sourceId,
+          );
+
+          // Update tags if they are fetched from detail page
+          let tags = resource.tags;
+          if (detail.tags && detail.tags.length > 0) {
+            tags = JSON.stringify(detail.tags);
+          }
+
+          const updated = await prisma.mirrorResource.update({
+            where: { id: resourceId },
+            data: {
+              description: detail.description || resource.description,
+              thumbnailUrl: detail.thumbnailUrl || resource.thumbnailUrl,
+              tags: tags,
+              publishedAt: detail.publishedAt || resource.publishedAt,
+              contentHtml: localHtml,
+            },
+            include: {
+              source: {
+                select: {
+                  id: true,
+                  name: true,
+                  displayName: true,
+                  baseUrl: true,
+                  adapterType: true,
+                  syncConfig: true,
+                },
+              },
+              category: { select: { name: true } },
+            },
+          });
+          return updated;
+        }
+      } catch (e: any) {
+        console.warn(
+          `[MirrorService] Failed to load detail page on-demand for ${resource.externalId}: ${e.message}`,
+        );
+      }
     }
 
     return resource;

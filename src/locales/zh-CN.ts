@@ -27,6 +27,7 @@ export default {
     theme: '主题',
     themeLight: '浅色',
     themeDark: '深色',
+    themeGlass: '磨砂玻璃',
     themeSystem: '跟随系统',
     accentColor: '强调色',
     successUpdate: '设置已更新',

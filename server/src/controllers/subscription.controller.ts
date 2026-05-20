@@ -175,140 +175,19 @@ const calculateProratedRefund = (
 import { paymentService, PaymentMethod } from '../services/payment.service';
 
 export const createOrder = async (req: any, res: Response) => {
-  const userId = req.user.id;
-  const { planId, interval, paymentMethod = 'MOCK' } = req.body;
-
-  try {
-    const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
-    if (!plan) return res.status(404).json({ error: '订阅计划不存在' });
-
-    const billingInterval = interval || 'MONTHLY';
-    const amount = billingInterval === 'YEARLY' && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
-
-    const existingSub = await prisma.subscription.findUnique({
-      where: { userId },
-      include: { plan: true },
-    });
-
-    if (
-      existingSub &&
-      existingSub.planId === planId &&
-      existingSub.status === 'ACTIVE' &&
-      existingSub.interval === billingInterval
-    ) {
-      return res.status(400).json({ error: '您已订阅此计划' });
-    }
-
-    let proratedRefund = 0;
-    let isUpgrade = false;
-
-    if (existingSub && existingSub.status === 'ACTIVE' && existingSub.plan.name !== 'FREE') {
-      const currentPriority = existingSub.plan.priority || 0;
-      const newPriority = plan.priority || 0;
-
-      if (newPriority > currentPriority) {
-        isUpgrade = true;
-        proratedRefund = calculateProratedRefund(
-          existingSub.interval === 'YEARLY' && existingSub.plan.yearlyPrice
-            ? existingSub.plan.yearlyPrice
-            : existingSub.plan.price,
-          existingSub.interval,
-          existingSub.startDate,
-          existingSub.endDate,
-        );
-      }
-    }
-
-    const finalAmount = Math.max(0, amount - proratedRefund);
-    const description = isUpgrade
-      ? `升级至 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`
-      : `订阅 ${plan.displayName || plan.name} (${billingInterval === 'YEARLY' ? '年付' : '月付'})`;
-
-    const { transaction, paymentUrl } = await paymentService.createOrder({
-      userId,
-      amount: finalAmount,
-      description,
-      planId,
-      planName: plan.name,
-      interval: billingInterval,
-      paymentMethod,
-    });
-
-    res.json({
-      orderId: transaction.id,
-      amount: finalAmount,
-      currency: transaction.currency,
-      invoiceNo: transaction.invoiceNo,
-      isUpgrade,
-      proratedRefund,
-      paymentUrl,
-    });
-  } catch (error) {
-    console.error('Create order error:', error);
-    res.status(500).json({ error: '创建订单失败' });
-  }
+  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
 export const payOrder = async (req: any, res: Response) => {
-  const { orderId, paymentMethod } = req.body;
-  const userId = req.user.id;
-
-  try {
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: orderId },
-    });
-
-    if (!transaction || transaction.userId !== userId || transaction.status !== 'PENDING') {
-      return res.status(404).json({ error: '无效的订单' });
-    }
-
-    // Update payment method
-    await prisma.transaction.update({
-      where: { id: orderId },
-      data: { paymentMethod },
-    });
-
-    let paymentUrl = null;
-    if (paymentMethod === 'ALIPAY') {
-      const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/billing?success=true`;
-      const notifyUrl = `${process.env.API_URL || 'http://localhost:3000'}/api/webhooks/alipay`;
-      try {
-        const { generatePaymentUrl } = require('../services/alipay');
-        paymentUrl = generatePaymentUrl(
-          transaction.invoiceNo,
-          transaction.amount,
-          transaction.description,
-          returnUrl,
-          notifyUrl,
-        );
-      } catch (error) {
-        console.error('Failed to generate Alipay URL', error);
-      }
-    }
-
-    res.json({ paymentUrl });
-  } catch (error) {
-    res.status(500).json({ error: '获取支付链接失败' });
-  }
+  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
 export const verifyPayment = async (req: any, res: Response) => {
-  const { orderId, paymentId } = req.body;
-  try {
-    const transaction = await paymentService.verifyPayment(
-      orderId,
-      paymentId || `MOCK-${Date.now()}`,
-    );
-    res.json({ message: '支付验证成功', transaction });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || '支付验证失败' });
-  }
+  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
 export const subscribe = async (req: any, res: Response) => {
-  // Legacy subscribe method (keeping for compatibility, but redirects to order flow logic internally if needed)
-  // Actually, we'll refactor the frontend to use createOrder + verifyPayment
-  return createOrder(req, res);
+  return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
 export const cancelSubscription = async (req: any, res: Response) => {

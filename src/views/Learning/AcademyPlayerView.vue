@@ -485,7 +485,7 @@ onMounted(fetchCourseData);
     <Transition name="slide-right">
       <div
         v-if="isSidebarOpen"
-        class="w-full lg:w-96 h-full flex flex-col bg-slate-900 border-l border-white/5 z-30 absolute lg:relative inset-0 lg:inset-auto"
+        class="w-full lg:w-96 h-full flex flex-col bg-slate-950/70 backdrop-blur-xl border-l border-white/5 z-30 absolute lg:relative inset-0 lg:inset-auto"
       >
         <!-- Sidebar Header -->
         <div class="h-14 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
@@ -511,7 +511,7 @@ onMounted(fetchCourseData);
                 class="group p-4 rounded-2xl cursor-pointer transition-all border border-transparent"
                 :class="
                   currentLessonIndex === index
-                    ? 'bg-accent/10 border-accent/20'
+                     ? 'bg-accent/10 border-accent/20'
                     : 'hover:bg-white/5'
                 "
                 @click="selectLesson(index)"
@@ -642,7 +642,7 @@ onMounted(fetchCourseData);
         </div>
 
         <!-- Instructor Info Card -->
-        <div class="p-6 border-t border-white/5 bg-slate-900/50">
+        <div class="p-6 border-t border-white/5 bg-slate-950/40">
           <div class="flex items-center gap-3 mb-4">
             <div
               class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden"
@@ -672,7 +672,7 @@ onMounted(fetchCourseData);
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-md rounded-3xl p-10 text-center bg-slate-900 border border-white/10 shadow-2xl"
+        class="glass-dialog w-full max-w-md rounded-3xl p-10 text-center shadow-2xl"
       >
         <div
           class="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-500/20 flex items-center justify-center"

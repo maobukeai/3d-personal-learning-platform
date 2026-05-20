@@ -6,6 +6,7 @@ import { thumbnailLocalizer } from '../services/thumbnail-localizer.service';
 import prisma from '../../services/prisma';
 import * as xlsx from 'xlsx';
 import fs from 'fs';
+import crypto from 'crypto';
 
 export const createSource = async (req: AuthRequest, res: Response) => {
   try {
@@ -417,6 +418,168 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
       fs.unlinkSync(req.file.path);
     }
     console.error('[MirrorLinkMatch] Error matching links:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getSourceResources = async (req: AuthRequest, res: Response) => {
+  try {
+    const sourceId = req.params.sourceId as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const search = req.query.search as string | undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+
+    const where: any = { sourceId };
+    if (search) {
+      where.title = { contains: search };
+    }
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    const [resources, total] = await Promise.all([
+      prisma.mirrorResource.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          thumbnailUrl: true,
+          contentUrl: true,
+          resourceType: true,
+          viewCount: true,
+          publishedAt: true,
+          categoryId: true,
+          category: { select: { name: true } },
+          tags: true,
+          createdAt: true,
+        },
+      }),
+      prisma.mirrorResource.count({ where }),
+    ]);
+
+    res.json({
+      resources,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getResourceDetail = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    const resource = await prisma.mirrorResource.findUnique({
+      where: { id },
+      include: {
+        category: { select: { name: true } },
+      },
+    });
+
+    if (!resource) {
+      return res.status(404).json({ error: '资源不存在' });
+    }
+
+    res.json(resource);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const createResource = async (req: AuthRequest, res: Response) => {
+  try {
+    const sourceId = req.params.sourceId as string;
+    const {
+      title,
+      description,
+      thumbnailUrl,
+      contentUrl,
+      tags,
+      contentHtml,
+      resourceType = 'COURSE',
+      categoryId,
+      externalId,
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'title 为必填项' });
+    }
+
+    const resource = await prisma.mirrorResource.create({
+      data: {
+        sourceId,
+        externalId: externalId || `manual_${crypto.randomUUID()}`,
+        title,
+        description,
+        thumbnailUrl,
+        contentUrl,
+        tags,
+        contentHtml,
+        resourceType,
+        categoryId,
+      },
+    });
+
+    res.status(201).json(resource);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateResource = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const updateData: any = {};
+
+    const allowedFields = [
+      'title',
+      'description',
+      'thumbnailUrl',
+      'contentUrl',
+      'tags',
+      'contentHtml',
+      'resourceType',
+      'categoryId',
+    ];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    }
+
+    const resource = await prisma.mirrorResource.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json(resource);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteResource = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    await prisma.$transaction([
+      prisma.mirrorResourceComment.deleteMany({ where: { resourceId: id } }),
+      prisma.mirrorResourceLike.deleteMany({ where: { resourceId: id } }),
+      prisma.mirrorResource.delete({ where: { id } }),
+    ]);
+
+    res.json({ message: '资源已删除' });
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };

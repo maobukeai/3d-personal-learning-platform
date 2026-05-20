@@ -273,70 +273,71 @@ const handleChatWithMember = async (member: any) => {
           </tbody>
         </table>
 
-        <!-- Mobile Card List -->
-        <div class="md:hidden divide-y" style="border-color: var(--border-base)">
+        <!-- Mobile Card Grid (2 Columns) -->
+        <div class="md:hidden grid grid-cols-2 gap-3 p-3 bg-slate-50/50 dark:bg-slate-900/50">
           <div
             v-for="member in filteredMembers"
             :key="member.id"
-            class="p-4 flex flex-col gap-4"
+            class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-4 flex flex-col items-center text-center shadow-sm relative group min-w-0"
           >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <UserAvatar
-                  :user="member"
-                  size="md"
-                  class="cursor-pointer"
-                  @click="openUserProfile(member.id)"
-                />
-                <div>
-                  <p
-                    class="text-sm font-bold"
-                    style="color: var(--text-primary)"
-                    @click="openUserProfile(member.id)"
-                  >
-                    {{ member.name || '未设置昵称' }}
-                  </p>
-                  <p class="text-xs" style="color: var(--text-muted)">{{ member.email }}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  class="p-2 bg-accent/10 text-accent rounded-lg transition-all"
-                  title="发送消息"
-                  @click="handleChatWithMember(member)"
-                >
-                  <MessageSquare class="w-4 h-4" />
-                </button>
-                <button
-                  class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
-                  style="color: var(--text-muted)"
-                >
-                  <MoreHorizontal class="w-4 h-4" />
-                </button>
-              </div>
+            <!-- Online status dot in top-right -->
+            <div class="absolute top-3 right-3 flex items-center gap-1 shrink-0">
+              <Circle
+                class="w-1.5 h-1.5 fill-current"
+                :class="
+                  authStore.isUserOnline(member.id) ? 'text-emerald-500' : 'text-slate-300'
+                "
+              />
+              <span class="text-[9px] font-bold" style="color: var(--text-secondary)">{{
+                authStore.isUserOnline(member.id) ? '在线' : '离线'
+              }}</span>
             </div>
 
-            <div class="flex items-center justify-between text-[10px] font-bold">
-              <div class="flex items-center gap-1.5">
-                <ShieldCheck v-if="member.role === 'ADMIN'" class="w-3 h-3 text-accent" />
-                <span style="color: var(--text-secondary)">{{
-                  roleLabels[member.role] || member.role
-                }}</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <Circle
-                  class="w-1.5 h-1.5 fill-current"
-                  :class="
-                    authStore.isUserOnline(member.id) ? 'text-emerald-500' : 'text-slate-300'
-                  "
-                />
-                <span style="color: var(--text-secondary)">{{
-                  authStore.isUserOnline(member.id) ? '在线' : '离线'
-                }}</span>
-              </div>
-              <div style="color: var(--text-muted)">
-                {{ new Date(member.createdAt).toLocaleDateString() }}
-              </div>
+            <!-- Avatar -->
+            <div class="mt-2 mb-3 shrink-0">
+              <UserAvatar
+                :user="member"
+                size="md"
+                class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                @click="openUserProfile(member.id)"
+              />
+            </div>
+
+            <!-- Name & Email -->
+            <h3
+              class="text-xs sm:text-sm font-bold truncate w-full cursor-pointer hover:text-accent transition-colors"
+              style="color: var(--text-primary)"
+              @click="openUserProfile(member.id)"
+            >
+              {{ member.name || '未设置昵称' }}
+            </h3>
+            <p class="text-[9px] sm:text-[10px] text-muted-foreground truncate w-full mb-3" style="color: var(--text-muted)">
+              {{ member.email }}
+            </p>
+
+            <!-- Role Badge -->
+            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 text-[9px] font-bold mb-4 shrink-0">
+              <ShieldCheck v-if="member.role === 'ADMIN'" class="w-2.5 h-2.5 text-accent" />
+              <span style="color: var(--text-secondary)">{{
+                roleLabels[member.role] || member.role
+              }}</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="w-full flex gap-1.5 mt-auto">
+              <button
+                class="flex-1 py-1.5 bg-accent text-white rounded-xl text-[10px] font-bold hover:opacity-90 transition-all flex items-center justify-center gap-1"
+                @click="handleChatWithMember(member)"
+              >
+                <MessageSquare class="w-3 h-3" /> 发消息
+              </button>
+              <button
+                class="px-2 py-1.5 bg-slate-100 dark:bg-white/5 rounded-xl border border-[var(--border-base)] transition-all hover:bg-slate-200 dark:hover:bg-white/10 shrink-0"
+                style="color: var(--text-secondary)"
+                @click="openUserProfile(member.id)"
+              >
+                <MoreHorizontal class="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>

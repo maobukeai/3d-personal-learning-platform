@@ -106,7 +106,7 @@ export const useMirrorStore = defineStore('mirror', () => {
     try {
       const params: any = {
         page: options?.page || 1,
-        pageSize: options?.pageSize || 20,
+        pageSize: options?.pageSize || 21,
       };
       if (options?.categoryId) params.categoryId = options.categoryId;
       if (options?.search) params.search = options.search;

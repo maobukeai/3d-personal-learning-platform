@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import {
   CreditCard,
   Plus,
@@ -16,6 +16,8 @@ import {
   Box,
   Save,
   Search,
+  Copy,
+  Ticket,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -23,13 +25,34 @@ import api from '@/utils/api';
 const plans = ref<any[]>([]);
 const subscriptions = ref<any[]>([]);
 const users = ref<any[]>([]);
+const activationCodes = ref<any[]>([]);
 const isLoading = ref(true);
 const activeTab = ref('plans');
 const showPlanDialog = ref(false);
 const showSubDialog = ref(false);
+const showCodeDialog = ref(false);
+const isGeneratingCodes = ref(false);
 const editingPlan = ref<any>(null);
 const editingSubscription = ref<any>(null);
 const userSearchQuery = ref('');
+const codeSearchQuery = ref('');
+
+const codeForm = ref({
+  planId: '',
+  durationPreset: '30',
+  durationDays: 30,
+  quantity: 5,
+  expiresAt: '',
+  bindEmail: '',
+  description: '',
+  prefix: '',
+});
+
+watch(() => codeForm.value.durationPreset, (newVal) => {
+  if (newVal !== 'custom') {
+    codeForm.value.durationDays = parseInt(newVal, 10);
+  }
+});
 
 const defaultPlanForm = {
   name: '',
@@ -72,6 +95,17 @@ const filteredUsers = computed(() => {
   );
 });
 
+const filteredCodes = computed(() => {
+  if (!codeSearchQuery.value) return activationCodes.value;
+  const q = codeSearchQuery.value.toLowerCase();
+  return activationCodes.value.filter(
+    (c: any) =>
+      c.code.toLowerCase().includes(q) ||
+      (c.plan?.displayName || c.plan?.name || '').toLowerCase().includes(q) ||
+      (c.usedBy?.name || c.usedBy?.email || '').toLowerCase().includes(q),
+  );
+});
+
 const subscribedUserIds = computed(() => new Set(subscriptions.value.map((s: any) => s.userId)));
 
 const availableUsers = computed(() => {
@@ -82,12 +116,14 @@ const availableUsers = computed(() => {
 const fetchData = async () => {
   isLoading.value = true;
   try {
-    const [plansRes, subsRes] = await Promise.all([
+    const [plansRes, subsRes, codesRes] = await Promise.all([
       api.get('/api/admin/subscription-plans'),
       api.get('/api/admin/subscriptions'),
+      api.get('/api/admin/activation-codes').catch(() => ({ data: [] })),
     ]);
     plans.value = plansRes.data;
     subscriptions.value = subsRes.data;
+    activationCodes.value = codesRes.data;
   } catch (error) {
     ElMessage.error('获取数据失败');
   } finally {
@@ -286,6 +322,62 @@ const getStatusLabel = (status: string) => {
   }
 };
 
+const openCreateCodes = () => {
+  codeForm.value = {
+    planId: plans.value[0]?.id || '',
+    durationPreset: '30',
+    durationDays: 30,
+    quantity: 5,
+    expiresAt: '',
+    bindEmail: '',
+    description: '',
+    prefix: '',
+  };
+  showCodeDialog.value = true;
+};
+
+const handleGenerateCodes = async () => {
+  if (!codeForm.value.planId) {
+    ElMessage.warning('请选择订阅计划');
+    return;
+  }
+  isGeneratingCodes.value = true;
+  try {
+    await api.post('/api/admin/activation-codes', codeForm.value);
+    ElMessage.success('激活码生成成功');
+    showCodeDialog.value = false;
+    await fetchData();
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '生成激活码失败');
+  } finally {
+    isGeneratingCodes.value = false;
+  }
+};
+
+const handleDeleteCode = async (code: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除/失效该激活码 (${code.code}) 吗？此操作不可恢复。`,
+      '确认删除',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+    );
+    await api.delete(`/api/admin/activation-codes/${code.id}`);
+    ElMessage.success('激活码已删除');
+    fetchData();
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.error || '删除失败');
+    }
+  }
+};
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text).then(
+    () => ElMessage.success('已复制到剪贴板'),
+    () => ElMessage.error('复制失败'),
+  );
+};
+
 onMounted(() => {
   fetchData();
 });
@@ -294,18 +386,18 @@ onMounted(() => {
 <template>
   <div class="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg-app)]">
     <div
-      class="min-h-16 py-3 lg:py-0 lg:h-16 px-4 sm:px-8 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shrink-0 border-b border-[var(--border-base)] bg-[var(--bg-card)]"
+      class="min-h-16 py-3 lg:py-0 lg:h-16 px-4 sm:px-8 flex flex-row items-center justify-between gap-2 shrink-0 border-b border-[var(--border-base)] bg-[var(--bg-card)]"
     >
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-violet-50 dark:bg-violet-900/20 rounded-xl text-violet-600">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <div class="hidden sm:block p-2 bg-violet-50 dark:bg-violet-900/20 rounded-xl text-violet-600">
           <CreditCard class="w-5 h-5" />
         </div>
-        <h1 class="text-xl font-bold text-[var(--text-primary)]">订阅管理</h1>
+        <h1 class="text-sm xs:text-base sm:text-xl font-bold text-[var(--text-primary)]">订阅管理</h1>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="flex bg-[var(--bg-app)] rounded-xl p-1">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <div class="flex bg-[var(--bg-app)] rounded-xl p-0.5 sm:p-1">
           <button
-            class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
+            class="px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0"
             :class="
               activeTab === 'plans'
                 ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
@@ -313,10 +405,11 @@ onMounted(() => {
             "
             @click="activeTab = 'plans'"
           >
-            订阅计划
+            <span class="xs:hidden">计划</span>
+            <span class="hidden xs:inline">订阅计划</span>
           </button>
           <button
-            class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
+            class="px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0"
             :class="
               activeTab === 'subscriptions'
                 ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
@@ -324,24 +417,40 @@ onMounted(() => {
             "
             @click="activeTab = 'subscriptions'"
           >
-            用户订阅
+            <span class="xs:hidden">订阅</span>
+            <span class="hidden xs:inline">用户订阅</span>
+          </button>
+          <button
+            class="px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0"
+            :class="
+              activeTab === 'codes'
+                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-muted)]'
+            "
+            @click="activeTab = 'codes'"
+          >
+            <span class="xs:hidden">激活码</span>
+            <span class="hidden xs:inline">激活码管理</span>
           </button>
         </div>
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-6xl mx-auto">
         <!-- Plans Tab -->
         <div v-if="activeTab === 'plans'" class="space-y-6">
-          <div class="flex items-center justify-between">
-            <p class="text-sm text-[var(--text-secondary)]">管理平台订阅计划，配置价格和功能权限</p>
-            <button
-              class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20"
-              @click="openCreatePlan"
-            >
-              <Plus class="w-4 h-4" /> 新建计划
-            </button>
+          <div class="flex items-center justify-between gap-4">
+            <p class="hidden sm:block text-sm text-[var(--text-secondary)]">管理平台订阅计划，配置价格和功能权限</p>
+            <div class="flex items-center justify-between w-full sm:w-auto sm:justify-end">
+              <span class="sm:hidden text-xs font-bold text-[var(--text-secondary)]">订阅计划列表</span>
+              <button
+                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20 shrink-0"
+                @click="openCreatePlan"
+              >
+                <Plus class="w-4 h-4" /> 新建计划
+              </button>
+            </div>
           </div>
 
           <div class="grid gap-4">
@@ -350,10 +459,10 @@ onMounted(() => {
               :key="plan.id"
               class="p-6 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] hover:shadow-lg transition-all"
             >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-start gap-4">
                   <div
-                    class="p-3 rounded-2xl"
+                    class="p-3 rounded-2xl shrink-0"
                     :style="{
                       backgroundColor: (plan.badgeColor || '#8b5cf6') + '15',
                       color: plan.badgeColor || '#8b5cf6',
@@ -361,8 +470,8 @@ onMounted(() => {
                   >
                     <component :is="getPlanIcon(plan.name)" class="w-6 h-6" />
                   </div>
-                  <div>
-                    <div class="flex items-center gap-2">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
                       <h3 class="text-lg font-black text-[var(--text-primary)]">
                         {{ plan.displayName || plan.name }}
                       </h3>
@@ -380,61 +489,63 @@ onMounted(() => {
                         >推荐</span
                       >
                     </div>
-                    <div class="flex items-center gap-4 mt-1 text-xs text-[var(--text-secondary)]">
-                      <span class="flex items-center gap-1"
-                        ><DollarSign class="w-3 h-3" />月付 ￥{{ plan.price
+                    <div class="flex flex-nowrap items-center gap-x-1.5 xs:gap-x-2 mt-2 text-[9px] xs:text-[10px] sm:text-xs text-[var(--text-secondary)] overflow-x-auto scrollbar-hide min-w-0">
+                      <span class="flex items-center gap-0.5 shrink-0"
+                        ><DollarSign class="w-3 h-3 shrink-0" />月付 ￥{{ plan.price
                         }}{{ plan.yearlyPrice ? ` / 年付 ￥${plan.yearlyPrice}` : '' }}</span
                       >
-                      <span class="flex items-center gap-1"
-                        ><HardDrive class="w-3 h-3" />{{
+                      <span class="flex items-center gap-0.5 shrink-0"
+                        ><HardDrive class="w-3 h-3 shrink-0" />{{
                           plan.maxStorage >= 9999 ? '无限' : plan.maxStorage + 'GB'
                         }}</span
                       >
-                      <span class="flex items-center gap-1"
-                        ><Users class="w-3 h-3" />{{
+                      <span class="flex items-center gap-0.5 shrink-0"
+                        ><Users class="w-3 h-3 shrink-0" />{{
                           plan.maxTeams >= 999 ? '无限' : plan.maxTeams + '团队'
                         }}</span
                       >
-                      <span class="flex items-center gap-1"
-                        ><FolderOpen class="w-3 h-3" />{{
+                      <span class="flex items-center gap-0.5 shrink-0"
+                        ><FolderOpen class="w-3 h-3 shrink-0" />{{
                           plan.maxProjects >= 9999 ? '无限' : plan.maxProjects + '项目'
                         }}</span
                       >
-                      <span class="flex items-center gap-1"
-                        ><Box class="w-3 h-3" />{{
+                      <span class="flex items-center gap-0.5 shrink-0"
+                        ><Box class="w-3 h-3 shrink-0" />{{
                           plan.maxAssets >= 9999 ? '无限' : plan.maxAssets + '资产'
                         }}</span
                       >
                     </div>
                   </div>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-0 border-[var(--border-base)] shrink-0">
                   <span class="text-xs text-[var(--text-muted)]"
                     >{{ plan.subscriberCount || 0 }} 订阅者</span
                   >
-                  <button
-                    class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all"
-                    @click="openEditPlan(plan)"
-                  >
-                    <Pencil class="w-4 h-4" />
-                  </button>
-                  <button
-                    class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all"
-                    @click="handleDeletePlan(plan)"
-                  >
-                    <Trash2 class="w-4 h-4" />
-                  </button>
+                  <div class="flex items-center gap-1">
+                    <button
+                      class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all"
+                      @click="openEditPlan(plan)"
+                    >
+                      <Pencil class="w-4 h-4" />
+                    </button>
+                    <button
+                      class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all"
+                      @click="handleDeletePlan(plan)"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div
                 v-if="plan.features && plan.features.length > 0"
                 class="mt-4 pt-4 border-t border-[var(--border-base)]"
               >
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide">
                   <span
                     v-for="(feature, idx) in plan.features"
                     :key="idx"
-                    class="px-2 py-1 bg-[var(--bg-app)] rounded-lg text-[10px] font-medium text-[var(--text-secondary)]"
+                    class="px-2 py-1 bg-[var(--bg-app)] rounded-lg text-[9px] xs:text-[10px] font-medium text-[var(--text-secondary)] shrink-0"
                   >
                     {{ feature }}
                   </span>
@@ -446,60 +557,65 @@ onMounted(() => {
 
         <!-- Subscriptions Tab -->
         <div v-if="activeTab === 'subscriptions'" class="space-y-6">
-          <div class="flex items-center justify-between">
-            <p class="text-sm text-[var(--text-secondary)]">
+          <div class="flex items-center justify-between gap-4">
+            <p class="hidden sm:block text-sm text-[var(--text-secondary)]">
               管理所有用户的订阅状态，可新增、编辑或删除订阅
             </p>
-            <button
-              class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20"
-              @click="openCreateSubscription"
-            >
-              <Plus class="w-4 h-4" /> 新增订阅
-            </button>
+            <div class="flex items-center justify-between w-full sm:w-auto sm:justify-end">
+              <span class="sm:hidden text-xs font-bold text-[var(--text-secondary)]">用户订阅列表</span>
+              <button
+                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20 shrink-0"
+                @click="openCreateSubscription"
+              >
+                <Plus class="w-4 h-4" /> 新增订阅
+              </button>
+            </div>
           </div>
+
+          <!-- Desktop Table View -->
           <div
-            class="rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
+            class="hidden md:block rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
           >
             <table class="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     用户
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     计划
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     状态
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     周期
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     开始日期
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     到期日期
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     自动续费
                   </th>
                   <th
-                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
+                    class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]"
                   >
                     操作
                   </th>
@@ -511,7 +627,7 @@ onMounted(() => {
                   :key="sub.id"
                   class="hover:bg-[var(--bg-app)]/30 transition-colors"
                 >
-                  <td class="px-6 py-4">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                     <div class="flex items-center gap-3">
                       <div
                         class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500"
@@ -520,13 +636,13 @@ onMounted(() => {
                       </div>
                       <div>
                         <p class="text-sm font-bold text-[var(--text-primary)]">
-                          {{ sub.user?.name || '未命名' }}
+                           {{ sub.user?.name || '未命名' }}
                         </p>
                         <p class="text-[10px] text-[var(--text-muted)]">{{ sub.user?.email }}</p>
                       </div>
                     </div>
                   </td>
-                  <td class="px-6 py-4">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                     <span
                       class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                       :style="{
@@ -537,7 +653,7 @@ onMounted(() => {
                       {{ sub.plan?.displayName || sub.plan?.name }}
                     </span>
                   </td>
-                  <td class="px-6 py-4">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                     <span
                       class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                       :class="getStatusColor(sub.status)"
@@ -545,23 +661,23 @@ onMounted(() => {
                       {{ getStatusLabel(sub.status) }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 text-sm text-[var(--text-secondary)]">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-sm text-[var(--text-secondary)]">
                     {{ sub.interval === 'YEARLY' ? '年付' : '月付' }}
                   </td>
-                  <td class="px-6 py-4 text-xs text-[var(--text-secondary)]">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
                     {{ new Date(sub.startDate).toLocaleDateString() }}
                   </td>
-                  <td class="px-6 py-4 text-xs text-[var(--text-secondary)]">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
                     {{ sub.endDate ? new Date(sub.endDate).toLocaleDateString() : '-' }}
                   </td>
-                  <td class="px-6 py-4">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                     <component
                       :is="sub.autoRenew ? Check : X"
                       class="w-4 h-4"
                       :class="sub.autoRenew ? 'text-emerald-500' : 'text-slate-400'"
                     />
                   </td>
-                  <td class="px-6 py-4">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                     <div class="flex items-center gap-1">
                       <button
                         class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all"
@@ -584,12 +700,331 @@ onMounted(() => {
                   <td colspan="8" class="px-6 py-16 text-center">
                     <div class="flex flex-col items-center gap-3 opacity-20">
                       <Users class="w-10 h-10" />
-                      <p class="text-sm font-medium">暂无订阅记录</p>
+                      <p class="text-sm font-medium">暂无订阅数据</p>
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Card View -->
+          <div class="md:hidden space-y-4">
+            <div
+              v-for="sub in subscriptions"
+              :key="sub.id"
+              class="p-5 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] space-y-4"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div
+                    class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0"
+                  >
+                    {{ (sub.user?.name || sub.user?.email || '?').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="min-w-0">
+                    <h4 class="text-sm font-black text-[var(--text-primary)] truncate">
+                      {{ sub.user?.name || '未命名' }}
+                    </h4>
+                    <p class="text-[10px] text-[var(--text-muted)] truncate">{{ sub.user?.email }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-row items-center gap-1.5 shrink-0">
+                  <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    :style="{
+                      backgroundColor: (sub.plan?.badgeColor || '#8b5cf6') + '15',
+                      color: sub.plan?.badgeColor || '#8b5cf6',
+                    }"
+                  >
+                    {{ sub.plan?.displayName || sub.plan?.name }}
+                  </span>
+                  <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    :class="getStatusColor(sub.status)"
+                  >
+                    {{ getStatusLabel(sub.status) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 text-[10px] xs:text-xs border-t border-b border-[var(--border-base)] py-3">
+                <div>
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">周期 / 续费</span>
+                  <span class="font-bold text-[var(--text-secondary)] flex flex-wrap items-center gap-0.5">
+                    <span>{{ sub.interval === 'YEARLY' ? '年付' : '月付' }}</span>
+                    <span class="text-[var(--text-muted)] hidden xs:inline">|</span>
+                    <span :class="sub.autoRenew ? 'text-emerald-500' : 'text-slate-400'">
+                      {{ sub.autoRenew ? '自动续期' : '手动' }}
+                    </span>
+                  </span>
+                </div>
+                <div>
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">开始日期</span>
+                  <span class="font-bold text-[var(--text-secondary)]">
+                    {{ new Date(sub.startDate).toLocaleDateString() }}
+                  </span>
+                </div>
+                <div>
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">到期日期</span>
+                  <span class="font-bold text-[var(--text-secondary)]">
+                    {{ sub.endDate ? new Date(sub.endDate).toLocaleDateString() : '永久' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-end gap-2">
+                <button
+                  class="flex items-center gap-1 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl border border-[var(--border-base)] text-xs text-[var(--text-secondary)] font-bold transition-all"
+                  @click="openEditSubscription(sub)"
+                >
+                  <Pencil class="w-3.5 h-3.5" />
+                  编辑
+                </button>
+                <button
+                  class="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-bold transition-all"
+                  @click="handleDeleteSubscription(sub)"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                  删除
+                </button>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="subscriptions.length === 0" class="py-16 text-center">
+              <div class="flex flex-col items-center gap-3 opacity-20">
+                <Users class="w-10 h-10" />
+                <p class="text-sm font-medium">暂无订阅数据</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Codes Tab -->
+        <div v-if="activeTab === 'codes'" class="space-y-6">
+          <div class="flex items-center justify-between gap-4">
+            <p class="hidden sm:block text-sm text-[var(--text-secondary)]">
+              生成并管理用于激活订阅计划的激活码，支持批量生成与删除
+            </p>
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+              <div class="relative flex-1 sm:w-64">
+                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  v-model="codeSearchQuery"
+                  type="text"
+                  class="w-full pl-9 pr-4 py-2 rounded-xl border text-xs transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-primary)]"
+                  placeholder="搜索激活码、计划或使用者..."
+                />
+              </div>
+              <button
+                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20 shrink-0"
+                @click="openCreateCodes"
+              >
+                <Plus class="w-4 h-4" /> 生成激活码
+              </button>
+            </div>
+          </div>
+
+          <!-- Desktop Table View -->
+          <div
+            class="hidden md:block rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
+          >
+            <table class="w-full text-left border-collapse min-w-[1000px]">
+              <thead>
+                <tr class="bg-[var(--bg-app)]/50 border-b border-[var(--border-base)]">
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">激活码</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">订阅计划</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">天数</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">绑定邮箱</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">过期时间</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">备注</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">状态</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">使用者</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">生成时间</th>
+                  <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[var(--border-base)]">
+                <tr v-for="c in filteredCodes" :key="c.id" class="hover:bg-[var(--bg-app)]/30 transition-colors">
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
+                    <div class="flex items-center gap-2">
+                      <code class="text-xs font-mono font-bold text-[var(--text-primary)] select-all">{{ c.code }}</code>
+                      <button
+                        class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all"
+                        title="复制激活码"
+                        @click="copyToClipboard(c.code)"
+                      >
+                        <Copy class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
+                    <span
+                      class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      :style="{
+                        backgroundColor: (c.plan?.badgeColor || '#8b5cf6') + '15',
+                        color: c.plan?.badgeColor || '#8b5cf6',
+                      }"
+                    >
+                      {{ c.plan?.displayName || c.plan?.name }}
+                    </span>
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs font-bold text-[var(--text-secondary)]">
+                    {{ c.durationDays }} 天
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
+                    {{ c.bindEmail || '无限制' }}
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
+                    {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '永久有效' }}
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)] max-w-[150px] truncate" :title="c.description">
+                    {{ c.description || '-' }}
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
+                    <span
+                      class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      :class="
+                        c.status === 'ACTIVE'
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : c.status === 'USED'
+                          ? 'bg-blue-500/10 text-blue-500'
+                          : 'bg-slate-500/10 text-slate-500'
+                      "
+                    >
+                      {{ c.status === 'ACTIVE' ? '未使用' : c.status === 'USED' ? '已使用' : '已失效' }}
+                    </span>
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
+                    <div v-if="c.usedBy">
+                      <p class="font-bold text-[var(--text-primary)]">{{ c.usedBy.name || '已使用' }}</p>
+                      <p class="text-[9px] text-[var(--text-muted)]">{{ c.usedBy.email }}</p>
+                    </div>
+                    <div v-else>-</div>
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
+                    {{ new Date(c.createdAt).toLocaleString() }}
+                  </td>
+                  <td class="px-4 sm:px-6 py-3.5 sm:py-4">
+                    <button
+                      class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all"
+                      title="删除"
+                      @click="handleDeleteCode(c)"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="filteredCodes.length === 0">
+                  <td colspan="8" class="px-6 py-16 text-center">
+                    <div class="flex flex-col items-center gap-3 opacity-20">
+                      <Ticket class="w-10 h-10" />
+                      <p class="text-sm font-medium">暂无激活码记录</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Card View -->
+          <div class="md:hidden space-y-4">
+            <div
+              v-for="c in filteredCodes"
+              :key="c.id"
+              class="p-5 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] space-y-4 text-xs"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 min-w-0">
+                  <code class="text-xs font-mono font-bold text-[var(--text-primary)] select-all truncate">{{ c.code }}</code>
+                  <button
+                    class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all shrink-0"
+                    title="复制激活码"
+                    @click="copyToClipboard(c.code)"
+                  >
+                    <Copy class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div class="flex flex-row items-center gap-1.5 shrink-0">
+                  <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    :style="{
+                      backgroundColor: (c.plan?.badgeColor || '#8b5cf6') + '15',
+                      color: c.plan?.badgeColor || '#8b5cf6',
+                    }"
+                  >
+                    {{ c.plan?.displayName || c.plan?.name }}
+                  </span>
+                  <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    :class="
+                      c.status === 'ACTIVE'
+                        ? 'bg-emerald-500/10 text-emerald-500'
+                        : c.status === 'USED'
+                        ? 'bg-blue-500/10 text-blue-500'
+                        : 'bg-slate-500/10 text-slate-500'
+                    "
+                  >
+                    {{ c.status === 'ACTIVE' ? '未使用' : c.status === 'USED' ? '已使用' : '已失效' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-4 gap-1.5 text-[9px] xs:text-[10px] border-t border-[var(--border-base)] pt-3 min-w-0">
+                <div class="min-w-0">
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">天数</span>
+                  <span class="font-bold text-[var(--text-secondary)] truncate block">{{ c.durationDays }}天</span>
+                </div>
+                <div class="min-w-0">
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">绑定邮箱</span>
+                  <span class="font-bold text-[var(--text-secondary)] truncate block" :title="c.bindEmail || '无限制'">
+                    {{ c.bindEmail || '无限制' }}
+                  </span>
+                </div>
+                <div class="min-w-0">
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">过期时间</span>
+                  <span class="font-bold text-[var(--text-secondary)] truncate block">
+                    {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '永久有效' }}
+                  </span>
+                </div>
+                <div class="min-w-0">
+                  <span class="text-[var(--text-muted)] block mb-0.5 truncate">生成时间</span>
+                  <span class="font-bold text-[var(--text-secondary)] truncate block">
+                    {{ new Date(c.createdAt).toLocaleDateString() }}
+                  </span>
+                </div>
+                <div class="col-span-2 border-t border-[var(--border-base)] pt-2.5">
+                  <span class="text-[var(--text-muted)] block mb-0.5">备注</span>
+                  <p class="text-[var(--text-secondary)] text-xs line-clamp-2">{{ c.description || '-' }}</p>
+                </div>
+                <div v-if="c.usedBy" class="col-span-2 border-t border-[var(--border-base)] pt-2.5 min-w-0">
+                  <span class="text-[var(--text-muted)] block mb-0.5">使用者</span>
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-bold text-[var(--text-primary)] text-xs truncate">{{ c.usedBy.name || '已使用' }}</span>
+                    <span class="text-[var(--text-muted)] text-[10px] font-mono truncate">({{ c.usedBy.email }})</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-end pt-3 border-t border-[var(--border-base)]">
+                <button
+                  class="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-bold transition-all"
+                  @click="handleDeleteCode(c)"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                  删除激活码
+                </button>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="filteredCodes.length === 0" class="py-16 text-center">
+              <div class="flex flex-col items-center gap-3 opacity-20">
+                <Ticket class="w-10 h-10" />
+                <p class="text-sm font-medium">暂无激活码记录</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -603,7 +1038,7 @@ onMounted(() => {
           @click="showPlanDialog = false"
         ></div>
         <div
-          class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
+          class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
@@ -857,7 +1292,7 @@ onMounted(() => {
           @click="showSubDialog = false"
         ></div>
         <div
-          class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
+          class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)]"
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
@@ -1130,6 +1565,194 @@ onMounted(() => {
               @click="handleSaveSubscription"
             >
               <Save class="w-4 h-4" /> {{ editingSubscription ? '保存更改' : '创建订阅' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Code Generate Dialog -->
+    <Transition name="fade">
+      <div v-if="showCodeDialog" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div
+          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          @click="showCodeDialog = false"
+        ></div>
+        <div
+          class="relative w-full max-w-md p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)] max-h-[85vh] overflow-y-auto scrollbar-hide"
+        >
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold text-[var(--text-primary)]">
+              生成激活码
+            </h3>
+            <button class="text-[var(--text-secondary)]" @click="showCodeDialog = false">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Plan Selection -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">订阅计划</label>
+            <select
+              v-model="codeForm.planId"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            >
+              <option v-for="plan in plans" :key="plan.id" :value="plan.id">
+                {{ plan.displayName || plan.name }} (￥{{ plan.price }}/月)
+              </option>
+            </select>
+          </div>
+
+          <!-- Duration Preset & Custom Days -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">卡片类型 / 持续时间</label>
+            <div class="grid grid-cols-5 gap-2">
+              <button
+                v-for="preset in [
+                  { label: '月卡', value: '30' },
+                  { label: '季卡', value: '90' },
+                  { label: '半年', value: '180' },
+                  { label: '年卡', value: '365' },
+                  { label: '自定义', value: 'custom' }
+                ]"
+                :key="preset.value"
+                type="button"
+                class="py-2 text-[10px] font-bold rounded-xl border transition-all"
+                :style="{
+                  backgroundColor: codeForm.durationPreset === preset.value ? 'rgba(var(--color-primary-rgb, 14, 165, 233), 0.15)' : 'var(--bg-app)',
+                  borderColor: codeForm.durationPreset === preset.value ? 'var(--accent)' : 'var(--border-base)',
+                  color: codeForm.durationPreset === preset.value ? 'var(--accent)' : 'var(--text-secondary)'
+                }"
+                @click="codeForm.durationPreset = preset.value"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+            <!-- Custom Days Input -->
+            <div v-if="codeForm.durationPreset === 'custom'" class="pt-2">
+              <input
+                v-model.number="codeForm.durationDays"
+                type="number"
+                min="1"
+                class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
+                placeholder="请输入自定义天数，例如 15 天"
+              />
+            </div>
+            <div v-else class="text-[10px] text-emerald-500 font-bold ml-1">
+              已选择: {{ codeForm.durationDays }} 天
+            </div>
+          </div>
+
+          <!-- Code Prefix -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">激活码前缀 (可选)</label>
+            <input
+              v-model="codeForm.prefix"
+              type="text"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="如 'VIP'，格式将为 VIP-PLAN-XXXX..."
+            />
+          </div>
+
+          <!-- Bind Email -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">绑定邮箱限制 (可选)</label>
+            <input
+              v-model="codeForm.bindEmail"
+              type="email"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="仅限指定邮箱用户兑换"
+            />
+          </div>
+
+          <!-- Expiration Date -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">过期失效日期 (可选)</label>
+            <input
+              v-model="codeForm.expiresAt"
+              type="date"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+
+          <!-- Description -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">使用备注 (可选)</label>
+            <input
+              v-model="codeForm.description"
+              type="text"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="如 '活动赠送'、'测试激活码'"
+            />
+          </div>
+
+          <!-- Quantity -->
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">生成数量</label>
+            <input
+              v-model.number="codeForm.quantity"
+              type="number"
+              min="1"
+              max="100"
+              class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+              placeholder="如 5"
+            />
+          </div>
+
+          <div class="flex gap-3 pt-4">
+            <button
+              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
+              @click="showCodeDialog = false"
+            >
+              取消
+            </button>
+            <button
+              :disabled="isGeneratingCodes"
+              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              @click="handleGenerateCodes"
+            >
+              <template v-if="isGeneratingCodes">
+                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                生成中...
+              </template>
+              <template v-else>
+                生成激活码
+              </template>
             </button>
           </div>
         </div>

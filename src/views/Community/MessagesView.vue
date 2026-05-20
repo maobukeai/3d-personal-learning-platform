@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   Pause,
   Play,
+  Download,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
-import ModelViewer from './ModelViewer.vue';
+
+const ModelViewer = defineAsyncComponent(() => import('./ModelViewer.vue'));
 import { 
   X, 
   Download, 

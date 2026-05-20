@@ -6,7 +6,6 @@ import {
   Box,
   MessageSquare,
   BookOpen,
-  TrendingUp,
   Clock,
   Layout,
   UserPlus,
@@ -24,6 +23,7 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
+import StatCard from '@/components/StatCard.vue';
 
 const router = useRouter();
 
@@ -302,31 +302,16 @@ onMounted(() => {
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-6">
-          <div
+          <StatCard
             v-for="stat in stats"
             :key="stat.label"
-            class="p-2 sm:p-6 rounded-xl sm:rounded-3xl border shadow-sm transition-all hover:shadow-md cursor-pointer group"
-            style="background-color: var(--bg-card); border-color: var(--border-base)"
-            @click="router.push(stat.route)"
-          >
-            <div class="flex items-start justify-between mb-2 sm:mb-4">
-              <div class="p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-slate-50 dark:bg-white/5" :class="stat.color">
-                <component :is="stat.icon" class="w-4 h-4 sm:w-6 h-6" />
-              </div>
-              <TrendingUp
-                v-if="stat.value !== '0'"
-                class="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block"
-              />
-            </div>
-            <p
-              class="text-[8px] sm:text-[10px] font-black uppercase tracking-wider mb-1 truncate"
-              style="color: var(--text-muted)"
-              :title="stat.label"
-            >
-              {{ stat.label }}
-            </p>
-            <h2 class="text-base sm:text-3xl font-black" style="color: var(--text-primary)">{{ stat.value }}</h2>
-          </div>
+            :label="stat.label"
+            :value="stat.value"
+            :color="stat.color"
+            :icon="stat.icon"
+            :route="stat.route"
+            compact
+          />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">

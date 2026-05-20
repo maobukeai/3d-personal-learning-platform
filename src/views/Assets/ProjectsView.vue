@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
 import {
   Search,
   FolderPlus,
   LayoutGrid,
   List,
-  MoreHorizontal,
-  Clock,
   Layers,
-  CheckCircle2,
   X,
   TrendingUp,
   Activity,
@@ -19,10 +15,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
+import ProjectCard from '@/components/ProjectCard.vue';
 
 const workspaceStore = useWorkspaceStore();
-
-const router = useRouter();
 const searchQuery = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
 const projects = ref<any[]>([]);
@@ -79,10 +74,6 @@ const statusOptions = [
   { value: 'PAUSED', label: '已暂停' },
   { value: 'COMPLETED', label: '已完成' },
 ];
-
-const getStatusLabel = (status: string) => {
-  return statusOptions.find((o) => o.value === status)?.label || status;
-};
 
 const fetchProjects = async () => {
   isLoading.value = true;
@@ -193,14 +184,6 @@ const filteredProjects = computed(() => {
     );
   });
 });
-
-const getTagsList = (tags: string | null) => {
-  if (!tags) return [];
-  return tags
-    .split(',')
-    .map((t) => t.trim())
-    .filter((t) => t);
-};
 
 // Dashboard stats
 const stats = computed(() => {
@@ -431,163 +414,42 @@ onMounted(fetchProjects);
         <!-- Grid View -->
         <div
           v-else-if="viewMode === 'grid'"
-          class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8"
+          class="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8"
         >
-          <div
+          <ProjectCard
             v-for="(project, index) in filteredProjects"
             :key="project.id"
-            class="bg-white dark:bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 border shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden animate-in fade-in slide-in-from-bottom-8"
-            :style="{ 'border-color': 'var(--border-base)', 'animation-delay': `${index * 50}ms` }"
-            @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-          >
-            <!-- Decorator Blur -->
-            <div
-              class="absolute -top-10 -right-10 w-32 h-32 opacity-20 blur-3xl transition-opacity group-hover:opacity-40"
-              :class="project.color"
-            ></div>
-
-            <div class="relative z-10 flex flex-col h-full">
-              <div class="flex items-start justify-between mb-4 sm:mb-6">
-                <div
-                  class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-lg"
-                  :class="project.color"
-                >
-                  <span class="text-lg sm:text-xl font-black uppercase">{{
-                    project.title.substring(0, 2)
-                  }}</span>
-                </div>
-                <el-dropdown trigger="click" @click.stop>
-                  <button
-                    class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                    style="color: var(--text-secondary)"
-                  >
-                    <MoreHorizontal class="w-5 h-5" />
-                  </button>
-                  <template #dropdown>
-                    <el-dropdown-menu class="!rounded-xl !p-2">
-                      <el-dropdown-item
-                        class="!rounded-lg !mb-1 font-bold"
-                        @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-                        >查看详情</el-dropdown-item
-                      >
-                      <el-dropdown-item
-                        class="!rounded-lg !mb-1 font-bold"
-                        @click="openEditDrawer(project)"
-                        >配置项目</el-dropdown-item
-                      >
-                      <el-divider class="!my-1" />
-                      <el-dropdown-item
-                        class="!rounded-lg !text-rose-500 font-bold hover:!bg-rose-50 dark:hover:!bg-rose-500/10"
-                        @click="deleteProject(project.id)"
-                        >删除项目</el-dropdown-item
-                      >
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-
-              <h3
-                class="text-base sm:text-lg font-black group-hover:text-accent transition-colors mb-2 line-clamp-1"
-                style="color: var(--text-primary)"
-              >
-                {{ project.title }}
-              </h3>
-              <p
-                class="text-[10px] sm:text-xs leading-relaxed mb-4 sm:mb-6 line-clamp-2"
-                style="color: var(--text-secondary)"
-              >
-                {{ project.description || '暂无项目描述。' }}
-              </p>
-
-              <!-- Tags -->
-              <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-6 sm:mb-8">
-                <span
-                  v-for="tag in getTagsList(project.tags).slice(0, 3)"
-                  :key="tag"
-                  class="text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500"
-                >
-                  #{{ tag }}
-                </span>
-                <span
-                  v-if="getTagsList(project.tags).length > 3"
-                  class="text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500"
-                >
-                  +{{ getTagsList(project.tags).length - 3 }}
-                </span>
-              </div>
-
-              <!-- Progress -->
-              <div class="mt-auto space-y-2 sm:space-y-3 mb-6 sm:mb-8">
-                <div
-                  class="flex items-center justify-between text-[9px] sm:text-[10px] font-black uppercase tracking-widest"
-                >
-                  <span style="color: var(--text-secondary)">完成度</span>
-                  <span :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'"
-                    >{{ project.progress }}%</span
-                  >
-                </div>
-                <div class="h-1.5 sm:h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                  <div
-                    class="h-full rounded-full transition-all duration-1000"
-                    :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
-                    :style="{ width: project.progress + '%' }"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Footer info -->
-              <div
-                class="flex items-center justify-between pt-4 sm:pt-5 border-t"
-                style="border-color: var(--border-base)"
-              >
-                <div class="flex items-center -space-x-1.5">
-                  <div
-                    v-for="(m, i) in project.members.slice(0, 4)"
-                    :key="m.userId"
-                    class="z-10"
-                    :style="{ 'z-index': 10 - Number(i) }"
-                  >
-                    <UserAvatar
-                      :user="m.user"
-                      size="sm"
-                      class="border-2"
-                      style="border-color: var(--bg-card)"
-                    />
-                  </div>
-                  <div
-                    v-if="project.members.length > 4"
-                    class="w-6 h-6 rounded-full border border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[8px] sm:text-[10px] font-bold text-slate-500"
-                  >
-                    +{{ project.members.length - 4 }}
-                  </div>
-                </div>
-
-                <div
-                  class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[9px] sm:text-[10px] font-black tracking-wider"
-                  :class="
-                    project.status === 'COMPLETED'
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : project.status === 'IN_PROGRESS'
-                        ? 'bg-accent/10 text-accent'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                  "
-                >
-                  <CheckCircle2 v-if="project.status === 'COMPLETED'" class="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                  <Activity v-else-if="project.status === 'IN_PROGRESS'" class="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                  <Clock v-else class="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                  {{ getStatusLabel(project.status) }}
-                </div>
-              </div>
-            </div>
-          </div>
+            :project="project"
+            layout="grid"
+            :style="{ 'animation-delay': `${index * 50}ms` }"
+            @edit="openEditDrawer"
+            @delete="deleteProject"
+          />
         </div>
 
         <!-- List View -->
         <div
           v-else
-          class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2.5rem] border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-8"
+          class="bg-transparent md:bg-white dark:md:bg-slate-900 md:rounded-2xl sm:md:rounded-[2.5rem] md:border md:shadow-sm md:overflow-hidden animate-in fade-in slide-in-from-bottom-8"
           style="border-color: var(--border-base)"
         >
+          <!-- Mobile List View (Card Simple Mode) -->
+          <div class="block md:hidden space-y-3">
+            <div
+              v-for="project in filteredProjects"
+              :key="project.id"
+              class="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm"
+              style="border-color: var(--border-base)"
+            >
+              <ProjectCard
+                :project="project"
+                layout="card-simple"
+                @edit="openEditDrawer"
+                @delete="deleteProject"
+              />
+            </div>
+          </div>
+
           <!-- Desktop Table -->
           <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -624,220 +486,16 @@ onMounted(fetchProjects);
                 </tr>
               </thead>
               <tbody>
-                <tr
+                <ProjectCard
                   v-for="project in filteredProjects"
                   :key="project.id"
-                  class="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
-                  style="border-color: var(--border-base)"
-                  @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-                >
-                  <td class="px-8 py-6">
-                    <div class="flex items-center gap-4">
-                      <div
-                        class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-sm"
-                        :class="project.color"
-                      >
-                        {{ project.title.substring(0, 1) }}
-                      </div>
-                      <div>
-                        <p
-                          class="text-sm font-black group-hover:text-accent transition-colors"
-                          style="color: var(--text-primary)"
-                        >
-                          {{ project.title }}
-                        </p>
-                        <p class="text-[10px] font-bold text-slate-400 mt-1 line-clamp-1 w-48">
-                          {{ project.description || '暂无描述' }}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-8 py-6">
-                    <div class="w-40">
-                      <div class="flex items-center justify-between text-[10px] font-black mb-2">
-                        <span :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'"
-                          >{{ project.progress }}%</span
-                        >
-                      </div>
-                      <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                        <div
-                          class="h-full rounded-full transition-all"
-                          :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
-                          :style="{ width: project.progress + '%' }"
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-8 py-6">
-                    <span
-                      class="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider"
-                      :class="
-                        project.status === 'COMPLETED'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : project.status === 'IN_PROGRESS'
-                            ? 'bg-accent/10 text-accent'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                      "
-                    >
-                      {{ getStatusLabel(project.status) }}
-                    </span>
-                  </td>
-                  <td class="px-8 py-6">
-                    <div class="flex items-center -space-x-2">
-                      <UserAvatar
-                        v-for="m in project.members.slice(0, 3)"
-                        :key="m.userId"
-                        :user="m.user"
-                        size="sm"
-                        class="border-2"
-                        style="border-color: var(--bg-card)"
-                      />
-                      <div
-                        v-if="project.members.length > 3"
-                        class="w-8 h-8 rounded-full border-2 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500"
-                        style="border-color: var(--bg-card)"
-                      >
-                        +{{ project.members.length - 3 }}
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-8 py-6 text-right">
-                    <el-dropdown trigger="click" @click.stop>
-                      <button
-                        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                        style="color: var(--text-secondary)"
-                      >
-                        <MoreHorizontal class="w-5 h-5" />
-                      </button>
-                      <template #dropdown>
-                        <el-dropdown-menu class="!rounded-xl !p-2">
-                          <el-dropdown-item
-                            class="!rounded-lg !mb-1 font-bold"
-                            @click="
-                              router.push({ name: 'ProjectDetail', params: { id: project.id } })
-                            "
-                            >查看详情</el-dropdown-item
-                          >
-                          <el-dropdown-item
-                            class="!rounded-lg !mb-1 font-bold"
-                            @click="openEditDrawer(project)"
-                            >配置项目</el-dropdown-item
-                          >
-                          <el-divider class="!my-1" />
-                          <el-dropdown-item
-                            class="!rounded-lg !text-rose-500 font-bold hover:!bg-rose-50 dark:hover:!bg-rose-500/10"
-                            @click="deleteProject(project.id)"
-                            >删除项目</el-dropdown-item
-                          >
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </td>
-                </tr>
+                  :project="project"
+                  layout="row"
+                  @edit="openEditDrawer"
+                  @delete="deleteProject"
+                />
               </tbody>
             </table>
-          </div>
-
-          <!-- Mobile Card List -->
-          <div class="md:hidden divide-y" style="border-color: var(--border-base)">
-            <div
-              v-for="project in filteredProjects"
-              :key="project.id"
-              class="p-5 flex flex-col gap-4"
-              @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-            >
-              <div class="flex items-start justify-between">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-sm"
-                    :class="project.color"
-                  >
-                    {{ project.title.substring(0, 1) }}
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-black truncate" style="color: var(--text-primary)">
-                      {{ project.title }}
-                    </p>
-                    <p class="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
-                      {{ project.description || '暂无描述' }}
-                    </p>
-                  </div>
-                </div>
-                <el-dropdown trigger="click" @click.stop>
-                  <button class="p-2 -mr-2">
-                    <MoreHorizontal class="w-4 h-4 text-slate-400" />
-                  </button>
-                  <template #dropdown>
-                    <el-dropdown-menu class="!rounded-xl !p-2">
-                      <el-dropdown-item
-                        class="!rounded-lg !mb-1 font-bold"
-                        @click="router.push({ name: 'ProjectDetail', params: { id: project.id } })"
-                        >查看详情</el-dropdown-item
-                      >
-                      <el-dropdown-item
-                        class="!rounded-lg !mb-1 font-bold"
-                        @click="openEditDrawer(project)"
-                        >配置项目</el-dropdown-item
-                      >
-                      <el-divider class="!my-1" />
-                      <el-dropdown-item
-                        class="!rounded-lg !text-rose-500 font-bold hover:!bg-rose-50 dark:hover:!bg-rose-500/10"
-                        @click="deleteProject(project.id)"
-                        >删除项目</el-dropdown-item
-                      >
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-
-              <!-- Progress Bar -->
-              <div class="space-y-1.5">
-                <div class="flex justify-between text-[10px] font-black">
-                  <span style="color: var(--text-secondary)">进度</span>
-                  <span :class="project.progress === 100 ? 'text-emerald-500' : 'text-accent'"
-                    >{{ project.progress }}%</span
-                  >
-                </div>
-                <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                  <div
-                    class="h-full rounded-full transition-all"
-                    :class="project.progress === 100 ? 'bg-emerald-500' : 'bg-accent'"
-                    :style="{ width: project.progress + '%' }"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Status & Members -->
-              <div class="flex items-center justify-between mt-1">
-                <div class="flex items-center -space-x-1.5">
-                  <UserAvatar
-                    v-for="m in project.members.slice(0, 3)"
-                    :key="m.userId"
-                    :user="m.user"
-                    size="xs"
-                    class="ring-2 ring-white dark:ring-slate-900"
-                  />
-                  <div
-                    v-if="project.members.length > 3"
-                    class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-500 ring-2 ring-white dark:ring-slate-900"
-                  >
-                    +{{ project.members.length - 3 }}
-                  </div>
-                </div>
-                <span
-                  class="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider"
-                  :class="
-                    project.status === 'COMPLETED'
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : project.status === 'IN_PROGRESS'
-                        ? 'bg-accent/10 text-accent'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                  "
-                >
-                  {{ getStatusLabel(project.status) }}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

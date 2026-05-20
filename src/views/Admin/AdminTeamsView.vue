@@ -349,19 +349,19 @@ onMounted(() => {
                 class="border-b bg-slate-50/50 dark:bg-slate-800/50"
                 style="border-color: var(--border-base)"
               >
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   团队名称
                 </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   负责人
                 </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   描述
                 </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   团队规模
                 </th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
                   操作管理
                 </th>
               </tr>
@@ -374,7 +374,7 @@ onMounted(() => {
                 style="border-color: var(--border-base)"
                 @click="openMemberDrawer(team)"
               >
-                <td class="px-6 py-4">
+                <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                   <div class="flex items-center gap-3">
                     <div
                       class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0 shadow-inner"
@@ -393,7 +393,7 @@ onMounted(() => {
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                   <div class="flex items-center gap-2">
                     <UserAvatar :user="team.owner" size="xs" />
                     <span class="text-xs font-bold" style="color: var(--text-primary)">{{
@@ -401,17 +401,17 @@ onMounted(() => {
                     }}</span>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-xs text-slate-400 max-w-[300px] truncate">
+                <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-slate-400 max-w-[300px] truncate">
                   {{ team.description || '暂无团队描述' }}
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                   <span
                     class="px-2.5 py-0.5 rounded-lg bg-accent/5 text-accent text-[10px] font-black uppercase tracking-widest"
                   >
                     {{ team._count?.members || 0 }} 成员
                   </span>
                 </td>
-                <td class="px-6 py-4 text-right" @click.stop>
+                <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right" @click.stop>
                   <div class="flex items-center justify-end gap-2">
                     <button
                       class="p-2 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/5 transition-all"
@@ -439,7 +439,7 @@ onMounted(() => {
                 class="hover:bg-accent/5 transition-colors cursor-pointer"
                 @click="openCreateModal"
               >
-                <td colspan="5" class="px-6 py-4 text-center text-xs font-bold text-accent tracking-widest uppercase">
+                <td colspan="5" class="px-4 sm:px-6 py-3.5 sm:py-4 text-center text-xs font-bold text-accent tracking-widest uppercase">
                   <div class="flex items-center justify-center gap-2">
                     <Plus class="w-4 h-4" />
                     创建新团队
@@ -527,7 +527,7 @@ onMounted(() => {
         class="h-full flex flex-col"
         style="background-color: var(--bg-card)"
       >
-        <div class="p-8 border-b shrink-0" style="border-color: var(--border-base)">
+        <div class="p-5 sm:p-8 border-b shrink-0" style="border-color: var(--border-base)">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-4">
               <div
@@ -566,7 +566,7 @@ onMounted(() => {
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-8 space-y-3 scrollbar-hide">
+        <div class="flex-1 overflow-y-auto p-5 sm:p-8 space-y-3 scrollbar-hide">
           <div
             v-for="member in selectedTeam.members"
             :key="member.id"
@@ -652,7 +652,7 @@ onMounted(() => {
       class="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-lg rounded-3xl p-8 shadow-2xl transition-colors duration-300"
+        class="w-full max-w-lg rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
         style="background-color: var(--bg-card)"
       >
         <div class="flex items-center justify-between mb-8">

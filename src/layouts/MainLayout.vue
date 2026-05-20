@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElNotification } from 'element-plus';
@@ -23,6 +23,7 @@ import {
   CreditCard,
   Bell,
   ShieldCheck,
+  ArrowRight,
   BarChart3,
   Database,
   MessageCircle,
@@ -44,11 +45,12 @@ import {
   Compass,
   Folder,
 } from 'lucide-vue-next';
-import CreateTeamDialog from '@/components/CreateTeamDialog.vue';
-import ExploreGroupsDialog from '@/components/ExploreGroupsDialog.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
-import InvitationDialog from '@/components/InvitationDialog.vue';
-import AssetDetailsDrawer from '@/components/AssetDetailsDrawer.vue';
+
+const CreateTeamDialog = defineAsyncComponent(() => import('@/components/CreateTeamDialog.vue'));
+const ExploreGroupsDialog = defineAsyncComponent(() => import('@/components/ExploreGroupsDialog.vue'));
+const InvitationDialog = defineAsyncComponent(() => import('@/components/InvitationDialog.vue'));
+const AssetDetailsDrawer = defineAsyncComponent(() => import('@/components/AssetDetailsDrawer.vue'));
 
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
@@ -463,16 +465,34 @@ const menuGroups = computed<SidebarMenuGroup[]>(() => {
   ];
 });
 
+const currentTheme = ref(localStorage.getItem('theme') || 'light');
+
 const applyTheme = (theme: string) => {
+  currentTheme.value = theme;
   const root = document.documentElement;
-  if (theme === 'dark') {
-    root.classList.add('dark');
-  } else if (theme === 'light') {
-    root.classList.remove('dark');
+
+  // Batch all class changes into a single operation to avoid multiple repaints
+  const classes = new Set(root.classList);
+  classes.delete('dark');
+  classes.delete('theme-glass');
+
+  if (theme === 'light') {
+    localStorage.setItem('lastBaseTheme', 'light');
+  } else if (theme === 'dark') {
+    localStorage.setItem('lastBaseTheme', 'dark');
+    classes.add('dark');
   } else if (theme === 'system') {
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.toggle('dark', isDark);
+    localStorage.setItem('lastBaseTheme', isDark ? 'dark' : 'light');
+    if (isDark) classes.add('dark');
+  } else if (theme === 'glass') {
+    const lastBase = localStorage.getItem('lastBaseTheme') || 'light';
+    classes.add('theme-glass');
+    if (lastBase === 'dark') classes.add('dark');
   }
+
+  // Apply all classes in one shot – triggers only a single style recalculation
+  root.className = Array.from(classes).join(' ');
 };
 
 const applyAccentColor = (color: string) => {
@@ -670,9 +690,14 @@ const onMirrorSyncFinished = ({ sourceName, status, result, error }: any) => {
 
 let statsInterval: any = null;
 
+const handleThemeChangeExternal = ((e: CustomEvent) => {
+  applyTheme(e.detail);
+}) as EventListener;
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', updateIsMobile);
+  window.addEventListener('theme-changed', handleThemeChangeExternal);
   socketService.connect();
 
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -739,6 +764,7 @@ onUnmounted(() => {
   if (statsInterval) clearInterval(statsInterval);
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('resize', updateIsMobile);
+  window.removeEventListener('theme-changed', handleThemeChangeExternal);
   socketService.off('new_notification', onNewNotification);
   socketService.off('message_received', onMessageReceived);
   socketService.off('online_users_list', onOnlineUsersList);
@@ -751,13 +777,23 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex flex-col h-screen w-full overflow-hidden text-sm transition-colors duration-300"
+    class="flex flex-col h-screen w-full overflow-hidden text-sm relative"
     style="background-color: var(--bg-app); color: var(--text-primary)"
   >
+    <!-- Global Glass Theme Animated Background Glowing Blobs -->
+    <div
+      v-show="currentTheme === 'glass'"
+      class="absolute inset-0 overflow-hidden pointer-events-none z-0"
+      style="contain: strict"
+    >
+      <div class="absolute w-[45vw] h-[45vw] rounded-full top-[-15%] left-[-15%] animate-float-blob" style="will-change: transform; background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 15%, transparent) 0%, transparent 70%)"></div>
+      <div class="absolute w-[50vw] h-[50vw] rounded-full bottom-[-20%] right-[-15%] animate-float-blob-reverse" style="will-change: transform; background: radial-gradient(circle at center, rgba(99, 102, 241, 0.12) 0%, transparent 70%)"></div>
+      <div class="absolute w-[35vw] h-[35vw] rounded-full top-[30%] right-[15%] animate-pulse-slow" style="will-change: transform, opacity; background: radial-gradient(circle at center, rgba(236, 72, 153, 0.1) 0%, transparent 70%)"></div>
+    </div>
+
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-14 md:h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b z-30"
-      style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
+      class="topbar h-14 md:h-16 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 glass-header"
     >
       <!-- Left: Hamburger + Workspace Switcher / Logo -->
       <div class="flex items-center gap-1 md:gap-3">
@@ -1096,8 +1132,7 @@ onUnmounted(() => {
     <div class="flex flex-1 overflow-hidden">
       <!-- Global Sidebar -->
       <aside
-        class="w-60 hidden lg:flex flex-col h-full shrink-0 border-r transition-colors duration-300"
-        style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
+        class="w-60 hidden lg:flex flex-col h-full shrink-0 glass-sidebar"
       >
         <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-hide">
           <div v-for="(group, index) in menuGroups" :key="index">
@@ -1159,6 +1194,12 @@ onUnmounted(() => {
                 </RouterLink>
               </li>
             </ul>
+            <!-- Divider between categories -->
+            <div
+              v-if="index < menuGroups.length - 1"
+              class="pt-6 border-b"
+              style="border-color: var(--border-base); opacity: 0.4"
+            ></div>
           </div>
         </div>
 
@@ -1188,7 +1229,7 @@ onUnmounted(() => {
 
       <!-- Main Content Area -->
       <main
-        class="flex-1 flex flex-col overflow-hidden relative transition-colors duration-300 pb-14 lg:pb-0"
+        class="flex-1 flex flex-col overflow-hidden relative pb-14 lg:pb-0"
         style="background-color: var(--bg-app)"
       >
         <div
@@ -1308,11 +1349,11 @@ onUnmounted(() => {
     <el-dialog
       v-model="isSearchVisible"
       :title="isMobile ? '' : '全局搜索'"
-      :width="isMobile ? '100%' : '600px'"
-      :top="isMobile ? '0' : '15vh'"
+      :width="isMobile ? '90%' : '600px'"
+      :top="isMobile ? '8vh' : '15vh'"
       :class="['search-dialog', 'custom-rounded-dialog', isMobile ? 'mobile-search-dialog' : '']"
       :show-close="isMobile"
-      :fullscreen="isMobile"
+      :fullscreen="false"
       @opened="() => ($refs.searchInput as any)?.focus()"
     >
       <div class="relative">
@@ -1320,12 +1361,12 @@ onUnmounted(() => {
           ref="searchInput"
           v-model="searchQuery"
           placeholder="搜索作品、素材、课程或团队..."
-          size="large"
+          :size="isMobile ? 'default' : 'large'"
           clearable
           @keyup.enter="() => { if (selectedResultIndex === -1 && flattenedResults.length > 0) selectedResultIndex = 0 }"
         >
           <template #prefix>
-            <Search class="w-5 h-5 text-slate-400" />
+            <Search :class="[isMobile ? 'w-4 h-4' : 'w-5 h-5', 'text-slate-400']" />
           </template>
           <template #suffix>
             <div v-if="isSearching" class="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
@@ -1333,98 +1374,98 @@ onUnmounted(() => {
         </el-input>
       </div>
 
-      <div class="mt-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+      <div :class="[isMobile ? 'mt-4 max-h-[50vh]' : 'mt-6 max-h-[60vh]', 'overflow-y-auto pr-2 custom-scrollbar']">
         <!-- Result Sections -->
         <template v-if="searchQuery.trim()">
           <!-- Assets -->
-          <div v-if="searchResults.assets.length > 0" class="mb-6">
+          <div v-if="searchResults.assets.length > 0" :class="isMobile ? 'mb-4' : 'mb-6'">
             <h3 class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Box class="w-3 h-3" /> 3D 资产 ({{ searchResults.assets.length }})
+              <Box :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> 3D 资产 ({{ searchResults.assets.length }})
             </h3>
             <div class="space-y-1">
               <div
                 v-for="(asset, index) in searchResults.assets"
                 :key="asset.id"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
-                :class="{ 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === index }"
+                class="flex items-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
+                :class="[isMobile ? 'gap-2 px-2.5 py-1.5 rounded-lg' : 'gap-3 px-3 py-2 rounded-xl', { 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === index }]"
                 @click="navigateToResult('asset', asset.id)"
                 @mouseenter="selectedResultIndex = index"
               >
-                <div class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 overflow-hidden shrink-0">
+                <div :class="isMobile ? 'w-8 h-8 rounded-md' : 'w-10 h-10 rounded-lg'" class="bg-slate-100 dark:bg-slate-700 overflow-hidden shrink-0">
                   <img v-if="asset.thumbnail" :src="asset.thumbnail" class="w-full h-full object-cover" />
-                  <ImageIcon v-else class="w-full h-full p-2 text-slate-400" />
+                  <ImageIcon v-else :class="[isMobile ? 'p-1.5' : 'p-2', 'w-full h-full text-slate-400']" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">{{ asset.title }}</p>
-                  <p class="text-[10px] text-slate-400 truncate">{{ asset.category?.name || '未分类' }} · {{ asset.type }}</p>
+                  <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-medium truncate" style="color: var(--text-primary)">{{ asset.title }}</p>
+                  <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400 truncate">{{ asset.category?.name || '未分类' }} · {{ asset.type }}</p>
                 </div>
-                <ArrowRight class="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ArrowRight :class="isMobile ? 'w-3 h-3' : 'w-4 h-4'" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </div>
           </div>
 
           <!-- Courses -->
-          <div v-if="searchResults.courses.length > 0" class="mb-6">
+          <div v-if="searchResults.courses.length > 0" :class="isMobile ? 'mb-4' : 'mb-6'">
             <h3 class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <GraduationCap class="w-3 h-3" /> 学习课程 ({{ searchResults.courses.length }})
+              <GraduationCap :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> 学习课程 ({{ searchResults.courses.length }})
             </h3>
             <div class="space-y-1">
               <div
                 v-for="(course, index) in searchResults.courses"
                 :key="course.id"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
-                :class="{ 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === (index + searchResults.assets.length) }"
+                class="flex items-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
+                :class="[isMobile ? 'gap-2 px-2.5 py-1.5 rounded-lg' : 'gap-3 px-3 py-2 rounded-xl', { 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === (index + searchResults.assets.length) }]"
                 @click="navigateToResult('course', course.id)"
                 @mouseenter="selectedResultIndex = index + searchResults.assets.length"
               >
-                <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                  <GraduationCap class="w-5 h-5 text-accent" />
+                <div :class="isMobile ? 'w-8 h-8 rounded-md' : 'w-10 h-10 rounded-lg'" class="bg-accent/10 flex items-center justify-center shrink-0">
+                  <GraduationCap :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" class="text-accent" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">{{ course.title }}</p>
-                  <p class="text-[10px] text-slate-400">{{ course.difficulty }} · {{ course._count?.lessons || 0 }} 课时</p>
+                  <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-medium truncate" style="color: var(--text-primary)">{{ course.title }}</p>
+                  <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">{{ course.difficulty }} · {{ course._count?.lessons || 0 }} 课时</p>
                 </div>
-                <ArrowRight class="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ArrowRight :class="isMobile ? 'w-3 h-3' : 'w-4 h-4'" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </div>
           </div>
 
           <!-- Teams -->
-          <div v-if="searchResults.teams.length > 0" class="mb-6">
+          <div v-if="searchResults.teams.length > 0" :class="isMobile ? 'mb-4' : 'mb-6'">
             <h3 class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Users class="w-3 h-3" /> 活跃团队 ({{ searchResults.teams.length }})
+              <Users :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> 活跃团队 ({{ searchResults.teams.length }})
             </h3>
             <div class="space-y-1">
               <div
                 v-for="(team, index) in searchResults.teams"
                 :key="team.id"
-                class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
-                :class="{ 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === (index + searchResults.assets.length + searchResults.courses.length) }"
+                class="flex items-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors group relative"
+                :class="[isMobile ? 'gap-2 px-2.5 py-1.5 rounded-lg' : 'gap-3 px-3 py-2 rounded-xl', { 'bg-slate-100 dark:bg-slate-800 ring-2 ring-accent/20': selectedResultIndex === (index + searchResults.assets.length + searchResults.courses.length) }]"
                 @click="navigateToResult('team', team.id)"
                 @mouseenter="selectedResultIndex = index + searchResults.assets.length + searchResults.courses.length"
               >
-                <div class="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                  <Users class="w-5 h-5 text-orange-500" />
+                <div :class="isMobile ? 'w-8 h-8 rounded-md' : 'w-10 h-10 rounded-lg'" class="bg-orange-500/10 flex items-center justify-center shrink-0">
+                  <Users :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" class="text-orange-500" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">{{ team.name }}</p>
-                  <p class="text-[10px] text-slate-400">{{ team.category }} · {{ team._count?.members || 0 }} 成员</p>
+                  <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-medium truncate" style="color: var(--text-primary)">{{ team.name }}</p>
+                  <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">{{ team.category }} · {{ team._count?.members || 0 }} 成员</p>
                 </div>
-                <ArrowRight class="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ArrowRight :class="isMobile ? 'w-3 h-3' : 'w-4 h-4'" class="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </div>
           </div>
 
           <!-- Empty State -->
-          <div v-if="!isSearching && flattenedResults.length === 0" class="py-12 text-center">
-            <Search class="w-12 h-12 mx-auto mb-4 text-slate-200" />
-            <p class="text-sm text-slate-400">未找到与 "{{ searchQuery }}" 相关的结果</p>
+          <div v-if="!isSearching && flattenedResults.length === 0" :class="isMobile ? 'py-8' : 'py-12'" class="text-center">
+            <Search :class="isMobile ? 'w-8 h-8 mb-2' : 'w-12 h-12 mb-4'" class="mx-auto text-slate-200" />
+            <p :class="isMobile ? 'text-xs' : 'text-sm'" class="text-slate-400">未找到与 "{{ searchQuery }}" 相关的结果</p>
           </div>
         </template>
 
         <!-- Initial State / Recent Search -->
         <template v-else>
-          <div v-if="searchHistory.length > 0" class="mb-8">
+          <div v-if="searchHistory.length > 0" :class="isMobile ? 'mb-5' : 'mb-8'">
             <div class="flex items-center justify-between px-2 mb-2">
               <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">搜索历史</span>
               <el-button link size="small" class="text-[10px]" @click="clearHistory">清空历史</el-button>
@@ -1433,7 +1474,8 @@ onUnmounted(() => {
               <button
                 v-for="h in searchHistory"
                 :key="h"
-                class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20"
+                :class="isMobile ? 'px-2.5 py-1 text-[11px] rounded-md' : 'px-3 py-1.5 text-xs rounded-lg'"
+                class="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20"
                 @click="searchQuery = h"
               >
                 {{ h }}
@@ -1444,29 +1486,31 @@ onUnmounted(() => {
           <div class="flex items-center justify-between px-2 mb-4">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">常用功能</span>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 px-1">
+          <div :class="[isMobile ? 'gap-1.5' : 'gap-2', 'grid grid-cols-1 md:grid-cols-2 px-1']">
             <div
-              class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-accent/50 hover:bg-accent/[0.02] cursor-pointer transition-all group"
+              class="flex items-center border border-slate-100 dark:border-slate-800 hover:border-accent/50 hover:bg-accent/[0.02] cursor-pointer transition-all group"
+              :class="isMobile ? 'gap-2.5 px-3 py-2.5 rounded-xl' : 'gap-3 px-4 py-3 rounded-2xl'"
               @click="router.push('/assets'); isSearchVisible = false"
             >
-              <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                <ImageIcon class="w-5 h-5" />
+              <div :class="isMobile ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'" class="bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                <ImageIcon :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
               </div>
               <div>
-                <p class="text-sm font-bold">浏览资产库</p>
-                <p class="text-[10px] text-slate-400">发现高质量 3D 模型</p>
+                <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">浏览资产库</p>
+                <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">发现高质量 3D 模型</p>
               </div>
             </div>
             <div
-              class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-accent/50 hover:bg-accent/[0.02] cursor-pointer transition-all group"
+              class="flex items-center border border-slate-100 dark:border-slate-800 hover:border-accent/50 hover:bg-accent/[0.02] cursor-pointer transition-all group"
+              :class="isMobile ? 'gap-2.5 px-3 py-2.5 rounded-xl' : 'gap-3 px-4 py-3 rounded-2xl'"
               @click="router.push('/academy'); isSearchVisible = false"
             >
-              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
-                <GraduationCap class="w-5 h-5" />
+              <div :class="isMobile ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'" class="bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                <GraduationCap :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
               </div>
               <div>
-                <p class="text-sm font-bold">开始学习</p>
-                <p class="text-[10px] text-slate-400">从基础到进阶的课程</p>
+                <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">开始学习</p>
+                <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">从基础到进阶的课程</p>
               </div>
             </div>
           </div>
@@ -1503,14 +1547,13 @@ onUnmounted(() => {
     <Transition name="slide-left">
       <aside
         v-if="isMobileSidebarOpen"
-        class="fixed inset-y-0 left-0 w-64 z-50 flex flex-col h-full border-r shadow-2xl transition-all duration-300 lg:hidden"
-        style="background-color: var(--bg-sidebar); border-color: var(--border-base)"
+        class="fixed inset-y-0 left-0 w-32 z-50 flex flex-col h-full shadow-2xl transition-all duration-300 lg:hidden glass-sidebar"
       >
         <!-- Header -->
-        <div class="h-16 flex items-center justify-between px-6 border-b shrink-0" style="border-color: var(--border-base)">
-          <div class="flex items-center gap-2">
+        <div class="h-12 flex items-center justify-between px-2 border-b shrink-0" style="border-color: var(--border-base)">
+          <div class="flex items-center gap-1 min-w-0">
             <div
-              class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+              class="w-5.5 h-5.5 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
               :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
             >
               <img
@@ -1518,40 +1561,40 @@ onUnmounted(() => {
                 :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
                 class="w-full h-full object-contain"
               />
-              <Box v-else class="w-4 h-4 text-white" />
+              <Box v-else class="w-3 h-3 text-white" />
             </div>
-            <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+            <span class="text-[10px] font-bold truncate" style="color: var(--text-primary)">{{
               systemStore.settings.PLATFORM_NAME
             }}</span>
           </div>
           <button
-            class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            class="p-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             @click="isMobileSidebarOpen = false"
           >
-            <X class="w-4 h-4" style="color: var(--text-muted)" />
+            <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
           </button>
         </div>
 
         <!-- Navigation Menu -->
-        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-hide">
+        <div class="flex-1 overflow-y-auto py-2 px-1.5 space-y-2 scrollbar-hide">
           <div v-for="(group, index) in menuGroups" :key="index">
             <h3
               v-if="group.title"
-              class="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
+              class="px-1 mb-0.5 text-[8px] font-bold uppercase tracking-widest flex items-center gap-1"
               :class="
                 workspaceStore.isAdminWorkspace
                   ? 'text-rose-500 dark:text-rose-400'
                   : 'text-slate-400 dark:text-slate-500'
               "
             >
-              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-3 h-3" />
+              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-2 h-2" />
               {{ group.title }}
             </h3>
-            <ul class="space-y-1">
+            <ul class="space-y-0.5">
               <li v-for="item in group.items" :key="item.name">
                 <RouterLink
                   :to="item.path"
-                  class="flex items-center justify-between px-3 py-2 rounded-md transition-colors duration-150"
+                  class="flex items-center justify-between px-1.5 py-1 rounded-md transition-colors duration-150"
                   :class="
                     route.path === item.path
                       ? workspaceStore.isAdminWorkspace
@@ -1561,10 +1604,10 @@ onUnmounted(() => {
                   "
                   @click="isMobileSidebarOpen = false"
                 >
-                  <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-1.5 min-w-0 flex-1">
                     <component
                       :is="item.icon"
-                      class="w-4 h-4"
+                      class="w-3.5 h-3.5 shrink-0"
                       :class="
                         route.path === item.path
                           ? workspaceStore.isAdminWorkspace
@@ -1573,12 +1616,12 @@ onUnmounted(() => {
                           : 'text-slate-400'
                       "
                     />
-                    <span class="flex-1">{{ item.name }}</span>
+                    <span class="flex-1 text-[10px] truncate">{{ item.name }}</span>
 
                     <!-- High-Visibility Badge -->
                     <div
                       v-if="item.badge && item.badge > 0"
-                      class="px-1.5 py-0.5 min-w-[18px] h-4.5 rounded-full text-[10px] font-black flex items-center justify-center transition-all duration-300"
+                      class="px-1 py-0.2 min-w-[14px] h-3.5 rounded-full text-[8px] font-black flex items-center justify-center transition-all duration-300 shrink-0"
                       :class="
                         route.path === item.path
                           ? 'bg-white text-rose-600 shadow-sm'
@@ -1591,34 +1634,40 @@ onUnmounted(() => {
                 </RouterLink>
               </li>
             </ul>
+            <!-- Divider between categories -->
+            <div
+              v-if="index < menuGroups.length - 1"
+              class="pt-2 border-b"
+              style="border-color: var(--border-base); opacity: 0.4"
+            ></div>
           </div>
         </div>
 
         <!-- Footer -->
-        <div class="p-4 border-t space-y-1 shrink-0" style="border-color: var(--border-base)">
+        <div class="p-1.5 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
           <RouterLink
             to="/settings"
-            class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            class="flex items-center gap-1.5 px-1.5 py-1 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
             :class="
               route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
             "
             @click="isMobileSidebarOpen = false"
           >
             <Settings
-              class="w-4 h-4"
+              class="w-3.5 h-3.5 shrink-0"
               :class="route.path === '/settings' ? 'text-accent' : 'text-slate-400'"
             />
-            设置选项
+            <span class="flex-1 truncate">设置选项</span>
           </RouterLink>
           <button
-            class="w-full flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            class="w-full flex items-center gap-1.5 px-1.5 py-1 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
             @click="
               handleReportBug();
               isMobileSidebarOpen = false;
             "
           >
-            <HelpCircle class="w-4 h-4 text-slate-400" />
-            问题反馈
+            <HelpCircle class="w-3.5 h-3.5 shrink-0" />
+            <span class="flex-1 text-left truncate">问题反馈</span>
           </button>
         </div>
       </aside>
@@ -1657,13 +1706,18 @@ onUnmounted(() => {
 
 :deep(.mobile-search-dialog) {
   margin-bottom: 0 !important;
-  border-radius: 0 !important;
+  border-radius: 16px !important;
 }
 :deep(.mobile-search-dialog .el-dialog__header) {
-  padding: 16px;
+  padding: 12px 16px !important;
   margin-right: 0;
+  border-bottom: none !important;
 }
 :deep(.mobile-search-dialog .el-dialog__body) {
-  padding: 10px 16px;
+  padding: 8px 16px 20px !important;
+}
+:deep(.mobile-search-dialog .el-dialog__headerbtn) {
+  top: 12px !important;
+  right: 12px !important;
 }
 </style>

@@ -3,25 +3,23 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Search,
-  PlayCircle,
-  Star,
-  ChevronRight,
   GraduationCap,
-  BookOpen,
   Filter,
-  Users,
   Sparkles,
   X,
-  Clock,
-  Trophy,
   Flame,
-  Target,
-  TrendingUp,
   Play,
-  Bookmark,
   Heart,
+  BookOpen,
+  Bookmark,
+  TrendingUp,
+  Trophy,
+  Clock,
+  Target,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import PageHeader from '@/components/PageHeader.vue';
+import CourseCard from '@/components/CourseCard.vue';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -35,11 +33,7 @@ const difficultyFilter = ref<string | null>(null);
 const showFilters = ref(false);
 const bookmarkedCourseIds = ref<Set<string>>(new Set());
 
-const difficultyMap: Record<string, { label: string; color: string; bg: string }> = {
-  BEGINNER: { label: '入门', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  INTERMEDIATE: { label: '进阶', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  ADVANCED: { label: '高级', color: 'text-rose-500', bg: 'bg-rose-500/10' },
-};
+
 
 const learningStats = computed(() => {
   const enrolled = myEnrollments.value;
@@ -187,84 +181,71 @@ onMounted(() => {
     style="background-color: var(--bg-app)"
   >
     <!-- Top Header -->
-    <div
-      class="flex flex-col lg:flex-row gap-4 py-3 lg:py-5 px-3 sm:px-5 lg:px-6 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
+    <PageHeader
+      title="学院课程"
+      subtitle="探索 3D 设计的无限可能"
+      :icon="GraduationCap"
     >
-      <div class="flex items-center gap-3">
-        <div class="p-2.5 bg-accent-subtle rounded-xl">
-          <GraduationCap class="w-5 h-5 text-accent" />
-        </div>
-        <div>
-          <h1 class="text-lg md:text-2xl lg:text-3xl font-bold" style="color: var(--text-primary)">学院课程</h1>
-          <p class="text-[10px] font-medium" style="color: var(--text-muted)">
-            探索 3D 设计的无限可能
-          </p>
-        </div>
+      <div class="relative flex-1 min-w-0 sm:min-w-[240px] lg:min-w-[160px]">
+        <Search
+          class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+          style="color: var(--text-muted)"
+        />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="搜索课程..."
+          class="pl-10 pr-4 py-2 rounded-xl border text-xs sm:text-sm w-full outline-none transition-all lg:focus:w-72"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        />
+        <button
+          v-if="searchQuery"
+          class="absolute right-3 top-1/2 -translate-y-1/2"
+          @click="searchQuery = ''"
+        >
+          <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+        </button>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-        <div class="relative w-full sm:min-w-[240px] lg:min-w-[160px]">
-          <Search
-            class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
-            style="color: var(--text-muted)"
-          />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索课程..."
-            class="pl-10 pr-4 py-2 rounded-xl border text-sm w-full outline-none transition-all lg:focus:w-72"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
+      <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <button
+          class="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-bold transition-all shrink-0"
+          :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
+          style="border-color: var(--border-base); color: var(--text-secondary)"
+          @click="showFilters = !showFilters"
+        >
+          <Filter class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          筛选
+        </button>
+
+        <div class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl shrink-0" style="background-color: var(--bg-app)">
+          <button
+            v-for="sort in [
+              { key: 'newest', label: '最新' },
+              { key: 'popular', label: '最热' },
+              { key: 'rating', label: '好评' },
+            ]"
+            :key="sort.key"
+            class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap"
+            :class="
+              sortBy === sort.key
+                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
+                : 'text-slate-400 hover:text-slate-600'
             "
-          />
-          <button
-            v-if="searchQuery"
-            class="absolute right-3 top-1/2 -translate-y-1/2"
-            @click="searchQuery = ''"
+            @click="
+              sortBy = sort.key as any;
+              fetchData();
+            "
           >
-            <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+            {{ sort.label }}
           </button>
-        </div>
-
-        <div class="flex items-center gap-3 w-full sm:w-auto">
-          <button
-            class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all shrink-0"
-            :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="showFilters = !showFilters"
-          >
-            <Filter class="w-4 h-4" />
-            筛选
-          </button>
-
-          <div class="flex-1 sm:flex-initial flex items-center gap-1 p-1 rounded-xl shrink-0" style="background-color: var(--bg-app)">
-            <button
-              v-for="sort in [
-                { key: 'newest', label: '最新' },
-                { key: 'popular', label: '最热' },
-                { key: 'rating', label: '好评' },
-              ]"
-              :key="sort.key"
-              class="flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
-              :class="
-                sortBy === sort.key
-                  ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                  : 'text-slate-400 hover:text-slate-600'
-              "
-              @click="
-                sortBy = sort.key as any;
-                fetchData();
-              "
-            >
-              {{ sort.label }}
-            </button>
-          </div>
         </div>
       </div>
-    </div>
+    </PageHeader>
 
     <!-- Filter Bar -->
     <div
@@ -425,52 +406,14 @@ onMounted(() => {
               <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">继续学习</h2>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div
+              <CourseCard
                 v-for="enrollment in continueLearningCourses"
                 :key="enrollment.id"
-                class="group flex gap-4 p-3.5 sm:p-4 glass-card glass-card-hover overflow-hidden cursor-pointer"
-                @click="continueLearning(enrollment.course.id)"
-              >
-                <div
-                  class="w-24 sm:w-28 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
-                >
-                  <img
-                    :src="
-                      enrollment.course.thumbnail ||
-                      'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
-                    "
-                    referrerpolicy="no-referrer"
-                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                  <div>
-                    <h3
-                      class="text-sm font-bold line-clamp-1 group-hover:text-accent transition-colors"
-                      style="color: var(--text-primary)"
-                    >
-                      {{ enrollment.course.title }}
-                    </h3>
-                    <p class="text-[10px] mt-1" style="color: var(--text-muted)">
-                      {{ enrollment.course._count?.lessons || 0 }} 课时 ·
-                      {{ enrollment.course.category?.name || '' }}
-                    </p>
-                  </div>
-                  <div class="mt-2">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-[10px] font-bold text-emerald-500"
-                        >{{ enrollment.progress }}% 完成</span
-                      >
-                    </div>
-                    <div class="h-1 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        class="h-full bg-emerald-500 rounded-full transition-all"
-                        :style="{ width: enrollment.progress + '%' }"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                :course="enrollment.course"
+                layout="row-simple"
+                :progress="enrollment.progress"
+                @click="continueLearning"
+              />
             </div>
           </section>
         </template>
@@ -486,69 +429,13 @@ onMounted(() => {
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">精选推荐</h2>
           </div>
           <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-            <div
+            <CourseCard
               v-for="course in featuredCourses"
               :key="course.id"
-              class="group flex flex-col sm:flex-row gap-4 sm:gap-5 p-4 sm:p-5 glass-card glass-card-hover overflow-hidden cursor-pointer"
-              @click="handleCourseClick(course.id)"
-            >
-              <div
-                class="w-full sm:w-48 lg:w-56 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
-              >
-                <img
-                  :src="
-                    course.thumbnail ||
-                    'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
-                  "
-                  referrerpolicy="no-referrer"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
-                <div>
-                  <div class="flex items-center gap-2 mb-2">
-                    <span
-                      v-if="course.category"
-                      class="px-1.5 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold"
-                      >{{ course.category.name }}</span
-                    >
-                    <span
-                      :class="[
-                        difficultyMap[course.difficulty]?.bg,
-                        difficultyMap[course.difficulty]?.color,
-                      ]"
-                      class="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
-                    >
-                      {{ difficultyMap[course.difficulty]?.label || '入门' }}
-                    </span>
-                  </div>
-                  <h3
-                    class="text-base font-bold mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors"
-                    style="color: var(--text-primary)"
-                  >
-                    {{ course.title }}
-                  </h3>
-                  <p class="text-xs line-clamp-2" style="color: var(--text-muted)">
-                    {{ course.description }}
-                  </p>
-                </div>
-                <div
-                  class="flex items-center gap-4 text-[10px] font-bold mt-3"
-                  style="color: var(--text-muted)"
-                >
-                  <span class="flex items-center gap-1"
-                    ><Star class="w-3 h-3 text-amber-400 fill-amber-400" />
-                    {{ course.avgRating || '-' }}</span
-                  >
-                  <span class="flex items-center gap-1"
-                    ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
-                  >
-                  <span class="flex items-center gap-1"
-                    ><BookOpen class="w-3 h-3" /> {{ course._count?.lessons || 0 }} 课时</span
-                  >
-                </div>
-              </div>
-            </div>
+              :course="course"
+              layout="row-detailed"
+              @click="handleCourseClick"
+            />
           </div>
         </section>
 
@@ -567,59 +454,13 @@ onMounted(() => {
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">猜你想学</h2>
           </div>
           <div class="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div
+            <CourseCard
               v-for="course in recommendedCourses"
               :key="course.id"
-              class="group glass-card glass-card-hover overflow-hidden cursor-pointer"
-              @click="handleCourseClick(course.id)"
-            >
-              <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-                <img
-                  :src="
-                    course.thumbnail ||
-                    'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
-                  "
-                  referrerpolicy="no-referrer"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div
-                  class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                >
-                  <PlayCircle class="w-12 h-12 text-white drop-shadow-lg" />
-                </div>
-                <div class="absolute top-3 left-3">
-                  <span
-                    :class="[
-                      difficultyMap[course.difficulty]?.bg,
-                      difficultyMap[course.difficulty]?.color,
-                    ]"
-                    class="px-1.5 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-sm"
-                  >
-                    {{ difficultyMap[course.difficulty]?.label || '入门' }}
-                  </span>
-                </div>
-              </div>
-              <div class="p-4">
-                <h3
-                  class="text-sm font-bold mb-1 line-clamp-1 group-hover:text-accent transition-colors"
-                  style="color: var(--text-primary)"
-                >
-                  {{ course.title }}
-                </h3>
-                <div
-                  class="flex items-center gap-3 text-[10px] font-bold"
-                  style="color: var(--text-muted)"
-                >
-                  <span class="flex items-center gap-1"
-                    ><Star class="w-3 h-3 text-amber-400 fill-amber-400" />
-                    {{ course.avgRating || '-' }}</span
-                  >
-                  <span class="flex items-center gap-1"
-                    ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
-                  >
-                </div>
-              </div>
-            </div>
+              :course="course"
+              layout="card-simple"
+              @click="handleCourseClick"
+            />
           </div>
         </section>
 
@@ -636,136 +477,19 @@ onMounted(() => {
 
           <div
             v-if="filteredCourses.length > 0"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
+            class="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:gap-6"
           >
-            <div
+            <CourseCard
               v-for="course in filteredCourses"
               :key="course.id"
-              class="group glass-card glass-card-hover overflow-hidden cursor-pointer"
-              @click="handleCourseClick(course.id)"
-            >
-              <!-- Course Cover -->
-              <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-                <img
-                  :src="
-                    course.thumbnail ||
-                    'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60'
-                  "
-                  referrerpolicy="no-referrer"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div
-                  class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                >
-                  <PlayCircle class="w-12 h-12 text-white drop-shadow-lg" />
-                </div>
-                <!-- Badges -->
-                <div class="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span
-                    :class="[
-                      difficultyMap[course.difficulty]?.bg,
-                      difficultyMap[course.difficulty]?.color,
-                    ]"
-                    class="px-1.5 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-sm"
-                  >
-                    {{ difficultyMap[course.difficulty]?.label || '入门' }}
-                  </span>
-                </div>
-                <div
-                  v-if="isEnrolled(course.id)"
-                  class="absolute top-3 right-3 flex items-center gap-1.5"
-                >
-                  <span
-                    class="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-white"
-                  >
-                    已加入
-                  </span>
-                </div>
-                <!-- Bookmark button -->
-                <button
-                  v-if="!isEnrolled(course.id)"
-                  class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50"
-                  @click.stop="toggleBookmark(course.id, $event)"
-                >
-                  <Bookmark
-                    class="w-3.5 h-3.5"
-                    :class="
-                      isBookmarked(course.id) ? 'text-amber-400 fill-amber-400' : 'text-white'
-                    "
-                  />
-                </button>
-                <!-- Progress bar for enrolled courses -->
-                <div
-                  v-if="isEnrolled(course.id) && getEnrollmentProgress(course.id) > 0"
-                  class="absolute bottom-0 left-0 right-0 h-1 bg-black/20"
-                >
-                  <div
-                    class="h-full bg-emerald-400 transition-all"
-                    :style="{ width: getEnrollmentProgress(course.id) + '%' }"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Course Info -->
-              <div class="p-4 sm:p-5">
-                <div class="flex items-center gap-2 mb-2">
-                  <span
-                    v-if="course.category"
-                    class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-bold"
-                    >{{ course.category.name }}</span
-                  >
-                  <span
-                    v-if="course.tags"
-                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[9px] font-bold"
-                    >{{ course.tags.split(',')[0] }}</span
-                  >
-                </div>
-                <h3
-                  class="text-sm font-bold mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-accent transition-colors"
-                  style="color: var(--text-primary)"
-                >
-                  {{ course.title }}
-                </h3>
-
-                <div class="flex items-center gap-3 mb-3">
-                  <div class="flex items-center gap-0.5">
-                    <Star
-                      v-for="i in 5"
-                      :key="i"
-                      class="w-3 h-3"
-                      :class="
-                        i <= Math.round(course.avgRating || 0)
-                          ? 'text-amber-400 fill-amber-400'
-                          : 'text-slate-200 dark:text-slate-700'
-                      "
-                    />
-                  </div>
-                  <span class="text-[10px] font-bold" style="color: var(--text-muted)">{{
-                    course.avgRating || '-'
-                  }}</span>
-                </div>
-
-                <div
-                  class="flex items-center justify-between pt-3 border-t transition-colors duration-300"
-                  style="border-color: var(--border-base)"
-                >
-                  <div
-                    class="flex items-center gap-3 text-[10px] font-bold"
-                    style="color: var(--text-muted)"
-                  >
-                    <span class="flex items-center gap-1"
-                      ><BookOpen class="w-3 h-3" /> {{ course._count?.lessons || 0 }} 课时</span
-                    >
-                    <span class="flex items-center gap-1"
-                      ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
-                    >
-                  </div>
-                  <ChevronRight
-                    class="w-4 h-4 text-slate-300 group-hover:text-accent transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
+              :course="course"
+              layout="card"
+              :enrolled="isEnrolled(course.id)"
+              :bookmarked="isBookmarked(course.id)"
+              :progress="getEnrollmentProgress(course.id)"
+              @click="handleCourseClick"
+              @bookmark="toggleBookmark"
+            />
           </div>
 
           <!-- Empty State -->

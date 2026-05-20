@@ -678,44 +678,56 @@ onUnmounted(() => {
       >
         <!-- Top Navigation -->
         <header
-          class="h-20 px-10 flex items-center justify-between border-b bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shrink-0"
+          class="h-auto md:h-20 px-3 md:px-10 py-2.5 md:py-0 flex flex-col md:flex-row md:items-center justify-between border-b bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shrink-0 gap-2 md:gap-0"
           style="border-color: var(--border-base)"
         >
-          <!-- Segmented Control -->
-          <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+          <!-- Segmented Control + Mobile New Button -->
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto scrollbar-hide">
+              <button
+                v-for="tab in [
+                  { id: 'tasks', label: '敏捷看板', icon: KanbanSquare },
+                  { id: 'discussions', label: '协作空间', icon: MessageSquare },
+                  ...(isMobile ? [{ id: 'settings', label: '项目详情', icon: AlignLeft }] : []),
+                ]"
+                :key="tab.id"
+                class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-6 py-1.5 md:py-2.5 rounded-lg text-[11px] md:text-sm font-black transition-all whitespace-nowrap shrink-0"
+                :class="
+                  activeTab === tab.id
+                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                "
+                @click="activeTab = tab.id"
+              >
+                <component :is="tab.icon" class="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span>{{ tab.label }}</span>
+              </button>
+            </div>
+
+            <!-- Mobile New Task Button -->
             <button
-              v-for="tab in [
-                { id: 'tasks', label: '敏捷看板', icon: KanbanSquare },
-                { id: 'discussions', label: '协作空间', icon: MessageSquare },
-                ...(isMobile ? [{ id: 'settings', label: '项目详情', icon: AlignLeft }] : []),
-              ]"
-              :key="tab.id"
-              class="flex items-center gap-2 px-3 lg:px-6 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-black transition-all"
-              :class="
-                activeTab === tab.id
-                  ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              "
-              @click="activeTab = tab.id"
+              v-if="isMember && activeTab === 'tasks'"
+              class="flex md:hidden items-center gap-1 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-[11px] shadow-lg shrink-0"
+              @click="isTaskDialogOpen = true"
             >
-              <component :is="tab.icon" class="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span :class="isMobile ? 'inline' : 'hidden sm:inline'">{{ tab.label }}</span>
+              <Plus class="w-3.5 h-3.5" /> 新建
             </button>
           </div>
 
-          <div class="flex items-center gap-4">
-            <div v-if="activeTab === 'tasks'" class="relative">
-              <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div class="flex items-center gap-2 md:gap-4">
+            <div v-if="activeTab === 'tasks'" class="relative flex-1 md:flex-none">
+              <Search class="w-3.5 h-3.5 md:w-4 md:h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 v-model="taskSearchQuery"
                 type="text"
                 placeholder="搜索任务..."
-                class="pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-accent/20 w-48 transition-all"
+                class="pl-9 pr-3 py-2 md:py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-accent/20 w-full md:w-48 transition-all"
+                style="color: var(--text-primary)"
               />
             </div>
             <button
               v-if="isMember && activeTab === 'tasks'"
-              class="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+              class="hidden md:flex px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all items-center gap-2"
               @click="isTaskDialogOpen = true"
             >
               <Plus class="w-4 h-4" /> 分配新任务
@@ -726,15 +738,15 @@ onUnmounted(() => {
         <!-- Project Kanban Filter Bar -->
         <div
           v-if="activeTab === 'tasks'"
-          class="px-10 py-3 border-b flex items-center gap-6 overflow-x-auto scrollbar-hide shrink-0"
+          class="px-3 md:px-10 py-2.5 md:py-3 border-b flex items-center gap-3 md:gap-6 overflow-x-auto scrollbar-hide shrink-0"
           style="border-color: var(--border-base)"
         >
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
             <span
-              class="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-              >截止时间:</span
+              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+              >截止:</span
             >
-            <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
                 v-for="f in [
                   { id: 'all', label: '全部' },
@@ -743,7 +755,7 @@ onUnmounted(() => {
                   { id: 'week', label: '本周' },
                 ]"
                 :key="f.id"
-                class="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap"
                 :class="
                   taskDateFilter === f.id
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -756,16 +768,16 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="h-4 w-px bg-slate-200 dark:bg-slate-700"></div>
+          <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
             <span
-              class="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >执行人:</span
             >
-            <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
-                class="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap"
                 :class="
                   taskAssigneeFilter === 'all'
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -773,10 +785,10 @@ onUnmounted(() => {
                 "
                 @click="taskAssigneeFilter = 'all'"
               >
-                全部人
+                全部
               </button>
               <button
-                class="px-3 py-1 rounded-md text-[10px] font-bold transition-all"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap"
                 :class="
                   taskAssigneeFilter === 'me'
                     ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -784,7 +796,7 @@ onUnmounted(() => {
                 "
                 @click="taskAssigneeFilter = 'me'"
               >
-                我的任务
+                我的
               </button>
             </div>
           </div>
@@ -793,8 +805,8 @@ onUnmounted(() => {
         <!-- Dynamic Content -->
         <div class="flex-1 overflow-hidden relative">
           <!-- Kanban View -->
-          <div v-show="activeTab === 'tasks'" class="absolute inset-0 p-8 overflow-x-auto">
-            <div class="flex gap-8 h-full pb-4 items-start min-w-max">
+          <div v-show="activeTab === 'tasks'" class="absolute inset-0 p-3 md:p-8 overflow-y-auto md:overflow-x-auto">
+            <div class="flex flex-col md:flex-row gap-4 md:gap-8 md:h-full pb-4 items-stretch md:min-w-max">
               <!-- Columns -->
               <div
                 v-for="col in [
@@ -818,7 +830,7 @@ onUnmounted(() => {
                   },
                 ]"
                 :key="col.id"
-                class="w-[340px] flex flex-col h-full bg-slate-100/50 dark:bg-slate-800/30 rounded-[2rem] border-t-4 transition-colors"
+                class="w-full md:w-[340px] flex flex-col bg-slate-100/50 dark:bg-slate-800/30 rounded-2xl md:rounded-[2rem] border-t-4 transition-colors md:h-full"
                 :class="[
                   col.color,
                   dragOverColumn === col.id
@@ -936,7 +948,7 @@ onUnmounted(() => {
                   <!-- Empty Drop Zone Hint -->
                   <div
                     v-if="(tasksByStatus as any)[col.id].length === 0"
-                    class="h-32 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-400 text-xs font-bold opacity-50"
+                    class="h-20 md:h-32 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-400 text-xs font-bold opacity-50"
                   >
                     拖拽任务至此
                   </div>

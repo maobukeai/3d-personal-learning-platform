@@ -489,13 +489,13 @@ onMounted(() => {
         </p>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
+      <div class="flex items-center gap-1.5 sm:gap-3 w-full lg:w-auto shrink-0 justify-between lg:justify-end">
         <div
-          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300 overflow-x-auto scrollbar-hide max-w-full shrink-0"
+          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300 shrink-0"
           style="background-color: var(--bg-app)"
         >
           <button
-            class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
+            class="px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'courses'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -503,10 +503,11 @@ onMounted(() => {
             "
             @click="handleTabChange('courses')"
           >
-            课程列表
+            <span class="xs:hidden">课程</span>
+            <span class="hidden xs:inline">课程列表</span>
           </button>
           <button
-            class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
+            class="px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === 'categories'
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
@@ -514,7 +515,8 @@ onMounted(() => {
             "
             @click="handleTabChange('categories')"
           >
-            分类管理
+            <span class="xs:hidden">分类</span>
+            <span class="hidden xs:inline">分类管理</span>
           </button>
         </div>
 
@@ -524,27 +526,30 @@ onMounted(() => {
         ></div>
 
         <button
-          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-bold text-xs sm:text-sm transition-all shadow-sm shrink-0 whitespace-nowrap"
+          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-bold text-[10px] sm:text-sm transition-all shadow-sm shrink-0 whitespace-nowrap"
           @click="showImportModal = true"
         >
           <LinkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          外部导入
+          <span class="hidden xs:inline">导入</span>
+          <span class="hidden sm:inline">外部导入</span>
         </button>
         <button
           v-if="activeTab === 'courses'"
-          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
+          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[10px] sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
           @click="openCourseModal()"
         >
           <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          新建课程
+          <span class="hidden xs:inline">新建</span>
+          <span class="hidden sm:inline">新建课程</span>
         </button>
         <button
           v-if="activeTab === 'categories'"
-          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
+          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[10px] sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
           @click="openCategoryModal()"
         >
           <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          新建分类
+          <span class="hidden xs:inline">新建</span>
+          <span class="hidden sm:inline">新建分类</span>
         </button>
       </div>
     </div>
@@ -555,7 +560,7 @@ onMounted(() => {
       class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 max-w-5xl">
+      <div class="flex flex-row items-center gap-2 sm:gap-4 max-w-5xl">
         <div class="relative flex-1">
           <Search class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -579,7 +584,7 @@ onMounted(() => {
         </div>
         <select
           v-model="sortBy"
-          class="px-4 py-2.5 rounded-2xl border text-sm outline-none shrink-0"
+          class="px-2 sm:px-4 py-2.5 rounded-2xl border text-xs sm:text-sm outline-none shrink-0"
           style="
             background-color: var(--bg-app);
             border-color: var(--border-base);
@@ -599,58 +604,58 @@ onMounted(() => {
       class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 max-w-5xl">
+      <div class="grid grid-cols-5 gap-1.5 sm:gap-3 max-w-5xl">
         <div
-          class="p-3 rounded-xl border transition-colors duration-300"
+          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-slate-400 uppercase">总课程</span>
-            <BarChart3 class="w-3.5 h-3.5 text-slate-400" />
+            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase">总课程</span>
+            <BarChart3 class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
           </div>
-          <p class="text-xl font-black" style="color: var(--text-primary)">
+          <p class="text-sm xs:text-base sm:text-xl font-black" style="color: var(--text-primary)">
             {{ courseStats.total }}
           </p>
         </div>
         <div
-          class="p-3 rounded-xl border transition-colors duration-300"
+          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-emerald-500 uppercase">已发布</span>
-            <Eye class="w-3.5 h-3.5 text-emerald-500" />
+            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-emerald-500 uppercase">已发布</span>
+            <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500" />
           </div>
-          <p class="text-xl font-black text-emerald-500">{{ courseStats.published }}</p>
+          <p class="text-sm xs:text-base sm:text-xl font-black text-emerald-500">{{ courseStats.published }}</p>
         </div>
         <div
-          class="p-3 rounded-xl border transition-colors duration-300"
+          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-amber-500 uppercase">草稿</span>
-            <EyeOff class="w-3.5 h-3.5 text-amber-500" />
+            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-amber-500 uppercase">草稿</span>
+            <EyeOff class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500" />
           </div>
-          <p class="text-xl font-black text-amber-500">{{ courseStats.draft }}</p>
+          <p class="text-sm xs:text-base sm:text-xl font-black text-amber-500">{{ courseStats.draft }}</p>
         </div>
         <div
-          class="p-3 rounded-xl border transition-colors duration-300"
+          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-indigo-500 uppercase">总报名</span>
-            <Users class="w-3.5 h-3.5 text-indigo-500" />
+            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-indigo-500 uppercase">总报名</span>
+            <Users class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-500" />
           </div>
-          <p class="text-xl font-black text-indigo-500">{{ courseStats.totalEnrollments }}</p>
+          <p class="text-sm xs:text-base sm:text-xl font-black text-indigo-500">{{ courseStats.totalEnrollments }}</p>
         </div>
         <div
-          class="p-3 rounded-xl border transition-colors duration-300 col-span-2 sm:col-span-1"
+          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-bold text-accent uppercase">总课时</span>
-            <GraduationCap class="w-3.5 h-3.5 text-accent" />
+            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-accent uppercase">总课时</span>
+            <GraduationCap class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
           </div>
-          <p class="text-xl font-black text-accent">{{ courseStats.totalLessons }}</p>
+          <p class="text-sm xs:text-base sm:text-xl font-black text-accent">{{ courseStats.totalLessons }}</p>
         </div>
       </div>
     </div>
@@ -672,7 +677,7 @@ onMounted(() => {
             class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="p-4 sm:p-6 flex items-center gap-4 sm:gap-6">
+            <div class="p-3.5 sm:p-6 flex items-center gap-3 sm:gap-6">
               <!-- Thumbnail -->
               <div
                 class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
@@ -715,7 +720,7 @@ onMounted(() => {
                       >
                         {{ difficultyMap[course.difficulty]?.label || '入门' }}
                       </span>
-                      <h3 class="font-bold text-xl truncate" style="color: var(--text-primary)">
+                      <h3 class="font-bold text-sm sm:text-xl truncate" style="color: var(--text-primary)">
                         {{ course.title }}
                       </h3>
                       <ChevronRight
@@ -796,7 +801,7 @@ onMounted(() => {
                     </span>
                   </div>
                   <div
-                    class="flex items-center gap-1 opacity-0 group-hover/lesson:opacity-100 transition-opacity"
+                    class="flex items-center gap-1 md:opacity-0 md:group-hover/lesson:opacity-100 transition-opacity shrink-0"
                   >
                     <button
                       class="p-1.5 rounded-lg text-slate-400 hover:text-accent"
@@ -880,7 +885,7 @@ onMounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-xl rounded-3xl p-8 shadow-2xl transition-colors duration-300 max-h-[90vh] overflow-y-auto"
+        class="w-full max-w-xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300 max-h-[90vh] overflow-y-auto"
         style="background-color: var(--bg-card)"
       >
         <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
@@ -1023,7 +1028,7 @@ onMounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-md rounded-3xl p-8 shadow-2xl transition-colors duration-300"
+        class="w-full max-w-md rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
         style="background-color: var(--bg-card)"
       >
         <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
@@ -1085,7 +1090,7 @@ onMounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-2xl rounded-3xl p-8 shadow-2xl transition-colors duration-300"
+        class="w-full max-w-2xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
         style="background-color: var(--bg-card)"
       >
         <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
@@ -1220,7 +1225,7 @@ onMounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-2xl rounded-3xl p-8 shadow-2xl transition-colors duration-300"
+        class="w-full max-w-2xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
         style="background-color: var(--bg-card)"
       >
         <div class="flex items-center justify-between mb-6">

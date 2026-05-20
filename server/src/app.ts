@@ -20,7 +20,6 @@ import messageRoutes from './routes/message.routes';
 import teamRoutes from './routes/team.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import noteRoutes from './routes/note.routes';
-import webhookRoutes from './routes/webhook.routes';
 import mirrorRoutes from './mirror/routes/mirror.routes';
 import adminMirrorRoutes from './mirror/routes/admin-mirror.routes';
 
@@ -88,7 +87,6 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notes', noteRoutes);
-app.use('/api/webhooks', webhookRoutes);
 app.use('/api/mirror', mirrorRoutes);
 app.use('/api/admin/mirror', adminMirrorRoutes);
 

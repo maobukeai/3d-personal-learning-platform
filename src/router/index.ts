@@ -152,12 +152,6 @@ const router = createRouter({
               component: () => import('@/views/Settings/SettingsView.vue'),
             },
             {
-              path: 'checkout',
-              name: 'Checkout',
-              component: () => import('@/views/Settings/CheckoutView.vue'),
-              meta: { hideSidebar: true },
-            },
-            {
               path: 'billing',
               name: 'Billing',
               component: () => import('@/views/Settings/BillingView.vue'),

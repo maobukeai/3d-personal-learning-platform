@@ -133,6 +133,21 @@ watch(() => route.query.categoryId, (newId) => {
     selectCategory(newCategoryId);
   }
 });
+
+const jumpPageInput = ref(mirrorStore.currentPage.toString());
+
+watch(() => mirrorStore.currentPage, (newPage) => {
+  jumpPageInput.value = newPage.toString();
+});
+
+function handlePageJump() {
+  const page = parseInt(jumpPageInput.value, 10);
+  if (!isNaN(page) && page >= 1 && page <= mirrorStore.totalPages) {
+    goToPage(page);
+  } else {
+    jumpPageInput.value = mirrorStore.currentPage.toString();
+  }
+}
 </script>
 
 <template>
@@ -300,12 +315,25 @@ watch(() => route.query.categoryId, (newId) => {
             {{ mirrorStore.currentPage }} / {{ mirrorStore.totalPages }}
           </span>
           <button
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors"
+            class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors mr-2"
             :disabled="mirrorStore.currentPage >= mirrorStore.totalPages"
             @click="goToPage(mirrorStore.currentPage + 1)"
           >
             <ChevronRight class="w-4 h-4" />
           </button>
+
+          <!-- Quick Page Jump -->
+          <div class="flex items-center gap-1.5 ml-2 border-l border-slate-200 dark:border-slate-700 pl-4">
+            <span class="text-xs text-slate-400">跳至</span>
+            <input
+              v-model="jumpPageInput"
+              type="text"
+              class="w-12 px-1.5 py-1 text-center text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              @keyup.enter="handlePageJump"
+              @blur="handlePageJump"
+            />
+            <span class="text-xs text-slate-400">页</span>
+          </div>
         </div>
       </div>
     </div>

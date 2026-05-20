@@ -112,4 +112,10 @@ router.put('/subscriptions/:id', adminController.updateSubscription);
 router.delete('/subscriptions/:id', adminController.deleteSubscription);
 router.get('/transactions', adminController.getAllTransactions);
 
+// Activation codes management
+import * as activationCodeController from '../controllers/activationCode.controller';
+router.get('/activation-codes', activationCodeController.getAllActivationCodes);
+router.post('/activation-codes', activationCodeController.createActivationCode);
+router.delete('/activation-codes/:id', activationCodeController.deleteActivationCode);
+
 export default router;

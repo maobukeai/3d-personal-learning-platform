@@ -63,6 +63,8 @@ export const useWorkspaceStore = defineStore('workspace', {
   actions: {
     async fetchWorkspaces() {
       const authStore = useAuthStore();
+      if (!authStore.isAuthenticated) return;
+
       try {
         const response = await api.get('/api/teams');
         const fetchedWorkspaces = response.data.map((t: any) => ({
@@ -118,6 +120,9 @@ export const useWorkspaceStore = defineStore('workspace', {
     },
 
     async fetchAdminStats() {
+      const authStore = useAuthStore();
+      if (!authStore.isAuthenticated || authStore.user?.role !== 'ADMIN') return;
+
       try {
         const res = await api.get('/api/admin/stats');
         const counts = res.data.counts;

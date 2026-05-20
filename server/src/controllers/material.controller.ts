@@ -153,6 +153,16 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
 
     if (!material) return res.status(404).json({ error: 'Material not found' });
 
+    // Auth check: material owner, team owner/admin, or platform admin
+    if (material.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      const membership = await prisma.teamMember.findFirst({
+        where: { teamId: req.workspaceId, userId: req.userId },
+      });
+      if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+        return res.status(403).json({ error: 'Not authorized to delete this material' });
+      }
+    }
+
     deleteFileByUrl(material.fileUrl);
     if (material.previewUrl) {
       deleteFileByUrl(material.previewUrl);

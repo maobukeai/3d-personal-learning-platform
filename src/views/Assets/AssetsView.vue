@@ -215,7 +215,7 @@ onUnmounted(() => {
   <div class="flex flex-col h-full relative" style="background-color: var(--bg-card)">
     <!-- Top Bar -->
     <div
-      class="h-auto md:h-16 border-b flex flex-col md:flex-row md:items-center justify-between px-4 sm:px-8 py-3 md:py-0 shrink-0 gap-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl z-20"
+      class="h-auto md:h-16 border-b flex flex-col md:flex-row md:items-center justify-between px-3 sm:px-6 py-3 md:py-0 shrink-0 gap-3 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl z-20"
       style="border-color: var(--border-base)"
     >
       <div class="flex items-center text-[10px] sm:text-xs gap-1.5 font-bold tracking-wide" style="color: var(--text-secondary)">
@@ -337,7 +337,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Asset Grid Scrollable Area -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide z-10">
+        <div class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 scrollbar-hide z-10">
           <MasonryGrid v-if="filteredAssets.length > 0">
             <AssetCard
               v-for="asset in filteredAssets"
@@ -385,6 +385,14 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Mobile FAB Upload -->
+    <button
+      class="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 bg-accent text-white rounded-2xl shadow-xl shadow-accent/30 flex items-center justify-center active:scale-95 transition-transform"
+      @click="isUploadDialogOpen = true"
+    >
+      <UploadCloud class="w-6 h-6" />
+    </button>
 
     <!-- Upload Dialog -->
     <Transition name="fade">

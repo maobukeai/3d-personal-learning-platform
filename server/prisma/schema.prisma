@@ -284,6 +284,10 @@ model Asset {
   showcases Showcase[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([teamId])
 }
 
 model Category {
@@ -370,6 +374,9 @@ model Discussion {
   likes     DiscussionLike[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
 }
 
 model DiscussionLike {
@@ -381,6 +388,7 @@ model DiscussionLike {
   createdAt    DateTime   @default(now())
 
   @@unique([discussionId, userId])
+  @@index([userId])
 }
 
 model Comment {
@@ -396,6 +404,10 @@ model Comment {
   likes        CommentLike[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([discussionId])
+  @@index([parentId])
 }
 
 model CommentLike {
@@ -407,6 +419,7 @@ model CommentLike {
   createdAt DateTime @default(now())
 
   @@unique([commentId, userId])
+  @@index([userId])
 }
 
 model Task {
@@ -428,6 +441,11 @@ model Task {
   participants TaskParticipant[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([assigneeId])
+  @@index([teamId])
+  @@index([projectId])
 }
 
 model TaskParticipant {
@@ -439,6 +457,7 @@ model TaskParticipant {
   joinedAt DateTime @default(now())
 
   @@unique([taskId, userId])
+  @@index([userId])
 }
 
 model TeamApplication {
@@ -534,6 +553,8 @@ model Project {
   team        Team?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+
+  @@index([teamId])
 }
 
 model ProjectMember {
@@ -546,6 +567,7 @@ model ProjectMember {
   joinedAt  DateTime @default(now())
 
   @@unique([projectId, userId])
+  @@index([userId])
 }
 
 model ProjectDiscussion {
@@ -645,6 +667,10 @@ model Showcase {
   comments     ShowcaseComment[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+
+  @@index([assetId])
+  @@index([userId])
+  @@index([teamId])
 }
 
 model ShowcaseLike {
@@ -656,6 +682,7 @@ model ShowcaseLike {
   createdAt  DateTime @default(now())
 
   @@unique([showcaseId, userId])
+  @@index([userId])
 }
 
 model ShowcaseComment {
@@ -805,6 +832,8 @@ model AuditLog {
   userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 model MirrorSource {

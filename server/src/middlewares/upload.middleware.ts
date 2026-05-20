@@ -71,7 +71,8 @@ const createUploadMiddleware = (config: {
         config.fieldname === 'logo' ||
         config.fieldname === 'favicon' ||
         config.fieldname === 'avatar' ||
-        (config.fields && config.fields.some((f) => ['logo', 'favicon', 'avatar'].includes(f.name)));
+        (config.fields &&
+          config.fields.some((f) => ['logo', 'favicon', 'avatar'].includes(f.name)));
 
       if (isSystemImage) {
         maxFileSize = 5 * 1024 * 1024;

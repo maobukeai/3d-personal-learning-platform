@@ -271,6 +271,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 12;
+    const lite = req.query.lite === 'true';
     const search = req.query.search as string;
     const categoryId = req.query.categoryId as string;
     const skip = (page - 1) * limit;
@@ -283,19 +284,39 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
       where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
     }
 
-    const [assets, total] = await Promise.all([
-      prisma.asset.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          category: true,
-          user: {
-            select: { name: true, avatarUrl: true },
-          },
+    const queryOptions: any = {
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: Math.min(limit, 50),
+    };
+
+    if (lite) {
+      queryOptions.select = {
+        id: true,
+        title: true,
+        thumbnail: true,
+        type: true,
+        size: true,
+        createdAt: true,
+        category: {
+          select: { name: true },
         },
-      }),
+        user: {
+          select: { name: true, avatarUrl: true },
+        },
+      };
+    } else {
+      queryOptions.include = {
+        category: true,
+        user: {
+          select: { name: true, avatarUrl: true },
+        },
+      };
+    }
+
+    const [assets, total] = await Promise.all([
+      prisma.asset.findMany(queryOptions),
       prisma.asset.count({ where }),
     ]);
 
@@ -359,6 +380,16 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
 
     if (!asset) {
       return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Auth check: asset owner, team owner/admin, or platform admin
+    if (asset.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      const membership = await prisma.teamMember.findFirst({
+        where: { teamId: req.workspaceId, userId: req.userId },
+      });
+      if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
+        return res.status(403).json({ error: 'Not authorized to delete this asset' });
+      }
     }
 
     // Delete files from disk

@@ -24,7 +24,20 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
 
     const showcases = await prisma.showcase.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        tags: true,
+        type: true,
+        thumbnailUrl: true,
+        images: true,
+        videoUrl: true,
+        isVideo: true,
+        views: true,
+        status: true,
+        assetId: true,
+        createdAt: true,
         user: {
           select: { id: true, name: true, email: true, avatarUrl: true },
         },
@@ -39,6 +52,7 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
         },
       },
       orderBy,
+      take: 100,
     });
 
     const formatted = showcases.map((s) => ({

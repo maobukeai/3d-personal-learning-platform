@@ -2,7 +2,8 @@ import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 export const getMyNotifications = async (req: AuthRequest, res: Response) => {
-  const { type } = req.query;
+  const { type, cursor } = req.query;
+  const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
   try {
     const where: any = { userId: req.userId as string };
 
@@ -16,12 +17,25 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const notifications = await prisma.notification.findMany({
+    const queryOptions: any = {
       where,
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: limit,
+    };
+
+    if (cursor) {
+      queryOptions.cursor = { id: cursor as string };
+      queryOptions.skip = 1;
+    }
+
+    const notifications = await prisma.notification.findMany(queryOptions);
+
+    const nextCursor = notifications.length === limit ? notifications[notifications.length - 1].id : null;
+
+    res.json({
+      notifications,
+      nextCursor,
     });
-    res.json(notifications);
   } catch (error) {
     console.error('[Notification] Get notifications error:', error);
     res.status(500).json({ error: 'Internal server error' });

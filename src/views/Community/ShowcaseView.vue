@@ -346,7 +346,7 @@ onMounted(fetchShowcases);
 
     <!-- Featured Banner -->
     <div class="px-4 sm:px-8 py-4 sm:py-6 shrink-0">
-      <div class="relative h-48 rounded-3xl overflow-hidden bg-slate-900 group cursor-pointer">
+      <div class="relative h-40 md:h-48 rounded-3xl overflow-hidden bg-slate-900 group cursor-pointer">
         <img
           src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=80"
           class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
@@ -430,13 +430,12 @@ onMounted(fetchShowcases);
       <div class="max-w-7xl mx-auto">
         <div
           v-if="filteredShowcases.length > 0"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6"
+          class="grid grid-cols-2 lg:grid-cols-4 gap-6"
         >
           <div
             v-for="item in filteredShowcases"
             :key="item.id"
-            class="group rounded-3xl border overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col cursor-pointer"
-            style="background-color: var(--bg-card); border-color: var(--border-base)"
+            class="group glass-card glass-card-hover overflow-hidden flex flex-col cursor-pointer"
             @click="openDetail(item)"
           >
             <!-- Cover -->
@@ -565,11 +564,10 @@ onMounted(fetchShowcases);
 
     <!-- Detail Dialog -->
     <Transition name="fade">
-      <div v-if="isDetailOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div v-if="isDetailOpen" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeDetail"></div>
         <div
-          class="relative w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col"
-          style="background-color: var(--bg-card)"
+          class="relative w-full md:max-w-4xl max-h-[85vh] md:max-h-[90vh] glass-card border border-white/10 shadow-2xl overflow-hidden flex flex-col rounded-t-3xl md:rounded-3xl"
         >
           <!-- Close Button -->
           <button
@@ -872,11 +870,19 @@ onMounted(fetchShowcases);
 }
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+@media (max-width: 767px) {
+  .fade-enter-from {
+    transform: translateY(100%);
+  }
+  .fade-leave-to {
+    transform: translateY(100%);
+  }
 }
 .custom-select-v2 :deep(.el-input__wrapper) {
   border-radius: 1rem !important;

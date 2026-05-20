@@ -18,3 +18,27 @@ debug-*
 *.html
 *_errors.txt
 scratch/
+
+# Local compiled files (when compiling in-place or running individual tests)
+test-prisma.js
+test-prisma.d.ts
+test-prisma.js.map
+test-prisma.d.ts.map
+tests/**/*.js
+tests/**/*.d.ts
+tests/**/*.js.map
+tests/**/*.d.ts.map
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map
+scripts/**/*.d.ts
+scripts/**/*.d.ts.map
+scripts/**/*.js.map
+scripts/backfill-asset-metadata.js
+scripts/backfill-personal-teams.js
+
+# Bilibili scrape/test data
+bilibili_state.json
+
+

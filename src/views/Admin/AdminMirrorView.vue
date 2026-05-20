@@ -308,9 +308,9 @@ onUnmounted(() => {
 
 <template>
   <div class="admin-mirror p-4 md:p-6 max-w-7xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Globe class="w-6 h-6 text-blue-500" />
           镜像源管理
         </h1>
@@ -319,7 +319,7 @@ onUnmounted(() => {
         </p>
       </div>
       <button
-        class="flex items-center gap-1.5 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+        class="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors w-full sm:w-auto"
         @click="openCreate"
       >
         <Plus class="w-4 h-4" />
@@ -388,40 +388,42 @@ onUnmounted(() => {
         :key="source.id"
         class="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden"
       >
-        <div class="p-5">
-          <div class="flex items-start justify-between">
-            <div class="flex-1">
-              <div class="flex items-center gap-3 mb-2">
-                <h3 class="font-semibold text-slate-900 dark:text-white">
+        <div class="p-4 sm:p-5">
+          <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <h3 class="font-semibold text-slate-900 dark:text-white text-base truncate">
                   {{ source.displayName }}
                 </h3>
-                <span
-                  class="px-2 py-0.5 text-xs rounded-full"
-                  :class="statusLabels[source.status]?.color || 'text-slate-400 bg-slate-100'"
-                >
-                  {{ statusLabels[source.status]?.label || source.status }}
-                </span>
-                <span
-                  v-if="source.syncStatus === 'SYNCING'"
-                  class="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full text-blue-500 bg-blue-50 dark:bg-blue-500/10"
-                >
-                  <Loader2 class="w-3 h-3 animate-spin" />
-                  同步中
-                </span>
-                <span
-                  v-else-if="source.syncStatus === 'ERROR'"
-                  class="px-2 py-0.5 text-xs rounded-full text-red-500 bg-red-50 dark:bg-red-500/10"
-                >
-                  异常
-                </span>
+                <div class="flex flex-wrap gap-1.5">
+                  <span
+                    class="px-2 py-0.5 text-xs rounded-full"
+                    :class="statusLabels[source.status]?.color || 'text-slate-400 bg-slate-100'"
+                  >
+                    {{ statusLabels[source.status]?.label || source.status }}
+                  </span>
+                  <span
+                    v-if="source.syncStatus === 'SYNCING'"
+                    class="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full text-blue-500 bg-blue-50 dark:bg-blue-500/10"
+                  >
+                    <Loader2 class="w-3 h-3 animate-spin" />
+                    同步中
+                  </span>
+                  <span
+                    v-else-if="source.syncStatus === 'ERROR'"
+                    class="px-2 py-0.5 text-xs rounded-full text-red-500 bg-red-50 dark:bg-red-500/10"
+                  >
+                    异常
+                  </span>
+                </div>
               </div>
-              <p class="text-xs text-slate-400 flex items-center gap-1 mb-1">
-                <Globe class="w-3 h-3" />
+              <p class="text-xs text-slate-400 flex items-center gap-1 mb-1 truncate">
+                <Globe class="w-3 h-3 flex-shrink-0" />
                 {{ source.baseUrl }}
               </p>
               <p class="text-xs text-slate-400">适配器: {{ source.adapterType }}</p>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center gap-1.5 sm:self-start">
               <button
                 class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
                 :class="source.syncStatus === 'SYNCING' ? 'opacity-50 pointer-events-none' : ''"
@@ -580,7 +582,7 @@ onUnmounted(() => {
                 <option v-for="opt in adapterTypes" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">访问权限</label>
                 <select
@@ -674,7 +676,7 @@ onUnmounted(() => {
                 class="p-4 rounded-lg border border-slate-200 dark:border-slate-700"
                 :class="log.status === 'FAILED' ? 'bg-red-50 dark:bg-red-500/5 border-red-200 dark:border-red-500/20' : 'bg-slate-50 dark:bg-slate-800/30'"
               >
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
                   <div class="flex items-center gap-2">
                     <span
                       class="px-2 py-0.5 text-xs rounded-full font-medium"

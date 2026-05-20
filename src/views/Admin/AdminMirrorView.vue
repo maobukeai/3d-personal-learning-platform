@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus,
@@ -18,7 +18,6 @@ import {
   Layers,
   Link2,
   Search,
-  Eye,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -542,15 +541,6 @@ async function deleteResource(res: MirrorResource) {
     if (e !== 'cancel') {
       ElMessage.error(e.response?.data?.error || '删除失败');
     }
-  }
-}
-
-function parseTags(tags: string | null): string[] {
-  if (!tags) return [];
-  try {
-    return JSON.parse(tags);
-  } catch {
-    return tags.split(',').map((t: string) => t.trim()).filter(Boolean);
   }
 }
 

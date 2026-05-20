@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate, isAdmin } from '../../middlewares/auth.middleware';
+import { upload } from '../../middlewares/upload.middleware';
 import * as adminMirrorController from '../controllers/admin-mirror.controller';
 
 const router = Router();
@@ -17,5 +18,6 @@ router.post('/sources/:id/sync', adminMirrorController.triggerSync);
 router.post('/sources/:id/sync/cancel', adminMirrorController.cancelSync);
 router.get('/sources/:id/sync-status', adminMirrorController.getSyncStatus);
 router.get('/sources/:id/sync-logs', adminMirrorController.getSyncLogs);
+router.post('/sources/:id/match-links', upload.single('file'), adminMirrorController.matchLinks);
 
 export default router;

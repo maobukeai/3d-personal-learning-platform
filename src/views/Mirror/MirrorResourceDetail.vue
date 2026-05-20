@@ -16,6 +16,8 @@ import {
   Trash2,
   Link2,
   Lock,
+  ExternalLink,
+  X,
 } from 'lucide-vue-next';
 import { useMirrorStore } from '@/stores/mirror';
 import { useAuthStore } from '@/stores/auth';
@@ -141,6 +143,14 @@ function copyToClipboard(text: string) {
   ElMessage.success('提取码已复制到剪贴板！');
 }
 
+const showLinkDialog = ref(false);
+const activeLink = ref<{ name: string; url: string; code?: string; type: string } | null>(null);
+
+function openLinkDialog(link: { name: string; url: string; code?: string; type: string }) {
+  activeLink.value = link;
+  showLinkDialog.value = true;
+}
+
 function getLinkTypeColor(type: string) {
   switch (type) {
     case 'baidu': return 'bg-blue-500';
@@ -162,10 +172,10 @@ const extractedLinks = computed(() => {
   const text = html.replace(/<[^>]*>/g, ' ');
 
   const drivePatterns = [
-    { name: '百度网盘', pattern: /(https?:\/\/(?:pan|yun)\.baidu\.com\/s\/[a-zA-Z0-9_-]+)/gi, type: 'baidu' },
-    { name: '夸克网盘', pattern: /(https?:\/\/pan\.quark\.cn\/s\/[a-zA-Z0-9_-]+)/gi, type: 'quark' },
-    { name: '阿里云盘', pattern: /(https?:\/\/(?:www\.)?(?:aliyundrive|alipan)\.com\/s\/[a-zA-Z0-9_-]+)/gi, type: 'aliyun' },
-    { name: '123云盘', pattern: /(https?:\/\/(?:www\.)?123(?:pan|system)\.com\/s\/[a-zA-Z0-9_-]+)/gi, type: '123pan' },
+    { name: '百度网盘', pattern: /(https?:\/\/(?:pan|yun)\.baidu\.com\/(?:s\/|share\/init\?surl=)[a-zA-Z0-9_-]+)/gi, type: 'baidu' },
+    { name: '夸克网盘', pattern: /(https?:\/\/pan\.quark\.cn\/(?:s\/|init\?code=)[a-zA-Z0-9_-]+)/gi, type: 'quark' },
+    { name: '阿里云盘', pattern: /(https?:\/\/(?:www\.)?(?:aliyundrive|alipan)\.com\/(?:s\/|init\?code=)[a-zA-Z0-9_-]+)/gi, type: 'aliyun' },
+    { name: '123云盘', pattern: /(https?:\/\/(?:www\.)?123(?:pan|system)\.com\/(?:s\/|init\?code=)[a-zA-Z0-9_-]+)/gi, type: '123pan' },
     { name: '天翼云盘', pattern: /(https?:\/\/cloud\.189\.cn\/t\/[a-zA-Z0-9_-]+)/gi, type: 'tianyi' },
     { name: '蓝奏云', pattern: /(https?:\/\/[a-zA-Z0-9_-]+\.lanzou[a-z]\.com\/[a-zA-Z0-9_-]+)/gi, type: 'lanzou' },
   ];
@@ -176,21 +186,25 @@ const extractedLinks = computed(() => {
   anchors.forEach(a => {
     const href = a.getAttribute('href');
     if (href) {
+      // Find passcode from grandparent tag container (to cover sibling paragraphs)
+      let code: string | undefined;
+      const textAround = a.parentElement?.parentElement?.textContent || a.parentElement?.textContent || '';
+      const codeMatch = textAround.match(/(?:提取码|密码|🔑|访问码)\s*[:：]?\s*([a-zA-Z0-9]{4,6})/i);
+      if (codeMatch) {
+        code = codeMatch[1];
+      }
+
       const isKnownDrive = drivePatterns.some(p => {
+        p.pattern.lastIndex = 0;
         if (href.match(p.pattern)) {
-          let code: string | undefined;
-          const textAround = a.parentElement?.textContent || '';
-          const codeMatch = textAround.match(/(?:提取码|密码|🔑|访问码)\s*[:：]?\s*([a-zA-Z0-9]{4,6})/i);
-          if (codeMatch) {
-            code = codeMatch[1];
-          }
           links.push({ name: p.name, url: href, code, type: p.type });
           return true;
         }
         return false;
       });
       if (!isKnownDrive && href.startsWith('http') && !href.includes(window.location.host)) {
-        links.push({ name: a.textContent?.trim() || '外部链接', url: href, type: 'generic' });
+        const linkName = a.textContent?.trim() || '外部链接';
+        links.push({ name: linkName, url: href, code, type: 'generic' });
       }
     }
   });
@@ -343,7 +357,7 @@ watch(resourceId, () => {
                   
                   <div class="space-y-3.5">
                     <div v-if="extractedLinks.length === 0" class="text-slate-400 text-xs text-center py-4">
-                      暂无提取链接
+                      暂未提取
                     </div>
                     <div v-else class="space-y-3">
                       <div
@@ -372,12 +386,22 @@ watch(resourceId, () => {
                           </button>
                         </div>
 
+                        <!-- Trigger Link Dialog if matched, otherwise show lock "暂未提取" -->
                         <button
+                          v-if="link.type !== 'source'"
+                          class="mt-1 w-full py-2 px-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+                          @click="openLinkDialog(link)"
+                        >
+                          <ExternalLink class="w-3.5 h-3.5" />
+                          <span>提取资源</span>
+                        </button>
+                        <button
+                          v-else
                           class="mt-1 w-full py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700/30"
                           @click.prevent
                         >
                           <Lock class="w-3.5 h-3.5" />
-                          <span>链接提取维护中</span>
+                          <span>暂未提取</span>
                         </button>
                       </div>
                     </div>
@@ -498,7 +522,7 @@ watch(resourceId, () => {
             
             <div class="space-y-3.5">
               <div v-if="extractedLinks.length === 0" class="text-slate-400 text-xs text-center py-4">
-                暂无提取链接
+                暂未提取
               </div>
               <div v-else class="space-y-3">
                 <div
@@ -527,12 +551,22 @@ watch(resourceId, () => {
                     </button>
                   </div>
 
+                  <!-- Trigger Link Dialog if matched, otherwise show lock "暂未提取" -->
                   <button
+                    v-if="link.type !== 'source'"
+                    class="mt-1 w-full py-2 px-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-blue-500/20 cursor-pointer"
+                    @click="openLinkDialog(link)"
+                  >
+                    <ExternalLink class="w-3.5 h-3.5" />
+                    <span>提取资源</span>
+                  </button>
+                  <button
+                    v-else
                     class="mt-1 w-full py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700/30"
                     @click.prevent
                   >
                     <Lock class="w-3.5 h-3.5" />
-                    <span>链接提取维护中</span>
+                    <span>暂未提取</span>
                   </button>
                 </div>
               </div>
@@ -557,6 +591,104 @@ watch(resourceId, () => {
         </div>
       </div>
     </template>
+
+    <!-- Extraction Link & Password Dialog -->
+    <Teleport to="body">
+      <div
+        v-if="showLinkDialog && activeLink"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="showLinkDialog = false"
+      >
+        <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Link2 class="w-5 h-5 text-blue-500" />
+              提取网盘资源
+            </h2>
+            <button
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              @click="showLinkDialog = false"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Body -->
+          <div class="p-5 space-y-4">
+            <!-- Drive Info Card -->
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-2.5 h-2.5 rounded-full animate-pulse" :class="getLinkTypeColor(activeLink.type)"></div>
+                <div>
+                  <div class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ activeLink.name }}</div>
+                  <div class="text-[10px] text-slate-400 dark:text-slate-500 uppercase mt-0.5 font-semibold">
+                    {{ activeLink.type }} 资源
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Link Field -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">下载链接</label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  readonly
+                  :value="activeLink.url"
+                  class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 focus:outline-none"
+                />
+                <button
+                  class="px-3 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors border border-slate-200 dark:border-slate-600 cursor-pointer"
+                  @click="copyToClipboard(activeLink.url); ElMessage.success('下载链接已复制到剪贴板！')"
+                >
+                  复制链接
+                </button>
+              </div>
+            </div>
+
+            <!-- Passcode Field (if present) -->
+            <div v-if="activeLink.code" class="space-y-1.5">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">提取密码 / 访问码</label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  readonly
+                  :value="activeLink.code"
+                  class="flex-1 min-w-0 px-4 py-2 text-sm font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-red-50/20 dark:bg-red-500/5 text-red-500 text-center tracking-wider focus:outline-none select-all"
+                />
+                <button
+                  class="px-3 py-2 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-500 transition-colors border border-red-150 dark:border-red-500/20 cursor-pointer"
+                  @click="copyToClipboard(activeLink.code)"
+                >
+                  复制密码
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="flex gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+            <button
+              class="flex-1 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold transition-colors cursor-pointer"
+              @click="showLinkDialog = false"
+            >
+              关闭
+            </button>
+            <a
+              :href="activeLink.url"
+              target="_blank"
+              class="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold text-center flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-blue-500/10"
+              @click="showLinkDialog = false"
+            >
+              <ExternalLink class="w-3.5 h-3.5" />
+              立即跳转网盘
+            </a>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 

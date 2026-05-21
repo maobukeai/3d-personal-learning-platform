@@ -35,7 +35,7 @@ const userPlanPriority = computed(() => {
 });
 
 const hasAccess = computed(() => {
-  if (!mirrorStore.currentSource) return false;
+  if (!mirrorStore.currentSource) return null;
   return userPlanPriority.value >= mirrorStore.currentSource.minPlanPriority;
 });
 
@@ -152,20 +152,49 @@ function handlePageJump() {
 
 <template>
   <div class="mirror-source-view h-full overflow-y-auto p-3 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="flex-1">
-        <h1 class="text-xl font-bold text-slate-900 dark:text-white">
-          {{ pageTitle }}
-        </h1>
-        <p class="text-xs text-slate-400">
-          {{ mirrorStore.totalResources }} 个资源
+    <!-- Header banner -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-4 md:p-5 rounded-2xl border border-blue-500/10 backdrop-blur-sm shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 flex-1 min-w-0">
+        <!-- Title and Icon Badge -->
+        <div class="flex items-center gap-2.5 shrink-0">
+          <span class="p-1.5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400">
+            <Sparkles class="w-4.5 h-4.5 animate-pulse" />
+          </span>
+          <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            {{ pageTitle }}
+          </h1>
+          <span class="px-2 py-0.5 text-[10px] font-black rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+            镜像资源站
+          </span>
+        </div>
+
+        <!-- Vertical divider for desktop -->
+        <span class="hidden md:inline text-slate-200 dark:text-slate-800">|</span>
+
+        <!-- Description -->
+        <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium truncate flex-1">
+          {{ mirrorStore.currentSource?.description || '同步第三方海量极速高质感资产，高速通道极速获取' }}
+        </p>
+
+        <!-- Vertical divider for desktop -->
+        <span class="hidden md:inline text-slate-200 dark:text-slate-800">|</span>
+
+        <!-- Resource Stats -->
+        <p class="text-xs text-slate-400 shrink-0 font-medium">
+          当前包含共计 <span class="text-blue-500 font-black">{{ mirrorStore.totalResources }}</span> 个精心挑选的资源
         </p>
       </div>
-      <div v-if="!hasAccess" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 text-sm">
-        <Shield class="w-4 h-4" />
-        需要{{ getPlanName(mirrorStore.currentSource?.minPlanPriority) }}及以上
+
+      <!-- Right Access Badge -->
+      <div v-if="hasAccess === false" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0">
+        <Shield class="w-4 h-4 shrink-0 animate-pulse" />
+        <div class="flex items-center gap-1.5">
+          <span class="text-[10px] text-slate-400">获取权限：</span>
+          <span class="text-[11px] font-bold">需要 {{ getPlanName(mirrorStore.currentSource?.minPlanPriority ?? 0) }} 会员</span>
+        </div>
       </div>
     </div>
+
 
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
       <div class="flex-1 relative">
@@ -173,7 +202,7 @@ function handlePageJump() {
         <input
           v-model="mirrorStore.searchQuery"
           type="text"
-          placeholder="搜索资源..."
+          placeholder="搜索你想要的资源..."
           class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
           @keyup.enter="doSearch"
         />

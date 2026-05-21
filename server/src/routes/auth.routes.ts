@@ -1,15 +1,82 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import * as authController from '../controllers/auth.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
-import { validate, sanitizeInput } from '../middlewares/validation.middleware';
+import { sanitizeInput } from '../middlewares/validation.middleware';
+import { validateRequest } from '../middlewares/zod-validation.middleware';
+import {
+  registerSchema,
+  sendCodePublicSchema,
+  verifyPublicEmailSchema,
+  loginSchema,
+  login2FASchema,
+  forgotPasswordCheckSchema,
+  resetPasswordWith2FASchema,
+  profileSchema,
+  changePasswordSchema,
+  verifyEmailSchema,
+  sendCodeToNewEmailSchema,
+  changeEmailSchema,
+  enable2FASchema,
+  deleteAccountSchema,
+} from '../utils/schemas';
+
+import {
+  login,
+  login2FA,
+  refreshToken,
+  logout,
+  getPublicSettings,
+  getMe,
+} from '../controllers/auth/login.controller';
+
+import {
+  register,
+  sendPublicVerificationCode,
+  verifyPublicEmail,
+} from '../controllers/auth/register.controller';
+
+import {
+  getPublicUsers,
+  getUserProfile,
+  getActivity,
+  updateProfile,
+  changePassword,
+  sendVerificationCode,
+  verifyEmail,
+  sendCodeToNewEmail,
+  changeEmail,
+  uploadAvatar,
+  getStats,
+  getUserSettings,
+  updateUserSettings,
+  getTrustedDevices,
+  revokeTrustedDevice,
+  deleteAccount,
+  forgotPasswordCheck,
+  resetPasswordWith2FA,
+} from '../controllers/auth/profile.controller';
+
+import {
+  setup2FA,
+  getRecoveryCodes,
+  regenerateRecoveryCodes,
+  enable2FA,
+  disable2FA,
+} from '../controllers/auth/twoFactor.controller';
+
+import {
+  googleLogin,
+  googleCallback,
+  githubLogin,
+  githubCallback,
+} from '../controllers/auth/oauth.controller';
 
 const router = Router();
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 20,
   message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -35,140 +102,90 @@ router.post(
   '/register',
   authLimiter,
   sanitizeInput,
-  validate({
-    email: { type: 'email', required: true, maxLength: 255 },
-    password: {
-      type: 'string',
-      required: true,
-      minLength: 6,
-      maxLength: 128,
-      message: '密码长度需在 6-128 位之间',
-    },
-    name: { type: 'string', required: false, maxLength: 50 },
-    verificationCode: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-  }),
-  authController.register,
+  validateRequest({ body: registerSchema }),
+  register,
 );
 
 router.post(
   '/email/send-code-public',
   emailLimiter,
   sanitizeInput,
-  validate({
-    email: { type: 'email', required: true },
-  }),
-  authController.sendPublicVerificationCode,
+  validateRequest({ body: sendCodePublicSchema }),
+  sendPublicVerificationCode,
 );
 
 router.post(
   '/email/verify-public',
   sanitizeInput,
-  validate({
-    email: { type: 'email', required: true },
-    code: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-  }),
-  authController.verifyPublicEmail,
+  validateRequest({ body: verifyPublicEmailSchema }),
+  verifyPublicEmail,
 );
 
 router.post(
   '/login',
   authLimiter,
   sanitizeInput,
-  validate({
-    email: { type: 'string', required: true },
-    password: { type: 'string', required: true },
-  }),
-  authController.login,
+  validateRequest({ body: loginSchema }),
+  login,
 );
 
-router.post('/refresh', authController.refreshToken);
-router.post('/logout', authController.logout);
+router.post('/refresh', refreshToken);
+router.post('/logout', logout);
 
-router.get('/settings', authController.getPublicSettings);
+router.get('/settings', getPublicSettings);
 
 router.post(
   '/login/2fa',
   authLimiter,
   sanitizeInput,
-  validate({
-    userId: { type: 'string', required: true },
-    code: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-  }),
-  authController.login2FA,
+  validateRequest({ body: login2FASchema }),
+  login2FA,
 );
 
 router.post(
   '/forgot-password/check',
   passwordResetLimiter,
   sanitizeInput,
-  validate({
-    email: { type: 'email', required: true },
-  }),
-  authController.forgotPasswordCheck,
+  validateRequest({ body: forgotPasswordCheckSchema }),
+  forgotPasswordCheck,
 );
 
 router.post(
   '/forgot-password/reset-2fa',
   passwordResetLimiter,
   sanitizeInput,
-  validate({
-    email: { type: 'email', required: true },
-    code: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-    newPassword: {
-      type: 'string',
-      required: true,
-      minLength: 6,
-      maxLength: 128,
-      message: '密码长度需在 6-128 位之间',
-    },
-  }),
-  authController.resetPasswordWith2FA,
+  validateRequest({ body: resetPasswordWith2FASchema }),
+  resetPasswordWith2FA,
 );
 
-router.get('/me', authenticate, authController.getMe);
-router.get('/users/public', authenticate, authController.getPublicUsers);
-router.get('/users/:id', authenticate, authController.getUserProfile);
-router.get('/activity', authenticate, authController.getActivity);
+router.get('/me', authenticate, getMe);
+router.get('/users/public', authenticate, getPublicUsers);
+router.get('/users/:id', authenticate, getUserProfile);
+router.get('/activity', authenticate, getActivity);
 
 router.put(
   '/profile',
   authenticate,
   sanitizeInput,
-  validate({
-    name: { type: 'string', required: false, maxLength: 50 },
-    bio: { type: 'string', required: false, maxLength: 500 },
-    location: { type: 'string', required: false, maxLength: 100 },
-    website: { type: 'string', required: false, maxLength: 255 },
-  }),
-  authController.updateProfile,
+  validateRequest({ body: profileSchema }),
+  updateProfile,
 );
 
 router.put(
   '/change-password',
   authenticate,
   sanitizeInput,
-  validate({
-    currentPassword: { type: 'string', required: true },
-    newPassword: {
-      type: 'string',
-      required: true,
-      minLength: 6,
-      maxLength: 128,
-      message: '新密码长度需在 6-128 位之间',
-    },
-  }),
-  authController.changePassword,
+  validateRequest({ body: changePasswordSchema }),
+  changePassword,
 );
 
-router.post('/email/send-code', authenticate, emailLimiter, authController.sendVerificationCode);
+router.post('/email/send-code', authenticate, emailLimiter, sendVerificationCode);
 router.post(
   '/email/verify',
   authenticate,
   sanitizeInput,
-  validate({
-    code: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-  }),
-  authController.verifyEmail,
+  validateRequest({ body: verifyEmailSchema }),
+  verifyEmail,
 );
 
 router.post(
@@ -176,63 +193,54 @@ router.post(
   authenticate,
   emailLimiter,
   sanitizeInput,
-  validate({
-    newEmail: { type: 'email', required: true },
-  }),
-  authController.sendCodeToNewEmail,
+  validateRequest({ body: sendCodeToNewEmailSchema }),
+  sendCodeToNewEmail,
 );
 
 router.put(
   '/email/change',
   authenticate,
   sanitizeInput,
-  validate({
-    newEmail: { type: 'email', required: true },
-    code: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-  }),
-  authController.changeEmail,
+  validateRequest({ body: changeEmailSchema }),
+  changeEmail,
 );
 
-router.put('/2fa/setup', authenticate, authController.setup2FA);
-router.get('/2fa/recovery-codes', authenticate, authController.getRecoveryCodes);
-router.post('/2fa/recovery-codes/regenerate', authenticate, authController.regenerateRecoveryCodes);
+router.put('/2fa/setup', authenticate, setup2FA);
+router.get('/2fa/recovery-codes', authenticate, getRecoveryCodes);
+router.post('/2fa/recovery-codes/regenerate', authenticate, regenerateRecoveryCodes);
 router.post(
   '/2fa/enable',
   authenticate,
   sanitizeInput,
-  validate({
-    code: { type: 'string', required: true, minLength: 6, maxLength: 6 },
-  }),
-  authController.enable2FA,
+  validateRequest({ body: enable2FASchema }),
+  enable2FA,
 );
-router.post('/2fa/disable', authenticate, authController.disable2FA);
+router.post('/2fa/disable', authenticate, disable2FA);
 
 router.post(
   '/upload-avatar',
   authenticate,
   upload.single('avatar'),
   validateFileContent,
-  authController.uploadAvatar,
+  uploadAvatar,
 );
-router.get('/stats', authenticate, authController.getStats);
+router.get('/stats', authenticate, getStats);
 
-router.get('/user-settings', authenticate, authController.getUserSettings);
-router.post('/user-settings', authenticate, authController.updateUserSettings);
-router.get('/trusted-devices', authenticate, authController.getTrustedDevices);
-router.delete('/trusted-devices/:id', authenticate, authController.revokeTrustedDevice);
+router.get('/user-settings', authenticate, getUserSettings);
+router.post('/user-settings', authenticate, updateUserSettings);
+router.get('/trusted-devices', authenticate, getTrustedDevices);
+router.delete('/trusted-devices/:id', authenticate, revokeTrustedDevice);
 router.delete(
   '/account',
   authenticate,
   sanitizeInput,
-  validate({
-    twoFactorCode: { type: 'string', required: false, minLength: 6, maxLength: 6 },
-  }),
-  authController.deleteAccount,
+  validateRequest({ body: deleteAccountSchema }),
+  deleteAccount,
 );
 
-router.get('/google', authController.googleLogin);
-router.get('/google/callback', authController.googleCallback);
-router.get('/github', authController.githubLogin);
-router.get('/github/callback', authController.githubCallback);
+router.get('/google', googleLogin);
+router.get('/google/callback', googleCallback);
+router.get('/github', githubLogin);
+router.get('/github/callback', githubCallback);
 
 export default router;

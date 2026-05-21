@@ -236,19 +236,19 @@ onMounted(() => {
           <!-- Left Column: Tasks & Assets -->
           <div class="lg:col-span-2 space-y-6 md:space-y-8">
             <!-- Active Learning Card -->
-            <ActiveLearningCard :activeEnrollment="activeEnrollment" />
+            <ActiveLearningCard :active-enrollment="activeEnrollment" />
 
             <!-- Recent Tasks -->
-            <RecentTasksCard :recentTasks="recentTasks" />
+            <RecentTasksCard :recent-tasks="recentTasks" />
 
             <!-- Recent Assets -->
-            <RecentAssetsCard :recentAssets="recentAssets" />
+            <RecentAssetsCard :recent-assets="recentAssets" />
           </div>
 
           <!-- Right Column: Community & Feed -->
           <div class="space-y-6 md:space-y-8">
             <!-- Activity Feed -->
-            <TeamActivityCard :activityLog="activityLog" />
+            <TeamActivityCard :activity-log="activityLog" />
 
             <!-- Collaboration Invite -->
             <CollaborationInviteCard />

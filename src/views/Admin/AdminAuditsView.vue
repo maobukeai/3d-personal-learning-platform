@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useWorkspaceStore } from '@/stores/workspace';
 import {
   CheckCircle2,
   XCircle,
@@ -29,7 +30,18 @@ import UserAvatar from '@/components/UserAvatar.vue';
 
 const route = useRoute();
 const router = useRouter();
-const activeTab = ref((route.meta.auditType as string) || 'showcases');
+const workspaceStore = useWorkspaceStore();
+
+const getValidTab = (tab: any): 'assets' | 'materials' | 'showcases' => {
+  if (tab === 'assets' || tab === 'materials' || tab === 'showcases') {
+    return tab;
+  }
+  return 'assets';
+};
+
+const activeTab = ref<'assets' | 'materials' | 'showcases'>(
+  getValidTab(route.query.tab || route.meta.auditType)
+);
 
 // 动态页面配置
 const pageConfig = computed(() => {
@@ -354,23 +366,45 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-// 监听路由变化，动态刷新表格类型
+const fetchAssetCategories = async () => {
+  try {
+    const { data } = await api.get('/api/admin/asset-categories');
+    assetCategories.value = data;
+  } catch (error) {
+    console.error('Fetch asset categories error:', error);
+  }
+};
+
+// 监听 activeTab 的变化更新 URL 及其数据
+watch(activeTab, (newTab) => {
+  router.replace({ query: { ...route.query, tab: newTab } });
+  statusFilter.value = 'PENDING';
+  searchQuery.value = '';
+  fetchItems();
+  fetchAllForStats();
+});
+
+// 监听路由与参数变化，动态刷新表格类型
 watch(
-  () => route.meta.auditType,
-  (newType) => {
-    if (newType) {
-      activeTab.value = newType as string;
-      statusFilter.value = 'PENDING';
-      searchQuery.value = '';
-      fetchItems();
-      fetchAllForStats();
+  () => [route.query.tab, route.meta.auditType],
+  ([newTab, newMeta]) => {
+    const target = getValidTab(newTab || newMeta);
+    if (target !== activeTab.value) {
+      activeTab.value = target;
     }
-  },
+  }
 );
+
+const moderationTabs = computed(() => [
+  { id: 'assets' as const, name: '3D资产审核', icon: Box, badge: workspaceStore.adminStats.pendingAssets },
+  { id: 'materials' as const, name: '材质材料审核', icon: Layers, badge: workspaceStore.adminStats.pendingMaterials },
+  { id: 'showcases' as const, name: '作品内容审核', icon: Sparkles, badge: workspaceStore.adminStats.pendingShowcases }
+]);
 
 onMounted(() => {
   fetchItems();
   fetchAllForStats();
+  fetchAssetCategories();
 });
 </script>
 
@@ -379,7 +413,7 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- 奢华顶栏 -->
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
       class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
@@ -389,36 +423,33 @@ onMounted(() => {
         class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
       ></div>
 
+      <!-- Row 1: 标题 & 主要动作 -->
       <div
-        class="px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10"
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-4 relative z-10 border-b"
+        style="border-color: var(--border-base)"
       >
-        <div>
-          <div class="flex items-center gap-2.5 mb-1">
-            <span
-              class="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
-            >
-              <component :is="pageConfig.icon" class="w-5 h-5" />
-            </span>
-            <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-              {{ pageConfig.title }}
-            </h1>
-          </div>
-          <p class="text-xs font-medium ml-10 mt-1.5" style="color: var(--text-muted)">
-            {{ pageConfig.desc }}
-          </p>
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
+          >
+            <component :is="pageConfig.icon" class="w-4 h-4" />
+          </span>
+          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+            内容审核中心
+          </h1>
         </div>
 
-        <div class="flex items-center gap-3 self-end md:self-center">
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-xs font-bold shadow-sm"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
             style="border-color: var(--border-base); color: var(--text-primary)"
             @click="openCategoryManager"
           >
             <FolderCog class="w-3.5 h-3.5" />
-            系统级分类管理
+            <span class="hidden sm:inline">分类管理</span>
           </button>
           <button
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-xs font-bold shadow-sm"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
             style="border-color: var(--border-base); color: var(--text-secondary)"
             @click="
               fetchItems();
@@ -426,183 +457,141 @@ onMounted(() => {
             "
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            刷新队列
+            <span class="hidden sm:inline">刷新</span>
           </button>
         </div>
       </div>
 
-      <!-- 绝美状态数据看板卡片区 -->
-      <div class="px-4 sm:px-8 pb-6 grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-4">
-        <!-- 待审核卡片 -->
-        <div
-          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
-          :class="
-            statusFilter === 'PENDING'
-              ? 'ring-2 ring-amber-500 bg-amber-500/5 border-amber-500/30'
-              : 'hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
-          "
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-          @click="setStatusFilter('PENDING')"
-        >
-          <div
-            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-amber-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
-          ></div>
-          <div class="flex items-center justify-between mb-1 sm:mb-2">
-            <span class="text-[8px] sm:text-xs font-bold text-amber-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
-              <Clock class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">待审核待办</span><span class="sm:hidden">待审核</span>
-            </span>
-          </div>
-          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-            {{ stats.pending }}
-          </p>
-        </div>
-
-        <!-- 已通过卡片 -->
-        <div
-          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
-          :class="
-            statusFilter === 'APPROVED'
-              ? 'ring-2 ring-emerald-500 bg-emerald-500/5 border-emerald-500/30'
-              : 'hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
-          "
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-          @click="setStatusFilter('APPROVED')"
-        >
-          <div
-            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-emerald-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
-          ></div>
-          <div class="flex items-center justify-between mb-1 sm:mb-2">
-            <span class="text-[8px] sm:text-xs font-bold text-emerald-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
-              <CheckCircle2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">已批准上线</span><span class="sm:hidden">已通过</span>
-            </span>
-          </div>
-          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-            {{ stats.approved }}
-          </p>
-        </div>
-
-        <!-- 打回卡片 -->
-        <div
-          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
-          :class="
-            statusFilter === 'REJECTED'
-              ? 'ring-2 ring-rose-500 bg-rose-500/5 border-rose-500/30'
-              : 'hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
-          "
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-          @click="setStatusFilter('REJECTED')"
-        >
-          <div
-            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-rose-50/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
-          ></div>
-          <div class="flex items-center justify-between mb-1 sm:mb-2">
-            <span class="text-[8px] sm:text-xs font-bold text-rose-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
-              <XCircle class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">已拒绝打回</span><span class="sm:hidden">未通过</span>
-            </span>
-          </div>
-          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-            {{ stats.rejected }}
-          </p>
-        </div>
-
-        <!-- 全部卡片 -->
-        <div
-          class="p-2 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden group hover:-translate-y-0.5"
-          :class="
-            statusFilter === ''
-              ? 'ring-2 ring-indigo-500 bg-indigo-500/5 border-indigo-500/30'
-              : 'hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
-          "
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-          @click="setStatusFilter('')"
-        >
-          <div
-            class="absolute top-0 right-0 w-12 h-12 sm:w-20 sm:h-20 bg-indigo-500/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"
-          ></div>
-          <div class="flex items-center justify-between mb-1 sm:mb-2">
-            <span class="text-[8px] sm:text-xs font-bold text-indigo-500 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
-              <Tag class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span class="hidden sm:inline">全部记录流</span><span class="sm:hidden">全部记录</span>
-            </span>
-          </div>
-          <p class="text-base sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-            {{ stats.total }}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 工具栏条 -->
-    <div
-      class="p-4 sm:p-6 border-b flex flex-col sm:flex-row gap-4 sm:items-center justify-between shrink-0 transition-colors duration-300 relative"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="flex items-center gap-4">
-        <button
-          class="flex items-center gap-2 px-3.5 py-2 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs shadow-sm"
-          style="border-color: var(--border-base); color: var(--text-primary)"
-          @click="toggleSelectAll"
-        >
-          <CheckSquare v-if="isAllSelected" class="w-4 h-4 text-indigo-600" />
-          <Square v-else class="w-4 h-4 text-slate-400" />
-          全选当前页
-        </button>
-
-        <div class="relative w-72">
-          <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="检索记录名称、描述、作者..."
-            class="w-full pl-10 pr-4 py-2 rounded-xl border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-xs shadow-sm"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          />
-        </div>
-      </div>
-
-      <div class="text-xs font-bold" style="color: var(--text-secondary)">
-        共显示 <span class="text-indigo-500 font-black">{{ filteredItems.length }}</span> 个匹配记录
-      </div>
-
-      <!-- 悬浮批量操作动作栏 -->
-      <Transition
-        enter-active-class="animate-in slide-in-from-top-4 duration-300"
-        leave-active-class="animate-out slide-out-to-top-4 duration-300"
+      <!-- Row 2: 选项卡 & 状态筛选项 & 动作工具栏 -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
       >
-        <div
-          v-if="selectedIds.length > 0"
-          class="absolute inset-0 z-20 bg-indigo-600 text-white flex items-center justify-between px-8 shadow-md"
-        >
-          <div class="flex items-center gap-4">
-            <span class="text-xs font-black tracking-wider px-2.5 py-1 bg-white/10 rounded-lg"
-              >已勾选 {{ selectedIds.length }} 项记录</span
-            >
+        <!-- 过滤器组合 (分段选项卡 & 状态 Pills) -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <!-- 极品分段选项卡 -->
+          <div class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
             <button
-              class="text-xs font-bold hover:underline opacity-80 transition-opacity"
-              @click="selectedIds = []"
+              v-for="tab in moderationTabs"
+              :key="tab.id"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === tab.id
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="activeTab = tab.id"
             >
-              取消勾选
+              <component :is="tab.icon" class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>{{ tab.name.replace('审核', '') }}</span>
+              <span
+                v-if="tab.badge > 0"
+                class="px-1 py-0.2 sm:px-1.5 sm:py-0.5 text-[8px] font-extrabold rounded-full bg-rose-500 text-white leading-none min-w-[13px] text-center"
+              >
+                {{ tab.badge }}
+              </span>
             </button>
           </div>
-          <div class="flex items-center gap-3">
+
+          <div class="w-[1px] h-3 bg-slate-200 dark:bg-slate-800 shrink-0 mx-1 sm:mx-3"></div>
+
+          <!-- 紧凑状态筛选 Pills -->
+          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              class="px-5 py-2 bg-white text-indigo-600 rounded-xl font-bold text-xs shadow hover:scale-105 transition-all"
-              @click="handleBatchApprove"
+              v-for="filter in [
+                { key: 'PENDING', label: '待审核', count: stats.pending, color: 'amber', icon: Clock },
+                { key: 'APPROVED', label: '已通过', count: stats.approved, color: 'emerald', icon: CheckCircle2 },
+                { key: 'REJECTED', label: '已打回', count: stats.rejected, color: 'rose', icon: XCircle },
+                { key: '', label: '全部', count: stats.total, color: 'indigo', icon: Tag }
+              ]"
+              :key="filter.key"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0 animate-in duration-200"
+              :class="[
+                statusFilter === filter.key
+                  ? filter.key === 'PENDING'
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
+                    : filter.key === 'APPROVED'
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                      : filter.key === 'REJECTED'
+                        ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
+                        : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+              ]"
+              @click="setStatusFilter(filter.key)"
             >
-              一键批量批准通过
-            </button>
-            <button
-              class="px-5 py-2 bg-rose-500 text-white border border-rose-400 rounded-xl font-bold text-xs shadow hover:scale-105 transition-all"
-              @click="handleBatchReject"
-            >
-              一键批量打回拒绝
+              <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
+              <span>{{ filter.label }}</span>
+              <span class="opacity-60">({{ filter.count }})</span>
             </button>
           </div>
         </div>
-      </Transition>
+
+        <!-- 检索与全选组合 -->
+        <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-[11px] shadow-sm shrink-0 cursor-pointer"
+            style="border-color: var(--border-base); color: var(--text-primary)"
+            @click="toggleSelectAll"
+          >
+            <CheckSquare v-if="isAllSelected" class="w-3.5 h-3.5 text-indigo-600" />
+            <Square v-else class="w-3.5 h-3.5 text-slate-400" />
+            全选当前页
+          </button>
+
+          <div class="relative w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="检索记录名称、作者..."
+              class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+          </div>
+
+          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+            共 <span class="text-indigo-500 font-extrabold">{{ filteredItems.length }}</span> 个匹配记录
+          </div>
+        </div>
+
+        <!-- 悬浮批量操作动作栏 -->
+        <Transition
+          enter-active-class="animate-in slide-in-from-top-4 duration-300"
+          leave-active-class="animate-out slide-out-to-top-4 duration-300"
+        >
+          <div
+            v-if="selectedIds.length > 0"
+            class="absolute inset-0 z-20 bg-indigo-600 text-white flex items-center justify-between px-8 shadow-md rounded-b-xl"
+          >
+            <div class="flex items-center gap-4">
+              <span class="text-xs font-black tracking-wider px-2.5 py-1 bg-white/10 rounded-lg"
+                >已勾选 {{ selectedIds.length }} 项记录</span
+              >
+              <button
+                class="text-xs font-bold hover:underline opacity-80 transition-opacity"
+                @click="selectedIds = []"
+              >
+                取消勾选
+              </button>
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                class="px-5 py-2 bg-white text-indigo-600 rounded-xl font-bold text-xs shadow hover:scale-105 transition-all"
+                @click="handleBatchApprove"
+              >
+                一键批量批准通过
+              </button>
+              <button
+                class="px-5 py-2 bg-rose-500 text-white border border-rose-400 rounded-xl font-bold text-xs shadow hover:scale-105 transition-all"
+                @click="handleBatchReject"
+              >
+                一键批量打回拒绝
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </div>
 
     <!-- 主要数据展示网格区 -->

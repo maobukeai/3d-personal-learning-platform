@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser, emitToAll } from '../services/socket.service';
@@ -9,8 +10,9 @@ import { process3DAsset } from '../utils/asset-processor';
 import { checkAssetQuota, checkStorageQuota } from '../utils/quota';
 import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import { AppError } from '../middlewares/error.middleware';
 
-export const uploadAsset = async (req: AuthRequest, res: Response) => {
+export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
     const workspaceId = req.workspaceId;
@@ -19,24 +21,24 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
     const externalUrl = req.body.externalUrl;
 
     if (!assetFile && !externalUrl) {
-      return res.status(400).json({ error: 'No asset file or external link provided' });
+      return next(new AppError('No asset file or external link provided', 400));
     }
 
     // Check quotas with workspace context
     const assetQuota = await checkAssetQuota(userId, workspaceId);
     if (!assetQuota.allowed) {
-      return res.status(403).json({ error: assetQuota.message });
+      return next(new AppError(assetQuota.message || 'Asset quota exceeded', 403));
     }
 
     const fileSizeMB = assetFile ? parseFloat((assetFile.size / (1024 * 1024)).toFixed(2)) : 0;
     const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
     if (!storageQuota.allowed) {
-      return res.status(403).json({ error: storageQuota.message });
+      return next(new AppError(storageQuota.message || 'Storage quota exceeded', 403));
     }
 
     const { title, description, categoryId, formats } = req.body;
     if (!categoryId) {
-      return res.status(400).json({ error: 'Category is required' });
+      return next(new AppError('Category is required', 400));
     }
 
     let url = externalUrl;
@@ -126,12 +128,11 @@ export const uploadAsset = async (req: AuthRequest, res: Response) => {
       createdAt: asset.createdAt,
     });
   } catch (error) {
-    console.error('Upload asset error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateAsset = async (req: AuthRequest, res: Response) => {
+export const updateAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { title, description, categoryId, formats } = req.body;
 
@@ -141,10 +142,10 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
     });
 
     if (!existingAsset) {
-      return res.status(404).json({ error: 'Asset not found or access denied' });
+      return next(new AppError('Asset not found or access denied', 404));
     }
 
-    const updateData: any = {};
+    const updateData: Prisma.AssetUncheckedUpdateInput = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
@@ -167,7 +168,7 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.UPDATE_ASSET,
       module: AuditModule.ASSET,
       description: `Updated asset: ${asset.title}`,
@@ -178,12 +179,11 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
 
     res.json(asset);
   } catch (error) {
-    console.error('Update asset error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
+export const updateAssetMetadata = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { vertices, faces, materials, animations, hasAnimations, dimensions } = req.body;
 
@@ -194,18 +194,18 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
     });
 
     if (!existingAsset) {
-      return res.status(404).json({ error: 'Asset not found or access denied in this workspace' });
+      return next(new AppError('Asset not found or access denied in this workspace', 404));
     }
 
-    const updateData: any = {
+    const updateData: Prisma.AssetUpdateInput = {
       hasAnimations: hasAnimations === true || hasAnimations === 'true',
       dimensions,
     };
 
-    if (vertices !== undefined) updateData.vertices = parseInt(vertices);
-    if (faces !== undefined) updateData.faces = parseInt(faces);
-    if (materials !== undefined) updateData.materials = parseInt(materials);
-    if (animations !== undefined) updateData.animations = parseInt(animations);
+    if (vertices !== undefined) updateData.vertices = parseInt(vertices, 10);
+    if (faces !== undefined) updateData.faces = parseInt(faces, 10);
+    if (materials !== undefined) updateData.materials = parseInt(materials, 10);
+    if (animations !== undefined) updateData.animations = parseInt(animations, 10);
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -213,17 +213,16 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response) => {
     });
     res.json(asset);
   } catch (error) {
-    console.error('Update asset metadata error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
+export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { thumbnail } = req.body; // Expecting base64 string
 
   if (!thumbnail) {
-    return res.status(400).json({ error: 'No thumbnail provided' });
+    return next(new AppError('No thumbnail provided', 400));
   }
 
   try {
@@ -233,7 +232,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
     });
 
     if (!existingAsset) {
-      return res.status(404).json({ error: 'Asset not found or access denied in this workspace' });
+      return next(new AppError('Asset not found or access denied in this workspace', 404));
     }
 
     const assetsDir = path.join(__dirname, '../../uploads/assets');
@@ -262,21 +261,20 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response) => {
 
     res.json(asset);
   } catch (error) {
-    console.error('Update asset thumbnail error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getPublicAssets = async (req: AuthRequest, res: Response) => {
+export const getPublicAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 12;
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 12;
     const lite = req.query.lite === 'true';
     const search = req.query.search as string;
     const categoryId = req.query.categoryId as string;
     const skip = (page - 1) * limit;
 
-    const where: any = { status: 'APPROVED' };
+    const where: Prisma.AssetWhereInput = { status: 'APPROVED' };
     if (categoryId && categoryId !== 'all') {
       where.categoryId = categoryId;
     }
@@ -284,41 +282,44 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
       where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
     }
 
-    const queryOptions: any = {
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: Math.min(limit, 50),
-    };
-
+    let assets: any[];
     if (lite) {
-      queryOptions.select = {
-        id: true,
-        title: true,
-        thumbnail: true,
-        type: true,
-        size: true,
-        createdAt: true,
-        category: {
-          select: { name: true },
+      assets = await prisma.asset.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Math.min(limit, 50),
+        select: {
+          id: true,
+          title: true,
+          thumbnail: true,
+          type: true,
+          size: true,
+          createdAt: true,
+          category: {
+            select: { name: true },
+          },
+          user: {
+            select: { name: true, avatarUrl: true },
+          },
         },
-        user: {
-          select: { name: true, avatarUrl: true },
-        },
-      };
+      });
     } else {
-      queryOptions.include = {
-        category: true,
-        user: {
-          select: { name: true, avatarUrl: true },
+      assets = await prisma.asset.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Math.min(limit, 50),
+        include: {
+          category: true,
+          user: {
+            select: { name: true, avatarUrl: true },
+          },
         },
-      };
+      });
     }
 
-    const [assets, total] = await Promise.all([
-      prisma.asset.findMany(queryOptions),
-      prisma.asset.count({ where }),
-    ]);
+    const total = await prisma.asset.count({ where });
 
     res.json({
       assets,
@@ -330,11 +331,11 @@ export const getPublicAssets = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getUserAssets = async (req: AuthRequest, res: Response) => {
+export const getUserAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const assets = await prisma.asset.findMany({
       where: { teamId: req.workspaceId },
@@ -343,11 +344,11 @@ export const getUserAssets = async (req: AuthRequest, res: Response) => {
     });
     res.json(assets);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getAssetById = async (req: AuthRequest, res: Response) => {
+export const getAssetById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
@@ -362,16 +363,16 @@ export const getAssetById = async (req: AuthRequest, res: Response) => {
     });
 
     if (!asset) {
-      return res.status(404).json({ error: 'Asset not found' });
+      return next(new AppError('Asset not found', 404));
     }
 
     res.json(asset);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteAsset = async (req: AuthRequest, res: Response) => {
+export const deleteAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
@@ -379,7 +380,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
     });
 
     if (!asset) {
-      return res.status(404).json({ error: 'Asset not found' });
+      return next(new AppError('Asset not found', 404));
     }
 
     // Auth check: asset owner, team owner/admin, or platform admin
@@ -388,7 +389,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
         where: { teamId: req.workspaceId, userId: req.userId },
       });
       if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
-        return res.status(403).json({ error: 'Not authorized to delete this asset' });
+        return next(new AppError('Not authorized to delete this asset', 403));
       }
     }
 
@@ -403,7 +404,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.DELETE_ASSET,
       module: AuditModule.ASSET,
       description: `Deleted asset: ${asset.title}`,
@@ -413,12 +414,11 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Asset deleted successfully' });
   } catch (error) {
-    console.error('Delete asset error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response) => {
+export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { status } = req.query;
   try {
     const assets = await prisma.asset.findMany({
@@ -432,20 +432,20 @@ export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response) => {
     });
     res.json(assets);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
+export const updateAssetStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { status, rejectReason } = req.body;
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return res.status(400).json({ error: 'Invalid status' });
+    return next(new AppError('Invalid status', 400));
   }
 
   try {
-    const updateData: any = { status };
+    const updateData: Prisma.AssetUpdateInput = { status };
     if (status === 'REJECTED' && rejectReason) {
       updateData.rejectReason = rejectReason;
     }
@@ -454,7 +454,7 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
     }
 
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
-    if (!oldAsset) return res.status(404).json({ error: 'Asset not found' });
+    if (!oldAsset) return next(new AppError('Asset not found', 404));
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -485,23 +485,23 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response) => {
 
     res.json(asset);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) => {
+export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { ids, status, rejectReason } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: '请选择至少一个资产' });
+    return next(new AppError('请选择至少一个资产', 400));
   }
 
   if (!['APPROVED', 'REJECTED'].includes(status)) {
-    return res.status(400).json({ error: 'Invalid status' });
+    return next(new AppError('Invalid status', 400));
   }
 
   try {
-    const updateData: any = { status };
+    const updateData: Prisma.AssetUpdateManyMutationInput = { status };
     if (status === 'REJECTED' && rejectReason) {
       updateData.rejectReason = rejectReason;
     }
@@ -544,19 +544,19 @@ export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response) =>
 
     res.json({ message: `成功更新 ${result.count} 个资产状态`, count: result.count });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
+export const adminUpdateAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { title, description, status, categoryId, formats } = req.body;
 
   try {
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
-    if (!oldAsset) return res.status(404).json({ error: 'Asset not found' });
+    if (!oldAsset) return next(new AppError('Asset not found', 404));
 
-    const updateData: any = {};
+    const updateData: Prisma.AssetUncheckedUpdateInput = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
@@ -582,17 +582,16 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response) => {
 
     res.json(asset);
   } catch (error) {
-    console.error('Admin update asset error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const adminDeleteAsset = async (req: AuthRequest, res: Response) => {
+export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findUnique({ where: { id } });
     if (!asset) {
-      return res.status(404).json({ error: 'Asset not found' });
+      return next(new AppError('Asset not found', 404));
     }
 
     // Delete file from disk if exists
@@ -617,7 +616,6 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Asset deleted successfully by admin' });
   } catch (error) {
-    console.error('Admin delete asset error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

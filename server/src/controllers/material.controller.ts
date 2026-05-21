@@ -1,4 +1,5 @@
-import { Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import path from 'path';
@@ -6,11 +7,12 @@ import fs from 'fs';
 import { checkStorageQuota } from '../utils/quota';
 import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import { AppError } from '../middlewares/error.middleware';
 
-export const getAllMaterials = async (req: AuthRequest, res: Response) => {
+export const getAllMaterials = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { category, sort, search } = req.query;
   try {
-    const where: any = {
+    const where: Prisma.MaterialWhereInput = {
       teamId: req.workspaceId,
       status: 'APPROVED',
     };
@@ -25,7 +27,7 @@ export const getAllMaterials = async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const orderBy: any = sort === 'popular' ? { downloads: 'desc' } : { createdAt: 'desc' };
+    const orderBy: Prisma.MaterialOrderByWithRelationInput = sort === 'popular' ? { downloads: 'desc' } : { createdAt: 'desc' };
 
     const materials = await prisma.material.findMany({
       where,
@@ -54,11 +56,11 @@ export const getAllMaterials = async (req: AuthRequest, res: Response) => {
 
     res.json(materialsWithFavorite);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getMaterialById = async (req: AuthRequest, res: Response) => {
+export const getMaterialById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const material = await prisma.material.findUnique({
@@ -72,7 +74,7 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
         },
       },
     });
-    if (!material) return res.status(404).json({ error: 'Material not found' });
+    if (!material) return next(new AppError('Material not found', 404));
 
     const isFavorited = await prisma.materialFavorite.findFirst({
       where: { userId: req.userId as string, materialId: id },
@@ -80,20 +82,20 @@ export const getMaterialById = async (req: AuthRequest, res: Response) => {
 
     res.json({ ...material, isFavorited: !!isFavorited });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const uploadMaterial = async (req: AuthRequest, res: Response) => {
+export const uploadMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
     const workspaceId = req.workspaceId;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const materialFile = files?.material?.[0];
     const previewFile = files?.preview?.[0];
 
     if (!materialFile) {
-      return res.status(400).json({ error: 'No material file uploaded' });
+      return next(new AppError('No material file uploaded', 400));
     }
 
     const fileSizeMB = materialFile.size / (1024 * 1024);
@@ -101,7 +103,7 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
     // Check quota
     const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
     if (!storageQuota.allowed) {
-      return res.status(403).json({ error: storageQuota.message });
+      return next(new AppError(storageQuota.message || 'Quota exceeded', 403));
     }
 
     const { title, description, category, resolution, tags, isProcedural } = req.body;
@@ -139,19 +141,18 @@ export const uploadMaterial = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(material);
   } catch (error) {
-    console.error('Upload material error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteMaterial = async (req: AuthRequest, res: Response) => {
+export const deleteMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const material = await prisma.material.findFirst({
       where: { id, teamId: req.workspaceId },
     });
 
-    if (!material) return res.status(404).json({ error: 'Material not found' });
+    if (!material) return next(new AppError('Material not found', 404));
 
     // Auth check: material owner, team owner/admin, or platform admin
     if (material.userId !== req.userId && req.user?.role !== 'ADMIN') {
@@ -159,7 +160,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
         where: { teamId: req.workspaceId, userId: req.userId },
       });
       if (!membership || (membership.role !== 'OWNER' && membership.role !== 'ADMIN')) {
-        return res.status(403).json({ error: 'Not authorized to delete this material' });
+        return next(new AppError('Not authorized to delete this material', 403));
       }
     }
 
@@ -171,7 +172,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
     await prisma.material.delete({ where: { id } });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.DELETE_MATERIAL,
       module: AuditModule.MATERIAL,
       description: `Deleted material: ${material.title}`,
@@ -181,21 +182,21 @@ export const deleteMaterial = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Material deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const downloadMaterial = async (req: AuthRequest, res: Response) => {
+export const downloadMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const material = await prisma.material.findUnique({ where: { id } });
-    if (!material) return res.status(404).json({ error: 'Material not found' });
+    if (!material) return next(new AppError('Material not found', 404));
 
     const fileName = material.fileUrl.split('/').pop();
-    if (!fileName) return res.status(400).json({ error: 'Invalid file URL' });
+    if (!fileName) return next(new AppError('Invalid file URL', 400));
 
     const filePath = path.join(__dirname, '../../uploads/materials', fileName);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+    if (!fs.existsSync(filePath)) return next(new AppError('File not found', 404));
 
     const ext = path.extname(fileName);
     const safeTitle = material.title.replace(/[^a-zA-Z0-9\u4e00-\u9fff._-]/g, '_');
@@ -210,11 +211,11 @@ export const downloadMaterial = async (req: AuthRequest, res: Response) => {
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const recordDownload = async (req: AuthRequest, res: Response) => {
+export const recordDownload = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const material = await prisma.material.update({
@@ -227,11 +228,11 @@ export const recordDownload = async (req: AuthRequest, res: Response) => {
     });
     res.json({ message: 'Download recorded', downloads: material.downloads });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const toggleFavorite = async (req: AuthRequest, res: Response) => {
+export const toggleFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const materialId = req.params.id as string;
   try {
     const existing = await prisma.materialFavorite.findFirst({
@@ -248,11 +249,11 @@ export const toggleFavorite = async (req: AuthRequest, res: Response) => {
       res.json({ isFavorited: true });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getMyFavorites = async (req: AuthRequest, res: Response) => {
+export const getMyFavorites = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const favorites = await prisma.materialFavorite.findMany({
       where: { userId: req.userId as string },
@@ -274,6 +275,6 @@ export const getMyFavorites = async (req: AuthRequest, res: Response) => {
 
     res.json(materials);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

@@ -1,8 +1,10 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { AppError } from '../middlewares/error.middleware';
 
-export const getLessonsByCourse = async (req: AuthRequest, res: Response) => {
+export const getLessonsByCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const courseId = req.params.courseId as string;
   try {
     const lessons = await prisma.lesson.findMany({
@@ -11,33 +13,42 @@ export const getLessonsByCourse = async (req: AuthRequest, res: Response) => {
     });
     res.json(lessons);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getLessonById = async (req: AuthRequest, res: Response) => {
+export const getLessonById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const lesson = await prisma.lesson.findUnique({
       where: { id },
     });
-    if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+    if (!lesson) {
+      return next(new AppError('Lesson not found', 404));
+    }
     res.json(lesson);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createLesson = async (req: AuthRequest, res: Response) => {
-  const { title, content, videoUrl, courseId, order, hotspots, sceneConfig } = req.body;
+export const createLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { title, content, videoUrl, courseId, order, hotspots, sceneConfig, duration } = req.body;
+  if (!title || !courseId || order === undefined) {
+    return next(new AppError('Title, courseId, and order are required', 400));
+  }
   try {
+    const parsedOrder = typeof order === 'number' ? order : parseInt(order, 10);
+    const parsedDuration = typeof duration === 'number' ? duration : (duration ? parseInt(duration, 10) : 0);
+
     const lesson = await prisma.lesson.create({
       data: {
         title,
         content,
         videoUrl,
         courseId,
-        order,
+        order: parsedOrder,
+        duration: parsedDuration,
         hotspots: hotspots
           ? typeof hotspots === 'string'
             ? hotspots
@@ -52,15 +63,29 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
     });
     res.status(201).json(lesson);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateLesson = async (req: AuthRequest, res: Response) => {
+export const updateLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
-  const { title, content, videoUrl, order, hotspots, sceneConfig } = req.body;
+  const { title, content, videoUrl, order, hotspots, sceneConfig, duration } = req.body;
   try {
-    const updateData: any = { title, content, videoUrl, order };
+    const lessonExists = await prisma.lesson.findUnique({ where: { id } });
+    if (!lessonExists) {
+      return next(new AppError('Lesson not found', 404));
+    }
+
+    const updateData: Prisma.LessonUpdateInput = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
+    if (order !== undefined) {
+      updateData.order = typeof order === 'number' ? order : parseInt(order, 10);
+    }
+    if (duration !== undefined) {
+      updateData.duration = typeof duration === 'number' ? duration : parseInt(duration, 10);
+    }
     if (hotspots !== undefined) {
       updateData.hotspots = typeof hotspots === 'string' ? hotspots : JSON.stringify(hotspots);
     }
@@ -75,16 +100,21 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
     });
     res.json(lesson);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteLesson = async (req: AuthRequest, res: Response) => {
+export const deleteLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
+    const lessonExists = await prisma.lesson.findUnique({ where: { id } });
+    if (!lessonExists) {
+      return next(new AppError('Lesson not found', 404));
+    }
+
     await prisma.lesson.delete({ where: { id } });
     res.json({ message: 'Lesson deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

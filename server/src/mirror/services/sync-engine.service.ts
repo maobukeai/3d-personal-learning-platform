@@ -72,6 +72,9 @@ export class SyncEngine {
 
     const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
     if (!source) throw new Error('镜像源不存在');
+    if (source.adapterType === 'MANUAL') {
+      throw new Error('手动上传资产站不支持自动同步任务');
+    }
 
     this.activeSyncs.add(sourceId);
     const controller = new AbortController();
@@ -158,7 +161,14 @@ export class SyncEngine {
       // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
       const existingResources = await prisma.mirrorResource.findMany({
         where: { sourceId },
-        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true, contentHtml: true },
+        select: {
+          id: true,
+          externalId: true,
+          contentHash: true,
+          description: true,
+          thumbnailUrl: true,
+          contentHtml: true,
+        },
       });
       const existingMap = new Map(
         existingResources.map((r) => [
@@ -177,7 +187,11 @@ export class SyncEngine {
       const pendingCreates: any[] = [];
       const pendingUpdates: any[] = [];
 
-      const processPage = (resources: any[], categoryId: string | null, rawCatExternalId: string) => {
+      const processPage = (
+        resources: any[],
+        categoryId: string | null,
+        rawCatExternalId: string,
+      ) => {
         for (const rawRes of resources) {
           if (seenExternalIds.has(rawRes.externalId)) continue;
           seenExternalIds.add(rawRes.externalId);
@@ -271,7 +285,11 @@ export class SyncEngine {
         if (signal.aborted) return;
         const categoryId = categoryMap.get(rawCat.externalId) || null;
 
-        const page1Result = await adapter.fetchResources(1, rawCat.slug || rawCat.externalId, signal);
+        const page1Result = await adapter.fetchResources(
+          1,
+          rawCat.slug || rawCat.externalId,
+          signal,
+        );
         if (signal.aborted) return;
 
         result.resourcesFound += page1Result.resources.length;
@@ -286,7 +304,11 @@ export class SyncEngine {
 
           await runWithLimit(pageConcurrency, pagesToFetch, async (page) => {
             if (signal.aborted) return;
-            const pageResult = await adapter.fetchResources(page, rawCat.slug || rawCat.externalId, signal);
+            const pageResult = await adapter.fetchResources(
+              page,
+              rawCat.slug || rawCat.externalId,
+              signal,
+            );
             if (signal.aborted) return;
 
             result.resourcesFound += pageResult.resources.length;
@@ -324,8 +346,8 @@ export class SyncEngine {
             prisma.mirrorResource.update({
               where: item.where,
               data: item.data,
-            })
-          )
+            }),
+          ),
         );
       }
 
@@ -372,7 +394,10 @@ export class SyncEngine {
                 );
                 updateData.contentHtml = localizedHtml || detail.contentHtml;
               } catch (e: any) {
-                console.warn(`[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`, e.message);
+                console.warn(
+                  `[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`,
+                  e.message,
+                );
                 updateData.contentHtml = detail.contentHtml;
               }
             }
@@ -404,8 +429,8 @@ export class SyncEngine {
             prisma.mirrorResource.update({
               where: { id: item.id },
               data: item.data,
-            })
-          )
+            }),
+          ),
         );
       }
 
@@ -519,6 +544,9 @@ export class SyncEngine {
 
     const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
     if (!source) throw new Error('镜像源不存在');
+    if (source.adapterType === 'MANUAL') {
+      throw new Error('手动上传资产站不支持自动同步任务');
+    }
 
     if (!source.lastSyncAt) {
       return this.fullSync(sourceId);
@@ -607,7 +635,14 @@ export class SyncEngine {
       // Fetch all existing resources to do in-memory lookups instead of database findUnique calls
       const existingResources = await prisma.mirrorResource.findMany({
         where: { sourceId },
-        select: { id: true, externalId: true, contentHash: true, description: true, thumbnailUrl: true, contentHtml: true },
+        select: {
+          id: true,
+          externalId: true,
+          contentHash: true,
+          description: true,
+          thumbnailUrl: true,
+          contentHtml: true,
+        },
       });
       const existingMap = new Map(
         existingResources.map((r) => [
@@ -755,7 +790,10 @@ export class SyncEngine {
                 );
                 updateData.contentHtml = localizedHtml || detail.contentHtml;
               } catch (e: any) {
-                console.warn(`[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`, e.message);
+                console.warn(
+                  `[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`,
+                  e.message,
+                );
                 updateData.contentHtml = detail.contentHtml;
               }
             }
@@ -787,8 +825,8 @@ export class SyncEngine {
             prisma.mirrorResource.update({
               where: { id: item.id },
               data: item.data,
-            })
-          )
+            }),
+          ),
         );
       }
 
@@ -967,7 +1005,10 @@ export class SyncEngine {
 
   private async startAllAutoSync(): Promise<void> {
     const sources = await prisma.mirrorSource.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        adapterType: { not: 'MANUAL' },
+      },
     });
 
     if (sources.length === 0) {
@@ -990,13 +1031,32 @@ export class SyncEngine {
       this.schedulerIntervals.delete(sourceId);
     }
 
-    if (status === 'ACTIVE') {
-      const intervalMs = syncInterval * 1000;
-      this.scheduleSourceSync(sourceId, intervalMs);
-      console.log(`[MirrorSync] Scheduler scheduled/reloaded for source ${sourceId} with interval ${syncInterval}s`);
-    } else {
+    if (status !== 'ACTIVE') {
       console.log(`[MirrorSync] Scheduler removed/skipped for inactive source ${sourceId}`);
+      return;
     }
+
+    prisma.mirrorSource
+      .findUnique({
+        where: { id: sourceId },
+        select: { adapterType: true },
+      })
+      .then((source) => {
+        if (!source || source.adapterType === 'MANUAL') {
+          console.log(
+            `[MirrorSync] Scheduler removed/skipped for manual or non-existent source ${sourceId}`,
+          );
+          return;
+        }
+        const intervalMs = syncInterval * 1000;
+        this.scheduleSourceSync(sourceId, intervalMs);
+        console.log(
+          `[MirrorSync] Scheduler scheduled/reloaded for source ${sourceId} with interval ${syncInterval}s`,
+        );
+      })
+      .catch((e) => {
+        console.error(`[MirrorSync] Failed to reload scheduler for source ${sourceId}:`, e);
+      });
   }
 
   removeSourceScheduler(sourceId: string): void {

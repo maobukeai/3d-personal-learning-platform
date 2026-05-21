@@ -20,6 +20,13 @@ router.get('/sources/:id/sync-status', adminMirrorController.getSyncStatus);
 router.get('/sources/:id/sync-logs', adminMirrorController.getSyncLogs);
 router.post('/sources/:id/match-links', upload.single('file'), adminMirrorController.matchLinks);
 
+// Category CRUD
+router.get('/sources/:sourceId/categories', adminMirrorController.getSourceCategories);
+router.post('/sources/:sourceId/categories', adminMirrorController.createCategory);
+router.get('/categories/:id', adminMirrorController.getCategoryDetail);
+router.put('/categories/:id', adminMirrorController.updateCategory);
+router.delete('/categories/:id', adminMirrorController.deleteCategory);
+
 // Resource CRUD
 router.get('/sources/:sourceId/resources', adminMirrorController.getSourceResources);
 router.post('/sources/:sourceId/resources', adminMirrorController.createResource);

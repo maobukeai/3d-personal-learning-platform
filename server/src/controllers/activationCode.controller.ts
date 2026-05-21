@@ -61,15 +61,21 @@ export const createActivationCode = async (req: AuthRequest, res: Response) => {
       // Format: [PREFIX-]PLANNAME-XXXX-XXXX-XXXX
       const randomPart = () => crypto.randomBytes(2).toString('hex').toUpperCase();
       const codeStr = `${finalPrefix}${plan.name.toUpperCase()}-${randomPart()}-${randomPart()}-${randomPart()}`;
-      
+
       codesData.push({
         code: codeStr,
         planId,
         durationDays: duration,
         status: 'ACTIVE',
         expiresAt: expiresAtDate,
-        bindEmail: bindEmail && typeof bindEmail === 'string' && bindEmail.trim() !== '' ? bindEmail.trim() : null,
-        description: description && typeof description === 'string' && description.trim() !== '' ? description.trim() : null,
+        bindEmail:
+          bindEmail && typeof bindEmail === 'string' && bindEmail.trim() !== ''
+            ? bindEmail.trim()
+            : null,
+        description:
+          description && typeof description === 'string' && description.trim() !== ''
+            ? description.trim()
+            : null,
       });
     }
 
@@ -195,7 +201,7 @@ export const redeemActivationCode = async (req: AuthRequest, res: Response) => {
           newStartDate = currentSub.startDate; // Keep original start
           newEndDate = new Date(baseTime.getTime() + actCode.durationDays * 24 * 60 * 60 * 1000);
         }
-        
+
         // Update subscription
         await tx.subscription.update({
           where: { userId },

@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import MainLayout from '@/layouts/MainLayout.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
+
+const MainLayout = () => import('@/layouts/MainLayout.vue');
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -177,7 +178,7 @@ const router = createRouter({
               component: () => import('@/views/NotificationsView.vue'),
             },
 
-            {
+             {
               path: 'mirror/source/:id',
               name: 'MirrorSource',
               component: () => import('@/views/Mirror/MirrorSourceView.vue'),
@@ -187,6 +188,18 @@ const router = createRouter({
               path: 'mirror/resource/:id',
               name: 'MirrorResourceDetail',
               component: () => import('@/views/Mirror/MirrorResourceDetail.vue'),
+              meta: { requiresAuth: true },
+            },
+            {
+              path: 'manual/station/:id',
+              name: 'ManualStation',
+              component: () => import('@/views/Manual/ManualStationView.vue'),
+              meta: { requiresAuth: true },
+            },
+            {
+              path: 'manual/resource/:id',
+              name: 'ManualResourceDetail',
+              component: () => import('@/views/Manual/ManualResourceDetail.vue'),
               meta: { requiresAuth: true },
             },
             // Admin Routes
@@ -210,15 +223,11 @@ const router = createRouter({
             },
             {
               path: 'admin/assets',
-              name: 'AdminAssets',
-              component: () => import('@/views/Admin/AdminAuditsView.vue'),
-              meta: { requiresAdmin: true, auditType: 'assets' },
+              redirect: { name: 'AdminAudits', query: { tab: 'assets' } },
             },
             {
               path: 'admin/materials',
-              name: 'AdminMaterials',
-              component: () => import('@/views/Admin/AdminAuditsView.vue'),
-              meta: { requiresAdmin: true, auditType: 'materials' },
+              redirect: { name: 'AdminAudits', query: { tab: 'materials' } },
             },
             {
               path: 'admin/roadmaps',
@@ -254,7 +263,7 @@ const router = createRouter({
               path: 'admin/audits',
               name: 'AdminAudits',
               component: () => import('@/views/Admin/AdminAuditsView.vue'),
-              meta: { requiresAdmin: true, auditType: 'showcases' },
+              meta: { requiresAdmin: true },
             },
             {
               path: 'admin/audit-logs',
@@ -272,6 +281,12 @@ const router = createRouter({
               path: 'admin/mirror',
               name: 'AdminMirror',
               component: () => import('@/views/Admin/AdminMirrorView.vue'),
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'admin/manual',
+              name: 'AdminManual',
+              component: () => import('@/views/Admin/AdminManualView.vue'),
               meta: { requiresAdmin: true },
             },
           ],

@@ -93,61 +93,99 @@ onMounted(fetchLogs);
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300 border-b"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-4">
-        <div
-          class="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg"
-        >
-          <Terminal class="w-6 h-6" />
-        </div>
-        <div>
-          <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-slate-500/10 via-zinc-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <!-- Row 1: 标题 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-slate-900 text-white shadow-sm border border-slate-700 shrink-0"
+          >
+            <Terminal class="w-4 h-4" />
+          </span>
+          <h1 class="text-sm font-black tracking-tight shrink-0" style="color: var(--text-primary)">
             审计日志
           </h1>
-          <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-            记录管理员与系统的所有关键操作
-          </p>
+        </div>
+
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchLogs"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            <span class="hidden sm:inline">刷新</span>
+          </button>
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <button
-          class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors text-slate-500"
-          @click="fetchLogs"
-        >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
-        </button>
-      </div>
-    </div>
+      <!-- Row 2: 状态与检索 Pills -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- 模块 Pills -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <button
+              v-for="m in modules"
+              :key="m.value"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
+                moduleFilter === m.value
+                  ? m.value === 'SETTINGS'
+                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 ring-1 ring-blue-500/20 font-extrabold shadow-sm'
+                    : m.value === 'USER'
+                      ? 'bg-purple-500/10 text-purple-600 border-purple-500/30 ring-1 ring-purple-500/20 font-extrabold shadow-sm'
+                      : m.value === 'ASSET'
+                        ? 'bg-orange-500/10 text-orange-600 border-orange-500/30 ring-1 ring-orange-500/20 font-extrabold shadow-sm'
+                        : m.value === 'AUTH'
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                          : m.value === 'MATERIAL'
+                            ? 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30 ring-1 ring-cyan-500/20 font-extrabold shadow-sm'
+                            : m.value === 'SHOWCASE'
+                              ? 'bg-rose-500/10 text-rose-600 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
+                              : 'bg-slate-500/10 text-slate-600 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+              ]"
+              @click="moduleFilter = m.value"
+            >
+              <span>{{ m.label }}</span>
+            </button>
+          </div>
+        </div>
 
-    <!-- Filters -->
-    <div
-      class="p-4 sm:p-6 border-b shrink-0 transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div class="flex items-center gap-4 w-full sm:w-auto">
-          <div class="flex items-center gap-2 flex-1 sm:flex-none">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">模块筛选</span>
-            <select
-              v-model="moduleFilter"
-              class="w-full sm:w-auto px-4 py-2 rounded-xl border outline-none font-bold text-xs"
+        <!-- 检索与统计 -->
+        <div class="w-full flex items-center justify-between lg:justify-end gap-3 lg:w-auto shrink-0">
+          <div class="relative flex-1 lg:flex-none lg:w-64">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">操作类型</span>
+            <input
+              v-model="actionFilter"
+              type="text"
+              placeholder="例如: LOGIN, CREATE_USER..."
+              class="w-full pl-16 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-slate-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-            >
-              <option v-for="m in modules" :key="m.value" :value="m.value">{{ m.label }}</option>
-            </select>
+            />
+          </div>
+          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+            共计: <span class="text-slate-900 dark:text-white font-extrabold">{{ total }}</span> 条记录
           </div>
         </div>
-
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">共 {{ total }} 条记录</div>
       </div>
     </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
 import {
   Search,
   Plus,
@@ -22,7 +22,9 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
-import ModelViewer from '@/components/ModelViewer.vue';
+
+const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
+
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';

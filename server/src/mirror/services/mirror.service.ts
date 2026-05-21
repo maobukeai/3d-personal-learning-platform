@@ -68,7 +68,23 @@ export class MirrorService {
     const where: any = { sourceId };
 
     if (categoryId) {
-      where.categoryId = categoryId;
+      const targetCategory = await prisma.mirrorCategory.findUnique({
+        where: { id: categoryId },
+        select: { externalId: true, sourceId: true },
+      });
+      if (targetCategory) {
+        const childCategories = await prisma.mirrorCategory.findMany({
+          where: {
+            sourceId: targetCategory.sourceId,
+            parentExternalId: targetCategory.externalId,
+          },
+          select: { id: true },
+        });
+        const categoryIds = [categoryId, ...childCategories.map(c => c.id)];
+        where.categoryId = { in: categoryIds };
+      } else {
+        where.categoryId = categoryId;
+      }
     }
 
     if (search) {
@@ -129,14 +145,16 @@ export class MirrorService {
       .catch(() => {});
 
     // If detail contentHtml is missing, fetch it on-demand with a timeout guard
-    if (!resource.contentHtml) {
+    if (!resource.contentHtml && resource.source.adapterType !== 'MANUAL') {
       try {
         const { getAdapter } = require('../adapters');
         const { thumbnailLocalizer } = require('./thumbnail-localizer.service');
 
         const adapter = getAdapter(resource.source.adapterType, {
           baseUrl: resource.source.baseUrl,
-          syncConfig: resource.source.syncConfig ? JSON.parse(resource.source.syncConfig) : undefined,
+          syncConfig: resource.source.syncConfig
+            ? JSON.parse(resource.source.syncConfig)
+            : undefined,
         });
 
         const FETCH_TIMEOUT_MS = 8000;

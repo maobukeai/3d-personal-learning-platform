@@ -1,21 +1,23 @@
-import { Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import { AppError } from '../middlewares/error.middleware';
 
-export const getAllShowcases = async (req: AuthRequest, res: Response) => {
+export const getAllShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { filter, type } = req.query;
 
   try {
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: Prisma.ShowcaseOrderByWithRelationInput = { createdAt: 'desc' };
     if ((filter as string) === '热门') {
       orderBy = { likes: { _count: 'desc' } };
     }
 
-    const where: any = {
+    const where: Prisma.ShowcaseWhereInput = {
       status: 'APPROVED',
     };
     if (type && (type as string) !== '全部') {
@@ -72,21 +74,21 @@ export const getAllShowcases = async (req: AuthRequest, res: Response) => {
       createdAt: s.createdAt,
       user: s.user,
       isLiked: s.likes.length > 0,
-      likesCount: (s as any)._count.likes,
-      commentsCount: (s as any)._count.comments,
+      likesCount: s._count.likes,
+      commentsCount: s._count.comments,
     }));
 
     res.json(formatted);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getShowcaseById = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const getShowcaseById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   try {
     const showcase = await prisma.showcase.findUnique({
-      where: { id: id as string },
+      where: { id },
       include: {
         user: {
           select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
@@ -104,27 +106,27 @@ export const getShowcaseById = async (req: AuthRequest, res: Response) => {
     });
 
     if (!showcase) {
-      return res.status(404).json({ error: 'Work not found' });
+      return next(new AppError('Work not found', 404));
     }
 
     await prisma.showcase.update({
-      where: { id: id as string },
+      where: { id },
       data: { views: { increment: 1 } },
     });
 
     res.json({
       ...showcase,
       isLiked: showcase.likes.length > 0,
-      likesCount: (showcase as any)._count.likes,
-      commentsCount: (showcase as any)._count.comments,
+      likesCount: showcase._count.likes,
+      commentsCount: showcase._count.comments,
       views: showcase.views + 1,
     });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getMyShowcases = async (req: AuthRequest, res: Response) => {
+export const getMyShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const showcases = await prisma.showcase.findMany({
       where: { userId: req.userId as string },
@@ -137,20 +139,20 @@ export const getMyShowcases = async (req: AuthRequest, res: Response) => {
     });
     res.json(showcases);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createShowcase = async (req: AuthRequest, res: Response) => {
+export const createShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const thumbnailFile = files?.thumbnail?.[0];
     const imageFiles = files?.images || [];
 
     const { title, description, tags, videoUrl, isVideo, type, assetId } = req.body;
 
     if (!title || !title.trim()) {
-      return res.status(400).json({ error: '标题不能为空' });
+      return next(new AppError('标题不能为空', 400));
     }
 
     let showcaseType = type || 'IMAGE';
@@ -174,7 +176,7 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
     }
 
     if (!thumbnailUrl && showcaseType !== 'TEXT') {
-      return res.status(400).json({ error: 'Thumbnail is required' });
+      return next(new AppError('Thumbnail is required', 400));
     }
 
     const imageUrls = imageFiles.map(
@@ -206,7 +208,7 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.CREATE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Created showcase: ${showcase.title}`,
@@ -216,17 +218,16 @@ export const createShowcase = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(showcase);
   } catch (error) {
-    console.error('Create showcase error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const publishAssetToShowcase = async (req: AuthRequest, res: Response) => {
+export const publishAssetToShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { assetId } = req.body;
   const { title, description, tags } = req.body;
 
   if (!assetId) {
-    return res.status(400).json({ error: 'Asset ID is required' });
+    return next(new AppError('Asset ID is required', 400));
   }
 
   try {
@@ -238,14 +239,14 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
     });
 
     if (!asset) {
-      return res.status(404).json({ error: 'Asset not found or access denied' });
+      return next(new AppError('Asset not found or access denied', 404));
     }
 
     const existingShowcase = await prisma.showcase.findFirst({
       where: { assetId },
     });
     if (existingShowcase) {
-      return res.status(400).json({ error: '该作品已发布到展示墙' });
+      return next(new AppError('该作品已发布到展示墙', 400));
     }
 
     const showcase = await prisma.showcase.create({
@@ -272,7 +273,7 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.CREATE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Published asset to showcase: ${showcase.title}`,
@@ -282,24 +283,23 @@ export const publishAssetToShowcase = async (req: AuthRequest, res: Response) =>
 
     res.status(201).json(showcase);
   } catch (error) {
-    console.error('Publish asset to showcase error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateShowcase = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const updateShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   try {
     const showcase = await prisma.showcase.findUnique({
-      where: { id: id as string },
+      where: { id },
     });
 
     if (!showcase) {
-      return res.status(404).json({ error: 'Work not found' });
+      return next(new AppError('Work not found', 404));
     }
 
     if (showcase.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' });
+      return next(new AppError('Forbidden', 403));
     }
 
     const { title, description, tags, videoUrl, isVideo, type } = req.body;
@@ -307,7 +307,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
     const thumbnailFile = files?.thumbnail?.[0];
     const imageFiles = files?.images || [];
 
-    const updateData: any = {};
+    const updateData: Prisma.ShowcaseUpdateInput = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (tags !== undefined) updateData.tags = tags;
@@ -328,7 +328,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
     }
 
     const updated = await prisma.showcase.update({
-      where: { id: id as string },
+      where: { id },
       data: updateData,
       include: {
         user: {
@@ -341,8 +341,8 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
-      action: AuditAction.REJECT_SHOWCASE, // Generic update action or add UPDATE_SHOWCASE
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_SHOWCASE, // Updated to standard action name matching audit system if needed, or keeping REJECT_SHOWCASE/generic
       module: AuditModule.SHOWCASE,
       description: `Updated showcase: ${updated.title}`,
       oldValue: showcase,
@@ -352,11 +352,11 @@ export const updateShowcase = async (req: AuthRequest, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteShowcase = async (req: AuthRequest, res: Response) => {
+export const deleteShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const showcase = await prisma.showcase.findUnique({
@@ -364,11 +364,11 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
     });
 
     if (!showcase) {
-      return res.status(404).json({ error: 'Work not found' });
+      return next(new AppError('Work not found', 404));
     }
 
     if (showcase.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' });
+      return next(new AppError('Forbidden', 403));
     }
 
     // Delete files
@@ -383,7 +383,7 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.DELETE_SHOWCASE,
       module: AuditModule.SHOWCASE,
       description: `Deleted showcase: ${showcase.title}`,
@@ -393,11 +393,11 @@ export const deleteShowcase = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const toggleLike = async (req: AuthRequest, res: Response) => {
+export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const userId = req.userId as string;
   try {
@@ -418,12 +418,12 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
         },
       });
 
-      if ((like as any).showcase.userId !== userId) {
+      if (like.showcase.userId !== userId) {
         await createNotification({
           type: 'SYSTEM',
           title: '收到新的点赞',
-          content: `${req.user?.name || '有人'} 点赞了你的作品: ${(like as any).showcase.title}`,
-          userId: (like as any).showcase.userId,
+          content: `${req.user?.name || '有人'} 点赞了你的作品: ${like.showcase.title}`,
+          userId: like.showcase.userId,
           link: '/showcase',
           category: 'MENTION',
         });
@@ -432,15 +432,15 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
       res.json({ liked: true });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getComments = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const getComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   try {
     const comments = await prisma.showcaseComment.findMany({
-      where: { showcaseId: id as string },
+      where: { showcaseId: id },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
       },
@@ -448,15 +448,15 @@ export const getComments = async (req: AuthRequest, res: Response) => {
     });
     res.json(comments);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const addComment = async (req: AuthRequest, res: Response) => {
+export const addComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { content } = req.body;
   if (!content || !content.trim()) {
-    return res.status(400).json({ error: 'Comment content is required' });
+    return next(new AppError('Comment content is required', 400));
   }
   try {
     const comment = await prisma.showcaseComment.create({
@@ -471,43 +471,43 @@ export const addComment = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    if ((comment as any).showcase.userId !== req.userId) {
+    if (comment.showcase.userId !== req.userId) {
       await createNotification({
         type: 'REPLY',
         title: '作品收到新评论',
-        content: `${req.user?.name || '有人'} 评论了你的作品: ${(comment as any).showcase.title}`,
-        userId: (comment as any).showcase.userId,
+        content: `${req.user?.name || '有人'} 评论了你的作品: ${comment.showcase.title}`,
+        userId: comment.showcase.userId,
         link: '/showcase',
         category: 'MENTION',
       });
     }
     res.status(201).json(comment);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteComment = async (req: AuthRequest, res: Response) => {
-  const { commentId } = req.params;
+export const deleteComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const commentId = req.params.commentId as string;
   try {
     const comment = await prisma.showcaseComment.findUnique({
-      where: { id: commentId as string },
+      where: { id: commentId },
     });
 
     if (!comment) {
-      return res.status(404).json({ error: 'Comment not found' });
+      return next(new AppError('Comment not found', 404));
     }
 
     if (comment.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' });
+      return next(new AppError('Forbidden', 403));
     }
 
     await prisma.showcaseComment.delete({
-      where: { id: commentId as string },
+      where: { id: commentId },
     });
 
     res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

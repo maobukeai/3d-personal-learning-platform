@@ -26,6 +26,7 @@ export interface MirrorCategory {
   externalId: string;
   name: string;
   slug: string | null;
+  parentExternalId?: string | null;
   order: number;
   resourceCount: number;
 }

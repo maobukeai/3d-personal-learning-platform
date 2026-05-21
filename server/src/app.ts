@@ -22,7 +22,10 @@ import subscriptionRoutes from './routes/subscription.routes';
 import noteRoutes from './routes/note.routes';
 import mirrorRoutes from './mirror/routes/mirror.routes';
 import adminMirrorRoutes from './mirror/routes/admin-mirror.routes';
+import manualRoutes from './manual/routes/manual.routes';
+import adminManualRoutes from './manual/routes/admin-manual.routes';
 
+import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/error.middleware';
 import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
 
@@ -69,6 +72,16 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 // Maintenance check
 app.use(checkMaintenanceMode);
 
+// Global API rate limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', globalLimiter);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -89,6 +102,8 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/mirror', mirrorRoutes);
 app.use('/api/admin/mirror', adminMirrorRoutes);
+app.use('/api/manual', manualRoutes);
+app.use('/api/admin/manual', adminManualRoutes);
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

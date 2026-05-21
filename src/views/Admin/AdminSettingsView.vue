@@ -336,50 +336,64 @@ window.addEventListener('beforeunload', (e) => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3 sm:gap-4">
-        <div class="p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl shrink-0">
-          <Settings class="w-5.5 h-5.5 sm:w-6 sm:h-6 text-slate-600" />
-        </div>
-        <div>
-          <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-            全局系统设置
-          </h1>
-          <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-            配置平台核心参数、自动化邮件及安全开关
-          </p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
-        <div
-          v-if="hasUnsavedChanges"
-          class="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 shrink-0"
-        >
-          <AlertTriangle class="w-3.5 h-3.5 text-amber-500" />
-          <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"
-            >有未保存的更改</span
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-slate-500/10 via-zinc-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-slate-500/10 text-slate-500 shadow-sm border border-slate-500/20"
           >
+            <Settings class="w-4 h-4" />
+          </span>
+          <div>
+            <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+              全局系统设置
+            </h1>
+            <p class="text-[10px] font-medium mt-0.5 hidden sm:block" style="color: var(--text-muted)">
+              配置平台核心参数、自动化邮件及安全开关
+            </p>
+          </div>
         </div>
-        <button
-          class="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition-all hover:bg-slate-50 dark:hover:bg-white/5 shrink-0 whitespace-nowrap"
-          style="border-color: var(--border-base); color: var(--text-secondary)"
-          @click="resetToDefaults"
-        >
-          <RotateCcw class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>恢复默认</span>
-        </button>
-        <button
-          :disabled="isSaving"
-          class="flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 bg-accent text-white rounded-xl font-bold text-xs sm:text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0 whitespace-nowrap"
-          @click="saveSettings"
-        >
-          <Save v-if="!isSaving" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <RefreshCw v-else class="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-          <span>{{ isSaving ? '正在保存...' : '保存全局设置' }}</span>
-        </button>
+
+        <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div
+            v-if="hasUnsavedChanges"
+            class="flex items-center gap-1 px-2 py-1 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0"
+            title="有未保存的更改"
+          >
+            <AlertTriangle class="w-3 h-3 text-amber-500" />
+            <span class="text-[10px] font-bold whitespace-nowrap hidden md:inline">有未保存的更改</span>
+          </div>
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="resetToDefaults"
+            title="恢复默认"
+          >
+            <RotateCcw class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">恢复默认</span>
+          </button>
+          <button
+            :disabled="isSaving"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 text-white rounded-xl font-bold text-[11px] hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0 whitespace-nowrap shadow-sm cursor-pointer"
+            @click="saveSettings"
+            :title="isSaving ? '正在保存...' : '保存全局设置'"
+          >
+            <Save v-if="!isSaving" class="w-3.5 h-3.5" />
+            <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
+            <span class="hidden sm:inline">{{ isSaving ? '正在保存...' : '保存全局设置' }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -391,11 +405,11 @@ window.addEventListener('beforeunload', (e) => {
         <div class="px-3 mb-4 hidden lg:block">
           <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置分类</h2>
         </div>
-        <nav class="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-hide">
+        <nav class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden">
           <button
             v-for="tab in tabs"
             :key="tab.id"
-            class="flex-1 lg:flex-none w-auto lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all shrink-0 whitespace-nowrap"
+            class="flex-1 lg:flex-none w-auto lg:w-full flex items-center justify-center lg:justify-start gap-0.5 lg:gap-3 px-1 py-1 sm:px-2 lg:px-4 lg:py-3 rounded-lg lg:rounded-xl text-[8px] xs:text-[9px] lg:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === tab.id
                 ? 'bg-accent text-white shadow-lg shadow-accent/20'
@@ -403,7 +417,7 @@ window.addEventListener('beforeunload', (e) => {
             "
             @click="activeTab = tab.id"
           >
-            <component :is="tab.icon" class="w-4 h-4 shrink-0" />
+            <component :is="tab.icon" class="w-3 h-3 lg:w-4 lg:h-4 shrink-0" />
             <span>{{ tab.label }}</span>
           </button>
         </nav>

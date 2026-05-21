@@ -186,63 +186,102 @@ onMounted(fetchFeedbacks);
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
-      class="min-h-16 py-3 lg:py-0 lg:h-16 px-4 sm:px-8 flex flex-col lg:flex-row gap-3 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-indigo-50 rounded-lg">
-          <MessageSquare class="w-5 h-5 text-indigo-600" />
-        </div>
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">用户反馈管理</h1>
-      </div>
-      <div class="flex items-center gap-3">
-        <button
-          class="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
-          @click="fetchFeedbacks"
-        >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
-        </button>
-      </div>
-    </div>
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
+      ></div>
 
-    <!-- Toolbar -->
-    <div
-      class="p-6 border-b transition-colors duration-300"
-      style="background-color: var(--bg-app); border-color: var(--border-base)"
-    >
-      <div class="flex flex-wrap items-center justify-between gap-4 max-w-7xl mx-auto">
-        <div class="flex items-center gap-4 flex-1 min-w-[300px]">
-          <div class="relative flex-1 max-w-md">
-            <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <!-- Row 1: 标题 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
+          >
+            <MessageSquare class="w-4 h-4" />
+          </span>
+          <div>
+            <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+              用户反馈管理
+            </h1>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchFeedbacks"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            <span class="hidden sm:inline">刷新</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: 状态与检索 Pills -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- 状态 Pills -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <button
+              v-for="filter in [
+                { key: 'ALL', label: '所有反馈', count: feedbacks.length },
+                { key: 'OPEN', label: '待处理', count: feedbacks.filter(f => f.status === 'OPEN').length },
+                { key: 'IN_PROGRESS', label: '处理中', count: feedbacks.filter(f => f.status === 'IN_PROGRESS').length },
+                { key: 'RESOLVED', label: '已解决', count: feedbacks.filter(f => f.status === 'RESOLVED').length },
+                { key: 'CLOSED', label: '已关闭', count: feedbacks.filter(f => f.status === 'CLOSED').length }
+              ]"
+              :key="filter.key"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
+                filterStatus === filter.key
+                  ? filter.key === 'OPEN'
+                    ? 'bg-rose-500/10 text-rose-600 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
+                    : filter.key === 'IN_PROGRESS'
+                      ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
+                      : filter.key === 'RESOLVED'
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                        : filter.key === 'CLOSED'
+                          ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
+                          : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+              ]"
+              @click="filterStatus = filter.key as any"
+            >
+              <span>{{ filter.label }}</span>
+              <span class="opacity-60">({{ filter.count }})</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 检索与统计 -->
+        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+          <div class="relative flex-1 md:flex-none md:w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索反馈内容、用户姓名..."
-              class="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              placeholder="搜索反馈内容、用户名、邮箱..."
+              class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
             />
           </div>
-          <el-select v-model="filterStatus" placeholder="所有状态" class="w-32">
-            <el-option label="所有状态" value="ALL" />
-            <el-option label="待处理" value="OPEN" />
-            <el-option label="处理中" value="IN_PROGRESS" />
-            <el-option label="已解决" value="RESOLVED" />
-            <el-option label="已关闭" value="CLOSED" />
-          </el-select>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">统计:</span>
-          <div class="flex items-center gap-3">
-            <div
-              class="flex items-center gap-1.5 px-3 py-1 bg-rose-50 rounded-full border border-rose-100"
-            >
-              <div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-              <span class="text-[10px] font-bold text-rose-600"
-                >{{ feedbacks.filter((f) => f.status === 'OPEN').length }} 待处理</span
-              >
-            </div>
+          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+            已过滤: <span class="text-indigo-600 font-extrabold">{{ filteredFeedbacks.length }}</span> / 总计: {{ feedbacks.length }}
           </div>
         </div>
       </div>

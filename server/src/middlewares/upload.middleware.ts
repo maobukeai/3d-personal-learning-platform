@@ -27,6 +27,8 @@ const storage = multer.diskStorage({
       dir = './uploads/branding';
     } else if (file.fieldname === 'images') {
       dir = './uploads/discussions';
+    } else if (file.fieldname === 'manual_image') {
+      dir = './uploads/manual';
     }
 
     if (!fs.existsSync(dir)) {
@@ -71,8 +73,9 @@ const createUploadMiddleware = (config: {
         config.fieldname === 'logo' ||
         config.fieldname === 'favicon' ||
         config.fieldname === 'avatar' ||
+        config.fieldname === 'manual_image' ||
         (config.fields &&
-          config.fields.some((f) => ['logo', 'favicon', 'avatar'].includes(f.name)));
+          config.fields.some((f) => ['logo', 'favicon', 'avatar', 'manual_image'].includes(f.name)));
 
       if (isSystemImage) {
         maxFileSize = 5 * 1024 * 1024;
@@ -127,11 +130,42 @@ const createUploadMiddleware = (config: {
               if (
                 file.fieldname === 'logo' ||
                 file.fieldname === 'favicon' ||
-                file.fieldname === 'avatar'
+                file.fieldname === 'avatar' ||
+                file.fieldname === 'manual_image'
               ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
               } else if (file.fieldname === 'file' || file.fieldname === 'excel') {
                 finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls'];
+              } else if (file.fieldname === 'message_file') {
+                finalAllowedExtensions = [
+                  '.png',
+                  '.jpg',
+                  '.jpeg',
+                  '.gif',
+                  '.webp',
+                  '.svg',
+                  '.webm',
+                  '.wav',
+                  '.mp3',
+                  '.ogg',
+                  '.m4a',
+                  '.pdf',
+                  '.doc',
+                  '.docx',
+                  '.xls',
+                  '.xlsx',
+                  '.ppt',
+                  '.pptx',
+                  '.txt',
+                  '.zip',
+                  '.rar',
+                  '.7z',
+                  '.glb',
+                  '.gltf',
+                  '.fbx',
+                  '.obj',
+                  '.stl',
+                ];
               }
 
               if (!finalAllowedExtensions.includes(ext)) {
@@ -200,14 +234,37 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
         continue;
       }
 
-      const buffer = fs.readFileSync(file.path);
+      if (ext === '.svg') {
+        try {
+          const content = await fs.promises.readFile(file.path, 'utf8');
+          const hasScript = /<script\b[^>]*>/i.test(content);
+          const hasEventHandlers = /\bon[a-z]+\s*=/i.test(content);
+          const hasJavascriptUrl = /href\s*=\s*["']\s*javascript:/i.test(content);
+          if (hasScript || hasEventHandlers || hasJavascriptUrl) {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            return res.status(400).json({ error: '安全验证失败：SVG文件包含潜在的安全隐患' });
+          }
+
+          if (!content.includes('<svg') && !content.includes('http://www.w3.org/2000/svg')) {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            return res.status(400).json({ error: '无效的SVG图片内容' });
+          }
+          continue;
+        } catch (readErr) {
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+          return res.status(400).json({ error: '文件读取失败' });
+        }
+      }
+
+      const buffer = await fs.promises.readFile(file.path);
       if (buffer.length > 0) {
         const result = await FileType.fromBuffer(buffer);
 
         if (
           file.fieldname === 'avatar' ||
           file.fieldname === 'thumbnail' ||
-          file.fieldname === 'images'
+          file.fieldname === 'images' ||
+          file.fieldname === 'manual_image'
         ) {
           if (
             !result ||

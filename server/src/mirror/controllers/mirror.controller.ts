@@ -148,12 +148,13 @@ export const getResource = async (req: AuthRequest, res: Response) => {
     if (cleanHtml) {
       cleanHtml = cleanHtml.replace(
         /(src|href)=["'](\/uploads\/[^"']+)["']/gi,
-        `$1="${hostUrl}$2"`
+        `$1="${hostUrl}$2"`,
       );
     }
 
     // Check if it has a matched manual download link block
-    const manualLinkRegex = /<!-- MANUAL_DOWNLOAD_LINK_START -->([\s\S]*?)<!-- MANUAL_DOWNLOAD_LINK_END -->/;
+    const manualLinkRegex =
+      /<!-- MANUAL_DOWNLOAD_LINK_START -->([\s\S]*?)<!-- MANUAL_DOWNLOAD_LINK_END -->/;
     const manualMatch = cleanHtml.match(manualLinkRegex);
     const hasManualLink = !!manualMatch;
 
@@ -163,20 +164,33 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       const hrefMatch = block.match(/href="([^"]+)"/);
       if (hrefMatch && hrefMatch[1]) {
         const href = hrefMatch[1];
-        const type = href.includes('quark.cn') ? 'quark' :
-                     href.includes('baidu.com') ? 'baidu' :
-                     href.includes('alipan.com') || href.includes('aliyundrive.com') ? 'aliyun' :
-                     href.includes('123pan.com') ? '123pan' : 'generic';
-        const name = href.includes('quark.cn') ? '夸克网盘' :
-                     href.includes('baidu.com') ? '百度网盘' :
-                     href.includes('alipan.com') || href.includes('aliyundrive.com') ? '阿里云盘' :
-                     href.includes('123pan.com') ? '123云盘' : '资源网盘';
+        const type = href.includes('quark.cn')
+          ? 'quark'
+          : href.includes('baidu.com')
+            ? 'baidu'
+            : href.includes('alipan.com') || href.includes('aliyundrive.com')
+              ? 'aliyun'
+              : href.includes('123pan.com')
+                ? '123pan'
+                : 'generic';
+        const name = href.includes('quark.cn')
+          ? '夸克网盘'
+          : href.includes('baidu.com')
+            ? '百度网盘'
+            : href.includes('alipan.com') || href.includes('aliyundrive.com')
+              ? '阿里云盘'
+              : href.includes('123pan.com')
+                ? '123云盘'
+                : '资源网盘';
         linksMeta.push({ name, type });
       }
     }
 
     // Strip download link markup entirely from contentHtml to protect it from scrapers/crawlers
-    const strippedHtml = cleanHtml.replace(/<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g, '');
+    const strippedHtml = cleanHtml.replace(
+      /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g,
+      '',
+    );
 
     let finalThumbnail = resource.thumbnailUrl;
     if (finalThumbnail && finalThumbnail.startsWith('/uploads/')) {
@@ -494,7 +508,8 @@ export const extractResourceLink = async (req: AuthRequest, res: Response) => {
     let password = '';
 
     const contentHtml = resource.contentHtml || '';
-    const manualLinkRegex = /<!-- MANUAL_DOWNLOAD_LINK_START -->([\s\S]*?)<!-- MANUAL_DOWNLOAD_LINK_END -->/;
+    const manualLinkRegex =
+      /<!-- MANUAL_DOWNLOAD_LINK_START -->([\s\S]*?)<!-- MANUAL_DOWNLOAD_LINK_END -->/;
     const manualMatch = contentHtml.match(manualLinkRegex);
 
     if (manualMatch && manualMatch[1]) {
@@ -503,9 +518,11 @@ export const extractResourceLink = async (req: AuthRequest, res: Response) => {
       if (hrefMatch && hrefMatch[1]) {
         link = hrefMatch[1];
       }
-      
+
       // Match passcode inside the span tags
-      const passMatch = block.match(/提取密码\/访问码：<\/strong><span[^>]*>([^<]+)<\/span>/) || block.match(/提取密码：([^<]+)/);
+      const passMatch =
+        block.match(/提取密码\/访问码：<\/strong><span[^>]*>([^<]+)<\/span>/) ||
+        block.match(/提取密码：([^<]+)/);
       if (passMatch && passMatch[1]) {
         password = passMatch[1].trim();
       }
@@ -516,17 +533,23 @@ export const extractResourceLink = async (req: AuthRequest, res: Response) => {
     }
 
     // Encrypt link and password with shared key
-    const key = process.env.EXTRACT_ENCRYPTION_KEY || '3d_learning_platform_secure_extract_key_2026';
+    const key =
+      process.env.EXTRACT_ENCRYPTION_KEY || '3d_learning_platform_secure_extract_key_2026';
     const encryptedLink = encryptText(link, key);
     const encryptedPassword = password ? encryptText(password, key) : '';
 
     res.json({
       encryptedLink,
       encryptedPassword,
-      driveName: link.includes('quark.cn') ? '夸克网盘' :
-                 link.includes('baidu.com') ? '百度网盘' :
-                 link.includes('alipan.com') || link.includes('aliyundrive.com') ? '阿里云盘' :
-                 link.includes('123pan.com') ? '123云盘' : '资源网盘'
+      driveName: link.includes('quark.cn')
+        ? '夸克网盘'
+        : link.includes('baidu.com')
+          ? '百度网盘'
+          : link.includes('alipan.com') || link.includes('aliyundrive.com')
+            ? '阿里云盘'
+            : link.includes('123pan.com')
+              ? '123云盘'
+              : '资源网盘',
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

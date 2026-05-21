@@ -278,117 +278,130 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- Header (超紧凑双行版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div>
-        <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-          平台分类管理
-        </h1>
-        <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-          集中管理系统中的资产、课程、材质及作品分类
-        </p>
-      </div>
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
+      ></div>
 
-      <div class="flex items-center gap-1.5 sm:gap-3 w-full lg:w-auto shrink-0 justify-between lg:justify-end">
-        <div
-          class="flex items-center gap-0.5 p-0.5 rounded-xl transition-colors duration-300 shrink-0"
-          style="background-color: var(--bg-app)"
-        >
-          <button
-            class="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap"
-            :class="
-              activeTab === 'assets'
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="activeTab = 'assets'"
+      <!-- Row 1: 标题 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
           >
-            <Box class="hidden sm:block w-3.5 h-3.5" />
-            资产库
-          </button>
-          <button
-            class="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap"
-            :class="
-              activeTab === 'courses'
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="activeTab = 'courses'"
-          >
-            <GraduationCap class="hidden sm:block w-3.5 h-3.5" />
-            课程
-          </button>
-          <button
-            class="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap"
-            :class="
-              activeTab === 'materials'
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="activeTab = 'materials'"
-          >
-            <Layers class="hidden sm:block w-3.5 h-3.5" />
-            材质
-          </button>
-          <button
-            class="px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap"
-            :class="
-              activeTab === 'showcases'
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="activeTab = 'showcases'"
-          >
-            <Sparkles class="hidden sm:block w-3.5 h-3.5" />
-            作品展示
-          </button>
+            <FolderTree class="w-4 h-4" />
+          </span>
+          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+            平台分类管理
+          </h1>
         </div>
 
-        <div
-          class="hidden sm:block h-8 w-[1px] mx-1 transition-colors duration-300 shrink-0"
-          style="background-color: var(--border-base)"
-        ></div>
-
         <button
-          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[10px] sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap"
           @click="openModal()"
         >
-          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span class="hidden xs:inline">新建</span>
+          <Plus class="w-3.5 h-3.5" />
           <span class="hidden sm:inline">新建分类</span>
         </button>
       </div>
-    </div>
 
-    <!-- Search & Filters -->
-    <div
-      class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="flex items-center gap-4 max-w-5xl">
-        <div class="relative flex-1">
-          <Search class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="`搜索分类...`"
-            class="w-full pl-12 pr-4 py-2.5 rounded-2xl border transition-all outline-none text-sm"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          />
-          <button
-            v-if="searchQuery"
-            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            @click="searchQuery = ''"
+      <!-- Row 2: 条件筛选与快速搜索 -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- 分类选项卡 & 统计 Pills -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <!-- 极品分段选项卡 -->
+          <div class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
+            <button
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === 'assets'
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="activeTab = 'assets'"
+            >
+              <Box class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>资产库</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ assetCategories.length }})</span>
+            </button>
+            <button
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === 'courses'
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="activeTab = 'courses'"
+            >
+              <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>课程</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ courseCategories.length }})</span>
+            </button>
+            <button
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === 'materials'
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="activeTab = 'materials'"
+            >
+              <Layers class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>材质</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ materialCategories.length }})</span>
+            </button>
+            <button
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === 'showcases'
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="activeTab = 'showcases'"
+            >
+              <Sparkles class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+              <span>作品展示</span>
+              <span class="opacity-60 text-[8px] xs:text-[9px]">({{ showcaseCategories.length }})</span>
+            </button>
+          </div>
+
+          <div class="w-[1px] h-3 bg-slate-200 dark:bg-slate-800 shrink-0 mx-1 sm:mx-3"></div>
+
+          <!-- 统计 Pills -->
+          <span
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 shrink-0"
           >
-            <X class="w-4 h-4" />
-          </button>
+            <FolderTree class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span>当前类目数</span>
+            <span class="opacity-60">({{ filteredCategories.length }})</span>
+          </span>
+        </div>
+
+        <!-- 检索工具 -->
+        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+          <div class="relative flex-1 md:flex-none md:w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索当前分类..."
+              class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+            <button
+              v-if="searchQuery"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              @click="searchQuery = ''"
+            >
+              <X class="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,14 +1,15 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { emitToAll } from '../services/socket.service';
-import { parseBilibiliUrl } from '../utils/bilibili';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import { parseBilibiliUrl } from '../utils/bilibili';
+import { AppError } from '../middlewares/error.middleware';
 
-export const getAllCourses = async (req: AuthRequest, res: Response) => {
+export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { categoryId, search, difficulty, sort } = req.query;
   try {
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: Prisma.CourseOrderByWithRelationInput = { createdAt: 'desc' };
     if (sort === 'popular') orderBy = { enrollments: { _count: 'desc' } };
     else if (sort === 'rating') orderBy = { reviews: { _count: 'desc' } };
     else if (sort === 'newest') orderBy = { createdAt: 'desc' };
@@ -38,18 +39,18 @@ export const getAllCourses = async (req: AuthRequest, res: Response) => {
       const { reviews, ...rest } = course;
       const avgRating =
         reviews.length > 0
-          ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length
+          ? reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviews.length
           : 0;
       return { ...rest, avgRating: Math.round(avgRating * 10) / 10 };
     });
 
     res.json(coursesWithAvgRating);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getCourseCategories = async (req: AuthRequest, res: Response) => {
+export const getCourseCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const categories = await prisma.courseCategory.findMany({
       orderBy: { order: 'asc' },
@@ -59,29 +60,29 @@ export const getCourseCategories = async (req: AuthRequest, res: Response) => {
     });
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const parseBilibili = async (req: AuthRequest, res: Response) => {
+export const parseBilibili = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { url } = req.body;
   if (!url) {
-    return res.status(400).json({ error: 'Bilibili URL is required' });
+    return next(new AppError('Bilibili URL is required', 400));
   }
 
   try {
     const metadata = await parseBilibiliUrl(url);
     res.json(metadata);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to parse Bilibili URL' });
+    next(new AppError(error.message || 'Failed to parse Bilibili URL', 400));
   }
 };
 
-export const getCourseById = async (req: AuthRequest, res: Response) => {
+export const getCourseById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const course = await prisma.course.findUnique({
-      where: { id: id as any },
+      where: { id },
       include: {
         lessons: {
           orderBy: { order: 'asc' },
@@ -98,11 +99,11 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
         },
       },
     });
-    if (!course) return res.status(404).json({ error: 'Course not found' });
+    if (!course) return next(new AppError('Course not found', 404));
 
     const avgRating =
       course.reviews.length > 0
-        ? course.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / course.reviews.length
+        ? course.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / course.reviews.length
         : 0;
 
     let userEnrollment = null;
@@ -113,15 +114,15 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
       });
 
       const progressRecords = await prisma.lessonProgress.findMany({
-        where: { userId: req.userId, lessonId: { in: course.lessons.map((l: any) => l.id) } },
+        where: { userId: req.userId, lessonId: { in: course.lessons.map((l) => l.id) } },
       });
-      progressRecords.forEach((p: any) => {
+      progressRecords.forEach((p) => {
         lessonProgressMap[p.lessonId] = p.completed;
       });
     }
 
     const totalDuration = course.lessons.reduce(
-      (sum: number, l: any) => sum + (l.duration || 0),
+      (sum: number, l: { duration: number | null }) => sum + (l.duration || 0),
       0,
     );
 
@@ -133,11 +134,11 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
       totalDuration,
     });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createCourse = async (req: AuthRequest, res: Response) => {
+export const createCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
     const course = await prisma.course.create({
@@ -152,7 +153,7 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.CREATE_COURSE,
       module: AuditModule.COURSE,
       description: `Created course: ${course.title}`,
@@ -162,11 +163,11 @@ export const createCourse = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(course);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createCourseWithLessons = async (req: AuthRequest, res: Response) => {
+export const createCourseWithLessons = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { title, description, thumbnail, lessons, categoryId, difficulty } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -182,11 +183,11 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response) =
 
       if (lessons && Array.isArray(lessons)) {
         await Promise.all(
-          lessons.map((lesson: any) =>
+          lessons.map((lesson: { title: string; videoUrl?: string; order: number; content?: string; duration?: number }) =>
             tx.lesson.create({
               data: {
                 title: lesson.title,
-                videoUrl: lesson.videoUrl,
+                videoUrl: lesson.videoUrl || null,
                 order: lesson.order,
                 courseId: course.id,
                 content: lesson.content || '',
@@ -203,7 +204,7 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response) =
       });
 
       await auditService.log({
-        userId: req.userId,
+        userId: req.userId as string,
         action: AuditAction.CREATE_COURSE,
         module: AuditModule.COURSE,
         description: `Created course with lessons: ${course.title}`,
@@ -217,25 +218,24 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response) =
 
     res.status(201).json(result);
   } catch (error) {
-    console.error('Batch create course error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateCourse = async (req: AuthRequest, res: Response) => {
+export const updateCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   const { title, description, thumbnail, categoryId, difficulty, status } = req.body;
   try {
-    const oldCourse = await prisma.course.findUnique({ where: { id: id as any } });
-    if (!oldCourse) return res.status(404).json({ error: 'Course not found' });
+    const oldCourse = await prisma.course.findUnique({ where: { id } });
+    if (!oldCourse) return next(new AppError('Course not found', 404));
 
     const course = await prisma.course.update({
-      where: { id: id as any },
+      where: { id },
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.UPDATE_COURSE,
       module: AuditModule.COURSE,
       description: `Updated course: ${course.title}`,
@@ -246,20 +246,20 @@ export const updateCourse = async (req: AuthRequest, res: Response) => {
 
     res.json(course);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteCourse = async (req: AuthRequest, res: Response) => {
+export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const course = await prisma.course.findUnique({ where: { id: id as any } });
-    if (!course) return res.status(404).json({ error: 'Course not found' });
+    const course = await prisma.course.findUnique({ where: { id } });
+    if (!course) return next(new AppError('Course not found', 404));
 
-    await prisma.course.delete({ where: { id: id as any } });
+    await prisma.course.delete({ where: { id } });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: AuditAction.DELETE_COURSE,
       module: AuditModule.COURSE,
       description: `Deleted course: ${course.title}`,
@@ -269,11 +269,11 @@ export const deleteCourse = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const enrollInCourse = async (req: AuthRequest, res: Response) => {
+export const enrollInCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId } = req.body;
   try {
     const enrollment = await prisma.enrollment.create({
@@ -288,7 +288,7 @@ export const enrollInCourse = async (req: AuthRequest, res: Response) => {
     });
 
     await auditService.log({
-      userId: req.userId,
+      userId: req.userId as string,
       action: 'ENROLL_COURSE',
       module: AuditModule.COURSE,
       description: `Enrolled in course: ${enrollment.course.title}`,
@@ -297,17 +297,15 @@ export const enrollInCourse = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(enrollment);
-  } catch (error) {
-    if ((error as any).code === 'P2002') {
-      return res
-        .status(400)
-        .json({ error: 'You are already enrolled in this course in this workspace' });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return next(new AppError('You are already enrolled in this course in this workspace', 400));
     }
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
+export const getMyEnrollments = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const enrollments = await prisma.enrollment.findMany({
       where: {
@@ -327,20 +325,20 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response) => {
     const enrollmentsWithRating = enrollments.map((e) => {
       const avgRating =
         e.course.reviews.length > 0
-          ? e.course.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+          ? e.course.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
             e.course.reviews.length
           : 0;
-      const { reviews, ...courseRest } = e.course as any;
+      const { reviews, ...courseRest } = e.course;
       return { ...e, course: { ...courseRest, avgRating: Math.round(avgRating * 10) / 10 } };
     });
 
     res.json(enrollmentsWithRating);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateProgress = async (req: AuthRequest, res: Response) => {
+export const updateProgress = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, progress } = req.body;
   try {
     const enrollment = await prisma.enrollment.update({
@@ -355,45 +353,45 @@ export const updateProgress = async (req: AuthRequest, res: Response) => {
     });
     res.json(enrollment);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
 // --- Lesson Progress ---
 
-export const getLessonProgress = async (req: AuthRequest, res: Response) => {
-  const { courseId } = req.params;
+export const getLessonProgress = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const courseId = req.params.courseId as string;
   try {
     const lessons = await prisma.lesson.findMany({
-      where: { courseId: courseId as any },
+      where: { courseId },
       select: { id: true },
     });
     const lessonIds = lessons.map((l) => l.id);
 
     const progress = await prisma.lessonProgress.findMany({
-      where: { userId: req.userId as string, lessonId: { in: lessonIds as any } },
+      where: { userId: req.userId as string, lessonId: { in: lessonIds } },
     });
     res.json(progress);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const toggleLessonComplete = async (req: AuthRequest, res: Response) => {
+export const toggleLessonComplete = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const lessonId = req.params.lessonId as string;
   const { completed } = req.body;
   try {
     const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
-    if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+    if (!lesson) return next(new AppError('Lesson not found', 404));
 
     const progress = await prisma.lessonProgress.upsert({
       where: {
-        userId_lessonId: { userId: req.userId as string, lessonId: lessonId as string },
+        userId_lessonId: { userId: req.userId as string, lessonId: lessonId },
       },
       update: { completed, completedAt: completed ? new Date() : null },
       create: {
         userId: req.userId as string,
-        lessonId: lessonId as string,
+        lessonId: lessonId,
         completed,
         completedAt: completed ? new Date() : null,
       },
@@ -416,17 +414,17 @@ export const toggleLessonComplete = async (req: AuthRequest, res: Response) => {
 
     res.json({ lessonProgress: progress, courseProgress });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
 // --- Course Reviews ---
 
-export const getCourseReviews = async (req: AuthRequest, res: Response) => {
-  const { courseId } = req.params;
+export const getCourseReviews = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const courseId = req.params.courseId as string;
   try {
     const reviews = await prisma.courseReview.findMany({
-      where: { courseId: courseId as any },
+      where: { courseId },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
       },
@@ -434,14 +432,14 @@ export const getCourseReviews = async (req: AuthRequest, res: Response) => {
     });
     res.json(reviews);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createReview = async (req: AuthRequest, res: Response) => {
+export const createReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, rating, comment } = req.body;
   if (!rating || rating < 1 || rating > 5) {
-    return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    return next(new AppError('Rating must be between 1 and 5', 400));
   }
   try {
     const review = await prisma.courseReview.create({
@@ -458,28 +456,28 @@ export const createReview = async (req: AuthRequest, res: Response) => {
     res.status(201).json(review);
   } catch (error: any) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: 'You have already reviewed this course' });
+      return next(new AppError('You have already reviewed this course', 400));
     }
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateReview = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const updateReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   const { rating, comment } = req.body;
   try {
     const existing = await prisma.courseReview.findUnique({
-      where: { id: id as any },
+      where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return res.status(404).json({ error: 'Review not found' });
+    if (!existing) return next(new AppError('Review not found', 404));
     if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return next(new AppError('Not authorized', 403));
     }
 
     const review = await prisma.courseReview.update({
-      where: { id: id as any },
+      where: { id },
       data: { rating, comment: comment || null },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
@@ -487,33 +485,33 @@ export const updateReview = async (req: AuthRequest, res: Response) => {
     });
     res.json(review);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteReview = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const deleteReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   try {
     const existing = await prisma.courseReview.findUnique({
-      where: { id: id as any },
+      where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return res.status(404).json({ error: 'Review not found' });
+    if (!existing) return next(new AppError('Review not found', 404));
     if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return next(new AppError('Not authorized', 403));
     }
 
-    await prisma.courseReview.delete({ where: { id: id as any } });
+    await prisma.courseReview.delete({ where: { id } });
     res.json({ message: 'Review deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
 // --- Course Notes ---
 
-export const getLessonNotes = async (req: AuthRequest, res: Response) => {
+export const getLessonNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const lessonId = req.params.lessonId as string;
   try {
     const notes = await prisma.courseNote.findMany({
@@ -522,11 +520,11 @@ export const getLessonNotes = async (req: AuthRequest, res: Response) => {
     });
     res.json(notes);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createNote = async (req: AuthRequest, res: Response) => {
+export const createNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { lessonId, content, timestamp } = req.body;
   try {
     const note = await prisma.courseNote.create({
@@ -539,50 +537,50 @@ export const createNote = async (req: AuthRequest, res: Response) => {
     });
     res.status(201).json(note);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const updateNote = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const updateNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   const { content, timestamp } = req.body;
   try {
     const existing = await prisma.courseNote.findUnique({
-      where: { id: id as any },
+      where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return res.status(404).json({ error: 'Note not found' });
+    if (!existing) return next(new AppError('Note not found', 404));
     if (existing.userId !== req.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
+      return next(new AppError('Not authorized', 403));
     }
 
     const note = await prisma.courseNote.update({
-      where: { id: id as any },
+      where: { id },
       data: { content, timestamp: timestamp !== undefined ? timestamp : undefined },
     });
     res.json(note);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteNote = async (req: AuthRequest, res: Response) => {
-  const { id } = req.params;
+export const deleteNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
   try {
     const existing = await prisma.courseNote.findUnique({
-      where: { id: id as any },
+      where: { id },
       select: { userId: true },
     });
 
-    if (!existing) return res.status(404).json({ error: 'Note not found' });
+    if (!existing) return next(new AppError('Note not found', 404));
     if (existing.userId !== req.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
+      return next(new AppError('Not authorized', 403));
     }
 
-    await prisma.courseNote.delete({ where: { id: id as any } });
+    await prisma.courseNote.delete({ where: { id } });
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

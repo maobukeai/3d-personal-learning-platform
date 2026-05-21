@@ -168,7 +168,10 @@ async function handleExtract(link: { name: string; type: string }) {
     router.push(`/login?redirect=${route.fullPath}`);
     return;
   }
-  if (!resource.value?.hasAccess) {
+  if (resource.value?.hasAccess === undefined) {
+    return;
+  }
+  if (resource.value?.hasAccess === false) {
     ElMessage.error('您的账号权限不足，请先升级会员');
     return;
   }
@@ -287,7 +290,7 @@ watch(resourceId, () => {
         </button>
       </div>
 
-      <div v-else-if="!resource.hasAccess" class="mb-6 p-4 rounded-xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div v-else-if="resource.hasAccess === false" class="mb-6 p-4 rounded-xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <Lock class="w-5 h-5 text-amber-500 shrink-0" />
           <div class="text-sm text-amber-800 dark:text-amber-200 font-medium">
@@ -397,20 +400,23 @@ watch(resourceId, () => {
                             'mt-1 w-full py-2.5 px-3 rounded-lg font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-all duration-300 shadow-sm cursor-pointer border border-transparent',
                             !authStore.isAuthenticated 
                               ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-blue-500/20' 
-                              : !resource.hasAccess 
-                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' 
-                                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                              : resource.hasAccess === undefined
+                                ? 'bg-slate-400 dark:bg-slate-700 text-white cursor-not-allowed shadow-none'
+                                : resource.hasAccess === false
+                                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' 
+                                  : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
                           ]"
-                          :disabled="isExtracting"
+                          :disabled="isExtracting || (authStore.isAuthenticated && resource.hasAccess === undefined)"
                           @click="handleExtract(link)"
                         >
-                          <Loader2 v-if="isExtracting" class="w-3.5 h-3.5 animate-spin" />
-                          <Lock v-else-if="authStore.isAuthenticated && !resource.hasAccess" class="w-3.5 h-3.5" />
+                          <Loader2 v-if="isExtracting || (authStore.isAuthenticated && resource.hasAccess === undefined)" class="w-3.5 h-3.5 animate-spin" />
+                          <Lock v-else-if="authStore.isAuthenticated && resource.hasAccess === false" class="w-3.5 h-3.5" />
                           <ExternalLink v-else class="w-3.5 h-3.5" />
                           
                           <span v-if="isExtracting">正在提取...</span>
                           <span v-else-if="!authStore.isAuthenticated">登录后提取</span>
-                          <span v-else-if="!resource.hasAccess">升级会员后提取</span>
+                          <span v-else-if="resource.hasAccess === undefined">核对权限中...</span>
+                          <span v-else-if="resource.hasAccess === false">升级会员后提取</span>
                           <span v-else>提取资源</span>
                         </button>
                       </div>
@@ -558,20 +564,23 @@ watch(resourceId, () => {
                       'mt-1 w-full py-2.5 px-3 rounded-lg font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-all duration-300 shadow-sm cursor-pointer border border-transparent',
                       !authStore.isAuthenticated 
                         ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-blue-500/20' 
-                        : !resource.hasAccess 
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' 
-                          : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                        : resource.hasAccess === undefined
+                          ? 'bg-slate-400 dark:bg-slate-700 text-white cursor-not-allowed shadow-none'
+                          : resource.hasAccess === false
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20' 
+                            : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
                     ]"
-                    :disabled="isExtracting"
+                    :disabled="isExtracting || (authStore.isAuthenticated && resource.hasAccess === undefined)"
                     @click="handleExtract(link)"
                   >
-                    <Loader2 v-slot:default v-if="isExtracting" class="w-3.5 h-3.5 animate-spin" />
-                    <Lock v-else-if="authStore.isAuthenticated && !resource.hasAccess" class="w-3.5 h-3.5" />
+                    <Loader2 v-if="isExtracting || (authStore.isAuthenticated && resource.hasAccess === undefined)" class="w-3.5 h-3.5 animate-spin" />
+                    <Lock v-else-if="authStore.isAuthenticated && resource.hasAccess === false" class="w-3.5 h-3.5" />
                     <ExternalLink v-else class="w-3.5 h-3.5" />
                     
                     <span v-if="isExtracting">正在提取...</span>
                     <span v-else-if="!authStore.isAuthenticated">登录后提取</span>
-                    <span v-else-if="!resource.hasAccess">升级会员后提取</span>
+                    <span v-else-if="resource.hasAccess === undefined">核对权限中...</span>
+                    <span v-else-if="resource.hasAccess === false">升级会员后提取</span>
                     <span v-else>提取资源</span>
                   </button>
                 </div>

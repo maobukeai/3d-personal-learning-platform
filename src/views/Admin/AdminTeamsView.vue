@@ -253,79 +253,93 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- Header (超紧凑双行版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-8">
-        <div>
-          <h1 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-teal-500/10 via-emerald-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <!-- Row 1: 标题 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-teal-500/10 text-teal-600 shadow-sm border border-teal-500/20"
+          >
+            <Users class="w-4 h-4" />
+          </span>
+          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
             团队架构管理
           </h1>
-          <p
-            class="text-[10px] font-bold mt-0.5 opacity-50 uppercase tracking-wider"
-            style="color: var(--text-primary)"
-          >
-            Manage Collaborative Teams
-          </p>
         </div>
 
-        <!-- Integrated Search -->
-        <div class="relative hidden md:block w-72">
-          <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索团队名称或负责人..."
-            class="w-full pl-11 pr-4 py-2.5 rounded-2xl border text-sm transition-all focus:ring-2 focus:ring-accent/20 outline-none"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="
+              fetchTeams();
+              fetchUsers();
             "
-          />
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            <span class="hidden sm:inline">刷新</span>
+          </button>
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-accent text-white rounded-xl font-bold text-[11px] shadow-sm hover:scale-105 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+            @click="openCreateModal"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">创建团队</span>
+          </button>
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <button
-          class="p-2.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors text-slate-500"
-          @click="
-            fetchTeams();
-            fetchUsers();
-          "
-        >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
-        </button>
-        <button
-          class="flex items-center gap-2 px-6 py-2.5 bg-accent text-white rounded-xl font-bold text-xs shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
-          @click="openCreateModal"
-        >
-          <Plus class="w-4 h-4" />
-          创建团队
-        </button>
-      </div>
-    </div>
+      <!-- Row 2: 条件筛选与快速搜索 -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- 统计 Pills -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <span
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-600 text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 shrink-0"
+          >
+            <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+            <span>全部协作团队</span>
+            <span class="opacity-60">({{ filteredTeams.length }})</span>
+          </span>
+        </div>
 
-    <!-- Mobile Search -->
-    <div
-      class="md:hidden p-4 border-b transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="relative w-full">
-        <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜索团队..."
-          class="w-full pl-11 pr-4 py-3 rounded-2xl border transition-all focus:ring-2 focus:ring-accent/20 outline-none"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-        />
+        <!-- 检索工具 -->
+        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+          <div class="relative flex-1 md:flex-none md:w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索团队名称或负责人..."
+              class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-teal-500/20 outline-none text-[11px] shadow-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+            <button
+              v-if="searchQuery"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              @click="searchQuery = ''"
+            >
+              <X class="w-3 h-3" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -18,6 +18,7 @@ import {
   Search,
   Copy,
   Ticket,
+  RefreshCw,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -95,15 +96,46 @@ const filteredUsers = computed(() => {
   );
 });
 
+const subStatusFilter = ref<'ALL' | 'ACTIVE' | 'CANCELED' | 'EXPIRED' | 'PAST_DUE'>('ALL');
+const subSearchQuery = ref('');
+const codeStatusFilter = ref<'ALL' | 'ACTIVE' | 'USED' | 'DISABLED'>('ALL');
+
+const filteredSubscriptions = computed(() => {
+  let result = subscriptions.value;
+  if (subStatusFilter.value !== 'ALL') {
+    result = result.filter((s: any) => s.status === subStatusFilter.value);
+  }
+  if (subSearchQuery.value) {
+    const q = subSearchQuery.value.toLowerCase();
+    result = result.filter(
+      (s: any) =>
+        (s.user?.name || '').toLowerCase().includes(q) ||
+        (s.user?.email || '').toLowerCase().includes(q) ||
+        (s.plan?.displayName || s.plan?.name || '').toLowerCase().includes(q),
+    );
+  }
+  return result;
+});
+
 const filteredCodes = computed(() => {
-  if (!codeSearchQuery.value) return activationCodes.value;
-  const q = codeSearchQuery.value.toLowerCase();
-  return activationCodes.value.filter(
-    (c: any) =>
-      c.code.toLowerCase().includes(q) ||
-      (c.plan?.displayName || c.plan?.name || '').toLowerCase().includes(q) ||
-      (c.usedBy?.name || c.usedBy?.email || '').toLowerCase().includes(q),
-  );
+  let result = activationCodes.value;
+  if (codeStatusFilter.value !== 'ALL') {
+    if (codeStatusFilter.value === 'DISABLED') {
+      result = result.filter((c: any) => c.status !== 'ACTIVE' && c.status !== 'USED');
+    } else {
+      result = result.filter((c: any) => c.status === codeStatusFilter.value);
+    }
+  }
+  if (codeSearchQuery.value) {
+    const q = codeSearchQuery.value.toLowerCase();
+    result = result.filter(
+      (c: any) =>
+        c.code.toLowerCase().includes(q) ||
+        (c.plan?.displayName || c.plan?.name || '').toLowerCase().includes(q) ||
+        (c.usedBy?.name || c.usedBy?.email || '').toLowerCase().includes(q),
+    );
+  }
+  return result;
 });
 
 const subscribedUserIds = computed(() => new Set(subscriptions.value.map((s: any) => s.userId)));
@@ -385,74 +417,228 @@ onMounted(() => {
 
 <template>
   <div class="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg-app)]">
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
-      class="min-h-16 py-3 lg:py-0 lg:h-16 px-4 sm:px-8 flex flex-row items-center justify-between gap-2 shrink-0 border-b border-[var(--border-base)] bg-[var(--bg-card)]"
+      class="relative shrink-0 border-b overflow-hidden animate-in fade-in duration-300"
+      style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-1.5 shrink-0">
-        <div class="hidden sm:block p-2 bg-violet-50 dark:bg-violet-900/20 rounded-xl text-violet-600">
-          <CreditCard class="w-5 h-5" />
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-violet-500/10 via-fuchsia-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <!-- Row 1: 标题 & 选项卡 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-1.5 sm:gap-4 shrink-0 max-w-full min-w-0 overflow-hidden">
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span
+              class="p-1 rounded-xl bg-violet-500/10 text-violet-500 shadow-sm border border-violet-500/20 shrink-0"
+            >
+              <CreditCard class="w-4 h-4" />
+            </span>
+            <h1 class="text-xs sm:text-sm font-black tracking-tight" style="color: var(--text-primary)">
+              订阅管理
+            </h1>
+          </div>
+
+          <!-- 横向分段选项卡 -->
+          <div class="flex bg-[var(--bg-app)] rounded-xl p-0.5 border border-[var(--border-base)] shadow-inner shrink-0">
+            <button
+              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
+              :class="
+                activeTab === 'plans'
+                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              "
+              @click="activeTab = 'plans'"
+            >
+              订阅计划
+            </button>
+            <button
+              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
+              :class="
+                activeTab === 'subscriptions'
+                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              "
+              @click="activeTab = 'subscriptions'"
+            >
+              用户订阅
+            </button>
+            <button
+              class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text-xs font-bold transition-all shrink-0 cursor-pointer"
+              :class="
+                activeTab === 'codes'
+                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              "
+              @click="activeTab = 'codes'"
+            >
+              激活码管理
+            </button>
+          </div>
         </div>
-        <h1 class="text-sm xs:text-base sm:text-xl font-bold text-[var(--text-primary)]">订阅管理</h1>
+
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button
+            v-if="activeTab === 'plans'"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="openCreatePlan"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">新建计划</span>
+          </button>
+          <button
+            v-else-if="activeTab === 'subscriptions'"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="openCreateSubscription"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">新增订阅</span>
+          </button>
+          <button
+            v-else-if="activeTab === 'codes'"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="openCreateCodes"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">生成激活码</span>
+          </button>
+
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchData"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            刷新
+          </button>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5 shrink-0">
-        <div class="flex bg-[var(--bg-app)] rounded-xl p-0.5 sm:p-1">
-          <button
-            class="px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0"
-            :class="
-              activeTab === 'plans'
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-muted)]'
-            "
-            @click="activeTab = 'plans'"
-          >
-            <span class="xs:hidden">计划</span>
-            <span class="hidden xs:inline">订阅计划</span>
-          </button>
-          <button
-            class="px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0"
-            :class="
-              activeTab === 'subscriptions'
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-muted)]'
-            "
-            @click="activeTab = 'subscriptions'"
-          >
-            <span class="xs:hidden">订阅</span>
-            <span class="hidden xs:inline">用户订阅</span>
-          </button>
-          <button
-            class="px-2 py-1 sm:px-4 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0"
-            :class="
-              activeTab === 'codes'
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-muted)]'
-            "
-            @click="activeTab = 'codes'"
-          >
-            <span class="xs:hidden">激活码</span>
-            <span class="hidden xs:inline">激活码管理</span>
-          </button>
-        </div>
+
+      <!-- Row 2: 状态与检索 Pills -->
+      <div
+        v-if="activeTab !== 'plans'"
+        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- Tab: Subscriptions Filters -->
+        <template v-if="activeTab === 'subscriptions'">
+          <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+            <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+              <button
+                v-for="filter in [
+                  { key: 'ALL', label: '全部订阅', count: subscriptions.length },
+                  { key: 'ACTIVE', label: '活跃', count: subscriptions.filter(s => s.status === 'ACTIVE').length },
+                  { key: 'CANCELED', label: '已取消', count: subscriptions.filter(s => s.status === 'CANCELED').length },
+                  { key: 'EXPIRED', label: '已过期', count: subscriptions.filter(s => s.status === 'EXPIRED').length },
+                  { key: 'PAST_DUE', label: '逾期', count: subscriptions.filter(s => s.status === 'PAST_DUE').length }
+                ]"
+                :key="filter.key"
+                class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+                :class="[
+                  subStatusFilter === filter.key
+                    ? filter.key === 'ACTIVE'
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                      : filter.key === 'CANCELED'
+                        ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
+                        : filter.key === 'PAST_DUE'
+                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
+                          : filter.key === 'EXPIRED'
+                            ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
+                            : 'bg-violet-500/10 text-violet-500 border-violet-500/30 ring-1 ring-violet-500/20 font-extrabold shadow-sm'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+                ]"
+                @click="subStatusFilter = filter.key as any"
+              >
+                <span>{{ filter.label }}</span>
+                <span class="opacity-60">({{ filter.count }})</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="w-full flex items-center justify-between md:justify-end gap-3 md:w-auto shrink-0">
+            <div class="relative flex-1 md:flex-none md:w-64">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                v-model="subSearchQuery"
+                type="text"
+                placeholder="搜索用户名、邮箱或计划..."
+                class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-violet-500/20 outline-none text-[11px] shadow-sm"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
+              />
+            </div>
+            <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+              已过滤: <span class="text-violet-600 font-extrabold">{{ filteredSubscriptions.length }}</span> / 总计: {{ subscriptions.length }}
+            </div>
+          </div>
+        </template>
+
+        <!-- Tab: Codes Filters -->
+        <template v-else-if="activeTab === 'codes'">
+          <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+            <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+              <button
+                v-for="filter in [
+                  { key: 'ALL', label: '所有激活码', count: activationCodes.length },
+                  { key: 'ACTIVE', label: '未使用', count: activationCodes.filter(c => c.status === 'ACTIVE').length },
+                  { key: 'USED', label: '已使用', count: activationCodes.filter(c => c.status === 'USED').length },
+                  { key: 'DISABLED', label: '已失效', count: activationCodes.filter(c => c.status !== 'ACTIVE' && c.status !== 'USED').length }
+                ]"
+                :key="filter.key"
+                class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+                :class="[
+                  codeStatusFilter === filter.key
+                    ? filter.key === 'ACTIVE'
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                      : filter.key === 'USED'
+                        ? 'bg-blue-500/10 text-blue-500 border-blue-500/30 ring-1 ring-blue-500/20 font-extrabold shadow-sm'
+                        : filter.key === 'DISABLED'
+                          ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
+                          : 'bg-violet-500/10 text-violet-500 border-violet-500/30 ring-1 ring-violet-500/20 font-extrabold shadow-sm'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+                ]"
+                @click="codeStatusFilter = filter.key as any"
+              >
+                <span>{{ filter.label }}</span>
+                <span class="opacity-60">({{ filter.count }})</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="w-full flex items-center justify-between md:justify-end gap-3 md:w-auto shrink-0">
+            <div class="relative flex-1 md:flex-none md:w-64">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                v-model="codeSearchQuery"
+                type="text"
+                placeholder="搜索激活码、计划或使用者..."
+                class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-violet-500/20 outline-none text-[11px] shadow-sm"
+                style="
+                  background-color: var(--bg-app);
+                  border-color: var(--border-base);
+                  color: var(--text-primary);
+                "
+              />
+            </div>
+            <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+              已过滤: <span class="text-violet-600 font-extrabold">{{ filteredCodes.length }}</span> / 总计: {{ activationCodes.length }}
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-6xl mx-auto">
         <!-- Plans Tab -->
-        <div v-if="activeTab === 'plans'" class="space-y-6">
-          <div class="flex items-center justify-between gap-4">
-            <p class="hidden sm:block text-sm text-[var(--text-secondary)]">管理平台订阅计划，配置价格和功能权限</p>
-            <div class="flex items-center justify-between w-full sm:w-auto sm:justify-end">
-              <span class="sm:hidden text-xs font-bold text-[var(--text-secondary)]">订阅计划列表</span>
-              <button
-                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20 shrink-0"
-                @click="openCreatePlan"
-              >
-                <Plus class="w-4 h-4" /> 新建计划
-              </button>
-            </div>
-          </div>
-
+        <div v-if="activeTab === 'plans'" class="space-y-6 animate-in fade-in duration-200">
           <div class="grid gap-4">
             <div
               v-for="plan in plans"
@@ -556,22 +742,7 @@ onMounted(() => {
         </div>
 
         <!-- Subscriptions Tab -->
-        <div v-if="activeTab === 'subscriptions'" class="space-y-6">
-          <div class="flex items-center justify-between gap-4">
-            <p class="hidden sm:block text-sm text-[var(--text-secondary)]">
-              管理所有用户的订阅状态，可新增、编辑或删除订阅
-            </p>
-            <div class="flex items-center justify-between w-full sm:w-auto sm:justify-end">
-              <span class="sm:hidden text-xs font-bold text-[var(--text-secondary)]">用户订阅列表</span>
-              <button
-                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20 shrink-0"
-                @click="openCreateSubscription"
-              >
-                <Plus class="w-4 h-4" /> 新增订阅
-              </button>
-            </div>
-          </div>
-
+        <div v-if="activeTab === 'subscriptions'" class="space-y-6 animate-in fade-in duration-200">
           <!-- Desktop Table View -->
           <div
             class="hidden md:block rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] overflow-hidden overflow-x-auto scrollbar-hide"
@@ -623,7 +794,7 @@ onMounted(() => {
               </thead>
               <tbody class="divide-y divide-[var(--border-base)]">
                 <tr
-                  v-for="sub in subscriptions"
+                  v-for="sub in filteredSubscriptions"
                   :key="sub.id"
                   class="hover:bg-[var(--bg-app)]/30 transition-colors"
                 >
@@ -696,7 +867,7 @@ onMounted(() => {
                     </div>
                   </td>
                 </tr>
-                <tr v-if="subscriptions.length === 0">
+                <tr v-if="filteredSubscriptions.length === 0">
                   <td colspan="8" class="px-6 py-16 text-center">
                     <div class="flex flex-col items-center gap-3 opacity-20">
                       <Users class="w-10 h-10" />
@@ -711,7 +882,7 @@ onMounted(() => {
           <!-- Mobile Card View -->
           <div class="md:hidden space-y-4">
             <div
-              v-for="sub in subscriptions"
+              v-for="sub in filteredSubscriptions"
               :key="sub.id"
               class="p-5 rounded-3xl border border-[var(--border-base)] bg-[var(--bg-card)] space-y-4"
             >
@@ -792,7 +963,7 @@ onMounted(() => {
             </div>
 
             <!-- Empty State -->
-            <div v-if="subscriptions.length === 0" class="py-16 text-center">
+            <div v-if="filteredSubscriptions.length === 0" class="py-16 text-center">
               <div class="flex flex-col items-center gap-3 opacity-20">
                 <Users class="w-10 h-10" />
                 <p class="text-sm font-medium">暂无订阅数据</p>
@@ -803,28 +974,6 @@ onMounted(() => {
 
         <!-- Codes Tab -->
         <div v-if="activeTab === 'codes'" class="space-y-6">
-          <div class="flex items-center justify-between gap-4">
-            <p class="hidden sm:block text-sm text-[var(--text-secondary)]">
-              生成并管理用于激活订阅计划的激活码，支持批量生成与删除
-            </p>
-            <div class="flex items-center gap-3 w-full sm:w-auto">
-              <div class="relative flex-1 sm:w-64">
-                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  v-model="codeSearchQuery"
-                  type="text"
-                  class="w-full pl-9 pr-4 py-2 rounded-xl border text-xs transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-primary)]"
-                  placeholder="搜索激活码、计划或使用者..."
-                />
-              </div>
-              <button
-                class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-accent/20 shrink-0"
-                @click="openCreateCodes"
-              >
-                <Plus class="w-4 h-4" /> 生成激活码
-              </button>
-            </div>
-          </div>
 
           <!-- Desktop Table View -->
           <div

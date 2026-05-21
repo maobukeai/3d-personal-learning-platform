@@ -76,6 +76,8 @@ model User {
   auditLogs      AuditLog[]
   mirrorComments MirrorResourceComment[]
   mirrorLikes    MirrorResourceLike[]
+  manualComments ManualResourceComment[]
+  manualLikes    ManualResourceLike[]
 
   googleId   String? @unique
   githubId   String? @unique
@@ -181,6 +183,8 @@ model TeamInvitation {
   status       String   @default("PENDING") // 'PENDING', 'ACCEPTED', 'REJECTED'
   expiresAt    DateTime
   createdAt    DateTime @default(now())
+
+  @@index([teamId])
 }
 
 model Notification {
@@ -195,6 +199,8 @@ model Notification {
   broadcastId String?
   broadcast   Broadcast? @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
   createdAt   DateTime   @default(now())
+
+  @@index([userId, isRead])
 }
 
 model NotificationPreference {
@@ -225,6 +231,8 @@ model TrustedDevice {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model RefreshToken {
@@ -234,6 +242,8 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model UserSetting {
@@ -499,6 +509,8 @@ model VerificationCode {
   code      String
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 model Roadmap {
@@ -610,6 +622,8 @@ model ProjectInvitation {
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([projectId, inviteeId])
 }
 
 model Material {
@@ -695,6 +709,8 @@ model ShowcaseComment {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([showcaseId, userId])
 }
 
 model SubscriptionPlan {
@@ -786,6 +802,7 @@ model CourseReview {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, courseId])
+  @@index([courseId])
 }
 
 model LessonProgress {
@@ -800,6 +817,7 @@ model LessonProgress {
   updatedAt   DateTime  @updatedAt
 
   @@unique([userId, lessonId])
+  @@index([userId])
 }
 
 model CourseNote {
@@ -812,6 +830,8 @@ model CourseNote {
   timestamp Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, lessonId])
 }
 
 model Note {
@@ -830,6 +850,8 @@ model Note {
   likes      NoteLike[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
+
+  @@index([userId])
 }
 
 model NoteLike {
@@ -967,3 +989,86 @@ model MirrorResourceLike {
 
   @@unique([resourceId, userId])
 }
+
+model ManualStation {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  displayName     String
+  status          String           @default("ACTIVE")
+  totalResources  Int              @default(0)
+  minPlanPriority Int              @default(1)
+  iconUrl         String?
+  description     String?
+  categories      ManualCategory[]
+  resources       ManualResource[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ManualCategory {
+  id               String          @id @default(uuid())
+  stationId        String
+  station          ManualStation   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  name             String
+  slug             String?
+  parentId         String?
+  parent           ManualCategory? @relation("ManualCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children         ManualCategory[] @relation("ManualCategoryParent")
+  order            Int             @default(0)
+  resourceCount    Int             @default(0)
+  resources        ManualResource[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([stationId])
+}
+
+model ManualResource {
+  id            String                  @id @default(uuid())
+  stationId     String
+  station       ManualStation           @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      ManualCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title         String
+  description   String?
+  thumbnailUrl  String?
+  contentUrl    String?
+  tags          String?
+  contentHtml   String?
+  resourceType  String                  @default("COURSE")
+  viewCount     Int                     @default(0)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  comments      ManualResourceComment[]
+  likes         ManualResourceLike[]
+
+  @@index([stationId, categoryId])
+  @@index([title])
+}
+
+model ManualResourceComment {
+  id         String         @id @default(uuid())
+  resourceId String
+  resource   ManualResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String
+  createdAt  DateTime       @default(now())
+
+  @@index([resourceId])
+  @@index([userId])
+}
+
+model ManualResourceLike {
+  id         String         @id @default(uuid())
+  resourceId String
+  resource   ManualResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@unique([resourceId, userId])
+  @@index([resourceId])
+  @@index([userId])
+}
+

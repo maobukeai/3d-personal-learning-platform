@@ -270,7 +270,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 
     // Verify the mirror source exists
     const source = await prisma.mirrorSource.findUnique({
-      where: { id: sourceId }
+      where: { id: sourceId },
     });
     if (!source) {
       if (fs.existsSync(file.path)) {
@@ -304,7 +304,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 
     // Load all resources under this source to do clean in-memory name comparisons
     const resources = await prisma.mirrorResource.findMany({
-      where: { sourceId }
+      where: { sourceId },
     });
 
     const cleanString = (str: string) => {
@@ -315,15 +315,17 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
         .toLowerCase();
     };
 
-    const resourceByExternalId = new Map(resources.map(r => [r.externalId, r]));
-    const resourceByCleanTitle = new Map(resources.map(r => [cleanString(r.title), r]));
+    const resourceByExternalId = new Map(resources.map((r) => [r.externalId, r]));
+    const resourceByCleanTitle = new Map(resources.map((r) => [cleanString(r.title), r]));
 
     const batchUpdates = [];
 
     for (const row of rawData) {
       const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '').toString().trim();
       const link = (row['链接'] || row['网盘链接'] || row['提取链接'] || '').toString().trim();
-      const linkPassword = (row['链接密码'] || row['提取码'] || row['密码'] || '').toString().trim();
+      const linkPassword = (row['链接密码'] || row['提取码'] || row['密码'] || '')
+        .toString()
+        .trim();
       const courseNotes = (row['课程备注'] || row['备注'] || '').toString().trim();
 
       if (!courseName && !courseNotes) continue;
@@ -334,7 +336,9 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 
       // 1. Try matching by externalId extracted from the courseNotes URL
       if (courseNotes && courseNotes.startsWith('http')) {
-        const match = courseNotes.match(/\/(\d+)\.html/i) || courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
+        const match =
+          courseNotes.match(/\/(\d+)\.html/i) ||
+          courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
         if (match && match[1]) {
           const externalId = match[1];
           matchedResource = resourceByExternalId.get(externalId);
@@ -343,7 +347,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 
       // 2. If no match by URL, try matching by Title
       if (!matchedResource && courseName) {
-        const exactMatch = resources.find(r => r.title === courseName);
+        const exactMatch = resources.find((r) => r.title === courseName);
         if (exactMatch) {
           matchedResource = exactMatch;
         } else {
@@ -353,10 +357,15 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
       }
 
       if (matchedResource && link) {
-        const driveName = link.includes('quark.cn') ? '夸克网盘' :
-                          link.includes('baidu.com') ? '百度网盘' :
-                          link.includes('alipan.com') || link.includes('aliyundrive.com') ? '阿里云盘' :
-                          link.includes('123pan.com') ? '123云盘' : '资源网盘';
+        const driveName = link.includes('quark.cn')
+          ? '夸克网盘'
+          : link.includes('baidu.com')
+            ? '百度网盘'
+            : link.includes('alipan.com') || link.includes('aliyundrive.com')
+              ? '阿里云盘'
+              : link.includes('123pan.com')
+                ? '123云盘'
+                : '资源网盘';
 
         const manualLinkHtml = `
 <!-- MANUAL_DOWNLOAD_LINK_START -->
@@ -367,16 +376,21 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
   <p style="margin: 5px 0; font-size: 14px; color: #606266;">
     <strong>资源链接：</strong><a href="${link}" target="_blank" style="color: #409eff; text-decoration: underline; font-weight: 500;">点击跳转下载</a>
   </p>
-  ${linkPassword ? `
+  ${
+    linkPassword
+      ? `
   <p style="margin: 5px 0; font-size: 14px; color: #606266;">
     <strong>提取密码/访问码：</strong><span style="font-weight: bold; color: #f56c6c; select-all: all; background-color: #fef0f0; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde2e2;">${linkPassword}</span>
   </p>
-  ` : ''}
+  `
+      : ''
+  }
 </div>
 <!-- MANUAL_DOWNLOAD_LINK_END -->`;
 
         let currentHtml = matchedResource.contentHtml || '';
-        const manualLinkRegex = /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g;
+        const manualLinkRegex =
+          /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g;
 
         if (manualLinkRegex.test(currentHtml)) {
           currentHtml = currentHtml.replace(manualLinkRegex, manualLinkHtml);
@@ -389,9 +403,9 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
             where: { id: matchedResource.id },
             data: {
               contentHtml: currentHtml,
-              contentUrl: link
-            }
-          })
+              contentUrl: link,
+            },
+          }),
         );
         matchedCount++;
       }
@@ -401,7 +415,9 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
       await prisma.$transaction(batchUpdates);
     }
 
-    console.log(`[MirrorLinkMatch] Source ID: ${sourceId}, Excel uploaded. Found ${totalLinks} records, successfully matched and updated ${matchedCount} resources.`);
+    console.log(
+      `[MirrorLinkMatch] Source ID: ${sourceId}, Excel uploaded. Found ${totalLinks} records, successfully matched and updated ${matchedCount} resources.`,
+    );
 
     if (fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
@@ -410,9 +426,8 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
     res.json({
       message: `自动匹配完成！共发现 ${totalLinks} 条记录，成功匹配并更新 ${matchedCount} 个课程资源的提取链接。`,
       totalLinks,
-      matchedCount
+      matchedCount,
     });
-
   } catch (error: any) {
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -435,7 +450,23 @@ export const getSourceResources = async (req: AuthRequest, res: Response) => {
       where.title = { contains: search };
     }
     if (categoryId) {
-      where.categoryId = categoryId;
+      const targetCategory = await prisma.mirrorCategory.findUnique({
+        where: { id: categoryId },
+        select: { externalId: true, sourceId: true },
+      });
+      if (targetCategory) {
+        const childCategories = await prisma.mirrorCategory.findMany({
+          where: {
+            sourceId: targetCategory.sourceId,
+            parentExternalId: targetCategory.externalId,
+          },
+          select: { id: true },
+        });
+        const categoryIds = [categoryId, ...childCategories.map(c => c.id)];
+        where.categoryId = { in: categoryIds };
+      } else {
+        where.categoryId = categoryId;
+      }
     }
 
     const [resources, total] = await Promise.all([
@@ -525,7 +556,7 @@ export const createResource = async (req: AuthRequest, res: Response) => {
         tags,
         contentHtml,
         resourceType,
-        categoryId,
+        categoryId: categoryId || null,
       },
     });
 
@@ -553,7 +584,11 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
-        updateData[field] = req.body[field];
+        if (field === 'categoryId' && !req.body[field]) {
+          updateData[field] = null;
+        } else {
+          updateData[field] = req.body[field];
+        }
       }
     }
 
@@ -579,6 +614,133 @@ export const deleteResource = async (req: AuthRequest, res: Response) => {
     ]);
 
     res.json({ message: '资源已删除' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getSourceCategories = async (req: AuthRequest, res: Response) => {
+  try {
+    const sourceId = req.params.sourceId as string;
+    const categories = await prisma.mirrorCategory.findMany({
+      where: { sourceId },
+      orderBy: { order: 'asc' },
+    });
+    res.json(categories);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getCategoryDetail = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const category = await prisma.mirrorCategory.findUnique({
+      where: { id },
+    });
+    if (!category) {
+      return res.status(404).json({ error: '分类不存在' });
+    }
+    res.json(category);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const createCategory = async (req: AuthRequest, res: Response) => {
+  try {
+    const sourceId = req.params.sourceId as string;
+    const { name, slug, parentExternalId, order = 0, childExternalIds } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'name 为必填项' });
+    }
+
+    const category = await prisma.mirrorCategory.create({
+      data: {
+        sourceId,
+        externalId: `manual_cat_${crypto.randomUUID()}`,
+        name,
+        slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        parentExternalId: parentExternalId || null,
+        order: parseInt(order as any) || 0,
+      },
+    });
+
+    if (childExternalIds && Array.isArray(childExternalIds) && childExternalIds.length > 0) {
+      await prisma.mirrorCategory.updateMany({
+        where: {
+          externalId: { in: childExternalIds },
+          sourceId,
+        },
+        data: {
+          parentExternalId: category.externalId,
+        },
+      });
+    }
+
+    res.status(201).json(category);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateCategory = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { name, slug, parentExternalId, order, childExternalIds } = req.body;
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (slug !== undefined) updateData.slug = slug;
+    if (parentExternalId !== undefined) updateData.parentExternalId = parentExternalId;
+    if (order !== undefined) updateData.order = parseInt(order as any) || 0;
+
+    const category = await prisma.mirrorCategory.update({
+      where: { id },
+      data: updateData,
+    });
+
+    if (childExternalIds && Array.isArray(childExternalIds)) {
+      // 1. Reset parentExternalId to null for current children that are not in the new childExternalIds list
+      await prisma.mirrorCategory.updateMany({
+        where: {
+          sourceId: category.sourceId,
+          parentExternalId: category.externalId,
+          externalId: { notIn: childExternalIds },
+        },
+        data: {
+          parentExternalId: null,
+        },
+      });
+
+      // 2. Set parentExternalId to category.externalId for the selected children
+      await prisma.mirrorCategory.updateMany({
+        where: {
+          sourceId: category.sourceId,
+          externalId: { in: childExternalIds },
+        },
+        data: {
+          parentExternalId: category.externalId,
+        },
+      });
+    }
+
+    res.json(category);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteCategory = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    await prisma.mirrorCategory.delete({
+      where: { id },
+    });
+
+    res.json({ message: '分类已删除' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

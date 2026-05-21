@@ -1,18 +1,20 @@
-import { Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser, emitToAll } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
+import { AppError } from '../middlewares/error.middleware';
 
-export const getAllDiscussions = async (req: AuthRequest, res: Response) => {
+export const getAllDiscussions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, tag, sort } = req.query;
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const limit = Math.min(parseInt(req.query.limit as string, 10) || 10, 50);
   const search = req.query.search as string;
   const skip = (page - 1) * limit;
 
   try {
-    const where: any = {};
+    const where: Prisma.DiscussionWhereInput = {};
     if (courseId) where.courseId = courseId as string;
     if (tag) {
       where.tags = { contains: tag as string };
@@ -21,13 +23,13 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response) => {
       where.OR = [{ title: { contains: search } }, { content: { contains: search } }];
     }
 
-    let orderBy: any = [{ isPinned: 'desc' as const }, { createdAt: 'desc' as const }];
+    let orderBy: Prisma.DiscussionOrderByWithRelationInput[] = [{ isPinned: 'desc' }, { createdAt: 'desc' }];
     if (sort === 'most_commented') {
-      orderBy = [{ isPinned: 'desc' as const }, { comments: { _count: 'desc' as const } }];
+      orderBy = [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }];
     } else if (sort === 'most_liked') {
-      orderBy = [{ isPinned: 'desc' as const }, { likes: { _count: 'desc' as const } }];
+      orderBy = [{ isPinned: 'desc' }, { likes: { _count: 'desc' } }];
     } else if (sort === 'most_viewed') {
-      orderBy = [{ isPinned: 'desc' as const }, { viewCount: 'desc' as const }];
+      orderBy = [{ isPinned: 'desc' }, { viewCount: 'desc' }];
     }
 
     const [discussions, total] = await Promise.all([
@@ -68,19 +70,18 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('[Discussion] Get all discussions error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getDiscussionById = async (req: AuthRequest, res: Response) => {
+export const getDiscussionById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const existing = await prisma.discussion.findUnique({
       where: { id },
       select: { id: true },
     });
-    if (!existing) return res.status(404).json({ error: 'Discussion not found' });
+    if (!existing) return next(new AppError('Discussion not found', 404));
 
     const discussion = await prisma.discussion.update({
       where: { id },
@@ -130,7 +131,7 @@ export const getDiscussionById = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    if (!discussion) return res.status(404).json({ error: 'Discussion not found' });
+    if (!discussion) return next(new AppError('Discussion not found', 404));
 
     const formattedComments = discussion.comments.map((c) => ({
       ...c,
@@ -150,19 +151,19 @@ export const getDiscussionById = async (req: AuthRequest, res: Response) => {
       comments: formattedComments,
     });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const createDiscussion = async (req: AuthRequest, res: Response) => {
+export const createDiscussion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { title, content, courseId, tags } = req.body;
-  const files = req.files as Express.Multer.File[];
+  const files = req.files as Express.Multer.File[] | undefined;
 
   if (!title || !title.trim()) {
-    return res.status(400).json({ error: '标题不能为空' });
+    return next(new AppError('标题不能为空', 400));
   }
   if (!content || !content.trim()) {
-    return res.status(400).json({ error: '内容不能为空' });
+    return next(new AppError('内容不能为空', 400));
   }
 
   try {
@@ -194,31 +195,30 @@ export const createDiscussion = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(discussion);
   } catch (error) {
-    console.error('Create discussion error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteDiscussion = async (req: AuthRequest, res: Response) => {
+export const deleteDiscussion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const discussion = await prisma.discussion.findUnique({
       where: { id },
       select: { userId: true },
     });
-    if (!discussion) return res.status(404).json({ error: 'Discussion not found' });
+    if (!discussion) return next(new AppError('Discussion not found', 404));
     if (discussion.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return next(new AppError('Not authorized', 403));
     }
 
     await prisma.discussion.delete({ where: { id } });
     res.json({ message: 'Discussion deleted' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const toggleLikeDiscussion = async (req: AuthRequest, res: Response) => {
+export const toggleLikeDiscussion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const discussionId = req.params.id as string;
   try {
     const existing = await prisma.discussionLike.findUnique({
@@ -251,22 +251,22 @@ export const toggleLikeDiscussion = async (req: AuthRequest, res: Response) => {
       res.json({ isLiked: true });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const togglePinDiscussion = async (req: AuthRequest, res: Response) => {
+export const togglePinDiscussion = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Only admins can pin discussions' });
+      return next(new AppError('Only admins can pin discussions', 403));
     }
 
     const discussion = await prisma.discussion.findUnique({
       where: { id },
       select: { isPinned: true },
     });
-    if (!discussion) return res.status(404).json({ error: 'Discussion not found' });
+    if (!discussion) return next(new AppError('Discussion not found', 404));
 
     const updated = await prisma.discussion.update({
       where: { id },
@@ -274,18 +274,18 @@ export const togglePinDiscussion = async (req: AuthRequest, res: Response) => {
     });
     res.json(updated);
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const addComment = async (req: AuthRequest, res: Response) => {
+export const addComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { discussionId, content, parentId } = req.body;
 
   if (!discussionId) {
-    return res.status(400).json({ error: '讨论ID不能为空' });
+    return next(new AppError('讨论ID不能为空', 400));
   }
   if (!content || !content.trim()) {
-    return res.status(400).json({ error: '评论内容不能为空' });
+    return next(new AppError('评论内容不能为空', 400));
   }
 
   try {
@@ -293,7 +293,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
       where: { id: discussionId },
     });
     if (!discussion) {
-      return res.status(404).json({ error: '讨论不存在' });
+      return next(new AppError('讨论不存在', 404));
     }
 
     if (parentId) {
@@ -301,10 +301,10 @@ export const addComment = async (req: AuthRequest, res: Response) => {
         where: { id: parentId },
       });
       if (!parentComment) {
-        return res.status(404).json({ error: '父评论不存在' });
+        return next(new AppError('父评论不存在', 404));
       }
       if (parentComment.discussionId !== discussionId) {
-        return res.status(400).json({ error: '父评论不属于该讨论' });
+        return next(new AppError('父评论不属于该讨论', 400));
       }
     }
 
@@ -363,31 +363,30 @@ export const addComment = async (req: AuthRequest, res: Response) => {
       replies: [],
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const deleteComment = async (req: AuthRequest, res: Response) => {
+export const deleteComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
     const comment = await prisma.comment.findUnique({
       where: { id },
       select: { userId: true },
     });
-    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+    if (!comment) return next(new AppError('Comment not found', 404));
     if (comment.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return next(new AppError('Not authorized', 403));
     }
 
     await prisma.comment.delete({ where: { id } });
     res.json({ message: 'Comment deleted' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const toggleLikeComment = async (req: AuthRequest, res: Response) => {
+export const toggleLikeComment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const commentId = req.params.id as string;
   try {
     const existing = await prisma.commentLike.findUnique({
@@ -404,11 +403,11 @@ export const toggleLikeComment = async (req: AuthRequest, res: Response) => {
       res.json({ isLiked: true });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-export const getDiscussionTags = async (req: AuthRequest, res: Response) => {
+export const getDiscussionTags = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const discussions = await prisma.discussion.findMany({
       where: { tags: { not: null } },
@@ -429,7 +428,6 @@ export const getDiscussionTags = async (req: AuthRequest, res: Response) => {
 
     res.json({ tags: Array.from(tagSet) });
   } catch (error) {
-    console.error('[Discussion] Get discussion tags error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };

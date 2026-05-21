@@ -1256,7 +1256,7 @@ watch(
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 md:gap-2">
             <el-popover
               placement="bottom-end"
               :width="280"
@@ -1265,7 +1265,7 @@ watch(
             >
               <template #reference>
                 <button
-                  class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 mr-2"
+                  class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 sm:mr-2"
                 >
                   <Search class="w-4 h-4" />
                 </button>
@@ -1284,14 +1284,14 @@ watch(
               </div>
             </el-popover>
             <button
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
+              class="hidden sm:block p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
               :class="isRecording ? 'text-rose-500 animate-pulse bg-rose-50 dark:bg-rose-900/20' : 'text-slate-400'"
               :title="t('messages.voiceMessage')"
               @click="isRecording ? stopRecording() : startRecording()"
             >
               <Mic class="w-4 h-4" />
             </button>
-            <span v-if="isRecording" class="text-[10px] font-black text-rose-500 animate-pulse">{{ formatDuration(recordingDuration) }}</span>
+            <span v-if="isRecording" class="hidden sm:inline text-[10px] font-black text-rose-500 animate-pulse">{{ formatDuration(recordingDuration) }}</span>
             <button
               class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
               style="color: var(--text-muted)"
@@ -1300,7 +1300,7 @@ watch(
             >
               <Languages class="w-4 h-4" />
             </button>
-            <div class="w-px h-4 mx-2" style="background-color: var(--border-base)"></div>
+            <div class="w-px h-4 mx-1 sm:mx-2" style="background-color: var(--border-base)"></div>
             <button
               class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
               :class="isInfoPanelOpen ? 'text-accent' : ''"
@@ -1368,7 +1368,7 @@ watch(
               :class="msg.senderId === authStore.user?.id ? 'justify-end' : 'justify-start'"
             >
               <div
-                class="flex gap-3 max-w-[70%]"
+                class="flex gap-3 max-w-[85%] md:max-w-[70%]"
                 :class="msg.senderId === authStore.user?.id ? 'flex-row-reverse' : ''"
               >
                 <!-- Avatar -->
@@ -1669,19 +1669,19 @@ watch(
 
         <!-- Input Area -->
         <div
-          class="p-6 border-t relative"
+          class="p-3 md:p-6 border-t relative"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
           <!-- Emoji Picker -->
           <div
             v-if="showEmojiPicker"
-            class="absolute bottom-full mb-4 left-6 p-4 rounded-3xl shadow-2xl border z-50 grid grid-cols-4 gap-2"
+            class="absolute bottom-full mb-2 left-2 right-2 md:left-6 md:right-auto p-3 rounded-2xl shadow-2xl border z-50 grid grid-cols-8 md:grid-cols-4 gap-1.5 md:gap-2 max-w-[calc(100%-1rem)] md:w-80"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <button
               v-for="emoji in commonEmojis"
               :key="emoji"
-              class="w-10 h-10 flex items-center justify-center text-xl hover:bg-accent-subtle rounded-xl transition-all"
+              class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-lg md:text-xl hover:bg-accent-subtle rounded-lg md:rounded-xl transition-all"
               @click="addEmoji(emoji)"
             >
               {{ emoji }}
@@ -1689,34 +1689,34 @@ watch(
           </div>
 
           <div
-            class="flex items-end gap-3 p-2 rounded-2xl focus-within:ring-4 focus-within:ring-accent/20 transition-all border"
+            class="flex items-end gap-1.5 md:gap-3 p-1.5 md:p-2 rounded-2xl focus-within:ring-4 focus-within:ring-accent/20 transition-all border"
             :class="isDragOver ? 'border-accent ring-4 ring-accent/20' : ''"
             style="background-color: var(--bg-app); border-color: var(--border-base)"
           >
-            <div class="flex items-center">
+            <div class="flex items-center gap-0.5 md:gap-1 shrink-0">
               <button
-                class="p-2 hover:text-accent transition-colors"
+                class="p-1 md:p-2 hover:text-accent transition-colors"
                 :class="showEmojiPicker ? 'text-accent' : ''"
                 style="color: var(--text-muted)"
                 @click="showEmojiPicker = !showEmojiPicker"
               >
-                <Smile class="w-5 h-5" />
+                <Smile class="w-4 h-4 md:w-5 md:h-5" />
               </button>
               <button
-                class="p-2 hover:text-accent transition-colors"
+                class="p-1 md:p-2 hover:text-accent transition-colors"
                 style="color: var(--text-muted)"
                 @click="triggerFileUpload"
               >
-                <Paperclip class="w-5 h-5" />
+                <Paperclip class="w-4 h-4 md:w-5 md:h-5" />
               </button>
               <button
-                class="p-2 hover:text-accent transition-colors"
+                class="p-1 md:p-2 hover:text-accent transition-colors"
                 :class="isRecording ? 'text-rose-500 animate-pulse' : 'text-slate-400'"
                 @click="isRecording ? stopRecording() : startRecording()"
               >
-                <Mic class="w-5 h-5" />
+                <Mic class="w-4 h-4 md:w-5 md:h-5" />
               </button>
-              <span v-if="isRecording" class="text-[10px] font-black text-rose-500 animate-pulse ml-1">{{ formatDuration(recordingDuration) }}</span>
+              <span v-if="isRecording" class="text-[9px] font-black text-rose-500 animate-pulse ml-0.5">{{ formatDuration(recordingDuration) }}</span>
             </div>
 
             <input ref="fileInput" type="file" class="hidden" @change="handleFileUpload" />

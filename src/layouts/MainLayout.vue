@@ -55,7 +55,8 @@ const AssetDetailsDrawer = defineAsyncComponent(() => import('@/components/Asset
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useWorkspaceStore } from '@/stores/workspace';
-import { useMirrorStore } from '@/stores/mirror';
+import { useMirrorStore, type MirrorCategory } from '@/stores/mirror';
+import { useManualStore, type ManualCategory } from '@/stores/manual';
 import api, { getAssetUrl } from '@/utils/api';
 import { socketService } from '@/utils/socket';
 
@@ -66,6 +67,7 @@ const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const workspaceStore = useWorkspaceStore();
 const mirrorStore = useMirrorStore();
+const manualStore = useManualStore();
 
 // Dynamic icon mapper for categories to make sidebar look premium and diverse
 function getCategoryIcon(name: string) {
@@ -140,18 +142,14 @@ const adminGroups = computed<SidebarMenuGroup[]>(() => [
     title: '内容审核',
     items: [
       {
-        name: '资产管理',
-        icon: Database,
-        path: '/admin/assets',
-        badge: workspaceStore.adminStats.pendingAssets,
+        name: '审核中心',
+        icon: ShieldCheck,
+        path: '/admin/audits',
+        badge:
+          workspaceStore.adminStats.pendingAssets +
+          workspaceStore.adminStats.pendingMaterials +
+          workspaceStore.adminStats.pendingShowcases,
       },
-      {
-        name: '材料管理',
-        icon: Layers,
-        path: '/admin/materials',
-        badge: workspaceStore.adminStats.pendingMaterials,
-      },
-      { name: '审核中心', icon: ShieldCheck, path: '/admin/audits' },
     ],
   },
   {
@@ -167,6 +165,7 @@ const adminGroups = computed<SidebarMenuGroup[]>(() => [
     items: [
       { name: '订阅管理', icon: CreditCard, path: '/admin/subscriptions' },
       { name: '镜像源管理', icon: Globe, path: '/admin/mirror' },
+      { name: '资源站管理', icon: Database, path: '/admin/manual' },
       { name: '系统设置', icon: Settings, path: '/admin/settings' },
     ],
   },
@@ -335,6 +334,12 @@ const handleSwitchWorkspace = (ws: any) => {
     } else {
       router.push('/mirror');
     }
+  } else if (ws.type === 'manual') {
+    if (ws.manualStationId) {
+      router.push(`/manual/station/${ws.manualStationId}`);
+    } else {
+      router.push('/academy');
+    }
   } else {
     router.push('/dashboard');
   }
@@ -345,6 +350,8 @@ const handleQuickSettings = (ws: any) => {
     router.push('/admin/settings');
   } else if (ws.type === 'mirror') {
     router.push('/mirror');
+  } else if (ws.type === 'manual') {
+    router.push('/admin/manual');
   } else if (ws.type === 'personal') {
     router.push({ path: '/settings', query: { tab: 'profile' } });
   } else {
@@ -385,26 +392,164 @@ const handleLogout = async () => {
 
 const mirrorGroups = computed<SidebarMenuGroup[]>(() => {
   const currentSourceId = workspaceStore.currentWorkspace?.mirrorSourceId;
-  const groups: SidebarMenuGroup[] = [
-    {
-      title: workspaceStore.currentWorkspace?.name || '镜像资源',
-      items: [
-        { 
-          name: '全部资源', 
-          icon: Database, 
-          path: `/mirror/source/${currentSourceId}` 
-        },
-      ],
-    },
-  ];
+  if (!currentSourceId) return [];
 
-  if (currentSourceId && mirrorStore.categories?.length) {
-    mirrorStore.categories.forEach(cat => {
-      groups[0].items.push({
-        name: cat.name,
-        icon: getCategoryIcon(cat.name),
-        path: `/mirror/source/${currentSourceId}?categoryId=${cat.id}`,
-      });
+  const mainGroup: SidebarMenuGroup = {
+    title: workspaceStore.currentWorkspace?.name || '镜像资源',
+    items: [
+      { 
+        name: '全部资源', 
+        icon: Database, 
+        path: `/mirror/source/${currentSourceId}` 
+      },
+    ],
+  };
+
+  const groups: SidebarMenuGroup[] = [mainGroup];
+
+  const categories = mirrorStore.categories || [];
+  if (categories.length) {
+    // 1. Group categories by parentExternalId
+    const parentMap = new Map<string, MirrorCategory[]>();
+    categories.forEach(cat => {
+      if (cat.parentExternalId) {
+        if (!parentMap.has(cat.parentExternalId)) {
+          parentMap.set(cat.parentExternalId, []);
+        }
+        parentMap.get(cat.parentExternalId)!.push(cat);
+      }
+    });
+
+    // 2. Identify top level and check if they have children
+    const topLevel: MirrorCategory[] = [];
+    categories.forEach(cat => {
+      const hasParent = cat.parentExternalId && categories.some(p => p.externalId === cat.parentExternalId);
+      if (!hasParent) {
+        topLevel.push(cat);
+      }
+    });
+
+    // Sort top level by order
+    topLevel.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    topLevel.forEach(parent => {
+      const children = parentMap.get(parent.externalId) || [];
+      if (children.length > 0) {
+        // Create a new sidebar group
+        const childItems = children
+          .map(child => ({
+            name: child.name,
+            icon: getCategoryIcon(child.name),
+            path: `/mirror/source/${currentSourceId}?categoryId=${child.id}`,
+          }))
+          .sort((a, b) => {
+            const childA = children.find(c => c.name === a.name);
+            const childB = children.find(c => c.name === b.name);
+            return (childA?.order || 0) - (childB?.order || 0);
+          });
+
+        groups.push({
+          title: parent.name,
+          items: [
+            {
+              name: `全部 ${parent.name}`,
+              icon: getCategoryIcon(parent.name),
+              path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
+            },
+            ...childItems,
+          ],
+        });
+      } else {
+        // Childless parent category stays in main group
+        mainGroup.items.push({
+          name: parent.name,
+          icon: getCategoryIcon(parent.name),
+          path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
+        });
+      }
+    });
+  }
+
+  return groups;
+});
+
+const manualGroups = computed<SidebarMenuGroup[]>(() => {
+  const currentStationId = workspaceStore.currentWorkspace?.manualStationId;
+  if (!currentStationId) return [];
+
+  const mainGroup: SidebarMenuGroup = {
+    title: workspaceStore.currentWorkspace?.name || '手动资源站',
+    items: [
+      { 
+        name: '全部资源', 
+        icon: Database, 
+        path: `/manual/station/${currentStationId}` 
+      },
+    ],
+  };
+
+  const groups: SidebarMenuGroup[] = [mainGroup];
+
+  const categories = manualStore.categories || [];
+  if (categories.length) {
+    // 1. Group categories by parentId
+    const parentMap = new Map<string, ManualCategory[]>();
+    categories.forEach(cat => {
+      if (cat.parentId) {
+        if (!parentMap.has(cat.parentId)) {
+          parentMap.set(cat.parentId, []);
+        }
+        parentMap.get(cat.parentId)!.push(cat);
+      }
+    });
+
+    // 2. Identify top level and check if they have children
+    const topLevel: ManualCategory[] = [];
+    categories.forEach(cat => {
+      const hasParent = cat.parentId && categories.some(p => p.id === cat.parentId);
+      if (!hasParent) {
+        topLevel.push(cat);
+      }
+    });
+
+    // Sort top level by order
+    topLevel.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    topLevel.forEach(parent => {
+      const children = parentMap.get(parent.id) || [];
+      if (children.length > 0) {
+        // Create a new sidebar group
+        const childItems = children
+          .map(child => ({
+            name: child.name,
+            icon: getCategoryIcon(child.name),
+            path: `/manual/station/${currentStationId}?categoryId=${child.id}`,
+          }))
+          .sort((a, b) => {
+            const childA = children.find(c => c.name === a.name);
+            const childB = children.find(c => c.name === b.name);
+            return (childA?.order || 0) - (childB?.order || 0);
+          });
+
+        groups.push({
+          title: parent.name,
+          items: [
+            {
+              name: `全部 ${parent.name}`,
+              icon: getCategoryIcon(parent.name),
+              path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
+            },
+            ...childItems,
+          ],
+        });
+      } else {
+        // Childless parent category stays in main group
+        mainGroup.items.push({
+          name: parent.name,
+          icon: getCategoryIcon(parent.name),
+          path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
+        });
+      }
     });
   }
 
@@ -417,6 +562,9 @@ const menuGroups = computed<SidebarMenuGroup[]>(() => {
   }
   if (workspaceStore.currentWorkspace?.type === 'mirror') {
     return mirrorGroups.value;
+  }
+  if (workspaceStore.currentWorkspace?.type === 'manual') {
+    return manualGroups.value;
   }
 
   return [
@@ -690,9 +838,9 @@ const onMirrorSyncFinished = ({ sourceName, status, result, error }: any) => {
 
 let statsInterval: any = null;
 
-const handleThemeChangeExternal = ((e: CustomEvent) => {
-  applyTheme(e.detail);
-}) as EventListener;
+const handleThemeChangeExternal = (e: Event) => {
+  applyTheme((e as CustomEvent).detail);
+};
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
@@ -755,6 +903,9 @@ watch(
     } else if (path.startsWith('/mirror/source/')) {
       const sourceId = path.split('/')[3];
       workspaceStore.setWorkspaceById(`mirror-${sourceId}`);
+    } else if (path.startsWith('/manual/station/')) {
+      const stationId = path.split('/')[3];
+      workspaceStore.setWorkspaceById(`manual-${stationId}`);
     }
   },
   { immediate: false },
@@ -777,7 +928,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex flex-col h-screen w-full overflow-hidden text-sm relative"
+    class="flex flex-col h-screen h-dvh w-full overflow-hidden text-sm relative"
     style="background-color: var(--bg-app); color: var(--text-primary)"
   >
     <!-- Global Glass Theme Animated Background Glowing Blobs -->
@@ -1134,11 +1285,18 @@ onUnmounted(() => {
       <aside
         class="w-60 hidden lg:flex flex-col h-full shrink-0 glass-sidebar"
       >
-        <div class="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-hide">
-          <div v-for="(group, index) in menuGroups" :key="index">
+        <div class="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide">
+          <div v-for="(group, index) in menuGroups" :key="index" :class="{ 'mt-1': index > 0 }">
+            <!-- Divider before the group if it's not the first one -->
+            <div
+              v-if="index > 0"
+              class="mb-1 border-t"
+              style="border-color: var(--border-base); opacity: 0.4"
+            ></div>
+
             <h3
               v-if="group.title"
-              class="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
+              class="px-3 mb-0.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
               :class="
                 workspaceStore.isAdminWorkspace
                   ? 'text-rose-500 dark:text-rose-400'
@@ -1152,7 +1310,7 @@ onUnmounted(() => {
               <li v-for="item in group.items" :key="item.name">
                 <RouterLink
                   :to="item.path"
-                  class="flex items-center justify-between px-3 py-2 rounded-md transition-colors duration-150"
+                  class="flex items-center justify-between px-3 py-1.5 rounded-md transition-colors duration-150"
                   :class="
                     route.fullPath === item.path
                       ? workspaceStore.isAdminWorkspace
@@ -1194,19 +1352,13 @@ onUnmounted(() => {
                 </RouterLink>
               </li>
             </ul>
-            <!-- Divider between categories -->
-            <div
-              v-if="index < menuGroups.length - 1"
-              class="pt-6 border-b"
-              style="border-color: var(--border-base); opacity: 0.4"
-            ></div>
           </div>
         </div>
 
-        <div class="p-4 border-t space-y-1" style="border-color: var(--border-base)">
+        <div class="p-2.5 border-t space-y-0.5" style="border-color: var(--border-base)">
           <RouterLink
             to="/settings"
-            class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            class="flex items-center gap-3 px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
             :class="
               route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
             "
@@ -1218,7 +1370,7 @@ onUnmounted(() => {
             设置选项
           </RouterLink>
           <button
-            class="w-full flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            class="w-full flex items-center gap-3 px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
             @click="handleReportBug"
           >
             <HelpCircle class="w-4 h-4 text-slate-400" />
@@ -1539,7 +1691,7 @@ onUnmounted(() => {
     <Transition name="fade">
       <div
         v-if="isMobileSidebarOpen"
-        class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+        class="fixed inset-0 z-40 bg-black/60 lg:hidden"
         @click="isMobileSidebarOpen = false"
       ></div>
     </Transition>
@@ -1547,7 +1699,8 @@ onUnmounted(() => {
     <Transition name="slide-left">
       <aside
         v-if="isMobileSidebarOpen"
-        class="fixed inset-y-0 left-0 w-32 z-50 flex flex-col h-full shadow-2xl transition-all duration-300 lg:hidden glass-sidebar"
+        class="fixed inset-y-0 left-0 w-32 z-50 flex flex-col h-full shadow-2xl lg:hidden glass-sidebar"
+        style="will-change: transform;"
       >
         <!-- Header -->
         <div class="h-12 flex items-center justify-between px-2 border-b shrink-0" style="border-color: var(--border-base)">
@@ -1576,11 +1729,18 @@ onUnmounted(() => {
         </div>
 
         <!-- Navigation Menu -->
-        <div class="flex-1 overflow-y-auto py-2 px-1.5 space-y-2 scrollbar-hide">
-          <div v-for="(group, index) in menuGroups" :key="index">
+        <div class="flex-1 overflow-y-auto py-2 px-1.5 scrollbar-hide">
+          <div v-for="(group, index) in menuGroups" :key="index" :class="{ 'mt-0.5': index > 0 }">
+            <!-- Divider before the group if it's not the first one -->
+            <div
+              v-if="index > 0"
+              class="mb-0.5 border-t"
+              style="border-color: var(--border-base); opacity: 0.4"
+            ></div>
+
             <h3
               v-if="group.title"
-              class="px-1 mb-0.5 text-[8px] font-bold uppercase tracking-widest flex items-center gap-1"
+              class="px-1 mb-0 text-[8px] font-bold uppercase tracking-widest flex items-center gap-1"
               :class="
                 workspaceStore.isAdminWorkspace
                   ? 'text-rose-500 dark:text-rose-400'
@@ -1594,7 +1754,7 @@ onUnmounted(() => {
               <li v-for="item in group.items" :key="item.name">
                 <RouterLink
                   :to="item.path"
-                  class="flex items-center justify-between px-1.5 py-1 rounded-md transition-colors duration-150"
+                  class="flex items-center justify-between px-1.5 py-0.5 rounded-md transition-colors duration-150"
                   :class="
                     route.path === item.path
                       ? workspaceStore.isAdminWorkspace
@@ -1634,20 +1794,14 @@ onUnmounted(() => {
                 </RouterLink>
               </li>
             </ul>
-            <!-- Divider between categories -->
-            <div
-              v-if="index < menuGroups.length - 1"
-              class="pt-2 border-b"
-              style="border-color: var(--border-base); opacity: 0.4"
-            ></div>
           </div>
         </div>
 
         <!-- Footer -->
-        <div class="p-1.5 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
+        <div class="p-1 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
           <RouterLink
             to="/settings"
-            class="flex items-center gap-1.5 px-1.5 py-1 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
+            class="flex items-center gap-1.5 px-1.5 py-0.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
             :class="
               route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
             "
@@ -1660,7 +1814,7 @@ onUnmounted(() => {
             <span class="flex-1 truncate">设置选项</span>
           </RouterLink>
           <button
-            class="w-full flex items-center gap-1.5 px-1.5 py-1 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
+            class="w-full flex items-center gap-1.5 px-1.5 py-0.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
             @click="
               handleReportBug();
               isMobileSidebarOpen = false;
@@ -1698,6 +1852,9 @@ onUnmounted(() => {
 .slide-left-enter-active,
 .slide-left-leave-active {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 .slide-left-enter-from,
 .slide-left-leave-to {

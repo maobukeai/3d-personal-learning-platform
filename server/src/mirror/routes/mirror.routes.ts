@@ -25,10 +25,19 @@ router.get('/sources/:sourceId/plan-required', mirrorController.getPlanRequiredF
 // Publicly readable resource details & interactions (checked in controller for download link access)
 router.get('/resources/:id', optionalAuthenticate, mirrorController.getResource);
 router.get('/resources/:id/comments', optionalAuthenticate, mirrorController.getResourceComments);
-router.get('/resources/:id/like-status', optionalAuthenticate, mirrorController.getResourceLikeStatus);
+router.get(
+  '/resources/:id/like-status',
+  optionalAuthenticate,
+  mirrorController.getResourceLikeStatus,
+);
 
 // Encrypted, rate-limited and authorization-checked resource download link extraction
-router.post('/resources/:id/extract', authenticate, extractLimiter, mirrorController.extractResourceLink);
+router.post(
+  '/resources/:id/extract',
+  authenticate,
+  extractLimiter,
+  mirrorController.extractResourceLink,
+);
 
 // Mutating actions require authenticated user
 router.post('/resources/:id/comments', authenticate, mirrorController.createResourceComment);

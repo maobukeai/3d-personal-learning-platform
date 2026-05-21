@@ -5,11 +5,12 @@ import { useAuthStore } from './auth';
 export interface Workspace {
   id: string;
   name: string;
-  type: 'personal' | 'team' | 'admin' | 'mirror';
+  type: 'personal' | 'team' | 'admin' | 'mirror' | 'manual';
   color: string;
   description?: string;
   badgeCount?: number;
   mirrorSourceId?: string;
+  manualStationId?: string;
 }
 
 export const useWorkspaceStore = defineStore('workspace', {
@@ -88,6 +89,7 @@ export const useWorkspaceStore = defineStore('workspace', {
           this.fetchAdminStats();
         }
 
+        // Fetch Mirror Sources
         try {
           const mirrorRes = await api.get('/api/mirror/sources');
           const mirrorSources = mirrorRes.data || [];
@@ -103,6 +105,24 @@ export const useWorkspaceStore = defineStore('workspace', {
           }
         } catch (e) {
           // Mirror sources not available, skip
+        }
+
+        // Fetch Manual Stations
+        try {
+          const manualRes = await api.get('/api/manual/stations');
+          const manualStations = manualRes.data || [];
+          for (const ms of manualStations) {
+            this.rawWorkspaces.push({
+              id: `manual-${ms.id}`,
+              name: ms.displayName,
+              type: 'manual',
+              color: 'bg-cyan-600',
+              description: ms.description || `手动资源站 (${ms.totalResources} 个资源)`,
+              manualStationId: ms.id,
+            });
+          }
+        } catch (e) {
+          // Manual stations not available, skip
         }
 
         // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
@@ -162,6 +182,9 @@ export const useWorkspaceStore = defineStore('workspace', {
       } else if (currentPath?.startsWith('/mirror/source/')) {
         const sourceId = currentPath.split('/')[3];
         this.activeWorkspaceId = `mirror-${sourceId}`;
+      } else if (currentPath?.startsWith('/manual/station/')) {
+        const stationId = currentPath.split('/')[3];
+        this.activeWorkspaceId = `manual-${stationId}`;
       }
 
       if (this.activeWorkspaceId) {

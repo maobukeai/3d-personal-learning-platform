@@ -8,7 +8,6 @@ import {
   UserX,
   UserCheck,
   RefreshCw,
-  Filter,
   Key,
   Plus,
   CreditCard,
@@ -281,6 +280,18 @@ const handleDeleteUser = (user: any) => {
   });
 };
 
+const stats = computed(() => {
+  const total = users.value.length;
+  const active = users.value.filter((u) => u.status === 'ACTIVE').length;
+  const banned = users.value.filter((u) => u.status === 'BANNED').length;
+
+  const admin = users.value.filter((u) => u.role === 'ADMIN').length;
+  const instructor = users.value.filter((u) => u.role === 'INSTRUCTOR').length;
+  const normal = users.value.filter((u) => u.role === 'USER').length;
+
+  return { total, active, banned, admin, instructor, normal };
+});
+
 onMounted(() => {
   fetchUsers();
   fetchPlans();
@@ -292,99 +303,129 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-3 sm:gap-4">
-        <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl shrink-0">
-          <Users class="w-5.5 h-5.5 sm:w-6 sm:h-6 text-indigo-600" />
-        </div>
-        <div>
-          <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <!-- Row 1: 标题 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
+          >
+            <Users class="w-4 h-4" />
+          </span>
+          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
             全平台用户管理
           </h1>
-          <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-            监控活跃用户、调整权限等级及账号清理
-          </p>
+        </div>
+
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="openCreateDialog"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">创建新用户</span>
+          </button>
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchUsers"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            <span class="hidden sm:inline">刷新</span>
+          </button>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
-        <div
-          class="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-slate-200 transition-all shrink-0"
-        >
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">总计</span>
-          <span class="text-sm font-black text-indigo-600">{{ users.length }}</span>
-        </div>
-        <button
-          class="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg shadow-indigo-200 dark:shadow-none shrink-0 whitespace-nowrap"
-          @click="openCreateDialog"
-        >
-          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          创建新用户
-        </button>
-        <button
-          class="p-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors text-slate-400 shrink-0"
-          @click="fetchUsers"
-        >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
-        </button>
-      </div>
-    </div>
+      <!-- Row 2: 状态与角色筛选 Pills & 检索 -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- 状态/角色筛选 -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <!-- 状态 Pills -->
+          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <button
+              v-for="filter in [
+                { key: 'ALL', label: '所有状态', count: stats.total, color: 'indigo', icon: Users },
+                { key: 'ACTIVE', label: '活跃', count: stats.active, color: 'emerald', icon: UserCheck },
+                { key: 'BANNED', label: '已封禁', count: stats.banned, color: 'rose', icon: UserX }
+              ]"
+              :key="filter.key"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
+                statusFilter === filter.key
+                  ? filter.key === 'ACTIVE'
+                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                    : filter.key === 'BANNED'
+                      ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
+                      : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+              ]"
+              @click="statusFilter = filter.key"
+            >
+              <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
+              <span>{{ filter.label }}</span>
+              <span class="opacity-60">({{ filter.count }})</span>
+            </button>
+          </div>
 
-    <!-- Filters Bar -->
-    <div
-      class="p-4 sm:p-6 border-b shrink-0 transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-        <div class="relative w-full md:w-96">
-          <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="按姓名或邮箱搜索用户..."
-            class="w-full pl-11 pr-4 py-3 rounded-2xl border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          />
+          <div class="w-[1px] h-3 bg-slate-200 dark:bg-slate-800 shrink-0 mx-1 sm:mx-3"></div>
+
+          <!-- 角色 Pills -->
+          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <button
+              v-for="filter in [
+                { key: 'ALL', label: '所有角色', count: stats.total, icon: Users },
+                { key: 'ADMIN', label: '管理员', count: stats.admin, icon: Crown },
+                { key: 'INSTRUCTOR', label: '导师', count: stats.instructor, icon: Zap },
+                { key: 'USER', label: '普通用户', count: stats.normal, icon: Users }
+              ]"
+              :key="filter.key"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
+                roleFilter === filter.key
+                  ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+              ]"
+              @click="roleFilter = filter.key"
+            >
+              <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
+              <span>{{ filter.label }}</span>
+              <span class="opacity-60">({{ filter.count }})</span>
+            </button>
+          </div>
         </div>
 
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2">
-            <Filter class="w-4 h-4 text-slate-400" />
-            <select
-              v-model="statusFilter"
-              class="px-4 py-2.5 rounded-xl border outline-none font-bold text-xs"
+        <!-- 检索与统计 -->
+        <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0">
+          <div class="relative flex-1 lg:flex-none lg:w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="按姓名或邮箱搜索用户..."
+              class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-            >
-              <option value="ALL">所有状态</option>
-              <option value="ACTIVE">活跃</option>
-              <option value="BANNED">已封禁</option>
-            </select>
-            <select
-              v-model="roleFilter"
-              class="px-4 py-2.5 rounded-xl border outline-none font-bold text-xs"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            >
-              <option value="ALL">所有角色</option>
-              <option value="ADMIN">管理员</option>
-              <option value="INSTRUCTOR">导师</option>
-              <option value="USER">普通用户</option>
-            </select>
+            />
+          </div>
+          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+            已过滤: <span class="text-indigo-600 font-extrabold">{{ filteredUsers.length }}</span> / 总计: {{ users.length }}
           </div>
         </div>
       </div>

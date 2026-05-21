@@ -3,6 +3,8 @@ import app from './app';
 import { config } from './config/env';
 import { initSocket } from './services/socket.service';
 import { syncEngine } from './mirror/services/sync-engine.service';
+import { runManualStationMigration } from './manual/services/migration.service';
+import { startCleanupJob } from './services/cleanup.service';
 
 const port = config.PORT;
 
@@ -11,6 +13,12 @@ const server = http.createServer(app);
 initSocket(server);
 
 syncEngine.startScheduler();
+startCleanupJob(); // Clean up expired data hourly
+
+// Run legacy manual station migration asynchronously on startup
+runManualStationMigration().catch((err) => {
+  console.error('[Startup] Migration error:', err);
+});
 
 server.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { Plus, Trash2, Edit2, Milestone } from 'lucide-vue-next';
+import { ref, onMounted, computed } from 'vue';
+import { Plus, Trash2, Edit2, Milestone, Search, X } from 'lucide-vue-next';
 import api from '@/utils/api';
 
 const roadmaps = ref<any[]>([]);
@@ -20,6 +20,18 @@ const stepForm = ref({
   description: '',
   order: 0,
   roadmapId: '',
+});
+
+const searchQuery = ref('');
+
+const filteredRoadmaps = computed(() => {
+  if (!searchQuery.value) return roadmaps.value;
+  const query = searchQuery.value.toLowerCase();
+  return roadmaps.value.filter(
+    (r) =>
+      r.title?.toLowerCase().includes(query) ||
+      r.description?.toLowerCase().includes(query),
+  );
 });
 
 const fetchRoadmaps = async () => {
@@ -126,27 +138,81 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- Header (超紧凑双行版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 border-b transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div>
-        <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-          学习路线管理
-        </h1>
-        <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-          规划和编辑针对新手的 3D 学习路径
-        </p>
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-orange-500/10 via-amber-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <!-- Row 1: 标题 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="p-1 rounded-xl bg-orange-500/10 text-orange-600 shadow-sm border border-orange-500/20"
+          >
+            <Milestone class="w-4 h-4" />
+          </span>
+          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+            学习路线管理
+          </h1>
+        </div>
+
+        <button
+          class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          @click="openRoadmapModal()"
+        >
+          <Plus class="w-3.5 h-3.5" />
+          <span class="hidden sm:inline">新建路线</span>
+        </button>
       </div>
 
-      <button
-        class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-sm transition-all shadow-lg shadow-accent/20"
-        @click="openRoadmapModal()"
+      <!-- Row 2: 条件筛选与快速搜索 -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
       >
-        <Plus class="w-4 h-4" />
-        新建路线
-      </button>
+        <!-- 统计 Pills -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <span
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-orange-500/30 bg-orange-500/10 text-orange-600 text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 shrink-0"
+          >
+            <Milestone class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span>全部路线</span>
+            <span class="opacity-60">({{ filteredRoadmaps.length }})</span>
+          </span>
+        </div>
+
+        <!-- 检索工具 -->
+        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+          <div class="relative flex-1 md:flex-none md:w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索路线标题或描述..."
+              class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-orange-500/20 outline-none text-[11px] shadow-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
+            <button
+              v-if="searchQuery"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              @click="searchQuery = ''"
+            >
+              <X class="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Main Content -->
@@ -160,7 +226,7 @@ onMounted(() => {
 
       <div v-else class="max-w-5xl mx-auto space-y-6 sm:space-y-8">
         <div
-          v-for="roadmap in roadmaps"
+          v-for="roadmap in filteredRoadmaps"
           :key="roadmap.id"
           class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
           style="background-color: var(--bg-card); border-color: var(--border-base)"

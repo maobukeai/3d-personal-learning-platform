@@ -165,28 +165,53 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Admin Header -->
+    <!-- Admin Header (奢华顶栏) -->
     <div
-      class="h-auto py-4 px-4 sm:px-8 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div>
-        <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-          管理后台概览
-        </h1>
-        <p class="text-[10px] sm:text-xs font-medium mt-1" style="color: var(--text-muted)">
-          监控平台运行状态及待办事项
-        </p>
-      </div>
-      <div class="flex items-center gap-3">
-        <div
-          class="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <Calendar class="w-3.5 h-3.5 sm:w-4 h-4 text-slate-400" />
-          <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-secondary)">{{
-            new Date().toLocaleDateString()
-          }}</span>
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-rose-500/10 via-purple-500/5 to-transparent pointer-events-none"
+      ></div>
+
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10"
+      >
+        <div class="flex items-center gap-2 shrink-0">
+          <span
+            class="p-1 rounded-xl bg-rose-500/10 text-rose-500 shadow-sm border border-rose-500/20 shrink-0"
+          >
+            <Layout class="w-4 h-4" />
+          </span>
+          <div class="shrink-0">
+            <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+              管理后台概览
+            </h1>
+            <p class="text-[10px] font-medium mt-0.5 hidden sm:block" style="color: var(--text-muted)">
+              监控平台运行状态及待办事项
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchAdminStats"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            <span class="hidden sm:inline">刷新数据</span>
+          </button>
+          <div
+            class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors duration-300"
+            style="background-color: var(--bg-app); border-color: var(--border-base)"
+          >
+            <Calendar class="w-3.5 h-3.5 text-slate-400" />
+            <span class="text-[11px] font-bold" style="color: var(--text-secondary)">{{
+              new Date().toLocaleDateString()
+            }}</span>
+          </div>
         </div>
       </div>
     </div>

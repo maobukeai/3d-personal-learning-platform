@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
 import {
   Plus,
   Search,
@@ -13,13 +13,11 @@ import {
   Loader2,
   CheckCircle2,
   FolderTree,
-  X,
   Star,
   Eye,
   EyeOff,
   Clock,
   Users,
-  BarChart3,
   GraduationCap,
   Box,
   Info,
@@ -27,10 +25,12 @@ import {
   Camera,
   Sun,
   Palette,
+  RefreshCw,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
-import ModelViewer from '@/components/ModelViewer.vue';
+
+const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
 const courses = ref<any[]>([]);
 const categories = ref<any[]>([]);
@@ -58,6 +58,7 @@ const handleTabChange = (tab: 'courses' | 'categories') => {
 };
 const searchQuery = ref('');
 const sortBy = ref<'newest' | 'enrollments' | 'rating'>('newest');
+const statusFilter = ref<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
 
 const courseStats = computed(() => {
   const total = courses.value.length;
@@ -237,6 +238,9 @@ const fetchCategories = async () => {
 
 const filteredCourses = computed(() => {
   let list = courses.value;
+  if (statusFilter.value !== 'ALL') {
+    list = list.filter((c) => c.status === statusFilter.value);
+  }
   if (searchQuery.value) {
     list = list.filter(
       (c) =>
@@ -475,187 +479,156 @@ onMounted(() => {
     class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
-    <!-- Header -->
+    <!-- 奢华顶栏 (超紧凑高阶版) -->
     <div
-      class="min-h-20 py-4 lg:py-0 lg:h-20 border-b px-4 sm:px-8 flex flex-col lg:flex-row gap-4 lg:items-center justify-between shrink-0 transition-colors duration-300"
+      class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div>
-        <h1 class="text-xl sm:text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-          学院课程管理
-        </h1>
-        <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-          发布和编辑学院教学课程
-        </p>
-      </div>
+      <!-- 极光背景装饰 -->
+      <div
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
+      ></div>
 
-      <div class="flex items-center gap-1.5 sm:gap-3 w-full lg:w-auto shrink-0 justify-between lg:justify-end">
-        <div
-          class="flex items-center gap-1 p-1 rounded-xl transition-colors duration-300 shrink-0"
-          style="background-color: var(--bg-app)"
-        >
-          <button
-            class="px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
-            :class="
-              activeTab === 'courses'
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="handleTabChange('courses')"
-          >
-            <span class="xs:hidden">课程</span>
-            <span class="hidden xs:inline">课程列表</span>
-          </button>
-          <button
-            class="px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
-            :class="
-              activeTab === 'categories'
-                ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
-                : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="handleTabChange('categories')"
-          >
-            <span class="xs:hidden">分类</span>
-            <span class="hidden xs:inline">分类管理</span>
-          </button>
+      <!-- Row 1: 标题 & 选项卡 & 主要动作 -->
+      <div
+        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        style="border-color: var(--border-base)"
+      >
+        <div class="flex items-center gap-2.5 sm:gap-4 shrink-0">
+          <div class="flex items-center gap-2">
+            <span
+              class="p-1 rounded-xl bg-indigo-500/10 text-indigo-500 shadow-sm border border-indigo-500/20"
+            >
+              <BookOpen class="w-4 h-4" />
+            </span>
+            <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
+              学院课程
+            </h1>
+          </div>
+
+          <!-- 分段选项卡 -->
+          <div class="flex items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
+            <button
+              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === 'courses'
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="handleTabChange('courses')"
+            >
+              课程列表
+            </button>
+            <button
+              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              :class="activeTab === 'categories'
+                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
+              @click="handleTabChange('categories')"
+            >
+              分类管理
+            </button>
+          </div>
         </div>
 
-        <div
-          class="hidden sm:block h-8 w-[1px] mx-1 transition-colors duration-300 shrink-0"
-          style="background-color: var(--border-base)"
-        ></div>
-
-        <button
-          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-bold text-[10px] sm:text-sm transition-all shadow-sm shrink-0 whitespace-nowrap"
-          @click="showImportModal = true"
-        >
-          <LinkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span class="hidden xs:inline">导入</span>
-          <span class="hidden sm:inline">外部导入</span>
-        </button>
-        <button
-          v-if="activeTab === 'courses'"
-          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[10px] sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
-          @click="openCourseModal()"
-        >
-          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span class="hidden xs:inline">新建</span>
-          <span class="hidden sm:inline">新建课程</span>
-        </button>
-        <button
-          v-if="activeTab === 'categories'"
-          class="flex items-center gap-1 px-2.5 py-1.5 sm:px-6 sm:py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[10px] sm:text-sm transition-all shadow-lg shadow-accent/20 shrink-0 whitespace-nowrap"
-          @click="openCategoryModal()"
-        >
-          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span class="hidden xs:inline">新建</span>
-          <span class="hidden sm:inline">新建分类</span>
-        </button>
+        <div class="flex items-center gap-1.5 sm:gap-2.5">
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="showImportModal = true"
+          >
+            <LinkIcon class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">外部导入</span>
+          </button>
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="openCourseModal()"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">新建课程</span>
+          </button>
+          <button
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchCourses"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
+            <span class="hidden sm:inline">刷新</span>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- Search Bar -->
-    <div
-      v-if="activeTab === 'courses'"
-      class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="flex flex-row items-center gap-2 sm:gap-4 max-w-5xl">
-        <div class="relative flex-1">
-          <Search class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索课程标题或描述..."
-            class="w-full pl-12 pr-4 py-2.5 rounded-2xl border transition-all outline-none text-sm"
+      <!-- Row 2: 状态筛选 Pills & 检索工具栏 -->
+      <div
+        class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+      >
+        <!-- 紧凑状态筛选 Pills -->
+        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+          <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
+            <button
+              v-for="filter in [
+                { key: 'ALL', label: '所有课程', count: courseStats.total, color: 'indigo', icon: BookOpen },
+                { key: 'PUBLISHED', label: '已发布', count: courseStats.published, color: 'emerald', icon: Eye },
+                { key: 'DRAFT', label: '草稿', count: courseStats.draft, color: 'amber', icon: EyeOff }
+              ]"
+              :key="filter.key"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
+                statusFilter === filter.key
+                  ? filter.key === 'PUBLISHED'
+                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
+                    : filter.key === 'DRAFT'
+                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
+                      : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+              ]"
+              @click="statusFilter = filter.key as any"
+            >
+              <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
+              <span>{{ filter.label }}</span>
+              <span class="opacity-60">({{ filter.count }})</span>
+            </button>
+          </div>
+          <span class="text-[8px] opacity-45 px-1 sm:px-2 shrink-0">|</span>
+          <span class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0">
+            <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总课时: {{ courseStats.totalLessons }}
+          </span>
+          <span class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0">
+            <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总报名: {{ courseStats.totalEnrollments }}
+          </span>
+        </div>
+
+        <!-- 检索与排序 -->
+        <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0">
+          <select
+            v-model="sortBy"
+            class="px-2 py-1.5 rounded-lg border text-[11px] font-bold outline-none cursor-pointer shrink-0"
             style="
               background-color: var(--bg-app);
               border-color: var(--border-base);
               color: var(--text-primary);
             "
-          />
-          <button
-            v-if="searchQuery"
-            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            @click="searchQuery = ''"
           >
-            <X class="w-4 h-4" />
-          </button>
-        </div>
-        <select
-          v-model="sortBy"
-          class="px-2 sm:px-4 py-2.5 rounded-2xl border text-xs sm:text-sm outline-none shrink-0"
-          style="
-            background-color: var(--bg-app);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-        >
-          <option value="newest">最新创建</option>
-          <option value="enrollments">报名最多</option>
-          <option value="rating">评分最高</option>
-        </select>
-      </div>
-    </div>
+            <option value="newest">最新创建</option>
+            <option value="enrollments">报名最多</option>
+            <option value="rating">评分最高</option>
+          </select>
 
-    <!-- Stats Panel -->
-    <div
-      v-if="activeTab === 'courses'"
-      class="px-4 sm:px-8 py-4 border-b transition-colors duration-300"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <div class="grid grid-cols-5 gap-1.5 sm:gap-3 max-w-5xl">
-        <div
-          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase">总课程</span>
-            <BarChart3 class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+          <div class="relative flex-1 lg:flex-none lg:w-64">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索课程标题或描述..."
+              class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
+              style="
+                background-color: var(--bg-app);
+                border-color: var(--border-base);
+                color: var(--text-primary);
+              "
+            />
           </div>
-          <p class="text-sm xs:text-base sm:text-xl font-black" style="color: var(--text-primary)">
-            {{ courseStats.total }}
-          </p>
-        </div>
-        <div
-          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-emerald-500 uppercase">已发布</span>
-            <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500" />
+          <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
+            匹配: <span class="text-indigo-600 font-extrabold">{{ filteredCourses.length }}</span> / {{ courses.length }}
           </div>
-          <p class="text-sm xs:text-base sm:text-xl font-black text-emerald-500">{{ courseStats.published }}</p>
-        </div>
-        <div
-          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-amber-500 uppercase">草稿</span>
-            <EyeOff class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500" />
-          </div>
-          <p class="text-sm xs:text-base sm:text-xl font-black text-amber-500">{{ courseStats.draft }}</p>
-        </div>
-        <div
-          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-indigo-500 uppercase">总报名</span>
-            <Users class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-500" />
-          </div>
-          <p class="text-sm xs:text-base sm:text-xl font-black text-indigo-500">{{ courseStats.totalEnrollments }}</p>
-        </div>
-        <div
-          class="p-2 sm:p-3 rounded-xl border transition-colors duration-300"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-accent uppercase">总课时</span>
-            <GraduationCap class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
-          </div>
-          <p class="text-sm xs:text-base sm:text-xl font-black text-accent">{{ courseStats.totalLessons }}</p>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ChevronLeft,
@@ -18,7 +18,8 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
-import ModelViewer from '@/components/ModelViewer.vue';
+
+const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
 const route = useRoute();
 const router = useRouter();

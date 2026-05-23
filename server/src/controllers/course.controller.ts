@@ -39,7 +39,8 @@ export const getAllCourses = async (req: AuthRequest, res: Response, next: NextF
       const { reviews, ...rest } = course;
       const avgRating =
         reviews.length > 0
-          ? reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviews.length
+          ? reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
+            reviews.length
           : 0;
       return { ...rest, avgRating: Math.round(avgRating * 10) / 10 };
     });
@@ -103,7 +104,8 @@ export const getCourseById = async (req: AuthRequest, res: Response, next: NextF
 
     const avgRating =
       course.reviews.length > 0
-        ? course.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / course.reviews.length
+        ? course.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
+          course.reviews.length
         : 0;
 
     let userEnrollment = null;
@@ -167,7 +169,11 @@ export const createCourse = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const createCourseWithLessons = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createCourseWithLessons = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { title, description, thumbnail, lessons, categoryId, difficulty } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -183,17 +189,24 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response, n
 
       if (lessons && Array.isArray(lessons)) {
         await Promise.all(
-          lessons.map((lesson: { title: string; videoUrl?: string; order: number; content?: string; duration?: number }) =>
-            tx.lesson.create({
-              data: {
-                title: lesson.title,
-                videoUrl: lesson.videoUrl || null,
-                order: lesson.order,
-                courseId: course.id,
-                content: lesson.content || '',
-                duration: lesson.duration || 0,
-              },
-            }),
+          lessons.map(
+            (lesson: {
+              title: string;
+              videoUrl?: string;
+              order: number;
+              content?: string;
+              duration?: number;
+            }) =>
+              tx.lesson.create({
+                data: {
+                  title: lesson.title,
+                  videoUrl: lesson.videoUrl || null,
+                  order: lesson.order,
+                  courseId: course.id,
+                  content: lesson.content || '',
+                  duration: lesson.duration || 0,
+                },
+              }),
           ),
         );
       }

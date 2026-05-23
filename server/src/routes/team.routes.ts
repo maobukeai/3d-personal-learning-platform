@@ -35,6 +35,12 @@ router.post(
   validateFileContent,
   teamController.uploadTeamAvatar,
 );
+router.post(
+  '/:teamId/upload-cover',
+  upload.single('cover'),
+  validateFileContent,
+  teamController.uploadTeamCover,
+);
 router.delete('/:teamId', sanitizeInput, teamController.deleteTeam);
 router.get('/:teamId/members', teamController.getTeamMembers);
 router.delete('/:teamId/members/:userId', teamController.removeMember);

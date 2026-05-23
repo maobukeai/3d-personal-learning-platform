@@ -908,10 +908,10 @@ html.dark.theme-glass {
   --el-box-shadow-light: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
 
   /* Glass specifics */
-  --glass-bg: linear-gradient(135deg, rgba(24, 24, 37, 0.6) 0%, rgba(10, 10, 15, 0.4) 100%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.09);
-  --glass-border-color: rgba(255, 255, 255, 0.09);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  --glass-bg: linear-gradient(135deg, rgba(20, 20, 28, 0.65) 0%, rgba(10, 10, 15, 0.45) 100%);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.28);
+  --glass-border-color: rgba(255, 255, 255, 0.28);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.20);
 }
 
 /* Glass element styles - Tier 1: Heavy Frosted (Top-level layout & overlays) */
@@ -932,15 +932,19 @@ html.theme-glass .el-popover {
   transform: translateZ(0);
 }
 
-/* Glass element styles - Tier 2: High-Performance Light Cards (Repeating grids, lists & content blocks) */
+/* Glass element styles - Tier 2: Frosted Cards & Content Blocks */
 html.theme-glass .glass-card,
 html.theme-glass .el-card,
 /* Glass overrides for common Tailwind background containers */
 .theme-glass .bg-white,
+.theme-glass .bg-white\/50,
+.theme-glass .bg-white\/60,
 .theme-glass .bg-slate-50,
 .theme-glass .bg-slate-100,
 .theme-glass .bg-slate-800,
 .theme-glass .bg-slate-900,
+.theme-glass .bg-slate-800\/50,
+.theme-glass .bg-slate-900\/50,
 .theme-glass .bg-zinc-50,
 .theme-glass .bg-zinc-800,
 .theme-glass .bg-zinc-900,
@@ -956,6 +960,10 @@ html.theme-glass .el-card,
 .theme-glass .dark\:bg-slate-800,
 .theme-glass .dark\:bg-slate-900,
 .theme-glass .dark\:bg-slate-950,
+.theme-glass .dark\:bg-slate-800\/50,
+.theme-glass .dark\:bg-slate-900\/50,
+.theme-glass .dark\:bg-slate-900\/40,
+.theme-glass .dark\:bg-slate-950\/50,
 .theme-glass .dark\:bg-zinc-800,
 .theme-glass .dark\:bg-zinc-900,
 .theme-glass .dark\:bg-gray-800,
@@ -968,9 +976,8 @@ html.theme-glass .el-card,
   background: var(--glass-bg) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
-  /* Disable expensive backdrop-filter calculations on cards to optimize scroll FPS */
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
   transform: translateZ(0);
 }
 
@@ -1047,6 +1054,130 @@ html.theme-glass body {
 .theme-glass [style*="background-color: var(--bg-app)"],
 .theme-glass [style*="background-color:var(--bg-app)"] {
   background-color: transparent !important;
+}
+
+/* Ensure all standard Tailwind border colors in glass mode use the glass border color */
+.theme-glass .border,
+.theme-glass .border-slate-50,
+.theme-glass .border-slate-100,
+.theme-glass .border-slate-200,
+.theme-glass .border-slate-300,
+.theme-glass .border-slate-700,
+.theme-glass .border-slate-800,
+.theme-glass .border-slate-900,
+.theme-glass .border-zinc-100,
+.theme-glass .border-zinc-200,
+.theme-glass .border-zinc-700,
+.theme-glass .border-zinc-800,
+.theme-glass .border-zinc-900,
+.theme-glass .border-gray-100,
+.theme-glass .border-gray-200,
+.theme-glass .border-gray-700,
+.theme-glass .border-gray-800,
+.theme-glass .border-gray-900,
+.theme-glass .border-neutral-100,
+.theme-glass .border-neutral-200,
+.theme-glass .border-neutral-700,
+.theme-glass .border-neutral-800,
+.theme-glass .border-neutral-900,
+.theme-glass .dark\:border-slate-700,
+.theme-glass .dark\:border-slate-800,
+.theme-glass .dark\:border-slate-900,
+.theme-glass .dark\:border-zinc-700,
+.theme-glass .dark\:border-zinc-800,
+.theme-glass .dark\:border-zinc-900,
+.theme-glass .dark\:border-gray-700,
+.theme-glass .dark\:border-gray-800,
+.theme-glass .dark\:border-gray-900,
+.theme-glass .dark\:border-neutral-700,
+.theme-glass .dark\:border-neutral-800,
+.theme-glass .dark\:border-neutral-900 {
+  border-color: var(--glass-border-color) !important;
+}
+
+/* Glass Input & Form Control Overrides */
+html.theme-glass .el-input__wrapper {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: none !important;
+}
+html.theme-glass.dark .el-input__wrapper {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+}
+html.theme-glass:not(.dark) .el-input__wrapper {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset !important;
+}
+html.theme-glass .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset !important;
+}
+html.theme-glass.dark .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset !important;
+}
+html.theme-glass .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px var(--accent) inset, 0 0 12px var(--accent) !important;
+}
+
+/* Native input/textarea styles under glass */
+html.theme-glass input[type="text"],
+html.theme-glass input[type="password"],
+html.theme-glass input[type="email"],
+html.theme-glass input[type="number"],
+html.theme-glass textarea {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+html.theme-glass.dark input[type="text"],
+html.theme-glass.dark input[type="password"],
+html.theme-glass.dark input[type="email"],
+html.theme-glass.dark input[type="number"],
+html.theme-glass.dark textarea {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+html.theme-glass:not(.dark) input[type="text"],
+html.theme-glass:not(.dark) input[type="password"],
+html.theme-glass:not(.dark) input[type="email"],
+html.theme-glass:not(.dark) input[type="number"],
+html.theme-glass:not(.dark) textarea {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+html.theme-glass input[type="text"]:focus,
+html.theme-glass input[type="password"]:focus,
+html.theme-glass input[type="email"]:focus,
+html.theme-glass input[type="number"]:focus,
+html.theme-glass textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--accent) !important;
+  outline: none !important;
+}
+
+/* Glass Dialog Overlay & Shortcuts */
+html.theme-glass .el-overlay {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  background-color: rgba(0, 0, 0, 0.55) !important;
+}
+
+html.theme-glass kbd {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+}
+html.theme-glass.dark kbd {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: var(--text-primary) !important;
 }
 
 

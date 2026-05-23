@@ -182,7 +182,7 @@ onMounted(() => {
   >
     <!-- Dashboard Header -->
     <div
-      class="flex flex-col sm:flex-row gap-3 py-4 sm:py-0 sm:h-20 border-b px-4 sm:px-6 md:px-8 sm:items-center justify-between shrink-0 transition-colors duration-300"
+      class="flex flex-col sm:flex-row gap-3 py-4 sm:py-0 sm:h-16 border-b px-4 sm:px-6 md:px-8 sm:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div>
@@ -208,7 +208,7 @@ onMounted(() => {
           </template>
         </el-date-picker>
         <button
-          class="p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all"
+          class="p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer"
           @click="isAddDialogOpen = true"
         >
           <Plus class="w-5 h-5" />
@@ -217,10 +217,10 @@ onMounted(() => {
     </div>
 
     <!-- Main Content Scroll Area -->
-    <div class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-6 md:space-y-8 min-w-0">
+    <div class="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-4 scrollbar-hide">
+      <div class="max-w-7xl mx-auto space-y-4 md:space-y-5 min-w-0">
         <!-- Stats Grid -->
-        <div class="grid grid-cols-4 gap-2 sm:gap-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           <StatCard
             v-for="stat in stats"
             :key="stat.label"
@@ -232,9 +232,9 @@ onMounted(() => {
           />
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
           <!-- Left Column: Tasks & Assets -->
-          <div class="lg:col-span-2 space-y-6 md:space-y-8">
+          <div class="lg:col-span-2 space-y-4 md:space-y-5">
             <!-- Active Learning Card -->
             <ActiveLearningCard :active-enrollment="activeEnrollment" />
 
@@ -246,7 +246,7 @@ onMounted(() => {
           </div>
 
           <!-- Right Column: Community & Feed -->
-          <div class="space-y-6 md:space-y-8">
+          <div class="space-y-4 md:space-y-5">
             <!-- Activity Feed -->
             <TeamActivityCard :activity-log="activityLog" />
 

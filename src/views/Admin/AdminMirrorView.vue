@@ -505,7 +505,7 @@ const formattedMirrorCategories = computed(() => {
     children.forEach(child => {
       result.push({
         ...child,
-        name: `　└─ ${child.name}`
+        name: `\u3000└─ ${child.name}`
       });
     });
   });

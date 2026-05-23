@@ -121,7 +121,6 @@ onMounted(() => {
         style="animation-delay: 2s"
       ></div>
     </div>
-
     <!-- Consolidated Hero Section -->
     <div class="relative px-4 sm:px-6 lg:px-10 pt-4 lg:pt-6 pb-4 lg:pb-6 overflow-hidden shrink-0">
       <div class="w-full relative z-10">
@@ -130,8 +129,8 @@ onMounted(() => {
           class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-3 lg:mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm"
           @click="router.back()"
         >
-          <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
-          <span class="text-[9px] font-black uppercase tracking-[0.2em]">返回</span>
+          <ChevronLeft class="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
+          <span class="text-xs font-black uppercase tracking-[0.2em]">返回</span>
         </button>
 
         <div class="flex flex-col lg:flex-row items-center gap-6 lg:gap-12">
@@ -144,7 +143,7 @@ onMounted(() => {
               <span class="text-[10px] font-black uppercase tracking-wider">3D 协作社区</span>
             </div>
             <h1
-              class="text-2xl lg:text-5xl font-black tracking-tight leading-tight"
+              class="text-2xl lg:text-4xl font-black tracking-tight leading-tight"
               style="color: var(--text-primary)"
             >
               找到属于你的
@@ -154,7 +153,7 @@ onMounted(() => {
               >
             </h1>
             <p
-              class="mt-2 lg:mt-3 text-sm lg:text-base text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl"
+              class="mt-2 lg:mt-3 text-xs lg:text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl"
             >
               在这里，你可以创建自己的学习小组，或者加入志同道合的团队。共享资产、协作项目，共同见证创意的诞生。
             </p>
@@ -162,17 +161,17 @@ onMounted(() => {
             <!-- Small Benefits Tags - Hidden on very small screens to save space -->
             <div class="hidden sm:flex flex-wrap gap-3 mt-5">
               <div
-                class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                class="flex items-center gap-2 px-2.5 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
               >
                 <Layers class="w-3.5 h-3.5 text-accent" /> 专属资产库
               </div>
               <div
-                class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                class="flex items-center gap-2 px-2.5 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
               >
                 <Users class="w-3.5 h-3.5 text-purple-400" /> 实时协作
               </div>
               <div
-                class="flex items-center gap-2 px-3 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] font-bold text-slate-500 dark:text-slate-400"
+                class="flex items-center gap-2 px-2.5 py-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-white/40 dark:border-slate-700/40 text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
               >
                 <Trophy class="w-3.5 h-3.5 text-amber-400" /> 导师辅导
               </div>
@@ -181,10 +180,10 @@ onMounted(() => {
 
           <!-- Create Team Card -->
           <div
-            class="w-full lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-6 duration-700"
+            class="w-full lg:w-72 shrink-0 animate-in fade-in slide-in-from-right-6 duration-700"
           >
             <div
-              class="group relative bg-white/80 dark:bg-slate-800/80 p-4 lg:p-6 rounded-[24px] border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-xl hover:border-accent transition-all duration-500 cursor-pointer overflow-hidden"
+              class="group relative bg-white/80 dark:bg-slate-800/80 p-4 lg:p-5 rounded-[24px] border-2 border-white/40 dark:border-slate-700/40 backdrop-blur-2xl hover:shadow-xl hover:border-accent transition-all duration-500 cursor-pointer overflow-hidden"
               @click="isCreateTeamVisible = true"
             >
               <div
@@ -202,7 +201,7 @@ onMounted(() => {
                     创建团队
                   </h3>
                   <div
-                    class="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
+                    class="text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5"
                   >
                     Start Now
                   </div>
@@ -210,14 +209,14 @@ onMounted(() => {
               </div>
 
               <p
-                class="text-[11px] lg:text-xs text-slate-500 dark:text-slate-400 mb-4 lg:mb-5 leading-relaxed font-medium"
+                class="text-xs text-slate-500 dark:text-slate-400 mb-4 lg:mb-5 leading-relaxed font-medium"
               >
                 主导项目架构，邀请精英成员加入协作。
               </p>
 
               <div class="flex items-center justify-between">
                 <div
-                  class="inline-flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 bg-accent text-white rounded-xl font-black text-[9px] lg:text-[10px] uppercase tracking-wider shadow-md shadow-accent/20"
+                  class="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs bg-accent text-white rounded-xl font-black uppercase tracking-wider shadow-md shadow-accent/20"
                 >
                   开始创建 <ArrowRight class="w-3 h-3 lg:w-3.5 lg:h-3.5" />
                 </div>
@@ -225,7 +224,7 @@ onMounted(() => {
                   <div class="text-lg lg:text-xl font-black leading-none" style="color: var(--text-primary)">
                     100+
                   </div>
-                  <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     活跃团队
                   </div>
                 </div>
@@ -237,13 +236,13 @@ onMounted(() => {
     </div>
 
     <!-- Main Content Section - Fills Width & Height -->
-    <div class="flex-1 flex flex-col min-h-0 px-4 sm:px-6 lg:px-10 pb-6 overflow-visible lg:overflow-hidden">
+    <div class="flex-1 flex flex-col min-h-0 px-4 sm:px-6 lg:px-10 pb-4 overflow-visible lg:overflow-hidden">
       <div
         class="w-full flex-1 flex flex-col min-h-0 space-y-4 lg:space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200"
       >
         <!-- Exploration Header -->
         <div
-          class="flex flex-col md:flex-row md:items-center justify-between gap-4 lg:gap-6 pb-4 lg:pb-5 border-b border-slate-200 dark:border-slate-800 shrink-0"
+          class="flex flex-col md:flex-row md:items-center justify-between gap-3 lg:gap-4 pb-2 lg:pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0"
         >
           <h2
             class="text-xl lg:text-2xl font-black flex items-center gap-3"
@@ -269,7 +268,7 @@ onMounted(() => {
               v-model="searchQuery"
               type="text"
               placeholder="搜索小组名称..."
-              class="w-full pl-12 pr-6 py-2.5 lg:py-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-[11px] lg:text-xs font-medium shadow-sm"
+              class="w-full pl-12 pr-6 py-2.5 lg:py-3 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-xs lg:text-sm font-medium shadow-sm"
               style="border-color: var(--border-base); color: var(--text-primary)"
             />
           </div>
@@ -280,7 +279,7 @@ onMounted(() => {
           <!-- Loading -->
           <div v-if="isLoading" class="flex flex-col items-center justify-center h-full py-20">
             <Loader2 class="w-10 h-10 text-accent animate-spin" />
-            <p class="mt-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+            <p class="mt-5 text-xs font-black text-slate-400 uppercase tracking-widest">
               连接中...
             </p>
           </div>
@@ -288,7 +287,7 @@ onMounted(() => {
           <!-- Team Grid - Responsive Columns -->
           <div
             v-else-if="publicTeams.length > 0"
-            class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3 lg:gap-6 pb-6"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6 pb-6"
           >
             <TeamCard
               v-for="(group, index) in publicTeams"

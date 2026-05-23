@@ -39,7 +39,8 @@ export const createLesson = async (req: AuthRequest, res: Response, next: NextFu
   }
   try {
     const parsedOrder = typeof order === 'number' ? order : parseInt(order, 10);
-    const parsedDuration = typeof duration === 'number' ? duration : (duration ? parseInt(duration, 10) : 0);
+    const parsedDuration =
+      typeof duration === 'number' ? duration : duration ? parseInt(duration, 10) : 0;
 
     const lesson = await prisma.lesson.create({
       data: {

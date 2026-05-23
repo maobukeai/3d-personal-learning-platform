@@ -6,19 +6,19 @@ const router = useRouter();
 </script>
 
 <template>
-  <div class="p-6 sm:p-8 glass-card bg-gradient-to-br from-indigo-500/5 to-purple-500/5">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+  <div class="p-5 sm:p-6 glass-card bg-gradient-to-br from-indigo-500/5 to-purple-500/5">
+    <div class="flex items-center gap-2.5 mb-3">
+      <div class="p-1.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
         <Users class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
       </div>
-      <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
+      <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">
         团队协作
       </h3>
     </div>
-    <p class="text-[11px] sm:text-xs leading-relaxed mb-5 sm:mb-6" style="color: var(--text-secondary)">
+    <p class="text-xs sm:text-sm leading-relaxed mb-3 sm:mb-4" style="color: var(--text-secondary)">
       加入一个兴趣小组，与志同道合的伙伴一起完成大型渲染项目。
     </p>
-    <div class="flex -space-x-2 mb-6 sm:mb-8">
+    <div class="flex -space-x-1.5 mb-4 sm:mb-5">
       <div
         v-for="(letter, idx) in ['K', 'J', 'Y', 'H']"
         :key="idx"
@@ -45,7 +45,7 @@ const router = useRouter();
       </div>
     </div>
     <button
-      class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[11px] sm:text-xs font-bold transition-transform hover:scale-[1.02]"
+      class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs sm:text-sm font-bold transition-transform hover:scale-[1.02] cursor-pointer"
       @click="router.push('/explore-teams')"
     >
       寻找团队伙伴

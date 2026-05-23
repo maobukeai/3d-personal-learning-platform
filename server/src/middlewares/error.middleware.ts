@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
 
 export class AppError extends Error {
   statusCode: number;
@@ -86,6 +88,15 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Internal Server Error';
+
+  if (statusCode === 500) {
+    try {
+      const logMsg = `\n\n[${new Date().toISOString()}] ${req.method} ${req.url}\nError: ${message}\nStack: ${err?.stack || err}\n`;
+      fs.appendFileSync(path.join(__dirname, '../../error-debug.log'), logMsg);
+    } catch (e) {
+      console.error('Failed to write debug log:', e);
+    }
+  }
 
   console.error(`[Error] ${req.method} ${req.url} [${statusCode}]:`, message);
   if (process.env.NODE_ENV === 'development') {

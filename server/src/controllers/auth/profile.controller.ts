@@ -164,17 +164,17 @@ export const sendCodeToNewEmail = async (req: AuthRequest, res: Response, next: 
       return acc;
     }, {});
 
-    const subject = configData.EMAIL_CHANGE_SUBJECT || '您的新邮箱验证码';
+    const subject = configData.EMAIL_VERIFY_SUBJECT || '您的邮箱验证码';
     let html =
-      configData.EMAIL_CHANGE_BODY ||
+      configData.EMAIL_VERIFY_BODY ||
       `<div style="padding: 20px; font-family: sans-serif;">
-        <h2>更改您的邮箱</h2>
-        <p>您好，您正在尝试将账号邮箱更改为 {{newEmail}}，验证码如下：</p>
+        <h2>验证您的邮箱</h2>
+        <p>您好，您正在进行邮箱验证，验证码如下：</p>
         <div style="background: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center;">{{code}}</div>
         <p>有效期 10 分钟。如果不是您本人操作，请忽略此邮件。</p>
       </div>`;
 
-    html = html.replace('{{code}}', code).replace('{{newEmail}}', newEmail);
+    html = html.replace('{{code}}', code);
     const text = `您的验证码是: ${code}。有效期 10 分钟。`;
 
     await sendEmail(newEmail, subject, text, html);

@@ -30,7 +30,11 @@ export const parseExternalLink = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const createCourseWithLessons = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createCourseWithLessons = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { title, description, thumbnail, lessons, categoryId } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -73,7 +77,11 @@ export const createCourseWithLessons = async (req: AuthRequest, res: Response, n
 
 // --- Course Category Management ---
 
-export const getAllCourseCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllCourseCategories = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const categories = await prisma.courseCategory.findMany({
       orderBy: { order: 'asc' },

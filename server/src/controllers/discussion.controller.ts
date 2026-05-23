@@ -23,7 +23,10 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response, next: N
       where.OR = [{ title: { contains: search } }, { content: { contains: search } }];
     }
 
-    let orderBy: Prisma.DiscussionOrderByWithRelationInput[] = [{ isPinned: 'desc' }, { createdAt: 'desc' }];
+    let orderBy: Prisma.DiscussionOrderByWithRelationInput[] = [
+      { isPinned: 'desc' },
+      { createdAt: 'desc' },
+    ];
     if (sort === 'most_commented') {
       orderBy = [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }];
     } else if (sort === 'most_liked') {

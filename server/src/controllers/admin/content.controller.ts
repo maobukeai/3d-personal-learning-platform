@@ -102,7 +102,11 @@ export const deleteFeedback = async (req: AuthRequest, res: Response, next: Next
 
 // --- Material Audit ---
 
-export const getAllMaterialsForAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllMaterialsForAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { status } = req.query;
   try {
     const materials = await prisma.material.findMany({
@@ -299,7 +303,11 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next:
 
 // --- Showcase Audit ---
 
-export const getAllShowcasesForAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllShowcasesForAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { status } = req.query;
   try {
     const showcases = await prisma.showcase.findMany({

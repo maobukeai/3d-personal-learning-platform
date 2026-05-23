@@ -20,6 +20,7 @@ import messageRoutes from './routes/message.routes';
 import teamRoutes from './routes/team.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import noteRoutes from './routes/note.routes';
+import emailRoutes from './routes/email.routes';
 import mirrorRoutes from './mirror/routes/mirror.routes';
 import adminMirrorRoutes from './mirror/routes/admin-mirror.routes';
 import manualRoutes from './manual/routes/manual.routes';
@@ -75,7 +76,7 @@ app.use(checkMaintenanceMode);
 // Global API rate limiting
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: process.env.NODE_ENV === 'development' ? 10000 : 300,
   message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -100,6 +101,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/email', emailRoutes);
 app.use('/api/mirror', mirrorRoutes);
 app.use('/api/admin/mirror', adminMirrorRoutes);
 app.use('/api/manual', manualRoutes);

@@ -172,7 +172,18 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     });
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
-    // ... quota/validation code ...
+    const effectiveTeamId = existingTask.teamId || req.workspaceId;
+    if (participantIds && participantIds.length > 0 && effectiveTeamId) {
+      const teamMembers = await prisma.teamMember.findMany({
+        where: { teamId: effectiveTeamId },
+        select: { userId: true },
+      });
+      const memberIds = new Set(teamMembers.map((m) => m.userId));
+      const invalidParticipants = participantIds.filter((id: string) => !memberIds.has(id));
+      if (invalidParticipants.length > 0) {
+        return res.status(400).json({ error: '部分指定人员不在该团队中', invalidParticipants });
+      }
+    }
 
     const task = await prisma.task.update({
       where: { id },
@@ -187,6 +198,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         projectId: projectId || null,
         participants: participantIds
           ? {
+              deleteMany: {},
               create: participantIds.map((userId: string) => ({ userId })),
             }
           : undefined,

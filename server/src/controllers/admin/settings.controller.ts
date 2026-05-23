@@ -54,6 +54,7 @@ const validateSettings = (
     'AUTO_APPROVE_SHOWCASES',
     'OAUTH_GOOGLE_ENABLED',
     'OAUTH_GITHUB_ENABLED',
+    'MICROSOFT_POOL_FAILBACK',
   ];
 
   for (const field of booleanFields) {
@@ -62,6 +63,13 @@ const validateSettings = (
       if (val !== true && val !== false && val !== 'true' && val !== 'false') {
         errors.push(`${field}必须是布尔值`);
       }
+    }
+  }
+
+  if (settingsObj.SYSTEM_EMAIL_PROVIDER !== undefined) {
+    const validProviders = ['SMTP', 'MICROSOFT_POOL'];
+    if (!validProviders.includes(settingsObj.SYSTEM_EMAIL_PROVIDER)) {
+      errors.push('SYSTEM_EMAIL_PROVIDER必须是 SMTP 或 MICROSOFT_POOL');
     }
   }
 
@@ -173,7 +181,7 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
 
 export const testSmtp = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { host, port, user, pass, from, secure } = req.body;
+    const { host, port, user, pass, from, secure, to } = req.body;
 
     if (!host || !user || !pass) {
       return next(new AppError('SMTP 配置不完整', 400));
@@ -215,7 +223,7 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
 
     await transporter.sendMail({
       from: from || user,
-      to: admin?.email || user,
+      to: to || from || user || admin?.email,
       subject: 'SMTP 测试邮件',
       text: '如果您收到这封邮件，说明您的 SMTP 配置已成功！',
       html: `<h3>SMTP 配置测试成功</h3><p>如果您收到这封邮件，说明您的 SMTP 配置已成功！</p><p>测试时间: ${new Date().toLocaleString()}</p>`,
@@ -255,7 +263,11 @@ export const uploadBrandingLogo = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const uploadBrandingFavicon = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const uploadBrandingFavicon = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     if (!req.file) {
       return next(new AppError('No file uploaded', 400));

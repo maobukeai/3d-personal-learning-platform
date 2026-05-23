@@ -1,0 +1,398 @@
+import axios from 'axios';
+import prisma from './prisma';
+
+interface SendMailParams {
+  to: string;
+  subject: string;
+  content: string;
+}
+
+export class MicrosoftGraphService {
+  /**
+   * Helper to parse a proxy URL string into an Axios-compatible proxy configuration object
+   */
+  private static parseProxy(proxyUrl: string | null) {
+    if (!proxyUrl) return undefined;
+    try {
+      const url = new URL(proxyUrl);
+      const config: any = {
+        protocol: url.protocol.replace(':', ''),
+        host: url.hostname,
+        port: parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80),
+      };
+      if (url.username) {
+        config.auth = {
+          username: decodeURIComponent(url.username),
+          password: decodeURIComponent(url.password || ''),
+        };
+      }
+      return config;
+    } catch (e) {
+      console.error('MicrosoftGraphService: Error parsing proxy URL', proxyUrl, e);
+      return undefined;
+    }
+  }
+
+  /**
+   * Refreshes the Access Token for a Microsoft Account using its Client ID and Refresh Token
+   */
+  public static async refreshAccessToken(accountId: string): Promise<string> {
+    const account = await prisma.microsoftEmailAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.append('client_id', account.clientId);
+      params.append('grant_type', 'refresh_token');
+      params.append('refresh_token', account.refreshToken);
+      params.append('scope', 'https://graph.microsoft.com/.default');
+
+      const proxyConfig = this.parseProxy(account.proxy);
+      
+      const response = await axios.post(
+        'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+        params.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          proxy: proxyConfig,
+          timeout: 10000,
+        }
+      );
+
+      const data = response.data;
+      if (!data.access_token) {
+        throw new Error('No access token returned in response');
+      }
+
+      // Calculate expiration time (usually 3600 seconds)
+      const expiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000);
+
+      // Save token updates
+      await prisma.microsoftEmailAccount.update({
+        where: { id: accountId },
+        data: {
+          accessToken: data.access_token,
+          tokenExpiresAt: expiresAt,
+          // Microsoft rotates refresh tokens occasionally, update if a new one is returned
+          refreshToken: data.refresh_token || account.refreshToken,
+          status: 'ACTIVE',
+          statusMessage: 'Token refreshed successfully',
+        },
+      });
+
+      return data.access_token;
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error_description || error.message || 'Unknown error refreshing token';
+      console.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
+      
+      await prisma.microsoftEmailAccount.update({
+        where: { id: accountId },
+        data: {
+          status: 'EXPIRED',
+          statusMessage: errorMsg,
+        },
+      });
+      throw new Error(`Token refresh failed: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * Retrieves a valid access token. If the cached one is valid, returns it; otherwise refreshes it.
+   */
+  public static async getValidAccessToken(accountId: string): Promise<string> {
+    const account = await prisma.microsoftEmailAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    const now = new Date();
+    // Refresh token if it's expired or about to expire in the next 2 minutes
+    if (account.accessToken && account.tokenExpiresAt && new Date(account.tokenExpiresAt.getTime() - 120 * 1000) > now) {
+      return account.accessToken;
+    }
+
+    return await this.refreshAccessToken(accountId);
+  }
+
+  /**
+   * Tests the connection validity of a Microsoft Account by requesting the profile endpoint
+   */
+  public static async testConnection(accountId: string): Promise<any> {
+    const account = await prisma.microsoftEmailAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    const token = await this.getValidAccessToken(accountId);
+    const proxyConfig = this.parseProxy(account.proxy);
+
+    try {
+      // Use /me/mailFolders instead of /me, as personal accounts (Outlook/Hotmail) can return 401 UnknownError on /me
+      const response = await axios.get('https://graph.microsoft.com/v1.0/me/mailFolders', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'User-Agent': account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        proxy: proxyConfig,
+        timeout: 10000,
+      });
+
+      // Update status to ACTIVE since endpoint returned profile successfully
+      await prisma.microsoftEmailAccount.update({
+        where: { id: accountId },
+        data: {
+          status: 'ACTIVE',
+          statusMessage: 'Connection tested successfully',
+        },
+      });
+
+      return response.data;
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error?.message || error.message || 'Connection test failed';
+      console.error(`MicrosoftGraphService: Test connection failed for ${account.email}:`, errorMsg);
+
+      await prisma.microsoftEmailAccount.update({
+        where: { id: accountId },
+        data: {
+          status: 'ERROR',
+          statusMessage: errorMsg,
+        },
+      });
+      throw new Error(errorMsg);
+    }
+  }
+
+  /**
+   * Fetches folders for the Microsoft account
+   */
+  public static async fetchFolders(accountId: string): Promise<any[]> {
+    const token = await this.getValidAccessToken(accountId);
+    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+    const proxyConfig = this.parseProxy(account?.proxy || null);
+
+    try {
+      const response = await axios.get('https://graph.microsoft.com/v1.0/me/mailFolders', {
+        headers: { Authorization: `Bearer ${token}` },
+        proxy: proxyConfig,
+      });
+      return response.data.value || [];
+    } catch (error: any) {
+      console.error(`MicrosoftGraphService: Fetch folders failed for ${accountId}:`, error.message);
+      throw new Error(error.response?.data?.error?.message || error.message);
+    }
+  }
+
+  /**
+   * Fetches mail messages inside a specific folder
+   */
+  public static async fetchMessages(accountId: string, folderId: string = 'inbox', limit: number = 20): Promise<any[]> {
+    const token = await this.getValidAccessToken(accountId);
+    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+    const proxyConfig = this.parseProxy(account?.proxy || null);
+
+    try {
+      // Fetch headers and basic body preview
+      const response = await axios.get(
+        `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages?$top=${limit}&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,hasAttachments,isRead`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'User-Agent': account?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          proxy: proxyConfig,
+        }
+      );
+      return response.data.value || [];
+    } catch (error: any) {
+      console.error(`MicrosoftGraphService: Fetch messages failed for folder ${folderId} inside ${accountId}:`, error.message);
+      throw new Error(error.response?.data?.error?.message || error.message);
+    }
+  }
+
+  /**
+   * Updates an email read status on Microsoft
+   */
+  public static async markMessageRead(accountId: string, messageId: string, isRead: boolean): Promise<void> {
+    const token = await this.getValidAccessToken(accountId);
+    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+    const proxyConfig = this.parseProxy(account?.proxy || null);
+
+    try {
+      await axios.patch(
+        `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
+        { isRead },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          proxy: proxyConfig,
+        }
+      );
+    } catch (error: any) {
+      console.error(`MicrosoftGraphService: Mark message read failed for message ${messageId}:`, error.message);
+      throw new Error(error.response?.data?.error?.message || error.message);
+    }
+  }
+
+  /**
+   * Deletes a message from Microsoft (moves to Deleted Items if not already there, otherwise permanently deletes)
+   */
+  public static async deleteMessage(accountId: string, messageId: string): Promise<void> {
+    const token = await this.getValidAccessToken(accountId);
+    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+    const proxyConfig = this.parseProxy(account?.proxy || null);
+
+    try {
+      // 1. Fetch message details to find its parentFolderId
+      const msgRes = await axios.get(
+        `https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=parentFolderId`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          proxy: proxyConfig,
+        }
+      );
+      const parentFolderId = msgRes.data?.parentFolderId;
+
+      // 2. Fetch the resolved ID of the well-known 'deleteditems' folder
+      const delFolderRes = await axios.get(
+        'https://graph.microsoft.com/v1.0/me/mailFolders/deleteditems?$select=id',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          proxy: proxyConfig,
+        }
+      );
+      const deletedItemsFolderId = delFolderRes.data?.id;
+
+      if (parentFolderId && parentFolderId === deletedItemsFolderId) {
+        // Already in Deleted Items - perform permanent delete
+        await axios.delete(`https://graph.microsoft.com/v1.0/me/messages/${messageId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          proxy: proxyConfig,
+        });
+      } else {
+        // Move to Deleted Items (soft delete)
+        await axios.post(
+          `https://graph.microsoft.com/v1.0/me/messages/${messageId}/move`,
+          { destinationId: 'deleteditems' },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            proxy: proxyConfig,
+          }
+        );
+      }
+    } catch (error: any) {
+      console.error(`MicrosoftGraphService: Delete message failed for message ${messageId}:`, error.message);
+      throw new Error(error.response?.data?.error?.message || error.message);
+    }
+  }
+
+  /**
+   * Sends an email via Microsoft Graph API
+   */
+  public static async sendMail(accountId: string, params: SendMailParams): Promise<void> {
+    const account = await prisma.microsoftEmailAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    // Safety Checks: Daily Limits
+    const now = new Date();
+    const isSameDay = now.toDateString() === new Date(account.lastResetDate).toDateString();
+    
+    let currentSendsWithinDay = account.sentCountToday;
+    if (!isSameDay) {
+      currentSendsWithinDay = 0;
+      await prisma.microsoftEmailAccount.update({
+        where: { id: accountId },
+        data: {
+          sentCountToday: 0,
+          lastResetDate: now,
+        },
+      });
+    }
+
+    if (currentSendsWithinDay >= account.dailyLimit) {
+      throw new Error(`Daily sending limit of ${account.dailyLimit} reached for account ${account.email}.`);
+    }
+
+    const token = await this.getValidAccessToken(accountId);
+    const proxyConfig = this.parseProxy(account.proxy);
+
+    // Support comma, semicolon, or space separated multiple recipients
+    const recipients = params.to
+      .split(/[,;\s]+/)
+      .map(email => email.trim())
+      .filter(email => email.length > 0 && email.includes('@'));
+
+    if (recipients.length === 0) {
+      throw new Error('未找到有效的收件人邮箱地址');
+    }
+
+    const toRecipients = recipients.map(email => ({
+      emailAddress: {
+        address: email,
+      },
+    }));
+
+    const emailPayload = {
+      message: {
+        subject: params.subject,
+        body: {
+          contentType: 'HTML',
+          content: params.content,
+        },
+        toRecipients,
+      },
+      saveToSentItems: 'true',
+    };
+
+    try {
+      await axios.post(
+        'https://graph.microsoft.com/v1.0/me/sendMail',
+        emailPayload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'User-Agent': account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          proxy: proxyConfig,
+          timeout: 15000,
+        }
+      );
+
+      // Increment sending counters
+      await prisma.microsoftEmailAccount.update({
+        where: { id: accountId },
+        data: {
+          sentCountToday: { increment: 1 },
+        },
+      });
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error?.message || error.message || 'Failed to send mail';
+      console.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+}

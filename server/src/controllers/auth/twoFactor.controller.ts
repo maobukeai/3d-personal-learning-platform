@@ -54,7 +54,11 @@ export const getRecoveryCodes = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
-export const regenerateRecoveryCodes = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const regenerateRecoveryCodes = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const codes = generateRecoveryCodes();
     await prisma.user.update({

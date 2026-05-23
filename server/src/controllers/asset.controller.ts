@@ -489,7 +489,11 @@ export const updateAssetStatus = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const batchUpdateAssetStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const batchUpdateAssetStatus = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { ids, status, rejectReason } = req.body;
 
   if (!Array.isArray(ids) || ids.length === 0) {

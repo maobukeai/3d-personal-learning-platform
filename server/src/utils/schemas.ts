@@ -2,10 +2,7 @@ import { z } from 'zod';
 
 export const registerSchema = z.object({
   email: z.string().email('无效的邮箱格式'),
-  password: z
-    .string()
-    .min(6, '密码长度需在 6-128 位之间')
-    .max(128, '密码长度需在 6-128 位之间'),
+  password: z.string().min(6, '密码长度需在 6-128 位之间').max(128, '密码长度需在 6-128 位之间'),
   name: z.string().max(50, '名字长度不能超过 50 位').optional().nullable(),
   verificationCode: z.string().length(6, '验证码需为 6 位'),
 });
@@ -38,10 +35,7 @@ export const forgotPasswordCheckSchema = z.object({
 export const resetPasswordWith2FASchema = z.object({
   email: z.string().email('无效的邮箱格式'),
   code: z.string().length(6, '验证码需为 6 位'),
-  newPassword: z
-    .string()
-    .min(6, '密码长度需在 6-128 位之间')
-    .max(128, '密码长度需在 6-128 位之间'),
+  newPassword: z.string().min(6, '密码长度需在 6-128 位之间').max(128, '密码长度需在 6-128 位之间'),
 });
 
 export const profileSchema = z.object({
@@ -84,9 +78,6 @@ export const deleteAccountSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().max(50, '名字长度不能超过 50 位').optional().nullable(),
   email: z.string().email('无效的邮箱格式'),
-  password: z
-    .string()
-    .min(6, '密码长度需在 6-128 位之间')
-    .max(128, '密码长度需在 6-128 位之间'),
+  password: z.string().min(6, '密码长度需在 6-128 位之间').max(128, '密码长度需在 6-128 位之间'),
   role: z.enum(['USER', 'ADMIN', 'INSTRUCTOR']).optional(),
 });

@@ -18,7 +18,9 @@ import {
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { useWorkspaceStore } from '@/stores/workspace';
 
+const workspaceStore = useWorkspaceStore();
 const teams = ref<any[]>([]);
 const users = ref<any[]>([]);
 const isLoading = ref(true);
@@ -119,6 +121,7 @@ const handleSubmit = async () => {
     }
     isModalOpen.value = false;
     fetchTeams();
+    workspaceStore.fetchWorkspaces();
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '操作失败');
   } finally {
@@ -142,6 +145,7 @@ const deleteTeam = async (id: string) => {
     ElMessage.success('团队已解散');
     if (selectedTeam.value?.id === id) isMemberDrawerOpen.value = false;
     fetchTeams();
+    workspaceStore.fetchWorkspaces();
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(error.response?.data?.error || '删除失败');
@@ -154,6 +158,7 @@ const updateMemberRole = async (teamId: string, userId: string, role: string) =>
     await api.put(`/api/admin/teams/${teamId}/members/${userId}/role`, { role });
     ElMessage.success('成员角色已更新');
     fetchTeams();
+    workspaceStore.fetchWorkspaces();
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '更新角色失败');
   }
@@ -169,6 +174,7 @@ const removeMember = async (teamId: string, userId: string, userName: string) =>
     await api.delete(`/api/admin/teams/${teamId}/members/${userId}`);
     ElMessage.success('成员已移除');
     fetchTeams();
+    workspaceStore.fetchWorkspaces();
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(error.response?.data?.error || '移除失败');
@@ -197,6 +203,7 @@ const handleAddMember = async () => {
     ElMessage.success('成员已添加');
     addMemberDialogVisible.value = false;
     fetchTeams();
+    workspaceStore.fetchWorkspaces();
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '添加成员失败');
   }

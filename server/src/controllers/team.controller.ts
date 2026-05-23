@@ -461,6 +461,50 @@ export const uploadTeamAvatar = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
+export const uploadTeamCover = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const teamId = req.params.teamId as string;
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded', 400));
+    }
+
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: { members: true },
+    });
+
+    if (!team) return next(new AppError('Team not found', 404));
+
+    const member = team.members.find((m) => m.userId === req.userId);
+    if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return next(new AppError('Unauthorized', 403));
+    }
+
+    const coverUrl = `${req.protocol}://${req.get('host')}/uploads/covers/${req.file.filename}`;
+
+    const updated = await prisma.team.update({
+      where: { id: teamId },
+      data: { coverUrl },
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_TEAM,
+      module: AuditModule.TEAM,
+      description: `Updated team cover for: ${updated.name}`,
+      req,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    next(error);
+  }
+};
+
 export const deleteTeam = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const teamId = req.params.teamId as string;
   const { code } = req.body;
@@ -471,8 +515,7 @@ export const deleteTeam = async (req: AuthRequest, res: Response, next: NextFunc
     });
 
     if (!team) return next(new AppError('Team not found', 404));
-    if (team.ownerId !== req.userId)
-      return next(new AppError('Only owner can delete team', 403));
+    if (team.ownerId !== req.userId) return next(new AppError('Only owner can delete team', 403));
     if (team.name === '公共空间' || team.type === 'PERSONAL') {
       return next(new AppError('不能删除系统预置或个人空间', 400));
     }
@@ -560,8 +603,7 @@ export const removeMember = async (req: AuthRequest, res: Response, next: NextFu
     if (!targetMember) return next(new AppError('Member not found', 404));
 
     // Cannot remove owner
-    if (targetMember.role === 'OWNER')
-      return next(new AppError('Cannot remove owner', 400));
+    if (targetMember.role === 'OWNER') return next(new AppError('Cannot remove owner', 400));
 
     // Admins cannot remove other admins (only owner can)
     if (
@@ -587,8 +629,7 @@ export const applyToTeam = async (req: AuthRequest, res: Response, next: NextFun
     // Check if team exists
     const team = await prisma.team.findUnique({ where: { id: teamId } });
     if (!team) return next(new AppError('Team not found', 404));
-    if (team.type === 'PERSONAL')
-      return next(new AppError('Cannot apply to personal space', 400));
+    if (team.type === 'PERSONAL') return next(new AppError('Cannot apply to personal space', 400));
     if (team.visibility === 'PRIVATE')
       return next(new AppError('私密团队不支持申请加入，请通过邀请加入', 400));
 
@@ -825,9 +866,7 @@ export const cancelInvitation = async (req: AuthRequest, res: Response, next: Ne
 
     if (!invitation) return next(new AppError('Invitation not found', 404));
 
-    const currentMember = invitation.team.members.find(
-      (m) => m.userId === currentUserId,
-    );
+    const currentMember = invitation.team.members.find((m) => m.userId === currentUserId);
     if (!currentMember || !['OWNER', 'ADMIN'].includes(currentMember.role)) {
       return next(new AppError('Unauthorized', 403));
     }

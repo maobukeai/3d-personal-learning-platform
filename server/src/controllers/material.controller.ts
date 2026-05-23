@@ -27,7 +27,8 @@ export const getAllMaterials = async (req: AuthRequest, res: Response, next: Nex
       ];
     }
 
-    const orderBy: Prisma.MaterialOrderByWithRelationInput = sort === 'popular' ? { downloads: 'desc' } : { createdAt: 'desc' };
+    const orderBy: Prisma.MaterialOrderByWithRelationInput =
+      sort === 'popular' ? { downloads: 'desc' } : { createdAt: 'desc' };
 
     const materials = await prisma.material.findMany({
       where,

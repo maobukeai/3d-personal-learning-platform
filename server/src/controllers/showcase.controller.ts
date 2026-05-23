@@ -222,7 +222,11 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-export const publishAssetToShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const publishAssetToShowcase = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const { assetId } = req.body;
   const { title, description, tags } = req.body;
 

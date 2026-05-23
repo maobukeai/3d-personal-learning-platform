@@ -46,28 +46,28 @@ function handleClick() {
     class="glass-card transition-all"
     :class="[
       isClickable ? 'glass-card-hover cursor-pointer group' : 'glass-card-hover',
-      compact ? 'p-2 sm:p-6 rounded-xl sm:rounded-3xl border shadow-sm hover:shadow-md' : 'p-2.5 sm:p-4 md:p-6 rounded-xl md:rounded-2xl'
+      compact ? 'p-2 sm:p-6 rounded-xl sm:rounded-3xl border shadow-sm hover:shadow-md' : 'p-2.5 sm:p-3.5 md:p-4 rounded-xl md:rounded-2xl'
     ]"
     @click="handleClick"
   >
-    <div class="flex items-start justify-between mb-1.5 sm:mb-4">
+    <div class="flex items-start justify-between mb-1.5 sm:mb-3">
       <div
         class="bg-slate-50 dark:bg-white/5 transition-transform"
         :class="[
           color,
           isClickable ? 'group-hover:scale-110' : '',
-          compact ? 'p-1.5 sm:p-3 rounded-lg sm:rounded-2xl' : 'p-1.5 sm:p-3 rounded-lg sm:rounded-2xl'
+          compact ? 'p-1.5 sm:p-3 rounded-lg sm:rounded-2xl' : 'p-2 sm:p-2.5 rounded-lg sm:rounded-xl'
         ]"
       >
         <component
           :is="icon"
-          :class="compact ? 'w-4 h-4 sm:w-6 h-6' : 'w-4 h-4 sm:w-6 sm:h-6'"
+          :class="compact ? 'w-4 h-4 sm:w-6 h-6' : 'w-4 h-4 sm:w-5.5 sm:h-5.5'"
         />
       </div>
       <template v-if="!compact">
         <span
           v-if="hasTrend"
-          class="text-[8px] sm:text-[10px] font-black px-1 py-0.5 sm:px-2 sm:py-1 rounded-full shrink-0"
+          class="text-[9px] sm:text-[11px] font-black px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full shrink-0"
           :class="trendClass"
         >
           {{ trend }}
@@ -84,7 +84,7 @@ function handleClick() {
     </div>
     <p
       class="font-black uppercase tracking-wider mb-0.5 truncate"
-      :class="compact ? 'text-[8px] sm:text-[10px]' : 'text-[8px] sm:text-xs'"
+      :class="compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'"
       style="color: var(--text-muted)"
       :title="label"
     >
@@ -92,7 +92,7 @@ function handleClick() {
     </p>
     <h2
       class="font-black truncate"
-      :class="compact ? 'text-base sm:text-3xl' : 'text-sm sm:text-2xl md:text-3xl'"
+      :class="compact ? 'text-base sm:text-2xl' : 'text-lg sm:text-2xl md:text-3xl'"
       style="color: var(--text-primary)"
     >
       {{ value }}

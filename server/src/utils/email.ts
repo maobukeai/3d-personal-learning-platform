@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import dns from 'dns';
 import prisma from '../services/prisma';
+import { MicrosoftGraphService } from '../services/microsoftGraph.service';
 
 function resolveRealIp(hostname: string): Promise<string> {
   return new Promise((resolve) => {
@@ -83,6 +84,57 @@ async function getTransporter(): Promise<{
 
 export const sendEmail = async (to: string, subject: string, text: string, html: string) => {
   const { transporter, config } = await getTransporter();
+  
+  const provider = config.SYSTEM_EMAIL_PROVIDER || 'SMTP';
+  const fallbackSmtp = config.MICROSOFT_POOL_FAILBACK !== 'false';
+
+  if (provider === 'MICROSOFT_POOL') {
+    console.log(`[Email Pool] Attempting to send system email to "${to}" via Microsoft account pool...`);
+    try {
+      const activeAccounts = await prisma.microsoftEmailAccount.findMany({
+        where: {
+          status: 'ACTIVE',
+          user: {
+            role: 'ADMIN',
+          },
+        },
+      });
+
+      const eligibleAccounts = activeAccounts.filter(
+        (acc) => acc.sentCountToday < acc.dailyLimit
+      );
+
+      if (eligibleAccounts.length > 0) {
+        // Round-Robin: select the one with the lowest sent count today
+        eligibleAccounts.sort((a, b) => a.sentCountToday - b.sentCountToday);
+        const selectedAccount = eligibleAccounts[0]!;
+
+        console.log(`[Email Pool] Selected account: ${selectedAccount.email} (Sent today: ${selectedAccount.sentCountToday}/${selectedAccount.dailyLimit})`);
+
+        await MicrosoftGraphService.sendMail(selectedAccount.id, {
+          to,
+          subject,
+          content: html || text,
+        });
+
+        console.log(`[Email Pool Success] System email successfully sent from ${selectedAccount.email} to ${to}`);
+        return true;
+      } else {
+        console.warn('[Email Pool] No eligible Microsoft accounts in pool (either none active or all hit daily limits).');
+        if (!fallbackSmtp) {
+          console.error('[Email Pool Error] No eligible accounts in pool, and SMTP fallback is disabled.');
+          return false;
+        }
+        console.log('[Email Pool Fallback] Falling back to standard SMTP sending...');
+      }
+    } catch (err: any) {
+      console.error(`[Email Pool Error] Failed to send via Microsoft Pool:`, err.message);
+      if (!fallbackSmtp) {
+        return false;
+      }
+      console.log('[Email Pool Fallback] Falling back to standard SMTP sending due to pool failure...');
+    }
+  }
 
   if (!transporter) {
     console.log(`[Email Mock/Not Configured] To: ${to}, Subject: ${subject}`);

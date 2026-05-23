@@ -19,6 +19,8 @@ export interface SystemSettings {
   SMTP_USER: string;
   SMTP_PASS: string;
   SMTP_FROM: string;
+  SYSTEM_EMAIL_PROVIDER: string;
+  MICROSOFT_POOL_FAILBACK: boolean;
   MATERIAL_CATEGORIES: string[];
   FOOTER_TEXT: string;
   OAUTH_GOOGLE_ENABLED: boolean;
@@ -30,6 +32,10 @@ export interface SystemSettings {
   PASSWORD_MIN_LENGTH: number;
   SESSION_TIMEOUT: string;
   DEFAULT_USER_ROLE: string;
+  EMAIL_VERIFY_SUBJECT: string;
+  EMAIL_VERIFY_BODY: string;
+  SMTP_CONFIGS: string;
+  SMTP_ACTIVE_CONFIG_ID: string;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -113,6 +119,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SMTP_USER: '',
   SMTP_PASS: '',
   SMTP_FROM: 'noreply@3d-learning.com',
+  SYSTEM_EMAIL_PROVIDER: 'SMTP',
+  MICROSOFT_POOL_FAILBACK: true,
   MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件'],
   FOOTER_TEXT: '',
   OAUTH_GOOGLE_ENABLED: false,
@@ -124,6 +132,15 @@ const DEFAULT_SETTINGS: SystemSettings = {
   PASSWORD_MIN_LENGTH: 6,
   SESSION_TIMEOUT: '7d',
   DEFAULT_USER_ROLE: 'USER',
+  EMAIL_VERIFY_SUBJECT: '您的邮箱验证码',
+  EMAIL_VERIFY_BODY: `<div style="padding: 20px; font-family: sans-serif;">
+  <h2>验证您的邮箱</h2>
+  <p>您好，您正在进行邮箱验证，验证码如下：</p>
+  <div style="background: #f4f4f4; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center;">{{code}}</div>
+  <p>有效期 10 分钟。如果不是您本人操作，请忽略此邮件。</p>
+</div>`,
+  SMTP_CONFIGS: '[]',
+  SMTP_ACTIVE_CONFIG_ID: 'default',
 };
 
 class SettingsService {
@@ -146,7 +163,8 @@ class SettingsService {
           s.key.endsWith('_MODE') ||
           s.key.startsWith('ALLOW_') ||
           s.key.startsWith('AUTO_') ||
-          s.key.endsWith('_ENABLED')
+          s.key.endsWith('_ENABLED') ||
+          s.key.endsWith('_FAILBACK')
         ) {
           (settings as any)[key] = s.value === 'true';
         } else if (
@@ -285,6 +303,27 @@ class SettingsService {
   }
 
   async updateMany(settings: Partial<SystemSettings>): Promise<void> {
+    // Synchronize keys before executing database updates to prevent overwrite race conditions
+    if (settings.ALLOWED_FILE_TYPES !== undefined) {
+      settings.ALLOWED_EXTENSIONS = settings.ALLOWED_FILE_TYPES;
+    } else if (settings.ALLOWED_EXTENSIONS !== undefined) {
+      settings.ALLOWED_FILE_TYPES = settings.ALLOWED_EXTENSIONS;
+    }
+
+    if (settings.MAX_UPLOAD_SIZE_MB !== undefined) {
+      settings.MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE_MB;
+    } else if (settings.MAX_FILE_SIZE !== undefined) {
+      settings.MAX_UPLOAD_SIZE_MB = settings.MAX_FILE_SIZE;
+    }
+
+    // Delete redundant keys so update is only called once per synchronized pair
+    if (settings.ALLOWED_FILE_TYPES !== undefined) {
+      delete settings.ALLOWED_EXTENSIONS;
+    }
+    if (settings.MAX_UPLOAD_SIZE_MB !== undefined) {
+      delete settings.MAX_FILE_SIZE;
+    }
+
     for (const [key, value] of Object.entries(settings)) {
       await this.update(key, value);
     }

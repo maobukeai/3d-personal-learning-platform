@@ -462,7 +462,7 @@ export const getSourceResources = async (req: AuthRequest, res: Response) => {
           },
           select: { id: true },
         });
-        const categoryIds = [categoryId, ...childCategories.map(c => c.id)];
+        const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
         where.categoryId = { in: categoryIds };
       } else {
         where.categoryId = categoryId;

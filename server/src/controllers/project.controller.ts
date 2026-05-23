@@ -59,10 +59,12 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
       return next(new AppError(quota.message || 'Project quota exceeded', 403));
     }
 
-    const membersData: Prisma.ProjectMemberCreateWithoutProjectInput[] = [{
-      user: { connect: { id: userId } },
-      role: 'OWNER',
-    }];
+    const membersData: Prisma.ProjectMemberCreateWithoutProjectInput[] = [
+      {
+        user: { connect: { id: userId } },
+        role: 'OWNER',
+      },
+    ];
 
     if (memberIds && Array.isArray(memberIds)) {
       const existingMemberIds = new Set([userId]);
@@ -582,7 +584,11 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
   }
 };
 
-export const acceptProjectInvitation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const acceptProjectInvitation = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const invitationId = req.params.invitationId as string;
   const userId = req.userId as string;
 
@@ -634,7 +640,11 @@ export const acceptProjectInvitation = async (req: AuthRequest, res: Response, n
   }
 };
 
-export const rejectProjectInvitation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const rejectProjectInvitation = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const invitationId = req.params.invitationId as string;
   const userId = req.userId as string;
 
@@ -663,7 +673,11 @@ export const rejectProjectInvitation = async (req: AuthRequest, res: Response, n
   }
 };
 
-export const addDiscussionReaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const addDiscussionReaction = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const discussionId = req.params.discussionId as string;
   const { emoji } = req.body;
   const userId = req.userId as string;

@@ -18,16 +18,20 @@ import {
   ClipboardList,
   CheckCheck,
   XCircle,
+  MessageSquare,
+  Calendar,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const workspaceStore = useWorkspaceStore();
 const teamId = computed(() => route.params.id as string);
 
 const team = ref<any>(null);
@@ -137,6 +141,14 @@ const filteredPeople = computed(() => {
     (p) =>
       p.displayName?.toLowerCase().includes(query) || p.displayEmail?.toLowerCase().includes(query),
   );
+});
+
+const teamStats = computed(() => {
+  if (!team.value) return { total: 0, admins: 0, pending: 0 };
+  const total = team.value.members.length;
+  const admins = team.value.members.filter((m: any) => m.role === 'OWNER' || m.role === 'ADMIN').length;
+  const pending = (team.value.invitations || []).length;
+  return { total, admins, pending };
 });
 
 // Member Management
@@ -268,6 +280,7 @@ const handleUpdateTeam = async () => {
   try {
     await api.patch(`/api/teams/${teamId.value}`, editForm.value);
     ElMessage.success('团队资料已更新');
+    await workspaceStore.fetchWorkspaces();
     fetchTeamDetail();
   } catch (error) {
     ElMessage.error('更新失败');
@@ -287,6 +300,7 @@ const handleLeaveTeam = async () => {
 
     await api.delete(`/api/teams/${teamId.value}/members/${authStore.user?.id}`);
     ElMessage.success('您已退出该团队');
+    await workspaceStore.fetchWorkspaces();
     router.push('/dashboard');
   } catch (error) {
     if (error !== 'cancel') ElMessage.error('退出团队失败');
@@ -314,9 +328,14 @@ const handleApplyFromDetail = async () => {
 };
 
 const avatarInput = ref<HTMLInputElement | null>(null);
+const coverInput = ref<HTMLInputElement | null>(null);
 
 const triggerAvatarUpload = () => {
   avatarInput.value?.click();
+};
+
+const triggerCoverUpload = () => {
+  coverInput.value?.click();
 };
 
 const handleAvatarChange = async (event: any) => {
@@ -334,6 +353,24 @@ const handleAvatarChange = async (event: any) => {
     ElMessage.success('团队头像已更新');
   } catch (error) {
     ElMessage.error('头像更新失败');
+  }
+};
+
+const handleCoverChange = async (event: any) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('cover', file);
+
+  try {
+    const { data } = await api.post(`/api/teams/${teamId.value}/upload-cover`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (team.value) team.value.coverUrl = data.coverUrl;
+    ElMessage.success('团队封面已更新');
+  } catch (error) {
+    ElMessage.error('封面更新失败');
   }
 };
 
@@ -389,6 +426,7 @@ const confirmDeleteTeam = async () => {
     });
     ElMessage.success('团队已解散');
     isDissolveModalOpen.value = false;
+    await workspaceStore.fetchWorkspaces();
     router.push('/dashboard');
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '解散团队失败');
@@ -432,124 +470,157 @@ watch(
       ></div>
     </div>
 
-    <template v-else-if="team">
-      <!-- Premium Header -->
-      <div
-        class="relative overflow-hidden bg-white dark:bg-slate-900 border-b transition-colors duration-300"
-        style="border-color: var(--border-base)"
-      >
-        <div class="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent"></div>
-        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-4 lg:py-12 relative z-10">
-          <div class="flex flex-col lg:flex-row items-center lg:items-center gap-4 lg:gap-10">
-            <!-- Avatar and Title Row for Mobile -->
-            <div class="flex items-center gap-4 w-full lg:w-auto">
-              <div class="relative group shrink-0">
-                <input
-                  ref="avatarInput"
-                  type="file"
-                  class="hidden"
-                  accept="image/*"
-                  @change="handleAvatarChange"
+    <div v-else-if="team" class="animate-in fade-in duration-500">
+      <div class="relative">
+        <!-- Cover Banner Area -->
+        <div class="relative h-32 lg:h-40 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden">
+          <img
+            v-if="team.coverUrl"
+            :src="team.coverUrl"
+            class="w-full h-full object-cover transition-all duration-700"
+            alt="Team Cover"
+          />
+          <div
+            v-else
+            class="w-full h-full bg-gradient-to-r from-violet-600/20 via-indigo-600/15 to-rose-600/20 backdrop-blur-3xl relative"
+          >
+            <!-- Aesthetic abstract blobs for background visual premium look -->
+            <div class="absolute top-4 left-1/4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse"></div>
+            <div class="absolute bottom-3 right-1/4 w-36 h-36 bg-blue-500/15 rounded-full blur-2xl animate-pulse" style="animation-duration: 4s"></div>
+          </div>
+          <!-- Cover Overlay Gradient -->
+          <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+          
+          <!-- Upload Cover Button -->
+          <input
+            ref="coverInput"
+            type="file"
+            class="hidden"
+            accept="image/*"
+            @change="handleCoverChange"
+          />
+          <button
+            v-if="isOwnerOrAdmin"
+            class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10"
+            @click="triggerCoverUpload"
+          >
+            <Camera class="w-4 h-4" />
+            <span>更换封面</span>
+          </button>
+        </div>
+ 
+        <!-- Details Info Area -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 pb-3 lg:pb-4 relative">
+          <div class="flex flex-col lg:flex-row items-start lg:items-end gap-3 lg:gap-4 -mt-8 lg:-mt-12 relative z-20">
+            <!-- Team Avatar -->
+            <div class="relative group shrink-0">
+              <input
+                ref="avatarInput"
+                type="file"
+                class="hidden"
+                accept="image/*"
+                @change="handleAvatarChange"
+              />
+              <div
+                class="w-20 h-20 lg:w-26 lg:h-26 rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-800 transition-transform group-hover:scale-105 duration-500"
+              >
+                <img
+                  v-if="team.avatarUrl"
+                  :src="team.avatarUrl"
+                  class="w-full h-full object-cover"
                 />
                 <div
-                  class="w-16 h-16 lg:w-40 lg:h-40 rounded-xl lg:rounded-[2.5rem] overflow-hidden shadow-xl border-2 lg:border-4 border-white dark:border-slate-800 transition-transform group-hover:scale-105 duration-500"
+                  v-else
+                  class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-2xl lg:text-4xl font-black"
                 >
-                  <img
-                    v-if="team.avatarUrl"
-                    :src="team.avatarUrl"
-                    class="w-full h-full object-cover"
-                  />
-                  <div
-                    v-else
-                    class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-xl lg:text-5xl font-black"
-                  >
-                    {{ team.name.charAt(0).toUpperCase() }}
-                  </div>
+                  {{ team.name.charAt(0).toUpperCase() }}
                 </div>
-                <button
-                  v-if="isOwnerOrAdmin"
-                  class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-xl hover:scale-110 active:scale-95 transition-all"
-                  @click="triggerAvatarUpload"
-                >
-                  <Camera class="w-3 h-3" />
-                </button>
               </div>
+              <button
+                v-if="isOwnerOrAdmin"
+                class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10"
+                @click="triggerAvatarUpload"
+                title="更换头像"
+              >
+                <Camera class="w-4 h-4" />
+              </button>
+            </div>
 
-              <div class="flex-1 text-left">
-                <div class="flex flex-wrap items-center gap-2 mb-1 lg:mb-3">
-                  <h1 class="text-xl lg:text-4xl font-black tracking-tight" style="color: var(--text-primary)">
-                    {{ team.name }}
-                  </h1>
-                  <div
-                    class="px-1.5 py-0.5 bg-accent/10 text-accent text-[8px] lg:text-[10px] font-black rounded uppercase tracking-widest border border-accent/20"
-                  >
-                    协作空间
-                  </div>
+            <!-- Team Text Info -->
+            <div class="flex-1 text-left pt-1">
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <h1 class="text-2xl lg:text-3xl font-black tracking-tight" style="color: var(--text-primary)">
+                  {{ team.name }}
+                </h1>
+                <div
+                  class="px-2.5 py-1 bg-accent/10 text-accent text-[10px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
+                >
+                  协作空间
                 </div>
-                <!-- Hidden on mobile, shown on larger screens -->
-                <p class="hidden lg:block text-slate-500 dark:text-slate-400 max-w-2xl text-sm leading-relaxed mb-6">
-                  {{ team.description || '这支团队还没有添加描述，协作从清晰的定义开始。' }}
-                </p>
+              </div>
+              <p class="text-slate-500 dark:text-slate-400 max-w-xl text-xs sm:text-sm leading-relaxed mb-2.5">
+                {{ team.description || '这支团队还没有添加描述，协作从清晰的定义开始。' }}
+              </p>
 
-                <div class="flex flex-wrap items-center gap-2 lg:gap-8">
-                  <div class="flex items-center gap-1.5 bg-slate-100/50 dark:bg-white/5 px-2 py-0.5 rounded-lg">
-                    <Users class="w-3 h-3 text-slate-400" />
-                    <span class="text-[10px] lg:text-xs font-bold" style="color: var(--text-primary)"
-                      >{{ team.members.length }} 成员</span
-                    >
-                  </div>
-                  <div class="flex items-center gap-1.5 bg-slate-100/50 dark:bg-white/5 px-2 py-0.5 rounded-lg">
-                    <Clock class="w-3 h-3 text-slate-400" />
-                    <span class="text-[10px] lg:text-xs font-bold" style="color: var(--text-primary)"
-                      >{{ team.invitations?.length || 0 }} 待处理</span
-                    >
-                  </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md">
+                  <Users class="w-3.5 h-3.5 text-slate-400" />
+                  <span class="text-xs font-bold" style="color: var(--text-primary)"
+                    >{{ team.members.length }} 成员</span
+                  >
+                </div>
+                <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md">
+                  <Clock class="w-3.5 h-3.5 text-slate-400" />
+                  <span class="text-xs font-bold" style="color: var(--text-primary)"
+                    >{{ team.invitations?.length || 0 }} 待处理</span
+                  >
                 </div>
               </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto mt-2 lg:mt-0">
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 shrink-0 lg:mb-1">
               <template v-if="canManageTeam">
                 <button
-                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
+                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
                   @click="isAddModalOpen = true"
                 >
-                  <UserPlus class="w-5 h-5" />
+                  <UserPlus class="w-4 h-4" />
                   管理成员
                 </button>
                 <button
-                  class="hidden sm:block p-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                  class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
                   style="border-color: var(--border-base)"
                   @click="activeTab = 'settings'"
                 >
-                  <Settings class="w-6 h-6 text-slate-400" />
+                  <Settings class="w-4 h-4 text-slate-400" />
                 </button>
               </template>
               <template v-else-if="isMember && isPersonalSpace">
                 <button
-                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 border rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold"
+                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer"
                   style="border-color: var(--border-base); color: var(--text-primary)"
                   @click="activeTab = 'settings'"
                 >
-                  <Settings class="w-5 h-5 text-slate-400" />
+                  <Settings class="w-4 h-4 text-slate-400" />
                   空间设置
                 </button>
               </template>
               <template v-if="!isMember && team?.visibility === 'PUBLIC'">
                 <button
-                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all"
+                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
                   @click="handleApplyFromDetail"
                 >
-                  <UserPlus class="w-5 h-5" />
+                  <UserPlus class="w-4 h-4" />
                   申请加入
                 </button>
               </template>
               <button
                 v-if="canLeaveTeam"
-                class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-2xl font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all"
+                class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer"
                 @click="handleLeaveTeam"
               >
-                <LogOut class="w-5 h-5" />
+                <LogOut class="w-4 h-4" />
                 退出团队
               </button>
             </div>
@@ -558,9 +629,9 @@ watch(
       </div>
 
       <!-- Main Content Container -->
-      <div class="max-w-7xl mx-auto px-4 sm:px-8 py-6 lg:py-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:py-6">
         <!-- Modern Tabs -->
-        <div class="flex gap-6 lg:gap-10 mb-8 lg:mb-10 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
+        <div class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
           <button
             v-for="t in [
               { id: 'people', label: '成员与协作', icon: Users },
@@ -580,20 +651,20 @@ watch(
             ]"
             v-show="!t.hidden"
             :key="t.id"
-            class="flex items-center gap-2 pb-4 text-sm font-bold transition-all relative whitespace-nowrap shrink-0"
+            class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer"
             :class="activeTab === t.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'"
             @click="activeTab = t.id"
           >
-            <component :is="t.icon" class="w-4 h-4" />
+            <component :is="t.icon" class="w-3.5 h-3.5" />
             {{ t.label }}
             <span
               v-if="t.badge"
-              class="ml-1 px-2 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full"
+              class="ml-1 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full"
               >{{ t.badge }}</span
             >
             <div
               v-if="activeTab === t.id"
-              class="absolute bottom-0 left-0 right-0 h-1.5 bg-accent rounded-full translate-y-1/2"
+              class="absolute bottom-0 left-0 right-0 h-1 bg-accent rounded-full translate-y-1/2"
             ></div>
           </button>
         </div>
@@ -601,77 +672,142 @@ watch(
         <!-- People & Collaboration View -->
         <div
           v-if="activeTab === 'people'"
-          class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <h2 class="text-xl lg:text-2xl font-black mb-1" style="color: var(--text-primary)">全员看板</h2>
-              <p class="text-[10px] lg:text-xs text-slate-400 font-medium">
-                查看并管理团队内的所有成员及其访问权限
-              </p>
+          <!-- Stats Dashboard Bar -->
+          <div class="flex flex-wrap gap-3">
+            <!-- Total Members Card -->
+            <div class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200">
+              <div class="w-8 h-8 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                <Users class="w-4 h-4" />
+              </div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.total }}</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">正式成员</span>
+              </div>
             </div>
-            <div class="relative w-full md:w-80">
-              <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                v-model="memberSearchQuery"
-                type="text"
-                placeholder="搜索成员姓名..."
-                class="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border rounded-2xl text-xs focus:ring-4 focus:ring-accent/10 outline-none transition-all"
-                style="border-color: var(--border-base); color: var(--text-primary)"
-              />
+
+            <!-- Administrators Card -->
+            <div class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200">
+              <div class="w-8 h-8 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                <ShieldCheck class="w-4 h-4" />
+              </div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.admins }}</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">管理人员</span>
+              </div>
+            </div>
+
+            <!-- Pending Invitations Card -->
+            <div class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200">
+              <div class="w-8 h-8 rounded-md bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                <Clock class="w-4 h-4" />
+              </div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.pending }}</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">待接受邀请</span>
+              </div>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          <!-- Header & Actions -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5" style="borderColor: var(--border-base)">
+            <div>
+              <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">全员看板</h2>
+              <p class="text-xs text-slate-400 font-medium">
+                查看并管理团队内的所有成员及其访问权限
+              </p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+              <div class="relative w-full sm:w-56 md:w-64">
+                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  v-model="memberSearchQuery"
+                  type="text"
+                  placeholder="搜索成员姓名或邮箱..."
+                  class="w-full pl-9 pr-4 py-2 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-lg text-xs focus:ring-4 focus:ring-accent/10 outline-none transition-all placeholder-slate-400"
+                  style="color: var(--text-primary)"
+                />
+              </div>
+              <button
+                v-if="canManageTeam"
+                class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap"
+                @click="isAddModalOpen = true"
+              >
+                <Plus class="w-3.5 h-3.5" />
+                邀请新成员
+              </button>
+            </div>
+          </div>
+
+          <!-- Members Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             <div
               v-for="person in filteredPeople"
               :key="person.id"
-              class="group relative bg-white dark:bg-slate-900 rounded-[2rem] p-6 border transition-all hover:shadow-2xl hover:-translate-y-1"
-              :style="{ borderColor: person.isMember ? 'var(--border-base)' : 'var(--accent)' }"
+              class="group relative backdrop-blur-md bg-white/60 dark:bg-slate-900/40 border border-white/20 dark:border-slate-800/80 rounded-xl p-4 transition-all duration-300 hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 flex flex-col justify-between"
             >
-              <!-- Pending Badge -->
+              <!-- Pending Floating Badge -->
               <div
                 v-if="!person.isMember"
-                class="absolute -top-3 left-6 px-3 py-1 bg-accent text-white text-[8px] font-black rounded-lg uppercase tracking-widest shadow-lg"
+                class="absolute -top-2 left-3 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] sm:text-[10px] font-black rounded uppercase tracking-wider shadow-sm z-10"
               >
-                待接受邀请
+                邀请中
               </div>
 
-              <div class="flex items-center gap-4 mb-6">
-                <UserAvatar
-                  :user="
-                    person.isMember
-                      ? person.user
-                      : { name: person.displayName, email: person.displayEmail }
-                  "
-                  size="lg"
-                  class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
-                  @click="person.isMember && openUserProfile(person.user.id)"
-                />
-                <div class="flex-1 min-w-0">
-                  <h4
-                    class="font-bold text-base truncate cursor-pointer hover:text-accent transition-colors"
-                    style="color: var(--text-primary)"
+              <div>
+                <!-- User Profile Header -->
+                <div class="flex items-center gap-2.5">
+                  <UserAvatar
+                    :user="
+                      person.isMember
+                        ? person.user
+                        : { name: person.displayName, email: person.displayEmail }
+                    "
+                    size="md"
+                    class="cursor-pointer hover:ring-2 hover:ring-accent transition-all duration-300"
                     @click="person.isMember && openUserProfile(person.user.id)"
-                  >
-                    {{ person.displayName }}
-                  </h4>
-                  <p class="text-xs text-slate-400 truncate">{{ person.displayEmail }}</p>
+                  />
+                  <div class="min-w-0 flex-1">
+                    <h4
+                      class="font-black text-sm tracking-tight truncate cursor-pointer hover:text-accent transition-colors duration-200"
+                      style="color: var(--text-primary)"
+                      @click="person.isMember && openUserProfile(person.user.id)"
+                    >
+                      {{ person.displayName }}
+                    </h4>
+                    <!-- Email with Mail Icon -->
+                    <div class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mt-0.5">
+                      <Mail class="w-3.5 h-3.5 shrink-0" />
+                      <span class="text-xs truncate font-medium">{{ person.displayEmail }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Info (Joined/Invited Date) -->
+                <div class="flex items-center gap-1.5 mt-2.5 text-xs text-slate-400 dark:text-slate-500 font-medium">
+                  <Calendar class="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {{ person.isMember ? '加入于' : '邀请于' }}
+                    {{ new Date(person.joinedAt || person.createdAt).toLocaleDateString('zh-CN', { year: '2-digit', month: '2-digit', day: '2-digit' }) }}
+                  </span>
                 </div>
               </div>
 
+              <!-- Actions & Role Footer -->
               <div
-                class="flex items-center justify-between pt-4 border-t"
-                style="border-color: var(--border-base)"
+                class="flex items-center justify-between pt-2.5 mt-3 border-t border-dashed"
+                style="borderColor: var(--border-base)"
               >
-                <div class="flex items-center gap-2">
+                <!-- Role Badge -->
+                <div>
                   <span
-                    class="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                    class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border"
                     :class="{
-                      'bg-orange-500/10 text-orange-500': person.role === 'OWNER',
-                      'bg-emerald-500/10 text-emerald-500': person.role === 'ADMIN',
-                      'bg-slate-100 text-slate-500 dark:bg-white/5': person.role === 'MEMBER',
-                      'bg-accent/10 text-accent': person.role === 'PENDING',
+                      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20': person.role === 'OWNER',
+                      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20': person.role === 'ADMIN',
+                      'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-white/10': person.role === 'MEMBER',
+                      'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20': person.role === 'PENDING',
                     }"
                   >
                     {{
@@ -686,85 +822,85 @@ watch(
                   </span>
                 </div>
 
-                <div
-                  v-if="canManageTeam && person.userId !== authStore.user?.id"
-                  class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <template v-if="person.isMember">
-                    <el-dropdown trigger="click" placement="bottom-end">
-                      <button
-                        class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all"
-                        style="color: var(--text-muted)"
-                      >
-                        <Shield class="w-4 h-4" />
-                      </button>
-                      <template #dropdown>
-                        <el-dropdown-menu class="w-48 p-2 rounded-2xl shadow-2xl border-none">
-                          <template v-if="isOwner">
-                            <el-dropdown-item
-                              v-if="person.role === 'MEMBER'"
-                              class="rounded-xl my-0.5"
-                              @click="handleUpdateRole(person.user.id, 'ADMIN')"
-                            >
-                              <div
-                                class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs"
-                              >
-                                <ShieldCheck class="w-4 h-4" /> 晋升为管理员
-                              </div>
-                            </el-dropdown-item>
-                            <el-dropdown-item
-                              v-if="person.role === 'ADMIN'"
-                              class="rounded-xl my-0.5"
-                              @click="handleUpdateRole(person.user.id, 'MEMBER')"
-                            >
-                              <div
-                                class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs"
-                              >
-                                <Users class="w-4 h-4" /> 降为普通成员
-                              </div>
-                            </el-dropdown-item>
-                          </template>
-                          <el-dropdown-item
-                            class="rounded-xl my-0.5"
-                            @click="handleRemoveMember(person.user.id, person.user.name)"
-                          >
-                            <div
-                              class="flex items-center gap-3 py-1 text-rose-500 font-bold text-xs"
-                            >
-                              <Trash2 class="w-4 h-4" /> 移出团队
-                            </div>
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </template>
+                <!-- Action Button Group -->
+                <div class="flex items-center gap-1">
+                  <!-- Private Message -->
                   <button
-                    v-else
-                    class="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500 rounded-xl transition-all"
-                    title="撤回邀请"
-                    @click="handleCancelInvitation(person.id)"
+                    v-if="person.isMember && person.user.id !== authStore.user?.id"
+                    class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
+                    title="发送私信"
+                    @click="handleStartChat(person.user)"
                   >
-                    <X class="w-4 h-4" />
+                    <MessageSquare class="w-4 h-4" />
                   </button>
+
+                  <!-- Manage Button / Dropdown -->
+                  <template v-if="canManageTeam && person.userId !== authStore.user?.id">
+                    <template v-if="person.isMember">
+                      <el-dropdown trigger="click" placement="bottom-end">
+                        <button
+                          class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
+                          title="管理角色"
+                        >
+                          <Shield class="w-4 h-4" />
+                        </button>
+                        <template #dropdown>
+                          <el-dropdown-menu class="w-48 p-2 rounded-2xl shadow-2xl border-none">
+                            <template v-if="isOwner">
+                              <el-dropdown-item
+                                class="rounded-xl my-0.5"
+                                v-if="person.role === 'MEMBER'"
+                                @click="handleUpdateRole(person.user.id, 'ADMIN')"
+                              >
+                                <div class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs">
+                                  <ShieldCheck class="w-4 h-4" /> 晋升为管理员
+                                </div>
+                              </el-dropdown-item>
+                              <el-dropdown-item
+                                class="rounded-xl my-0.5"
+                                v-if="person.role === 'ADMIN'"
+                                @click="handleUpdateRole(person.user.id, 'MEMBER')"
+                              >
+                                <div class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs">
+                                  <Users class="w-4 h-4" /> 降为普通成员
+                                </div>
+                              </el-dropdown-item>
+                            </template>
+                            <el-dropdown-item
+                              class="rounded-xl my-0.5"
+                              @click="handleRemoveMember(person.user.id, person.user.name)"
+                            >
+                              <div class="flex items-center gap-3 py-1 text-rose-500 font-bold text-xs">
+                                <Trash2 class="w-4 h-4" /> 移出团队
+                              </div>
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+                    </template>
+                    <button
+                      v-else
+                      class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer"
+                      title="撤回邀请"
+                      @click="handleCancelInvitation(person.id)"
+                    >
+                      <X class="w-4 h-4" />
+                    </button>
+                  </template>
                 </div>
               </div>
             </div>
 
-            <!-- Add Person CTA -->
+            <!-- Add Person CTA Card -->
             <button
               v-if="canManageTeam"
-              class="h-full min-h-[160px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border-2 border-dashed transition-all hover:bg-accent/5 group"
-              style="border-color: var(--accent)"
+              class="backdrop-blur-md bg-white/30 dark:bg-slate-900/20 border border-dashed border-accent/30 dark:border-accent/20 hover:border-accent hover:bg-accent/5 rounded-xl p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all duration-300 group cursor-pointer"
               @click="isAddModalOpen = true"
             >
-              <div
-                class="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform"
-              >
-                <Plus class="w-6 h-6" />
+              <div class="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all duration-300 shadow-md shadow-accent/5">
+                <Plus class="w-5 h-5" />
               </div>
-              <span class="text-xs font-black uppercase tracking-widest text-accent"
-                >添加新成员</span
-              >
+              <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-accent">邀请新成员</span>
             </button>
           </div>
         </div>
@@ -948,7 +1084,7 @@ watch(
           </div>
         </div>
       </div>
-    </template>
+    </div>
 
     <!-- Unified Add Member Modal -->
     <div

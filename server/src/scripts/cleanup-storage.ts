@@ -27,6 +27,15 @@ export async function cleanupOrphanedFiles() {
       mirrorResources,
       manualStations,
       mirrorSources,
+      teams,
+      courses,
+      lessons,
+      discussions,
+      comments,
+      feedbacks,
+      messages,
+      projectDiscussions,
+      settings,
     ] = await Promise.all([
       prisma.asset.findMany({ select: { url: true, thumbnail: true } }),
       prisma.material.findMany({ select: { fileUrl: true, previewUrl: true } }),
@@ -36,6 +45,15 @@ export async function cleanupOrphanedFiles() {
       prisma.mirrorResource.findMany({ select: { thumbnailUrl: true, contentHtml: true } }),
       prisma.manualStation.findMany({ select: { iconUrl: true } }),
       prisma.mirrorSource.findMany({ select: { iconUrl: true } }),
+      prisma.team.findMany({ select: { avatarUrl: true, coverUrl: true } }),
+      prisma.course.findMany({ select: { thumbnail: true } }),
+      prisma.lesson.findMany({ select: { videoUrl: true } }),
+      prisma.discussion.findMany({ select: { images: true, content: true } }),
+      prisma.comment.findMany({ select: { content: true } }),
+      prisma.feedback.findMany({ select: { attachmentUrl: true } }),
+      prisma.message.findMany({ select: { content: true } }),
+      prisma.projectDiscussion.findMany({ select: { fileUrl: true, images: true, content: true } }),
+      prisma.systemSetting.findMany({ where: { key: { in: ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL'] } } }),
     ]);
 
     const validPaths = new Set<string>();
@@ -99,8 +117,71 @@ export async function cleanupOrphanedFiles() {
       addPath(ms.iconUrl);
     });
 
-    // 2. Scan upload directories (now including manual and mirror)
-    const uploadDirs = ['assets', 'materials', 'showcase', 'avatars', 'manual', 'mirror'];
+    // Add teams
+    teams.forEach((t) => {
+      addPath(t.avatarUrl);
+      addPath(t.coverUrl);
+    });
+
+    // Add courses & lessons
+    courses.forEach((c) => addPath(c.thumbnail));
+    lessons.forEach((l) => addPath(l.videoUrl));
+
+    // Add discussions & comments
+    discussions.forEach((d) => {
+      if (d.images) {
+        try {
+          const imgs = JSON.parse(d.images);
+          if (Array.isArray(imgs)) imgs.forEach(addPath);
+        } catch {}
+      }
+      extractUploadUrls(d.content).forEach(addPath);
+    });
+    comments.forEach((c) => {
+      extractUploadUrls(c.content).forEach(addPath);
+    });
+
+    // Add feedbacks
+    feedbacks.forEach((f) => addPath(f.attachmentUrl));
+
+    // Add messages
+    messages.forEach((msg) => {
+      if (msg.content.startsWith('/uploads/messages/') || msg.content.startsWith('http')) {
+        addPath(msg.content);
+      }
+      extractUploadUrls(msg.content).forEach(addPath);
+    });
+
+    // Add project discussions
+    projectDiscussions.forEach((pd) => {
+      addPath(pd.fileUrl);
+      if (pd.images) {
+        try {
+          const imgs = JSON.parse(pd.images);
+          if (Array.isArray(imgs)) imgs.forEach(addPath);
+        } catch {}
+      }
+      extractUploadUrls(pd.content).forEach(addPath);
+    });
+
+    // Add settings
+    settings.forEach((s) => {
+      addPath(s.value);
+    });
+
+    // 2. Scan upload directories (now including manual, mirror, branding, discussions, feedback, and messages)
+    const uploadDirs = [
+      'assets',
+      'materials',
+      'showcase',
+      'avatars',
+      'manual',
+      'mirror',
+      'branding',
+      'discussions',
+      'feedback',
+      'messages',
+    ];
     const baseDir = path.join(__dirname, '../../uploads');
 
     for (const dir of uploadDirs) {
@@ -151,4 +232,3 @@ if (require.main === module) {
       process.exit(1);
     });
 }
-

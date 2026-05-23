@@ -23,6 +23,7 @@ import {
   CreditCard,
   Bell,
   ShieldCheck,
+  Mail,
   ArrowRight,
   BarChart3,
   Database,
@@ -610,6 +611,12 @@ const menuGroups = computed<SidebarMenuGroup[]>(() => {
         { name: t('sidebar.showcase'), icon: MonitorPlay, path: '/showcase' },
       ],
     },
+    {
+      title: '工具服务',
+      items: [
+        { name: '邮箱系统', icon: Mail, path: '/tools/email' },
+      ],
+    },
   ];
 });
 
@@ -944,7 +951,7 @@ onUnmounted(() => {
 
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-14 md:h-16 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 glass-header"
+      class="topbar h-14 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 glass-header"
     >
       <!-- Left: Hamburger + Workspace Switcher / Logo -->
       <div class="flex items-center gap-1 md:gap-3">
@@ -1283,7 +1290,7 @@ onUnmounted(() => {
     <div class="flex flex-1 overflow-hidden">
       <!-- Global Sidebar -->
       <aside
-        class="w-60 hidden lg:flex flex-col h-full shrink-0 glass-sidebar"
+        class="w-56 hidden lg:flex flex-col h-full shrink-0 glass-sidebar"
       >
         <div class="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide">
           <div v-for="(group, index) in menuGroups" :key="index" :class="{ 'mt-1': index > 0 }">
@@ -1296,14 +1303,14 @@ onUnmounted(() => {
 
             <h3
               v-if="group.title"
-              class="px-3 mb-0.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
+              class="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
               :class="
                 workspaceStore.isAdminWorkspace
                   ? 'text-rose-500 dark:text-rose-400'
                   : 'text-slate-400 dark:text-slate-500'
               "
             >
-              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-3 h-3" />
+              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-3.5 h-3.5" />
               {{ group.title }}
             </h3>
             <ul class="space-y-1">
@@ -1691,22 +1698,20 @@ onUnmounted(() => {
     <Transition name="fade">
       <div
         v-if="isMobileSidebarOpen"
-        class="fixed inset-0 z-40 bg-black/60 lg:hidden"
+        class="fixed inset-0 z-40 bg-black/50 lg:hidden"
         @click="isMobileSidebarOpen = false"
       ></div>
     </Transition>
 
-    <Transition name="slide-left">
-      <aside
-        v-if="isMobileSidebarOpen"
-        class="fixed inset-y-0 left-0 w-32 z-50 flex flex-col h-full shadow-2xl lg:hidden glass-sidebar"
-        style="will-change: transform;"
-      >
+    <aside
+      class="fixed inset-y-0 left-0 w-40 z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
+      :class="isMobileSidebarOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
+    >
         <!-- Header -->
-        <div class="h-12 flex items-center justify-between px-2 border-b shrink-0" style="border-color: var(--border-base)">
-          <div class="flex items-center gap-1 min-w-0">
+        <div class="h-13 flex items-center justify-between px-3 border-b shrink-0" style="border-color: var(--border-base)">
+          <div class="flex items-center gap-2 min-w-0">
             <div
-              class="w-5.5 h-5.5 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
+              class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
               :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
             >
               <img
@@ -1714,47 +1719,47 @@ onUnmounted(() => {
                 :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
                 class="w-full h-full object-contain"
               />
-              <Box v-else class="w-3 h-3 text-white" />
+              <Box v-else class="w-4 h-4 text-white" />
             </div>
-            <span class="text-[10px] font-bold truncate" style="color: var(--text-primary)">{{
+            <span class="text-xs font-bold truncate" style="color: var(--text-primary)">{{ 
               systemStore.settings.PLATFORM_NAME
             }}</span>
           </div>
           <button
-            class="p-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+            class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             @click="isMobileSidebarOpen = false"
           >
-            <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+            <X class="w-4 h-4" style="color: var(--text-muted)" />
           </button>
         </div>
 
         <!-- Navigation Menu -->
-        <div class="flex-1 overflow-y-auto py-2 px-1.5 scrollbar-hide">
-          <div v-for="(group, index) in menuGroups" :key="index" :class="{ 'mt-0.5': index > 0 }">
+        <div class="flex-1 overflow-y-auto py-2.5 px-2.5 scrollbar-hide">
+          <div v-for="(group, index) in menuGroups" :key="index" :class="{ 'mt-1': index > 0 }">
             <!-- Divider before the group if it's not the first one -->
             <div
               v-if="index > 0"
-              class="mb-0.5 border-t"
+              class="mb-1 border-t"
               style="border-color: var(--border-base); opacity: 0.4"
             ></div>
 
             <h3
               v-if="group.title"
-              class="px-1 mb-0 text-[8px] font-bold uppercase tracking-widest flex items-center gap-1"
+              class="px-1.5 mb-0.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"
               :class="
                 workspaceStore.isAdminWorkspace
                   ? 'text-rose-500 dark:text-rose-400'
                   : 'text-slate-400 dark:text-slate-500'
               "
             >
-              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-2 h-2" />
+              <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-2.5 h-2.5" />
               {{ group.title }}
             </h3>
-            <ul class="space-y-0.5">
+            <ul class="space-y-0.5" >
               <li v-for="item in group.items" :key="item.name">
                 <RouterLink
                   :to="item.path"
-                  class="flex items-center justify-between px-1.5 py-0.5 rounded-md transition-colors duration-150"
+                  class="flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors duration-150"
                   :class="
                     route.path === item.path
                       ? workspaceStore.isAdminWorkspace
@@ -1764,10 +1769,10 @@ onUnmounted(() => {
                   "
                   @click="isMobileSidebarOpen = false"
                 >
-                  <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                  <div class="flex items-center gap-2 min-w-0 flex-1">
                     <component
                       :is="item.icon"
-                      class="w-3.5 h-3.5 shrink-0"
+                      class="w-4 h-4 shrink-0"
                       :class="
                         route.path === item.path
                           ? workspaceStore.isAdminWorkspace
@@ -1776,12 +1781,12 @@ onUnmounted(() => {
                           : 'text-slate-400'
                       "
                     />
-                    <span class="flex-1 text-[10px] truncate">{{ item.name }}</span>
+                    <span class="flex-1 text-xs truncate">{{ item.name }}</span>
 
                     <!-- High-Visibility Badge -->
                     <div
                       v-if="item.badge && item.badge > 0"
-                      class="px-1 py-0.2 min-w-[14px] h-3.5 rounded-full text-[8px] font-black flex items-center justify-center transition-all duration-300 shrink-0"
+                      class="px-1.5 py-0.5 min-w-[18px] h-4 rounded-full text-[9px] font-black flex items-center justify-center transition-all duration-300 shrink-0"
                       :class="
                         route.path === item.path
                           ? 'bg-white text-rose-600 shadow-sm'
@@ -1798,34 +1803,33 @@ onUnmounted(() => {
         </div>
 
         <!-- Footer -->
-        <div class="p-1 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
+        <div class="p-2 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
           <RouterLink
             to="/settings"
-            class="flex items-center gap-1.5 px-1.5 py-0.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
+            class="flex items-center gap-2 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-xs"
             :class="
               route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
             "
             @click="isMobileSidebarOpen = false"
           >
             <Settings
-              class="w-3.5 h-3.5 shrink-0"
+              class="w-4 h-4 shrink-0"
               :class="route.path === '/settings' ? 'text-accent' : 'text-slate-400'"
             />
-            <span class="flex-1 truncate">设置选项</span>
+            <span class="flex-1 text-xs truncate">设置选项</span>
           </RouterLink>
           <button
-            class="w-full flex items-center gap-1.5 px-1.5 py-0.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors text-[10px]"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-xs"
             @click="
               handleReportBug();
               isMobileSidebarOpen = false;
             "
           >
-            <HelpCircle class="w-3.5 h-3.5 shrink-0" />
-            <span class="flex-1 text-left truncate">问题反馈</span>
+            <HelpCircle class="w-4 h-4 shrink-0" />
+            <span class="flex-1 text-xs text-left truncate">问题反馈</span>
           </button>
         </div>
       </aside>
-    </Transition>
   </div>
 </template>
 
@@ -1848,17 +1852,30 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* Slide Left Transition */
-.slide-left-enter-active,
-.slide-left-leave-active {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Mobile Sidebar Drawer – GPU-accelerated slide */
+.mobile-sidebar-drawer {
   will-change: transform;
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+              visibility 0.28s;
+  /* Use high-quality semi-transparent color without backdrop blur on mobile to guarantee flawless 60fps/120fps animations */
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-.slide-left-enter-from,
-.slide-left-leave-to {
+:global(.dark) .mobile-sidebar-drawer {
+  background-color: rgba(18, 18, 23, 0.98) !important;
+  border-right: 1px solid rgba(63, 63, 70, 0.4) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.mobile-sidebar-open {
+  transform: translateX(0);
+  visibility: visible;
+}
+.mobile-sidebar-closed {
   transform: translateX(-100%);
+  visibility: hidden;
 }
 
 :deep(.mobile-search-dialog) {

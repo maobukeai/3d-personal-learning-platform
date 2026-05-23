@@ -9,7 +9,12 @@ const router = Router();
 router.use(authenticate, isAdmin);
 
 // Image Upload
-router.post('/upload', upload.single('manual_image'), validateFileContent, manualController.uploadImage);
+router.post(
+  '/upload',
+  upload.single('manual_image'),
+  validateFileContent,
+  manualController.uploadImage,
+);
 
 // Stations
 router.post('/stations', manualController.createStation);

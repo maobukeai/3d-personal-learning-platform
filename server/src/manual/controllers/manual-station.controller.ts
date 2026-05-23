@@ -136,7 +136,7 @@ export const getResources = async (req: AuthRequest, res: Response) => {
         where: { parentId: categoryId },
         select: { id: true },
       });
-      const categoryIds = [categoryId, ...childCategories.map(c => c.id)];
+      const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
       where.categoryId = { in: categoryIds };
     }
     if (search) {
@@ -488,7 +488,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
         name,
         slug,
         order: parseInt(order) || 0,
-        parentId: parentId !== undefined ? (parentId || null) : undefined,
+        parentId: parentId !== undefined ? parentId || null : undefined,
       },
     });
 

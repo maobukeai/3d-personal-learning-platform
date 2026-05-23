@@ -3,7 +3,11 @@ import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { AppError } from '../../middlewares/error.middleware';
 
-export const getAllSubscriptionPlans = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAllSubscriptionPlans = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const plans = await prisma.subscriptionPlan.findMany({
       orderBy: { priority: 'asc' },
@@ -21,7 +25,11 @@ export const getAllSubscriptionPlans = async (req: AuthRequest, res: Response, n
   }
 };
 
-export const createSubscriptionPlan = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createSubscriptionPlan = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const {
     name,
     displayName,
@@ -62,7 +70,11 @@ export const createSubscriptionPlan = async (req: AuthRequest, res: Response, ne
   }
 };
 
-export const updateSubscriptionPlan = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateSubscriptionPlan = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const id = req.params.id as string;
   const {
     name,
@@ -106,7 +118,11 @@ export const updateSubscriptionPlan = async (req: AuthRequest, res: Response, ne
   }
 };
 
-export const deleteSubscriptionPlan = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteSubscriptionPlan = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const id = req.params.id as string;
   try {
     const subscriberCount = await prisma.subscription.count({

@@ -74,9 +74,11 @@ import {
 
 const router = Router();
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: isDev ? 1000 : 20,
   message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -84,7 +86,7 @@ const authLimiter = rateLimit({
 
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: isDev ? 1000 : 5,
   message: { error: '密码重置请求过于频繁，请 1 小时后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -92,7 +94,7 @@ const passwordResetLimiter = rateLimit({
 
 const emailLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 10,
+  max: isDev ? 1000 : 10,
   message: { error: '邮件发送请求过于频繁，请 10 分钟后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -121,13 +123,7 @@ router.post(
   verifyPublicEmail,
 );
 
-router.post(
-  '/login',
-  authLimiter,
-  sanitizeInput,
-  validateRequest({ body: loginSchema }),
-  login,
-);
+router.post('/login', authLimiter, sanitizeInput, validateRequest({ body: loginSchema }), login);
 
 router.post('/refresh', refreshToken);
 router.post('/logout', logout);

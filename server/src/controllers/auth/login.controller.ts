@@ -5,11 +5,7 @@ import crypto from 'crypto';
 import prisma from '../../services/prisma';
 import { config } from '../../config/env';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  sanitizeUser,
-} from '../../utils/auth';
+import { generateAccessToken, generateRefreshToken, sanitizeUser } from '../../utils/auth';
 import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';

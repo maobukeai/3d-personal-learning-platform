@@ -24,6 +24,7 @@ import {
   Palette,
   Chrome,
   Github,
+  Trash2,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -36,6 +37,7 @@ const isSaving = ref(false);
 const isUploadingLogo = ref(false);
 const isUploadingFavicon = ref(false);
 const isTestingSmtp = ref(false);
+const isCleaning = ref(false);
 
 const handleLogoUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -100,6 +102,10 @@ const defaultSettings = {
   SMTP_FROM: '',
   SMTP_FROM_NAME: '',
   SMTP_SECURE: 'true',
+  SMTP_CONFIGS: '[]',
+  SMTP_ACTIVE_CONFIG_ID: 'default',
+  SYSTEM_EMAIL_PROVIDER: 'SMTP',
+  MICROSOFT_POOL_FAILBACK: true,
   EMAIL_VERIFY_SUBJECT: '您的邮箱验证码',
   EMAIL_VERIFY_BODY: '您好，您的验证码是：{{code}}。请在 10 分钟内输入。',
   PLATFORM_NAME: '3D Personal Learning Hub',
@@ -115,7 +121,7 @@ const defaultSettings = {
   AUTO_APPROVE_MATERIALS: false,
   AUTO_APPROVE_SHOWCASES: false,
   MAX_UPLOAD_SIZE_MB: '100',
-  ALLOWED_FILE_TYPES: '.glb, .gltf, .fbx, .obj, .stl, .zip',
+  ALLOWED_FILE_TYPES: '.glb, .gltf, .fbx, .obj, .stl, .zip, .jpg, .jpeg, .png, .gif, .webp, .svg',
   FOOTER_TEXT: '',
   OAUTH_GOOGLE_ENABLED: false,
   OAUTH_GOOGLE_CLIENT_ID: '',
@@ -127,6 +133,154 @@ const defaultSettings = {
 
 const settings = ref({ ...defaultSettings });
 const originalSettings = ref({ ...defaultSettings });
+
+interface SmtpConfig {
+  id: string;
+  name: string;
+  host: string;
+  port: string;
+  user: string;
+  pass: string;
+  from: string;
+  secure: string;
+}
+
+const smtpConfigs = ref<SmtpConfig[]>([]);
+const activeConfigId = ref<string>('');
+
+const selectSmtpConfig = (configId: string) => {
+  const cfg = smtpConfigs.value.find(c => c.id === configId);
+  if (cfg) {
+    activeConfigId.value = cfg.id;
+    settings.value.SMTP_ACTIVE_CONFIG_ID = cfg.id;
+    
+    // Copy values to form fields
+    settings.value.SMTP_HOST = cfg.host;
+    settings.value.SMTP_PORT = cfg.port;
+    settings.value.SMTP_USER = cfg.user;
+    settings.value.SMTP_PASS = cfg.pass;
+    settings.value.SMTP_FROM = cfg.from;
+    settings.value.SMTP_SECURE = cfg.secure;
+  }
+};
+
+const addNewSmtpConfig = async () => {
+  try {
+    const { value: name } = await ElMessageBox.prompt(
+      '请输入新方案名称：',
+      '新增邮件配置方案',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '方案名称不能为空',
+      }
+    );
+
+    const newId = 'cfg_' + Date.now();
+    const newCfg: SmtpConfig = {
+      id: newId,
+      name,
+      host: '',
+      port: '465',
+      user: '',
+      pass: '',
+      from: '',
+      secure: 'true',
+    };
+
+    smtpConfigs.value.push(newCfg);
+    settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
+    
+    // Auto select the new configuration
+    selectSmtpConfig(newId);
+    ElMessage.success(`方案 "${name}" 已新增`);
+  } catch (error) {
+    // User canceled
+  }
+};
+
+const renameSmtpConfig = async () => {
+  const activeCfg = smtpConfigs.value.find(c => c.id === activeConfigId.value);
+  if (!activeCfg) return;
+
+  try {
+    const { value: name } = await ElMessageBox.prompt(
+      '请输入新方案名称：',
+      '重命名配置方案',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '方案名称不能为空',
+        inputValue: activeCfg.name,
+      }
+    );
+
+    activeCfg.name = name;
+    settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
+    ElMessage.success('方案重命名成功');
+  } catch (error) {
+    // User canceled
+  }
+};
+
+const deleteSmtpConfig = async () => {
+  if (smtpConfigs.value.length <= 1) {
+    return ElMessage.warning('必须保留至少一个配置方案');
+  }
+
+  const activeCfg = smtpConfigs.value.find(c => c.id === activeConfigId.value);
+  if (!activeCfg) return;
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除配置方案 "${activeCfg.name}" 吗？`,
+      '删除配置方案',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+
+    const index = smtpConfigs.value.findIndex(c => c.id === activeConfigId.value);
+    if (index !== -1) {
+      smtpConfigs.value.splice(index, 1);
+      settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
+      
+      // Select the first configuration
+      selectSmtpConfig(smtpConfigs.value[0].id);
+      ElMessage.success('方案已删除');
+    }
+  } catch {
+    // User canceled
+  }
+};
+
+watch(
+  [
+    () => settings.value.SMTP_HOST,
+    () => settings.value.SMTP_PORT,
+    () => settings.value.SMTP_USER,
+    () => settings.value.SMTP_PASS,
+    () => settings.value.SMTP_FROM,
+    () => settings.value.SMTP_SECURE,
+  ],
+  () => {
+    const activeCfg = smtpConfigs.value.find(cfg => cfg.id === activeConfigId.value);
+    if (activeCfg) {
+      activeCfg.host = settings.value.SMTP_HOST || '';
+      activeCfg.port = settings.value.SMTP_PORT || '465';
+      activeCfg.user = settings.value.SMTP_USER || '';
+      activeCfg.pass = settings.value.SMTP_PASS || '';
+      activeCfg.from = settings.value.SMTP_FROM || '';
+      activeCfg.secure = settings.value.SMTP_SECURE || 'true';
+      
+      settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
+    }
+  }
+);
 
 const tabs = [
   { id: 'general', label: '基础运营', icon: Globe },
@@ -181,6 +335,7 @@ const fetchSettings = async () => {
           s.key === 'MAINTENANCE_MODE' ||
           s.key === 'AUTO_APPROVE_MATERIALS' ||
           s.key === 'AUTO_APPROVE_SHOWCASES' ||
+          s.key === 'MICROSOFT_POOL_FAILBACK' ||
           s.key.endsWith('_ENABLED')
         ) {
           (settings.value as any)[s.key] = s.value === 'true';
@@ -202,12 +357,14 @@ const fetchSettings = async () => {
     } else {
       // Object format
       Object.entries(data).forEach(([key, value]) => {
-        if (typeof value === 'boolean') {
+        if (key === 'MICROSOFT_POOL_FAILBACK') {
+          (settings.value as any)[key] = value === true || value === 'true';
+        } else if (typeof value === 'boolean') {
           (settings.value as any)[key] = value;
         } else if (Array.isArray(value)) {
           (settings.value as any)[key] = value.join(', ');
         } else if (Object.keys(settings.value).includes(key)) {
-          if (typeof value === 'string' && value.trim().startsWith('[')) {
+          if (key !== 'SMTP_CONFIGS' && typeof value === 'string' && value.trim().startsWith('[')) {
             try {
               const parsed = JSON.parse(value);
               if (Array.isArray(parsed)) {
@@ -220,6 +377,44 @@ const fetchSettings = async () => {
         }
       });
     }
+
+    // Parse SMTP_CONFIGS
+    try {
+      smtpConfigs.value = JSON.parse(settings.value.SMTP_CONFIGS || '[]');
+    } catch {
+      smtpConfigs.value = [];
+    }
+
+    // Downward compatibility: if empty, pack current SMTP settings into a default scheme
+    if (smtpConfigs.value.length === 0) {
+      const defaultCfg: SmtpConfig = {
+        id: 'default',
+        name: '默认配置',
+        host: settings.value.SMTP_HOST || '',
+        port: settings.value.SMTP_PORT || '465',
+        user: settings.value.SMTP_USER || '',
+        pass: settings.value.SMTP_PASS || '',
+        from: settings.value.SMTP_FROM || '',
+        secure: settings.value.SMTP_SECURE || 'true',
+      };
+      smtpConfigs.value = [defaultCfg];
+      settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
+      settings.value.SMTP_ACTIVE_CONFIG_ID = 'default';
+    }
+
+    // Set active config
+    const activeId = settings.value.SMTP_ACTIVE_CONFIG_ID || 'default';
+    const activeCfg = smtpConfigs.value.find(c => c.id === activeId) || smtpConfigs.value[0];
+    activeConfigId.value = activeCfg.id;
+    settings.value.SMTP_ACTIVE_CONFIG_ID = activeCfg.id;
+    
+    // Copy active configuration to form fields to display
+    settings.value.SMTP_HOST = activeCfg.host;
+    settings.value.SMTP_PORT = activeCfg.port;
+    settings.value.SMTP_USER = activeCfg.user;
+    settings.value.SMTP_PASS = activeCfg.pass;
+    settings.value.SMTP_FROM = activeCfg.from;
+    settings.value.SMTP_SECURE = activeCfg.secure;
 
     originalSettings.value = JSON.parse(JSON.stringify(settings.value));
     hasUnsavedChanges.value = false;
@@ -298,12 +493,37 @@ const resetToDefaults = async () => {
       },
     );
     settings.value = { ...defaultSettings };
+    smtpConfigs.value = [
+      {
+        id: 'default',
+        name: '默认配置',
+        host: '',
+        port: '465',
+        user: '',
+        pass: '',
+        from: '',
+        secure: 'true',
+      }
+    ];
+    activeConfigId.value = 'default';
     ElMessage.info('已恢复默认值，请点击保存以生效');
   } catch {}
 };
 
 const testSmtp = async () => {
   try {
+    const { value: testRecipient } = await ElMessageBox.prompt(
+      '请输入接收测试邮件的邮箱地址（建议使用本方案的发信邮箱或已验证收件人）：',
+      '测试 SMTP 连接',
+      {
+        confirmButtonText: '开始测试',
+        cancelButtonText: '取消',
+        inputPattern: /[\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?/,
+        inputErrorMessage: '邮箱格式不正确',
+        inputValue: settings.value.SMTP_FROM || settings.value.SMTP_USER || '',
+      }
+    );
+
     isTestingSmtp.value = true;
     const { data } = await api.post('/api/admin/settings/test-smtp', {
       host: settings.value.SMTP_HOST,
@@ -312,9 +532,11 @@ const testSmtp = async () => {
       pass: settings.value.SMTP_PASS,
       from: settings.value.SMTP_FROM,
       secure: settings.value.SMTP_SECURE === 'true',
+      to: testRecipient,
     });
     ElMessage.success(data.message);
   } catch (error: any) {
+    if (error === 'cancel') return;
     console.error('Test SMTP error:', error);
     ElMessage.error(error.response?.data?.error || 'SMTP 测试失败');
   } finally {
@@ -322,7 +544,92 @@ const testSmtp = async () => {
   }
 };
 
-onMounted(fetchSettings);
+const handleCleanupStorage = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '此操作将扫描服务器的本地上传目录，并永久物理删除所有未被数据库记录引用的孤儿文件（如已删除帖子的插图、未保存成功的草稿附件等）。此操作不可逆。确定继续？',
+      '确认清理存储空间',
+      {
+        confirmButtonText: '立即清理',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      },
+    );
+
+    isCleaning.value = true;
+    const { data } = await api.post('/api/admin/settings/cleanup-storage');
+    const stats = data.stats || { scanned: 0, deleted: 0, errors: 0 };
+
+    await ElMessageBox.alert(
+      `<div class="space-y-2">
+        <p class="text-sm font-bold text-emerald-600">🎉 存储空间清理成功！</p>
+        <div class="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-3 rounded-lg border border-slate-100 dark:border-white/10 font-mono">
+          <p>🔍 扫描文件数: <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
+          <p>🗑️ 清理文件数: <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
+          <p>❌ 失败或跳过: <span class="font-bold text-rose-500">${stats.errors}</span></p>
+        </div>
+        <p class="text-[10px] text-slate-400">本地磁盘空间已成功释放。</p>
+      </div>`,
+      '清理结果',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        type: 'success',
+      },
+    );
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('Cleanup storage error:', error);
+      ElMessage.error(error.response?.data?.error || '清理存储空间失败');
+    }
+  } finally {
+    isCleaning.value = false;
+  }
+};
+
+const microsoftAccounts = ref<any[]>([]);
+const isLoadingAccounts = ref(false);
+
+const fetchMicrosoftAccounts = async () => {
+  try {
+    isLoadingAccounts.value = true;
+    const { data } = await api.get('/api/email/accounts');
+    microsoftAccounts.value = data;
+  } catch (error) {
+    console.error('Failed to fetch Microsoft email accounts:', error);
+  } finally {
+    isLoadingAccounts.value = false;
+  }
+};
+
+const microsoftPoolStats = computed(() => {
+  const accounts = microsoftAccounts.value || [];
+  const total = accounts.length;
+  const active = accounts.filter((a) => a.status === 'ACTIVE').length;
+  const expired = accounts.filter((a) => a.status === 'EXPIRED').length;
+  const error = accounts.filter((a) => a.status === 'ERROR').length;
+
+  const totalSentToday = accounts.reduce((acc, curr) => acc + (curr.sentCountToday || 0), 0);
+  const totalDailyLimit = accounts.reduce((acc, curr) => acc + (curr.dailyLimit || 50), 0);
+
+  const activeWithProxy = accounts.filter((a) => a.status === 'ACTIVE' && a.proxy).length;
+
+  return {
+    total,
+    active,
+    expired,
+    error,
+    totalSentToday,
+    totalDailyLimit,
+    activeWithProxy,
+  };
+});
+
+onMounted(async () => {
+  await fetchSettings();
+  await fetchMicrosoftAccounts();
+});
 
 window.addEventListener('beforeunload', (e) => {
   if (hasUnsavedChanges.value) {
@@ -359,7 +666,10 @@ window.addEventListener('beforeunload', (e) => {
             <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
               全局系统设置
             </h1>
-            <p class="text-[10px] font-medium mt-0.5 hidden sm:block" style="color: var(--text-muted)">
+            <p
+              class="text-[10px] font-medium mt-0.5 hidden sm:block"
+              style="color: var(--text-muted)"
+            >
               配置平台核心参数、自动化邮件及安全开关
             </p>
           </div>
@@ -372,7 +682,9 @@ window.addEventListener('beforeunload', (e) => {
             title="有未保存的更改"
           >
             <AlertTriangle class="w-3 h-3 text-amber-500" />
-            <span class="text-[10px] font-bold whitespace-nowrap hidden md:inline">有未保存的更改</span>
+            <span class="text-[10px] font-bold whitespace-nowrap hidden md:inline"
+              >有未保存的更改</span
+            >
           </div>
           <button
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
@@ -405,7 +717,9 @@ window.addEventListener('beforeunload', (e) => {
         <div class="px-3 mb-4 hidden lg:block">
           <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置分类</h2>
         </div>
-        <nav class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden">
+        <nav
+          class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden"
+        >
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -548,11 +862,18 @@ window.addEventListener('beforeunload', (e) => {
                         class="w-full h-full object-contain p-1"
                       />
                       <Image v-else class="w-6 h-6 text-slate-300" />
-                      
-                      <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+
+                      <label
+                        class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
+                      >
                         <Upload v-if="!isUploadingLogo" class="w-5 h-5 text-white" />
                         <RefreshCw v-else class="w-5 h-5 text-white animate-spin" />
-                        <input type="file" accept="image/*" class="hidden" @change="handleLogoUpload" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          class="hidden"
+                          @change="handleLogoUpload"
+                        />
                       </label>
                     </div>
                     <div class="flex-1 space-y-2">
@@ -585,15 +906,24 @@ window.addEventListener('beforeunload', (e) => {
                     >
                       <img
                         v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
-                        :src="getAssetUrl(settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL)"
+                        :src="
+                          getAssetUrl(settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL)
+                        "
                         class="w-8 h-8 object-contain"
                       />
                       <Sparkles v-else class="w-6 h-6 text-slate-300" />
-                      
-                      <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+
+                      <label
+                        class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
+                      >
                         <Upload v-if="!isUploadingFavicon" class="w-5 h-5 text-white" />
                         <RefreshCw v-else class="w-5 h-5 text-white animate-spin" />
-                        <input type="file" accept="image/*" class="hidden" @change="handleFaviconUpload" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          class="hidden"
+                          @change="handleFaviconUpload"
+                        />
                       </label>
                     </div>
                     <div class="flex-1 space-y-2">
@@ -850,6 +1180,56 @@ window.addEventListener('beforeunload', (e) => {
                 </div>
               </div>
             </section>
+
+            <section
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            >
+              <div class="flex items-center gap-3 mb-8">
+                <Trash2 class="w-5 h-5 text-rose-500" />
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">存储空间清理</h2>
+              </div>
+
+              <div class="space-y-6">
+                <div
+                  class="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 text-amber-600 dark:text-amber-400 space-y-2"
+                >
+                  <div class="flex items-start gap-2.5">
+                    <AlertTriangle class="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
+                    <div>
+                      <p class="text-xs font-bold">重要提示与清理范围</p>
+                      <p class="text-[10px] mt-1 leading-relaxed opacity-90">
+                        该操作将扫描服务器上的本地上传目录（如
+                        branding、discussions、feedback、messages、users
+                        等文件夹），比对数据库中的所有关联字段。任何在数据库中已无记录对应的残留本地物理文件（孤儿文件）都将被永久物理删除，以便释放磁盘存储空间。该操作不可逆，请谨慎执行。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent"
+                >
+                  <div>
+                    <span class="text-xs font-bold" style="color: var(--text-primary)"
+                      >一键清理孤儿文件</span
+                    >
+                    <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
+                      安全清理无用的冗余文件资源，自动保留有效的品牌、课程与讨论资源
+                    </p>
+                  </div>
+                  <button
+                    :disabled="isCleaning"
+                    class="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-600/50 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer"
+                    @click="handleCleanupStorage"
+                  >
+                    <Trash2 v-if="!isCleaning" class="w-3.5 h-3.5" />
+                    <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
+                    <span>{{ isCleaning ? '正在清理中...' : '立即清理' }}</span>
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
 
           <!-- SMTP Settings -->
@@ -857,8 +1237,252 @@ window.addEventListener('beforeunload', (e) => {
             v-if="activeTab === 'smtp'"
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
+            <!-- Mode selection -->
             <section
               class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            >
+              <div class="flex items-center gap-3 mb-6">
+                <Settings class="w-5 h-5 text-indigo-500" />
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  系统发信模式选择
+                </h2>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Option 1: SMTP -->
+                <div
+                  class="p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between"
+                  :style="
+                    settings.SYSTEM_EMAIL_PROVIDER === 'SMTP'
+                      ? { borderColor: 'var(--accent)', backgroundColor: 'rgba(99,102,241,0.04)' }
+                      : { borderColor: 'var(--border-base)', backgroundColor: 'transparent' }
+                  "
+                  @click="settings.SYSTEM_EMAIL_PROVIDER = 'SMTP'"
+                >
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600"
+                      >
+                        <Mail class="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 class="text-sm font-bold" style="color: var(--text-primary)">
+                          标准 SMTP 发信
+                        </h3>
+                        <p class="text-[10px]" style="color: var(--text-muted)">
+                          通过独立 SMTP 服务器进行发信，支持 SSL/TLS 握手
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-4 flex items-center justify-between">
+                    <span
+                      class="text-[10px] text-indigo-500 font-bold"
+                      v-if="settings.SYSTEM_EMAIL_PROVIDER === 'SMTP'"
+                      >● 已启用此发信模式</span
+                    >
+                    <span class="text-[10px]" style="color: var(--text-muted)" v-else
+                      >点击切换为标准 SMTP</span
+                    >
+                  </div>
+                </div>
+
+                <!-- Option 2: Microsoft Account Pool -->
+                <div
+                  class="p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between"
+                  :style="
+                    settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
+                      ? { borderColor: 'var(--accent)', backgroundColor: 'rgba(99,102,241,0.04)' }
+                      : { borderColor: 'var(--border-base)', backgroundColor: 'transparent' }
+                  "
+                  @click="settings.SYSTEM_EMAIL_PROVIDER = 'MICROSOFT_POOL'"
+                >
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600"
+                      >
+                        <Sparkles class="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 class="text-sm font-bold" style="color: var(--text-primary)">
+                          微软 Graph 账号池 (防封版)
+                        </h3>
+                        <p class="text-[10px]" style="color: var(--text-muted)">
+                          支持 Outlook/Hotmail 轮询发信，抗封锁且支持代理路由
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-4 flex items-center justify-between">
+                    <span
+                      class="text-[10px] text-indigo-500 font-bold"
+                      v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
+                      >● 已启用此发信模式</span
+                    >
+                    <span class="text-[10px]" style="color: var(--text-muted)" v-else
+                      >点击切换为微软账号池</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Microsoft Account Pool Settings -->
+            <section
+              v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300 space-y-6 animate-in"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <Sparkles class="w-5 h-5 text-indigo-500" />
+                  <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                    微软邮箱账号池统计与配置
+                  </h2>
+                </div>
+                <router-link
+                  to="/tools/email"
+                  class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors"
+                >
+                  去账号池管理中心
+                </router-link>
+              </div>
+
+              <!-- Pool Stats Grid -->
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div
+                  class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
+                >
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
+                    >池内总账号</span
+                  >
+                  <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
+                    >{{ microsoftPoolStats.total }} 个</span
+                  >
+                </div>
+                <div
+                  class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col justify-between"
+                >
+                  <span
+                    class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
+                    >健康运行中</span
+                  >
+                  <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
+                    >{{ microsoftPoolStats.active }} 个</span
+                  >
+                </div>
+                <div
+                  class="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex flex-col justify-between"
+                >
+                  <span
+                    class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400"
+                    >今日发送占比</span
+                  >
+                  <span class="text-xl font-bold mt-2 text-amber-600 dark:text-amber-400">
+                    {{ microsoftPoolStats.totalSentToday }} /
+                    {{ microsoftPoolStats.totalDailyLimit }} 封
+                  </span>
+                </div>
+                <div
+                  class="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 flex flex-col justify-between"
+                >
+                  <span
+                    class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold"
+                    >代理服务器保护</span
+                  >
+                  <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
+                    >{{ microsoftPoolStats.activeWithProxy }} 个</span
+                  >
+                </div>
+              </div>
+
+              <!-- Anti-Ban Configurations -->
+              <div class="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <Shield class="w-4 h-4 text-indigo-600" />
+                    <div>
+                      <span class="text-xs font-bold" style="color: var(--text-primary)"
+                        >自动降级与灾备发送 (Failback)</span
+                      >
+                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
+                        当账号池为空、所有账号均达到每日限量，或发信异常时，系统自动切换为传统的
+                        SMTP 通道发送以防漏信
+                      </p>
+                    </div>
+                  </div>
+                  <el-switch v-model="settings.MICROSOFT_POOL_FAILBACK" active-color="#6366f1" />
+                </div>
+              </div>
+
+              <!-- Active Accounts List -->
+              <div class="space-y-3">
+                <h3 class="text-xs font-bold" style="color: var(--text-secondary)">
+                  发信账户池负载列表
+                </h3>
+                <div
+                  v-if="microsoftAccounts.length === 0"
+                  class="text-center py-6 text-xs text-slate-400 border border-dashed rounded-2xl"
+                >
+                  暂无微软邮箱账号，请点击右上角去“账号池管理中心”导入账号
+                </div>
+                <div
+                  v-else
+                  class="max-h-60 overflow-y-auto border border-slate-100 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800"
+                >
+                  <div
+                    v-for="account in microsoftAccounts"
+                    :key="account.id"
+                    class="p-3.5 flex items-center justify-between text-xs"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <span class="font-medium" style="color: var(--text-primary)">{{
+                        account.email
+                      }}</span>
+                      <span
+                        class="px-2 py-0.5 rounded text-[10px] font-bold"
+                        :class="{
+                          'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
+                            account.status === 'ACTIVE',
+                          'bg-amber-500/10 text-amber-600 dark:text-amber-400':
+                            account.status === 'EXPIRED',
+                          'bg-rose-500/10 text-rose-600 dark:text-rose-400':
+                            account.status === 'ERROR',
+                        }"
+                      >
+                        {{
+                          account.status === 'ACTIVE'
+                            ? '正常'
+                            : account.status === 'EXPIRED'
+                              ? '令牌过期'
+                              : '异常'
+                        }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-4 text-slate-400 text-[10px]">
+                      <span v-if="account.proxy"
+                        >🔒 代理: {{ account.proxy.split('@').pop() }}</span
+                      >
+                      <span
+                        >今日发信:
+                        <strong style="color: var(--text-secondary)">{{
+                          account.sentCountToday
+                        }}</strong>
+                        / {{ account.dailyLimit }} 封</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- SMTP Settings -->
+            <section
+              v-if="settings.SYSTEM_EMAIL_PROVIDER === 'SMTP' || settings.MICROSOFT_POOL_FAILBACK"
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300 animate-in"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center justify-between mb-8">
@@ -866,6 +1490,11 @@ window.addEventListener('beforeunload', (e) => {
                   <Mail class="w-5 h-5 text-accent" />
                   <h2 class="text-lg font-bold" style="color: var(--text-primary)">
                     SMTP 邮件服务配置
+                    <span
+                      v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
+                      class="text-xs font-normal text-amber-500"
+                      >(作为微软池备用发信通道)</span
+                    >
                   </h2>
                 </div>
                 <button
@@ -875,6 +1504,51 @@ window.addEventListener('beforeunload', (e) => {
                 >
                   {{ isTestingSmtp ? '正在尝试握手...' : '测试连接' }}
                 </button>
+              </div>
+
+              <!-- 配置方案管理工具条 -->
+              <div class="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-bold whitespace-nowrap" style="color: var(--text-secondary)">选择配置方案：</span>
+                  <el-select
+                    v-model="activeConfigId"
+                    placeholder="选择配置方案"
+                    size="small"
+                    class="w-48"
+                    @change="selectSmtpConfig"
+                  >
+                    <el-option
+                      v-for="cfg in smtpConfigs"
+                      :key="cfg.id"
+                      :label="cfg.name"
+                      :value="cfg.id"
+                    />
+                  </el-select>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="text-[11px] font-bold text-accent px-3 py-1.5 rounded-lg border border-accent/20 hover:bg-accent/5 transition-all"
+                    @click="addNewSmtpConfig"
+                  >
+                    ✨ 新增方案
+                  </button>
+                  <button
+                    type="button"
+                    class="text-[11px] font-bold text-amber-500 px-3 py-1.5 rounded-lg border border-amber-500/20 hover:bg-amber-500/5 transition-all"
+                    @click="renameSmtpConfig"
+                  >
+                    ✏️ 重命名
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="smtpConfigs.length <= 1"
+                    class="text-[11px] font-bold text-rose-500 px-3 py-1.5 rounded-lg border border-rose-500/20 hover:bg-rose-500/5 transition-all disabled:opacity-40 disabled:hover:bg-transparent"
+                    @click="deleteSmtpConfig"
+                  >
+                    🗑️ 删除当前方案
+                  </button>
+                </div>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1013,39 +1687,79 @@ window.addEventListener('beforeunload', (e) => {
             >
               <div class="flex items-center gap-3 mb-8">
                 <Chrome class="w-5 h-5 text-accent" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">Google OAuth 配置</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  Google OAuth 配置
+                </h2>
               </div>
 
               <div class="space-y-6">
-                <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all">
+                <div
+                  class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all"
+                >
                   <div class="flex items-center gap-3">
                     <Chrome class="w-4 h-4 text-accent" />
                     <div>
-                      <span class="text-xs font-bold" style="color: var(--text-primary)">开启 Google 登录</span>
-                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">允许用户使用 Google 账号直接登录平台</p>
+                      <span class="text-xs font-bold" style="color: var(--text-primary)"
+                        >开启 Google 登录</span
+                      >
+                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
+                        允许用户使用 Google 账号直接登录平台
+                      </p>
                     </div>
                   </div>
                   <el-switch v-model="settings.OAUTH_GOOGLE_ENABLED" active-color="#4f46e5" />
                 </div>
 
-                <div v-if="settings.OAUTH_GOOGLE_ENABLED" class="grid grid-cols-1 gap-6 animate-in fade-in duration-300">
+                <div
+                  v-if="settings.OAUTH_GOOGLE_ENABLED"
+                  class="grid grid-cols-1 gap-6 animate-in fade-in duration-300"
+                >
                   <div class="space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client ID</label>
-                    <input v-model="settings.OAUTH_GOOGLE_CLIENT_ID" type="text" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                      >Client ID</label
+                    >
+                    <input
+                      v-model="settings.OAUTH_GOOGLE_CLIENT_ID"
+                      type="text"
+                      class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                      style="
+                        background-color: var(--bg-app);
+                        border-color: var(--border-base);
+                        color: var(--text-primary);
+                      "
+                    />
                   </div>
                   <div class="space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client Secret</label>
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                      >Client Secret</label
+                    >
                     <div class="relative">
-                      <input v-model="settings.OAUTH_GOOGLE_CLIENT_SECRET" :type="showPassword ? 'text' : 'password'" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
-                      <button class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" @click="showPassword = !showPassword">
+                      <input
+                        v-model="settings.OAUTH_GOOGLE_CLIENT_SECRET"
+                        :type="showPassword ? 'text' : 'password'"
+                        class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      />
+                      <button
+                        class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        @click="showPassword = !showPassword"
+                      >
                         <Eye v-if="!showPassword" class="w-4 h-4" />
                         <EyeOff v-else class="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                   <div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Google 回调地址 (Authorized Redirect URI)</p>
-                    <code class="text-xs break-all text-accent font-mono">{{ api.defaults.baseURL }}/api/auth/google/callback</code>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Google 回调地址 (Authorized Redirect URI)
+                    </p>
+                    <code class="text-xs break-all text-accent font-mono"
+                      >{{ api.defaults.baseURL }}/api/auth/google/callback</code
+                    >
                   </div>
                 </div>
               </div>
@@ -1057,39 +1771,79 @@ window.addEventListener('beforeunload', (e) => {
             >
               <div class="flex items-center gap-3 mb-8">
                 <Github class="w-5 h-5 text-slate-800 dark:text-white" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">GitHub OAuth 配置</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  GitHub OAuth 配置
+                </h2>
               </div>
 
               <div class="space-y-6">
-                <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all">
+                <div
+                  class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all"
+                >
                   <div class="flex items-center gap-3">
                     <Github class="w-4 h-4 text-slate-800 dark:text-white" />
                     <div>
-                      <span class="text-xs font-bold" style="color: var(--text-primary)">开启 GitHub 登录</span>
-                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">允许用户使用 GitHub 账号直接登录平台</p>
+                      <span class="text-xs font-bold" style="color: var(--text-primary)"
+                        >开启 GitHub 登录</span
+                      >
+                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
+                        允许用户使用 GitHub 账号直接登录平台
+                      </p>
                     </div>
                   </div>
                   <el-switch v-model="settings.OAUTH_GITHUB_ENABLED" active-color="#000" />
                 </div>
 
-                <div v-if="settings.OAUTH_GITHUB_ENABLED" class="grid grid-cols-1 gap-6 animate-in fade-in duration-300">
+                <div
+                  v-if="settings.OAUTH_GITHUB_ENABLED"
+                  class="grid grid-cols-1 gap-6 animate-in fade-in duration-300"
+                >
                   <div class="space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client ID</label>
-                    <input v-model="settings.OAUTH_GITHUB_CLIENT_ID" type="text" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                      >Client ID</label
+                    >
+                    <input
+                      v-model="settings.OAUTH_GITHUB_CLIENT_ID"
+                      type="text"
+                      class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                      style="
+                        background-color: var(--bg-app);
+                        border-color: var(--border-base);
+                        color: var(--text-primary);
+                      "
+                    />
                   </div>
                   <div class="space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">Client Secret</label>
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                      >Client Secret</label
+                    >
                     <div class="relative">
-                      <input v-model="settings.OAUTH_GITHUB_CLIENT_SECRET" :type="showPassword ? 'text' : 'password'" class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all" style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);" />
-                      <button class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" @click="showPassword = !showPassword">
+                      <input
+                        v-model="settings.OAUTH_GITHUB_CLIENT_SECRET"
+                        :type="showPassword ? 'text' : 'password'"
+                        class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      />
+                      <button
+                        class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        @click="showPassword = !showPassword"
+                      >
                         <Eye v-if="!showPassword" class="w-4 h-4" />
                         <EyeOff v-else class="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                   <div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 space-y-2">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">GitHub 回调地址 (Authorization callback URL)</p>
-                    <code class="text-xs break-all text-accent font-mono">{{ api.defaults.baseURL }}/api/auth/github/callback</code>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      GitHub 回调地址 (Authorization callback URL)
+                    </p>
+                    <code class="text-xs break-all text-accent font-mono"
+                      >{{ api.defaults.baseURL }}/api/auth/github/callback</code
+                    >
                   </div>
                 </div>
               </div>
@@ -1108,7 +1862,9 @@ window.addEventListener('beforeunload', (e) => {
               <div class="flex items-center justify-between mb-8">
                 <div class="flex items-center gap-3">
                   <Layout class="w-5 h-5 text-indigo-600" />
-                  <h2 class="text-lg font-bold" style="color: var(--text-primary)">验证邮件模版</h2>
+                  <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                    邮箱验证邮件模板
+                  </h2>
                 </div>
                 <button
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors"
@@ -1165,6 +1921,7 @@ window.addEventListener('beforeunload', (e) => {
                 <Eye class="w-5 h-5 text-accent" />
                 <h2 class="text-lg font-bold" style="color: var(--text-primary)">邮件预览</h2>
               </div>
+
               <div
                 class="rounded-2xl border overflow-hidden"
                 style="border-color: var(--border-base)"

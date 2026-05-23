@@ -8,7 +8,9 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dir = './uploads/avatars';
 
-    if (file.fieldname === 'attachment' || file.fieldname === 'file') {
+    if (file.fieldname === 'cover') {
+      dir = './uploads/covers';
+    } else if (file.fieldname === 'attachment' || file.fieldname === 'file') {
       dir = './uploads/feedback';
     } else if (file.fieldname === 'message_file') {
       dir = './uploads/messages';
@@ -73,9 +75,12 @@ const createUploadMiddleware = (config: {
         config.fieldname === 'logo' ||
         config.fieldname === 'favicon' ||
         config.fieldname === 'avatar' ||
+        config.fieldname === 'cover' ||
         config.fieldname === 'manual_image' ||
         (config.fields &&
-          config.fields.some((f) => ['logo', 'favicon', 'avatar', 'manual_image'].includes(f.name)));
+          config.fields.some((f) =>
+            ['logo', 'favicon', 'avatar', 'cover', 'manual_image'].includes(f.name),
+          ));
 
       if (isSystemImage) {
         maxFileSize = 5 * 1024 * 1024;
@@ -131,6 +136,7 @@ const createUploadMiddleware = (config: {
                 file.fieldname === 'logo' ||
                 file.fieldname === 'favicon' ||
                 file.fieldname === 'avatar' ||
+                file.fieldname === 'cover' ||
                 file.fieldname === 'manual_image'
               ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
@@ -177,7 +183,8 @@ const createUploadMiddleware = (config: {
                 const displayLimit =
                   file.fieldname === 'logo' ||
                   file.fieldname === 'favicon' ||
-                  file.fieldname === 'avatar'
+                  file.fieldname === 'avatar' ||
+                  file.fieldname === 'cover'
                     ? '5'
                     : settings.MAX_FILE_SIZE;
                 return res.status(400).json({
@@ -262,6 +269,7 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
 
         if (
           file.fieldname === 'avatar' ||
+          file.fieldname === 'cover' ||
           file.fieldname === 'thumbnail' ||
           file.fieldname === 'images' ||
           file.fieldname === 'manual_image'

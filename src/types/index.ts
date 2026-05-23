@@ -86,6 +86,7 @@ export interface Team {
   name: string;
   description?: string | null;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
   type: 'PERSONAL' | 'TEAM';
   visibility: 'PUBLIC' | 'PRIVATE';
   category?: string | null;

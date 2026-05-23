@@ -3,20 +3,21 @@ import prisma from './prisma';
 export const cleanupExpiredData = async () => {
   const now = new Date();
   try {
-    const [deletedCodes, deletedTokens, deletedTeamInvites, deletedProjectInvites] = await prisma.$transaction([
-      prisma.verificationCode.deleteMany({
-        where: { expiresAt: { lt: now } },
-      }),
-      prisma.refreshToken.deleteMany({
-        where: { expiresAt: { lt: now } },
-      }),
-      prisma.teamInvitation.deleteMany({
-        where: { expiresAt: { lt: now } },
-      }),
-      prisma.projectInvitation.deleteMany({
-        where: { expiresAt: { lt: now } },
-      }),
-    ]);
+    const [deletedCodes, deletedTokens, deletedTeamInvites, deletedProjectInvites] =
+      await prisma.$transaction([
+        prisma.verificationCode.deleteMany({
+          where: { expiresAt: { lt: now } },
+        }),
+        prisma.refreshToken.deleteMany({
+          where: { expiresAt: { lt: now } },
+        }),
+        prisma.teamInvitation.deleteMany({
+          where: { expiresAt: { lt: now } },
+        }),
+        prisma.projectInvitation.deleteMany({
+          where: { expiresAt: { lt: now } },
+        }),
+      ]);
 
     if (
       deletedCodes.count > 0 ||
@@ -29,7 +30,7 @@ export const cleanupExpiredData = async () => {
           `Deleted ${deletedCodes.count} expired verification codes, ` +
           `Deleted ${deletedTokens.count} expired refresh tokens, ` +
           `Deleted ${deletedTeamInvites.count} expired team invitations, ` +
-          `Deleted ${deletedProjectInvites.count} expired project invitations.`
+          `Deleted ${deletedProjectInvites.count} expired project invitations.`,
       );
     }
   } catch (error) {

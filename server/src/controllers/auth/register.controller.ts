@@ -141,7 +141,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-export const sendPublicVerificationCode = async (req: Request, res: Response, next: NextFunction) => {
+export const sendPublicVerificationCode = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const { email } = req.body;
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });

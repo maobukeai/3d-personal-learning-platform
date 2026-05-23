@@ -81,6 +81,7 @@ model User {
 
   googleId   String? @unique
   githubId   String? @unique
+  microsoftEmailAccounts MicrosoftEmailAccount[]
 }
 
 model Conversation {
@@ -138,6 +139,7 @@ model Team {
   name         String
   description  String?
   avatarUrl    String?
+  coverUrl     String?
   type         String            @default("TEAM") // 'PERSONAL', 'TEAM'
   visibility   String            @default("PRIVATE") // 'PUBLIC', 'PRIVATE'
   category     String?
@@ -261,7 +263,7 @@ model UserSetting {
 model SystemSetting {
   id        String   @id @default(uuid())
   key       String   @unique
-  value     String
+  value     String   @db.Text
   updatedAt DateTime @updatedAt
 }
 
@@ -869,8 +871,8 @@ model AuditLog {
   action      String // e.g., 'UPDATE_SETTINGS', 'DELETE_USER', 'APPROVE_ASSET'
   module      String // e.g., 'SETTINGS', 'USER', 'ASSET'
   description String? // Human readable description
-  oldValue    String? // JSON string of before state
-  newValue    String? // JSON string of after state
+  oldValue    String?  @db.Text // JSON string of before state
+  newValue    String?  @db.Text // JSON string of after state
   ipAddress   String?
   userAgent   String?
   userId      String?
@@ -928,12 +930,12 @@ model MirrorResource {
   categoryId    String?
   category      MirrorCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   title         String
-  description   String?
+  description   String?                 @db.Text
   thumbnailUrl  String?
   contentUrl    String?
   tags          String?
-  externalData  String?
-  contentHtml   String?
+  externalData  String?                 @db.Text
+  contentHtml   String?                 @db.Text
   resourceType  String                  @default("COURSE")
   viewCount     Int                     @default(0)
   publishedAt   DateTime?
@@ -1030,11 +1032,11 @@ model ManualResource {
   categoryId    String?
   category      ManualCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   title         String
-  description   String?
+  description   String?                 @db.Text
   thumbnailUrl  String?
   contentUrl    String?
   tags          String?
-  contentHtml   String?
+  contentHtml   String?                 @db.Text
   resourceType  String                  @default("COURSE")
   viewCount     Int                     @default(0)
   createdAt     DateTime                @default(now())
@@ -1069,6 +1071,34 @@ model ManualResourceLike {
 
   @@unique([resourceId, userId])
   @@index([resourceId])
+  @@index([userId])
+}
+
+model MicrosoftEmailAccount {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email            String   @unique
+  password         String?  // Cleartext or encrypted password if provided
+  clientId         String   // Microsoft OAuth Client ID
+  refreshToken     String   @db.Text // OAuth2 Refresh Token (used to acquire access tokens)
+  accessToken      String?  @db.Text // Current active ephemeral access token
+  tokenExpiresAt   DateTime? // Expiry timestamp of the current access token
+  status           String   @default("ACTIVE") // 'ACTIVE', 'EXPIRED', 'ERROR'
+  statusMessage    String?  @db.Text
+  
+  // Anti-Ban & Safe Sending Configurations
+  proxy            String?  // Proxy URL, e.g., http://user:pass@host:port
+  userAgent        String?  @db.Text // Custom User-Agent
+  dailyLimit       Int      @default(50) // Max sends per day
+  sentCountToday   Int      @default(0) // Counter for today
+  lastResetDate    DateTime @default(now()) // Daily limit reset tracker
+  minDelay         Int      @default(5) // Min seconds delay between actions
+  maxDelay         Int      @default(15) // Max seconds delay between actions
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   @@index([userId])
 }
 

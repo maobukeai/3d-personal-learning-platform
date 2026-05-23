@@ -177,6 +177,12 @@ const router = createRouter({
               name: 'Notifications',
               component: () => import('@/views/NotificationsView.vue'),
             },
+            {
+              path: 'tools/email',
+              name: 'EmailSystem',
+              component: () => import('@/views/Tools/EmailSystemView.vue'),
+              meta: { requiresAuth: true },
+            },
 
              {
               path: 'mirror/source/:id',

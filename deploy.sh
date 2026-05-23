@@ -65,19 +65,19 @@ if [ -f .env ]; then
         
         echo "⚙️  正在为 MySQL 优化 String 字段映射，防范 P2000 (超长文本) 错误..."
         # 使用 sed -i -E 匹配各种间距，将大文本/JSON 字段在 MySQL 下映射为 @db.Text 或 @db.LongText
-        sed -i -E 's/([[:space:]]+value[[:space:]]+String)/\1 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+content[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+description[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+contentHtml[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+externalData[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+tags[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+sceneConfig[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+hotspots[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+adminReply[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+comment[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+summary[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+oldValue[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
-        sed -i -E 's/([[:space:]]+newValue[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+value[[:space:]]+String)/\1 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+content[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+description[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+contentHtml[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+externalData[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+tags[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+sceneConfig[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+hotspots[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+adminReply[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+comment[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+summary[[:space:]]+String)(\?)?/\1\2 @db.Text/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+oldValue[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
+        sed -i -E '/@db/! s/([[:space:]]+newValue[[:space:]]+String)(\?)?/\1\2 @db.LongText/g' prisma/schema.prisma
     elif grep -q "postgresql://" .env; then
         echo "⚙️  检测到数据库配置使用 PostgreSQL，自动调整 schema.prisma 的 provider 为 postgresql..."
         sed -i 's/provider = "sqlite"/provider = "postgresql"/g' prisma/schema.prisma

@@ -14,10 +14,6 @@ URLS=(
   "https://cdn.ghproxy.net/https://github.com/maobukeai/3d-personal-learning-platform/archive/refs/heads/main.zip"
 )
 
-log() {
-  printf '\n==> %b\n' "$1"
-}
-
 bootstrap_from_tmp() {
   if [ "${FAST_UPDATE_BOOTSTRAPPED:-0}" = "1" ]; then
     return
@@ -38,29 +34,31 @@ cleanup() {
 }
 
 download_latest_code() {
-  log "\u4e0b\u8f7d\u6700\u65b0\u4ee3\u7801"
+  echo "================================================"
+  echo "📥 [1/3] 开始尝试通过多个备用加速节点下载最新代码..."
   rm -f "$TMP_ZIP"
 
   for url in "${URLS[@]}"; do
-    printf '%b%s\n' "\u5c1d\u8bd5\u4e0b\u8f7d\u8282\u70b9: " "$url"
+    echo "-> 尝试连接节点..."
     if wget -T 20 -t 1 -q --show-progress "$url" -O "$TMP_ZIP"; then
-      log "\u4ee3\u7801\u4e0b\u8f7d\u5b8c\u6210"
+      echo "✅ 下载成功！"
       return 0
     fi
+    echo "❌ 该节点超时或失效，正在切换下一个节点..."
   done
 
-  printf '%b\n' "\u6240\u6709\u4e0b\u8f7d\u8282\u70b9\u90fd\u5931\u8d25\u4e86\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002"
+  echo "🚨 抱歉，所有节点当前都无法连接，请稍后再试。"
   return 1
 }
 
 replace_code() {
-  log "\u8986\u76d6\u5e94\u7528\u4ee3\u7801"
+  echo "📦 [2/3] 正在解压并安全覆盖旧代码..."
   rm -rf "$TMP_DIR"
   mkdir -p "$TMP_DIR"
   unzip -q "$TMP_ZIP" -d "$TMP_DIR"
 
   if [ ! -d "$SRC_DIR" ]; then
-    printf '%b%s\n' "\u538b\u7f29\u5305\u7ed3\u6784\u5f02\u5e38\uff1a\u627e\u4e0d\u5230 " "$SRC_DIR"
+    echo "🚨 压缩包结构异常：找不到 $SRC_DIR"
     return 1
   fi
 
@@ -75,7 +73,7 @@ replace_code() {
       --exclude 'server/uploads/' \
       "$SRC_DIR/" "$APP_DIR/"
   else
-    printf '%b\n' "\u672a\u627e\u5230 rsync\uff0c\u6539\u7528 cp -a \u8986\u76d6\u6587\u4ef6\uff1b\u65e7\u6587\u4ef6\u4e0d\u4f1a\u81ea\u52a8\u5220\u9664\u3002"
+    echo "⚠️ 未找到 rsync，改用 cp -a 覆盖文件；旧文件不会自动删除。"
     shopt -s dotglob nullglob
     cp -a "$SRC_DIR"/* "$APP_DIR"/
     shopt -u dotglob nullglob
@@ -90,7 +88,8 @@ main() {
   download_latest_code
   replace_code
 
-  log "\u5f00\u59cb\u4e00\u952e\u4f4e\u5185\u5b58\u70ed\u90e8\u7f72"
+  echo "🚀 [3/3] 代码覆盖完成！开始拉起低内存热部署流程..."
+  echo "================================================"
   chmod +x "$APP_DIR/deploy.sh"
   "$APP_DIR/deploy.sh"
 }

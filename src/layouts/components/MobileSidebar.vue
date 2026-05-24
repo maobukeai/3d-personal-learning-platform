@@ -161,3 +161,26 @@ type="button" class="min-h-11 w-full flex items-center gap-2 px-3 py-2 text-slat
     </aside>
   </div>
 </template>
+
+<style scoped>
+.mobile-sidebar-drawer {
+  will-change: transform;
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0.28s;
+  background-color: var(--bg-sidebar, var(--bg-card));
+  border-right: 1px solid var(--border-base);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.mobile-sidebar-open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.mobile-sidebar-closed {
+  transform: translateX(-100%);
+  visibility: hidden;
+}
+</style>

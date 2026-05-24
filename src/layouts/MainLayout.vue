@@ -677,33 +677,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* Mobile Sidebar Drawer – GPU-accelerated slide */
-.mobile-sidebar-drawer {
-  will-change: transform;
-  transition:
-    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-    visibility 0.28s;
-  /* Use high-quality semi-transparent color without backdrop blur on mobile to guarantee flawless 60fps/120fps animations */
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-:global(.dark) .mobile-sidebar-drawer {
-  background-color: rgba(18, 18, 23, 0.98) !important;
-  border-right: 1px solid rgba(63, 63, 70, 0.4) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-.mobile-sidebar-open {
-  transform: translateX(0);
-  visibility: visible;
-}
-.mobile-sidebar-closed {
-  transform: translateX(-100%);
-  visibility: hidden;
-}
-
 :deep(.mobile-search-dialog) {
   margin-bottom: 0 !important;
   border-radius: 16px !important;

@@ -20,20 +20,18 @@ import {
   FolderPlus,
   TrendingUp,
   BarChart3,
-  Trash2,
   CheckSquare,
   ChevronRight,
   Eye,
   EyeOff,
   SlidersHorizontal,
   RotateCcw,
-  Maximize2,
-  Minimize2,
-  Copy,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import TaskCard from '@/components/TaskCard.vue';
+import TaskAddDialog from '@/components/TaskAddDialog.vue';
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
@@ -169,59 +167,18 @@ const newTask = ref({
   participantIds: [] as string[],
 });
 
-const isEditDrawerOpen = ref(false);
-const isPreviewDialogOpen = ref(false);
-const editForm = ref({
-  title: '',
-  description: '',
-  status: '',
-  priority: 'MEDIUM',
-  tags: [] as string[],
-  dueDate: '',
-  assigneeId: '',
-  projectId: '',
-  participantIds: [] as string[],
-});
 
 // ClickUp style detail drawer states
 const isDetailDrawerOpen = ref(false);
 const activeTask = ref<any>(null);
-const drawerForm = ref({
-  title: '',
-  description: '',
-  status: '',
-  priority: 'MEDIUM',
-  tags: [] as string[],
-  dueDate: '',
-  assigneeId: '',
-  projectId: '',
-  teamId: '',
-  participantIds: [] as string[],
-});
-const drawerSubtasks = ref<{ id: string; text: string; done: boolean }[]>([]);
-const newSubtaskText = ref('');
-const detailDrawerTagInput = ref('');
-
 // Task details view mode (drawer vs modal)
 const taskDetailViewMode = ref<'drawer' | 'modal'>(
   (localStorage.getItem('task_detail_view_mode') as 'drawer' | 'modal') || 'drawer',
 );
 
-const toggleDetailViewMode = () => {
-  taskDetailViewMode.value = taskDetailViewMode.value === 'drawer' ? 'modal' : 'drawer';
-  localStorage.setItem('task_detail_view_mode', taskDetailViewMode.value);
-};
-
-const copyToClipboard = (text: string) => {
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      ElMessage.success('任务ID已复制到剪贴板');
-    })
-    .catch(() => {
-      ElMessage.error('复制失败');
-    });
-};
+watch(taskDetailViewMode, (newVal) => {
+  localStorage.setItem('task_detail_view_mode', newVal);
+});
 
 // Grouping features
 const groupBy = ref<'status' | 'priority'>('status');
@@ -268,9 +225,6 @@ const newSubtaskTexts = ref<Record<string, string>>({});
 const toggleTaskExpand = (taskId: string) => {
   expandedTasks.value[taskId] = !expandedTasks.value[taskId];
 };
-
-const tagInput = ref('');
-const editTagInput = ref('');
 
 const teamMembers = ref<any[]>([]);
 const projects = ref<any[]>([]);
@@ -559,29 +513,13 @@ const overdueCount = computed(() => {
     .length;
 });
 
-const parseTags = (tags: string | null | undefined): string[] => {
-  if (!tags) return [];
+const parseSubtasks = (subtasksStr: string | null | undefined): any[] => {
+  if (!subtasksStr) return [];
   try {
-    return JSON.parse(tags);
-  } catch {
+    return JSON.parse(subtasksStr);
+  } catch (e) {
     return [];
   }
-};
-
-const addTag = (target: 'new' | 'edit') => {
-  const input = target === 'new' ? tagInput : editTagInput;
-  const form = target === 'new' ? newTask : editForm;
-  const tag = input.value.trim();
-  if (tag && !form.value.tags.includes(tag)) {
-    form.value.tags.push(tag);
-  }
-  if (target === 'new') tagInput.value = '';
-  else editTagInput.value = '';
-};
-
-const removeTag = (tag: string, target: 'new' | 'edit') => {
-  const form = target === 'new' ? newTask : editForm;
-  form.value.tags = form.value.tags.filter((t: string) => t !== tag);
 };
 
 const fetchTasks = async () => {
@@ -634,33 +572,19 @@ const fetchProjects = async () => {
   }
 };
 
-const handleAddTask = async () => {
-  if (!newTask.value.title) return;
+const handleAddTaskWithPayload = async (payload: any) => {
   try {
-    const payload = {
-      ...newTask.value,
-      tags: newTask.value.tags.length > 0 ? JSON.stringify(newTask.value.tags) : null,
-      assigneeId: newTask.value.assigneeId || null,
-      projectId: newTask.value.projectId || null,
-      teamId: newTask.value.teamId || null,
-      participantIds:
-        newTask.value.participantIds.length > 0 ? newTask.value.participantIds : undefined,
+    const formattedPayload = {
+      ...payload,
+      tags: payload.tags.length > 0 ? JSON.stringify(payload.tags) : null,
+      assigneeId: payload.assigneeId || null,
+      projectId: payload.projectId || null,
+      teamId: payload.teamId || null,
+      participantIds: payload.participantIds.length > 0 ? payload.participantIds : undefined,
     };
-    await api.post('/api/tasks', payload);
+    await api.post('/api/tasks', formattedPayload);
     ElMessage.success('任务已添加');
     isAddDialogOpen.value = false;
-    newTask.value = {
-      title: '',
-      description: '',
-      status: 'TODO',
-      priority: 'MEDIUM',
-      tags: [],
-      dueDate: '',
-      assigneeId: '',
-      projectId: '',
-      teamId: '',
-      participantIds: [],
-    };
     fetchTasks();
     fetchStats();
   } catch (error: any) {
@@ -822,8 +746,6 @@ const deleteTask = (task: any) => {
       await api.delete(`/api/tasks/${task.id}`);
       ElMessage.success('已删除');
       isDetailDrawerOpen.value = false;
-      isEditDrawerOpen.value = false;
-      isPreviewDialogOpen.value = false;
       fetchTasks();
       fetchStats();
     } catch (error) {
@@ -832,30 +754,8 @@ const deleteTask = (task: any) => {
   });
 };
 
-const parseSubtasks = (subtasksStr: string | null | undefined) => {
-  if (!subtasksStr) return [];
-  try {
-    return JSON.parse(subtasksStr);
-  } catch (e) {
-    return [];
-  }
-};
-
 const openDetailDrawer = (task: any) => {
   activeTask.value = task;
-  drawerForm.value = {
-    title: task.title,
-    description: task.description || '',
-    status: task.status,
-    priority: task.priority || 'MEDIUM',
-    tags: parseTags(task.tags),
-    dueDate: task.dueDate || '',
-    assigneeId: task.assigneeId || '',
-    projectId: task.projectId || '',
-    teamId: task.teamId || '',
-    participantIds: task.participants ? task.participants.map((p: any) => p.userId) : [],
-  };
-  drawerSubtasks.value = parseSubtasks(task.subtasks);
   if (task.teamId) {
     fetchTeamMembers(task.teamId);
   } else {
@@ -870,22 +770,9 @@ const closeDetailDrawer = () => {
   fetchTasks();
 };
 
-const autoSaveTask = async () => {
+const autoSaveTask = async (payload: any) => {
   if (!activeTask.value) return;
   try {
-    const payload = {
-      title: drawerForm.value.title,
-      description: drawerForm.value.description,
-      status: drawerForm.value.status,
-      priority: drawerForm.value.priority,
-      dueDate: drawerForm.value.dueDate || null,
-      assigneeId: drawerForm.value.assigneeId || null,
-      projectId: drawerForm.value.projectId || null,
-      teamId: drawerForm.value.teamId || null,
-      tags: drawerForm.value.tags.length > 0 ? JSON.stringify(drawerForm.value.tags) : null,
-      subtasks: JSON.stringify(drawerSubtasks.value),
-      participantIds: drawerForm.value.participantIds,
-    };
     await api.put(`/api/tasks/${activeTask.value.id}`, payload);
 
     // Update the local task object attributes immediately
@@ -901,6 +788,7 @@ const autoSaveTask = async () => {
       tasks.value[idx].teamId = payload.teamId;
       tasks.value[idx].tags = payload.tags;
       tasks.value[idx].subtasks = payload.subtasks;
+
       // Re-resolve team and project relationships dynamically after save
       const assignedTeam = teams.value.find((t) => t.id === payload.teamId);
       const assignedProj = projects.value.find((p) => p.id === payload.projectId);
@@ -915,49 +803,6 @@ const autoSaveTask = async () => {
   } catch (error) {
     console.error('自动保存失败', error);
   }
-};
-
-// Removed handleDrawerTeamChange
-
-const addSubtask = () => {
-  const text = newSubtaskText.value.trim();
-  if (!text) return;
-  drawerSubtasks.value.push({
-    id: Math.random().toString(36).substr(2, 9),
-    text,
-    done: false,
-  });
-  newSubtaskText.value = '';
-  autoSaveTask();
-};
-
-const toggleSubtask = (subtask: any) => {
-  subtask.done = !subtask.done;
-  autoSaveTask();
-};
-
-const removeSubtask = (index: number) => {
-  drawerSubtasks.value.splice(index, 1);
-  autoSaveTask();
-};
-
-const updateSubtaskText = (index: number, text: string) => {
-  drawerSubtasks.value[index].text = text;
-  autoSaveTask();
-};
-
-const drawerAddTag = () => {
-  const tag = detailDrawerTagInput.value.trim();
-  if (tag && !drawerForm.value.tags.includes(tag)) {
-    drawerForm.value.tags.push(tag);
-    autoSaveTask();
-  }
-  detailDrawerTagInput.value = '';
-};
-
-const drawerRemoveTag = (tag: string) => {
-  drawerForm.value.tags = drawerForm.value.tags.filter((t) => t !== tag);
-  autoSaveTask();
 };
 
 const quickStatusChange = async (task: any, newStatus: string) => {
@@ -1238,7 +1083,7 @@ onMounted(() => {
         <span
           >项目: {{ projects.find((p) => p.id === selectedProjectId)?.title || '加载中...' }}</span
         >
-        <button @click="clearProjectFilter" class="hover:text-rose-500 transition-colors ml-1">
+        <button class="hover:text-rose-500 transition-colors ml-1" @click="clearProjectFilter">
           <X class="w-2.5 h-2.5" />
         </button>
       </div>
@@ -1443,8 +1288,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :checked="visibleColumns.status"
-                @change="toggleColumnVisibility('status')"
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleColumnVisibility('status')"
               />
               <span>状态</span>
             </label>
@@ -1455,8 +1300,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :checked="visibleColumns.project"
-                @change="toggleColumnVisibility('project')"
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleColumnVisibility('project')"
               />
               <span>关联项目</span>
             </label>
@@ -1466,8 +1311,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :checked="visibleColumns.assignee"
-                @change="toggleColumnVisibility('assignee')"
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleColumnVisibility('assignee')"
               />
               <span>负责人</span>
             </label>
@@ -1477,8 +1322,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :checked="visibleColumns.dueDate"
-                @change="toggleColumnVisibility('dueDate')"
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleColumnVisibility('dueDate')"
               />
               <span>截止日期</span>
             </label>
@@ -1488,8 +1333,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :checked="visibleColumns.priority"
-                @change="toggleColumnVisibility('priority')"
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
+                @change="toggleColumnVisibility('priority')"
               />
               <span>优先级</span>
             </label>
@@ -1682,10 +1527,10 @@ onMounted(() => {
                     :class="isGroupCollapsed(proj.id, col.id) ? '-rotate-90' : ''"
                   >
                     <Plus
-                      class="w-3.5 h-3.5 text-slate-400"
                       v-if="isGroupCollapsed(proj.id, col.id)"
+                      class="w-3.5 h-3.5 text-slate-400"
                     />
-                    <Minus class="w-3.5 h-3.5 text-slate-400" v-else />
+                    <Minus v-else class="w-3.5 h-3.5 text-slate-400" />
                   </span>
 
                   <!-- Column Tag (ClickUp Style colored pill) -->
@@ -1869,7 +1714,7 @@ onMounted(() => {
                             class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                           >
                             <FolderOpen class="w-3 h-3 text-accent shrink-0" />
-                            <span class="truncate max-w-[40px] sm:max-w-[85px] text-[8px] sm:text-xs" v-if="task.project">{{
+                            <span v-if="task.project" class="truncate max-w-[40px] sm:max-w-[85px] text-[8px] sm:text-xs">{{
                               task.project.title
                             }}</span>
                             <span
@@ -2217,615 +2062,32 @@ onMounted(() => {
     </div>
 
     <!-- ClickUp-Style Double-Column Detail Drawer -->
-    <Transition :name="taskDetailViewMode === 'drawer' ? 'drawer-slide' : 'modal-fade'">
-      <div
-        v-if="isDetailDrawerOpen && activeTask"
-        class="fixed inset-0 z-50 flex transition-all duration-300"
-        :class="
-          taskDetailViewMode === 'drawer'
-            ? 'justify-end'
-            : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm'
-        "
-      >
-        <!-- Backdrop -->
-        <div
-          class="absolute inset-0 cursor-pointer"
-          :class="taskDetailViewMode === 'drawer' ? 'bg-black/40 backdrop-blur-sm' : ''"
-          @click="closeDetailDrawer"
-        ></div>
-
-        <!-- Drawer/Modal Content Container -->
-        <div
-          class="task-detail-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
-          :class="[
-            taskDetailViewMode === 'drawer'
-              ? 'w-full sm:w-[85%] md:w-[75%] lg:w-[65%] xl:w-[55%] h-full'
-              : 'w-full max-w-4xl h-[90vh] md:h-[85vh] rounded-2xl border',
-          ]"
-          :style="{
-            backgroundColor: 'var(--bg-card)',
-            borderColor: 'var(--border-base)',
-            borderLeftWidth: taskDetailViewMode === 'drawer' ? '1px' : '0px',
-          }"
-        >
-          <!-- Header -->
-          <div
-            class="px-6 py-4 border-b flex items-center justify-between shrink-0"
-            style="border-color: var(--border-base)"
-          >
-            <div class="flex items-center gap-2 text-slate-400">
-              <CheckCircle2 class="w-4 h-4 text-accent" />
-              <span class="text-xs font-bold text-slate-500 dark:text-slate-400">任务详情</span>
-              <div
-                class="flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded text-[10px] font-mono font-semibold cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-slate-300"
-                title="点击复制任务ID"
-                @click="copyToClipboard(activeTask.id)"
-              >
-                <span>#{{ activeTask.id.substring(0, 8) }}</span>
-                <Copy class="w-3 h-3 text-slate-400" />
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <!-- View Mode Toggle (Drawer vs Modal) -->
-              <button
-                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
-                :title="taskDetailViewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'"
-                @click="toggleDetailViewMode"
-              >
-                <component
-                  :is="taskDetailViewMode === 'drawer' ? Maximize2 : Minimize2"
-                  class="w-4.5 h-4.5"
-                />
-              </button>
-
-              <button
-                class="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer"
-                @click="deleteTask(activeTask)"
-              >
-                <Trash2 class="w-3.5 h-3.5" /> 删除任务
-              </button>
-              <button
-                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer"
-                style="color: var(--text-secondary)"
-                @click="closeDetailDrawer"
-              >
-                <X class="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Content Body -->
-          <div
-            class="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col lg:flex-row gap-6 md:gap-8 scrollbar-hide"
-          >
-            <!-- Left Column: Title, Description, Subtasks Checklist -->
-            <div class="flex-1 space-y-6 min-w-0">
-              <!-- Title Input -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >任务标题</label
-                >
-                <input
-                  v-model="drawerForm.title"
-                  type="text"
-                  class="w-full text-xl sm:text-2xl font-black bg-transparent border-b border-transparent focus:border-accent/30 focus:outline-none py-1.5 transition-all text-primary"
-                  placeholder="未命名任务"
-                  style="color: var(--text-primary)"
-                  @blur="autoSaveTask"
-                />
-              </div>
-
-              <!-- Description Textarea -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-accent"></span> 详细描述
-                </label>
-                <textarea
-                  v-model="drawerForm.description"
-                  rows="6"
-                  class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
-                  placeholder="输入任务描述、参考资料或笔记..."
-                  style="color: var(--text-primary)"
-                  @blur="autoSaveTask"
-                ></textarea>
-              </div>
-
-              <!-- Subtasks Checklist Section -->
-              <div class="pt-4 border-t" style="border-color: var(--border-base)">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-2">
-                    <CheckSquare class="w-4 h-4 text-accent" />
-                    <h3 class="text-sm font-bold" style="color: var(--text-primary)">子任务清单</h3>
-                    <span class="text-xs text-slate-400 font-bold" v-if="drawerSubtasks.length > 0">
-                      ({{ drawerSubtasks.filter((s) => s.done).length }}/{{
-                        drawerSubtasks.length
-                      }})
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Subtask Progress Bar -->
-                <div
-                  v-if="drawerSubtasks.length > 0"
-                  class="w-full bg-slate-100 dark:bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden"
-                >
-                  <div
-                    class="bg-accent h-full transition-all duration-300"
-                    :style="{
-                      width: `${(drawerSubtasks.filter((s) => s.done).length / drawerSubtasks.length) * 100}%`,
-                    }"
-                  ></div>
-                </div>
-
-                <!-- Checklist Items -->
-                <div class="space-y-2 mb-4">
-                  <div
-                    v-for="(sub, index) in drawerSubtasks"
-                    :key="sub.id"
-                    class="flex items-center gap-3 group/sub p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                  >
-                    <!-- Toggle Checkbox -->
-                    <button
-                      class="w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0"
-                      :class="
-                        sub.done
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
-                          : 'border-slate-300 dark:border-slate-600 hover:border-accent'
-                      "
-                      @click="toggleSubtask(sub)"
-                    >
-                      <CheckCircle2 class="w-3.5 h-3.5" v-if="sub.done" />
-                    </button>
-
-                    <!-- Editable Subtask Text -->
-                    <input
-                      v-model="sub.text"
-                      type="text"
-                      class="flex-1 bg-transparent border-none focus:outline-none text-xs transition-all font-medium"
-                      :class="
-                        sub.done
-                          ? 'line-through text-slate-400'
-                          : 'text-slate-750 dark:text-slate-200'
-                      "
-                      @blur="updateSubtaskText(index, sub.text)"
-                      @keyup.enter="($event.target as any).blur()"
-                    />
-
-                    <!-- Delete Button -->
-                    <button
-                      class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity"
-                      @click="removeSubtask(index)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Add Subtask Form -->
-                <div class="flex gap-2">
-                  <input
-                    v-model="newSubtaskText"
-                    type="text"
-                    placeholder="+ 添加子任务..."
-                    class="flex-1 px-4 py-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all"
-                    style="color: var(--text-primary)"
-                    @keyup.enter="addSubtask"
-                  />
-                  <button
-                    class="px-3 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all"
-                    @click="addSubtask"
-                  >
-                    添加
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right Column: Metadata Sidebar -->
-            <div
-              class="w-full lg:w-[320px] xl:w-[360px] shrink-0 space-y-5 p-4 md:p-5 bg-slate-50/50 dark:bg-white/2 rounded-2xl border"
-              style="border-color: var(--border-base)"
-            >
-              <h3
-                class="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 pb-2 border-b"
-                style="border-color: var(--border-base)"
-              >
-                任务属性
-              </h3>
-
-              <!-- Grid container for compact metadata -->
-              <div class="grid grid-cols-2 gap-x-4 gap-y-3.5">
-                <!-- Status selector -->
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                    >当前状态</label
-                  >
-                  <el-select
-                    v-model="drawerForm.status"
-                    class="!w-full custom-select-small"
-                    @change="autoSaveTask"
-                  >
-                    <el-option
-                      v-for="c in statusColumns"
-                      :key="c.id"
-                      :label="c.title"
-                      :value="c.id"
-                    />
-                  </el-select>
-                </div>
-
-                <!-- Priority selector -->
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                    >优先级</label
-                  >
-                  <el-select
-                    v-model="drawerForm.priority"
-                    class="!w-full custom-select-small"
-                    @change="autoSaveTask"
-                  >
-                    <el-option
-                      v-for="p in priorityOptions"
-                      :key="p.id"
-                      :label="p.label"
-                      :value="p.id"
-                    >
-                      <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                        <span class="text-xs">{{ p.label }}</span>
-                      </div>
-                    </el-option>
-                  </el-select>
-                </div>
-
-                <!-- Assignee selector -->
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                    >负责人</label
-                  >
-                  <el-select
-                    v-model="drawerForm.assigneeId"
-                    clearable
-                    placeholder="未指派"
-                    class="!w-full custom-select-small"
-                    @change="autoSaveTask"
-                  >
-                    <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                      <div class="flex items-center gap-2">
-                        <img
-                          v-if="m.avatarUrl"
-                          :src="m.avatarUrl"
-                          class="w-4 h-4 rounded-lg object-cover"
-                        />
-                        <span class="text-xs">{{ m.name }}</span>
-                      </div>
-                    </el-option>
-                  </el-select>
-                </div>
-
-                <!-- Due Date picker -->
-                <div>
-                  <label
-                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                    >截止日期</label
-                  >
-                  <el-date-picker
-                    v-model="drawerForm.dueDate"
-                    type="date"
-                    placeholder="无截止日期"
-                    class="!w-full custom-date-picker-small"
-                    @change="autoSaveTask"
-                  />
-                </div>
-
-                <!-- Project selector -->
-                <div class="col-span-2">
-                  <label
-                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                    >关联项目</label
-                  >
-                  <el-select
-                    v-model="drawerForm.projectId"
-                    clearable
-                    placeholder="未关联"
-                    class="!w-full custom-select-small"
-                    @change="autoSaveTask"
-                  >
-                    <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
-                  </el-select>
-                </div>
-              </div>
-
-              <!-- Co-participants selector -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >参与人员</label
-                >
-                <el-select
-                  v-model="drawerForm.participantIds"
-                  multiple
-                  placeholder="无其他参与人"
-                  class="!w-full custom-select-small"
-                  @change="autoSaveTask"
-                >
-                  <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                    <div class="flex items-center gap-2">
-                      <img
-                        v-if="m.avatarUrl"
-                        :src="m.avatarUrl"
-                        class="w-4 h-4 rounded-lg object-cover"
-                      />
-                      <span class="text-xs">{{ m.name }}</span>
-                    </div>
-                  </el-option>
-                </el-select>
-              </div>
-
-              <!-- Tags selector / edit -->
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
-                  >标签</label
-                >
-                <div class="flex flex-wrap gap-1 mb-2">
-                  <span
-                    v-for="tag in drawerForm.tags"
-                    :key="tag"
-                    class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[8px] font-bold"
-                    :class="getTagClass(tag)"
-                  >
-                    # {{ tag }}
-                    <button @click="drawerRemoveTag(tag)">
-                      <X class="w-2 h-2 hover:opacity-75" />
-                    </button>
-                  </span>
-                </div>
-                <div class="flex gap-1.5">
-                  <input
-                    v-model="detailDrawerTagInput"
-                    type="text"
-                    placeholder="新建标签..."
-                    class="flex-1 px-2.5 py-1 bg-slate-100 dark:bg-white/5 border-none rounded-lg text-[10px] focus:outline-none"
-                    @keyup.enter="drawerAddTag"
-                  />
-                  <button
-                    class="p-1 bg-slate-100 dark:bg-white/5 hover:text-accent rounded-lg text-xs"
-                    @click="drawerAddTag"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <!-- Final Manual Save Feedback -->
-              <div class="pt-4 border-t" style="border-color: var(--border-base)">
-                <button
-                  class="w-full py-2.5 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/25 hover:shadow-lg hover:shadow-accent/35 transition-all"
-                  @click="closeDetailDrawer"
-                >
-                  关闭并保存所有更改
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <TaskDetailDrawer
+      v-model="isDetailDrawerOpen"
+      v-model:viewMode="taskDetailViewMode"
+      :task="activeTask"
+      :team-members="teamMembers"
+      :projects="projects"
+      :priority-options="priorityOptions"
+      :status-columns="statusColumns"
+      @close="closeDetailDrawer"
+      @delete="deleteTask"
+      @save="autoSaveTask"
+      @user-click="openUserProfile"
+    />
 
     <!-- Add Task Dialog -->
-    <Transition name="fade">
-      <div
-        v-if="isAddDialogOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
-      >
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="isAddDialogOpen = false"
-        ></div>
-        <div
-          class="relative w-full max-w-4xl p-6 sm:p-12 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border space-y-6 sm:space-y-8 max-h-[95vh] overflow-y-auto"
-          style="background-color: var(--bg-card); border-color: var(--border-base)"
-        >
-          <div class="flex items-center justify-between">
-            <h3
-              class="text-xl sm:text-3xl font-black tracking-tight"
-              style="color: var(--text-primary)"
-            >
-              新建学习任务
-            </h3>
-            <button
-              style="color: var(--text-secondary)"
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
-              @click="isAddDialogOpen = false"
-            >
-              <X class="w-6 h-6 sm:w-8 sm:h-8" />
-            </button>
-          </div>
-
-          <div class="space-y-4 sm:space-y-6">
-            <div>
-              <label
-                class="block text-[10px] sm:text-sm font-bold uppercase mb-2 sm:mb-3 ml-1 text-slate-400 tracking-widest"
-                >任务标题</label
-              >
-              <input
-                v-model="newTask.title"
-                type="text"
-                class="w-full px-4 sm:px-6 py-3 sm:py-5 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-base sm:text-xl focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
-                placeholder="例如：深入学习 Blender 几何节点系统"
-              />
-            </div>
-
-            <div>
-              <label
-                class="block text-[10px] sm:text-sm font-bold uppercase mb-2 sm:mb-3 ml-1 text-slate-400 tracking-widest"
-                >详细描述 (可选)</label
-              >
-              <textarea
-                v-model="newTask.description"
-                rows="6"
-                class="w-full px-4 sm:px-6 py-3 sm:py-5 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-[2rem] text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
-                placeholder="在此输入任务的详细背景、目标、步骤及参考资料..."
-              ></textarea>
-            </div>
-
-            <!-- Removed team selector since it automatically assigns to current team context -->
-
-            <div class="grid grid-cols-2 gap-2 sm:gap-4">
-              <div>
-                <label
-                  class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                  >优先级</label
-                >
-                <el-select v-model="newTask.priority" class="!w-full custom-select">
-                  <el-option
-                    v-for="p in priorityOptions"
-                    :key="p.id"
-                    :label="p.label"
-                    :value="p.id"
-                  >
-                    <div class="flex items-center gap-2">
-                      <div class="w-2 h-2 rounded-full" :class="p.color"></div>
-                      <span class="text-xs sm:text-sm">{{ p.label }}</span>
-                    </div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div>
-                <label
-                  class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                  >截止日期</label
-                >
-                <el-date-picker
-                  v-model="newTask.dueDate"
-                  type="date"
-                  placeholder="日期"
-                  class="!w-full !rounded-2xl custom-date-picker"
-                  popper-class="custom-date-popper"
-                />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 sm:gap-4">
-              <div>
-                <label
-                  class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                  >负责人</label
-                >
-                <el-select
-                  v-model="newTask.assigneeId"
-                  clearable
-                  placeholder="负责人"
-                  class="!w-full custom-select"
-                >
-                  <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                    <div class="flex items-center gap-2">
-                      <img
-                        v-if="m.avatarUrl"
-                        :src="m.avatarUrl"
-                        class="w-5 h-5 rounded-lg object-cover"
-                      />
-                      <span class="text-xs sm:text-sm">{{ m.name }}</span>
-                    </div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div>
-                <label
-                  class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                  >关联项目</label
-                >
-                <el-select
-                  v-model="newTask.projectId"
-                  clearable
-                  placeholder="项目"
-                  class="!w-full custom-select"
-                >
-                  <el-option v-for="p in projects" :key="p.id" :label="p.title" :value="p.id" />
-                </el-select>
-              </div>
-            </div>
-
-            <div>
-              <label
-                class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
-                >参与人员</label
-              >
-              <el-select
-                v-model="newTask.participantIds"
-                multiple
-                placeholder="选择参与人员"
-                class="!w-full custom-select"
-              >
-                <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
-                  <div class="flex items-center gap-2">
-                    <img
-                      v-if="m.avatarUrl"
-                      :src="m.avatarUrl"
-                      class="w-5 h-5 rounded-lg object-cover"
-                    />
-                    <span>{{ m.name }}</span>
-                  </div>
-                </el-option>
-              </el-select>
-            </div>
-
-            <!-- Tags -->
-            <div>
-              <label
-                class="block text-[10px] sm:text-xs font-bold uppercase mb-2 ml-1 text-slate-400"
-                >标签</label
-              >
-              <div class="flex flex-wrap gap-1.5 mb-2">
-                <span
-                  v-for="tag in newTask.tags"
-                  :key="tag"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                  :class="getTagClass(tag)"
-                >
-                  {{ tag }}
-                  <button
-                    class="hover:opacity-70 transition-opacity"
-                    @click="removeTag(tag, 'new')"
-                  >
-                    <X class="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              </div>
-              <div class="flex gap-2">
-                <input
-                  v-model="tagInput"
-                  type="text"
-                  class="flex-1 px-4 py-2 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                  placeholder="输入标签名"
-                  @keyup.enter="addTag('new')"
-                />
-                <button
-                  class="px-3 py-2 bg-slate-100 dark:bg-white/5 rounded-xl text-xs font-bold text-slate-500 hover:text-accent transition-colors"
-                  @click="addTag('new')"
-                >
-                  <Plus class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button
-            class="w-full py-3 sm:py-4 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all text-sm sm:text-base"
-            @click="handleAddTask"
-          >
-            创建任务
-          </button>
-        </div>
-      </div>
-    </Transition>
+    <TaskAddDialog
+      v-model="isAddDialogOpen"
+      :team-members="teamMembers"
+      :projects="projects"
+      :priority-options="priorityOptions"
+      :default-status="newTask.status"
+      :default-priority="newTask.priority"
+      :default-project-id="newTask.projectId"
+      :default-team-id="newTask.teamId"
+      @submit="handleAddTaskWithPayload"
+    />
 
     <UserProfileDialog
       v-model="isProfileDialogOpen"

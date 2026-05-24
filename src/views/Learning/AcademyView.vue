@@ -20,6 +20,7 @@ import {
 import api from '@/utils/api';
 import PageHeader from '@/components/PageHeader.vue';
 import CourseCard from '@/components/CourseCard.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -76,7 +77,6 @@ const recommendedCourses = computed(() => {
 const fetchData = async () => {
   isLoading.value = true;
   try {
-    const { useAuthStore } = await import('@/stores/auth');
     const authStore = useAuthStore();
 
     const promises: Promise<any>[] = [
@@ -202,45 +202,31 @@ onMounted(() => {
             color: var(--text-primary);
           "
         />
-        <button
-          v-if="searchQuery"
-          class="absolute right-3 top-1/2 -translate-y-1/2"
-          @click="searchQuery = ''"
-        >
+        <button v-if="searchQuery" type="button" class="absolute right-3 top-1/2 -translate-y-1/2" @click="searchQuery = ''">
           <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
         </button>
       </div>
 
       <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        <button
-          class="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-bold transition-all shrink-0"
-          :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''"
-          style="border-color: var(--border-base); color: var(--text-secondary)"
-          @click="showFilters = !showFilters"
-        >
+        <button type="button" class="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-bold transition-all shrink-0" :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''" style="border-color: var(--border-base); color: var(--text-secondary)" @click="showFilters = !showFilters">
           <Filter class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           筛选
         </button>
 
         <div class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl shrink-0" style="background-color: var(--bg-app)">
           <button
-            v-for="sort in [
+v-for="sort in [
               { key: 'newest', label: '最新' },
               { key: 'popular', label: '最热' },
               { key: 'rating', label: '好评' },
-            ]"
-            :key="sort.key"
-            class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap"
-            :class="
+            ]" :key="sort.key" type="button" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap" :class="
               sortBy === sort.key
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
                 : 'text-slate-400 hover:text-slate-600'
-            "
-            @click="
+            " @click="
               sortBy = sort.key as any;
               fetchData();
-            "
-          >
+            ">
             {{ sort.label }}
           </button>
         </div>
@@ -256,21 +242,15 @@ onMounted(() => {
       <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
       <div class="flex flex-wrap items-center gap-2">
         <button
-          v-for="d in [
+v-for="d in [
             { key: '', label: '全部' },
             { key: 'BEGINNER', label: '入门' },
             { key: 'INTERMEDIATE', label: '进阶' },
             { key: 'ADVANCED', label: '高级' },
-          ]"
-          :key="d.key"
-          class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
-          :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5'"
-          :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''"
-          @click="
+          ]" :key="d.key" type="button" class="px-3 py-1 rounded-lg text-xs font-bold transition-all" :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5'" :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''" @click="
             difficultyFilter = d.key || null;
             fetchData();
-          "
-        >
+          ">
           {{ d.label }}
         </button>
       </div>
@@ -282,37 +262,25 @@ onMounted(() => {
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <button
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
-        :class="
+type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap" :class="
           !activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'
-        "
-        :style="activeCategoryId ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = null"
-      >
+        " :style="activeCategoryId ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = null">
         全部课程
       </button>
       <button
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
-        :class="
+type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5" :class="
           activeCategoryId === 'mine'
             ? 'bg-accent text-white shadow-md shadow-accent/20'
             : 'hover:opacity-80'
-        "
-        :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = 'mine'"
-      >
+        " :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = 'mine'">
         <BookOpen class="w-3.5 h-3.5" /> 我的课程
       </button>
       <button
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
-        :class="
+type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5" :class="
           activeCategoryId === 'bookmarked'
             ? 'bg-accent text-white shadow-md shadow-accent/20'
             : 'hover:opacity-80'
-        "
-        :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = 'bookmarked'"
-      >
+        " :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = 'bookmarked'">
         <Bookmark class="w-3.5 h-3.5" /> 我的收藏
       </button>
       <div
@@ -320,17 +288,11 @@ onMounted(() => {
         style="background-color: var(--border-base)"
       ></div>
       <button
-        v-for="cat in categories"
-        :key="cat.id"
-        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
-        :class="
+v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap" :class="
           activeCategoryId === cat.id
             ? 'bg-accent text-white shadow-md shadow-accent/20'
             : 'hover:opacity-80'
-        "
-        :style="activeCategoryId !== cat.id ? 'color: var(--text-secondary)' : ''"
-        @click="activeCategoryId = cat.id"
-      >
+        " :style="activeCategoryId !== cat.id ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = cat.id">
         {{ cat.name }}
         <span class="ml-1 text-[10px] opacity-60">{{ cat._count?.courses || 0 }}</span>
       </button>
@@ -512,11 +474,7 @@ onMounted(() => {
                     : '没有找到相关的课程'
               }}
             </p>
-            <button
-              v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'"
-              class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20"
-              @click="activeCategoryId = null"
-            >
+            <button v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'" type="button" class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20" @click="activeCategoryId = null">
               浏览课程
             </button>
           </div>

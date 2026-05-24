@@ -1,21 +1,35 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
 
 export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
   try {
-    const roadmaps = await prisma.roadmap.findMany({
-      where: {
-        OR: [{ creatorId: null }, { creatorId: req.userId as string }],
-      },
-      include: {
-        steps: {
-          orderBy: { order: 'asc' },
+    const { page, limit, skip } = getPaginationParams(req.query, 100, 200);
+    const where: Prisma.RoadmapWhereInput = {
+      OR: [{ creatorId: null }, { creatorId: req.userId as string }],
+    };
+
+    const [total, roadmaps] = await prisma.$transaction([
+      prisma.roadmap.count({ where }),
+      prisma.roadmap.findMany({
+        where,
+        include: {
+          steps: {
+            orderBy: { order: 'asc' },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      data: roadmaps,
+      pagination: createPaginationMeta(page, limit, total),
     });
-    res.json(roadmaps);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -101,9 +115,9 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(fullRoadmap);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Create custom roadmap error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
@@ -163,9 +177,9 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(fullRoadmap);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Update custom roadmap error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
@@ -182,8 +196,8 @@ export const deleteRoadmap = async (req: AuthRequest, res: Response) => {
 
     await prisma.roadmap.delete({ where: { id } });
     res.json({ message: '学习路径已成功删除' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Delete custom roadmap error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };

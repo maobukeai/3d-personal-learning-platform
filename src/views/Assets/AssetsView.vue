@@ -85,7 +85,7 @@ const fetchCategories = async () => {
   try {
     const response = await api.get('/api/assets/categories');
     assetCategories.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to fetch categories');
   }
 };
@@ -106,7 +106,7 @@ const fetchAssets = async () => {
     });
     assets.value = response.data.assets;
     pagination.value = response.data.pagination;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取资源失败');
   } finally {
     isLoading.value = false;
@@ -181,7 +181,7 @@ const handleUpload = async () => {
     uploadForm.value = { uploadType: 'file', title: '', description: '', categoryId: '', file: null, externalUrl: '', thumbnail: null, formats: [] };
     fetchAssets();
     fetchCategories();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('上传失败');
   } finally {
     isUploading.value = false;
@@ -238,10 +238,7 @@ onUnmounted(() => {
             style="color: var(--text-primary)"
           />
         </div>
-        <button
-          class="md:hidden p-1.5 rounded-lg bg-white/60 dark:bg-slate-800/60 backdrop-blur-md shadow-sm hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300"
-          @click="isFilterMenuOpen = !isFilterMenuOpen"
-        >
+        <button type="button" class="md:hidden p-1.5 rounded-lg bg-white/60 dark:bg-slate-800/60 backdrop-blur-md shadow-sm hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300" @click="isFilterMenuOpen = !isFilterMenuOpen">
           <RotateCw class="w-3.5 h-3.5" :class="isFilterMenuOpen ? 'rotate-180 text-accent' : ''" />
         </button>
       </div>
@@ -255,10 +252,7 @@ onUnmounted(() => {
         style="border-color: var(--border-base)"
       >
         <div class="p-2">
-          <button
-            class="w-full py-2 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-600 hover:to-accent text-white rounded-lg text-xs font-bold tracking-wider transition-all duration-500 shadow-md shadow-accent/20 hover:shadow-accent/30 hover:-translate-y-0.5 cursor-pointer"
-            @click="isUploadDialogOpen = true"
-          >
+          <button type="button" class="w-full py-2 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-600 hover:to-accent text-white rounded-lg text-xs font-bold tracking-wider transition-all duration-500 shadow-md shadow-accent/20 hover:shadow-accent/30 hover:-translate-y-0.5 cursor-pointer" @click="isUploadDialogOpen = true">
             上传作品
           </button>
         </div>
@@ -305,20 +299,11 @@ onUnmounted(() => {
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
           <div class="p-3 flex flex-col gap-3">
-            <button
-              class="w-full py-2 bg-accent text-white rounded-lg text-xs font-bold shadow-md shadow-accent/20 cursor-pointer"
-              @click="isUploadDialogOpen = true; isFilterMenuOpen = false"
-            >
+            <button type="button" class="w-full py-2 bg-accent text-white rounded-lg text-xs font-bold shadow-md shadow-accent/20 cursor-pointer" @click="isUploadDialogOpen = true; isFilterMenuOpen = false">
               上传作品
             </button>
             <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="cat in categories"
-                :key="cat.name"
-                class="px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer"
-                :class="activeCategory === cat.name ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
-                @click="activeCategory = cat.name; isFilterMenuOpen = false"
-              >
+              <button v-for="cat in categories" :key="cat.name" type="button" class="px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer" :class="activeCategory === cat.name ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click="activeCategory = cat.name; isFilterMenuOpen = false">
                 {{ cat.name }} ({{ cat.count }})
               </button>
             </div>
@@ -387,10 +372,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Mobile FAB Upload -->
-    <button
-      class="md:hidden fixed bottom-20 right-4 z-50 w-11 h-11 bg-accent text-white rounded-xl shadow-lg shadow-accent/30 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
-      @click="isUploadDialogOpen = true"
-    >
+    <button type="button" class="md:hidden fixed bottom-20 right-4 z-50 w-11 h-11 bg-accent text-white rounded-xl shadow-lg shadow-accent/30 flex items-center justify-center active:scale-95 transition-transform cursor-pointer" @click="isUploadDialogOpen = true">
       <UploadCloud class="w-5 h-5" />
     </button>
 
@@ -410,7 +392,7 @@ onUnmounted(() => {
         >
           <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-base)">
             <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">上传 3D 资产</h3>
-            <button class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
+            <button type="button" class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
               <X class="w-4 h-4" />
             </button>
           </div>
@@ -476,18 +458,10 @@ onUnmounted(() => {
 
             <div>
               <div class="flex items-center gap-2 mb-2">
-                <button
-                  class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                  :class="uploadForm.uploadType === 'file' ? 'bg-accent text-white shadow-sm' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
-                  @click.prevent="uploadForm.uploadType = 'file'"
-                >
+                <button type="button" class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer" :class="uploadForm.uploadType === 'file' ? 'bg-accent text-white shadow-sm' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click.prevent="uploadForm.uploadType = 'file'">
                   本地文件
                 </button>
-                <button
-                  class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                  :class="uploadForm.uploadType === 'link' ? 'bg-accent text-white shadow-sm' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
-                  @click.prevent="uploadForm.uploadType = 'link'"
-                >
+                <button type="button" class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer" :class="uploadForm.uploadType === 'link' ? 'bg-accent text-white shadow-sm' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click.prevent="uploadForm.uploadType = 'link'">
                   网盘/外链
                 </button>
               </div>
@@ -546,16 +520,20 @@ onUnmounted(() => {
                 style="color: var(--text-secondary)"
                 >ZIP 包内包含格式 (多选)</label
               >
-              <div class="grid grid-cols-3 gap-1 p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">
+              <el-checkbox-group
+                v-model="uploadForm.formats"
+                class="grid grid-cols-3 gap-1 p-2 rounded-lg border"
+                style="background-color: var(--bg-app); border-color: var(--border-base)"
+              >
                 <el-checkbox
                   v-for="fmt in availableFormats"
                   :key="fmt"
-                  v-model="uploadForm.formats"
+                  :value="fmt"
                   :label="fmt"
                   size="small"
                   class="m-0 text-xs"
                 />
-              </div>
+              </el-checkbox-group>
             </div>
 
             <div>
@@ -584,11 +562,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <button
-            :disabled="isUploading"
-            class="w-full py-2.5 bg-accent text-white rounded-lg font-bold shadow-md shadow-accent/20 hover:shadow-accent/30 transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer hover:scale-102"
-            @click="handleUpload"
-          >
+          <button type="button" :disabled="isUploading" class="w-full py-2.5 bg-accent text-white rounded-lg font-bold shadow-md shadow-accent/20 hover:shadow-accent/30 transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer hover:scale-102" @click="handleUpload">
             <div
               v-if="isUploading"
               class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"

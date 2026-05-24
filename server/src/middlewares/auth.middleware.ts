@@ -31,11 +31,6 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     // Optionally attach the full user object
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: {
-        subscription: {
-          include: { plan: true },
-        },
-      },
     });
 
     if (!user) {
@@ -94,11 +89,6 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: {
-        subscription: {
-          include: { plan: true },
-        },
-      },
     });
 
     if (user && user.status !== 'BANNED') {

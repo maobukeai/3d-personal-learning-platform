@@ -36,7 +36,7 @@ const parsedTags = computed(() => {
   try {
     const tagsStr = props.discussion?.tags;
     return tagsStr ? JSON.parse(tagsStr) : [];
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 });
@@ -45,7 +45,7 @@ const parsedImages = computed(() => {
   try {
     const imagesStr = props.discussion?.images;
     return imagesStr ? JSON.parse(imagesStr) : [];
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 });
@@ -149,7 +149,7 @@ function handleDeleteClick(event: Event) {
             :key="idx"
             class="w-9 h-9 sm:w-10 sm:h-10 rounded-md overflow-hidden shrink-0 border border-slate-100 dark:border-white/5"
           >
-            <img :src="img" class="w-full h-full object-cover" />
+            <img alt="" :src="img" class="w-full h-full object-cover" />
           </div>
           <div
             v-if="parsedImages.length > 3"
@@ -164,11 +164,7 @@ function handleDeleteClick(event: Event) {
           class="flex items-center gap-3 text-[8.5px] sm:text-[9.5px] font-bold"
           style="color: var(--text-muted)"
         >
-          <button
-            class="flex items-center gap-0.5 hover:text-red-500 transition-colors cursor-pointer"
-            :class="{ 'text-red-500': discussion.isLiked }"
-            @click.stop="handleLikeClick"
-          >
+          <button type="button" class="flex items-center gap-0.5 hover:text-red-500 transition-colors cursor-pointer" :class="{ 'text-red-500': discussion.isLiked }" @click.stop="handleLikeClick">
             <Heart
               class="w-2.5 h-2.5 sm:w-3 sm:h-3"
               :class="{ 'fill-red-500': discussion.isLiked }"
@@ -189,17 +185,10 @@ function handleDeleteClick(event: Event) {
             v-if="isOwner || isAdmin"
             class="flex items-center gap-1 ml-auto"
           >
-            <button
-              v-if="isAdmin"
-              class="hover:text-accent transition-colors p-0.5 cursor-pointer"
-              @click.stop="handlePinClick"
-            >
+            <button v-if="isAdmin" type="button" class="hover:text-accent transition-colors p-0.5 cursor-pointer" @click.stop="handlePinClick">
               <Pin class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
-            <button
-              class="hover:text-red-500 transition-colors p-0.5 cursor-pointer"
-              @click.stop="handleDeleteClick"
-            >
+            <button type="button" class="hover:text-red-500 transition-colors p-0.5 cursor-pointer" @click.stop="handleDeleteClick">
               <Trash2 class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
           </div>

@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Dark mode: class-based (adds .dark to <html>)
+   In Tailwind v4 this is done via the @variant directive
+   ============================================================ */
+@variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Design tokens — use static values in @theme (Tailwind v4)
+   ============================================================ */
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.08);
+
+  /* Colors mapped to CSS variables for dynamic themes */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+}
+
+/* ============================================================
+   CSS Custom Properties (theme variables)
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  /* Layout backgrounds */
+  --bg-app: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-sidebar: #f8fafc;
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  /* Borders */
+  --border-base: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Accent */
+  --accent: #3b82f6;
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+  --accent-subtle: color-mix(in srgb, var(--accent) 8%, white);
+}
+
+/* ============================================================
+   Dark mode overrides
+   ============================================================ */
+.dark {
+  color-scheme: dark;
+
+  /* Layout backgrounds */
+  --bg-app: #000000;
+  --bg-card: #09090b;
+  --bg-sidebar: #000000;
+
+  /* Text */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* Borders */
+  --border-base: #18181b;
+  --border-strong: #27272a;
+
+  /* Accent */
+  --accent-subtle: color-mix(in srgb, var(--accent) 12%, #09090b);
+}
+
+/* ============================================================
+   Accent Color Utilities
+   ============================================================ */
+.bg-accent {
+  background-color: var(--accent) !important;
+}
+.bg-accent-subtle {
+  background-color: var(--accent-subtle) !important;
+}
+.text-accent {
+  color: var(--accent) !important;
+}
+.border-accent {
+  border-color: var(--accent) !important;
+}
+
+.hover\:bg-accent:hover {
+  background-color: var(--accent) !important;
+  opacity: 0.9;
+}
+.hover\:text-accent:hover {
+  color: var(--accent) !important;
+  opacity: 0.9;
+}

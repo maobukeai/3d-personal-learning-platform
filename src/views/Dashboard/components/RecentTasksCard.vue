@@ -14,10 +14,7 @@ const router = useRouter();
       <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
         待办学习任务
       </h3>
-      <button
-        class="text-xs sm:text-sm font-bold text-accent hover:underline cursor-pointer"
-        @click="router.push('/work')"
-      >
+      <button type="button" class="text-xs sm:text-sm font-bold text-accent hover:underline cursor-pointer" @click="router.push('/work')">
         查看全部任务
       </button>
     </div>

@@ -60,7 +60,7 @@ const formatDate = (dateStr: string) => {
 
 const handleDownload = () => {
   if (asset.value?.url) {
-    window.open(asset.value.url, '_blank');
+    window.open(asset.value.url, '_blank', 'noopener,noreferrer');
   }
 };
 </script>
@@ -78,7 +78,7 @@ const handleDownload = () => {
       <div class="h-72 relative bg-slate-900 border-b border-white/10 shadow-2xl overflow-hidden shrink-0">
         <!-- Background Blur Effect -->
         <div class="absolute inset-0 z-0 opacity-40">
-          <img v-if="asset.thumbnail" :src="asset.thumbnail" class="w-full h-full object-cover blur-xl scale-110" />
+          <img v-if="asset.thumbnail" alt="" :src="asset.thumbnail" class="w-full h-full object-cover blur-xl scale-110" />
         </div>
 
         <div class="relative z-10 w-full h-full bg-black/40 backdrop-blur-sm">
@@ -95,10 +95,7 @@ const handleDownload = () => {
         <!-- Gradient Overlay -->
         <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950 to-transparent z-10 pointer-events-none"></div>
 
-        <button 
-          class="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all duration-300 z-20 hover:scale-110 hover:rotate-90 border border-white/10 shadow-lg"
-          @click="workspaceStore.closeDetails()"
-        >
+        <button type="button" class="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all duration-300 z-20 hover:scale-110 hover:rotate-90 border border-white/10 shadow-lg" @click="workspaceStore.closeDetails()">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -106,7 +103,7 @@ const handleDownload = () => {
       <!-- Content -->
       <div class="flex-1 overflow-y-auto p-8 space-y-8 relative">
         <!-- Glow effect behind content -->
-        <div class="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full blur-[80px] pointer-events-none"></div>
+        <div class="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full glass-glow-md pointer-events-none"></div>
 
         <div class="relative z-10">
           <h2 class="text-2xl font-black mb-3 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">{{ asset.title }}</h2>
@@ -158,10 +155,7 @@ const handleDownload = () => {
 
       <!-- Footer Actions -->
       <div class="p-6 bg-slate-950/80 backdrop-blur-xl border-t border-white/10 flex gap-4 shrink-0 relative z-20">
-        <button 
-          class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-500 hover:to-accent text-white py-3.5 rounded-2xl font-black text-sm tracking-widest shadow-[0_10px_20px_-10px_rgba(var(--accent-rgb),0.6)] hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-rgb),0.8)] hover:-translate-y-0.5 transition-all duration-500 overflow-hidden relative group"
-          @click="handleDownload"
-        >
+        <button type="button" class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-500 hover:to-accent text-white py-3.5 rounded-2xl font-black text-sm tracking-widest shadow-[0_10px_20px_-10px_rgba(var(--accent-rgb),0.6)] hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-rgb),0.8)] hover:-translate-y-0.5 transition-all duration-500 overflow-hidden relative group" @click="handleDownload">
           <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
           <span class="relative z-10 flex items-center gap-2">
             <template v-if="asset.type === 'LINK'">

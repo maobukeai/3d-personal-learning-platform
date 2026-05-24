@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWorkspaceStore } from '@/stores/workspace';
 import {
@@ -28,11 +28,60 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 
+interface AuditItem {
+  id: string;
+  title: string;
+  type?: string;
+  category?: string;
+  isVideo?: boolean;
+  status: string;
+  createdAt: string;
+  description?: string;
+  thumbnailUrl?: string;
+  fileSize?: number;
+  tags?: string;
+  categoryId?: string;
+  user?: {
+    id: string;
+    name: string;
+    avatar?: string;
+    email?: string;
+  };
+  thumbnail?: string;
+  videoUrl?: string;
+  url?: string;
+  fileUrl?: string;
+  previewUrl?: string;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  size?: number;
+  resolution?: string;
+}
+
+interface PageConfigType {
+  title: string;
+  desc: string;
+  apiPath: string;
+  icon: Component;
+  itemTypeLabel: (item: AuditItem) => string;
+  itemIcon: (item: AuditItem) => Component;
+  commonReasons: string[];
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 const route = useRoute();
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
 
-const getValidTab = (tab: any): 'assets' | 'materials' | 'showcases' => {
+const getValidTab = (tab: unknown): 'assets' | 'materials' | 'showcases' => {
   if (tab === 'assets' || tab === 'materials' || tab === 'showcases') {
     return tab;
   }
@@ -44,15 +93,15 @@ const activeTab = ref<'assets' | 'materials' | 'showcases'>(
 );
 
 // 动态页面配置
-const pageConfig = computed(() => {
+const pageConfig = computed<PageConfigType>(() => {
   if (activeTab.value === 'assets') {
     return {
       title: '3D资产审核中心',
       desc: '集中审核与管控用户提交至模型库的所有3D模型资产',
       apiPath: '/api/admin/assets',
       icon: Box,
-      itemTypeLabel: (item: any) => item.type || '模型资产',
-      itemIcon: (_item: any) => Box,
+      itemTypeLabel: (item: AuditItem) => item.type || '模型资产',
+      itemIcon: (_item: AuditItem) => Box,
       commonReasons: [
         '模型存在破面或法线错误等严重质量问题',
         '模型面数过高，未进行合理的拓扑优化',
@@ -67,8 +116,8 @@ const pageConfig = computed(() => {
       desc: '集中审核与管控用户提交至材质库的各类材质和基础材料',
       apiPath: '/api/admin/materials',
       icon: Layers,
-      itemTypeLabel: (item: any) => item.category || '材质材料',
-      itemIcon: (_item: any) => Layers,
+      itemTypeLabel: (item: AuditItem) => item.category || '材质材料',
+      itemIcon: (_item: AuditItem) => Layers,
       commonReasons: [
         '材质贴图分辨率过低或清晰度不足',
         '缺少必要的通道贴图（如法线、粗糙度等）',
@@ -83,9 +132,9 @@ const pageConfig = computed(() => {
       desc: '集中审核与管控用户提交至前台展示墙的所有3D创意作品、视频及图文',
       apiPath: '/api/admin/showcases',
       icon: Sparkles,
-      itemTypeLabel: (item: any) =>
+      itemTypeLabel: (item: AuditItem) =>
         item.isVideo || item.type === 'VIDEO' ? '视频演示' : '创意图文',
-      itemIcon: (item: any) => (item.isVideo || item.type === 'VIDEO' ? Video : ImageIcon),
+      itemIcon: (item: AuditItem) => (item.isVideo || item.type === 'VIDEO' ? Video : ImageIcon),
       commonReasons: [
         '作品内容包含敏感或违规信息',
         '封面或媒体文件无法正常加载显示',
@@ -97,8 +146,8 @@ const pageConfig = computed(() => {
   }
 });
 
-const items = ref<any[]>([]);
-const assetCategories = ref<any[]>([]);
+const items = ref<AuditItem[]>([]);
+const assetCategories = ref<{ id: string; name: string }[]>([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const statusFilter = ref('PENDING');
@@ -152,7 +201,7 @@ const fetchItems = async () => {
   try {
     isLoading.value = true;
     selectedIds.value = [];
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (statusFilter.value) {
       params.status = statusFilter.value;
     }
@@ -167,12 +216,12 @@ const fetchItems = async () => {
 };
 
 // 统计全部获取状态用于头部概览卡片展示
-const allItemsForStats = ref<any[]>([]);
+const allItemsForStats = ref<AuditItem[]>([]);
 const fetchAllForStats = async () => {
   try {
     const { data } = await api.get(pageConfig.value.apiPath);
     allItemsForStats.value = data;
-  } catch (error) {
+  } catch (_error) {
     // 忽略
   }
 };
@@ -189,7 +238,7 @@ const stats = computed(() => {
 const filteredItems = computed(() => {
   if (!searchQuery.value) return items.value;
   const query = searchQuery.value.toLowerCase();
-  return items.value.filter((item: any) => {
+  return items.value.filter((item: AuditItem) => {
     const titleMatch = item.title?.toLowerCase().includes(query);
     const userMatch =
       item.user?.name?.toLowerCase().includes(query) ||
@@ -206,7 +255,7 @@ const setStatusFilter = (status: string) => {
   fetchItems();
 };
 
-const handleStatusUpdate = async (item: any, status: string) => {
+const handleStatusUpdate = async (item: AuditItem, status: string) => {
   if (status === 'REJECTED') {
     rejectionForm.value = { reason: '', isBatch: false, targetId: item.id };
     isRejectDialogOpen.value = true;
@@ -218,8 +267,9 @@ const handleStatusUpdate = async (item: any, status: string) => {
     ElMessage.success('审核已通过');
     fetchItems();
     fetchAllForStats();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error) {
+    const err = error as ApiError;
+    ElMessage.error(err.response?.data?.error || '操作失败');
   }
 };
 
@@ -246,8 +296,9 @@ const submitRejection = async () => {
     isRejectDialogOpen.value = false;
     fetchItems();
     fetchAllForStats();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error) {
+    const err = error as ApiError;
+    ElMessage.error(err.response?.data?.error || '操作失败');
   }
 };
 
@@ -269,9 +320,10 @@ const handleBatchApprove = async () => {
     ElMessage.success(`已批准 ${selectedIds.value.length} 项记录`);
     fetchItems();
     fetchAllForStats();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '批量操作失败');
+      const err = error as ApiError;
+      ElMessage.error(err.response?.data?.error || '批量操作失败');
     }
   }
 };
@@ -282,7 +334,7 @@ const handleBatchReject = () => {
   isRejectDialogOpen.value = true;
 };
 
-const handleDelete = async (item: any) => {
+const handleDelete = async (item: AuditItem) => {
   try {
     await ElMessageBox.confirm(
       `确定要永久删除记录 "${item.title}" 吗？此操作不可撤销。`,
@@ -298,14 +350,15 @@ const handleDelete = async (item: any) => {
     ElMessage.success('删除成功');
     fetchItems();
     fetchAllForStats();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '删除失败');
+      const err = error as ApiError;
+      ElMessage.error(err.response?.data?.error || '删除失败');
     }
   }
 };
 
-const openEdit = (item: any) => {
+const openEdit = (item: AuditItem) => {
   editForm.value = {
     id: item.id,
     title: item.title,
@@ -321,7 +374,14 @@ const openEdit = (item: any) => {
 const handleUpdate = async () => {
   isSaving.value = true;
   try {
-    const payload: any = {
+    const payload: {
+      title: string;
+      status: string;
+      description?: string;
+      categoryId?: string;
+      category?: string;
+      tags?: string;
+    } = {
       title: editForm.value.title,
       status: editForm.value.status,
     };
@@ -342,8 +402,9 @@ const handleUpdate = async () => {
     isEditOpen.value = false;
     fetchItems();
     fetchAllForStats();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '更新失败');
+  } catch (error) {
+    const err = error as ApiError;
+    ElMessage.error(err.response?.data?.error || '更新失败');
   } finally {
     isSaving.value = false;
   }
@@ -441,6 +502,7 @@ onMounted(() => {
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button
+type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
             style="border-color: var(--border-base); color: var(--text-primary)"
             @click="openCategoryManager"
@@ -449,6 +511,7 @@ onMounted(() => {
             <span class="hidden sm:inline">分类管理</span>
           </button>
           <button
+type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
             style="border-color: var(--border-base); color: var(--text-secondary)"
             @click="
@@ -471,8 +534,9 @@ onMounted(() => {
           <!-- 极品分段选项卡 -->
           <div class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
             <button
-              v-for="tab in moderationTabs"
+v-for="tab in moderationTabs"
               :key="tab.id"
+              type="button"
               class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
               :class="activeTab === tab.id
                 ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
@@ -495,13 +559,14 @@ onMounted(() => {
           <!-- 紧凑状态筛选 Pills -->
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
+v-for="filter in [
                 { key: 'PENDING', label: '待审核', count: stats.pending, color: 'amber', icon: Clock },
                 { key: 'APPROVED', label: '已通过', count: stats.approved, color: 'emerald', icon: CheckCircle2 },
                 { key: 'REJECTED', label: '已打回', count: stats.rejected, color: 'rose', icon: XCircle },
                 { key: '', label: '全部', count: stats.total, color: 'indigo', icon: Tag }
               ]"
               :key="filter.key"
+              type="button"
               class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0 animate-in duration-200"
               :class="[
                 statusFilter === filter.key
@@ -526,6 +591,7 @@ onMounted(() => {
         <!-- 检索与全选组合 -->
         <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0">
           <button
+type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-[11px] shadow-sm shrink-0 cursor-pointer"
             style="border-color: var(--border-base); color: var(--text-primary)"
             @click="toggleSelectAll"
@@ -569,6 +635,7 @@ onMounted(() => {
                 >已勾选 {{ selectedIds.length }} 项记录</span
               >
               <button
+type="button"
                 class="text-xs font-bold hover:underline opacity-80 transition-opacity"
                 @click="selectedIds = []"
               >
@@ -577,12 +644,14 @@ onMounted(() => {
             </div>
             <div class="flex items-center gap-3">
               <button
+type="button"
                 class="px-5 py-2 bg-white text-indigo-600 rounded-xl font-bold text-xs shadow hover:scale-105 transition-all"
                 @click="handleBatchApprove"
               >
                 一键批量批准通过
               </button>
               <button
+type="button"
                 class="px-5 py-2 bg-rose-500 text-white border border-rose-400 rounded-xl font-bold text-xs shadow hover:scale-105 transition-all"
                 @click="handleBatchReject"
               >
@@ -689,17 +758,20 @@ onMounted(() => {
                   item.videoUrl || item.fileUrl || item.thumbnailUrl || item.previewUrl || item.url
                 "
                 target="_blank"
+                rel="noopener noreferrer"
                 class="p-2.5 rounded-xl bg-white text-slate-900 hover:bg-indigo-50 hover:text-indigo-600 transition-all shadow-xl font-bold text-[10px] flex items-center gap-1"
               >
                 <EyeIcon class="w-3.5 h-3.5" /> 查阅
               </a>
               <button
+type="button"
                 class="p-2.5 rounded-xl bg-white text-slate-900 hover:bg-amber-50 hover:text-amber-500 transition-all shadow-xl font-bold text-[10px] flex items-center gap-1"
                 @click="openEdit(item)"
               >
                 <Edit class="w-3.5 h-3.5" /> 编辑
               </button>
               <button
+type="button"
                 class="p-2 rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-xl"
                 title="永久删除记录"
                 @click="handleDelete(item)"
@@ -794,14 +866,16 @@ onMounted(() => {
               <!-- 审核动作按钮条 -->
               <div class="flex items-center gap-2 pt-1" @click.stop>
                 <button
-                  v-if="item.status !== 'APPROVED'"
+v-if="item.status !== 'APPROVED'"
+                  type="button"
                   class="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm"
                   @click="handleStatusUpdate(item, 'APPROVED')"
                 >
                   <CheckCircle2 class="w-3.5 h-3.5" /> 批准通过
                 </button>
                 <button
-                  v-if="item.status !== 'REJECTED'"
+v-if="item.status !== 'REJECTED'"
+                  type="button"
                   class="flex-1 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm"
                   @click="handleStatusUpdate(item, 'REJECTED')"
                 >
@@ -906,6 +980,7 @@ onMounted(() => {
       <template #footer>
         <div class="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
           <button
+type="button"
             class="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
             style="color: var(--text-secondary)"
             @click="isEditOpen = false"
@@ -913,6 +988,7 @@ onMounted(() => {
             取消编辑
           </button>
           <button
+type="button"
             :disabled="isSaving"
             class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-600/20 hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
             @click="handleUpdate"
@@ -946,8 +1022,9 @@ onMounted(() => {
           >
           <div class="flex flex-wrap gap-1.5">
             <button
-              v-for="reason in pageConfig.commonReasons"
+v-for="reason in pageConfig.commonReasons"
               :key="reason"
+              type="button"
               class="px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all text-left"
               :class="
                 rejectionForm.reason === reason
@@ -976,6 +1053,7 @@ onMounted(() => {
       <template #footer>
         <div class="flex gap-3 pt-2">
           <button
+type="button"
             class="flex-1 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
             style="color: var(--text-secondary)"
             @click="isRejectDialogOpen = false"
@@ -983,6 +1061,7 @@ onMounted(() => {
             暂不处理
           </button>
           <button
+type="button"
             class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-xs shadow-md shadow-rose-500/20 hover:bg-rose-600 transition-all"
             @click="submitRejection"
           >

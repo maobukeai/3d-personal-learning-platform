@@ -52,7 +52,7 @@ const parseSubtasks = (subtasksStr: string | null | undefined) => {
   if (!subtasksStr) return [];
   try {
     return JSON.parse(subtasksStr);
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 };
@@ -92,7 +92,7 @@ const parseTags = (tagsStr: string | null | undefined) => {
   if (!tagsStr) return [];
   try {
     return JSON.parse(tagsStr);
-  } catch (e) {
+  } catch (_e) {
     return tagsStr.split(',').map((t) => t.trim()).filter((t) => t);
   }
 };
@@ -226,12 +226,7 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
           class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
           @click.stop="emit('user-click', task.assignee.id)"
         >
-          <img
-            v-if="task.assignee.avatarUrl"
-            :src="task.assignee.avatarUrl"
-            class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover"
-            :alt="task.assignee.name"
-          />
+          <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover" :alt="task.assignee.name" />
           <div
             v-else
             class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md bg-accent/10 flex items-center justify-center"
@@ -319,11 +314,7 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
         class="flex items-center gap-1.5 cursor-pointer group/as"
         @click.stop="emit('user-click', task.assignee.id)"
       >
-        <img
-          v-if="task.assignee.avatarUrl"
-          :src="task.assignee.avatarUrl"
-          class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all"
-        />
+        <img v-if="task.assignee.avatarUrl" alt="" :src="task.assignee.avatarUrl" class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
         <div
           v-else
           class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"
@@ -352,26 +343,13 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
     <div
       class="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity justify-end sm:justify-start"
     >
-      <button
-        class="p-1.5 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-        title="查看详情"
-        @click.stop="emit('click', task)"
-      >
+      <button type="button" class="p-1.5 rounded-md text-slate-400 hover:text-accent hover:bg-accent/10 transition-all" title="查看详情" @click.stop="emit('click', task)">
         <Eye class="w-3.5 h-3.5" />
       </button>
-      <button
-        v-if="task.status !== 'DONE'"
-        class="p-1.5 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
-        title="标记完成"
-        @click.stop="emit('status-change', task, 'DONE')"
-      >
+      <button v-if="task.status !== 'DONE'" type="button" class="p-1.5 rounded-md text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all" title="标记完成" @click.stop="emit('status-change', task, 'DONE')">
         <CheckCircle2 class="w-3.5 h-3.5" />
       </button>
-      <button
-        class="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
-        title="删除"
-        @click.stop="emit('delete', task)"
-      >
+      <button type="button" class="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all" title="删除" @click.stop="emit('delete', task)">
         <Trash2 class="w-3.5 h-3.5" />
       </button>
     </div>

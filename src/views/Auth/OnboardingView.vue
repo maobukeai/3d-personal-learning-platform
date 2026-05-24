@@ -165,10 +165,7 @@ const handleJoinTeam = () => {
           </div>
         </div>
 
-        <button
-          class="text-sm font-bold text-slate-400 hover:text-accent transition-colors"
-          @click="router.push('/dashboard')"
-        >
+        <button type="button" class="text-sm font-bold text-slate-400 hover:text-accent transition-colors" @click="router.push('/dashboard')">
           稍后设置，直接进入控制台
         </button>
       </div>

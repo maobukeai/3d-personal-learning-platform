@@ -66,7 +66,6 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           },
         });
 
-
         await auditService.log({
           userId: user.id,
           action: AuditAction.CREATE_USER,

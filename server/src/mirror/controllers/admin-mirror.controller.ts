@@ -81,8 +81,8 @@ export const createSource = async (req: AuthRequest, res: Response) => {
     syncEngine.reloadSourceScheduler(source.id, source.status, source.syncInterval);
 
     res.status(201).json(source);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -123,8 +123,8 @@ export const updateSource = async (req: AuthRequest, res: Response) => {
     syncEngine.reloadSourceScheduler(source.id, source.status, source.syncInterval);
 
     res.json(source);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -154,8 +154,8 @@ export const deleteSource = async (req: AuthRequest, res: Response) => {
     thumbnailLocalizer.deleteSourceFiles(id);
 
     res.json({ message: '镜像源已删除' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -169,8 +169,8 @@ export const getAllSources = async (_req: AuthRequest, res: Response) => {
     });
 
     res.json(sources);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -194,8 +194,8 @@ export const getSourceDetail = async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ ...source, latestSync });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -221,11 +221,11 @@ export const triggerSync = async (req: AuthRequest, res: Response) => {
       } else {
         await syncEngine.fullSync(id);
       }
-    } catch (e: any) {
-      console.error(`Sync failed for source ${id}:`, e.message);
+    } catch (e) {
+      console.error(`Sync failed for source ${id}:`, e instanceof Error ? e.message : e);
     }
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -239,8 +239,8 @@ export const cancelSync = async (req: AuthRequest, res: Response) => {
 
     syncEngine.cancelSync(id);
     res.json({ message: '同步已取消' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -274,8 +274,8 @@ export const getSyncStatus = async (req: AuthRequest, res: Response) => {
           }
         : null,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -286,8 +286,8 @@ export const getSyncLogs = async (req: AuthRequest, res: Response) => {
 
     const logs = await mirrorService.getSyncLogs(id, limit);
     res.json(logs);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -483,10 +483,10 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
       totalLinks,
       matchedCount,
     });
-  } catch (error: any) {
+  } catch (error) {
     cleanUpFiles(filesArray);
     console.error('[MirrorLinkMatch] Error matching links:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -553,8 +553,8 @@ export const getSourceResources = async (req: AuthRequest, res: Response) => {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -574,8 +574,8 @@ export const getResourceDetail = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(resource);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -614,8 +614,8 @@ export const createResource = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(resource);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -651,8 +651,8 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(resource);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -667,8 +667,8 @@ export const deleteResource = async (req: AuthRequest, res: Response) => {
     ]);
 
     res.json({ message: '资源已删除' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -680,8 +680,8 @@ export const getSourceCategories = async (req: AuthRequest, res: Response) => {
       orderBy: { order: 'asc' },
     });
     res.json(categories);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -695,8 +695,8 @@ export const getCategoryDetail = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '分类不存在' });
     }
     res.json(category);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -733,8 +733,8 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
     }
 
     res.status(201).json(category);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -780,8 +780,8 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(category);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -794,8 +794,8 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ message: '分类已删除' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -806,7 +806,7 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
     }
     const relativePath = `/uploads/mirror/${req.file.filename}`;
     res.json({ url: relativePath });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: '图片上传失败' });
   }
 };

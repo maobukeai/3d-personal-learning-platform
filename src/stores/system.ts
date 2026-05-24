@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia';
+﻿import { defineStore } from 'pinia';
 import api, { getAssetUrl } from '@/utils/api';
 
 interface SystemSettings {
@@ -69,11 +69,11 @@ export const useSystemStore = defineStore('system', {
         }
         try {
           localStorage.setItem('platform_favicon', faviconUrl);
-        } catch (e) {}
+        } catch (_e) {}
       } else {
         try {
           localStorage.removeItem('platform_favicon');
-        } catch (e) {}
+        } catch (_e) {}
       }
 
       // Update meta description
@@ -98,7 +98,7 @@ export const useSystemStore = defineStore('system', {
           try {
             const parsed = JSON.parse(val);
             return Array.isArray(parsed) ? parsed : fallback;
-          } catch (e) {
+          } catch (_e) {
             return fallback;
           }
         };

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Users, Check, Loader2 } from 'lucide-vue-next';
@@ -26,7 +27,7 @@ const fetchInvitation = async () => {
       ElMessage.warning('该邀请已失效或不存在');
       emit('update:visible', false);
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取邀请详情失败');
     emit('update:visible', false);
   } finally {
@@ -54,8 +55,8 @@ const handleRespond = async (accept: boolean) => {
     ElMessage.success(accept ? '已成功加入团队！' : '已拒绝邀请');
     emit('success', { accept, teamId: invitation.value?.teamId });
     emit('update:visible', false);
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '操作失败'));
   } finally {
     processing.value = false;
   }
@@ -82,11 +83,7 @@ const handleRespond = async (accept: boolean) => {
         <div
           class="w-24 h-24 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800"
         >
-          <img
-            v-if="invitation.team.avatarUrl"
-            :src="invitation.team.avatarUrl"
-            class="w-full h-full object-cover"
-          />
+          <img v-if="invitation.team.avatarUrl" alt="" :src="invitation.team.avatarUrl" class="w-full h-full object-cover" />
           <div
             v-else
             class="w-full h-full bg-gradient-to-br from-accent to-accent-subtle flex items-center justify-center text-white text-3xl font-black"
@@ -122,18 +119,10 @@ const handleRespond = async (accept: boolean) => {
       </div>
 
       <div class="flex items-center gap-4 pt-2">
-        <button
-          :disabled="processing"
-          class="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50"
-          @click="handleRespond(false)"
-        >
+        <button type="button" :disabled="processing" class="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50" @click="handleRespond(false)">
           暂时拒绝
         </button>
-        <button
-          :disabled="processing"
-          class="flex-1 px-6 py-4 rounded-2xl font-bold text-white bg-accent hover:shadow-xl hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-          @click="handleRespond(true)"
-        >
+        <button type="button" :disabled="processing" class="flex-1 px-6 py-4 rounded-2xl font-bold text-white bg-accent hover:shadow-xl hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleRespond(true)">
           <Loader2 v-if="processing" class="w-4 h-4 animate-spin" />
           <Check v-else class="w-5 h-5" />
           接受加入

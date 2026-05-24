@@ -35,14 +35,55 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import PageHeader from '@/components/PageHeader.vue';
 import RoadmapCard from '@/components/RoadmapCard.vue';
+import { getApiErrorMessage } from '@/utils/error';
 
 const router = useRouter();
 
-const roadmaps = ref<any[]>([]);
-const myProgress = ref<any[]>([]);
-const allCourses = ref<any[]>([]);
+interface RoadmapStep {
+  id: string;
+  title: string;
+  description?: string | null;
+  subtasks?: string | string[] | null;
+}
+
+interface Roadmap {
+  id: string;
+  title: string;
+  description?: string | null;
+  creatorId?: string | null;
+  steps: RoadmapStep[];
+}
+
+interface RoadmapProgress {
+  roadmapStepId: string;
+  completed: boolean;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  difficulty?: string | null;
+}
+
+interface StepTask {
+  id: string;
+  text: string;
+}
+
+interface FormStep {
+  id?: string;
+  title: string;
+  description: string;
+  subtasks: string[];
+}
+
+const roadmaps = ref<Roadmap[]>([]);
+const myProgress = ref<RoadmapProgress[]>([]);
+const allCourses = ref<Course[]>([]);
 const isLoading = ref(false);
-const selectedRoadmap = ref<any>(null);
+const selectedRoadmap = ref<Roadmap | null>(null);
 const activeStepId = ref<string | null>(null);
 
 // Tab management
@@ -56,7 +97,7 @@ const customRoadmapForm = ref({
   id: '',
   title: '',
   description: '',
-  steps: [] as Array<{ id?: string; title: string; description: string; subtasks: string[] }>,
+  steps: [] as FormStep[],
 });
 
 // Checklist persistent state
@@ -90,12 +131,12 @@ const fetchData = async () => {
       api.get('/api/roadmaps/my-progress'),
       api.get('/api/courses'),
     ]);
-    roadmaps.value = roadRes.data;
+    roadmaps.value = roadRes.data.data || [];
     myProgress.value = progRes.data;
     allCourses.value = courseRes.data;
 
     autoSelectFirstRoadmap();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('加载学习路径数据失败');
   } finally {
     isLoading.value = false;
@@ -140,7 +181,7 @@ const activeStep = computed(() => {
   )
     return null;
   return (
-    selectedRoadmap.value.steps.find((s: any) => s.id === activeStepId.value) ||
+    selectedRoadmap.value.steps.find((s) => s.id === activeStepId.value) ||
     selectedRoadmap.value.steps[0] ||
     null
   );
@@ -164,14 +205,14 @@ const toggleStep = async (stepId: string) => {
       myProgress.value.push({ roadmapStepId: stepId, completed: !isCompleted });
     }
     ElMessage.success(!isCompleted ? '恭喜完成该阶段！' : '已重置阶段进度');
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('更新进度失败');
   }
 };
 
-const calculateRoadmapProgress = (roadmap: any) => {
+const calculateRoadmapProgress = (roadmap: Roadmap) => {
   if (!roadmap || !roadmap.steps || roadmap.steps.length === 0) return 0;
-  const completedCount = roadmap.steps.filter((s: any) => isStepCompleted(s.id)).length;
+  const completedCount = roadmap.steps.filter((s) => isStepCompleted(s.id)).length;
   return Math.round((completedCount / roadmap.steps.length) * 100);
 };
 
@@ -182,7 +223,7 @@ const overallStats = computed(() => {
 
   const totalSteps = roadmaps.value.reduce((sum, r) => sum + (r.steps?.length || 0), 0);
   const completedSteps = roadmaps.value.reduce((sum, r) => {
-    return sum + (r.steps?.filter((s: any) => isStepCompleted(s.id)).length || 0);
+    return sum + (r.steps?.filter((s) => isStepCompleted(s.id)).length || 0);
   }, 0);
 
   const completedRoadmaps = roadmaps.value.filter(
@@ -200,7 +241,7 @@ const overallStats = computed(() => {
   };
 });
 
-const isStepLocked = (_step: any, index: number | string) => {
+const isStepLocked = (_step: RoadmapStep, index: number | string) => {
   const idx = Number(index);
   if (idx === 0) return false;
   if (!selectedRoadmap.value) return false;
@@ -208,7 +249,7 @@ const isStepLocked = (_step: any, index: number | string) => {
   return prevStep && !isStepCompleted(prevStep.id);
 };
 
-const getStepStatus = (step: any, index: number | string) => {
+const getStepStatus = (step: RoadmapStep, index: number | string) => {
   const idx = Number(index);
   if (isStepCompleted(step.id)) return 'completed';
   if (isStepLocked(step, idx)) return 'locked';
@@ -238,7 +279,7 @@ const nextUpTask = computed(() => {
 */
 
 // Intelligent keyword matching course recommendations
-const getRelatedCourses = (step: any) => {
+const getRelatedCourses = (step: RoadmapStep) => {
   if (!step || !allCourses.value || allCourses.value.length === 0) return [];
   const title = step.title.toLowerCase();
   const desc = (step.description || '').toLowerCase();
@@ -288,7 +329,7 @@ const getRelatedCourses = (step: any) => {
 };
 
 // Upgraded custom step sub-tasks resolver
-const getSubTasksForStep = (step: any) => {
+const getSubTasksForStep = (step: RoadmapStep): StepTask[] => {
   if (!step) return [];
 
   if (step.subtasks) {
@@ -308,7 +349,7 @@ const getSubTasksForStep = (step: any) => {
 };
 
 // Upgraded intelligent & course-aware skill metrics generator
-const getMetricsForStep = (step: any, index: number) => {
+const getMetricsForStep = (step: RoadmapStep, index: number) => {
   if (!step) return { difficulty: 50, practical: 50, duration: 20 };
   const title = step.title.toLowerCase();
   // const desc = (step.description || '').toLowerCase(); // removed as unused
@@ -434,8 +475,8 @@ const openEditDialog = () => {
     id: selectedRoadmap.value.id,
     title: selectedRoadmap.value.title,
     description: selectedRoadmap.value.description || '',
-    steps: selectedRoadmap.value.steps.map((s: any) => {
-      let subtasksArr = [];
+    steps: (selectedRoadmap.value.steps || []).map((s) => {
+      let subtasksArr: unknown = [];
       if (s.subtasks) {
         try {
           subtasksArr = typeof s.subtasks === 'string' ? JSON.parse(s.subtasks) : s.subtasks;
@@ -521,18 +562,19 @@ const submitCustomRoadmap = async () => {
       selectedRoadmap.value = res.data;
     }
     showFormDialog.value = false;
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '保存路线方案失败');
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '保存路线方案失败'));
   } finally {
     formLoading.value = false;
   }
 };
 
 const deleteCustomRoadmap = async () => {
-  if (!selectedRoadmap.value) return;
+  const roadmap = selectedRoadmap.value;
+  if (!roadmap) return;
   try {
     await ElMessageBox.confirm(
-      `确定要彻底删除您的自定义学习路线「${selectedRoadmap.value.title}」吗？此操作不可撤销！`,
+      `确定要彻底删除您的自定义学习路线「${roadmap.title}」吗？此操作不可撤销！`,
       '警告',
       {
         confirmButtonText: '确定删除',
@@ -542,9 +584,9 @@ const deleteCustomRoadmap = async () => {
       },
     );
 
-    await api.delete(`/api/roadmaps/${selectedRoadmap.value.id}`);
+    await api.delete(`/api/roadmaps/${roadmap.id}`);
     ElMessage.success('路线删除成功');
-    const idx = roadmaps.value.findIndex((r) => r.id === selectedRoadmap.value.id);
+    const idx = roadmaps.value.findIndex((r) => r.id === roadmap.id);
     if (idx > -1) roadmaps.value.splice(idx, 1);
     autoSelectFirstRoadmap();
   } catch (error) {
@@ -561,7 +603,7 @@ const exportToMarkdown = () => {
   if (rm.description) md += `> ${rm.description}\n\n`;
   md += `--- \n\n## 学习大纲阶段拆解 (${rm.steps?.length || 0} 个阶段)\n\n`;
 
-  rm.steps.forEach((s: any, idx: number) => {
+  (rm.steps || []).forEach((s, idx) => {
     const isDone = isStepCompleted(s.id) ? ' [已完成]' : '';
     md += `### 阶段 ${idx + 1}: ${s.title}${isDone}\n`;
     if (s.description) md += `${s.description}\n\n`;
@@ -705,6 +747,7 @@ onMounted(() => {
             class="flex-1 flex p-0.5 sm:p-1 bg-slate-100 dark:bg-slate-900/80 rounded-lg sm:rounded-xl"
           >
             <button
+type="button"
               class="flex-1 flex items-center justify-center gap-1 py-1 sm:py-2 text-[10px] sm:text-xs font-bold rounded-md sm:rounded-lg transition-all cursor-pointer"
               :class="
                 activeTab === 'system'
@@ -717,6 +760,7 @@ onMounted(() => {
               <span class="truncate">官方推荐</span>
             </button>
             <button
+type="button"
               class="flex-1 flex items-center justify-center gap-1 py-1 sm:py-2 text-[10px] sm:text-xs font-bold rounded-md sm:rounded-lg transition-all cursor-pointer"
               :class="
                 activeTab === 'custom'
@@ -732,7 +776,8 @@ onMounted(() => {
 
           <!-- Add Button Inline (Saves a full row on mobile!) -->
           <button
-            v-if="activeTab === 'custom'"
+v-if="activeTab === 'custom'"
+            type="button"
             class="md:hidden p-1.5 bg-accent text-white rounded-lg hover:bg-accent-dark transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-md"
             @click="openCreateDialog"
           >
@@ -742,7 +787,8 @@ onMounted(() => {
 
         <!-- Add Custom Roadmap Button (Desktop Only) -->
         <button
-          v-if="activeTab === 'custom'"
+v-if="activeTab === 'custom'"
+          type="button"
           class="hidden md:flex w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20"
           @click="openCreateDialog"
         >
@@ -836,6 +882,7 @@ onMounted(() => {
                 <!-- Actions inline next to Title! -->
                 <div class="flex items-center gap-1 shrink-0">
                   <button
+type="button"
                     class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/5 border border-slate-200/50 dark:border-slate-800 text-[8px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-0.5 cursor-pointer shadow-sm"
                     @click="exportToMarkdown"
                   >
@@ -844,6 +891,7 @@ onMounted(() => {
                   </button>
                   <template v-if="selectedRoadmap.creatorId !== null">
                     <button
+type="button"
                       class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/10 hover:bg-slate-500/20 text-[8px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all flex items-center gap-0.5 cursor-pointer"
                       @click="openEditDialog"
                     >
@@ -851,6 +899,7 @@ onMounted(() => {
                       <span>修改</span>
                     </button>
                     <button
+type="button"
                       class="p-1 px-1.5 sm:px-2 rounded bg-red-500/10 hover:bg-red-500/20 text-[8px] sm:text-[11px] font-bold text-red-600 dark:text-red-400 transition-all flex items-center gap-0.5 cursor-pointer"
                       @click="deleteCustomRoadmap"
                     >
@@ -894,7 +943,7 @@ onMounted(() => {
                     >
                       <CircleCheck class="w-3 h-3 text-emerald-500/80" />
                       {{
-                        selectedRoadmap.steps?.filter((s: any) => isStepCompleted(s.id)).length || 0
+                        selectedRoadmap.steps?.filter((s: RoadmapStep) => isStepCompleted(s.id)).length || 0
                       }}
                       <span class="font-normal text-slate-400">已解锁</span>
                     </div>
@@ -1121,6 +1170,7 @@ onMounted(() => {
                 <!-- Toggle Completion Action -->
                 <div class="pt-1 sm:pt-2 relative z-10">
                   <button
+type="button"
                     class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
                     :class="
                       isStepCompleted(activeStep.id)
@@ -1295,6 +1345,7 @@ onMounted(() => {
                       >
                         <img
                           v-if="course.thumbnail"
+                          alt=""
                           :src="getAssetUrl(course.thumbnail)"
                           class="w-full h-full object-cover group-hover/card:scale-105 transition-transform"
                         />
@@ -1394,6 +1445,7 @@ onMounted(() => {
               </h3>
             </div>
             <button
+type="button"
               class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               @click="showFormDialog = false"
             >
@@ -1562,12 +1614,14 @@ onMounted(() => {
             class="p-5 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-end gap-3"
           >
             <button
+type="button"
               class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
               @click="showFormDialog = false"
             >
               取消
             </button>
             <button
+type="button"
               class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20"
               :class="formLoading ? 'opacity-70 pointer-events-none' : ''"
               @click="submitCustomRoadmap"

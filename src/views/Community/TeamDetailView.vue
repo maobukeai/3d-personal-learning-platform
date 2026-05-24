@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { getApiErrorMessage, getApiErrorStatus } from '@/utils/error';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   Users,
@@ -28,13 +29,61 @@ import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 
+interface TeamUser {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  email?: string;
+  role?: string;
+}
+
+interface DetailedMember {
+  id: string;
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  user: TeamUser;
+  joinedAt?: string;
+}
+
+interface DetailedInvitation {
+  id: string;
+  inviteeEmail: string;
+  role: string;
+  createdAt: string;
+}
+
+interface DetailedApplication {
+  id: string;
+  userId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  user: TeamUser;
+  createdAt: string;
+  message?: string | null;
+}
+
+interface DetailedTeam {
+  id: string;
+  name: string;
+  description?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+  type: 'PERSONAL' | 'TEAM';
+  visibility: 'PUBLIC' | 'PRIVATE';
+  category?: string | null;
+  ownerId: string;
+  createdAt?: string;
+  members: DetailedMember[];
+  invitations?: DetailedInvitation[];
+  applications?: DetailedApplication[];
+}
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const workspaceStore = useWorkspaceStore();
 const teamId = computed(() => route.params.id as string);
 
-const team = ref<any>(null);
+const team = ref<DetailedTeam | null>(null);
 const isLoading = ref(false);
 const activeTab = ref('people'); // 'people', 'applications', 'settings'
 const memberSearchQuery = ref('');
@@ -47,14 +96,14 @@ const openUserProfile = (userId: string) => {
   isProfileDialogOpen.value = true;
 };
 
-const handleStartChat = async (user: any) => {
+const handleStartChat = async (user: TeamUser) => {
   try {
     await api.post('/api/messages/conversations', {
       participantIds: [user.id],
       isGroup: false,
     });
     router.push('/messages');
-  } catch (error) {
+  } catch {
     ElMessage.error('创建对话失败');
   }
 };
@@ -64,9 +113,9 @@ const fetchTeamDetail = async () => {
   try {
     const response = await api.get(`/api/teams/${teamId.value}`);
     team.value = response.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Fetch team detail error:', error);
-    if (error.response?.status === 403) {
+    if (getApiErrorStatus(error) === 403) {
       ElMessage.error('你没有权限查看该团队');
     } else {
       ElMessage.error('获取团队详情失败');
@@ -79,12 +128,12 @@ const fetchTeamDetail = async () => {
 
 const isMember = computed(() => {
   if (!team.value || !authStore.user) return false;
-  return team.value.members.some((m: any) => m.userId === authStore.user?.id);
+  return team.value.members.some((m: DetailedMember) => m.userId === authStore.user?.id);
 });
 
 const currentUserRole = computed(() => {
   if (!team.value || !authStore.user) return null;
-  const member = team.value.members.find((m: any) => m.userId === authStore.user?.id);
+  const member = team.value.members.find((m: DetailedMember) => m.userId === authStore.user?.id);
   return member?.role;
 });
 
@@ -116,21 +165,30 @@ const pendingApplications = computed(() => team.value?.applications || []);
 const filteredPeople = computed(() => {
   if (!team.value) return [];
 
-  const members = team.value.members.map((m: any) => ({
-    ...m,
+  const members = team.value.members.map((m: DetailedMember) => ({
+    id: m.id,
+    userId: m.userId,
+    role: m.role,
     isMember: true,
     displayName: m.user.name,
     displayEmail: m.user.email,
     displayAvatar: m.user.avatarUrl,
+    joinedAt: m.joinedAt || team.value?.createdAt || '',
+    user: m.user,
+    createdAt: m.joinedAt || team.value?.createdAt || '',
   }));
 
-  const invitations = (team.value.invitations || []).map((i: any) => ({
-    ...i,
-    isMember: false,
+  const invitations = (team.value.invitations || []).map((i: DetailedInvitation) => ({
+    id: i.id,
+    userId: '',
     role: 'PENDING',
+    isMember: false,
     displayName: i.inviteeEmail,
     displayEmail: i.inviteeEmail,
     displayAvatar: null,
+    joinedAt: i.createdAt,
+    user: { id: '', name: i.inviteeEmail, email: i.inviteeEmail } as TeamUser,
+    createdAt: i.createdAt,
   }));
 
   const all = [...members, ...invitations];
@@ -146,7 +204,7 @@ const filteredPeople = computed(() => {
 const teamStats = computed(() => {
   if (!team.value) return { total: 0, admins: 0, pending: 0 };
   const total = team.value.members.length;
-  const admins = team.value.members.filter((m: any) => m.role === 'OWNER' || m.role === 'ADMIN').length;
+  const admins = team.value.members.filter((m: DetailedMember) => m.role === 'OWNER' || m.role === 'ADMIN').length;
   const pending = (team.value.invitations || []).length;
   return { total, admins, pending };
 });
@@ -174,8 +232,8 @@ const handleUpdateRole = async (userId: string, newRole: string) => {
     await api.patch(`/api/teams/${teamId.value}/members/${userId}/role`, { role: newRole });
     ElMessage.success('角色权限已更新');
     fetchTeamDetail();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '更新失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '更新失败'));
   }
 };
 
@@ -184,7 +242,7 @@ const handleCancelInvitation = async (invitationId: string) => {
     await api.delete(`/api/teams/invitations/${invitationId}`);
     ElMessage.success('邀请已撤回');
     fetchTeamDetail();
-  } catch (error) {
+  } catch {
     ElMessage.error('操作失败');
   }
 };
@@ -200,15 +258,15 @@ const handleRespondApplication = async (
       approve ? `已批准 ${applicantName} 加入团队` : `已拒绝 ${applicantName} 的申请`,
     );
     fetchTeamDetail();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '操作失败'));
   }
 };
 
 // Add Member Modal
 const isAddModalOpen = ref(false);
 const userSearchQuery = ref('');
-const searchResults = ref<any[]>([]);
+const searchResults = ref<TeamUser[]>([]);
 const isSearchingUsers = ref(false);
 const inviteEmailInput = ref('');
 
@@ -228,13 +286,13 @@ const searchUsers = async () => {
   }
 };
 
-let _searchTimer: any = null;
+let _searchTimer: ReturnType<typeof setTimeout> | null = null;
 watch(userSearchQuery, () => {
-  clearTimeout(_searchTimer);
+  if (_searchTimer) clearTimeout(_searchTimer);
   _searchTimer = setTimeout(searchUsers, 300);
 });
 
-const handleAddUser = async (user: any) => {
+const handleAddUser = async (user: TeamUser) => {
   try {
     await api.post('/api/teams/invite', {
       teamId: teamId.value,
@@ -243,8 +301,8 @@ const handleAddUser = async (user: any) => {
     ElMessage.success(`已向 ${user.name} 发送团队邀请`);
     isAddModalOpen.value = false;
     fetchTeamDetail();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '发送邀请失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '发送邀请失败'));
   }
 };
 
@@ -259,8 +317,8 @@ const handleSendInvite = async () => {
     inviteEmailInput.value = '';
     isAddModalOpen.value = false;
     fetchTeamDetail();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '发送失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '发送失败'));
   }
 };
 
@@ -282,7 +340,7 @@ const handleUpdateTeam = async () => {
     ElMessage.success('团队资料已更新');
     await workspaceStore.fetchWorkspaces();
     fetchTeamDetail();
-  } catch (error) {
+  } catch {
     ElMessage.error('更新失败');
   } finally {
     isSaving.value = false;
@@ -320,9 +378,9 @@ const handleApplyFromDetail = async () => {
     );
     await api.post('/api/teams/apply', { teamId: teamId.value });
     ElMessage.success('申请已提交！等待管理员审批');
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '申请失败');
+      ElMessage.error(getApiErrorMessage(error, '申请失败'));
     }
   }
 };
@@ -338,8 +396,9 @@ const triggerCoverUpload = () => {
   coverInput.value?.click();
 };
 
-const handleAvatarChange = async (event: any) => {
-  const file = event.target.files[0];
+const handleAvatarChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
   if (!file) return;
 
   const formData = new FormData();
@@ -352,13 +411,14 @@ const handleAvatarChange = async (event: any) => {
     if (team.value) team.value.avatarUrl = data.avatarUrl;
     ElMessage.success('团队头像已更新');
     await workspaceStore.fetchWorkspaces();
-  } catch (error) {
+  } catch {
     ElMessage.error('头像更新失败');
   }
 };
 
-const handleCoverChange = async (event: any) => {
-  const file = event.target.files[0];
+const handleCoverChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
   if (!file) return;
 
   const formData = new FormData();
@@ -370,7 +430,7 @@ const handleCoverChange = async (event: any) => {
     });
     if (team.value) team.value.coverUrl = data.coverUrl;
     ElMessage.success('团队封面已更新');
-  } catch (error) {
+  } catch {
     ElMessage.error('封面更新失败');
   }
 };
@@ -379,7 +439,7 @@ const isDissolveModalOpen = ref(false);
 const dissolveCode = ref('');
 const isDissolving = ref(false);
 const dissolveCountdown = ref(0);
-let dissolveTimer: any = null;
+let dissolveTimer: ReturnType<typeof setInterval> | null = null;
 
 const startDissolveCountdown = () => {
   dissolveCountdown.value = 60;
@@ -387,7 +447,7 @@ const startDissolveCountdown = () => {
     if (dissolveCountdown.value > 0) {
       dissolveCountdown.value--;
     } else {
-      clearInterval(dissolveTimer);
+      if (dissolveTimer) clearInterval(dissolveTimer);
     }
   }, 1000);
 };
@@ -398,7 +458,7 @@ const sendDissolveCode = async () => {
     await api.post('/api/auth/email/send-code');
     ElMessage.success('验证码已发送到您的邮箱');
     startDissolveCountdown();
-  } catch (error) {
+  } catch {
     ElMessage.error('发送验证码失败');
   }
 };
@@ -429,8 +489,8 @@ const confirmDeleteTeam = async () => {
     isDissolveModalOpen.value = false;
     await workspaceStore.fetchWorkspaces();
     router.push('/dashboard');
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '解散团队失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '解散团队失败'));
   } finally {
     isDissolving.value = false;
   }
@@ -473,6 +533,11 @@ watch(
   },
   { immediate: true },
 );
+
+onUnmounted(() => {
+  if (dissolveTimer) clearInterval(dissolveTimer);
+  if (_searchTimer) clearTimeout(_searchTimer);
+});
 </script>
 
 <template>
@@ -487,12 +552,7 @@ watch(
       <div class="relative">
         <!-- Cover Banner Area -->
         <div class="relative h-32 lg:h-40 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden">
-          <img
-            v-if="team.coverUrl"
-            :src="team.coverUrl"
-            class="w-full h-full object-cover transition-all duration-700"
-            alt="Team Cover"
-          />
+          <img v-if="team.coverUrl" :src="team.coverUrl" class="w-full h-full object-cover transition-all duration-700" alt="Team Cover" />
           <div
             v-else
             class="w-full h-full bg-gradient-to-r from-violet-600/20 via-indigo-600/15 to-rose-600/20 backdrop-blur-3xl relative"
@@ -512,11 +572,7 @@ watch(
             accept="image/*"
             @change="handleCoverChange"
           />
-          <button
-            v-if="isOwnerOrAdmin"
-            class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10"
-            @click="triggerCoverUpload"
-          >
+          <button v-if="isOwnerOrAdmin" type="button" class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10" @click="triggerCoverUpload">
             <Camera class="w-4 h-4" />
             <span>更换封面</span>
           </button>
@@ -537,11 +593,7 @@ watch(
               <div
                 class="w-20 h-20 lg:w-26 lg:h-26 rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-800 transition-transform group-hover:scale-105 duration-500"
               >
-                <img
-                  v-if="team.avatarUrl"
-                  :src="team.avatarUrl"
-                  class="w-full h-full object-cover"
-                />
+                <img v-if="team.avatarUrl" alt="" :src="team.avatarUrl" class="w-full h-full object-cover" />
                 <div
                   v-else
                   class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-2xl lg:text-4xl font-black"
@@ -549,12 +601,7 @@ watch(
                   {{ team.name.charAt(0).toUpperCase() }}
                 </div>
               </div>
-              <button
-                v-if="isOwnerOrAdmin"
-                class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10"
-                @click="triggerAvatarUpload"
-                title="更换头像"
-              >
+              <button v-if="isOwnerOrAdmin" type="button" class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10" title="更换头像" @click="triggerAvatarUpload">
                 <Camera class="w-4 h-4" />
               </button>
             </div>
@@ -594,45 +641,27 @@ watch(
             <!-- Action Buttons -->
             <div class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 shrink-0 lg:mb-1">
               <template v-if="canManageTeam">
-                <button
-                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  @click="isAddModalOpen = true"
-                >
+                <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer" @click="isAddModalOpen = true">
                   <UserPlus class="w-4 h-4" />
                   管理成员
                 </button>
-                <button
-                  class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
-                  style="border-color: var(--border-base)"
-                  @click="activeTab = 'settings'"
-                >
+                <button type="button" class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer" style="border-color: var(--border-base)" @click="activeTab = 'settings'">
                   <Settings class="w-4 h-4 text-slate-400" />
                 </button>
               </template>
               <template v-else-if="isMember && isPersonalSpace">
-                <button
-                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
-                  @click="activeTab = 'settings'"
-                >
+                <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer" style="border-color: var(--border-base); color: var(--text-primary)" @click="activeTab = 'settings'">
                   <Settings class="w-4 h-4 text-slate-400" />
                   空间设置
                 </button>
               </template>
               <template v-if="!isMember && team?.visibility === 'PUBLIC'">
-                <button
-                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  @click="handleApplyFromDetail"
-                >
+                <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer" @click="handleApplyFromDetail">
                   <UserPlus class="w-4 h-4" />
                   申请加入
                 </button>
               </template>
-              <button
-                v-if="canLeaveTeam"
-                class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer"
-                @click="handleLeaveTeam"
-              >
+              <button v-if="canLeaveTeam" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer" @click="handleLeaveTeam">
                 <LogOut class="w-4 h-4" />
                 退出团队
               </button>
@@ -646,7 +675,7 @@ watch(
         <!-- Modern Tabs -->
         <div class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
           <button
-            v-for="t in [
+v-for="t in [
               { id: 'people', label: '成员与协作', icon: Users },
               {
                 id: 'applications',
@@ -661,13 +690,7 @@ watch(
                 icon: Settings,
                 hidden: !isMember || !isOwnerOrAdmin,
               },
-            ]"
-            v-show="!t.hidden"
-            :key="t.id"
-            class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer"
-            :class="activeTab === t.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'"
-            @click="activeTab = t.id"
-          >
+            ]" v-show="!t.hidden" :key="t.id" type="button" class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer" :class="activeTab === t.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'" @click="activeTab = t.id">
             <component :is="t.icon" class="w-3.5 h-3.5" />
             {{ t.label }}
             <span
@@ -742,11 +765,7 @@ watch(
                   style="color: var(--text-primary)"
                 />
               </div>
-              <button
-                v-if="canManageTeam"
-                class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap"
-                @click="isAddModalOpen = true"
-              >
+              <button v-if="canManageTeam" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap" @click="isAddModalOpen = true">
                 <Plus class="w-3.5 h-3.5" />
                 邀请新成员
               </button>
@@ -838,12 +857,7 @@ watch(
                 <!-- Action Button Group -->
                 <div class="flex items-center gap-1">
                   <!-- Private Message -->
-                  <button
-                    v-if="person.isMember && person.user.id !== authStore.user?.id"
-                    class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
-                    title="发送私信"
-                    @click="handleStartChat(person.user)"
-                  >
+                  <button v-if="person.isMember && person.user.id !== authStore.user?.id" type="button" class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" title="发送私信" @click="handleStartChat(person.user)">
                     <MessageSquare class="w-4 h-4" />
                   </button>
 
@@ -851,18 +865,15 @@ watch(
                   <template v-if="canManageTeam && person.userId !== authStore.user?.id">
                     <template v-if="person.isMember">
                       <el-dropdown trigger="click" placement="bottom-end">
-                        <button
-                          class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
-                          title="管理角色"
-                        >
+                        <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" title="管理角色">
                           <Shield class="w-4 h-4" />
                         </button>
                         <template #dropdown>
                           <el-dropdown-menu class="w-48 p-2 rounded-2xl shadow-2xl border-none">
                             <template v-if="isOwner">
                               <el-dropdown-item
-                                class="rounded-xl my-0.5"
                                 v-if="person.role === 'MEMBER'"
+                                class="rounded-xl my-0.5"
                                 @click="handleUpdateRole(person.user.id, 'ADMIN')"
                               >
                                 <div class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs">
@@ -870,8 +881,8 @@ watch(
                                 </div>
                               </el-dropdown-item>
                               <el-dropdown-item
-                                class="rounded-xl my-0.5"
                                 v-if="person.role === 'ADMIN'"
+                                class="rounded-xl my-0.5"
                                 @click="handleUpdateRole(person.user.id, 'MEMBER')"
                               >
                                 <div class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs">
@@ -891,12 +902,7 @@ watch(
                         </template>
                       </el-dropdown>
                     </template>
-                    <button
-                      v-else
-                      class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer"
-                      title="撤回邀请"
-                      @click="handleCancelInvitation(person.id)"
-                    >
+                    <button v-else type="button" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer" title="撤回邀请" @click="handleCancelInvitation(person.id)">
                       <X class="w-4 h-4" />
                     </button>
                   </template>
@@ -905,11 +911,7 @@ watch(
             </div>
 
             <!-- Add Person CTA Card -->
-            <button
-              v-if="canManageTeam"
-              class="backdrop-blur-md bg-white/30 dark:bg-slate-900/20 border border-dashed border-accent/30 dark:border-accent/20 hover:border-accent hover:bg-accent/5 rounded-xl p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all duration-300 group cursor-pointer"
-              @click="isAddModalOpen = true"
-            >
+            <button v-if="canManageTeam" type="button" class="backdrop-blur-md bg-white/30 dark:bg-slate-900/20 border border-dashed border-accent/30 dark:border-accent/20 hover:border-accent hover:bg-accent/5 rounded-xl p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all duration-300 group cursor-pointer" @click="isAddModalOpen = true">
               <div class="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all duration-300 shadow-md shadow-accent/5">
                 <Plus class="w-5 h-5" />
               </div>
@@ -962,16 +964,10 @@ watch(
                 </p>
               </div>
               <div class="flex items-center gap-3 shrink-0">
-                <button
-                  class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all"
-                  @click="handleRespondApplication(app.id, false, app.user.name)"
-                >
+                <button type="button" class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all" @click="handleRespondApplication(app.id, false, app.user.name)">
                   <XCircle class="w-4 h-4" /> 拒绝
                 </button>
-                <button
-                  class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                  @click="handleRespondApplication(app.id, true, app.user.name)"
-                >
+                <button type="button" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20" @click="handleRespondApplication(app.id, true, app.user.name)">
                   <CheckCheck class="w-4 h-4" /> 批准
                 </button>
               </div>
@@ -1050,11 +1046,7 @@ watch(
                 </div>
               </div>
               <div class="flex justify-end pt-4">
-                <button
-                  :disabled="isSaving"
-                  class="px-10 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                  @click="handleUpdateTeam"
-                >
+                <button type="button" :disabled="isSaving" class="px-10 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50" @click="handleUpdateTeam">
                   {{ isSaving ? '同步中...' : '保存所有更改' }}
                 </button>
               </div>
@@ -1082,11 +1074,7 @@ watch(
                     此操作将移除所有成员并删除所有关联的 3D 资产、任务与项目。
                   </p>
                 </div>
-                <button
-                  v-if="isOwner"
-                  class="px-10 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all whitespace-nowrap"
-                  @click="handleDeleteTeam"
-                >
+                <button v-if="isOwner" type="button" class="px-10 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all whitespace-nowrap" @click="handleDeleteTeam">
                   解散团队
                 </button>
                 <div v-else class="flex items-center gap-2 text-rose-400 font-bold text-sm italic">
@@ -1114,10 +1102,7 @@ watch(
               搜索站内用户或通过邮箱邀请外部成员
             </p>
           </div>
-          <button
-            class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
-            @click="isAddModalOpen = false"
-          >
+          <button type="button" class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all" @click="isAddModalOpen = false">
             <X class="w-6 h-6 text-slate-400" />
           </button>
         </div>
@@ -1158,10 +1143,7 @@ watch(
                     <p class="text-[10px] text-slate-400">{{ user.email }}</p>
                   </div>
                 </div>
-                <button
-                  class="p-2 bg-accent/10 text-accent rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent hover:text-white"
-                  @click="handleAddUser(user)"
-                >
+                <button type="button" class="p-2 bg-accent/10 text-accent rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent hover:text-white" @click="handleAddUser(user)">
                   <Plus class="w-4 h-4" />
                 </button>
               </div>
@@ -1200,11 +1182,7 @@ watch(
                   style="color: var(--text-primary)"
                 />
               </div>
-              <button
-                :disabled="!inviteEmailInput"
-                class="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                @click="handleSendInvite"
-              >
+              <button type="button" :disabled="!inviteEmailInput" class="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50" @click="handleSendInvite">
                 发送
               </button>
             </div>
@@ -1225,10 +1203,7 @@ watch(
           <div class="p-4 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500">
             <Trash2 class="w-6 h-6" />
           </div>
-          <button
-            class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
-            @click="isDissolveModalOpen = false"
-          >
+          <button type="button" class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all" @click="isDissolveModalOpen = false">
             <X class="w-6 h-6 text-slate-400" />
           </button>
         </div>
@@ -1269,22 +1244,14 @@ watch(
                   class="flex-1 px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
                   style="color: var(--text-primary)"
                 />
-                <button
-                  :disabled="dissolveCountdown > 0"
-                  class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50"
-                  @click="sendDissolveCode"
-                >
+                <button type="button" :disabled="dissolveCountdown > 0" class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50" @click="sendDissolveCode">
                   {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : '获取' }}
                 </button>
               </div>
             </div>
           </div>
 
-          <button
-            :disabled="isDissolving || dissolveCode.length !== 6"
-            class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            @click="confirmDeleteTeam"
-          >
+          <button type="button" :disabled="isDissolving || dissolveCode.length !== 6" class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2" @click="confirmDeleteTeam">
             <Trash2 class="w-4 h-4" />
             {{ isDissolving ? '正在解散...' : '确认并解散团队' }}
           </button>

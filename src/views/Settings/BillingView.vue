@@ -23,18 +23,69 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
+import { getApiErrorMessage } from '@/utils/error';
 
 const route = useRoute();
 const router = useRouter();
 
+interface BillingPlan {
+  id: string;
+  name: string;
+  displayName?: string | null;
+  price: number;
+  yearlyPrice?: number | null;
+  priority: number;
+  maxStorage: number;
+  maxTeams: number;
+  maxProjects: number;
+  maxAssets: number;
+  features?: string[];
+  isPopular?: boolean;
+  badgeColor?: string | null;
+}
+
+interface BillingSubscription {
+  id?: string;
+  status?: string;
+  interval?: 'MONTHLY' | 'YEARLY';
+  autoRenew?: boolean;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: string;
+  endDate?: string;
+  plan?: BillingPlan | null;
+}
+
+interface BillingTransaction {
+  id?: string;
+  createdAt: string;
+  description?: string | null;
+  amount?: number | string;
+  status?: string;
+  paymentMethod?: string | null;
+  invoiceNo?: string | null;
+}
+
+interface StorageUsage {
+  usedStorage?: number;
+  maxStorage?: number;
+  usagePercent?: number;
+}
+
+interface SubscriptionLimits {
+  currentProjects?: number;
+  maxProjects?: number;
+  currentAssets?: number;
+  maxAssets?: number;
+}
+
 const isLoading = ref(true);
-const plans = ref<any[]>([]);
-const mySubscription = ref<any>(null);
-const transactions = ref<any[]>([]);
+const plans = ref<BillingPlan[]>([]);
+const mySubscription = ref<BillingSubscription | null>(null);
+const transactions = ref<BillingTransaction[]>([]);
 const selectedPlanId = ref('');
 const billingInterval = ref<'MONTHLY' | 'YEARLY'>('MONTHLY');
-const storageUsage = ref<any>(null);
-const subscriptionLimits = ref<any>(null);
+const storageUsage = ref<StorageUsage | null>(null);
+const subscriptionLimits = ref<SubscriptionLimits | null>(null);
 const showCancelDialog = ref(false);
 const cancelType = ref<'immediate' | 'end_of_period'>('end_of_period');
 const cancelRequires2FA = ref(false);
@@ -42,7 +93,7 @@ const twoFactorCode = ref('');
 const isVerifying2FA = ref(false);
 const cancelStep = ref<'confirm' | '2fa' | 'success'>('confirm');
 const showUpgradeDialog = ref(false);
-const upgradePlan = ref<any>(null);
+const upgradePlan = ref<BillingPlan | null>(null);
 
 const activationCode = ref('');
 const isRedeeming = ref(false);
@@ -63,9 +114,9 @@ const fetchBillingData = async () => {
     storageUsage.value = storageRes.data;
     subscriptionLimits.value = limitsRes.data;
     selectedPlanId.value =
-      subRes.data.plan?.id || plans.value.find((p: any) => p.name === 'FREE')?.id;
+      subRes.data.plan?.id || plans.value.find((p) => p.name === 'FREE')?.id || '';
     billingInterval.value = subRes.data.interval || 'MONTHLY';
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取账单数据失败');
   } finally {
     isLoading.value = false;
@@ -76,7 +127,7 @@ const checkCancel2FA = async () => {
   try {
     const res = await api.get('/api/subscriptions/cancel-requires-2fa');
     cancelRequires2FA.value = res.data.requires2FA;
-  } catch (error) {
+  } catch (_error) {
     cancelRequires2FA.value = false;
   }
 };
@@ -96,14 +147,14 @@ const handleRedeemCode = async () => {
     fetchBillingData();
     const authStore = useAuthStore();
     await authStore.fetchMe();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '兑换失败，请检查激活码是否有效');
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '兑换失败，请检查激活码是否有效'));
   } finally {
     isRedeeming.value = false;
   }
 };
 
-const handleSubscribe = async (plan: any) => {
+const handleSubscribe = async (plan: BillingPlan) => {
   if (plan.id === mySubscription.value?.plan?.id && mySubscription.value?.status === 'ACTIVE') {
     ElMessage.info('您已订阅此计划');
     return;
@@ -134,8 +185,8 @@ const handleSubscribe = async (plan: any) => {
       fetchBillingData();
       const authStore = useAuthStore();
       await authStore.fetchMe();
-    } catch (error: any) {
-      ElMessage.error(error.response?.data?.error || '激活失败，请检查激活码是否有效');
+    } catch (error: unknown) {
+      ElMessage.error(getApiErrorMessage(error, '激活失败，请检查激活码是否有效'));
     }
   }).catch(() => {});
 };
@@ -158,8 +209,8 @@ const handleConfirmUpgrade = async () => {
       fetchBillingData();
       const authStore = useAuthStore();
       await authStore.fetchMe();
-    } catch (error: any) {
-      ElMessage.error(error.response?.data?.error || '激活失败，请检查激活码是否有效');
+    } catch (error: unknown) {
+      ElMessage.error(getApiErrorMessage(error, '激活失败，请检查激活码是否有效'));
     }
   }).catch(() => {});
 };
@@ -188,8 +239,8 @@ const handleCancelSubscription = async () => {
     const authStore = useAuthStore();
     await authStore.fetchMe();
     fetchBillingData();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '取消订阅失败');
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '取消订阅失败'));
   }
 };
 
@@ -211,12 +262,15 @@ const handleCancelWith2FA = async () => {
     const authStore = useAuthStore();
     await authStore.fetchMe();
     fetchBillingData();
-  } catch (error: any) {
-    if (error.response?.data?.requires2FA) {
-      ElMessage.error('需要两步验证');
-    } else {
-      ElMessage.error(error.response?.data?.error || '验证失败，请重试');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const response = (error as { response?: { data?: { requires2FA?: boolean } } }).response;
+      if (response?.data?.requires2FA) {
+        ElMessage.error('需要两步验证');
+        return;
+      }
     }
+    ElMessage.error(getApiErrorMessage(error, '验证失败，请重试'));
   } finally {
     isVerifying2FA.value = false;
   }
@@ -230,8 +284,8 @@ const handleToggleAutoRenew = async () => {
     ElMessage.success(res.data.message);
     mySubscription.value.autoRenew = newValue;
     mySubscription.value.cancelAtPeriodEnd = !newValue;
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error: unknown) {
+    ElMessage.error(getApiErrorMessage(error, '操作失败'));
   }
 };
 
@@ -241,7 +295,7 @@ const handleExportBilling = () => {
     return;
   }
   const headers = ['日期', '项目描述', '金额', '状态', '支付方式', '发票号'];
-  const rows = transactions.value.map((tx: any) => [
+  const rows = transactions.value.map((tx) => [
     new Date(tx.createdAt).toLocaleDateString(),
     tx.description || '',
     `￥${tx.amount}`,
@@ -261,19 +315,19 @@ const handleExportBilling = () => {
   ElMessage.success('账单已导出');
 };
 
-const getPlanIcon = (name: string) => {
+const getPlanIcon = (name?: string | null) => {
   if (name === 'VIP') return Zap;
   if (name === 'SVIP') return Crown;
   return CreditCard;
 };
 
-const getPlanColor = (name: string) => {
+const getPlanColor = (name?: string | null) => {
   if (name === 'VIP') return 'text-violet-500';
   if (name === 'SVIP') return 'text-amber-500';
   return 'text-blue-500';
 };
 
-const getPlanBgColor = (name: string) => {
+const getPlanBgColor = (name?: string | null) => {
   if (name === 'VIP') return 'bg-violet-500';
   if (name === 'SVIP') return 'bg-amber-500';
   return 'bg-blue-500';
@@ -288,14 +342,16 @@ const isPaidPlan = computed(() => {
   return mySubscription.value?.plan?.name !== 'FREE' && mySubscription.value?.status === 'ACTIVE';
 });
 
-const getDisplayPrice = (plan: any) => {
+const getDisplayPrice = (plan?: BillingPlan | null) => {
+  if (!plan) return 0;
   if (billingInterval.value === 'YEARLY' && plan.yearlyPrice) {
     return plan.yearlyPrice;
   }
   return plan.price;
 };
 
-const isUpgradeAvailable = (plan: any) => {
+const isUpgradeAvailable = (plan?: BillingPlan | null) => {
+  if (!plan) return false;
   const currentPriority = mySubscription.value?.plan?.priority || 0;
   return (
     plan.priority > currentPriority &&
@@ -304,7 +360,8 @@ const isUpgradeAvailable = (plan: any) => {
   );
 };
 
-const isRenewalAvailable = (plan: any) => {
+const isRenewalAvailable = (plan?: BillingPlan | null) => {
+  if (!plan) return false;
   return plan.id === mySubscription.value?.plan?.id && mySubscription.value?.status === 'ACTIVE';
 };
 
@@ -419,11 +476,7 @@ onMounted(() => {
                   placeholder="请输入激活码..."
                   @keyup.enter="handleRedeemCode"
                 />
-                <button
-                  :disabled="isRedeeming"
-                  class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 active:scale-95 disabled:opacity-50 transition-all shadow-lg shadow-accent/20 shrink-0"
-                  @click="handleRedeemCode"
-                >
+                <button type="button" :disabled="isRedeeming" class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:scale-105 active:scale-95 disabled:opacity-50 transition-all shadow-lg shadow-accent/20 shrink-0" @click="handleRedeemCode">
                   <template v-if="isRedeeming">兑换中...</template>
                   <template v-else>兑换</template>
                 </button>
@@ -433,7 +486,7 @@ onMounted(() => {
             <div v-if="isPaidPlan" class="space-y-2 md:space-y-3 mt-4 md:mt-6">
               <div class="flex items-center justify-between">
                 <span class="text-[8px] md:text-xs font-bold text-[var(--text-secondary)]">自动续费</span>
-                <button class="transition-colors" @click="handleToggleAutoRenew">
+                <button type="button" class="transition-colors" @click="handleToggleAutoRenew">
                   <component
                     :is="mySubscription?.autoRenew ? ToggleRight : ToggleLeft"
                     class="w-5 h-5 md:w-8 md:h-8"
@@ -441,17 +494,11 @@ onMounted(() => {
                   />
                 </button>
               </div>
-              <button
-                class="w-full py-1.5 md:py-3 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center gap-1"
-                @click="openCancelDialog"
-              >
+              <button type="button" class="w-full py-1.5 md:py-3 border border-dashed border-rose-200 dark:border-rose-900/30 rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center gap-1" @click="openCancelDialog">
                 取消订阅
               </button>
             </div>
-            <button
-              v-else
-              class="w-full py-2 md:py-4 mt-4 md:mt-6 border border-dashed border-[var(--border-base)] rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-1"
-            >
+            <button v-else type="button" class="w-full py-2 md:py-4 mt-4 md:mt-6 border border-dashed border-[var(--border-base)] rounded-lg md:rounded-2xl text-[8px] md:text-xs font-bold text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-1">
               <History class="w-3 h-3 md:w-4 md:h-4" /> 账单
             </button>
           </div>
@@ -474,12 +521,9 @@ onMounted(() => {
                 >月付</span
               >
               <button
-                class="relative w-14 h-7 rounded-full transition-colors duration-300"
-                :class="
+type="button" class="relative w-14 h-7 rounded-full transition-colors duration-300" :class="
                   billingInterval === 'YEARLY' ? 'bg-accent' : 'bg-slate-200 dark:bg-slate-700'
-                "
-                @click="billingInterval = billingInterval === 'MONTHLY' ? 'YEARLY' : 'MONTHLY'"
-              >
+                " @click="billingInterval = billingInterval === 'MONTHLY' ? 'YEARLY' : 'MONTHLY'">
                 <div
                   class="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300"
                   :class="billingInterval === 'YEARLY' ? 'translate-x-7' : 'translate-x-0.5'"
@@ -552,8 +596,7 @@ onMounted(() => {
               </ul>
 
               <button
-                class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-[9px] md:text-sm transition-all flex items-center justify-center gap-1 md:gap-2"
-                :class="[
+type="button" class="w-full py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-[9px] md:text-sm transition-all flex items-center justify-center gap-1 md:gap-2" :class="[
                   plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE'
                     ? isRenewalAvailable(plan)
                       ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'
@@ -561,9 +604,7 @@ onMounted(() => {
                     : plan.isPopular
                       ? 'bg-accent text-white shadow-lg shadow-accent/20'
                       : 'bg-[var(--bg-app)] text-[var(--text-primary)] border border-[var(--border-base)] hover:border-accent hover:text-accent',
-                ]"
-                @click="handleSubscribe(plan)"
-              >
+                ]" @click="handleSubscribe(plan)">
                 {{ plan.id === mySubscription?.plan?.id && mySubscription?.status === 'ACTIVE' ? '当前' : '升级' }}
               </button>
             </div>
@@ -599,19 +640,19 @@ onMounted(() => {
                   v-for="row in [
                     {
                       label: '存储空间',
-                      values: plans.map((p: any) =>
+                      values: plans.map((p: BillingPlan) =>
                         p.maxStorage >= 9999 ? '∞' : `${p.maxStorage}G`,
                       ),
                     },
                     {
                       label: '协作团队',
-                      values: plans.map((p: any) =>
+                      values: plans.map((p: BillingPlan) =>
                         p.maxTeams >= 999 ? '∞' : `${p.maxTeams}个`,
                       ),
                     },
                     {
                       label: '项目/资产',
-                      values: plans.map((p: any) =>
+                      values: plans.map((p: BillingPlan) =>
                         `${p.maxProjects >= 9999 ? '∞' : p.maxProjects}/${p.maxAssets >= 9999 ? '∞' : p.maxAssets}`,
                       ),
                     },
@@ -640,10 +681,7 @@ onMounted(() => {
         <div class="space-y-4 overflow-hidden">
           <div class="flex items-center justify-between">
             <h2 class="text-lg md:text-xl font-bold text-[var(--text-primary)]">账单历史</h2>
-            <button
-              class="text-[10px] md:text-xs font-bold text-accent hover:underline flex items-center gap-1"
-              @click="handleExportBilling"
-            >
+            <button type="button" class="text-[10px] md:text-xs font-bold text-accent hover:underline flex items-center gap-1" @click="handleExportBilling">
               <Download class="w-3 h-3 md:w-3.5 md:h-3.5" /> 导出
             </button>
           </div>
@@ -715,10 +753,7 @@ onMounted(() => {
               如果您对计划选择或账单有任何疑问，我们的支持团队随时为您提供帮助。
             </p>
           </div>
-          <button
-            class="w-full md:w-auto px-8 py-4 bg-white text-blue-600 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg"
-            @click="$router.push('/report-bug')"
-          >
+          <button type="button" class="w-full md:w-auto px-8 py-4 bg-white text-blue-600 font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg" @click="$router.push('/report-bug')">
             联系客户支持
           </button>
         </div>
@@ -742,7 +777,7 @@ onMounted(() => {
           <template v-if="cancelStep === 'confirm'">
             <div class="flex items-center justify-between">
               <h3 class="text-xl font-bold text-[var(--text-primary)]">取消订阅</h3>
-              <button class="text-[var(--text-secondary)]" @click="showCancelDialog = false">
+              <button type="button" class="text-[var(--text-secondary)]" @click="showCancelDialog = false">
                 <X class="w-5 h-5" />
               </button>
             </div>
@@ -830,16 +865,10 @@ onMounted(() => {
             </div>
 
             <div class="flex gap-3">
-              <button
-                class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
-                @click="showCancelDialog = false"
-              >
+              <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showCancelDialog = false">
                 继续使用
               </button>
-              <button
-                class="flex-1 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white hover:bg-rose-600 transition-all"
-                @click="handleCancelSubscription"
-              >
+              <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white hover:bg-rose-600 transition-all" @click="handleCancelSubscription">
                 {{ cancelRequires2FA ? '下一步' : '确认取消' }}
               </button>
             </div>
@@ -849,7 +878,7 @@ onMounted(() => {
           <template v-if="cancelStep === '2fa'">
             <div class="flex items-center justify-between">
               <h3 class="text-xl font-bold text-[var(--text-primary)]">两步验证</h3>
-              <button class="text-[var(--text-secondary)]" @click="cancelStep = 'confirm'">
+              <button type="button" class="text-[var(--text-secondary)]" @click="cancelStep = 'confirm'">
                 <X class="w-5 h-5" />
               </button>
             </div>
@@ -878,17 +907,10 @@ onMounted(() => {
             </div>
 
             <div class="flex gap-3">
-              <button
-                class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
-                @click="cancelStep = 'confirm'"
-              >
+              <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="cancelStep = 'confirm'">
                 返回
               </button>
-              <button
-                :disabled="isVerifying2FA || twoFactorCode.length < 6"
-                class="flex-1 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white hover:bg-rose-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                @click="handleCancelWith2FA"
-              >
+              <button type="button" :disabled="isVerifying2FA || twoFactorCode.length < 6" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white hover:bg-rose-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" @click="handleCancelWith2FA">
                 <template v-if="isVerifying2FA">
                   <div
                     class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -920,7 +942,7 @@ onMounted(() => {
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
               {{ isUpgradeAvailable(upgradePlan) ? '升级订阅' : '续费订阅' }}
             </h3>
-            <button class="text-[var(--text-secondary)]" @click="showUpgradeDialog = false">
+            <button type="button" class="text-[var(--text-secondary)]" @click="showUpgradeDialog = false">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -997,16 +1019,10 @@ onMounted(() => {
           </div>
 
           <div class="flex gap-3">
-            <button
-              class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all"
-              @click="showUpgradeDialog = false"
-            >
+            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm border border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-[var(--bg-app)] transition-all" @click="showUpgradeDialog = false">
               取消
             </button>
-            <button
-              class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover transition-all flex items-center justify-center gap-2"
-              @click="handleConfirmUpgrade"
-            >
+            <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover transition-all flex items-center justify-center gap-2" @click="handleConfirmUpgrade">
               {{ isUpgradeAvailable(upgradePlan) ? '确认升级' : '确认续费' }}
               <ArrowUpRight class="w-4 h-4" />
             </button>

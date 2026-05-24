@@ -75,13 +75,13 @@ const handleShare = async () => {
   try {
     await navigator.clipboard.writeText(window.location.href);
     ElMessage.success('页面链接已复制');
-  } catch (err) {
+  } catch (_err) {
     ElMessage.error('复制失败');
   }
 };
 
 const handleExternalLink = () => {
-  window.open(window.location.href, '_blank');
+  window.open(window.location.href, '_blank', 'noopener,noreferrer');
 };
 
 const handleTeamCreated = (team: any) => {
@@ -322,10 +322,7 @@ onUnmounted(() => {
     >
       <!-- Left: Hamburger + Workspace Switcher / Logo -->
       <div class="flex items-center gap-1 md:gap-3">
-        <button
-          class="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors lg:hidden shrink-0 -ml-1"
-          @click="isMobileSidebarOpen = true"
-        >
+        <button type="button" class="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors lg:hidden shrink-0 -ml-1" @click="isMobileSidebarOpen = true">
           <Menu class="w-5 h-5" style="color: var(--text-muted)" />
         </button>
 
@@ -358,11 +355,7 @@ onUnmounted(() => {
               }"
             >
               <div class="relative">
-                <img
-                  v-if="workspaceStore.currentWorkspace?.avatarUrl"
-                  :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)"
-                  class="w-7 h-7 rounded-xl object-cover shrink-0 shadow-sm border border-white/25 dark:border-white/10"
-                />
+                <img v-if="workspaceStore.currentWorkspace?.avatarUrl" alt="" :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)" class="w-7 h-7 rounded-xl object-cover shrink-0 shadow-sm border border-white/25 dark:border-white/10" />
                 <div
                   v-else
                   class="w-7 h-7 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
@@ -422,11 +415,7 @@ onUnmounted(() => {
                     <div class="flex items-center gap-3">
                       <!-- 玻璃质感头像 / 团队头像 -->
                       <div class="relative">
-                        <img
-                          v-if="ws.avatarUrl"
-                          :src="getAssetUrl(ws.avatarUrl)"
-                          class="w-8 h-8 rounded-xl object-cover shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 border border-slate-200/50 dark:border-white/10"
-                        />
+                        <img v-if="ws.avatarUrl" alt="" :src="getAssetUrl(ws.avatarUrl)" class="w-8 h-8 rounded-xl object-cover shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 border border-slate-200/50 dark:border-white/10" />
                         <div
                           v-else
                           class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
@@ -461,10 +450,7 @@ onUnmounted(() => {
                     </div>
                     <!-- 快捷按钮 -->
                     <div class="flex items-center gap-2">
-                      <button
-                        class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
-                        @click.stop="handleQuickSettings(ws)"
-                      >
+                      <button type="button" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0" @click.stop="handleQuickSettings(ws)">
                         <Settings class="w-4 h-4" />
                       </button>
                       <div
@@ -489,11 +475,7 @@ onUnmounted(() => {
               class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
               :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
             >
-              <img
-                v-if="systemStore.settings.PLATFORM_LOGO_URL"
-                :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
-                class="w-full h-full object-contain"
-              />
+              <img v-if="systemStore.settings.PLATFORM_LOGO_URL" alt="" :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)" class="w-full h-full object-contain" />
               <Box v-else class="w-4 h-4 text-white" />
             </div>
             <span class="text-sm font-bold" style="color: var(--text-primary)">{{
@@ -521,24 +503,15 @@ onUnmounted(() => {
       <!-- Right: Actions + Avatar -->
       <div class="flex items-center gap-2 md:gap-3">
         <!-- Mobile Search Button -->
-        <button
-          class="md:hidden w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          @click="handleSearch"
-        >
+        <button type="button" class="md:hidden w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" @click="handleSearch">
           <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- Share -->
-        <button
-          class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          @click="handleShare"
-        >
+        <button type="button" class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" @click="handleShare">
           <Share2 class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- External Link -->
-        <button
-          class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          @click="handleExternalLink"
-        >
+        <button type="button" class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" @click="handleExternalLink">
           <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
 
@@ -548,9 +521,7 @@ onUnmounted(() => {
         <!-- User Avatar or Login Button -->
         <template v-if="authStore.isAuthenticated">
           <el-dropdown trigger="click" placement="bottom-end" @command="handleProfileClick">
-            <button
-              class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none"
-            >
+            <button type="button" class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none">
               <UserAvatar :user="authStore.user ?? undefined" size="md" />
             </button>
             <template #dropdown>
@@ -597,10 +568,7 @@ onUnmounted(() => {
           </el-dropdown>
         </template>
         <template v-else>
-          <button
-            class="px-4 py-1.5 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20 hover:shadow-xl transition-all"
-            @click="router.push({ path: '/login', query: { redirect: route.fullPath } })"
-          >
+          <button type="button" class="px-4 py-1.5 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20 hover:shadow-xl transition-all" @click="router.push({ path: '/login', query: { redirect: route.fullPath } })">
             登录
           </button>
         </template>

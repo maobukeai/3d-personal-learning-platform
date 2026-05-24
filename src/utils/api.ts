@@ -1,5 +1,9 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import router from '@/router';
+import { preferences } from '@/utils/preferences';
+import { useAuthStore } from '@/stores/auth';
+import { useSystemStore } from '@/stores/system';
+import { getApiErrorStatus } from '@/utils/error';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -26,7 +30,7 @@ export const getAssetUrl = (url: string | null | undefined): string => {
 
 // 请求拦截器：自动注入 Workspace ID
 api.interceptors.request.use((config) => {
-  const activeWorkspaceId = localStorage.getItem('activeWorkspaceId');
+  const activeWorkspaceId = preferences.getActiveWorkspaceId();
   if (activeWorkspaceId) {
     config.headers['X-Workspace-Id'] = activeWorkspaceId;
   }
@@ -35,9 +39,14 @@ api.interceptors.request.use((config) => {
 });
 
 let isRefreshing = false;
-let failedQueue: any[] = [];
+type FailedRequest = {
+  resolve: (token: string | null) => void;
+  reject: (error: unknown) => void;
+};
 
-const processQueue = (error: any, token: string | null = null) => {
+let failedQueue: FailedRequest[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -59,7 +68,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      getApiErrorStatus(error) === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/api/auth/settings')
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -75,7 +88,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const { useAuthStore } = await import('@/stores/auth');
       const authStore = useAuthStore();
 
       try {
@@ -94,13 +106,18 @@ api.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
-    } else if (error.response?.status === 503) {
+    } else if (getApiErrorStatus(error) === 503) {
       // System Maintenance
-      const { useSystemStore } = await import('@/stores/system');
-      const systemStore = useSystemStore();
-      await systemStore.fetchSettings();
-      if (systemStore.settings.MAINTENANCE_MODE) {
-        router.push('/maintenance');
+      if (
+        !originalRequest.url?.includes('/api/auth/settings') &&
+        !originalRequest.url?.includes('/api/auth/refresh') &&
+        !isRefreshing
+      ) {
+        const systemStore = useSystemStore();
+        await systemStore.fetchSettings();
+        if (systemStore.settings.MAINTENANCE_MODE) {
+          router.push('/maintenance');
+        }
       }
     }
     return Promise.reject(error);

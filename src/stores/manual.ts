@@ -63,7 +63,7 @@ export const useManualStore = defineStore('manual', () => {
     try {
       const res = await api.get('/api/manual/stations');
       stations.value = res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch manual stations:', e);
       stations.value = [];
     } finally {
@@ -75,7 +75,7 @@ export const useManualStore = defineStore('manual', () => {
     try {
       const res = await api.get(`/api/manual/stations/${stationId}`);
       currentStation.value = res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch station:', e);
       currentStation.value = null;
     }
@@ -86,7 +86,7 @@ export const useManualStore = defineStore('manual', () => {
     try {
       const res = await api.get(`/api/manual/stations/${stationId}/categories`);
       categories.value = res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch categories:', e);
       categories.value = [];
     } finally {
@@ -113,7 +113,7 @@ export const useManualStore = defineStore('manual', () => {
       totalResources.value = res.data.total;
       totalPages.value = res.data.totalPages;
       currentPage.value = res.data.page;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch resources:', e);
       resources.value = [];
     } finally {
@@ -125,7 +125,7 @@ export const useManualStore = defineStore('manual', () => {
     try {
       const res = await api.get(`/api/manual/resources/${resourceId}`);
       return res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch resource:', e);
       return null;
     }

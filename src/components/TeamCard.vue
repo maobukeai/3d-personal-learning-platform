@@ -66,14 +66,11 @@ const emit = defineEmits<{
     <!-- Card Header / Cover Image -->
     <div class="h-24 lg:h-32 relative overflow-hidden">
       <img
-        :src="
+:src="
           team.coverUrl ||
           team.avatarUrl ||
           `https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=500&q=80`
-        "
-        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        alt="Team Cover"
-      />
+        " class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Team Cover" />
       <div
         class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"
       ></div>
@@ -127,19 +124,10 @@ const emit = defineEmits<{
 
         <!-- Action Button -->
         <div class="w-full sm:w-auto" @click.stop>
-          <button
-            v-if="isJoined"
-            class="w-full sm:w-auto flex items-center justify-center gap-1 px-3 lg:px-3.5 py-1 lg:py-1.5 bg-accent text-white rounded-md text-[10px] lg:text-xs font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm cursor-pointer"
-            @click="emit('enter', team)"
-          >
+          <button v-if="isJoined" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1 px-3 lg:px-3.5 py-1 lg:py-1.5 bg-accent text-white rounded-md text-[10px] lg:text-xs font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm cursor-pointer" @click="emit('enter', team)">
             进入
           </button>
-          <button
-            v-else
-            :disabled="isApplying"
-            class="w-full sm:w-auto flex items-center justify-center gap-1 px-3 lg:px-3.5 py-1 lg:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[10px] lg:text-xs font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50 cursor-pointer"
-            @click="emit('join', team)"
-          >
+          <button v-else type="button" :disabled="isApplying" class="w-full sm:w-auto flex items-center justify-center gap-1 px-3 lg:px-3.5 py-1 lg:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[10px] lg:text-xs font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50 cursor-pointer" @click="emit('join', team)">
             {{ isApplying ? '提交' : '加入' }}
           </button>
         </div>

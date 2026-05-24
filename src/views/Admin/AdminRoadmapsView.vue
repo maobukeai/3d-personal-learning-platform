@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const roadmaps = ref<any[]>([]);
 const isLoading = ref(true);
@@ -58,8 +59,8 @@ const totalStepsCount = computed(() => {
 const fetchRoadmaps = async () => {
   try {
     isLoading.value = true;
-    const { data } = await api.get('/api/admin/roadmaps');
-    roadmaps.value = data;
+    const { data } = await api.get('/api/admin/roadmaps', { params: { page: 1, limit: 100 } });
+    roadmaps.value = Array.isArray(data) ? data : data.data;
   } catch (error) {
     console.error('Fetch roadmaps error:', error);
   } finally {
@@ -164,14 +165,22 @@ const moveStepDown = (index: number) => {
 
 const handleSaveRoadmap = async () => {
   if (!editForm.value.title.trim()) {
-    alert('请输入学习路线名称');
+    ElMessage.warning('请输入学习路线名称');
     return;
   }
 
   // Clean steps with empty titles
   const validSteps = editForm.value.steps.filter((s) => s.title.trim());
   if (validSteps.length === 0) {
-    if (!confirm('当前路线没有任何有效步骤，确认保存吗？')) return;
+    try {
+      await ElMessageBox.confirm('当前路线没有任何有效步骤，确认保存吗？', '保存确认', {
+        confirmButtonText: '继续保存',
+        cancelButtonText: '取消',
+        type: 'warning',
+      });
+    } catch {
+      return;
+    }
   }
 
   // Double check orders before submission and construct subtasks array
@@ -205,24 +214,34 @@ const handleSaveRoadmap = async () => {
     await fetchRoadmaps();
   } catch (error) {
     console.error('Save roadmap error:', error);
-    alert('保存失败，请检查数据库配置');
+    ElMessage.error('保存失败，请检查数据库配置');
   } finally {
     isLoading.value = false;
   }
 };
 
 const handleDeleteRoadmap = async (id: string) => {
-  if (
-    !confirm('确定要删除这个官方路线吗？该操作不可逆，将级联清除该路线的所有步骤及用户的学习记录！')
-  )
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这个官方路线吗？该操作不可逆，将级联清除该路线的所有步骤及用户的学习记录！',
+      '删除确认',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+  } catch {
     return;
+  }
+
   try {
     isLoading.value = true;
     await api.delete(`/api/admin/roadmaps/${id}`);
     await fetchRoadmaps();
   } catch (error) {
     console.error('Delete roadmap error:', error);
-    alert('删除失败，请重试');
+    ElMessage.error('删除失败，请重试');
   } finally {
     isLoading.value = false;
   }
@@ -276,10 +295,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <button
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-md shadow-indigo-500/15 cursor-pointer whitespace-nowrap hover:scale-102"
-          @click="openEditModal()"
-        >
+        <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-md shadow-indigo-500/15 cursor-pointer whitespace-nowrap hover:scale-102" @click="openEditModal()">
           <Plus class="w-3.5 h-3.5" />
           <span>新建学习路线</span>
         </button>
@@ -324,11 +340,7 @@ onMounted(() => {
                 color: var(--text-primary);
               "
             />
-            <button
-              v-if="searchQuery"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              @click="searchQuery = ''"
-            >
+            <button v-if="searchQuery" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" @click="searchQuery = ''">
               <X class="w-3 h-3" />
             </button>
           </div>
@@ -366,10 +378,7 @@ onMounted(() => {
         <p class="text-xs text-slate-400 leading-relaxed mb-6">
           目前没有已发布的官方路线，或者搜索关键字未匹配到任何结果。点击右上角即可新建官方教学路径。
         </p>
-        <button
-          class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer whitespace-nowrap"
-          @click="openEditModal()"
-        >
+        <button type="button" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer whitespace-nowrap" @click="openEditModal()">
           <Plus class="w-4 h-4" />
           <span>创建首条官方路线</span>
         </button>
@@ -426,18 +435,10 @@ onMounted(() => {
 
                 <!-- Quick Metadata Actions -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <button
-                    class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors"
-                    title="编辑整条路线"
-                    @click="openEditModal(roadmap)"
-                  >
+                  <button type="button" class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors" title="编辑整条路线" @click="openEditModal(roadmap)">
                     <Edit2 class="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                    title="级联删除路线"
-                    @click="handleDeleteRoadmap(roadmap.id)"
-                  >
+                  <button type="button" class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors" title="级联删除路线" @click="handleDeleteRoadmap(roadmap.id)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -513,10 +514,7 @@ onMounted(() => {
                 <Calendar class="w-3 h-3 opacity-60" />
                 <span>更新时间: {{ new Date(roadmap.createdAt).toLocaleDateString() }}</span>
               </div>
-              <button
-                class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5"
-                @click="openEditModal(roadmap)"
-              >
+              <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5" @click="openEditModal(roadmap)">
                 <span>进入编辑器</span>
                 <ArrowRight class="w-3 h-3" />
               </button>
@@ -563,10 +561,7 @@ onMounted(() => {
               </p>
             </div>
           </div>
-          <button
-            class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-            @click="showEditModal = false"
-          >
+          <button type="button" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" @click="showEditModal = false">
             <X class="w-4 h-4" />
           </button>
         </div>
@@ -667,10 +662,7 @@ onMounted(() => {
                 </span>
               </div>
 
-              <button
-                class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black cursor-pointer"
-                @click="addStep"
-              >
+              <button type="button" class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black cursor-pointer" @click="addStep">
                 <Plus class="w-3 h-3" />
                 <span>新增步骤</span>
               </button>
@@ -687,10 +679,7 @@ onMounted(() => {
               >
                 <Layers class="w-8 h-8 opacity-30" />
                 <p class="text-xs font-medium">当前没有任何步骤节点</p>
-                <button
-                  class="mt-2 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white text-[10px] font-bold border border-indigo-500/20 transition-all cursor-pointer"
-                  @click="addStep"
-                >
+                <button type="button" class="mt-2 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white text-[10px] font-bold border border-indigo-500/20 transition-all cursor-pointer" @click="addStep">
                   <Plus class="w-3.5 h-3.5" />
                   <span>添加首个步骤</span>
                 </button>
@@ -716,20 +705,10 @@ onMounted(() => {
 
                       <!-- Arrow Controls -->
                       <div class="flex flex-col gap-0.5">
-                        <button
-                          class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                          :disabled="index === 0"
-                          title="上移"
-                          @click="moveStepUp(index)"
-                        >
+                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === 0" title="上移" @click="moveStepUp(index)">
                           <ChevronUp class="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                          :disabled="index === editForm.steps.length - 1"
-                          title="下移"
-                          @click="moveStepDown(index)"
-                        >
+                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === editForm.steps.length - 1" title="下移" @click="moveStepDown(index)">
                           <ChevronDown class="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -771,11 +750,7 @@ onMounted(() => {
                             <CheckCircle2 class="w-3.5 h-3.5 text-indigo-500" />
                             <span>阶段细分任务清单（留空则生成智能默认词条）</span>
                           </label>
-                          <button
-                            type="button"
-                            class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer"
-                            @click="step.subtasks.push('')"
-                          >
+                          <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer" @click="step.subtasks.push('')">
                             <Plus class="w-3 h-3" />
                             <span>添加任务项</span>
                           </button>
@@ -803,11 +778,7 @@ onMounted(() => {
                                 color: var(--text-primary);
                               "
                             />
-                            <button
-                              type="button"
-                              class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer"
-                              @click="step.subtasks.splice(sIdx, 1)"
-                            >
+                            <button type="button" class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer" @click="step.subtasks.splice(sIdx, 1)">
                               <X class="w-3 h-3" />
                             </button>
                           </div>
@@ -823,11 +794,7 @@ onMounted(() => {
                     </div>
 
                     <!-- Delete Step Action -->
-                    <button
-                      class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1"
-                      title="移除步骤"
-                      @click="removeStep(index)"
-                    >
+                    <button type="button" class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1" title="移除步骤" @click="removeStep(index)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -842,16 +809,10 @@ onMounted(() => {
           class="flex items-center gap-4 mt-6 pt-4 border-t"
           style="border-color: var(--border-base)"
         >
-          <button
-            class="flex-1 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border border-slate-200/50 dark:border-white/5"
-            @click="showEditModal = false"
-          >
+          <button type="button" class="flex-1 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border border-slate-200/50 dark:border-white/5" @click="showEditModal = false">
             取消返回
           </button>
-          <button
-            class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5"
-            @click="handleSaveRoadmap"
-          >
+          <button type="button" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5" @click="handleSaveRoadmap">
             <CheckCircle2 class="w-4 h-4" />
             <span>保存路线编排</span>
           </button>

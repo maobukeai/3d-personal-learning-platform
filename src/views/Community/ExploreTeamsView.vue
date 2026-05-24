@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -25,10 +26,22 @@ const workspaceStore = useWorkspaceStore();
 
 const isCreateTeamVisible = ref(false);
 const isDetailVisible = ref(false);
-const selectedTeam = ref<any>(null);
+
+interface ExploreTeam {
+  id: string;
+  name: string;
+  description?: string | null;
+  avatarUrl?: string | null;
+  memberCount?: number;
+  _count?: {
+    members?: number;
+  };
+}
+
+const selectedTeam = ref<ExploreTeam | null>(null);
 const searchQuery = ref('');
 const isLoading = ref(false);
-const publicTeams = ref<any[]>([]);
+const publicTeams = ref<ExploreTeam[]>([]);
 const myTeamIds = ref<Set<string>>(new Set());
 const applyingIds = ref<Set<string>>(new Set());
 
@@ -40,7 +53,7 @@ const fetchData = async () => {
       api.get('/api/teams'),
     ]);
     publicTeams.value = publicRes.data;
-    myTeamIds.value = new Set(myRes.data.map((t: any) => t.id));
+    myTeamIds.value = new Set((myRes.data as ExploreTeam[]).map((t) => t.id));
   } catch (error) {
     console.error('Fetch teams error:', error);
     ElMessage.error('获取小组失败');
@@ -49,13 +62,13 @@ const fetchData = async () => {
   }
 };
 
-let debounceTimer: any = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 watch(searchQuery, () => {
-  clearTimeout(debounceTimer);
+  if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(fetchData, 400);
 });
 
-const handleTeamCreated = (team: any) => {
+const handleTeamCreated = (team: ExploreTeam | null) => {
   workspaceStore.fetchWorkspaces();
   if (team?.id) {
     router.push(`/team/${team.id}`);
@@ -64,7 +77,7 @@ const handleTeamCreated = (team: any) => {
   }
 };
 
-const handleApplyToJoin = async (group: any) => {
+const handleApplyToJoin = async (group: ExploreTeam | null) => {
   if (!group) return;
   if (myTeamIds.value.has(group.id)) {
     router.push(`/team/${group.id}`);
@@ -86,9 +99,9 @@ const handleApplyToJoin = async (group: any) => {
     await api.post('/api/teams/apply', { teamId: group.id });
     ElMessage.success(`申请已提交！等待 "${group.name}" 管理员审批`);
     fetchData();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '申请失败，请稍后重试');
+      ElMessage.error(getApiErrorMessage(error, '申请失败，请稍后重试'));
     }
   } finally {
     applyingIds.value.delete(group.id);
@@ -96,7 +109,7 @@ const handleApplyToJoin = async (group: any) => {
   }
 };
 
-const handleViewTeam = (group: any) => {
+const handleViewTeam = (group: ExploreTeam) => {
   selectedTeam.value = group;
   isDetailVisible.value = true;
 };
@@ -112,12 +125,12 @@ onMounted(() => {
     style="background-color: var(--bg-app)"
   >
     <!-- Animated Background Elements -->
-    <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-20">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-20 hidden md:block">
       <div
-        class="absolute -left-[5%] top-[5%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[120px] animate-pulse"
+        class="absolute -left-[5%] top-[5%] w-[40%] h-[40%] bg-accent/10 rounded-full glass-glow-xl animate-pulse"
       ></div>
       <div
-        class="absolute -right-[5%] top-[10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px] animate-pulse"
+        class="absolute -right-[5%] top-[10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full glass-glow-xl animate-pulse"
         style="animation-delay: 2s"
       ></div>
     </div>
@@ -125,10 +138,7 @@ onMounted(() => {
     <div class="relative px-4 sm:px-6 lg:px-10 pt-4 lg:pt-6 pb-4 lg:pb-6 overflow-hidden shrink-0">
       <div class="w-full relative z-10">
         <!-- Back Button -->
-        <button
-          class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-3 lg:mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm"
-          @click="router.back()"
-        >
+        <button type="button" class="inline-flex items-center gap-2 text-slate-400 hover:text-accent transition-all mb-3 lg:mb-4 group px-3 py-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm" @click="router.back()">
           <ChevronLeft class="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
           <span class="text-xs font-black uppercase tracking-[0.2em]">返回</span>
         </button>
@@ -314,10 +324,7 @@ onMounted(() => {
             <p class="text-sm font-medium text-slate-400 text-center">
               试着精简搜索词，或点燃创意的火花。
             </p>
-            <button
-              class="mt-10 px-10 py-4 bg-accent text-white rounded-xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all"
-              @click="isCreateTeamVisible = true"
-            >
+            <button type="button" class="mt-10 px-10 py-4 bg-accent text-white rounded-xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all" @click="isCreateTeamVisible = true">
               创建首个小组
             </button>
           </div>

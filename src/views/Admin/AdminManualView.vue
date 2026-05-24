@@ -29,6 +29,7 @@ import {
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
+import { getApiErrorMessage } from '@/utils/error';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 
 const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
@@ -162,8 +163,8 @@ async function fetchStations() {
   try {
     const res = await api.get('/api/manual/stations');
     stations.value = res.data;
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '拉取数据失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '拉取数据失败'));
   } finally {
     isLoading.value = false;
   }
@@ -175,8 +176,8 @@ async function createStation() {
     ElMessage.success('手动资源站创建成功');
     showCreateDialog.value = false;
     await fetchStations();
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '创建失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '创建失败'));
   }
 }
 
@@ -187,8 +188,8 @@ async function updateStation() {
     ElMessage.success('更新成功');
     showEditDialog.value = false;
     await fetchStations();
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '更新失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '更新失败'));
   }
 }
 
@@ -209,9 +210,9 @@ async function deleteStation(station: ManualStation) {
       expandedStationId.value = null;
     }
     await fetchStations();
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error(e.response?.data?.error || '删除失败');
+      ElMessage.error(getApiErrorMessage(e, '删除失败'));
     }
   }
 }
@@ -264,7 +265,7 @@ async function fetchStationResources(stationId: string) {
     resourceList.value = res.data.resources;
     resourceTotal.value = res.data.total;
     resourceTotalPages.value = res.data.totalPages;
-  } catch (e: any) {
+  } catch (_e) {
     ElMessage.error('拉取资源失败');
   } finally {
     isLoadingResources.value = false;
@@ -363,8 +364,8 @@ async function saveResource() {
       fetchStationResources(expandedStationId.value),
       fetchStations()
     ]);
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '操作资源失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '操作资源失败'));
   } finally {
     isSaving.value = false;
   }
@@ -389,7 +390,7 @@ async function deleteResource(resource: ManualResource) {
       fetchStationResources(expandedStationId.value),
       fetchStations()
     ]);
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
       ElMessage.error('删除资源失败');
     }
@@ -516,8 +517,8 @@ async function saveCategory() {
     }
     showCategoryDialog.value = false;
     await fetchStationCategories(expandedStationId.value);
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '操作分类失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '操作分类失败'));
   }
 }
 
@@ -537,7 +538,7 @@ async function deleteCategory(category: ManualCategory) {
     await api.delete(`/api/admin/manual/categories/${category.id}`);
     ElMessage.success('分类删除成功');
     await fetchStationCategories(expandedStationId.value);
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
       ElMessage.error('删除分类失败');
     }
@@ -615,9 +616,9 @@ const handleIconUpload = async (event: Event) => {
     const { data } = await api.post('/api/admin/manual/upload', formDataObj);
     formData.value.iconUrl = data.url;
     ElMessage.success('图标上传成功');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Icon upload error:', error);
-    ElMessage.error(error.response?.data?.error || '图标上传失败');
+    ElMessage.error(getApiErrorMessage(error, '图标上传失败'));
   } finally {
     isUploadingIcon.value = false;
     target.value = '';
@@ -641,9 +642,9 @@ const handleThumbnailUpload = async (event: Event) => {
     const { data } = await api.post('/api/admin/manual/upload', formDataObj);
     resourceForm.value.thumbnailUrl = data.url;
     ElMessage.success('预览图上传成功');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Thumbnail upload error:', error);
-    ElMessage.error(error.response?.data?.error || '预览图上传失败');
+    ElMessage.error(getApiErrorMessage(error, '预览图上传失败'));
   } finally {
     isUploadingThumbnail.value = false;
     target.value = '';
@@ -739,18 +740,11 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="openCreate"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreate">
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">创建手动资源站</span>
           </button>
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchStations"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchStations">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
@@ -765,14 +759,11 @@ onUnmounted(() => {
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
+v-for="filter in [
                 { key: 'ALL', label: '所有站点', count: stations.length, color: 'indigo', icon: Database },
                 { key: 'ACTIVE', label: '启用中', count: stations.filter(s => s.status === 'ACTIVE').length, color: 'emerald', icon: Check },
                 { key: 'DISABLED', label: '已禁用', count: stations.filter(s => s.status === 'DISABLED').length, color: 'rose', icon: X }
-              ]"
-              :key="filter.key"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
+              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 statusFilter === filter.key
                   ? filter.key === 'ACTIVE'
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
@@ -780,9 +771,7 @@ onUnmounted(() => {
                       ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                       : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
-              ]"
-              @click="statusFilter = filter.key as any"
-            >
+              ]" @click="statusFilter = filter.key as any">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
@@ -830,10 +819,7 @@ onUnmounted(() => {
           <Database class="w-12 h-12 text-slate-300 dark:text-slate-700 mb-4" />
           <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-400">暂无手动资源站</h3>
           <p class="text-xs text-slate-400 mt-1 mb-6">点击右上角按钮创建您的第一个独立手动资源下载站</p>
-          <button
-            class="px-4 py-2 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/5 rounded-xl text-xs transition-colors"
-            @click="openCreate"
-          >
+          <button type="button" class="px-4 py-2 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/5 rounded-xl text-xs transition-colors" @click="openCreate">
             立即创建
           </button>
         </div>
@@ -849,11 +835,7 @@ onUnmounted(() => {
         <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div class="flex items-start gap-4">
             <div class="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 text-cyan-500 flex items-center justify-center shrink-0 border border-cyan-100 dark:border-cyan-950/50 overflow-hidden">
-              <img
-                v-if="station.iconUrl"
-                :src="getAssetUrl(station.iconUrl)"
-                class="w-full h-full object-cover"
-              />
+              <img v-if="station.iconUrl" alt="" :src="getAssetUrl(station.iconUrl)" class="w-full h-full object-cover" />
               <Database v-else class="w-6 h-6" />
             </div>
             <div class="space-y-1">
@@ -890,25 +872,13 @@ onUnmounted(() => {
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-              <button
-                class="px-4 py-2 border rounded-xl text-xs font-medium transition-all"
-                :class="expandedStationId === station.id ? 'bg-cyan-500 text-white border-cyan-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
-                @click="handleExpandStation(station.id)"
-              >
+              <button type="button" class="px-4 py-2 border rounded-xl text-xs font-medium transition-all" :class="expandedStationId === station.id ? 'bg-cyan-500 text-white border-cyan-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'" @click="handleExpandStation(station.id)">
                 {{ expandedStationId === station.id ? '收起面板' : '管理分类/资源' }}
               </button>
-              <button
-                class="p-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl transition-colors"
-                title="编辑基本信息"
-                @click="openEdit(station)"
-              >
+              <button type="button" class="p-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl transition-colors" title="编辑基本信息" @click="openEdit(station)">
                 <Edit3 class="w-4 h-4" />
               </button>
-              <button
-                class="p-2 border border-rose-200/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-xl transition-colors"
-                title="删除资源站"
-                @click="deleteStation(station)"
-              >
+              <button type="button" class="p-2 border border-rose-200/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-xl transition-colors" title="删除资源站" @click="deleteStation(station)">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -923,34 +893,18 @@ onUnmounted(() => {
           <!-- Internal Navigation Tabs -->
           <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-3">
             <div class="flex gap-2">
-              <button
-                class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
-                :class="expandedTab === 'resources' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'"
-                @click="expandedTab = 'resources'"
-              >
+              <button type="button" class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5" :class="expandedTab === 'resources' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'" @click="expandedTab = 'resources'">
                 <FileText class="w-4 h-4" /> 资源库 ({{ resourceTotal }})
               </button>
-              <button
-                class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5"
-                :class="expandedTab === 'categories' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'"
-                @click="expandedTab = 'categories'"
-              >
+              <button type="button" class="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5" :class="expandedTab === 'categories' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'" @click="expandedTab = 'categories'">
                 <Layers class="w-4 h-4" /> 分类配置 ({{ stationCategories.length }})
               </button>
             </div>
 
-            <button
-              v-if="expandedTab === 'resources'"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all"
-              @click="openCreateResource"
-            >
+            <button v-if="expandedTab === 'resources'" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all" @click="openCreateResource">
               <Plus class="w-3.5 h-3.5" /> 上传资源
             </button>
-            <button
-              v-else
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all"
-              @click="openCreateCategory"
-            >
+            <button v-else type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 text-xs font-semibold transition-all" @click="openCreateCategory">
               <Plus class="w-3.5 h-3.5" /> 添加分类
             </button>
           </div>
@@ -1029,18 +983,10 @@ onUnmounted(() => {
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
-                  <button
-                    class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40"
-                    title="编辑资源"
-                    @click="openEditResource(res)"
-                  >
+                  <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40" title="编辑资源" @click="openEditResource(res)">
                     <Edit3 class="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20"
-                    title="删除资源"
-                    @click="deleteResource(res)"
-                  >
+                  <button type="button" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20" title="删除资源" @click="deleteResource(res)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1050,19 +996,11 @@ onUnmounted(() => {
               <div v-if="resourceTotalPages > 1" class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2">
                 <span class="text-[10px] text-slate-400">显示 {{ (resourcePage - 1) * resourcePageSize + 1 }} 到 {{ Math.min(resourcePage * resourcePageSize, resourceTotal) }}，共 {{ resourceTotal }} 个资源</span>
                 <div class="flex items-center gap-2">
-                  <button
-                    :disabled="resourcePage === 1"
-                    class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40"
-                    @click="handlePageChange(resourcePage - 1)"
-                  >
+                  <button type="button" :disabled="resourcePage === 1" class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40" @click="handlePageChange(resourcePage - 1)">
                     <ChevronLeft class="w-4 h-4" />
                   </button>
                   <span class="text-xs font-medium px-2">{{ resourcePage }} / {{ resourceTotalPages }}</span>
-                  <button
-                    :disabled="resourcePage === resourceTotalPages"
-                    class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40"
-                    @click="handlePageChange(resourcePage + 1)"
-                  >
+                  <button type="button" :disabled="resourcePage === resourceTotalPages" class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40" @click="handlePageChange(resourcePage + 1)">
                     <ChevronRight class="w-4 h-4" />
                   </button>
                 </div>
@@ -1100,16 +1038,10 @@ onUnmounted(() => {
                 </div>
 
                 <div class="flex items-center gap-1.5">
-                  <button
-                    class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors"
-                    @click="openEditCategory(cat)"
-                  >
+                  <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors" @click="openEditCategory(cat)">
                     <Edit3 class="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded transition-colors"
-                    @click="deleteCategory(cat)"
-                  >
+                  <button type="button" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded transition-colors" @click="deleteCategory(cat)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1165,11 +1097,7 @@ onUnmounted(() => {
             <div
               class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
             >
-              <img
-                v-if="formData.iconUrl"
-                :src="getAssetUrl(formData.iconUrl)"
-                class="w-full h-full object-cover"
-              />
+              <img v-if="formData.iconUrl" alt="" :src="getAssetUrl(formData.iconUrl)" class="w-full h-full object-cover" />
               <Database v-else class="w-6 h-6 text-slate-400" />
               
               <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
@@ -1203,16 +1131,10 @@ onUnmounted(() => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2 pt-2">
-          <button
-            class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            @click="showCreateDialog = false"
-          >
+          <button type="button" class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" @click="showCreateDialog = false">
             取消
           </button>
-          <button
-            class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors"
-            @click="createStation"
-          >
+          <button type="button" class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors" @click="createStation">
             创建资源站
           </button>
         </div>
@@ -1272,11 +1194,7 @@ onUnmounted(() => {
             <div
               class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
             >
-              <img
-                v-if="formData.iconUrl"
-                :src="getAssetUrl(formData.iconUrl)"
-                class="w-full h-full object-cover"
-              />
+              <img v-if="formData.iconUrl" alt="" :src="getAssetUrl(formData.iconUrl)" class="w-full h-full object-cover" />
               <Database v-else class="w-6 h-6 text-slate-400" />
               
               <label class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
@@ -1309,16 +1227,10 @@ onUnmounted(() => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2 pt-2">
-          <button
-            class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            @click="showEditDialog = false"
-          >
+          <button type="button" class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" @click="showEditDialog = false">
             取消
           </button>
-          <button
-            class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors"
-            @click="updateStation"
-          >
+          <button type="button" class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors" @click="updateStation">
             保存修改
           </button>
         </div>
@@ -1340,10 +1252,7 @@ onUnmounted(() => {
         >
           <!-- Left: Back + Context -->
           <div class="flex items-center gap-3 min-w-0">
-            <button
-              class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all shrink-0 cursor-pointer"
-              @click="showResourceDialog = false"
-            >
+            <button type="button" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all shrink-0 cursor-pointer" @click="showResourceDialog = false">
               <ArrowLeft class="w-4 h-4 text-[var(--text-secondary)]" />
             </button>
             <div class="min-w-0">
@@ -1393,25 +1302,18 @@ onUnmounted(() => {
             </el-radio-group>
 
             <button
-              class="p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-              :class="showSettingsSidebar
+type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold" :class="showSettingsSidebar
                 ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400'
-                : 'border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5'"
-              @click="showSettingsSidebar = !showSettingsSidebar"
-            >
+                : 'border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5'" @click="showSettingsSidebar = !showSettingsSidebar">
               <PanelRightOpen v-if="!showSettingsSidebar" class="w-4 h-4" />
               <PanelRightClose v-else class="w-4 h-4" />
               <span class="hidden md:inline">设置</span>
             </button>
 
             <button
-              :disabled="isSaving"
-              class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
-              :class="isSaving
+type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 disabled:opacity-60 disabled:cursor-not-allowed" :class="isSaving
                 ? 'bg-cyan-600'
-                : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 hover:-translate-y-0.5'"
-              @click="saveResource"
-            >
+                : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 hover:-translate-y-0.5'" @click="saveResource">
               <Loader2 v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
               <Check v-else class="w-3.5 h-3.5" />
               {{ isSaving ? '保存中...' : '保存并发布' }}
@@ -1454,10 +1356,7 @@ onUnmounted(() => {
                   <Settings class="w-4 h-4 text-cyan-500" />
                   资源设置
                 </h3>
-                <button
-                  class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-muted)] transition-colors cursor-pointer"
-                  @click="showSettingsSidebar = false"
-                >
+                <button type="button" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-muted)] transition-colors cursor-pointer" @click="showSettingsSidebar = false">
                   <X class="w-4 h-4" />
                 </button>
               </div>
@@ -1514,11 +1413,7 @@ onUnmounted(() => {
                 <div
                   class="w-full aspect-video rounded-xl border border-dashed flex flex-col items-center justify-center relative overflow-hidden transition-all bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 group"
                 >
-                  <img
-                    v-if="resourceForm.thumbnailUrl"
-                    :src="getAssetUrl(resourceForm.thumbnailUrl)"
-                    class="w-full h-full object-cover"
-                  />
+                  <img v-if="resourceForm.thumbnailUrl" alt="" :src="getAssetUrl(resourceForm.thumbnailUrl)" class="w-full h-full object-cover" />
                   <div v-else class="flex flex-col items-center justify-center p-2 text-center space-y-1 pointer-events-none">
                     <Upload class="w-5 h-5 text-slate-400" />
                     <span class="text-[10px] text-slate-400">点击上传封面图片</span>
@@ -1635,10 +1530,10 @@ onUnmounted(() => {
               class="flex items-center gap-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 p-1 rounded-lg transition-colors"
             >
               <input
-                type="checkbox"
                 :id="'subcat-' + cat.id"
-                :value="cat.id"
                 v-model="categoryForm.childIds"
+                type="checkbox"
+                :value="cat.id"
                 class="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
               />
               <label :for="'subcat-' + cat.id" class="text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer select-none flex-1">
@@ -1671,16 +1566,10 @@ onUnmounted(() => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2 pt-2">
-          <button
-            class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            @click="showCategoryDialog = false"
-          >
+          <button type="button" class="px-4 py-2 border rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" @click="showCategoryDialog = false">
             取消
           </button>
-          <button
-            class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors"
-            @click="saveCategory"
-          >
+          <button type="button" class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors" @click="saveCategory">
             保存分类
           </button>
         </div>

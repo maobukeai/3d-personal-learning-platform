@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia';
-import api from '@/utils/api';
 import { useAuthStore } from './auth';
+import { preferences } from '@/utils/preferences';
+import {
+  fetchAdminStats as fetchAdminStatsRequest,
+  fetchManualStations,
+  fetchMirrorSources,
+  fetchTeams,
+} from '@/services/workspace.service';
 
 export interface Workspace {
   id: string;
@@ -17,7 +23,7 @@ export interface Workspace {
 export const useWorkspaceStore = defineStore('workspace', {
   state: () => ({
     rawWorkspaces: [] as Workspace[],
-    activeWorkspaceId: localStorage.getItem('activeWorkspaceId') || null,
+    activeWorkspaceId: preferences.getActiveWorkspaceId(),
     isLoading: false,
     isInitialized: false,
     adminStats: {
@@ -68,8 +74,8 @@ export const useWorkspaceStore = defineStore('workspace', {
       if (!authStore.isAuthenticated) return;
 
       try {
-        const response = await api.get('/api/teams');
-        const fetchedWorkspaces = response.data.map((t: any) => ({
+        const teams = await fetchTeams();
+        const fetchedWorkspaces = teams.map((t) => ({
           id: t.id,
           name: t.name,
           type: t.type.toLowerCase() as 'personal' | 'team',
@@ -93,8 +99,7 @@ export const useWorkspaceStore = defineStore('workspace', {
 
         // Fetch Mirror Sources
         try {
-          const mirrorRes = await api.get('/api/mirror/sources');
-          const mirrorSources = mirrorRes.data || [];
+          const mirrorSources = await fetchMirrorSources();
           for (const ms of mirrorSources) {
             this.rawWorkspaces.push({
               id: `mirror-${ms.id}`,
@@ -106,14 +111,13 @@ export const useWorkspaceStore = defineStore('workspace', {
               avatarUrl: ms.iconUrl,
             });
           }
-        } catch (e) {
+        } catch (_e) {
           // Mirror sources not available, skip
         }
 
         // Fetch Manual Stations
         try {
-          const manualRes = await api.get('/api/manual/stations');
-          const manualStations = manualRes.data || [];
+          const manualStations = await fetchManualStations();
           for (const ms of manualStations) {
             this.rawWorkspaces.push({
               id: `manual-${ms.id}`,
@@ -125,7 +129,7 @@ export const useWorkspaceStore = defineStore('workspace', {
               avatarUrl: ms.iconUrl,
             });
           }
-        } catch (e) {
+        } catch (_e) {
           // Manual stations not available, skip
         }
 
@@ -136,7 +140,7 @@ export const useWorkspaceStore = defineStore('workspace', {
         }
 
         if (this.activeWorkspaceId) {
-          localStorage.setItem('activeWorkspaceId', this.activeWorkspaceId);
+          preferences.setActiveWorkspaceId(this.activeWorkspaceId);
         }
       } catch (error) {
         console.error('Fetch workspaces error:', error);
@@ -148,22 +152,22 @@ export const useWorkspaceStore = defineStore('workspace', {
       if (!authStore.isAuthenticated || authStore.user?.role !== 'ADMIN') return;
 
       try {
-        const res = await api.get('/api/admin/stats');
-        const counts = res.data.counts;
+        const res = await fetchAdminStatsRequest();
+        const counts = res.counts;
         this.adminStats = {
           pendingAssets: counts.pendingAssets || 0,
           openFeedbacks: counts.openFeedbacks || 0,
           pendingMaterials: counts.pendingMaterials || 0,
           pendingShowcases: counts.pendingShowcases || 0,
         };
-      } catch (error) {
+      } catch (_error) {
         // Silently fail if not admin or error
       }
     },
 
     async initialize(currentPath?: string) {
       const authStore = useAuthStore();
-      
+
       // If not authenticated, we are a guest, no workspaces to fetch
       if (!authStore.isAuthenticated) {
         this.isInitialized = true;
@@ -192,7 +196,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       }
 
       if (this.activeWorkspaceId) {
-        localStorage.setItem('activeWorkspaceId', this.activeWorkspaceId);
+        preferences.setActiveWorkspaceId(this.activeWorkspaceId);
       }
 
       this.isInitialized = true;
@@ -201,7 +205,7 @@ export const useWorkspaceStore = defineStore('workspace', {
 
     setWorkspace(workspace: Workspace) {
       this.activeWorkspaceId = workspace.id;
-      localStorage.setItem('activeWorkspaceId', workspace.id);
+      preferences.setActiveWorkspaceId(workspace.id);
       if (workspace.id === 'admin-workspace') {
         this.fetchAdminStats();
       }
@@ -212,7 +216,7 @@ export const useWorkspaceStore = defineStore('workspace', {
         await this.initialize();
       }
       this.activeWorkspaceId = id;
-      localStorage.setItem('activeWorkspaceId', id);
+      preferences.setActiveWorkspaceId(id);
       if (id === 'admin-workspace') {
         this.fetchAdminStats();
       }

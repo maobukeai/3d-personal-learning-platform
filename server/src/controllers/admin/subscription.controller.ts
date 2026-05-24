@@ -64,8 +64,8 @@ export const createSubscriptionPlan = async (
       },
     });
     res.status(201).json({ ...plan, features: JSON.parse(plan.features || '[]') });
-  } catch (error: any) {
-    if (error.code === 'P2002') return next(new AppError('计划名称已存在', 400));
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') return next(new AppError('计划名称已存在', 400));
     next(error);
   }
 };
@@ -199,8 +199,8 @@ export const createSubscription = async (req: AuthRequest, res: Response, next: 
     });
 
     res.status(201).json(subscription);
-  } catch (error: any) {
-    if (error.code === 'P2002') return next(new AppError('该用户已有订阅', 400));
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') return next(new AppError('该用户已有订阅', 400));
     next(error);
   }
 };

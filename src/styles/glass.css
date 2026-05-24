@@ -1,0 +1,533 @@
+/* ============================================================
+   Glassmorphism Styles and Overrides
+   ============================================================ */
+
+/* Notification Center – Glassmorphism Panel */
+.notification-panel {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(10px) saturate(145%);
+  -webkit-backdrop-filter: blur(10px) saturate(145%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.1),
+    0 5px 15px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.dark .notification-panel {
+  background: rgba(9, 9, 11, 0.7);
+  border-color: rgba(63, 63, 70, 0.4);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.65),
+    0 5px 15px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.notification-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.dark .notification-header {
+  border-bottom-color: rgba(63, 63, 70, 0.35);
+}
+
+.notification-item {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: rgba(148, 163, 184, 0.12);
+  backdrop-filter: blur(4px);
+}
+
+.dark .notification-item {
+  border-bottom-color: rgba(63, 63, 70, 0.25);
+}
+
+.dark .notification-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(4px);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 8px 32px 0 rgba(31, 38, 135, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .glass-card {
+  background: rgba(9, 9, 11, 0.65);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 10px 40px -10px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Hover Lift Effect */
+.glass-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 16px 36px 0 rgba(31, 38, 135, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.dark .glass-card-hover:hover {
+  box-shadow:
+    0 20px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 15px 1px rgba(59, 130, 246, 0.15),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+/* Glassmorphism Layout utilities */
+.glass-header {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+  transform: translateZ(0);
+}
+.dark .glass-header {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border-bottom: 1px solid rgba(63, 63, 70, 0.4) !important;
+}
+
+.glass-sidebar {
+  background-color: rgba(248, 250, 252, 0.7) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
+  transform: translateZ(0);
+}
+.dark .glass-sidebar {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(63, 63, 70, 0.4) !important;
+}
+
+.glass-dialog {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(8px) saturate(135%);
+  -webkit-backdrop-filter: blur(8px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  transform: translateZ(0);
+}
+.dark .glass-dialog {
+  background-color: rgba(9, 9, 11, 0.75) !important;
+  backdrop-filter: blur(8px) saturate(135%);
+  -webkit-backdrop-filter: blur(8px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Fallback selectors for modal glass styling */
+.fixed.inset-0.z-50 > div[class*='bg-white'],
+.fixed.inset-0.z-50 > div[class*='bg-slate-800'],
+.fixed.inset-0.z-50 > div[style*='background-color: var(--bg-card)'],
+.fixed.inset-0.z-\[60\] > div[class*='bg-white'],
+.fixed.inset-0.z-\[60\] > div[class*='bg-slate-800'],
+.fixed.inset-0.z-\[70\] > div[class*='bg-white'],
+.fixed.inset-0.z-\[100\] > div[class*='bg-white'],
+.fixed.inset-0.z-\[100\] > div[class*='bg-slate-800'] {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(8px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  transform: translateZ(0);
+}
+
+.dark .fixed.inset-0.z-50 > div[class*='bg-white'],
+.dark .fixed.inset-0.z-50 > div[class*='bg-slate-800'],
+.dark .fixed.inset-0.z-50 > div[style*='background-color: var(--bg-card)'],
+.dark .fixed.inset-0.z-\[60\] > div[class*='bg-white'],
+.dark .fixed.inset-0.z-\[60\] > div[class*='bg-slate-800'],
+.dark .fixed.inset-0.z-\[70\] > div[class*='bg-white'],
+.dark .fixed.inset-0.z-\[100\] > div[class*='bg-white'],
+.dark .fixed.inset-0.z-\[100\] > div[class*='bg-slate-800'] {
+  background-color: rgba(9, 9, 11, 0.75) !important;
+  backdrop-filter: blur(8px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Glass element styles - Tier 1: Frosted Layout & Teleported Overlays */
+html.theme-glass .glass-header,
+html.theme-glass .glass-sidebar,
+html.theme-glass .notification-panel,
+html.theme-glass .el-popper,
+html.theme-glass .el-dropdown__popper,
+html.theme-glass .el-select__popper,
+html.theme-glass .el-cascader__dropdown,
+html.theme-glass .el-popover {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transform: translateZ(0);
+  will-change: auto !important;
+}
+
+/* Glass element styles - Tier 2: Dialog Modules */
+html.theme-glass .el-dialog,
+html.theme-glass .glass-dialog {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transform: translateZ(0);
+}
+
+/* Glass element styles - Tier 3: Content Cards & Background Blocks (High Performance: Filter Disabled) */
+html.theme-glass .glass-card,
+html.theme-glass .el-card,
+.theme-glass .bg-white,
+.theme-glass .bg-white\/50,
+.theme-glass .bg-white\/60,
+.theme-glass .bg-slate-50,
+.theme-glass .bg-slate-100,
+.theme-glass .bg-slate-800,
+.theme-glass .bg-slate-900,
+.theme-glass .bg-slate-800\/50,
+.theme-glass .bg-slate-900\/50,
+.theme-glass .bg-zinc-50,
+.theme-glass .bg-zinc-800,
+.theme-glass .bg-zinc-900,
+.theme-glass .bg-gray-50,
+.theme-glass .bg-gray-100,
+.theme-glass .bg-gray-800,
+.theme-glass .bg-gray-900,
+.theme-glass .bg-neutral-50,
+.theme-glass .bg-neutral-800,
+.theme-glass .bg-neutral-900,
+.theme-glass .bg-black,
+.theme-glass .dark\:bg-slate-800,
+.theme-glass .dark\:bg-slate-900,
+.theme-glass .dark\:bg-slate-950,
+.theme-glass .dark\:bg-slate-800\/50,
+.theme-glass .dark\:bg-slate-900\/50,
+.theme-glass .dark\:bg-slate-900\/40,
+.theme-glass .dark\:bg-slate-950\/50,
+.theme-glass .dark\:bg-zinc-800,
+.theme-glass .dark\:bg-zinc-900,
+.theme-glass .dark\:bg-gray-800,
+.theme-glass .dark\:bg-gray-900,
+.theme-glass .dark\:bg-neutral-800,
+.theme-glass .dark\:bg-neutral-900,
+.theme-glass .dark\:bg-black,
+.theme-glass [style*="background-color: var(--bg-card)"] {
+  background: var(--glass-bg) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+
+/* Prevent double-layer glass nesting inside teleported poppers */
+html.theme-glass .el-dropdown-menu,
+html.theme-glass .el-select-dropdown,
+html.theme-glass .el-picker-panel,
+html.theme-glass .el-popper .el-dropdown-menu,
+html.theme-glass .el-popper .el-select-dropdown,
+html.theme-glass .el-popper .el-picker-panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Arrow styling */
+html.theme-glass .el-popper__arrow::before {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-color: var(--glass-border-color) !important;
+}
+html.theme-glass.dark .el-popper__arrow::before,
+html.dark.theme-glass .el-popper__arrow::before {
+  background: rgba(18, 18, 24, 0.5) !important;
+  border-color: var(--glass-border-color) !important;
+}
+
+/* Dark Glass Mode text legibility overrides */
+html.dark.theme-glass .text-slate-500,
+html.dark.theme-glass .text-slate-600,
+html.dark.theme-glass .text-slate-700 {
+  color: var(--text-secondary) !important;
+}
+html.dark.theme-glass .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+/* Hover overrides for glass */
+.theme-glass .hover\:bg-slate-50:hover,
+.theme-glass .hover\:bg-slate-100:hover,
+.theme-glass .hover\:bg-gray-50:hover,
+.theme-glass .hover\:bg-gray-100:hover,
+.theme-glass .hover\:bg-white:hover {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.theme-glass .dark\:hover\:bg-slate-800:hover,
+.theme-glass .dark\:hover\:bg-slate-900:hover,
+.theme-glass .dark\:hover\:bg-zinc-800:hover,
+.theme-glass .dark\:hover\:bg-zinc-900:hover,
+.theme-glass .dark\:hover\:bg-white\/10:hover,
+.theme-glass .dark\:hover\:bg-white\/5:hover,
+.theme-glass .hover\:bg-slate-800:hover,
+.theme-glass .hover\:bg-slate-900:hover,
+.theme-glass .hover\:bg-zinc-800:hover,
+.theme-glass .hover\:bg-zinc-900:hover,
+.theme-glass .hover\:bg-black:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Ensure the body remains solid to provide the base canvas */
+html.theme-glass body {
+  background-color: var(--bg-app) !important;
+}
+
+/* Make all inner elements transparent so neon background blobs shine through */
+.theme-glass [style*='background-color: var(--bg-app)'],
+.theme-glass [style*='background-color:var(--bg-app)'] {
+  background-color: transparent !important;
+}
+
+/* Ensure all standard Tailwind border colors in glass mode use the glass border color */
+.theme-glass .border,
+.theme-glass .border-slate-50,
+.theme-glass .border-slate-100,
+.theme-glass .border-slate-200,
+.theme-glass .border-slate-300,
+.theme-glass .border-slate-700,
+.theme-glass .border-slate-800,
+.theme-glass .border-slate-900,
+.theme-glass .border-zinc-100,
+.theme-glass .border-zinc-200,
+.theme-glass .border-zinc-700,
+.theme-glass .border-zinc-800,
+.theme-glass .border-zinc-900,
+.theme-glass .border-gray-100,
+.theme-glass .border-gray-200,
+.theme-glass .border-gray-700,
+.theme-glass .border-gray-800,
+.theme-glass .border-gray-900,
+.theme-glass .border-neutral-100,
+.theme-glass .border-neutral-200,
+.theme-glass .border-neutral-700,
+.theme-glass .border-neutral-800,
+.theme-glass .border-neutral-900,
+.theme-glass .dark\:border-slate-700,
+.theme-glass .dark\:border-slate-800,
+.theme-glass .dark\:border-slate-900,
+.theme-glass .dark\:border-zinc-700,
+.theme-glass .dark\:border-zinc-800,
+.theme-glass .dark\:border-zinc-900,
+.theme-glass .dark\:border-gray-700,
+.theme-glass .dark\:border-gray-800,
+.theme-glass .dark\:border-gray-900,
+.theme-glass .dark\:border-neutral-700,
+.theme-glass .dark\:border-neutral-800,
+.theme-glass .dark\:border-neutral-900 {
+  border-color: var(--glass-border-color) !important;
+}
+
+/* Glass Input overrides */
+html.theme-glass .el-input__wrapper {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: none !important;
+}
+html.theme-glass.dark .el-input__wrapper {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+}
+html.theme-glass:not(.dark) .el-input__wrapper {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset !important;
+}
+html.theme-glass .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset !important;
+}
+html.theme-glass.dark .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset !important;
+}
+html.theme-glass .el-input__wrapper.is-focus {
+  box-shadow:
+    0 0 0 2px var(--accent) inset,
+    0 0 12px var(--accent) !important;
+}
+
+/* Native input style overrides under glass */
+html.theme-glass input[type='text'],
+html.theme-glass input[type='password'],
+html.theme-glass input[type='email'],
+html.theme-glass input[type='number'],
+html.theme-glass textarea {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+html.theme-glass.dark input[type='text'],
+html.theme-glass.dark input[type='password'],
+html.theme-glass.dark input[type='email'],
+html.theme-glass.dark input[type='number'],
+html.theme-glass.dark textarea {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+html.theme-glass:not(.dark) input[type='text'],
+html.theme-glass:not(.dark) input[type='password'],
+html.theme-glass:not(.dark) input[type='email'],
+html.theme-glass:not(.dark) input[type='number'],
+html.theme-glass:not(.dark) textarea {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+html.theme-glass input[type='text']:focus,
+html.theme-glass input[type='password']:focus,
+html.theme-glass input[type='email']:focus,
+html.theme-glass input[type='number']:focus,
+html.theme-glass textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--accent) !important;
+  outline: none !important;
+}
+
+/* Glass Dialog Overlay & Shortcuts */
+html.theme-glass .el-overlay {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  background-color: rgba(0, 0, 0, 0.55) !important;
+}
+
+html.theme-glass kbd {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+}
+html.theme-glass.dark kbd {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Fallbacks & Reset overrides to prevent style pollution under theme-glass */
+html.theme-glass .el-input__wrapper,
+html.theme-glass input[type='text'],
+html.theme-glass input[type='password'],
+html.theme-glass input[type='email'],
+html.theme-glass input[type='number'],
+html.theme-glass textarea,
+html.theme-glass .notification-item:hover,
+html.theme-glass .el-overlay,
+html.theme-glass .el-overlay-dialog,
+html.theme-glass .backdrop-blur,
+html.theme-glass .backdrop-blur-sm,
+html.theme-glass .backdrop-blur-md,
+html.theme-glass .backdrop-blur-lg,
+html.theme-glass .backdrop-blur-xl,
+html.theme-glass .backdrop-blur-2xl,
+html.theme-glass .backdrop-blur-3xl {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-glass .shadow-2xl,
+html.theme-glass .hover\:shadow-2xl:hover {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1) !important;
+}
+
+html.dark.theme-glass .shadow-2xl,
+html.dark.theme-glass .hover\:shadow-2xl:hover {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Mobile responsive and low-power hardware performance budgets (all filters disabled) */
+@media (max-width: 1024px), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  html.theme-glass .glass-header,
+  html.theme-glass .glass-sidebar,
+  html.theme-glass .notification-panel,
+  html.theme-glass .el-popper,
+  html.theme-glass .el-dropdown__popper,
+  html.theme-glass .el-select__popper,
+  html.theme-glass .el-popover,
+  html.theme-glass .el-dialog,
+  html.theme-glass .glass-dialog,
+  html.theme-glass .el-overlay,
+  html.theme-glass .el-overlay-dialog,
+  html.theme-glass .backdrop-blur,
+  html.theme-glass .backdrop-blur-sm,
+  html.theme-glass .backdrop-blur-md,
+  html.theme-glass .backdrop-blur-lg,
+  html.theme-glass .backdrop-blur-xl,
+  html.theme-glass .backdrop-blur-2xl,
+  html.theme-glass .backdrop-blur-3xl,
+  .glass-card,
+  .glass-header,
+  .glass-sidebar,
+  .glass-dialog,
+  .notification-panel,
+  .el-dialog,
+  .el-overlay,
+  .el-overlay-dialog,
+  .backdrop-blur,
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .glass-glow-sm,
+  .glass-glow-md,
+  .glass-glow-lg,
+  .glass-glow-xl {
+    display: none !important;
+  }
+}
+
+/* Glass Glow blobs */
+.glass-glow-sm {
+  filter: blur(40px);
+}
+.glass-glow-md {
+  filter: blur(80px);
+}
+.glass-glow-lg {
+  filter: blur(100px);
+}
+.glass-glow-xl {
+  filter: blur(120px);
+}

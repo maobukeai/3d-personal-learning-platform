@@ -94,16 +94,11 @@ onMounted(() => {
 
       <div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
         <button
-          v-for="cat in categories"
-          :key="cat"
-          :class="
+v-for="cat in categories" :key="cat" type="button" :class="
             selectedCategory === cat
               ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20'
               : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100 hover:text-slate-700'
-          "
-          class="px-6 py-2 rounded-full border-2 font-black text-xs transition-all whitespace-nowrap uppercase tracking-wider"
-          @click="selectedCategory = cat"
-        >
+          " class="px-6 py-2 rounded-full border-2 font-black text-xs transition-all whitespace-nowrap uppercase tracking-wider" @click="selectedCategory = cat">
           {{ cat }}
         </button>
       </div>
@@ -122,13 +117,10 @@ onMounted(() => {
         >
           <div class="h-32 relative">
             <img
-              :src="
+:src="
                 group.avatarUrl ||
                 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&auto=format&fit=crop&q=60'
-              "
-              class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              :alt="group.name"
-            />
+              " class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" :alt="group.name" />
             <div
               class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"
             ></div>
@@ -153,10 +145,7 @@ onMounted(() => {
                   group._count?.members || 0
                 }}</span>
               </div>
-              <button
-                class="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:!bg-accent hover:!text-white hover:rotate-[-45deg] transition-all duration-300"
-                @click.stop="handleJoinGroup(group.name)"
-              >
+              <button type="button" class="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:!bg-accent hover:!text-white hover:rotate-[-45deg] transition-all duration-300" @click.stop="handleJoinGroup(group.name)">
                 <ArrowRight class="w-5 h-5" />
               </button>
             </div>

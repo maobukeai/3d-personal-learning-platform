@@ -1,12 +1,12 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
-const MdEditor = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdEditor));
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdEditor = defineAsyncComponent(() => import('md-editor-v3/lib/es/MdEditor.mjs'));
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3/lib/es/MdPreview.mjs'));
 import type { ToolbarNames } from 'md-editor-v3';
 import { useI18n } from 'vue-i18n';
 import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage } from 'element-plus';
-import 'md-editor-v3/lib/style.css';
 
 const { locale } = useI18n();
 const props = withDefaults(
@@ -23,13 +23,15 @@ const props = withDefaults(
     uploadField?: string;
   }>(),
   {
-    placeholder: '请输入内容，支持 Markdown 格式...',
+    placeholder: '\u8bf7\u8f93\u5165\u5185\u5bb9\uff0c\u652f\u6301 Markdown \u683c\u5f0f...',
     height: '500px',
     previewOnly: false,
     autoFocus: false,
     autoHeight: false,
     preview: true,
     htmlPreview: false,
+    uploadUrl: '',
+    uploadField: 'file',
   },
 );
 
@@ -104,7 +106,7 @@ let observer: MutationObserver | null = null;
 
 const handleUploadImg = async (files: FileList, callback: (urls: string[]) => void) => {
   if (!props.uploadUrl) {
-    ElMessage.warning('当前编辑器未配置图片上传服务');
+    ElMessage.warning('\u5f53\u524d\u7f16\u8f91\u5668\u672a\u914d\u7f6e\u56fe\u7247\u4e0a\u4f20\u670d\u52a1');
     return;
   }
 
@@ -124,18 +126,19 @@ const handleUploadImg = async (files: FileList, callback: (urls: string[]) => vo
       if (data && data.url) {
         urls.push(data.url);
       } else {
-        throw new Error('服务器响应中未包含文件链接');
+        throw new Error('\u670d\u52a1\u5668\u54cd\u5e94\u4e2d\u672a\u5305\u542b\u6587\u4ef6\u94fe\u63a5');
       }
     }
     callback(urls);
-    ElMessage.success('图片上传成功');
-  } catch (e: any) {
+    ElMessage.success('\u56fe\u7247\u4e0a\u4f20\u6210\u529f');
+  } catch (e) {
     console.error('Image upload failed:', e);
-    ElMessage.error(e.response?.data?.error || '图片上传失败，请重试');
+    ElMessage.error(getApiErrorMessage(e, '\u56fe\u7247\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5'));
   }
 };
 
 onMounted(() => {
+  import('md-editor-v3/lib/style.css');
   checkMobile();
   window.addEventListener('resize', checkMobile);
 
@@ -168,7 +171,7 @@ onUnmounted(() => {
       :id="editorId"
       :model-value="modelValue"
       :theme="isDark ? 'dark' : 'light'"
-      :transformImgUrl="getAssetUrl"
+      :transform-img-url="getAssetUrl"
       class="md-preview-custom"
     />
     <MdEditor
@@ -185,8 +188,8 @@ onUnmounted(() => {
       :auto-focus="autoFocus"
       :auto-height="autoHeight"
       :toolbars="toolbars"
-      :transformImgUrl="getAssetUrl"
-      @onUploadImg="handleUploadImg"
+      :transform-img-url="getAssetUrl"
+      @on-upload-img="handleUploadImg"
     />
   </div>
 </template>

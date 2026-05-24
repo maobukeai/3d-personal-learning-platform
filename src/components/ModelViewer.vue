@@ -14,21 +14,28 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
+type ModelHotspot = {
+  x: number;
+  y: number;
+  z: number;
+  title: string;
+  content: string;
+  cameraPos?: { x: number; y: number; z: number };
+  cameraTarget?: { x: number; y: number; z: number };
+};
+type HotspotWithScreenPosition = ModelHotspot & {
+  screenX: number;
+  screenY: number;
+  isVisible: boolean;
+  index: number;
+};
 
 const props = defineProps<{
   modelUrl?: string;
   autoRotate?: boolean;
   showControls?: boolean;
   assetId?: string;
-  hotspots?: Array<{
-    x: number;
-    y: number;
-    z: number;
-    title: string;
-    content: string;
-    cameraPos?: { x: number; y: number; z: number };
-    cameraTarget?: { x: number; y: number; z: number };
-  }>;
+  hotspots?: ModelHotspot[];
   editable?: boolean;
   sceneConfig?: {
     environment?: string;
@@ -74,7 +81,7 @@ const isFullscreen = ref(false);
 
 // Clay Mode State
 const isClayMode = ref(false);
-const originalMaterials = new Map<string, any>();
+const originalMaterials = new Map<string, THREE.Material | THREE.Material[]>();
 const clayMaterial = new THREE.MeshStandardMaterial({
   color: 0xdddddd,
   roughness: 0.7,
@@ -104,7 +111,7 @@ let fillLight: THREE.DirectionalLight;
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-const hotspotsWithScreenPos = ref<any[]>([]);
+const hotspotsWithScreenPos = ref<HotspotWithScreenPosition[]>([]);
 
 const getModelExtension = (url: string): string => {
   const urlWithoutQuery = url.split('?')[0];
@@ -358,6 +365,7 @@ const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
 };
 
 const disposeMaterial = (material: THREE.Material) => {
+  if (material === clayMaterial) return;
   material.dispose();
   const textureSlots = [
     'map',
@@ -373,8 +381,8 @@ const disposeMaterial = (material: THREE.Material) => {
     'lightMap'
   ];
   for (const slot of textureSlots) {
-    const value = (material as any)[slot];
-    if (value && typeof value.dispose === 'function' && value instanceof THREE.Texture) {
+    const value = (material as unknown as Record<string, unknown>)[slot];
+    if (value instanceof THREE.Texture) {
       value.dispose();
     }
   }
@@ -416,9 +424,18 @@ const onModelLoaded = (object: THREE.Object3D, animCount: number = 0) => {
 const loadModel = (url: string) => {
   // Reset Clay Mode
   isClayMode.value = false;
-  originalMaterials.clear();
 
   if (loadedModel) {
+    // If clay mode was active, original materials are in the map, so dispose them
+    originalMaterials.forEach((material) => {
+      if (Array.isArray(material)) {
+        material.forEach((m) => disposeMaterial(m));
+      } else {
+        disposeMaterial(material);
+      }
+    });
+    originalMaterials.clear();
+
     disposeHierarchy(loadedModel);
     scene.remove(loadedModel);
     loadedModel = null;
@@ -448,7 +465,7 @@ const loadModel = (url: string) => {
     }
   };
 
-  const onError = (err: any) => {
+  const onError = (err: unknown) => {
     console.error('Error loading model:', err);
     error.value = `无法加载 ${ext.toUpperCase()} 模型`;
     isLoading.value = false;
@@ -463,7 +480,9 @@ const loadModel = (url: string) => {
     const isRenamedAsset = url.includes('asset-');
 
     if (isImage && isAssetPath && !isRenamedAsset) {
-      console.log(`Intercepted missing texture request to prevent 404: ${url}`);
+      if (import.meta.env.DEV) {
+        console.warn(`Intercepted missing texture request to prevent 404: ${url}`);
+      }
       // Return 1x1 transparent PNG data URL
       return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
     }
@@ -682,6 +701,16 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   cancelAnimationFrame(animationId);
   if (loadedModel) {
+    // If clay mode was active, original materials are in the map, so dispose them
+    originalMaterials.forEach((material) => {
+      if (Array.isArray(material)) {
+        material.forEach((m) => disposeMaterial(m));
+      } else {
+        disposeMaterial(material);
+      }
+    });
+    originalMaterials.clear();
+
     disposeHierarchy(loadedModel);
     loadedModel = null;
   }
@@ -746,10 +775,7 @@ defineExpose({ getCameraState, flyTo, isFullscreen, handleCanvasClick, setViewMo
         :style="{ transform: `translate(${h.screenX}px, ${h.screenY}px)` }"
       >
         <div class="relative -translate-x-1/2 -translate-y-1/2">
-          <button
-            class="w-6 h-6 bg-accent border-2 border-white rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-transform pointer-events-auto group/dot"
-            @click.stop="handleHotspotClick(i)"
-          >
+          <button type="button" class="w-6 h-6 bg-accent border-2 border-white rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-transform pointer-events-auto group/dot" @click.stop="handleHotspotClick(i)">
             <span class="text-[10px] font-bold">{{ i + 1 }}</span>
             <div
               class="absolute inset-0 rounded-full bg-accent animate-ping opacity-25 group-hover:opacity-55"
@@ -776,24 +802,13 @@ defineExpose({ getCameraState, flyTo, isFullscreen, handleCanvasClick, setViewMo
     <div
       class="absolute right-4 top-4 flex flex-col gap-2.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
     >
-      <button
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
-        title="模型信息"
-        @click="showStats = !showStats"
-      >
+      <button type="button" class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md" title="模型信息" @click="showStats = !showStats">
         <Info class="w-4.5 h-4.5" />
       </button>
-      <button
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
-        title="重置视角"
-        @click="resetCamera"
-      >
+      <button type="button" class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md" title="重置视角" @click="resetCamera">
         <RefreshCw class="w-4.5 h-4.5" />
       </button>
-      <button
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
-        @click="toggleFullscreen"
-      >
+      <button type="button" class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md" @click="toggleFullscreen">
         <Layers class="w-4.5 h-4.5" />
       </button>
     </div>

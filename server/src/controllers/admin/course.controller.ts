@@ -1,10 +1,12 @@
 import { Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { parseBilibiliUrl } from '../../utils/bilibili';
 import { parseYoutubeUrl } from '../../utils/youtube';
 import { parseGithubUrl } from '../../utils/github';
 import { AppError } from '../../middlewares/error.middleware';
+import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 
 export const parseExternalLink = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { url } = req.body;
@@ -24,9 +26,9 @@ export const parseExternalLink = async (req: AuthRequest, res: Response, next: N
       return next(new AppError('不支持的平台，目前仅支持 B站、YouTube 和 GitHub。', 400));
     }
     res.json(metadata);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Parse link error:', error);
-    next(new AppError(error.message || '解析链接失败', 400));
+    next(new AppError((error instanceof Error ? error.message : '解析链接失败'), 400));
   }
 };
 
@@ -271,16 +273,34 @@ export const deleteLesson = async (req: AuthRequest, res: Response, next: NextFu
 
 export const getAllRoadmaps = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const roadmaps = await prisma.roadmap.findMany({
-      where: {
-        creatorId: null, // Exclude user-created roadmaps
-      },
-      include: {
-        steps: { orderBy: { order: 'asc' } },
-      },
-      orderBy: { createdAt: 'desc' },
+    const { page, limit, skip } = getPaginationParams(req.query, 50, 200);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const where: Prisma.RoadmapWhereInput = {
+      creatorId: null, // Exclude user-created roadmaps
+      ...(q
+        ? {
+            OR: [{ title: { contains: q } }, { description: { contains: q } }],
+          }
+        : {}),
+    };
+
+    const [total, roadmaps] = await prisma.$transaction([
+      prisma.roadmap.count({ where }),
+      prisma.roadmap.findMany({
+        where,
+        include: {
+          steps: { orderBy: { order: 'asc' } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      data: roadmaps,
+      pagination: createPaginationMeta(page, limit, total),
     });
-    res.json(roadmaps);
   } catch (error) {
     next(error);
   }

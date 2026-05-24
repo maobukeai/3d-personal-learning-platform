@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
@@ -179,8 +180,8 @@ const handleSaveCategory = async () => {
         fetchCourseCategories();
       }
       showModal.value = false;
-    } catch (error: any) {
-      ElMessage.error(error.response?.data?.error || '保存失败');
+    } catch (error) {
+      ElMessage.error(getApiErrorMessage(error, '保存失败'));
     }
   } else {
     // Update System Settings
@@ -207,7 +208,7 @@ const handleSaveCategory = async () => {
       ElMessage.success('系统设置更新成功');
       fetchSettingsCategories();
       showModal.value = false;
-    } catch (error: any) {
+    } catch (_error) {
       ElMessage.error('保存失败');
     }
   }
@@ -240,7 +241,7 @@ const handleDeleteCategory = async (category: any) => {
       } else {
         fetchCourseCategories();
       }
-    } catch (error) {
+    } catch (_error) {
       /* cancel */
     }
   } else {
@@ -262,7 +263,7 @@ const handleDeleteCategory = async (category: any) => {
       });
       ElMessage.success('分类已移除');
       fetchSettingsCategories();
-    } catch (error) {
+    } catch (_error) {
       /* cancel */
     }
   }
@@ -304,10 +305,7 @@ onMounted(() => {
           </h1>
         </div>
 
-        <button
-          class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap"
-          @click="openModal()"
-        >
+        <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap" @click="openModal()">
           <Plus class="w-3.5 h-3.5" />
           <span class="hidden sm:inline">新建分类</span>
         </button>
@@ -322,45 +320,33 @@ onMounted(() => {
           <!-- 极品分段选项卡 -->
           <div class="flex flex-nowrap items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
             <button
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="activeTab === 'assets'
+type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'assets'
                 ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
-              @click="activeTab = 'assets'"
-            >
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'assets'">
               <Box class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>资产库</span>
               <span class="opacity-60 text-[8px] xs:text-[9px]">({{ assetCategories.length }})</span>
             </button>
             <button
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="activeTab === 'courses'
+type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'courses'
                 ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
-              @click="activeTab = 'courses'"
-            >
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'courses'">
               <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>课程</span>
               <span class="opacity-60 text-[8px] xs:text-[9px]">({{ courseCategories.length }})</span>
             </button>
             <button
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="activeTab === 'materials'
+type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'materials'
                 ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
-              @click="activeTab = 'materials'"
-            >
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'materials'">
               <Layers class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>材质</span>
               <span class="opacity-60 text-[8px] xs:text-[9px]">({{ materialCategories.length }})</span>
             </button>
             <button
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0"
-              :class="activeTab === 'showcases'
+type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text-[9px] sm:text-[11px] font-bold transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer shrink-0" :class="activeTab === 'showcases'
                 ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
-              @click="activeTab = 'showcases'"
-            >
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'" @click="activeTab = 'showcases'">
               <Sparkles class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
               <span>作品展示</span>
               <span class="opacity-60 text-[8px] xs:text-[9px]">({{ showcaseCategories.length }})</span>
@@ -394,11 +380,7 @@ onMounted(() => {
                 color: var(--text-primary);
               "
             />
-            <button
-              v-if="searchQuery"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              @click="searchQuery = ''"
-            >
+            <button v-if="searchQuery" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" @click="searchQuery = ''">
               <X class="w-3 h-3" />
             </button>
           </div>
@@ -487,16 +469,10 @@ onMounted(() => {
                     <div
                       class="flex items-center justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                     >
-                      <button
-                        class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors"
-                        @click="openModal(cat)"
-                      >
+                      <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-accent transition-colors" @click="openModal(cat)">
                         <Edit2 class="w-4 h-4" />
                       </button>
-                      <button
-                        class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                        @click="handleDeleteCategory(cat)"
-                      >
+                      <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors" @click="handleDeleteCategory(cat)">
                         <Trash2 class="w-4 h-4" />
                       </button>
                     </div>
@@ -542,16 +518,10 @@ onMounted(() => {
               </div>
               
               <div class="flex items-center gap-1 shrink-0 ml-2">
-                <button
-                  class="p-2 rounded-lg text-slate-400 hover:text-accent transition-colors"
-                  @click="openModal(cat)"
-                >
+                <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-accent transition-colors" @click="openModal(cat)">
                   <Edit2 class="w-4 h-4" />
                 </button>
-                <button
-                  class="p-2 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
-                  @click="handleDeleteCategory(cat)"
-                >
+                <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-rose-500 transition-colors" @click="handleDeleteCategory(cat)">
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -588,10 +558,7 @@ onMounted(() => {
             </h3>
             <p class="text-xs text-slate-400 mt-1">管理系统全局分类映射</p>
           </div>
-          <button
-            class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400"
-            @click="showModal = false"
-          >
+          <button type="button" class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400" @click="showModal = false">
             <X class="w-6 h-6" />
           </button>
         </div>
@@ -661,16 +628,10 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-4 mt-10">
-          <button
-            class="flex-1 py-4 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showModal = false"
-          >
+          <button type="button" class="flex-1 py-4 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors" @click="showModal = false">
             取消
           </button>
-          <button
-            class="flex-1 py-4 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98]"
-            @click="handleSaveCategory"
-          >
+          <button type="button" class="flex-1 py-4 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98]" @click="handleSaveCategory">
             {{ currentCategory ? '保存修改' : '立即创建' }}
           </button>
         </div>

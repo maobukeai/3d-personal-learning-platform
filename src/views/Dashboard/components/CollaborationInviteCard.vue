@@ -61,7 +61,7 @@ onMounted(() => {
           style="border-color: var(--bg-card)"
           :title="team.name"
         >
-          <img v-if="team.avatarUrl" :src="team.avatarUrl" class="w-full h-full object-cover" />
+          <img v-if="team.avatarUrl" alt="" :src="team.avatarUrl" class="w-full h-full object-cover" />
           <div
             v-else
             class="w-full h-full flex items-center justify-center"
@@ -109,10 +109,7 @@ onMounted(() => {
         </div>
       </template>
     </div>
-    <button
-      class="w-full py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs sm:text-sm font-bold transition-transform hover:scale-[1.02] cursor-pointer"
-      @click="router.push('/explore-teams')"
-    >
+    <button type="button" class="w-full py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs sm:text-sm font-bold transition-transform hover:scale-[1.02] cursor-pointer" @click="router.push('/explore-teams')">
       寻找团队伙伴
     </button>
   </div>

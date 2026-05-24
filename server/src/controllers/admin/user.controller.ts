@@ -1,31 +1,61 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { sanitizeUser } from '../../utils/auth';
 import { AppError } from '../../middlewares/error.middleware';
+import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 
 export const getUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        avatarUrl: true,
-        createdAt: true,
-        subscription: {
-          include: {
-            plan: true,
+    const { page, limit, skip } = getPaginationParams(req.query, 50, 200);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const role =
+      typeof req.query.role === 'string' && req.query.role !== 'ALL' ? req.query.role : undefined;
+    const status =
+      typeof req.query.status === 'string' && req.query.status !== 'ALL'
+        ? req.query.status
+        : undefined;
+    const where: Prisma.UserWhereInput = {
+      ...(role ? { role } : {}),
+      ...(status ? { status } : {}),
+      ...(q
+        ? {
+            OR: [{ name: { contains: q } }, { email: { contains: q } }],
+          }
+        : {}),
+    };
+
+    const [total, users] = await prisma.$transaction([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+          avatarUrl: true,
+          createdAt: true,
+          subscription: {
+            include: {
+              plan: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      data: users,
+      pagination: createPaginationMeta(page, limit, total),
     });
-    res.json(users);
   } catch (error) {
     next(error);
   }

@@ -7,7 +7,7 @@ import { Plus, Users, Check } from 'lucide-vue-next';
 import api from '@/utils/api';
 
 const { t } = useI18n();
-const props = defineProps<{
+const _props = defineProps<{
   visible: boolean;
 }>();
 
@@ -32,7 +32,7 @@ const handleClose = () => {
 };
 
 const handleCreate = async () => {
-  if (!teamName.value) {
+  if (!teamName.value || !teamName.value.trim()) {
     ElMessage.warning(t('team.nameRequired'));
     return;
   }
@@ -40,7 +40,7 @@ const handleCreate = async () => {
   loading.value = true;
   try {
     const { data: team } = await api.post('/api/teams', {
-      name: teamName.value,
+      name: teamName.value.trim(),
       description: teamDescription.value,
       category: teamCategory.value,
       visibility: teamType.value === 'public' ? 'PUBLIC' : 'PRIVATE',
@@ -52,7 +52,7 @@ const handleCreate = async () => {
     teamName.value = '';
     teamDescription.value = '';
     teamType.value = 'public';
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error(t('team.createFailed'));
   } finally {
     loading.value = false;
@@ -118,14 +118,11 @@ const handleCreate = async () => {
         }}</label>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
-            :class="
+type="button" :class="
               teamType === 'public'
                 ? 'border-accent bg-accent-subtle/50'
                 : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
-            "
-            class="flex flex-col items-start p-4 border-2 rounded-2xl transition-all text-left group"
-            @click="teamType = 'public'"
-          >
+            " class="flex flex-col items-start p-4 border-2 rounded-2xl transition-all text-left group" @click="teamType = 'public'">
             <div class="flex items-center justify-between w-full mb-2">
               <Users
                 class="w-5 h-5"
@@ -142,14 +139,11 @@ const handleCreate = async () => {
           </button>
 
           <button
-            :class="
+type="button" :class="
               teamType === 'private'
                 ? 'border-accent bg-accent-subtle/50'
                 : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
-            "
-            class="flex flex-col items-start p-4 border-2 rounded-2xl transition-all text-left group"
-            @click="teamType = 'private'"
-          >
+            " class="flex flex-col items-start p-4 border-2 rounded-2xl transition-all text-left group" @click="teamType = 'private'">
             <div class="flex items-center justify-between w-full mb-2">
               <Plus
                 class="w-5 h-5"
@@ -170,17 +164,10 @@ const handleCreate = async () => {
 
     <template #footer>
       <div class="flex items-center justify-end gap-3 pt-2">
-        <button
-          class="px-6 py-2.5 rounded-full font-bold text-slate-500 hover:bg-slate-100 transition-colors"
-          @click="handleClose"
-        >
+        <button type="button" class="px-6 py-2.5 rounded-full font-bold text-slate-500 hover:bg-slate-100 transition-colors" @click="handleClose">
           {{ t('common.cancel') }}
         </button>
-        <button
-          :disabled="loading"
-          class="px-8 py-2.5 rounded-full font-bold text-white bg-accent hover:bg-accent shadow-xl shadow-accent/20 transition-all disabled:opacity-50 active:scale-95"
-          @click="handleCreate"
-        >
+        <button type="button" :disabled="loading" class="px-8 py-2.5 rounded-full font-bold text-white bg-accent hover:bg-accent shadow-xl shadow-accent/20 transition-all disabled:opacity-50 active:scale-95" @click="handleCreate">
           {{ loading ? t('common.loading') : t('common.confirm') }}
         </button>
       </div>

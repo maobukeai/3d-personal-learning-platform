@@ -208,25 +208,14 @@ function handlePageJump() {
         />
       </div>
       <div class="flex items-center gap-2">
-        <button
-          class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          @click="showFilters = !showFilters"
-        >
+        <button type="button" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" @click="showFilters = !showFilters">
           <SlidersHorizontal class="w-4 h-4" />
           排序
         </button>
-        <button
-          class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          :class="viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20' : ''"
-          @click="viewMode = 'grid'"
-        >
+        <button type="button" class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" :class="viewMode === 'grid' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20' : ''" @click="viewMode = 'grid'">
           <LayoutGrid class="w-4 h-4" />
         </button>
-        <button
-          class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          :class="viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20' : ''"
-          @click="viewMode = 'list'"
-        >
+        <button type="button" class="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" :class="viewMode === 'list' ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20' : ''" @click="viewMode = 'list'">
           <List class="w-4 h-4" />
         </button>
       </div>
@@ -234,16 +223,10 @@ function handlePageJump() {
 
     <div v-if="showFilters" class="flex items-center gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
       <span class="text-xs text-slate-500">排序：</span>
-      <button
-        v-for="opt in [{ label: '最新', value: 'newest' }, { label: '最旧', value: 'oldest' }, { label: '标题', value: 'title' }]"
-        :key="opt.value"
-        class="px-2.5 py-1 text-xs rounded-md transition-colors"
-        :class="mirrorStore.sortBy === opt.value ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600' : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'"
-        @click="mirrorStore.setSortBy(opt.value); doSearch()"
-      >
+      <button v-for="opt in [{ label: '最新', value: 'newest' }, { label: '最旧', value: 'oldest' }, { label: '标题', value: 'title' }]" :key="opt.value" type="button" class="px-2.5 py-1 text-xs rounded-md transition-colors" :class="mirrorStore.sortBy === opt.value ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600' : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'" @click="mirrorStore.setSortBy(opt.value); doSearch()">
         {{ opt.label }}
       </button>
-      <button class="ml-auto p-1 text-slate-400 hover:text-slate-600" @click="showFilters = false">
+      <button type="button" class="ml-auto p-1 text-slate-400 hover:text-slate-600" @click="showFilters = false">
         <X class="w-4 h-4" />
       </button>
     </div>
@@ -276,13 +259,7 @@ function handlePageJump() {
                 class="w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700"
                 :class="viewMode === 'list' ? 'w-24 h-16 md:w-28 md:h-20' : 'aspect-[16/10]'"
               >
-                <img
-                  :src="getAssetUrl(resource.thumbnailUrl)"
-                  :alt="resource.title"
-                  class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  loading="lazy"
-                  @error="($event.target as HTMLImageElement).style.display = 'none'"
-                />
+                <img :src="getAssetUrl(resource.thumbnailUrl)" :alt="resource.title" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105" loading="lazy" @error="($event.target as HTMLImageElement).style.display = 'none'" />
               </div>
               <div
                 v-else
@@ -333,21 +310,13 @@ function handlePageJump() {
         </div>
 
         <div v-if="mirrorStore.totalPages > 1" class="flex items-center justify-center gap-2 mt-8">
-          <button
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors"
-            :disabled="mirrorStore.currentPage <= 1"
-            @click="goToPage(mirrorStore.currentPage - 1)"
-          >
+          <button type="button" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors" :disabled="mirrorStore.currentPage <= 1" @click="goToPage(mirrorStore.currentPage - 1)">
             <ChevronLeft class="w-4 h-4" />
           </button>
           <span class="text-sm text-slate-500 px-3">
             {{ mirrorStore.currentPage }} / {{ mirrorStore.totalPages }}
           </span>
-          <button
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors mr-2"
-            :disabled="mirrorStore.currentPage >= mirrorStore.totalPages"
-            @click="goToPage(mirrorStore.currentPage + 1)"
-          >
+          <button type="button" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-colors mr-2" :disabled="mirrorStore.currentPage >= mirrorStore.totalPages" @click="goToPage(mirrorStore.currentPage + 1)">
             <ChevronRight class="w-4 h-4" />
           </button>
 

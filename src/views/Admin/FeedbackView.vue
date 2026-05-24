@@ -25,7 +25,7 @@ const fetchFeedbacks = async () => {
   try {
     const response = await api.get('/api/admin/feedback');
     feedbacks.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取反馈列表失败');
   } finally {
     isLoading.value = false;
@@ -69,7 +69,7 @@ const handleReply = async () => {
     ElMessage.success('已发送回复');
     replyDialogVisible.value = false;
     fetchFeedbacks();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('发送回复失败');
   } finally {
     isSubmittingReply.value = false;
@@ -81,7 +81,7 @@ const updateStatus = async (id: string, status: string) => {
     await api.put(`/api/admin/feedback/${id}/status`, { status });
     ElMessage.success('状态已更新');
     fetchFeedbacks();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('更新状态失败');
   }
 };
@@ -98,14 +98,14 @@ const deleteFeedback = async (id: string) => {
     await api.delete(`/api/admin/feedback/${id}`);
     ElMessage.success('删除成功');
     fetchFeedbacks();
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error !== 'cancel') {
       ElMessage.error('删除失败');
     }
   }
 };
 
-const getStatusType = (status: string) => {
+const getStatusType = (status: string): "primary" | "success" | "warning" | "info" | "danger" | undefined => {
   switch (status) {
     case 'OPEN':
       return 'danger';
@@ -116,7 +116,7 @@ const getStatusType = (status: string) => {
     case 'CLOSED':
       return 'info';
     default:
-      return '';
+      return 'info';
   }
 };
 
@@ -216,6 +216,7 @@ onMounted(fetchFeedbacks);
 
         <div class="flex items-center gap-2.5">
           <button
+type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
             style="border-color: var(--border-base); color: var(--text-secondary)"
             @click="fetchFeedbacks"
@@ -234,7 +235,7 @@ onMounted(fetchFeedbacks);
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
+v-for="filter in [
                 { key: 'ALL', label: '所有反馈', count: feedbacks.length },
                 { key: 'OPEN', label: '待处理', count: feedbacks.filter(f => f.status === 'OPEN').length },
                 { key: 'IN_PROGRESS', label: '处理中', count: feedbacks.filter(f => f.status === 'IN_PROGRESS').length },
@@ -242,6 +243,7 @@ onMounted(fetchFeedbacks);
                 { key: 'CLOSED', label: '已关闭', count: feedbacks.filter(f => f.status === 'CLOSED').length }
               ]"
               :key="filter.key"
+              type="button"
               class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
               :class="[
                 filterStatus === filter.key
@@ -405,6 +407,7 @@ onMounted(fetchFeedbacks);
 
                   <div class="flex items-center gap-2">
                     <button
+type="button"
                       class="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-md shadow-indigo-200 dark:shadow-none"
                       @click="openReplyDialog(item)"
                     >
@@ -414,6 +417,7 @@ onMounted(fetchFeedbacks);
 
                     <el-dropdown trigger="click">
                       <button
+type="button"
                         class="px-4 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-xs font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center gap-2"
                       >
                         状态 <ChevronRight class="w-3 h-3" />
@@ -437,6 +441,7 @@ onMounted(fetchFeedbacks);
                     </el-dropdown>
 
                     <button
+type="button"
                       class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                       title="删除记录"
                       @click="deleteFeedback(item.id)"
@@ -498,12 +503,14 @@ onMounted(fetchFeedbacks);
       <template #footer>
         <div class="flex gap-3">
           <button
+type="button"
             class="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-xs hover:bg-slate-50 transition-all"
             @click="replyDialogVisible = false"
           >
             取消
           </button>
           <button
+type="button"
             :disabled="isSubmittingReply || !replyText.trim()"
             class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
             @click="handleReply"

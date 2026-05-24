@@ -34,9 +34,7 @@ const router = useRouter();
           进度: {{ activeEnrollment.progress }}% | 还剩下
           {{ activeEnrollment.course._count.lessons }} 个章节
         </p>
-        <button
-          class="px-4 py-1.5 sm:px-4.5 sm:py-2 bg-white text-indigo-600 rounded-xl font-bold text-[11px] shadow-xl hover:scale-105 transition-all cursor-pointer"
-        >
+        <button type="button" class="px-4 py-1.5 sm:px-4.5 sm:py-2 bg-white text-indigo-600 rounded-xl font-bold text-[11px] shadow-xl hover:scale-105 transition-all cursor-pointer">
           开始学习
         </button>
       </div>
@@ -64,9 +62,7 @@ const router = useRouter();
       <p class="text-[11px] sm:text-xs text-slate-400 mb-2 sm:mb-2.5 max-w-[240px]">
         您还没有加入任何课程。前往学院探索海量 3D 创作课程，提升您的技能。
       </p>
-      <button
-        class="px-4 py-1 sm:px-4.5 sm:py-1.5 border-2 border-accent text-accent rounded-xl font-bold text-[11px] hover:bg-accent hover:text-white transition-all cursor-pointer"
-      >
+      <button type="button" class="px-4 py-1 sm:px-4.5 sm:py-1.5 border-2 border-accent text-accent rounded-xl font-bold text-[11px] hover:bg-accent hover:text-white transition-all cursor-pointer">
         浏览课程
       </button>
     </div>

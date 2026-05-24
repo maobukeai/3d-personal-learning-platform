@@ -170,7 +170,7 @@ class ThumbnailLocalizer {
             break;
           }
           throw lastError;
-        } catch (e: any) {
+        } catch (e) {
           lastError = e;
           if (attempt < retries) {
             const delayMs = 1000 * Math.pow(2, attempt) + Math.random() * 200;
@@ -194,7 +194,9 @@ class ThumbnailLocalizer {
 
       const contentLength = Number.parseInt(response.headers.get('content-length') || '0', 10);
       if (contentLength > MAX_IMAGE_BYTES) {
-        console.warn(`[ThumbnailLocalizer] Image too large: ${originalUrl} (${contentLength} bytes)`);
+        console.warn(
+          `[ThumbnailLocalizer] Image too large: ${originalUrl} (${contentLength} bytes)`,
+        );
         return originalUrl;
       }
 
@@ -211,15 +213,17 @@ class ThumbnailLocalizer {
       } else {
         const buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.byteLength > MAX_IMAGE_BYTES) {
-          console.warn(`[ThumbnailLocalizer] Image too large: ${originalUrl} (${buffer.byteLength} bytes)`);
+          console.warn(
+            `[ThumbnailLocalizer] Image too large: ${originalUrl} (${buffer.byteLength} bytes)`,
+          );
           return originalUrl;
         }
         fs.writeFileSync(filePath, buffer);
       }
 
       return localUrl;
-    } catch (e: any) {
-      console.warn(`[ThumbnailLocalizer] Error localizing ${originalUrl}: ${e.message}`);
+    } catch (e) {
+      console.warn(`[ThumbnailLocalizer] Error localizing ${originalUrl}: ${(e instanceof Error ? e.message : String(e))}`);
       return originalUrl;
     }
   }
@@ -302,8 +306,8 @@ class ThumbnailLocalizer {
       });
 
       return $.html();
-    } catch (e: any) {
-      console.warn(`[ThumbnailLocalizer] Error localizing HTML content images: ${e.message}`);
+    } catch (e) {
+      console.warn(`[ThumbnailLocalizer] Error localizing HTML content images: ${(e instanceof Error ? e.message : String(e))}`);
       return htmlContent;
     }
   }

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import api from '@/utils/api';
 import { socketService } from '@/utils/socket';
+import { preferences } from '@/utils/preferences';
 
 interface User {
   id: string;
@@ -13,6 +14,7 @@ interface User {
   role: string;
   emailVerified?: boolean;
   twoFactorEnabled?: boolean;
+  language?: string;
   createdAt: string;
   subscription?: {
     plan: {
@@ -28,8 +30,8 @@ interface User {
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: JSON.parse(localStorage.getItem('user') || 'null') as User | null,
-    deviceToken: localStorage.getItem('deviceToken') || '',
+    user: preferences.getUser<User>(),
+    deviceToken: preferences.getDeviceToken(),
     onlineUserIds: new Set<string>(),
     unreadMessagesCount: 0,
   }),
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', {
         });
         if (response.data.user) {
           this.user = response.data.user;
-          localStorage.setItem('user', JSON.stringify(this.user));
+          preferences.setUser(this.user);
         }
         return response.data;
       } catch (error) {
@@ -88,8 +90,8 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.get('/api/auth/me');
         this.user = response.data;
-        localStorage.setItem('user', JSON.stringify(this.user));
-      } catch (error) {
+        preferences.setUser(this.user);
+      } catch (_error) {
         this.logout();
       }
     },
@@ -97,7 +99,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.put('/api/auth/profile', profileData);
         this.user = response.data;
-        localStorage.setItem('user', JSON.stringify(this.user));
+        preferences.setUser(this.user);
         return response.data;
       } catch (error) {
         throw error;
@@ -113,7 +115,7 @@ export const useAuthStore = defineStore('auth', {
           },
         });
         this.user = response.data;
-        localStorage.setItem('user', JSON.stringify(this.user));
+        preferences.setUser(this.user);
         return response.data;
       } catch (error) {
         throw error;
@@ -140,7 +142,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.post('/api/auth/2fa/enable', { code });
         if (this.user) {
           this.user.twoFactorEnabled = true;
-          localStorage.setItem('user', JSON.stringify(this.user));
+          preferences.setUser(this.user);
         }
         return response.data;
       } catch (error) {
@@ -152,7 +154,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.post('/api/auth/2fa/disable');
         if (this.user) {
           this.user.twoFactorEnabled = false;
-          localStorage.setItem('user', JSON.stringify(this.user));
+          preferences.setUser(this.user);
         }
         return response.data;
       } catch (error) {
@@ -163,10 +165,10 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await api.post('/api/auth/login/2fa', { userId, code, rememberDevice });
         this.user = response.data.user;
-        localStorage.setItem('user', JSON.stringify(this.user));
+        preferences.setUser(this.user);
         if (response.data.deviceToken) {
           this.deviceToken = response.data.deviceToken;
-          localStorage.setItem('deviceToken', this.deviceToken);
+          preferences.setDeviceToken(this.deviceToken);
         }
         return response.data;
       } catch (error) {
@@ -211,7 +213,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.post('/api/auth/email/verify', { code });
         if (this.user) {
           this.user.emailVerified = true;
-          localStorage.setItem('user', JSON.stringify(this.user));
+          preferences.setUser(this.user);
         }
         return response.data;
       } catch (error) {
@@ -232,7 +234,7 @@ export const useAuthStore = defineStore('auth', {
         if (this.user) {
           this.user.email = response.data.user.email;
           this.user.emailVerified = response.data.user.emailVerified;
-          localStorage.setItem('user', JSON.stringify(this.user));
+          preferences.setUser(this.user);
         }
         return response.data;
       } catch (error) {
@@ -252,11 +254,10 @@ export const useAuthStore = defineStore('auth', {
       this.deviceToken = '';
       this.onlineUserIds = new Set<string>();
       this.unreadMessagesCount = 0;
-      localStorage.removeItem('user');
-      localStorage.removeItem('deviceToken');
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('activeWorkspaceId');
+      preferences.clearUser();
+      preferences.clearDeviceToken();
+      preferences.clearLegacyAuthTokens();
+      preferences.clearActiveWorkspaceId();
     },
   },
 });

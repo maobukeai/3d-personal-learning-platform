@@ -1,5 +1,11 @@
 import DOMPurify from 'dompurify';
 
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node instanceof HTMLElement && node.getAttribute('target') === '_blank') {
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
+});
+
 export const sanitizeHtml = (html: string): string => {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
@@ -76,7 +82,7 @@ export const sanitizeHtml = (html: string): string => {
       'img',
       'video',
     ],
-    ALLOWED_ATTR: ['href', 'name', 'target', 'src', 'alt', 'class', 'controls'],
+    ALLOWED_ATTR: ['href', 'name', 'target', 'rel', 'src', 'alt', 'class', 'controls'],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
   });
 };

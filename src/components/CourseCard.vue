@@ -73,11 +73,7 @@ function handleBookmarkClick(event: Event) {
     <div
       class="w-20 sm:w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
-      <img
-        :src="course.thumbnail || defaultThumbnail"
-        referrerpolicy="no-referrer"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-      />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
       <div>
@@ -117,11 +113,7 @@ function handleBookmarkClick(event: Event) {
     <div
       class="w-full sm:w-36 lg:w-44 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
-      <img
-        :src="course.thumbnail || defaultThumbnail"
-        referrerpolicy="no-referrer"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-      />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
       <div>
@@ -173,11 +165,7 @@ function handleBookmarkClick(event: Event) {
     @click="handleCardClick"
   >
     <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-      <img
-        :src="course.thumbnail || defaultThumbnail"
-        referrerpolicy="no-referrer"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-      />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       <div
         class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
       >
@@ -222,11 +210,7 @@ function handleBookmarkClick(event: Event) {
   >
     <!-- Course Cover -->
     <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-      <img
-        :src="course.thumbnail || defaultThumbnail"
-        referrerpolicy="no-referrer"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-      />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       <div
         class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
       >
@@ -253,11 +237,7 @@ function handleBookmarkClick(event: Event) {
           </span>
         </div>
         <!-- Bookmark button -->
-        <button
-          v-else
-          class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50"
-          @click.stop="handleBookmarkClick($event)"
-        >
+        <button v-else type="button" class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/30 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-black/50" @click.stop="handleBookmarkClick($event)">
           <Bookmark
             class="w-3.5 h-3.5"
             :class="

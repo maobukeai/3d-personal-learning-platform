@@ -96,8 +96,8 @@ export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
       thumbnail: repoData.owner.avatar_url,
       lessons,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error('[GitHub] Parse error:', error);
-    throw new Error(error.message || '解析 GitHub 仓库失败');
+    throw new Error((error instanceof Error ? error.message : String(error)) || '解析 GitHub 仓库失败');
   }
 }

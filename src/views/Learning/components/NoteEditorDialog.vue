@@ -1,0 +1,339 @@
+<script setup lang="ts">
+import { ref, defineAsyncComponent } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Plus, Edit3, Layout, Eye, Settings, Check, BookOpen } from 'lucide-vue-next';
+import api from '@/utils/api';
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
+
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  summary?: string;
+  visibility: string;
+  tags?: string;
+  category?: string;
+  views: number;
+  isPinned: boolean;
+  isPopular: boolean;
+  isLiked: boolean;
+  userId: string;
+  _count: { likes: number; comments: number };
+  user: { id: string; name: string; avatarUrl: string; bio?: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+const props = defineProps<{
+  myNotebooksList: string[];
+}>();
+
+const emit = defineEmits<{
+  (e: 'saved', category: string): void;
+}>();
+
+const visible = ref(false);
+const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
+const editingNote = ref<Note | null>(null);
+
+const formTitle = ref('');
+const formContent = ref('');
+const formSummary = ref('');
+const formVisibility = ref('PRIVATE');
+const formTags = ref('');
+const formCategory = ref('');
+const saving = ref(false);
+
+const open = (note?: Note) => {
+  if (note) {
+    editingNote.value = note;
+    formTitle.value = note.title;
+    formContent.value = note.content;
+    formSummary.value = note.summary || '';
+    formVisibility.value = note.visibility;
+    formTags.value = note.tags
+      ? Array.isArray(JSON.parse(note.tags))
+        ? JSON.parse(note.tags).join(', ')
+        : note.tags
+      : '';
+    formCategory.value = note.category || '';
+  } else {
+    editingNote.value = null;
+    formTitle.value = '';
+    formContent.value = '';
+    formSummary.value = '';
+    formVisibility.value = 'PRIVATE';
+    formTags.value = '';
+    formCategory.value = '';
+  }
+  previewMode.value = 'edit';
+  visible.value = true;
+};
+
+const handleSave = async () => {
+  if (!formTitle.value.trim()) {
+    ElMessage.warning('请输入标题');
+    return;
+  }
+  if (!formContent.value.trim()) {
+    ElMessage.warning('请输入内容');
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const payload = {
+      title: formTitle.value.trim(),
+      content: formContent.value.trim(),
+      summary: formSummary.value.trim() || undefined,
+      visibility: formVisibility.value,
+      tags: formTags.value
+        ? JSON.stringify(
+            formTags.value
+              .split(',')
+              .map((t) => t.trim())
+              .filter(Boolean),
+          )
+        : undefined,
+      category: formCategory.value.trim() || undefined,
+    };
+
+    if (editingNote.value) {
+      await api.put(`/api/notes/${editingNote.value.id}`, payload);
+      ElMessage.success('笔记已更新');
+    } else {
+      await api.post('/api/notes', payload);
+      ElMessage.success('笔记已创建');
+    }
+
+    emit('saved', formCategory.value.trim());
+    visible.value = false;
+  } catch {
+    ElMessage.error('保存失败');
+  } finally {
+    saving.value = false;
+  }
+};
+
+defineExpose({ open });
+</script>
+
+<template>
+  <el-dialog
+    v-model="visible"
+    fullscreen
+    :show-close="false"
+    class="immersive-editor-dialog"
+    destroy-on-close
+  >
+    <div class="fixed inset-0 bg-[var(--bg-app)] overflow-y-auto custom-scrollbar h-screen">
+      <header
+        class="sticky top-0 z-50 h-14 md:h-16 flex items-center justify-between px-3 md:px-8 bg-[var(--bg-app)]/80 backdrop-blur-md border-b border-[var(--border-base)]"
+      >
+        <div class="flex items-center gap-2 md:gap-4">
+          <el-button
+            circle
+            size="small"
+            class="hover:bg-slate-100 dark:hover:bg-white/10 shrink-0"
+            @click="visible = false"
+          >
+            <Plus class="w-4 h-4 md:w-5 md:h-5 rotate-45 text-[var(--text-secondary)]" />
+          </el-button>
+        </div>
+
+        <div class="flex items-center gap-2 md:gap-3 min-w-0">
+          <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
+            <el-radio-button value="edit">
+              <div class="flex items-center gap-1 px-1">
+                <Edit3 class="w-3.5 h-3.5" /> <span class="hidden sm:inline">编辑</span>
+              </div>
+            </el-radio-button>
+            <el-radio-button value="live">
+              <div class="flex items-center gap-1 px-1">
+                <Layout class="w-3.5 h-3.5" /> <span class="hidden sm:inline">实时</span>
+              </div>
+            </el-radio-button>
+            <el-radio-button value="preview">
+              <div class="flex items-center gap-1 px-1">
+                <Eye class="w-3.5 h-3.5" /> <span class="hidden sm:inline">预览</span>
+              </div>
+            </el-radio-button>
+          </el-radio-group>
+
+          <el-dropdown trigger="click" class="lg:hidden">
+            <el-button circle class="!bg-[var(--bg-card)]">
+              <Settings class="w-4 h-4" />
+            </el-button>
+            <template #dropdown>
+              <div class="p-4 w-72 md:w-80 space-y-4">
+                <div>
+                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
+                  <el-input v-model="formSummary" type="textarea" :rows="2" placeholder="简短摘要..." size="small" />
+                </div>
+                <div>
+                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
+                  <el-radio-group v-model="formVisibility" size="small" class="w-full">
+                    <el-radio-button value="PRIVATE">私有</el-radio-button>
+                    <el-radio-button value="PUBLIC">公开</el-radio-button>
+                  </el-radio-group>
+                </div>
+                <div>
+                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类/笔记本</p>
+                  <el-select
+                    v-model="formCategory"
+                    placeholder="选择或输入笔记本"
+                    size="small"
+                    class="w-full"
+                    filterable
+                    allow-create
+                    default-first-option
+                    clearable
+                  >
+                    <el-option label="默认笔记本" value="默认笔记本" />
+                    <el-option v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
+                  </el-select>
+                </div>
+                <div>
+                  <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
+                  <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
+                </div>
+              </div>
+            </template>
+          </el-dropdown>
+          <el-button
+            type="primary"
+            size="default"
+            round
+            class="font-bold shadow-lg shrink-0"
+            :loading="saving"
+            @click="handleSave"
+          >
+            发布
+          </el-button>
+        </div>
+      </header>
+
+      <main class="max-w-[1550px] mx-auto px-3 md:px-6 pb-20 md:pb-32 pt-4 lg:pt-8">
+        <div class="flex flex-col lg:flex-row gap-6 items-start">
+          <!-- Left Column: Writing area -->
+          <div class="flex-1 min-w-0 w-full bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[85vh] px-4 md:px-8 lg:px-10 py-6 md:py-12">
+            <el-input v-model="formTitle" placeholder="无标题" class="editor-modern-title mb-4" />
+            <MarkdownEditor
+              v-model="formContent"
+              auto-height
+              class="modern-paper-theme"
+              :auto-focus="true"
+              :preview="previewMode === 'live'"
+              :preview-only="previewMode === 'preview'"
+            />
+            <div class="mt-6 md:mt-12 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest pt-4 md:pt-8 border-t border-[var(--border-base)]">
+              <div class="flex items-center gap-4">
+                <span class="flex items-center gap-1"><Check class="w-3 h-3" /> 自动保存</span>
+                <span class="hidden sm:flex items-center gap-1"><BookOpen class="w-3 h-3" /> Markdown 支持</span>
+              </div>
+              <span>共 {{ formContent.length }} 字符</span>
+            </div>
+          </div>
+
+          <!-- Right Column: Permanent sidebar settings on desktop (lg and up) -->
+          <aside class="hidden lg:flex flex-col w-80 shrink-0 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-5 space-y-5 shadow-sm sticky top-20">
+            <div class="border-b border-[var(--border-base)] pb-3">
+              <h3 class="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
+                <Settings class="w-4 h-4 text-accent" /> 笔记属性设置
+              </h3>
+            </div>
+            
+            <div class="space-y-4">
+              <div>
+                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记摘要</p>
+                <el-input v-model="formSummary" type="textarea" :rows="3" placeholder="简短摘要有助于读者在动态中快速了解..." size="small" />
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">可见性</p>
+                <el-radio-group v-model="formVisibility" size="small" class="w-full">
+                  <el-radio-button value="PRIVATE" class="w-1/2 text-center">私有</el-radio-button>
+                  <el-radio-button value="PUBLIC" class="w-1/2 text-center">公开</el-radio-button>
+                </el-radio-group>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">分类/笔记本</p>
+                <el-select
+                  v-model="formCategory"
+                  placeholder="选择或输入笔记本"
+                  size="small"
+                  class="w-full"
+                  filterable
+                  allow-create
+                  default-first-option
+                  clearable
+                >
+                  <el-option label="默认笔记本" value="默认笔记本" />
+                  <el-option v-for="cat in props.myNotebooksList" :key="cat" :label="cat" :value="cat" />
+                </el-select>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">标签</p>
+                <el-input v-model="formTags" placeholder="多个标签用逗号分隔" size="small" />
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </el-dialog>
+</template>
+
+<style scoped>
+:deep(.immersive-editor-dialog) {
+  padding: 0 !important;
+}
+:deep(.immersive-editor-dialog .el-dialog__header) {
+  display: none;
+}
+:deep(.immersive-editor-dialog .el-dialog__body) {
+  padding: 0;
+  height: 100%;
+}
+.preview-mode-toggle :deep(.el-radio-button__inner) {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+}
+.preview-mode-toggle :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background-color: var(--bg-card) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 6px !important;
+}
+.preview-mode-toggle {
+  background-color: var(--bg-app) !important;
+  padding: 2px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border-base) !important;
+}
+.editor-modern-title :deep(.el-input__wrapper) {
+  box-shadow: none !important;
+  background-color: transparent !important;
+  padding-left: 0 !important;
+}
+.editor-modern-title :deep(.el-input__inner) {
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  color: var(--text-primary) !important;
+  border: none !important;
+}
+@media (min-width: 768px) {
+  .editor-modern-title :deep(.el-input__inner) {
+    font-size: 1.75rem !important;
+  }
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 10px;
+}
+</style>

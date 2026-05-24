@@ -7,7 +7,8 @@ async function main() {
   console.log('Seeding database...');
 
   // 1. Create Admin User
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const adminSeedPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin_Secure_2026!';
+  const hashedPassword = await bcrypt.hash(adminSeedPassword, 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
@@ -22,7 +23,8 @@ async function main() {
   console.log('Created Admin User:', admin.email);
 
   // 2. Create Regular User
-  const userPassword = await bcrypt.hash('user123', 10);
+  const userSeedPassword = process.env.USER_INITIAL_PASSWORD || 'User_Secure_2026!';
+  const userPassword = await bcrypt.hash(userSeedPassword, 10);
   const user = await prisma.user.upsert({
     where: { email: 'user@example.com' },
     update: {},

@@ -70,11 +70,7 @@ const handleActivityClick = (log: any) => {
         <p class="text-xs sm:text-sm font-bold">暂无动态</p>
       </div>
     </div>
-    <button
-      class="w-full py-2 sm:py-2.5 text-xs sm:text-sm font-bold border-t transition-colors hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
-      style="color: var(--text-secondary); border-color: var(--border-base)"
-      @click="router.push('/discussions')"
-    >
+    <button type="button" class="w-full py-2 sm:py-2.5 text-xs sm:text-sm font-bold border-t transition-colors hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer" style="color: var(--text-secondary); border-color: var(--border-base)" @click="router.push('/discussions')">
       进入社区交流
     </button>
   </div>

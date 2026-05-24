@@ -100,10 +100,7 @@ const getStatusLabel = (status: string) => {
         </div>
         <div @click.stop>
           <el-dropdown trigger="click">
-            <button
-              class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-              style="color: var(--text-secondary)"
-            >
+            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" style="color: var(--text-secondary)">
               <MoreHorizontal class="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
             <template #dropdown>
@@ -307,12 +304,9 @@ const getStatusLabel = (status: string) => {
       </div>
     </td>
     <td class="px-6 py-2 text-right">
-      <div @click.stop class="inline-block text-left">
+      <div class="inline-block text-left" @click.stop>
         <el-dropdown trigger="click">
-          <button
-            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-            style="color: var(--text-secondary)"
-          >
+          <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all" style="color: var(--text-secondary)">
             <MoreHorizontal class="w-4 h-4" />
           </button>
           <template #dropdown>
@@ -362,7 +356,7 @@ const getStatusLabel = (status: string) => {
       </div>
       <div @click.stop>
         <el-dropdown trigger="click">
-          <button class="p-2 -mr-2">
+          <button type="button" class="p-2 -mr-2">
             <MoreHorizontal class="w-4 h-4 text-slate-400" />
           </button>
           <template #dropdown>

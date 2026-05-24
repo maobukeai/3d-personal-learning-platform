@@ -9,6 +9,9 @@
     "start": "node dist/src/index.js",
     "lint": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
+    "check:email-secrets": "node scripts/check-email-account-secrets.js",
+    "check:email-secrets:ci": "node scripts/check-email-account-secrets.js --fail-on-plaintext",
+    "encrypt:email-secrets": "node scripts/encrypt-email-account-secrets.js",
     "test": "jest --runInBand"
   },
   "keywords": [],

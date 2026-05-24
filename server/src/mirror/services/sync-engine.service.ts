@@ -393,10 +393,10 @@ export class SyncEngine {
                   sourceId,
                 );
                 updateData.contentHtml = localizedHtml || detail.contentHtml;
-              } catch (e: any) {
+              } catch (e) {
                 console.warn(
                   `[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`,
-                  e.message,
+                  (e instanceof Error ? e.message : String(e)),
                 );
                 updateData.contentHtml = detail.contentHtml;
               }
@@ -409,9 +409,9 @@ export class SyncEngine {
               });
             }
           }
-        } catch (e: any) {
-          if (e.name === 'AbortError') throw e;
-          console.error(`Failed to fetch detail for ${resource.externalId}:`, e.message);
+        } catch (e) {
+          if ((e instanceof Error && e.name === 'AbortError')) throw e;
+          console.error(`Failed to fetch detail for ${resource.externalId}:`, e instanceof Error ? e.message : e);
         }
 
         progress.detailsFetched++;
@@ -490,8 +490,8 @@ export class SyncEngine {
       });
 
       progress.estimatedProgress = 100;
-    } catch (error: any) {
-      const isAborted = error.name === 'AbortError' || error.message === 'AbortError';
+    } catch (error) {
+      const isAborted = (error instanceof Error && error.name === 'AbortError') || (error instanceof Error ? error.message : String(error)) === 'AbortError';
       const duration = Math.round((Date.now() - startTime) / 1000);
 
       await prisma.syncLog.update({
@@ -500,7 +500,7 @@ export class SyncEngine {
           status: isAborted ? 'CANCELLED' : 'FAILED',
           finishedAt: new Date(),
           duration,
-          error: isAborted ? '用户取消同步' : error.message || '未知错误',
+          error: isAborted ? '用户取消同步' : (error instanceof Error ? error.message : String(error)) || '未知错误',
         },
       });
 
@@ -789,10 +789,10 @@ export class SyncEngine {
                   sourceId,
                 );
                 updateData.contentHtml = localizedHtml || detail.contentHtml;
-              } catch (e: any) {
+              } catch (e) {
                 console.warn(
                   `[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`,
-                  e.message,
+                  (e instanceof Error ? e.message : String(e)),
                 );
                 updateData.contentHtml = detail.contentHtml;
               }
@@ -805,9 +805,9 @@ export class SyncEngine {
               });
             }
           }
-        } catch (e: any) {
-          if (e.name === 'AbortError') throw e;
-          console.error(`Failed to fetch detail for ${resource.externalId}:`, e.message);
+        } catch (e) {
+          if ((e instanceof Error && e.name === 'AbortError')) throw e;
+          console.error(`Failed to fetch detail for ${resource.externalId}:`, e instanceof Error ? e.message : e);
         }
 
         progress.detailsFetched++;
@@ -886,8 +886,8 @@ export class SyncEngine {
       });
 
       progress.estimatedProgress = 100;
-    } catch (error: any) {
-      const isAborted = error.name === 'AbortError' || error.message === 'AbortError';
+    } catch (error) {
+      const isAborted = (error instanceof Error && error.name === 'AbortError') || (error instanceof Error ? error.message : String(error)) === 'AbortError';
       const duration = Math.round((Date.now() - startTime) / 1000);
 
       await prisma.syncLog.update({
@@ -896,7 +896,7 @@ export class SyncEngine {
           status: isAborted ? 'CANCELLED' : 'FAILED',
           finishedAt: new Date(),
           duration,
-          error: isAborted ? '用户取消同步' : error.message || '未知错误',
+          error: isAborted ? '用户取消同步' : (error instanceof Error ? error.message : String(error)) || '未知错误',
         },
       });
 
@@ -1073,7 +1073,7 @@ export class SyncEngine {
       if (this.activeSyncs.has(sourceId)) return;
       try {
         await this.incrementalSync(sourceId);
-      } catch (e: any) {
+      } catch (e) {
         console.error(`Auto sync failed for source ${sourceId}:`, e);
       }
     };

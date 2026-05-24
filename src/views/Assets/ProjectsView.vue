@@ -76,7 +76,7 @@ const fetchProjects = async () => {
   try {
     const response = await api.get('/api/projects');
     projects.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取项目失败');
   } finally {
     isLoading.value = false;
@@ -89,7 +89,7 @@ const fetchTeamMembers = async () => {
     if (!tid) return;
     const response = await api.get(`/api/teams/${tid}/members`);
     teamMembers.value = response.data?.map((m: any) => m.user) || [];
-  } catch (error) {
+  } catch (_error) {
     // silently fail
   }
 };
@@ -146,7 +146,7 @@ const handleSaveProject = async () => {
     }
     isDrawerOpen.value = false;
     fetchProjects();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error(isEditMode.value ? '更新项目失败' : '创建项目失败');
   }
 };
@@ -163,7 +163,7 @@ const deleteProject = (id: string) => {
         await api.delete(`/api/projects/${id}`);
         ElMessage.success('项目已删除');
         fetchProjects();
-      } catch (error) {
+      } catch (_error) {
         ElMessage.error('删除失败');
       }
     })
@@ -218,10 +218,7 @@ onMounted(fetchProjects);
         </div>
 
         <!-- New Button (Mobile Only) -->
-        <button
-          class="flex md:hidden items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-lg"
-          @click="openAddDrawer"
-        >
+        <button type="button" class="flex md:hidden items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-lg" @click="openAddDrawer">
           <FolderPlus class="w-3.5 h-3.5" />
           <span>新建</span>
         </button>
@@ -244,10 +241,7 @@ onMounted(fetchProjects);
         </div>
         
         <!-- New Button (Desktop Only) -->
-        <button
-          class="hidden md:flex group relative px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold overflow-hidden shadow-xl shadow-slate-900/10 dark:shadow-white/10 hover:scale-105 active:scale-95 transition-all items-center gap-2"
-          @click="openAddDrawer"
-        >
+        <button type="button" class="hidden md:flex group relative px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold overflow-hidden shadow-xl shadow-slate-900/10 dark:shadow-white/10 hover:scale-105 active:scale-95 transition-all items-center gap-2" @click="openAddDrawer">
           <div
             class="absolute inset-0 bg-accent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"
           ></div>
@@ -306,25 +300,19 @@ onMounted(fetchProjects);
               style="border-color: var(--border-base)"
             >
               <button
-                class="p-1.5 sm:p-2 rounded-lg transition-all"
-                :class="
+type="button" class="p-1.5 sm:p-2 rounded-lg transition-all" :class="
                   viewMode === 'grid'
                     ? 'bg-slate-100 dark:bg-slate-800 text-accent shadow-sm'
                     : 'text-slate-400 hover:text-slate-600'
-                "
-                @click="viewMode = 'grid'"
-              >
+                " @click="viewMode = 'grid'">
                 <LayoutGrid class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               <button
-                class="p-1.5 sm:p-2 rounded-lg transition-all"
-                :class="
+type="button" class="p-1.5 sm:p-2 rounded-lg transition-all" :class="
                   viewMode === 'list'
                     ? 'bg-slate-100 dark:bg-slate-800 text-accent shadow-sm'
                     : 'text-slate-400 hover:text-slate-600'
-                "
-                @click="viewMode = 'list'"
-              >
+                " @click="viewMode = 'list'">
                 <List class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
@@ -354,10 +342,7 @@ onMounted(fetchProjects);
           <p class="text-[10px] sm:text-xs text-slate-400 max-w-xs sm:max-w-md mb-6">
             没有匹配当前搜索条件的项目，或者你还没有创建任何项目。
           </p>
-          <button
-            class="px-5 sm:px-6 py-2 sm:py-2.5 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-sm cursor-pointer"
-            @click="openAddDrawer"
-          >
+          <button type="button" class="px-5 sm:px-6 py-2 sm:py-2.5 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-sm cursor-pointer" @click="openAddDrawer">
             创建第一个项目
           </button>
         </div>
@@ -496,20 +481,13 @@ onMounted(fetchProjects);
             </h3>
             <div class="flex items-center gap-2">
               <!-- View Mode Toggle -->
-              <button
-                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
-                :title="projectFormViewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'"
-                @click="toggleProjectFormViewMode"
-              >
+              <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer" :title="projectFormViewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'" @click="toggleProjectFormViewMode">
                 <component
                   :is="projectFormViewMode === 'drawer' ? Maximize2 : Minimize2"
                   class="w-4.5 h-4.5"
                 />
               </button>
-              <button
-                class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer"
-                @click="isDrawerOpen = false"
-              >
+              <button type="button" class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer" @click="isDrawerOpen = false">
                 <X class="w-4 h-4 text-slate-500" />
               </button>
             </div>
@@ -707,17 +685,10 @@ onMounted(fetchProjects);
 
           <!-- Footer -->
           <div class="flex gap-3.5 p-3.5 border-t shrink-0 bg-slate-50/30 dark:bg-slate-900/10" style="border-color: var(--border-base)">
-            <button
-              class="flex-1 py-2 sm:py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-black transition-all text-xs"
-              style="color: var(--text-primary)"
-              @click="isDrawerOpen = false"
-            >
+            <button type="button" class="flex-1 py-2 sm:py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-black transition-all text-xs" style="color: var(--text-primary)" @click="isDrawerOpen = false">
               取消操作
             </button>
-            <button
-              class="flex-[2] py-2 sm:py-2.5 bg-accent text-white rounded-xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs"
-              @click="handleSaveProject"
-            >
+            <button type="button" class="flex-[2] py-2 sm:py-2.5 bg-accent text-white rounded-xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs" @click="handleSaveProject">
               {{ isEditMode ? '确认并应用更改' : '正式启动项目' }}
             </button>
           </div>

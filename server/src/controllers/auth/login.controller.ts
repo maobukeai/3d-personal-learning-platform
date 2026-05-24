@@ -267,5 +267,15 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
   const user = req.user!;
   if (!user) return next(new AppError('Unauthorized', 401));
 
-  res.json(sanitizeUser(user));
+  try {
+    // Dynamically load user's subscription details separately to avoid redundant user query overhead
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId: user.id },
+      include: { plan: true },
+    });
+    const userWithSub = { ...user, subscription };
+    res.json(sanitizeUser(userWithSub));
+  } catch (error) {
+    next(error);
+  }
 };

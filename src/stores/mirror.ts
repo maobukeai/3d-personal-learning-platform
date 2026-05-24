@@ -68,7 +68,7 @@ export const useMirrorStore = defineStore('mirror', () => {
     try {
       const res = await api.get('/api/mirror/sources');
       sources.value = res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch mirror sources:', e);
       sources.value = [];
     } finally {
@@ -80,7 +80,7 @@ export const useMirrorStore = defineStore('mirror', () => {
     try {
       const res = await api.get(`/api/mirror/sources/${sourceId}`);
       currentSource.value = res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch source:', e);
       currentSource.value = null;
     }
@@ -91,7 +91,7 @@ export const useMirrorStore = defineStore('mirror', () => {
     try {
       const res = await api.get(`/api/mirror/sources/${sourceId}/categories`);
       categories.value = res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch categories:', e);
       categories.value = [];
     } finally {
@@ -118,7 +118,7 @@ export const useMirrorStore = defineStore('mirror', () => {
       totalResources.value = res.data.total;
       totalPages.value = res.data.totalPages;
       currentPage.value = res.data.page;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch resources:', e);
       resources.value = [];
     } finally {
@@ -130,7 +130,7 @@ export const useMirrorStore = defineStore('mirror', () => {
     try {
       const res = await api.get(`/api/mirror/resources/${resourceId}`);
       return res.data;
-    } catch (e: any) {
+    } catch (e) {
       console.error('Failed to fetch resource:', e);
       return null;
     }

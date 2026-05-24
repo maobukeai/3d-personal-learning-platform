@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { getPlanName } from '../../utils/plan-utils';
+import prisma from '../../services/prisma';
 
 export const requireMinPlan = (minPriority: number) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -8,7 +9,13 @@ export const requireMinPlan = (minPriority: number) => {
       return res.status(401).json({ error: '请先登录' });
     }
 
-    const userPlanPriority = req.user.subscription?.plan?.priority ?? 0;
+    // Dynamically query subscription to avoid eager load overhead on other requests
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId: req.user.id },
+      include: { plan: true },
+    });
+
+    const userPlanPriority = subscription?.plan?.priority ?? 0;
 
     if (userPlanPriority < minPriority) {
       return res.status(403).json({

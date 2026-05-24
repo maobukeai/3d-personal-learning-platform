@@ -50,7 +50,7 @@ const fetchAsset = async () => {
   try {
     const response = await api.get(`/api/assets/${assetId}`);
     asset.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('无法加载资产详情');
     router.replace('/assets');
   } finally {
@@ -68,7 +68,7 @@ const goBack = () => {
 
 const handleDownload = () => {
   if (asset.value?.url) {
-    window.open(asset.value.url, '_blank');
+    window.open(asset.value.url, '_blank', 'noopener,noreferrer');
   }
 };
 
@@ -107,7 +107,7 @@ const parsedFormats = computed(() => {
     return typeof asset.value.formats === 'string'
       ? JSON.parse(asset.value.formats)
       : asset.value.formats;
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 });
@@ -118,10 +118,7 @@ const parsedFormats = computed(() => {
     <!-- Top Navigation Bar -->
     <div class="h-13 shrink-0 flex items-center justify-between px-4 sm:px-6 border-b z-20" style="background-color: var(--bg-card); border-color: var(--border-base)">
       <div class="flex items-center gap-3">
-        <button 
-          class="p-1.5 hover:bg-white/10 rounded-lg transition-colors duration-300 group"
-          @click="goBack"
-        >
+        <button type="button" class="p-1.5 hover:bg-white/10 rounded-lg transition-colors duration-300 group" @click="goBack">
           <ChevronLeft class="w-4.5 h-4.5 group-hover:-translate-x-0.5 transition-transform" />
         </button>
         <div v-if="asset" class="flex flex-col">
@@ -131,10 +128,7 @@ const parsedFormats = computed(() => {
       </div>
       
       <div class="flex items-center gap-2">
-        <button 
-          class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-500 hover:to-accent text-white rounded-lg text-xs font-bold tracking-wider shadow-md shadow-accent/15 hover:shadow-accent/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
-          @click="handleDownload"
-        >
+        <button type="button" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-500 hover:to-accent text-white rounded-lg text-xs font-bold tracking-wider shadow-md shadow-accent/15 hover:shadow-accent/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer" @click="handleDownload">
           <template v-if="asset?.type === 'LINK'">
             <ExternalLink class="w-3.5 h-3.5" />
             <span>访问外链</span>
@@ -169,7 +163,7 @@ const parsedFormats = computed(() => {
           />
           <div v-else class="w-full h-full flex items-center justify-center relative">
             <div class="absolute inset-0 z-0 opacity-30">
-              <img v-if="asset.thumbnail" :src="asset.thumbnail" class="w-full h-full object-cover blur-3xl scale-110" />
+              <img v-if="asset.thumbnail" alt="" :src="asset.thumbnail" class="w-full h-full object-cover blur-3xl scale-110" />
             </div>
             <img v-if="asset.thumbnail" :src="asset.thumbnail" alt="Preview" class="relative z-10 max-w-full max-h-full object-contain drop-shadow-2xl px-6" />
             <div v-else class="relative z-10 flex flex-col items-center" style="color: var(--text-secondary)">
@@ -181,34 +175,19 @@ const parsedFormats = computed(() => {
         
         <!-- Viewer Tools Overlay -->
         <div v-if="asset && ['GLB', 'GLTF', 'FBX', 'OBJ', 'STL'].includes(asset.type)" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-xl p-1.5 flex items-center gap-1 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button 
-            class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer"
-            :class="viewerConfig.autoRotate ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'"
-            title="自动旋转"
-            @click="viewerConfig.autoRotate = !viewerConfig.autoRotate"
-          >
+          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.autoRotate ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" title="自动旋转" @click="viewerConfig.autoRotate = !viewerConfig.autoRotate">
             <RefreshCw class="w-3.5 h-3.5" :class="viewerConfig.autoRotate ? 'animate-spin-slow' : ''" />
           </button>
           
           <div class="w-px h-4 bg-white/10 mx-0.5"></div>
           
-          <button 
-            class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer"
-            :class="viewerConfig.viewMode === 'wireframe' ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'"
-            title="线框模式"
-            @click="toggleViewMode"
-          >
+          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.viewMode === 'wireframe' ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" title="线框模式" @click="toggleViewMode">
             <Box class="w-3.5 h-3.5" />
           </button>
 
           <div class="w-px h-4 bg-white/10 mx-0.5"></div>
 
-          <button 
-            class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer"
-            :class="isClayMode ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'"
-            title="材质白模模式 (用于解决缺贴图变黑/隐形)"
-            @click="toggleClayMode"
-          >
+          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="isClayMode ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" title="材质白模模式 (用于解决缺贴图变黑/隐形)" @click="toggleClayMode">
             <Paintbrush class="w-3.5 h-3.5" />
           </button>
           
@@ -216,14 +195,7 @@ const parsedFormats = computed(() => {
           
           <!-- Environment Selector -->
           <div class="flex items-center gap-0.5">
-            <button 
-              v-for="env in environments" 
-              :key="env.id"
-              class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer"
-              :class="viewerConfig.environment === env.id ? 'bg-white/20 text-white shadow-inner' : 'hover:bg-white/10 text-slate-400'"
-              :title="env.name"
-              @click="viewerConfig.environment = env.id"
-            >
+            <button v-for="env in environments" :key="env.id" type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.environment === env.id ? 'bg-white/20 text-white shadow-inner' : 'hover:bg-white/10 text-slate-400'" :title="env.name" @click="viewerConfig.environment = env.id">
               <component :is="env.icon" class="w-3.5 h-3.5" />
             </button>
           </div>

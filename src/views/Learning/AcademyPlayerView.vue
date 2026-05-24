@@ -23,7 +23,7 @@ import api from '@/utils/api';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
-import { sanitizeHtml } from '@/utils/sanitize';
+import SafeHtml from '@/components/SafeHtml.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -85,7 +85,7 @@ const fetchCourseData = async () => {
         currentLessonIndex.value = Math.max(0, lastIncompleteIndex);
       }
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('加载课程失败');
     router.push('/academy');
   } finally {
@@ -137,7 +137,7 @@ const handleSaveNote = async () => {
     });
     notes.value.unshift(data);
     newNoteContent.value = '';
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('保存笔记失败');
   } finally {
     isSavingNote.value = false;
@@ -148,7 +148,7 @@ const handleDeleteNote = async (noteId: string) => {
   try {
     await api.delete(`/api/courses/notes/${noteId}`);
     notes.value = notes.value.filter((n) => n.id !== noteId);
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('删除笔记失败');
   }
 };
@@ -270,11 +270,7 @@ onMounted(fetchCourseData);
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-2.5">
-          <button
-            class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-            style="color: var(--text-primary)"
-            @click="router.push('/academy')"
-          >
+          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer" style="color: var(--text-primary)" @click="router.push('/academy')">
             <ChevronLeft class="w-4 h-4" />
           </button>
           <div class="h-3 w-px transition-colors duration-300" style="background-color: var(--border-base)"></div>
@@ -296,11 +292,7 @@ onMounted(fetchCourseData);
             </div>
             <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 text-accent">已完成 {{ progress }}%</span>
           </div>
-          <button
-            class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors lg:hidden cursor-pointer"
-            style="color: var(--text-primary)"
-            @click="isSidebarOpen = !isSidebarOpen"
-          >
+          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors lg:hidden cursor-pointer" style="color: var(--text-primary)" @click="isSidebarOpen = !isSidebarOpen">
             <Menu class="w-4 h-4" />
           </button>
         </div>
@@ -407,13 +399,11 @@ onMounted(fetchCourseData);
               <div
                 class="prose dark:prose-invert prose-sm max-w-none leading-relaxed transition-colors duration-300"
                 style="color: var(--text-secondary)"
-                v-html="sanitizeHtml(currentLesson.content)"
-              ></div>
+              >
+                <SafeHtml :html="currentLesson.content" />
+              </div>
               <div class="pt-6 flex justify-center">
-                <button
-                  class="px-5 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-lg shadow-md shadow-accent/15 flex items-center gap-1.5 transition-colors cursor-pointer"
-                  @click="handleVideoEnded"
-                >
+                <button type="button" class="px-5 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-lg shadow-md shadow-accent/15 flex items-center gap-1.5 transition-colors cursor-pointer" @click="handleVideoEnded">
                   完成学习 <ChevronRight class="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -428,21 +418,11 @@ onMounted(fetchCourseData);
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="flex items-center gap-1.5 shrink-0">
-          <button
-            :disabled="currentLessonIndex === 0"
-            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 cursor-pointer"
-            :class="currentLessonIndex > 0 ? 'hover:bg-slate-100 dark:hover:bg-white/5 bg-slate-50 dark:bg-white/5' : 'bg-transparent'"
-            style="color: var(--text-primary)"
-            @click="prevLesson"
-          >
+          <button type="button" :disabled="currentLessonIndex === 0" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 cursor-pointer" :class="currentLessonIndex > 0 ? 'hover:bg-slate-100 dark:hover:bg-white/5 bg-slate-50 dark:bg-white/5' : 'bg-transparent'" style="color: var(--text-primary)" @click="prevLesson">
             <ChevronLeft class="w-3.5 h-3.5" />
             <span>上一节</span>
           </button>
-          <button
-            :disabled="currentLessonIndex === lessons.length - 1"
-            class="flex items-center gap-1 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 shadow-lg shadow-accent/10 cursor-pointer"
-            @click="nextLesson"
-          >
+          <button type="button" :disabled="currentLessonIndex === lessons.length - 1" class="flex items-center gap-1 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 shadow-lg shadow-accent/10 cursor-pointer" @click="nextLesson">
             <span>下一节</span>
             <ChevronRight class="w-3.5 h-3.5" />
           </button>
@@ -451,16 +431,11 @@ onMounted(fetchCourseData);
         <!-- Center: Complete toggle -->
         <div class="flex items-center gap-1.5 shrink-0">
           <button
-            :disabled="isTogglingComplete"
-            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer"
-            :class="
+type="button" :disabled="isTogglingComplete" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer" :class="
               currentLesson && isLessonCompleted(currentLesson.id)
                 ? 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                 : 'bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
-            "
-            :style="!(currentLesson && isLessonCompleted(currentLesson.id)) ? 'color: var(--text-secondary)' : ''"
-            @click="toggleLessonComplete"
-          >
+            " :style="!(currentLesson && isLessonCompleted(currentLesson.id)) ? 'color: var(--text-secondary)' : ''" @click="toggleLessonComplete">
             <CheckCircle2
               v-if="currentLesson && isLessonCompleted(currentLesson.id)"
               class="w-3.5 h-3.5"
@@ -479,17 +454,11 @@ onMounted(fetchCourseData);
         <!-- Right: Tab buttons -->
         <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
-            v-for="tab in [
+v-for="tab in [
               { id: 'content' as const, icon: FileText, label: '课程内容', shortLabel: '大纲' },
               { id: 'notes' as const, icon: StickyNote, label: '学习笔记', shortLabel: '笔记' },
               { id: 'discussion' as const, icon: MessageSquare, label: '参与讨论', shortLabel: '讨论' },
-            ]"
-            :key="tab.id"
-            class="flex items-center gap-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer"
-            :class="activeTab === tab.id ? 'text-accent' : 'hover:text-slate-800 dark:hover:text-slate-100'"
-            :style="activeTab !== tab.id ? 'color: var(--text-muted)' : ''"
-            @click="selectTab(tab.id)"
-          >
+            ]" :key="tab.id" type="button" class="flex items-center gap-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer" :class="activeTab === tab.id ? 'text-accent' : 'hover:text-slate-800 dark:hover:text-slate-100'" :style="activeTab !== tab.id ? 'color: var(--text-muted)' : ''" @click="selectTab(tab.id)">
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">{{ tab.label }}</span>
             <span class="sm:hidden">{{ tab.shortLabel }}</span>
@@ -531,7 +500,7 @@ onMounted(fetchCourseData);
               {{ notes.length }}
             </span>
           </div>
-          <button class="lg:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg cursor-pointer" style="color: var(--text-primary)" @click="isSidebarOpen = false">
+          <button type="button" class="lg:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg cursor-pointer" style="color: var(--text-primary)" @click="isSidebarOpen = false">
             <X class="w-4 h-4" />
           </button>
         </div>
@@ -539,16 +508,11 @@ onMounted(fetchCourseData);
         <!-- Sidebar Tabs for mobile & quick switching -->
         <div class="flex border-b shrink-0 transition-colors duration-300" style="border-color: var(--border-base); background-color: var(--bg-card)">
           <button
-            v-for="tab in [
+v-for="tab in [
               { id: 'content' as const, icon: FileText, label: '大纲' },
               { id: 'notes' as const, icon: StickyNote, label: '笔记' },
               { id: 'discussion' as const, icon: MessageSquare, label: '讨论' },
-            ]"
-            :key="tab.id"
-            class="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all border-b-2 cursor-pointer"
-            :class="activeTab === tab.id ? 'border-accent text-accent' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'"
-            @click="activeTab = tab.id"
-          >
+            ]" :key="tab.id" type="button" class="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all border-b-2 cursor-pointer" :class="activeTab === tab.id ? 'border-accent text-accent' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'" @click="activeTab = tab.id">
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             <span>{{ tab.label }}</span>
             <span
@@ -645,11 +609,7 @@ onMounted(fetchCourseData);
                   style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"
                 ></textarea>
                 <div class="flex justify-end">
-                  <button
-                    :disabled="!newNoteContent.trim() || isSavingNote"
-                    class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-md disabled:opacity-40 transition-all cursor-pointer"
-                    @click="handleSaveNote"
-                  >
+                  <button type="button" :disabled="!newNoteContent.trim() || isSavingNote" class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-md disabled:opacity-40 transition-all cursor-pointer" @click="handleSaveNote">
                     <Send class="w-3.5 h-3.5" />
                     保存
                   </button>
@@ -669,11 +629,7 @@ onMounted(fetchCourseData);
                     <span class="text-[9px]" style="color: var(--text-muted)">{{
                       new Date(note.createdAt).toLocaleString('zh-CN')
                     }}</span>
-                    <button
-                      class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-rose-400 transition-all cursor-pointer"
-                      style="color: var(--text-muted)"
-                      @click="handleDeleteNote(note.id)"
-                    >
+                    <button type="button" class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-rose-400 transition-all cursor-pointer" style="color: var(--text-muted)" @click="handleDeleteNote(note.id)">
                       <Trash2 class="w-3 h-3" />
                     </button>
                   </div>
@@ -693,11 +649,7 @@ onMounted(fetchCourseData);
               <div class="text-center py-6">
                 <MessageSquare class="w-6 h-6 mx-auto mb-2" style="color: var(--text-muted)" />
                 <p class="text-xs mb-2" style="color: var(--text-muted)">课程讨论区</p>
-                <button
-                  class="px-3.5 py-1.5 border hover:bg-slate-100 dark:hover:bg-white/5 text-[10px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
-                  @click="router.push(`/discussions`)"
-                >
+                <button type="button" class="px-3.5 py-1.5 border hover:bg-slate-100 dark:hover:bg-white/5 text-[10px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer" style="border-color: var(--border-base); color: var(--text-primary)" @click="router.push(`/discussions`)">
                   前往讨论区
                 </button>
               </div>
@@ -712,11 +664,7 @@ onMounted(fetchCourseData);
               class="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0"
               style="background-color: var(--bg-card)"
             >
-              <img
-                v-if="course?.instructor?.avatar"
-                :src="course.instructor.avatar"
-                class="w-full h-full object-cover"
-              />
+              <img v-if="course?.instructor?.avatar" alt="" :src="course.instructor.avatar" class="w-full h-full object-cover" />
               <Users v-else class="w-4 h-4" style="color: var(--text-muted)" />
             </div>
             <div>
@@ -748,18 +696,13 @@ onMounted(fetchCourseData);
         <p class="text-xs text-slate-400 mb-6">你已经完成了「{{ course?.title }}」的全部课时学习</p>
         <div class="flex gap-3">
           <button
-            class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-            @click="
+type="button" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer" @click="
               showCompletionModal = false;
               router.push('/academy');
-            "
-          >
+            ">
             返回课程列表
           </button>
-          <button
-            class="flex-1 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold shadow-lg shadow-accent/15 transition-all cursor-pointer"
-            @click="showCompletionModal = false"
-          >
+          <button type="button" class="flex-1 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold shadow-lg shadow-accent/15 transition-all cursor-pointer" @click="showCompletionModal = false">
             继续复习
           </button>
         </div>

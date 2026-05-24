@@ -91,8 +91,27 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 
   if (statusCode === 500) {
     try {
+      const logPath = path.join(__dirname, '../../error-debug.log');
+
+      // Rotation logic: if file exceeds 10MB, back it up and start fresh
+      try {
+        if (fs.existsSync(logPath)) {
+          const stats = fs.statSync(logPath);
+          const maxBytes = 10 * 1024 * 1024; // 10MB
+          if (stats.size > maxBytes) {
+            const backupPath = path.join(__dirname, '../../error-debug.old.log');
+            if (fs.existsSync(backupPath)) {
+              fs.unlinkSync(backupPath);
+            }
+            fs.renameSync(logPath, backupPath);
+          }
+        }
+      } catch (rotationErr) {
+        console.error('Failed to rotate error-debug.log:', rotationErr);
+      }
+
       const logMsg = `\n\n[${new Date().toISOString()}] ${req.method} ${req.url}\nError: ${message}\nStack: ${err?.stack || err}\n`;
-      fs.appendFileSync(path.join(__dirname, '../../error-debug.log'), logMsg);
+      fs.appendFileSync(logPath, logMsg);
     } catch (e) {
       console.error('Failed to write debug log:', e);
     }

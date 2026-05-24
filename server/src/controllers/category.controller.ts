@@ -57,8 +57,8 @@ export const adminCreateCategory = async (req: AuthRequest, res: Response, next:
     });
 
     res.status(201).json(category);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
       return next(new AppError('Category name already exists', 400));
     }
     next(error);
@@ -98,7 +98,7 @@ export const adminUpdateCategory = async (req: AuthRequest, res: Response, next:
     });
 
     res.json(category);
-  } catch (error: any) {
+  } catch (error) {
     next(error);
   }
 };
@@ -133,7 +133,7 @@ export const adminDeleteCategory = async (req: AuthRequest, res: Response, next:
     });
 
     res.json({ message: 'Category deleted successfully' });
-  } catch (error: any) {
+  } catch (error) {
     next(error);
   }
 };

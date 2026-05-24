@@ -47,10 +47,7 @@ const reload = () => {
         </div>
         <h2 class="text-xl font-bold text-[var(--text-primary)] mb-2">页面出现错误</h2>
         <p class="text-[var(--text-secondary)] mb-6 text-sm">{{ errorMessage }}</p>
-        <button
-          class="px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
-          @click="reload"
-        >
+        <button type="button" class="px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity" @click="reload">
           刷新页面
         </button>
       </div>

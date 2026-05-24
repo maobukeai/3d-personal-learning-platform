@@ -25,15 +25,61 @@ import api from '@/utils/api';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
-import MarkdownEditor from '@/components/MarkdownEditor.vue';
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 
+interface AssetType {
+  id: string;
+  title: string;
+  type: string;
+  url: string;
+  size?: number | null;
+  status: 'APPROVED' | 'PENDING' | 'REJECTED';
+  description?: string | null;
+  category?: { id?: string; name: string } | null;
+  categoryId?: string | null;
+  tags?: string | null;
+  viewCount?: number;
+  likeCount?: number;
+  createdAt: string;
+  showcaseId?: string | null;
+  isIndependentShowcase?: boolean;
+  thumbnail?: string | null;
+  vertices?: number | null;
+  faces?: number | null;
+  materials?: string | null;
+  animations?: string | null;
+  hasAnimations?: boolean;
+  dimensions?: string | null;
+}
+
+interface ShowcaseType {
+  id: string;
+  title: string;
+  description?: string;
+  assetId?: string | null;
+  videoUrl?: string | null;
+  fileUrl?: string | null;
+  thumbnailUrl?: string | null;
+  previewUrl?: string | null;
+  url?: string | null;
+  status: string;
+  type?: string | null;
+}
+
+interface CategoryType {
+  id: string;
+  name: string;
+}
+
+
+
 const searchQuery = ref('');
 const activeTab = ref('全部作品');
-const assets = ref<any[]>([]);
+const assets = ref<AssetType[]>([]);
 const isLoading = ref(false);
-const selectedAsset = ref<any>(null);
+const selectedAsset = ref<AssetType | null>(null);
 const isPreviewOpen = ref(false);
 const isAutoRotating = ref(true);
 const viewMode = ref<'grid' | 'list'>('grid');
@@ -52,17 +98,17 @@ const sortOptions = [
 
 const tabs = computed(() => [
   { label: '全部作品', count: assets.value.length },
-  { label: '待审核', count: assets.value.filter((a) => a.status === 'PENDING').length },
-  { label: '已发布', count: assets.value.filter((a) => a.status === 'APPROVED').length },
-  { label: '未通过', count: assets.value.filter((a) => a.status === 'REJECTED').length },
+  { label: '待审核', count: assets.value.filter((a: AssetType) => a.status === 'PENDING').length },
+  { label: '已发布', count: assets.value.filter((a: AssetType) => a.status === 'APPROVED').length },
+  { label: '未通过', count: assets.value.filter((a: AssetType) => a.status === 'REJECTED').length },
 ]);
 
 const stats = computed(() => {
   const total = assets.value.length;
-  const approved = assets.value.filter((a) => a.status === 'APPROVED').length;
-  const pending = assets.value.filter((a) => a.status === 'PENDING').length;
-  const rejected = assets.value.filter((a) => a.status === 'REJECTED').length;
-  const totalSize = assets.value.reduce((sum, a) => sum + (a.size || 0), 0);
+  const approved = assets.value.filter((a: AssetType) => a.status === 'APPROVED').length;
+  const pending = assets.value.filter((a: AssetType) => a.status === 'PENDING').length;
+  const rejected = assets.value.filter((a: AssetType) => a.status === 'REJECTED').length;
+  const totalSize = assets.value.reduce((sum, a: AssetType) => sum + (a.size || 0), 0);
   return { total, approved, pending, rejected, totalSize: totalSize.toFixed(1) };
 });
 
@@ -75,8 +121,8 @@ const fetchMyAssets = async () => {
     ]);
 
     const independentShowcases = showcasesRes.data
-      .filter((s: any) => !s.assetId)
-      .map((s: any) => ({
+      .filter((s: ShowcaseType) => !s.assetId)
+      .map((s: ShowcaseType) => ({
         ...s,
         isIndependentShowcase: true,
         url: s.videoUrl || s.thumbnailUrl || '',
@@ -88,7 +134,7 @@ const fetchMyAssets = async () => {
       }));
 
     assets.value = [...assetsRes.data, ...independentShowcases];
-  } catch (error) {
+  } catch {
     ElMessage.error('获取作品失败');
   } finally {
     isLoading.value = false;
@@ -99,7 +145,7 @@ const fetchCategories = async () => {
   try {
     const response = await api.get('/api/assets/categories');
     assetCategories.value = response.data;
-  } catch (error) {
+  } catch {
     console.error('Failed to fetch categories');
   }
 };
@@ -190,18 +236,19 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateIsMobile);
 });
 
-const openPreview = (asset: any) => {
+const openPreview = (asset: AssetType) => {
   selectedAsset.value = asset;
   isPreviewOpen.value = true;
 };
 
-const handleMetadataLoaded = async (metadata: any) => {
-  if (!selectedAsset.value || selectedAsset.value.isIndependentShowcase) return;
-  if (!selectedAsset.value.vertices || selectedAsset.value.vertices !== metadata.vertices) {
+const handleMetadataLoaded = async (metadata: Record<string, unknown>) => {
+  const currentAsset = selectedAsset.value;
+  if (!currentAsset || currentAsset.isIndependentShowcase) return;
+  if (!currentAsset.vertices || currentAsset.vertices !== metadata.vertices) {
     try {
-      const response = await api.patch(`/api/assets/${selectedAsset.value.id}/metadata`, metadata);
-      selectedAsset.value = { ...selectedAsset.value, ...response.data };
-      const index = assets.value.findIndex((a) => a.id === selectedAsset.value.id);
+      const response = await api.patch(`/api/assets/${currentAsset.id}/metadata`, metadata);
+      selectedAsset.value = { ...currentAsset, ...response.data };
+      const index = assets.value.findIndex((a) => a.id === currentAsset.id);
       if (index !== -1) {
         assets.value[index] = { ...assets.value[index], ...response.data };
       }
@@ -211,7 +258,7 @@ const handleMetadataLoaded = async (metadata: any) => {
   }
 };
 
-const handleDeleteWork = (work: any) => {
+const handleDeleteWork = (work: AssetType) => {
   ElMessageBox.confirm(`确定要删除作品 "${work.title}" 吗？此操作无法撤销。`, '确认删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -229,7 +276,7 @@ const handleDeleteWork = (work: any) => {
           isPreviewOpen.value = false;
         }
         ElMessage.success('作品已删除');
-      } catch (error) {
+      } catch {
         ElMessage.error('删除失败');
       }
     })
@@ -238,7 +285,7 @@ const handleDeleteWork = (work: any) => {
     });
 };
 
-const assetCategories = ref<any[]>([]);
+const assetCategories = ref<CategoryType[]>([]);
 
 const isEditDialogOpen = ref(false);
 const editForm = ref({
@@ -249,7 +296,7 @@ const editForm = ref({
 });
 const isSaving = ref(false);
 
-const openEditDialog = (work: any) => {
+const openEditDialog = (work: AssetType) => {
   editForm.value = {
     id: work.id,
     title: work.title,
@@ -292,7 +339,7 @@ const handleSaveEdit = async () => {
     }
     ElMessage.success('作品信息已更新');
     isEditDialogOpen.value = false;
-  } catch (error) {
+  } catch {
     ElMessage.error('更新失败');
   } finally {
     isSaving.value = false;
@@ -308,7 +355,7 @@ const publishForm = ref({
 });
 const isPublishing = ref(false);
 
-const openPublishDialog = (work: any) => {
+const openPublishDialog = (work: AssetType) => {
   publishForm.value = {
     assetId: work.id,
     title: work.title,
@@ -333,8 +380,8 @@ const handlePublishToShowcase = async () => {
     });
     ElMessage.success('作品已成功发布到展示墙，等待审核');
     isPublishDialogOpen.value = false;
-  } catch (error: any) {
-    const msg = error?.response?.data?.error || '发布失败';
+  } catch (error) {
+    const msg = (error as any)?.response?.data?.error || '发布失败';
     ElMessage.error(msg);
   } finally {
     isPublishing.value = false;
@@ -375,10 +422,7 @@ onMounted(() => {
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
-        <button
-          class="flex items-center justify-center p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/10 dark:shadow-none transition-all"
-          @click="isPublishWorkDialogOpen = true"
-        >
+        <button type="button" class="flex items-center justify-center p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/10 dark:shadow-none transition-all" @click="isPublishWorkDialogOpen = true">
           <Plus class="w-5 h-5" />
         </button>
       </div>
@@ -449,14 +493,7 @@ onMounted(() => {
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center justify-between md:justify-start gap-4 md:gap-6 overflow-x-auto flex-nowrap scrollbar-hide">
-        <button
-          v-for="tab in tabs"
-          :key="tab.label"
-          class="relative py-2 text-xs md:text-sm font-medium transition-all flex items-center gap-1 md:gap-2 shrink-0"
-          :class="activeTab === tab.label ? 'text-accent' : 'hover:text-accent'"
-          :style="activeTab !== tab.label ? 'color: var(--text-secondary)' : ''"
-          @click="activeTab = tab.label"
-        >
+        <button v-for="tab in tabs" :key="tab.label" type="button" class="relative py-2 text-xs md:text-sm font-medium transition-all flex items-center gap-1 md:gap-2 shrink-0" :class="activeTab === tab.label ? 'text-accent' : 'hover:text-accent'" :style="activeTab !== tab.label ? 'color: var(--text-secondary)' : ''" @click="activeTab = tab.label">
           {{ tab.label }}
           <span
             class="text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded-full"
@@ -496,27 +533,19 @@ onMounted(() => {
           style="border-color: var(--border-base)"
         >
           <button
-            class="p-1 md:p-1.5 transition-all"
-            :class="viewMode === 'grid' ? 'bg-accent text-white' : ''"
-            :style="
+type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'grid' ? 'bg-accent text-white' : ''" :style="
               viewMode !== 'grid'
                 ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                 : ''
-            "
-            @click="viewMode = 'grid'"
-          >
+            " @click="viewMode = 'grid'">
             <LayoutGrid class="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
           <button
-            class="p-1 md:p-1.5 transition-all"
-            :class="viewMode === 'list' ? 'bg-accent text-white' : ''"
-            :style="
+type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 'bg-accent text-white' : ''" :style="
               viewMode !== 'list'
                 ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                 : ''
-            "
-            @click="viewMode = 'list'"
-          >
+            " @click="viewMode = 'list'">
             <List class="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
         </div>
@@ -540,17 +569,8 @@ onMounted(() => {
             <div
               class="aspect-square md:aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5 flex items-center justify-center"
             >
-              <img
-                v-if="work.thumbnail"
-                :src="work.thumbnail"
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                @error="($event.target as HTMLImageElement).src = getDefaultThumbnailUrl(work.type)"
-              />
-              <img
-                v-else
-                :src="getDefaultThumbnailUrl(work.type)"
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              />
+              <img v-if="work.thumbnail" alt="" :src="work.thumbnail" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" @error="($event.target as HTMLImageElement).src = getDefaultThumbnailUrl(work.type)" />
+              <img v-else alt="" :src="getDefaultThumbnailUrl(work.type)" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
 
               <div class="absolute top-1 left-1 md:top-3 md:left-3">
                 <div
@@ -564,18 +584,10 @@ onMounted(() => {
               <div
                 class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 md:gap-2"
               >
-                <button
-                  class="p-1 md:p-2.5 rounded-md md:rounded-xl hover:bg-accent-subtle hover:text-accent transition-all shadow-lg"
-                  style="background-color: var(--bg-card); color: var(--text-primary)"
-                  @click="openPreview(work)"
-                >
+                <button type="button" class="p-1 md:p-2.5 rounded-md md:rounded-xl hover:bg-accent-subtle hover:text-accent transition-all shadow-lg" style="background-color: var(--bg-card); color: var(--text-primary)" @click="openPreview(work)">
                   <Eye class="w-3 md:w-4 md:h-4" />
                 </button>
-                <button
-                  class="p-1 md:p-2.5 rounded-md md:rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/40 transition-all shadow-lg"
-                  style="background-color: var(--bg-card)"
-                  @click="handleDeleteWork(work)"
-                >
+                <button type="button" class="p-1 md:p-2.5 rounded-md md:rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/40 transition-all shadow-lg" style="background-color: var(--bg-card)" @click="handleDeleteWork(work)">
                   <Trash2 class="w-3 md:w-4 md:h-4" />
                 </button>
               </div>
@@ -625,12 +637,8 @@ onMounted(() => {
             <div
               class="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-white/5 flex items-center justify-center"
             >
-              <img v-if="work.thumbnail" :src="work.thumbnail" class="w-full h-full object-cover" />
-              <img
-                v-else
-                :src="getDefaultThumbnailUrl(work.type)"
-                class="w-full h-full object-cover"
-              />
+              <img v-if="work.thumbnail" alt="" :src="work.thumbnail" class="w-full h-full object-cover" />
+              <img v-else alt="" :src="getDefaultThumbnailUrl(work.type)" class="w-full h-full object-cover" />
             </div>
 
             <div class="flex-1 min-w-0">
@@ -673,24 +681,13 @@ onMounted(() => {
             <div
               class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <button
-                v-if="work.status === 'APPROVED' && !work.isIndependentShowcase"
-                class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-indigo-500 transition-all"
-                title="发布到展示墙"
-                @click.stop="openPublishDialog(work)"
-              >
+              <button v-if="work.status === 'APPROVED' && !work.isIndependentShowcase" type="button" class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-indigo-500 transition-all" title="发布到展示墙" @click.stop="openPublishDialog(work)">
                 <SendHorizonal class="w-4 h-4" />
               </button>
-              <button
-                class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/40 text-blue-500 transition-all"
-                @click.stop="openEditDialog(work)"
-              >
+              <button type="button" class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/40 text-blue-500 transition-all" @click.stop="openEditDialog(work)">
                 <Edit3 class="w-4 h-4" />
               </button>
-              <button
-                class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/40 text-rose-500 transition-all"
-                @click.stop="handleDeleteWork(work)"
-              >
+              <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/40 text-rose-500 transition-all" @click.stop="handleDeleteWork(work)">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -714,11 +711,7 @@ onMounted(() => {
           <p class="text-xs mb-4 opacity-60">
             {{ searchQuery ? '试试其他关键词' : '上传你的第一个作品，开始创作之旅' }}
           </p>
-          <button
-            v-if="!searchQuery"
-            class="px-6 py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-accent/10"
-            @click="isPublishWorkDialogOpen = true"
-          >
+          <button v-if="!searchQuery" type="button" class="px-6 py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-accent/10" @click="isPublishWorkDialogOpen = true">
             <Plus class="w-4 h-4" /> 上传/发布第一个作品
           </button>
         </div>
@@ -743,7 +736,7 @@ onMounted(() => {
         >
           <div class="flex items-center justify-between">
             <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">编辑作品信息</h3>
-            <button style="color: var(--text-secondary)" @click="isEditDialogOpen = false">
+            <button type="button" style="color: var(--text-secondary)" @click="isEditDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -803,18 +796,10 @@ onMounted(() => {
           </div>
 
           <div class="flex items-center gap-3">
-            <button
-              class="flex-1 py-3 border rounded-2xl text-sm font-bold transition-all"
-              style="border-color: var(--border-base); color: var(--text-secondary)"
-              @click="isEditDialogOpen = false"
-            >
+            <button type="button" class="flex-1 py-3 border rounded-2xl text-sm font-bold transition-all" style="border-color: var(--border-base); color: var(--text-secondary)" @click="isEditDialogOpen = false">
               取消
             </button>
-            <button
-              :disabled="isSaving"
-              class="flex-1 py-3 bg-accent text-white rounded-2xl text-sm font-bold shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2"
-              @click="handleSaveEdit"
-            >
+            <button type="button" :disabled="isSaving" class="flex-1 py-3 bg-accent text-white rounded-2xl text-sm font-bold shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" @click="handleSaveEdit">
               <span v-if="!isSaving">保存修改</span>
               <span
                 v-else
@@ -842,7 +827,7 @@ onMounted(() => {
         >
           <div class="flex items-center justify-between">
             <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">发布到展示墙</h3>
-            <button style="color: var(--text-secondary)" @click="isPublishDialogOpen = false">
+            <button type="button" style="color: var(--text-secondary)" @click="isPublishDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -920,18 +905,10 @@ onMounted(() => {
           </div>
 
           <div class="flex items-center gap-3">
-            <button
-              class="flex-1 py-3 border rounded-2xl text-sm font-bold transition-all"
-              style="border-color: var(--border-base); color: var(--text-secondary)"
-              @click="isPublishDialogOpen = false"
-            >
+            <button type="button" class="flex-1 py-3 border rounded-2xl text-sm font-bold transition-all" style="border-color: var(--border-base); color: var(--text-secondary)" @click="isPublishDialogOpen = false">
               取消
             </button>
-            <button
-              :disabled="isPublishing"
-              class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-              @click="handlePublishToShowcase"
-            >
+            <button type="button" :disabled="isPublishing" class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2" @click="handlePublishToShowcase">
               <span v-if="!isPublishing">发布到展示墙</span>
               <span
                 v-else
@@ -958,10 +935,7 @@ onMounted(() => {
           class="relative w-full max-w-5xl h-full rounded-none md:rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
           style="background-color: var(--bg-card)"
         >
-          <button
-            class="absolute top-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white md:text-slate-400 md:bg-transparent md:hover:bg-white/10 transition-all"
-            @click="isPreviewOpen = false"
-          >
+          <button type="button" class="absolute top-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white md:text-slate-400 md:bg-transparent md:hover:bg-white/10 transition-all" @click="isPreviewOpen = false">
             <X class="w-5 h-5" />
           </button>
 
@@ -982,16 +956,10 @@ onMounted(() => {
               v-else-if="selectedAsset?.thumbnail"
               class="w-full h-full flex items-center justify-center p-8"
             >
-              <img
-                :src="selectedAsset.thumbnail"
-                class="max-w-full max-h-full object-contain rounded-xl"
-              />
+              <img alt="" :src="selectedAsset?.thumbnail" class="max-w-full max-h-full object-contain rounded-xl" />
             </div>
             <div v-else class="w-full h-full flex items-center justify-center">
-              <img
-                :src="getDefaultThumbnailUrl(selectedAsset?.type)"
-                class="max-w-full max-h-full object-contain rounded-xl"
-              />
+              <img alt="" :src="getDefaultThumbnailUrl(selectedAsset?.type || '')" class="max-w-full max-h-full object-contain rounded-xl" />
             </div>
 
             <div
@@ -1002,18 +970,14 @@ onMounted(() => {
               "
             >
               <button
-                v-if="
+v-if="
                   selectedAsset?.type &&
                   ['GLB', 'GLTF', 'FBX', 'OBJ', 'STL'].includes(selectedAsset.type.toUpperCase())
-                "
-                class="p-2 rounded-full transition-colors"
-                :class="
+                " type="button" class="p-2 rounded-full transition-colors" :class="
                   isAutoRotating
                     ? 'text-accent bg-accent-subtle'
                     : 'text-slate-400 hover:bg-slate-50'
-                "
-                @click="isAutoRotating = !isAutoRotating"
-              >
+                " @click="isAutoRotating = !isAutoRotating">
                 <RotateCw class="w-4 h-4" :class="isAutoRotating ? 'animate-spin-slow' : ''" />
               </button>
               <div
@@ -1025,29 +989,20 @@ onMounted(() => {
                 style="background-color: var(--border-base)"
               ></div>
               <button
-                v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase"
-                class="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors"
-                title="发布到展示墙"
-                @click="
+v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" type="button" class="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors" title="发布到展示墙" @click="
                   openPublishDialog(selectedAsset);
                   isPreviewOpen = false;
-                "
-              >
+                ">
                 <SendHorizonal class="w-4 h-4" />
               </button>
               <button
-                class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-full transition-colors"
-                @click="
-                  openEditDialog(selectedAsset);
+type="button" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-full transition-colors" @click="
+                  if (selectedAsset) openEditDialog(selectedAsset);
                   isPreviewOpen = false;
-                "
-              >
+                ">
                 <Edit3 class="w-4 h-4" />
               </button>
-              <button
-                class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/40 rounded-full transition-colors"
-                @click="handleDeleteWork(selectedAsset)"
-              >
+              <button type="button" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/40 rounded-full transition-colors" @click="selectedAsset && handleDeleteWork(selectedAsset)">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -1065,13 +1020,13 @@ onMounted(() => {
             </div>
             <div class="flex items-center gap-2 mb-4 md:mb-6">
               <span class="text-xs md:text-sm" style="color: var(--text-secondary)">{{
-                getTypeLabel(selectedAsset?.type)
+                getTypeLabel(selectedAsset?.type || '')
               }}</span>
               <span
                 class="px-2 py-0.5 rounded text-[10px] font-bold text-white"
-                :class="getStatusBg(selectedAsset?.status)"
+                :class="getStatusBg(selectedAsset?.status || 'PENDING')"
               >
-                {{ getStatusLabel(selectedAsset?.status) }}
+                {{ getStatusLabel(selectedAsset?.status || 'PENDING') }}
               </span>
             </div>
 
@@ -1144,7 +1099,7 @@ onMounted(() => {
                   <div>
                     <p class="text-[10px]" style="color: var(--text-secondary)">上传时间</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">
-                      {{ new Date(selectedAsset?.createdAt).toLocaleDateString() }}
+                      {{ selectedAsset?.createdAt ? new Date(selectedAsset.createdAt).toLocaleDateString() : '' }}
                     </p>
                   </div>
                 </div>
@@ -1161,23 +1116,17 @@ onMounted(() => {
                 <Download class="w-4 h-4" /> 下载文件
               </a>
               <button
-                v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase"
-                class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 hover:bg-indigo-700"
-                @click="
-                  openPublishDialog(selectedAsset);
+v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" type="button" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 hover:bg-indigo-700" @click="
+                  if (selectedAsset) openPublishDialog(selectedAsset);
                   isPreviewOpen = false;
-                "
-              >
+                ">
                 <SendHorizonal class="w-4 h-4" /> 发布到展示墙
               </button>
               <button
-                class="w-full py-3 border rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-80"
-                style="border-color: var(--border-base); color: var(--text-secondary)"
-                @click="
-                  openEditDialog(selectedAsset);
+type="button" class="w-full py-3 border rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-80" style="border-color: var(--border-base); color: var(--text-secondary)" @click="
+                  if (selectedAsset) openEditDialog(selectedAsset);
                   isPreviewOpen = false;
-                "
-              >
+                ">
                 <Edit3 class="w-4 h-4" /> 编辑信息
               </button>
             </div>

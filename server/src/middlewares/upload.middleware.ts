@@ -117,11 +117,11 @@ const createUploadMiddleware = (config: {
             console.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit}MB)`);
             return res.status(400).json({ error: `文件大小超过限制 (${displayLimit}MB)` });
           }
-          console.error(`[UploadError] MulterError: ${err.message}`);
-          return res.status(400).json({ error: err.message });
+          console.error(`[UploadError] MulterError: ${err instanceof Error ? err.message : err}`);
+          return res.status(400).json({ error: err instanceof Error ? err.message : 'An error occurred' });
         } else if (err) {
-          console.error(`[UploadError] Unknown error: ${err.message}`);
-          return res.status(400).json({ error: err.message });
+          console.error(`[UploadError] Unknown error: ${err instanceof Error ? err.message : err}`);
+          return res.status(400).json({ error: err instanceof Error ? err.message : 'An error occurred' });
         }
 
         // Manual extension check for dynamic settings
@@ -170,6 +170,8 @@ const createUploadMiddleware = (config: {
                   '.mp3',
                   '.ogg',
                   '.m4a',
+                  '.mp4',
+                  '.aac',
                   '.pdf',
                   '.doc',
                   '.docx',

@@ -66,10 +66,10 @@ export class ZyckuAdapter extends BaseAdapter {
     if (apiAvailable) {
       try {
         return await this.fetchCategoriesViaApi(signal);
-      } catch (e: any) {
-        if (e.name === 'AbortError') throw e;
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') throw e;
         console.warn(
-          `[ZyckuAdapter] REST API categories failed, falling back to HTML: ${e.message}`,
+          `[ZyckuAdapter] REST API categories failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`,
         );
         this.restApiAvailable = false;
       }
@@ -173,10 +173,10 @@ export class ZyckuAdapter extends BaseAdapter {
     if (apiAvailable) {
       try {
         return await this.fetchResourcesViaApi(page, categorySlug, signal);
-      } catch (e: any) {
-        if (e.name === 'AbortError') throw e;
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') throw e;
         console.warn(
-          `[ZyckuAdapter] REST API resources failed, falling back to HTML: ${e.message}`,
+          `[ZyckuAdapter] REST API resources failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`,
         );
         this.restApiAvailable = false;
       }
@@ -250,8 +250,8 @@ export class ZyckuAdapter extends BaseAdapter {
     let html: string;
     try {
       html = await this.fetchHtml(url, signal);
-    } catch (e: any) {
-      if (e.name === 'AbortError') throw e;
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') throw e;
       return { resources: [], currentPage: page, totalPages: page, totalItems: 0 };
     }
 
@@ -330,9 +330,9 @@ export class ZyckuAdapter extends BaseAdapter {
     if (apiAvailable) {
       try {
         return await this.fetchResourceDetailViaApi(externalId, signal);
-      } catch (e: any) {
-        if (e.name === 'AbortError') throw e;
-        console.warn(`[ZyckuAdapter] REST API detail failed, falling back to HTML: ${e.message}`);
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') throw e;
+        console.warn(`[ZyckuAdapter] REST API detail failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
         this.restApiAvailable = false;
       }
     }
@@ -369,8 +369,8 @@ export class ZyckuAdapter extends BaseAdapter {
     let html: string;
     try {
       html = await this.fetchHtml(url, signal);
-    } catch (e: any) {
-      if (e.name === 'AbortError') throw e;
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') throw e;
       return null;
     }
 
@@ -442,8 +442,8 @@ export class ZyckuAdapter extends BaseAdapter {
     if (apiAvailable) {
       try {
         return await this.hasUpdatesViaApi(since, signal);
-      } catch (e: any) {
-        if (e.name === 'AbortError') throw e;
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') throw e;
         this.restApiAvailable = false;
       }
     }
@@ -483,8 +483,8 @@ export class ZyckuAdapter extends BaseAdapter {
       });
 
       return hasUpdate;
-    } catch (e: any) {
-      if (e.name === 'AbortError') throw e;
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') throw e;
       return false;
     }
   }
@@ -494,9 +494,9 @@ export class ZyckuAdapter extends BaseAdapter {
     if (apiAvailable) {
       try {
         return await this.fetchUpdatesViaApi(since, signal);
-      } catch (e: any) {
-        if (e.name === 'AbortError') throw e;
-        console.warn(`[ZyckuAdapter] REST API updates failed, falling back to HTML: ${e.message}`);
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') throw e;
+        console.warn(`[ZyckuAdapter] REST API updates failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
         this.restApiAvailable = false;
       }
     }

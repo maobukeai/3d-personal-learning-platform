@@ -23,18 +23,81 @@ import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 
+interface ManualLink {
+  id?: string;
+  name: string;
+  url?: string;
+  type: string;
+  fileFormat?: string;
+  fileSize?: number;
+  planRequired?: string;
+}
+
+interface ManualComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
+}
+
+interface DetailedResource {
+  id: string;
+  stationId: string;
+  categoryId?: string | null;
+  category?: {
+    id?: string;
+    name: string;
+  } | null;
+  station?: {
+    id?: string;
+    name: string;
+  } | null;
+  title: string;
+  description?: string | null;
+  thumbnailUrl?: string | null;
+  contentUrl?: string | null;
+  tags?: string | null;
+  contentHtml?: string | null;
+  contentMarkdown?: string | null;
+  coverUrl?: string | null;
+  minPlanPriority?: number;
+  resourceType?: string;
+  viewCount?: number;
+  views?: number;
+  likeCount: number;
+  hasLiked: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  comments?: ManualComment[];
+  links?: ManualLink[];
+  planRequired?: string | null;
+  hasAccess?: boolean;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 const route = useRoute();
 const router = useRouter();
 const manualStore = useManualStore();
 const authStore = useAuthStore();
 
 const resourceId = computed(() => route.params.id as string);
-const resource = ref<any>(null);
+const resource = ref<DetailedResource | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
 async function loadResource() {
-  const cached = manualStore.resources.find((r: any) => r.id === resourceId.value);
+  const cached = manualStore.resources.find((r) => r.id === resourceId.value);
   if (cached) {
     resource.value = { ...cached, comments: [], likeCount: 0, hasLiked: false, links: [] };
     isLoading.value = false;
@@ -52,9 +115,10 @@ async function loadResource() {
     } else {
       resource.value = data;
     }
-  } catch (e: any) {
+  } catch (e) {
+    const err = e as ApiError;
     if (!resource.value) {
-      error.value = e.response?.data?.error || '加载资源详情失败';
+      error.value = err.response?.data?.error || '加载资源详情失败';
     } else {
       console.warn('Failed to refresh resource details in background:', e);
     }
@@ -63,12 +127,12 @@ async function loadResource() {
   }
 }
 
-function formatDate(date: string | null) {
+function formatDate(date: string | null | undefined) {
   if (!date) return '-';
   return new Date(date).toLocaleString('zh-CN');
 }
 
-function parseTags(tags: string | null) {
+function parseTags(tags?: string | null) {
   if (!tags) return [];
   try {
     return JSON.parse(tags);
@@ -110,8 +174,9 @@ async function toggleLike() {
     } else {
       resource.value.likeCount = Math.max(0, resource.value.likeCount - 1);
     }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '操作失败，请重试');
+  } catch (e) {
+    const err = e as ApiError;
+    ElMessage.error(err.response?.data?.error || '操作失败，请重试');
   } finally {
     isTogglingLike.value = false;
   }
@@ -135,8 +200,9 @@ async function submitComment() {
     resource.value.comments.unshift(res.data);
     newCommentText.value = '';
     ElMessage.success('评论发表成功');
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '发表评论失败');
+  } catch (e) {
+    const err = e as ApiError;
+    ElMessage.error(err.response?.data?.error || '发表评论失败');
   } finally {
     isSubmittingComment.value = false;
   }
@@ -146,7 +212,7 @@ const showLinkDialog = ref(false);
 const activeLink = ref<{ name: string; url: string; type: string } | null>(null);
 const isExtracting = ref(false);
 
-async function handleExtract(link: { name: string; type: string }) {
+async function handleExtract(link: ManualLink) {
   if (!authStore.isAuthenticated) {
     ElMessage.warning('请先登录后提取资源链接');
     router.push(`/login?redirect=${route.fullPath}`);
@@ -169,8 +235,9 @@ async function handleExtract(link: { name: string; type: string }) {
       type: link.type
     };
     showLinkDialog.value = true;
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '提取链接失败，请稍后重试');
+  } catch (e) {
+    const err = e as ApiError;
+    ElMessage.error(err.response?.data?.error || '提取链接失败，请稍后重试');
   } finally {
     isExtracting.value = false;
   }
@@ -216,6 +283,7 @@ watch(resourceId, () => {
     <!-- Back breadcrumb -->
     <div class="flex items-center gap-3 mb-6">
       <button
+type="button"
         class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
         @click="goBack"
       >
@@ -236,6 +304,7 @@ watch(resourceId, () => {
       <p class="text-red-500 font-bold mb-2">{{ error }}</p>
       <p class="text-xs text-slate-400 mb-6">您尝试访问的资源不存在，或当前会员计划无访问权限。</p>
       <button
+type="button"
         class="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors border border-transparent hover:border-slate-300"
         @click="goBack"
       >
@@ -253,7 +322,8 @@ watch(resourceId, () => {
             您当前以访客身份浏览。如需获取/提取该手动资产的网盘下载链接，请登录账号。
           </div>
         </div>
-        <button 
+        <button
+type="button" 
           class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white rounded-xl text-xs font-black shrink-0 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
           @click="router.push(`/login?redirect=${route.fullPath}`)"
         >
@@ -270,11 +340,12 @@ watch(resourceId, () => {
               会员获取权限不足
             </div>
             <div class="text-slate-400 text-xs mt-0.5">
-              该资源需要高级别计划（需要: {{ getPlanName(resource.minPlanPriority) || '专业版' }}，您当前: {{ getPlanName(authStore.user?.subscription?.plan?.priority || 0) || '普通注册用户' }}）。
+              该资源需要高级别计划（需要: {{ getPlanName(resource.minPlanPriority || 0) || '专业版' }}，您当前: {{ getPlanName(authStore.user?.subscription?.plan?.priority || 0) || '普通注册用户' }}）。
             </div>
           </div>
         </div>
-        <button 
+        <button
+type="button" 
           class="px-5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black shrink-0 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
           @click="router.push('/billing')"
         >
@@ -372,6 +443,7 @@ watch(resourceId, () => {
                         </div>
 
                         <button
+type="button"
                           :class="[
                             'mt-1 w-full py-2.5 px-3 rounded-xl font-black text-xs text-center flex items-center justify-center gap-1.5 transition-all duration-300 shadow-md border border-transparent cursor-pointer',
                             !authStore.isAuthenticated 
@@ -406,6 +478,7 @@ watch(resourceId, () => {
                     {{ resource.likeCount }} 人觉得这个资源很赞
                   </span>
                   <button
+type="button"
                     :disabled="isTogglingLike"
                     class="flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all duration-300 border font-bold text-xs"
                     :class="resource.hasLiked ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-500 border-rose-500/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'"
@@ -451,6 +524,7 @@ watch(resourceId, () => {
                 ></textarea>
                 <div class="flex justify-end">
                   <button
+type="button"
                     :disabled="isSubmittingComment || !newCommentText.trim()"
                     class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-cyan-600/10 flex items-center gap-1.5 cursor-pointer"
                     @click="submitComment"
@@ -528,6 +602,7 @@ watch(resourceId, () => {
                   </div>
 
                   <button
+type="button"
                     :class="[
                       'mt-1 w-full py-2.5 px-3 rounded-xl font-black text-xs text-center flex items-center justify-center gap-1.5 transition-all duration-300 shadow-md border border-transparent cursor-pointer',
                       !authStore.isAuthenticated 
@@ -562,6 +637,7 @@ watch(resourceId, () => {
               {{ resource.likeCount }} 人觉得很棒
             </span>
             <button
+type="button"
               :disabled="isTogglingLike"
               class="flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all duration-300 border font-bold text-xs cursor-pointer"
               :class="resource.hasLiked ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-500 border-rose-500/20 shadow-sm shadow-rose-500/5' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800 hover:bg-slate-50'"
@@ -590,6 +666,7 @@ watch(resourceId, () => {
               已为您提取网盘下载地址
             </h2>
             <button
+type="button"
               class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
               @click="showLinkDialog = false"
             >
@@ -623,6 +700,7 @@ watch(resourceId, () => {
                   class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/5 text-slate-350 focus:outline-none select-all font-mono"
                 />
                 <button
+type="button"
                   class="px-4 py-2 text-xs font-bold rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white transition-all cursor-pointer shadow-md shadow-cyan-500/10 shrink-0"
                   @click="copyToClipboard(activeLink.url)"
                 >
@@ -639,6 +717,7 @@ watch(resourceId, () => {
           <!-- Footer -->
           <div class="flex gap-3 p-5 border-t border-white/5 bg-slate-950/70">
             <button
+type="button"
               class="flex-1 py-2.5 rounded-xl border border-white/10 hover:border-white/20 text-xs text-slate-300 hover:text-white hover:bg-white/5 font-bold transition-all cursor-pointer"
               @click="showLinkDialog = false"
             >
@@ -647,6 +726,7 @@ watch(resourceId, () => {
             <a
               :href="activeLink.url"
               target="_blank"
+              rel="noopener noreferrer"
               class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-600 hover:to-emerald-600 text-white text-xs font-black text-center flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-cyan-500/20"
               @click="showLinkDialog = false"
             >

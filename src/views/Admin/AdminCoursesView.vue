@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
   Search,
@@ -10,8 +10,6 @@ import {
   ChevronRight,
   GripVertical,
   Link as LinkIcon,
-  Loader2,
-  CheckCircle2,
   FolderTree,
   Star,
   Eye,
@@ -19,35 +17,30 @@ import {
   Clock,
   Users,
   GraduationCap,
-  Box,
-  Info,
-  Layers,
-  Camera,
-  Sun,
-  Palette,
   RefreshCw,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { useRouter } from 'vue-router';
 
-const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
+// Subcomponents
+import CourseEditDialog from './components/CourseEditDialog.vue';
+import CategoryEditDialog from './components/CategoryEditDialog.vue';
+import CourseImportDialog from './components/CourseImportDialog.vue';
+import LessonEditDialog from './components/LessonEditDialog.vue';
+
+const router = useRouter();
 
 const courses = ref<any[]>([]);
 const categories = ref<any[]>([]);
 const isLoading = ref(true);
 const activeTab = ref<'courses' | 'categories'>('courses');
-const showCourseModal = ref(false);
-const showLessonModal = ref(false);
-const showImportModal = ref(false);
-const currentCourse = ref<any>(null);
-const currentLesson = ref<any>(null);
 
-const externalUrl = ref('');
-const isParsing = ref(false);
-const parsedMetadata = ref<any>(null);
-
-import { useRouter } from 'vue-router';
-const router = useRouter();
+// Subcomponent References
+const courseEditDialogRef = ref<InstanceType<typeof CourseEditDialog> | null>(null);
+const categoryEditDialogRef = ref<InstanceType<typeof CategoryEditDialog> | null>(null);
+const courseImportDialogRef = ref<InstanceType<typeof CourseImportDialog> | null>(null);
+const lessonEditDialogRef = ref<InstanceType<typeof LessonEditDialog> | null>(null);
 
 const handleTabChange = (tab: 'courses' | 'categories') => {
   if (tab === 'categories') {
@@ -56,6 +49,7 @@ const handleTabChange = (tab: 'courses' | 'categories') => {
     activeTab.value = tab;
   }
 };
+
 const searchQuery = ref('');
 const sortBy = ref<'newest' | 'enrollments' | 'rating'>('newest');
 const statusFilter = ref<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
@@ -69,136 +63,6 @@ const courseStats = computed(() => {
   return { total, published, draft, totalEnrollments, totalLessons };
 });
 
-const courseForm = ref({
-  title: '',
-  description: '',
-  thumbnail: '',
-  categoryId: '',
-  difficulty: 'BEGINNER',
-  status: 'PUBLISHED',
-});
-
-const lessonForm = ref({
-  title: '',
-  content: '',
-  videoUrl: '',
-  order: 0,
-  courseId: '',
-  duration: 0,
-  hotspots: [] as any[],
-  sceneConfig: {} as any,
-});
-
-const hotspotViewer = ref<any>(null);
-const isHotspotEditorOpen = ref(false);
-const isQuickEditOpen = ref(false);
-const isSceneSettingsOpen = ref(false);
-const currentHotspotIndex = ref(-1);
-const hotspotEditForm = ref({ title: '', content: '' });
-
-const sceneConfigForm = ref({
-  environment: 'sunset',
-  exposure: 1.0,
-  lights: {
-    intensity: 1.0,
-    color: '#ffffff',
-  },
-});
-
-const parseSceneConfig = (config: any) => {
-  if (!config)
-    return { environment: 'sunset', exposure: 1.0, lights: { intensity: 1.0, color: '#ffffff' } };
-  if (typeof config === 'string') {
-    try {
-      return JSON.parse(config);
-    } catch {
-      return { environment: 'sunset', exposure: 1.0, lights: { intensity: 1.0, color: '#ffffff' } };
-    }
-  }
-  return config;
-};
-
-const openSceneSettings = () => {
-  sceneConfigForm.value = parseSceneConfig(lessonForm.value.sceneConfig);
-  isSceneSettingsOpen.value = true;
-};
-
-const saveSceneSettings = () => {
-  lessonForm.value.sceneConfig = { ...sceneConfigForm.value };
-  isSceneSettingsOpen.value = false;
-};
-
-const is3DModel = (url?: string) => {
-  if (!url) return false;
-  return url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf');
-};
-
-const parseHotspots = (hotspots: any) => {
-  if (!hotspots) return [];
-  if (typeof hotspots === 'string') {
-    try {
-      return JSON.parse(hotspots);
-    } catch {
-      return [];
-    }
-  }
-  return hotspots;
-};
-
-const handleAddHotspot = (point: { x: number; y: number; z: number }) => {
-  lessonForm.value.hotspots.push({
-    ...point,
-    title: `新热点 ${lessonForm.value.hotspots.length + 1}`,
-    content: '点击编辑此热点的详细内容',
-  });
-};
-
-const openHotspotEditor = () => {
-  if (!lessonForm.value.videoUrl) {
-    return ElMessage.warning('请先提供 3D 模型链接');
-  }
-  isHotspotEditorOpen.value = true;
-};
-
-const removeHotspot = (index: number) => {
-  lessonForm.value.hotspots.splice(index, 1);
-};
-
-const startEditHotspot = (index: number) => {
-  currentHotspotIndex.value = index;
-  hotspotEditForm.value = {
-    title: lessonForm.value.hotspots[index].title,
-    content: lessonForm.value.hotspots[index].content,
-  };
-  isQuickEditOpen.value = true;
-};
-
-const saveHotspotEdit = () => {
-  if (currentHotspotIndex.value === -1) return;
-  lessonForm.value.hotspots[currentHotspotIndex.value].title = hotspotEditForm.value.title;
-  lessonForm.value.hotspots[currentHotspotIndex.value].content = hotspotEditForm.value.content;
-  isQuickEditOpen.value = false;
-};
-
-const captureCameraForHotspot = () => {
-  if (currentHotspotIndex.value === -1 || !hotspotViewer.value) return;
-  const state = hotspotViewer.value.getCameraState();
-  if (state) {
-    lessonForm.value.hotspots[currentHotspotIndex.value].cameraPos = state.position;
-    lessonForm.value.hotspots[currentHotspotIndex.value].cameraTarget = state.target;
-    ElMessage.success(
-      `已保存当前视角到热点: ${lessonForm.value.hotspots[currentHotspotIndex.value].title}`,
-    );
-  }
-};
-
-const categoryForm = ref({
-  name: '',
-  order: 0,
-});
-
-const showCategoryModal = ref(false);
-const currentCategory = ref<any>(null);
 const expandedCourseIds = ref<Set<string>>(new Set());
 
 const difficultyMap: Record<string, { label: string; color: string }> = {
@@ -237,7 +101,7 @@ const fetchCategories = async () => {
 };
 
 const filteredCourses = computed(() => {
-  let list = courses.value;
+  let list = [...courses.value];
   if (statusFilter.value !== 'ALL') {
     list = list.filter((c) => c.status === statusFilter.value);
   }
@@ -260,99 +124,45 @@ const filteredCourses = computed(() => {
   }
 });
 
-const handleParseExternal = async () => {
-  const url = externalUrl.value?.trim();
-  if (!url) return;
-  try {
-    isParsing.value = true;
-    const { data } = await api.post('/api/admin/courses/parse-external', {
-      url,
-    });
-    parsedMetadata.value = data;
-    ElMessage.success('解析成功');
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || error.message || '解析失败，请检查链接是否正确';
-    ElMessage.error(errorMsg);
-  } finally {
-    isParsing.value = false;
-  }
-};
-
-const handleImportExternal = async () => {
-  if (!parsedMetadata.value) return;
-  try {
-    isParsing.value = true;
-    await api.post('/api/admin/courses/batch', {
-      title: parsedMetadata.value.title,
-      description: parsedMetadata.value.description,
-      thumbnail: parsedMetadata.value.thumbnail,
-      lessons: parsedMetadata.value.lessons,
-      categoryId: courseForm.value.categoryId,
-    });
-    showImportModal.value = false;
-    externalUrl.value = '';
-    parsedMetadata.value = null;
-    fetchCourses();
-    ElMessage.success('课程导入成功');
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.error || error.message || '导入失败';
-    ElMessage.error(errorMsg);
-  } finally {
-    isParsing.value = false;
-  }
-};
-
-const handleSaveCourse = async () => {
-  try {
-    if (currentCourse.value) {
-      await api.put(`/api/admin/courses/${currentCourse.value.id}`, courseForm.value);
-      ElMessage.success('课程更新成功');
-    } else {
-      await api.post('/api/admin/courses', courseForm.value);
-      ElMessage.success('课程创建成功');
-    }
-    showCourseModal.value = false;
-    fetchCourses();
-  } catch (error) {
-    ElMessage.error('保存课程失败');
-  }
-};
-
-const handleSaveCategory = async () => {
-  try {
-    if (currentCategory.value) {
-      await api.put(`/api/admin/course-categories/${currentCategory.value.id}`, categoryForm.value);
-      ElMessage.success('分类更新成功');
-    } else {
-      await api.post('/api/admin/course-categories', categoryForm.value);
-      ElMessage.success('分类创建成功');
-    }
-    showCategoryModal.value = false;
-    fetchCategories();
-  } catch (error) {
-    ElMessage.error('保存分类失败');
-  }
-};
-
 const handleDeleteCategory = async (id: string) => {
-  if (!confirm('确定要删除这个分类吗？')) return;
+  try {
+    await ElMessageBox.confirm('确定要删除这个分类吗？', '删除确认', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
   try {
     await api.delete(`/api/admin/course-categories/${id}`);
     ElMessage.success('分类已删除');
     fetchCategories();
     fetchCourses();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('删除分类失败');
   }
 };
 
 const handleDeleteCourse = async (id: string) => {
-  if (!confirm('确定要删除这个课程吗？所有关联的课时也将被删除。')) return;
+  try {
+    await ElMessageBox.confirm('确定要删除这个课程吗？所有关联的课时也将被删除。', '删除确认', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
   try {
     await api.delete(`/api/admin/courses/${id}`);
+    ElMessage.success('课程已删除');
     fetchCourses();
   } catch (error) {
     console.error('Delete course error:', error);
+    ElMessage.error('删除课程失败');
   }
 };
 
@@ -362,109 +172,29 @@ const toggleCourseStatus = async (course: any) => {
     await api.put(`/api/admin/courses/${course.id}`, { ...course, status: newStatus });
     fetchCourses();
     ElMessage.success(newStatus === 'PUBLISHED' ? '课程已发布' : '课程已转为草稿');
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('更新状态失败');
   }
 };
 
-const openCourseModal = (course: any = null) => {
-  currentCourse.value = course;
-  if (course) {
-    courseForm.value = {
-      title: course.title,
-      description: course.description,
-      thumbnail: course.thumbnail,
-      categoryId: course.categoryId || '',
-      difficulty: course.difficulty || 'BEGINNER',
-      status: course.status || 'PUBLISHED',
-    };
-  } else {
-    courseForm.value = {
-      title: '',
-      description: '',
-      thumbnail: '',
-      categoryId: '',
-      difficulty: 'BEGINNER',
-      status: 'PUBLISHED',
-    };
-  }
-  showCourseModal.value = true;
-};
-
-const openCategoryModal = (category: any = null) => {
-  currentCategory.value = category;
-  if (category) {
-    categoryForm.value = {
-      name: category.name,
-      order: category.order,
-    };
-  } else {
-    categoryForm.value = { name: '', order: categories.value.length + 1 };
-  }
-  showCategoryModal.value = true;
-};
-
-const openLessonModal = (course: any, lesson: any = null) => {
-  currentCourse.value = course;
-  currentLesson.value = lesson;
-  if (lesson) {
-    lessonForm.value = {
-      title: lesson.title,
-      content: lesson.content,
-      videoUrl: lesson.videoUrl,
-      order: lesson.order,
-      courseId: course.id,
-      duration: lesson.duration || 0,
-      hotspots: parseHotspots(lesson.hotspots),
-      sceneConfig: parseSceneConfig(lesson.sceneConfig),
-    };
-  } else {
-    lessonForm.value = {
-      title: '',
-      content: '',
-      videoUrl: '',
-      order: (course.lessons?.length || 0) + 1,
-      courseId: course.id,
-      duration: 0,
-      hotspots: [],
-      sceneConfig: {
-        environment: 'sunset',
-        exposure: 1.0,
-        lights: { intensity: 1.0, color: '#ffffff' },
-      },
-    };
-  }
-  showLessonModal.value = true;
-};
-
-const handleSaveLesson = async () => {
-  try {
-    const payload = {
-      ...lessonForm.value,
-      hotspots: JSON.stringify(lessonForm.value.hotspots),
-      sceneConfig: JSON.stringify(lessonForm.value.sceneConfig),
-    };
-    if (currentLesson.value) {
-      await api.put(`/api/admin/courses/lessons/${currentLesson.value.id}`, payload);
-    } else {
-      await api.post('/api/admin/courses/lessons', payload);
-    }
-    showLessonModal.value = false;
-    fetchCourses();
-    ElMessage.success('课时已保存');
-  } catch (error) {
-    console.error('Save lesson error:', error);
-    ElMessage.error('保存课时失败');
-  }
-};
-
 const handleDeleteLesson = async (id: string) => {
-  if (!confirm('确定要删除这个课时吗？')) return;
+  try {
+    await ElMessageBox.confirm('确定要删除这个课时吗？', '删除确认', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
   try {
     await api.delete(`/api/admin/courses/lessons/${id}`);
+    ElMessage.success('课时已删除');
     fetchCourses();
   } catch (error) {
     console.error('Delete lesson error:', error);
+    ElMessage.error('删除课时失败');
   }
 };
 
@@ -507,49 +237,38 @@ onMounted(() => {
           </div>
 
           <!-- 分段选项卡 -->
-          <div class="flex items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0">
+          <div
+            class="flex items-center bg-slate-100 dark:bg-white/5 p-0.5 rounded-lg gap-0.5 shadow-inner shrink-0"
+          >
             <button
-              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              :class="activeTab === 'courses'
-                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
-              @click="handleTabChange('courses')"
-            >
+type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0" :class="
+                activeTab === 'courses'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              " @click="handleTabChange('courses')">
               课程列表
             </button>
             <button
-              class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              :class="activeTab === 'categories'
-                ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'"
-              @click="handleTabChange('categories')"
-            >
+type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0" :class="
+                activeTab === 'categories'
+                  ? 'bg-white dark:bg-white/10 shadow text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              " @click="handleTabChange('categories')">
               分类管理
             </button>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="showImportModal = true"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="courseImportDialogRef?.open()">
             <LinkIcon class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">外部导入</span>
           </button>
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="openCourseModal()"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="courseEditDialogRef?.open()">
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">新建课程</span>
           </button>
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchCourses"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchCourses">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
@@ -560,44 +279,65 @@ onMounted(() => {
       <div
         class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
       >
-        <!-- 紧凑状态筛选 Pills -->
+        <!-- 状态筛选 Pills -->
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
-                { key: 'ALL', label: '所有课程', count: courseStats.total, color: 'indigo', icon: BookOpen },
-                { key: 'PUBLISHED', label: '已发布', count: courseStats.published, color: 'emerald', icon: Eye },
-                { key: 'DRAFT', label: '草稿', count: courseStats.draft, color: 'amber', icon: EyeOff }
-              ]"
-              :key="filter.key"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
+v-for="filter in [
+                {
+                  key: 'ALL',
+                  label: '所有课程',
+                  count: courseStats.total,
+                  color: 'indigo',
+                  icon: BookOpen,
+                },
+                {
+                  key: 'PUBLISHED',
+                  label: '已发布',
+                  count: courseStats.published,
+                  color: 'emerald',
+                  icon: Eye,
+                },
+                {
+                  key: 'DRAFT',
+                  label: '草稿',
+                  count: courseStats.draft,
+                  color: 'amber',
+                  icon: EyeOff,
+                },
+              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 statusFilter === filter.key
                   ? filter.key === 'PUBLISHED'
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
                     : filter.key === 'DRAFT'
                       ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
                       : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
-              ]"
-              @click="statusFilter = filter.key as any"
-            >
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
+              ]" @click="statusFilter = filter.key as any">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
             </button>
           </div>
           <span class="text-[8px] opacity-45 px-1 sm:px-2 shrink-0">|</span>
-          <span class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0">
-            <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总课时: {{ courseStats.totalLessons }}
+          <span
+            class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0"
+          >
+            <GraduationCap class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总课时:
+            {{ courseStats.totalLessons }}
           </span>
-          <span class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0">
-            <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总报名: {{ courseStats.totalEnrollments }}
+          <span
+            class="text-[8px] xs:text-[9px] sm:text-[10px] text-slate-400 font-bold flex items-center gap-0.5 sm:gap-1 shrink-0"
+          >
+            <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-indigo-500" /> 总报名:
+            {{ courseStats.totalEnrollments }}
           </span>
         </div>
 
         <!-- 检索与排序 -->
-        <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0">
+        <div
+          class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0"
+        >
           <select
             v-model="sortBy"
             class="px-2 py-1.5 rounded-lg border text-[11px] font-bold outline-none cursor-pointer shrink-0"
@@ -627,7 +367,8 @@ onMounted(() => {
             />
           </div>
           <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
-            匹配: <span class="text-indigo-600 font-extrabold">{{ filteredCourses.length }}</span> / {{ courses.length }}
+            匹配: <span class="text-indigo-600 font-extrabold">{{ filteredCourses.length }}</span> /
+            {{ courses.length }}
           </div>
         </div>
       </div>
@@ -647,7 +388,7 @@ onMounted(() => {
           <div
             v-for="course in filteredCourses"
             :key="course.id"
-            class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
+            class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg animate-fade-in"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="p-3.5 sm:p-6 flex items-center gap-3 sm:gap-6">
@@ -655,12 +396,7 @@ onMounted(() => {
               <div
                 class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"
               >
-                <img
-                  v-if="course.thumbnail"
-                  :src="course.thumbnail"
-                  referrerpolicy="no-referrer"
-                  class="w-full h-full object-cover"
-                />
+                <img v-if="course.thumbnail" alt="" :src="course.thumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full flex items-center justify-center">
                   <BookOpen class="w-8 h-8 text-slate-300" />
                 </div>
@@ -693,7 +429,10 @@ onMounted(() => {
                       >
                         {{ difficultyMap[course.difficulty]?.label || '入门' }}
                       </span>
-                      <h3 class="font-bold text-sm sm:text-xl truncate" style="color: var(--text-primary)">
+                      <h3
+                        class="font-bold text-sm sm:text-xl truncate"
+                        style="color: var(--text-primary)"
+                      >
                         {{ course.title }}
                       </h3>
                       <ChevronRight
@@ -704,24 +443,14 @@ onMounted(() => {
                     <p class="text-xs text-slate-400 line-clamp-2">{{ course.description }}</p>
                   </div>
                   <div class="flex items-center gap-2 shrink-0" @click.stop>
-                    <button
-                      class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                      :title="course.status === 'PUBLISHED' ? '转为草稿' : '发布课程'"
-                      @click="toggleCourseStatus(course)"
-                    >
+                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" :title="course.status === 'PUBLISHED' ? '转为草稿' : '发布课程'" @click="toggleCourseStatus(course)">
                       <Eye v-if="course.status === 'PUBLISHED'" class="w-4 h-4 text-emerald-500" />
                       <EyeOff v-else class="w-4 h-4 text-slate-400" />
                     </button>
-                    <button
-                      class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors"
-                      @click="openCourseModal(course)"
-                    >
+                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer" @click="courseEditDialogRef?.open(course)">
                       <Edit2 class="w-4 h-4" />
                     </button>
-                    <button
-                      class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                      @click="handleDeleteCourse(course.id)"
-                    >
+                    <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer" @click="handleDeleteCourse(course.id)">
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </div>
@@ -743,10 +472,10 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Lessons List -->
+            <!-- Lessons List Accordion -->
             <div
               v-if="expandedCourseIds.has(course.id)"
-              class="border-t p-4 transition-all duration-300"
+              class="border-t p-4 transition-all duration-300 animate-fade-in"
               style="background-color: var(--bg-app); border-color: var(--border-base)"
             >
               <div class="space-y-2">
@@ -776,24 +505,15 @@ onMounted(() => {
                   <div
                     class="flex items-center gap-1 md:opacity-0 md:group-hover/lesson:opacity-100 transition-opacity shrink-0"
                   >
-                    <button
-                      class="p-1.5 rounded-lg text-slate-400 hover:text-accent"
-                      @click="openLessonModal(course, lesson)"
-                    >
+                    <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-accent cursor-pointer" @click="lessonEditDialogRef?.open(course, lesson)">
                       <Edit2 class="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500"
-                      @click="handleDeleteLesson(lesson.id)"
-                    >
+                    <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer" @click="handleDeleteLesson(lesson.id)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-                <button
-                  class="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2"
-                  @click="openLessonModal(course)"
-                >
+                <button type="button" class="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer" @click="lessonEditDialogRef?.open(course)">
                   <Plus class="w-4 h-4" />
                   添加课时
                 </button>
@@ -808,7 +528,7 @@ onMounted(() => {
             <div
               v-for="cat in categories"
               :key="cat.id"
-              class="p-6 rounded-3xl border flex items-center justify-between transition-all hover:shadow-md"
+              class="p-6 rounded-3xl border flex items-center justify-between transition-all hover:shadow-md animate-fade-in"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
               <div class="flex items-center gap-4">
@@ -827,16 +547,10 @@ onMounted(() => {
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button
-                  class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors"
-                  @click="openCategoryModal(cat)"
-                >
+                <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors cursor-pointer" @click="categoryEditDialogRef?.open(cat)">
                   <Edit2 class="w-4 h-4" />
                 </button>
-                <button
-                  class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                  @click="handleDeleteCategory(cat.id)"
-                >
+                <button type="button" class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer" @click="handleDeleteCategory(cat.id)">
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -852,715 +566,29 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Course Modal -->
-    <div
-      v-if="showCourseModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="w-full max-w-xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300 max-h-[90vh] overflow-y-auto"
-        style="background-color: var(--bg-card)"
-      >
-        <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-          {{ currentCourse ? '编辑课程' : '新建课程' }}
-        </h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >课程标题</label
-            >
-            <input
-              v-model="courseForm.title"
-              type="text"
-              placeholder="输入课程标题..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >课程分类</label
-              >
-              <select
-                v-model="courseForm.categoryId"
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              >
-                <option value="">请选择分类</option>
-                <option v-for="cat in categories" :key="cat.id" :value="cat.id">
-                  {{ cat.name }}
-                </option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >难度等级</label
-              >
-              <select
-                v-model="courseForm.difficulty"
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none appearance-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              >
-                <option value="BEGINNER">入门</option>
-                <option value="INTERMEDIATE">进阶</option>
-                <option value="ADVANCED">高级</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >发布状态</label
-            >
-            <div class="flex items-center gap-4">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  v-model="courseForm.status"
-                  type="radio"
-                  value="PUBLISHED"
-                  class="accent-accent"
-                />
-                <span class="text-sm font-medium" style="color: var(--text-primary)">发布</span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  v-model="courseForm.status"
-                  type="radio"
-                  value="DRAFT"
-                  class="accent-accent"
-                />
-                <span class="text-sm font-medium" style="color: var(--text-primary)">草稿</span>
-              </label>
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >课程描述</label
-            >
-            <textarea
-              v-model="courseForm.description"
-              rows="3"
-              placeholder="输入课程简介..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            ></textarea>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >封面图链接</label
-            >
-            <input
-              v-model="courseForm.thumbnail"
-              type="text"
-              placeholder="https://..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-        </div>
-        <div class="flex items-center gap-4 mt-8">
-          <button
-            class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showCourseModal = false"
-          >
-            取消
-          </button>
-          <button
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20"
-            @click="handleSaveCourse"
-          >
-            保存课程
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Modals Subcomponents -->
+    <CourseEditDialog
+      ref="courseEditDialogRef"
+      :categories="categories"
+      @saved="fetchCourses"
+    />
 
-    <!-- Category Modal -->
-    <div
-      v-if="showCategoryModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="w-full max-w-md rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
-        style="background-color: var(--bg-card)"
-      >
-        <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-          {{ currentCategory ? '编辑分类' : '新建分类' }}
-        </h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >分类名称</label
-            >
-            <input
-              v-model="categoryForm.name"
-              type="text"
-              placeholder="输入分类名称..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >排序</label
-            >
-            <input
-              v-model="categoryForm.order"
-              type="number"
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none font-bold"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
-          </div>
-        </div>
-        <div class="flex items-center gap-4 mt-8">
-          <button
-            class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showCategoryModal = false"
-          >
-            取消
-          </button>
-          <button
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20"
-            @click="handleSaveCategory"
-          >
-            保存分类
-          </button>
-        </div>
-      </div>
-    </div>
+    <CategoryEditDialog
+      ref="categoryEditDialogRef"
+      :categories-count="categories.length"
+      @saved="() => { fetchCategories(); fetchCourses() }"
+    />
 
-    <!-- Lesson Modal -->
-    <div
-      v-if="showLessonModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="w-full max-w-2xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
-        style="background-color: var(--bg-card)"
-      >
-        <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-          {{ currentLesson ? '编辑课时' : '新建课时' }}
-        </h3>
-        <div class="space-y-4">
-          <div class="grid grid-cols-4 gap-4">
-            <div class="col-span-2">
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >课时标题</label
-              >
-              <input
-                v-model="lessonForm.title"
-                type="text"
-                placeholder="输入课时标题..."
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >排序</label
-              >
-              <input
-                v-model="lessonForm.order"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >时长(分钟)</label
-              >
-              <input
-                v-model="lessonForm.duration"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >视频链接</label
-            >
-            <div class="flex gap-2">
-              <input
-                v-model="lessonForm.videoUrl"
-                type="text"
-                placeholder="https://..."
-                class="flex-1 px-4 py-3 rounded-2xl border transition-all outline-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-              <button
-                v-if="is3DModel(lessonForm.videoUrl)"
-                class="px-4 py-3 rounded-2xl bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-indigo-600 transition-colors"
-                @click="openHotspotEditor"
-              >
-                <Box class="w-4 h-4" />
-                设计热点
-              </button>
-              <button
-                v-if="is3DModel(lessonForm.videoUrl)"
-                class="px-4 py-3 rounded-2xl bg-amber-500 text-white font-bold text-xs flex items-center gap-2 hover:bg-amber-600 transition-colors"
-                @click="openSceneSettings"
-              >
-                <Sun class="w-4 h-4" />
-                场景设置
-              </button>
-            </div>
-            <p
-              v-if="lessonForm.hotspots.length > 0"
-              class="text-[10px] text-emerald-500 font-bold mt-1 ml-1"
-            >
-              已配置 {{ lessonForm.hotspots.length }} 个交互热点
-            </p>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >课时内容 (Markdown)</label
-            >
-            <textarea
-              v-model="lessonForm.content"
-              rows="6"
-              placeholder="输入课时详细内容..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            ></textarea>
-          </div>
-        </div>
-        <div class="flex items-center gap-4 mt-8">
-          <button
-            class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showLessonModal = false"
-          >
-            取消
-          </button>
-          <button
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20"
-            @click="handleSaveLesson"
-          >
-            保存课时
-          </button>
-        </div>
-      </div>
-    </div>
+    <CourseImportDialog
+      ref="courseImportDialogRef"
+      :categories="categories"
+      @saved="fetchCourses"
+    />
 
-    <!-- External Import Modal -->
-    <div
-      v-if="showImportModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="w-full max-w-2xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
-        style="background-color: var(--bg-card)"
-      >
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-xl font-bold" style="color: var(--text-primary)">从 外部平台 导入课程</h3>
-          <button class="text-slate-400 hover:text-slate-600" @click="showImportModal = false">
-            <Plus class="w-6 h-6 rotate-45" />
-          </button>
-        </div>
-
-        <div class="space-y-6">
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >课程或项目链接 (支持 B站 / YouTube / GitHub)</label
-            >
-            <div class="flex gap-2">
-              <input
-                v-model="externalUrl"
-                type="text"
-                placeholder="粘贴 B站、YouTube 或 GitHub 链接..."
-                class="flex-1 px-4 py-3 rounded-2xl border transition-all outline-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                @keyup.enter="handleParseExternal"
-              />
-              <button
-                :disabled="isParsing || !externalUrl"
-                class="px-6 py-3 rounded-2xl bg-accent text-white font-bold disabled:opacity-50 flex items-center gap-2"
-                @click="handleParseExternal"
-              >
-                <Loader2 v-if="isParsing && !parsedMetadata" class="w-4 h-4 animate-spin" />
-                解析
-              </button>
-            </div>
-          </div>
-
-          <!-- Preview -->
-          <div
-            v-if="parsedMetadata"
-            class="rounded-2xl border p-4 space-y-4 transition-colors duration-300"
-            style="background-color: var(--bg-app); border-color: var(--border-base)"
-          >
-            <div class="flex gap-4">
-              <img
-                :src="parsedMetadata.thumbnail"
-                referrerpolicy="no-referrer"
-                class="w-32 aspect-video rounded-lg object-cover shadow-sm"
-              />
-              <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-sm mb-1 truncate" style="color: var(--text-primary)">
-                  {{ parsedMetadata.title }}
-                </h4>
-                <p class="text-[10px] text-slate-400 line-clamp-2">
-                  {{ parsedMetadata.description }}
-                </p>
-              </div>
-            </div>
-
-            <div class="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              <div
-                v-for="lesson in parsedMetadata.lessons"
-                :key="lesson.order"
-                class="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-white/5 border border-transparent"
-              >
-                <span class="text-[10px] font-black text-slate-300 w-4">{{ lesson.order }}</span>
-                <span
-                  class="text-xs font-medium truncate flex-1"
-                  style="color: var(--text-primary)"
-                  >{{ lesson.title }}</span
-                >
-                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
-              </div>
-            </div>
-
-            <p class="text-[10px] text-center font-bold text-slate-400">
-              共解析出 {{ parsedMetadata.lessons.length }} 个课时
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-4 mt-8">
-          <button
-            class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showImportModal = false"
-          >
-            取消
-          </button>
-          <button
-            :disabled="!parsedMetadata || isParsing"
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2"
-            @click="handleImportExternal"
-          >
-            <Loader2 v-if="isParsing && parsedMetadata" class="w-4 h-4 animate-spin" />
-            确认导入
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hotspot Editor Dialog -->
-    <el-dialog
-      v-model="isHotspotEditorOpen"
-      title="3D 交互热点编辑器"
-      fullscreen
-      class="hotspot-editor-dialog"
-    >
-      <div class="h-full flex flex-col">
-        <div class="flex-1 flex gap-6 overflow-hidden">
-          <!-- Left: 3D Viewer -->
-          <div class="flex-1 bg-slate-900 rounded-3xl overflow-hidden relative">
-            <ModelViewer
-              v-if="isHotspotEditorOpen"
-              ref="hotspotViewer"
-              :model-url="lessonForm.videoUrl"
-              :hotspots="lessonForm.hotspots"
-              editable
-              @hotspot-added="handleAddHotspot"
-            />
-            <div
-              class="absolute top-6 left-6 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 pointer-events-none"
-            >
-              <p class="text-white text-xs font-bold flex items-center gap-2">
-                <Info class="w-4 h-4 text-accent" />
-                点击模型表面即可添加新的交互热点
-              </p>
-            </div>
-
-            <!-- Camera Preset Controls -->
-            <div class="absolute bottom-6 left-6 flex items-center gap-3">
-              <button
-                v-if="currentHotspotIndex !== -1"
-                class="px-4 py-2 bg-accent text-white rounded-xl font-bold text-[10px] flex items-center gap-2 shadow-xl hover:scale-105 transition-all"
-                @click="captureCameraForHotspot"
-              >
-                <Camera class="w-3.5 h-3.5" />
-                保存当前视角到此热点
-              </button>
-            </div>
-          </div>
-
-          <!-- Right: Hotspots List -->
-          <div class="w-80 flex flex-col gap-4 overflow-hidden">
-            <div
-              class="bg-white dark:bg-slate-900 rounded-3xl border p-6 flex-1 flex flex-col overflow-hidden"
-              style="border-color: var(--border-base)"
-            >
-              <h4
-                class="font-black text-sm mb-4 flex items-center gap-2"
-                style="color: var(--text-primary)"
-              >
-                <Layers class="w-4 h-4 text-accent" />
-                热点列表 ({{ lessonForm.hotspots.length }})
-              </h4>
-
-              <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
-                <div
-                  v-for="(hs, index) in lessonForm.hotspots"
-                  :key="index"
-                  class="p-4 rounded-2xl border transition-all hover:border-accent/40 group cursor-pointer"
-                  :class="
-                    currentHotspotIndex === index
-                      ? 'border-accent bg-accent/5'
-                      : 'bg-slate-50 dark:bg-white/5'
-                  "
-                  style="border-color: var(--border-base)"
-                  @click="currentHotspotIndex = index"
-                >
-                  <div class="flex items-start justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="w-6 h-6 rounded-lg bg-accent text-white flex items-center justify-center text-[10px] font-black"
-                        >{{ index + 1 }}</span
-                      >
-                      <Camera
-                        v-if="hs.cameraPos"
-                        class="w-3.5 h-3.5 text-emerald-500"
-                        title="已设置视角"
-                      />
-                    </div>
-                    <div
-                      class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <button
-                        class="p-1.5 rounded-lg text-slate-400 hover:text-accent"
-                        @click.stop="startEditHotspot(index)"
-                      >
-                        <Edit2 class="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500"
-                        @click.stop="removeHotspot(index)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <h5 class="text-xs font-bold mb-1 truncate" style="color: var(--text-primary)">
-                    {{ hs.title }}
-                  </h5>
-                  <p class="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
-                    {{ hs.content }}
-                  </p>
-                </div>
-
-                <div v-if="lessonForm.hotspots.length === 0" class="py-12 text-center">
-                  <div
-                    class="w-12 h-12 rounded-full bg-slate-50 dark:bg-white/5 flex items-center justify-center mx-auto mb-3"
-                  >
-                    <Plus class="w-6 h-6 text-slate-200" />
-                  </div>
-                  <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    暂无热点
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <button
-            class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-slate-50 transition-colors"
-            @click="
-              isHotspotEditorOpen = false;
-              currentHotspotIndex = -1;
-            "
-          >
-            关闭并应用
-          </button>
-        </div>
-      </template>
-    </el-dialog>
-
-    <!-- Hotspot Quick Edit Modal -->
-    <el-dialog v-model="isQuickEditOpen" title="编辑热点详情" width="400px" append-to-body>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2">热点标题</label>
-          <input
-            v-model="hotspotEditForm.title"
-            type="text"
-            class="w-full px-4 py-2 rounded-xl border outline-none"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2">描述内容</label>
-          <textarea
-            v-model="hotspotEditForm.content"
-            rows="4"
-            class="w-full px-4 py-2 rounded-xl border outline-none resize-none text-sm"
-          ></textarea>
-        </div>
-        <div class="flex gap-2">
-          <button
-            class="flex-1 py-2 rounded-xl border font-bold text-xs"
-            @click="isQuickEditOpen = false"
-          >
-            取消
-          </button>
-          <button
-            class="flex-1 py-2 bg-accent text-white rounded-xl font-bold text-xs"
-            @click="saveHotspotEdit"
-          >
-            保存
-          </button>
-        </div>
-      </div>
-    </el-dialog>
-
-    <!-- Scene Settings Dialog -->
-    <el-dialog
-      v-model="isSceneSettingsOpen"
-      title="3D 场景与灯光设置"
-      width="460px"
-      class="custom-rounded-dialog"
-    >
-      <div class="space-y-6">
-        <div class="flex items-center gap-3 p-4 bg-accent/10 rounded-2xl border border-accent/20">
-          <Palette class="w-6 h-6 text-accent shrink-0" />
-          <p class="text-xs text-accent font-medium">
-            自定义 3D 场景的渲染环境、光照强度和色彩表现。
-          </p>
-        </div>
-
-        <div class="space-y-4">
-          <div>
-            <label
-              class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >渲染环境 (HDR)</label
-            >
-            <el-select v-model="sceneConfigForm.environment" class="w-full">
-              <el-option label="日落余晖 (默认)" value="sunset" />
-              <el-option label="专业摄影棚" value="studio" />
-              <el-option label="户外自然光" value="forest" />
-              <el-option label="室内工作间" value="room" />
-            </el-select>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-2 ml-1">
-              <label class="text-xs font-black uppercase tracking-widest text-slate-400"
-                >曝光强度 (Exposure)</label
-              >
-              <span class="text-xs font-bold text-accent">{{
-                sceneConfigForm.exposure.toFixed(1)
-              }}</span>
-            </div>
-            <el-slider v-model="sceneConfigForm.exposure" :min="0.1" :max="3.0" :step="0.1" />
-          </div>
-
-          <div class="h-[1px] bg-slate-100 dark:bg-white/5"></div>
-
-          <div>
-            <div class="flex items-center justify-between mb-2 ml-1">
-              <label class="text-xs font-black uppercase tracking-widest text-slate-400"
-                >主灯光强度</label
-              >
-              <span class="text-xs font-bold text-accent">{{
-                sceneConfigForm.lights.intensity.toFixed(1)
-              }}</span>
-            </div>
-            <el-slider v-model="sceneConfigForm.lights.intensity" :min="0" :max="5.0" :step="0.1" />
-          </div>
-
-          <div>
-            <label
-              class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >灯光色调</label
-            >
-            <div class="flex items-center gap-3">
-              <el-color-picker v-model="sceneConfigForm.lights.color" />
-              <input
-                v-model="sceneConfigForm.lights.color"
-                type="text"
-                class="flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono"
-                style="background-color: var(--bg-app); border-color: var(--border-base)"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex gap-3 pt-4">
-          <button
-            class="flex-1 py-3 border border-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-colors"
-            @click="isSceneSettingsOpen = false"
-          >
-            取消
-          </button>
-          <button
-            class="flex-1 py-3 bg-accent text-white rounded-2xl font-bold text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all"
-            @click="saveSceneSettings"
-          >
-            应用配置
-          </button>
-        </div>
-      </template>
-    </el-dialog>
+    <LessonEditDialog
+      ref="lessonEditDialogRef"
+      @saved="fetchCourses"
+    />
   </div>
 </template>
 
@@ -1572,25 +600,17 @@ onMounted(() => {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-base);
-  border-radius: 10px;
-}
-
-:deep(.hotspot-editor-dialog) {
-  display: flex;
-  flex-direction: column;
-}
-:deep(.hotspot-editor-dialog .el-dialog__body) {
-  flex: 1;
-  overflow: hidden;
-  padding: 24px;
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 </style>

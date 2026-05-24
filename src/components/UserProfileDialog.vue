@@ -21,7 +21,7 @@ const fetchProfile = async () => {
   try {
     const response = await api.get(`/api/auth/users/${props.userId}`);
     userProfile.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取用户信息失败');
     emit('update:modelValue', false);
   } finally {
@@ -65,10 +65,7 @@ const startChat = () => {
     </div>
     <template v-else-if="userProfile">
       <div class="h-28 sm:h-32 bg-gradient-to-br from-accent to-indigo-600 relative -mx-4 sm:-mx-8 -mt-6 mb-10 sm:mb-12">
-        <button
-          class="absolute top-4 right-4 p-2 bg-black/20 text-white rounded-xl hover:bg-black/40 transition-all"
-          @click="emit('update:modelValue', false)"
-        >
+        <button type="button" class="absolute top-4 right-4 p-2 bg-black/20 text-white rounded-xl hover:bg-black/40 transition-all" @click="emit('update:modelValue', false)">
           <X class="w-4 h-4" />
         </button>
       </div>
@@ -147,6 +144,7 @@ const startChat = () => {
             <a
               :href="userProfile.website"
               target="_blank"
+              rel="noopener noreferrer"
               class="flex items-center gap-2 mb-1 justify-center group"
             >
               <LinkIcon class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 group-hover:scale-110 transition-all" />
@@ -155,10 +153,7 @@ const startChat = () => {
           </div>
         </div>
 
-        <button
-          class="w-full py-3 sm:py-4 bg-accent text-white rounded-xl sm:rounded-2xl font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
-          @click="startChat"
-        >
+        <button type="button" class="w-full py-3 sm:py-4 bg-accent text-white rounded-xl sm:rounded-2xl font-black shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm sm:text-base" @click="startChat">
           <MessageSquare class="w-4 h-4 sm:w-5 h-5" />
           立即联系
         </button>

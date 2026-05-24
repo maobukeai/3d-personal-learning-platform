@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
 import {
   Search,
   MonitorPlay,
@@ -27,18 +27,58 @@ import { useAuthStore } from '@/stores/auth';
 
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
-import { MdPreview } from 'md-editor-v3';
-import 'md-editor-v3/lib/style.css';
+
+const MdPreview = defineAsyncComponent(async () => {
+  await import('md-editor-v3/lib/style.css');
+  return (await import('md-editor-v3')).MdPreview;
+});
+
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import ShowcaseCard from '@/components/ShowcaseCard.vue';
+
+interface ShowcaseUser {
+  id: string;
+  name: string;
+  avatar?: string;
+  role?: string;
+  email?: string;
+  bio?: string;
+}
+
+interface ShowcaseItem {
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string;
+  images?: string;
+  type: 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
+  views: number;
+  likes: number;
+  likesCount: number;
+  commentsCount: number;
+  user: ShowcaseUser;
+  createdAt: string;
+  isLiked?: boolean;
+  isVideo?: boolean;
+  videoUrl?: string;
+  tags?: string;
+  asset?: any;
+}
+
+interface CommentItem {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: ShowcaseUser;
+}
 
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 const searchQuery = ref('');
 const activeFilter = ref('热门');
 const activeTypeFilter = ref('全部');
-const showcases = ref<any[]>([]);
+const showcases = ref<ShowcaseItem[]>([]);
 const isLoading = ref(false);
 
 const isProfileDialogOpen = ref(false);
@@ -49,7 +89,7 @@ const openUserProfile = (userId: string) => {
   isProfileDialogOpen.value = true;
 };
 
-const handleStartChat = async (user: any) => {
+const handleStartChat = async (user: ShowcaseUser) => {
   try {
     await api.post('/api/messages/conversations', {
       participantIds: [user.id],
@@ -57,7 +97,7 @@ const handleStartChat = async (user: any) => {
     });
     // For showcase view, we might want to redirect to messages
     // but often users just want to see the profile
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('创建对话失败');
   }
 };
@@ -109,9 +149,9 @@ const getTypeLabel = (type: string) => {
 const isPublishDialogOpen = ref(false);
 
 const isDetailOpen = ref(false);
-const detailItem = ref<any>(null);
+const detailItem = ref<ShowcaseItem | null>(null);
 const detailLoading = ref(false);
-const comments = ref<any[]>([]);
+const comments = ref<CommentItem[]>([]);
 const commentsLoading = ref(false);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
@@ -125,7 +165,7 @@ const fetchShowcases = async () => {
       params: { filter: activeFilter.value, type: activeTypeFilter.value },
     });
     showcases.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取作品展示失败');
   } finally {
     isLoading.value = false;
@@ -136,7 +176,7 @@ const openPublishDialog = () => {
   isPublishDialogOpen.value = true;
 };
 
-const openDetail = async (item: any) => {
+const openDetail = async (item: ShowcaseItem) => {
   isDetailOpen.value = true;
   detailLoading.value = true;
   currentImageIndex.value = 0;
@@ -147,7 +187,7 @@ const openDetail = async (item: any) => {
     if (idx !== -1) {
       showcases.value[idx] = { ...showcases.value[idx], views: response.data.views };
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取作品详情失败');
     isDetailOpen.value = false;
     return;
@@ -196,7 +236,7 @@ const fetchComments = async (showcaseId: string) => {
   try {
     const response = await api.get(`/api/showcase/${showcaseId}/comments`);
     comments.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to fetch comments');
   } finally {
     commentsLoading.value = false;
@@ -213,29 +253,29 @@ const submitComment = async () => {
     });
     comments.value.unshift(response.data);
     detailItem.value.commentsCount++;
-    const idx = showcases.value.findIndex((s) => s.id === detailItem.value.id);
+    const idx = showcases.value.findIndex((s) => s.id === detailItem.value!.id);
     if (idx !== -1) {
       showcases.value[idx].commentsCount++;
     }
     newComment.value = '';
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('评论失败');
   } finally {
     isSubmittingComment.value = false;
   }
 };
 
-const deleteComment = async (comment: any) => {
+const deleteComment = async (comment: CommentItem) => {
   try {
     await ElMessageBox.confirm('确定要删除这条评论吗？', '确认删除', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
     });
-    await api.delete(`/api/showcase/${detailItem.value.id}/comment/${comment.id}`);
+    await api.delete(`/api/showcase/${detailItem.value!.id}/comment/${comment.id}`);
     comments.value = comments.value.filter((c) => c.id !== comment.id);
-    detailItem.value.commentsCount--;
-    const idx = showcases.value.findIndex((s) => s.id === detailItem.value.id);
+    detailItem.value!.commentsCount--;
+    const idx = showcases.value.findIndex((s) => s.id === detailItem.value!.id);
     if (idx !== -1) {
       showcases.value[idx].commentsCount--;
     }
@@ -245,7 +285,7 @@ const deleteComment = async (comment: any) => {
   }
 };
 
-const toggleLike = async (item: any) => {
+const toggleLike = async (item: ShowcaseItem) => {
   try {
     const response = await api.post(`/api/showcase/${item.id}/like`);
     item.isLiked = response.data.liked;
@@ -254,7 +294,7 @@ const toggleLike = async (item: any) => {
       detailItem.value.isLiked = response.data.liked;
       detailItem.value.likesCount += response.data.liked ? 1 : -1;
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('操作失败');
   }
 };
@@ -301,7 +341,7 @@ const filteredShowcases = computed(() => {
   return showcases.value.filter(
     (s) =>
       s.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (s.user.name || s.user.email).toLowerCase().includes(searchQuery.value.toLowerCase()),
+      (s.user?.name || s.user?.email || '').toLowerCase().includes(searchQuery.value.toLowerCase()),
   );
 });
 
@@ -330,6 +370,7 @@ onMounted(fetchShowcases);
           />
         </div>
         <button
+type="button"
           class="bg-indigo-600 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap"
           @click="openPublishDialog"
         >
@@ -372,8 +413,9 @@ onMounted(fetchShowcases);
       <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4 sm:mx-0 sm:px-0 max-w-full">
         <div class="flex items-center gap-1.5 shrink-0">
           <button
-            v-for="f in filters"
+v-for="f in filters"
             :key="f"
+            type="button"
             class="px-3 py-1 rounded-md text-xs font-bold transition-all shrink-0"
             :class="activeFilter === f ? 'bg-indigo-600 text-white shadow-sm' : 'hover:opacity-80'"
             :style="
@@ -392,8 +434,9 @@ onMounted(fetchShowcases);
         <div class="w-px h-4 shrink-0" style="background-color: var(--border-base)"></div>
         <div class="flex items-center gap-1 shrink-0">
           <button
-            v-for="tf in typeFilters"
+v-for="tf in typeFilters"
             :key="tf"
+            type="button"
             class="px-2 py-0.5 rounded text-[10px] font-bold transition-all shrink-0"
             :class="
               activeTypeFilter === tf
@@ -454,6 +497,7 @@ onMounted(fetchShowcases);
         >
           <!-- Close Button -->
           <button
+type="button"
             class="absolute top-3 right-3 z-10 p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             style="color: var(--text-secondary)"
             @click="closeDetail"
@@ -481,7 +525,8 @@ onMounted(fetchShowcases);
                   class="absolute inset-0 flex items-center justify-between px-4"
                 >
                   <button
-                    v-if="currentImageIndex > 0"
+v-if="currentImageIndex > 0"
+                    type="button"
                     class="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all"
                     @click="prevImage"
                   >
@@ -489,7 +534,8 @@ onMounted(fetchShowcases);
                   </button>
                   <div v-else></div>
                   <button
-                    v-if="currentImageIndex < getDetailImages.length - 1"
+v-if="currentImageIndex < getDetailImages.length - 1"
+                    type="button"
                     class="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all"
                     @click="nextImage"
                   >
@@ -516,6 +562,7 @@ onMounted(fetchShowcases);
                   <a
                     :href="detailItem.videoUrl"
                     target="_blank"
+                    rel="noopener noreferrer"
                     class="p-5 rounded-full bg-white/20 backdrop-blur hover:bg-white/30 transition-all"
                   >
                     <Play class="w-10 h-10 text-white fill-white" />
@@ -625,6 +672,7 @@ onMounted(fetchShowcases);
                     <span class="font-bold">{{ detailItem.views }}</span> 浏览
                   </div>
                   <button
+type="button"
                     class="flex items-center gap-1.5 text-xs transition-all"
                     :class="detailItem.isLiked ? 'text-rose-500' : ''"
                     style="color: var(--text-secondary)"
@@ -638,6 +686,7 @@ onMounted(fetchShowcases);
                     <span class="font-bold">{{ detailItem.commentsCount }}</span> 评论
                   </div>
                   <button
+type="button"
                     class="flex items-center gap-1.5 text-xs ml-auto transition-all hover:text-indigo-600"
                     style="color: var(--text-secondary)"
                     @click="handleShare"
@@ -670,6 +719,7 @@ onMounted(fetchShowcases);
                         @keyup.enter="submitComment"
                       />
                       <button
+type="button"
                         :disabled="isSubmittingComment || !newComment.trim()"
                         class="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         @click="submitComment"
@@ -704,7 +754,8 @@ onMounted(fetchShowcases);
                             formatTime(comment.createdAt)
                           }}</span>
                           <button
-                            v-if="comment.user.id === authStore.user?.id || isAdmin"
+v-if="comment.user.id === authStore.user?.id || isAdmin"
+                            type="button"
                             class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500"
                             @click="deleteComment(comment)"
                           >

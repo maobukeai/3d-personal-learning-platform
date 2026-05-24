@@ -20,7 +20,32 @@ import UserAvatar from '@/components/UserAvatar.vue';
 const systemStore = useSystemStore();
 const searchQuery = ref('');
 const activeCategory = ref('全部材料');
-const materials = ref<any[]>([]);
+interface MaterialItem {
+  id: string;
+  title?: string | null;
+  description?: string | null;
+  category?: string | null;
+  tags?: string | null;
+  fileUrl?: string | null;
+  previewUrl?: string;
+  downloads?: number;
+  fileSize?: number | null;
+  resolution?: string;
+  isProcedural?: boolean;
+  createdAt?: string;
+  isFavorited?: boolean;
+  _count?: {
+    favorites: number;
+  };
+  user?: {
+    id: string;
+    name?: string;
+    email?: string;
+    avatarUrl?: string;
+  };
+}
+
+const materials = ref<MaterialItem[]>([]);
 const isLoading = ref(false);
 const sortBy = ref('latest');
 const showFavoritesOnly = ref(false);
@@ -54,13 +79,13 @@ const uploadForm = ref({
 });
 
 const showDetailDialog = ref(false);
-const selectedMaterial = ref<any>(null);
+const selectedMaterial = ref<MaterialItem | null>(null);
 const isLoadingDetail = ref(false);
 
 const fetchMaterials = async () => {
   isLoading.value = true;
   try {
-    const params: any = {
+    const params: Record<string, string> = {
       category: activeCategory.value,
       sort: sortBy.value,
     };
@@ -69,15 +94,15 @@ const fetchMaterials = async () => {
     }
     const response = await api.get('/api/materials', { params });
     materials.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取材料失败');
   } finally {
     isLoading.value = false;
   }
 };
 
-const handleFileChange = (e: any) => {
-  const file = e.target.files[0];
+const handleFileChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     uploadForm.value.file = file;
     if (!uploadForm.value.title) {
@@ -86,8 +111,8 @@ const handleFileChange = (e: any) => {
   }
 };
 
-const handlePreviewChange = (e: any) => {
-  const file = e.target.files[0];
+const handlePreviewChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     uploadForm.value.preview = file;
   }
@@ -131,7 +156,7 @@ const handleUpload = async () => {
       preview: null,
     };
     fetchMaterials();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('上传失败');
   } finally {
     isUploading.value = false;
@@ -146,7 +171,7 @@ const filteredMaterials = computed(() => {
   return list;
 });
 
-const getTagsList = (tags: string | null) => {
+const getTagsList = (tags?: string | null) => {
   if (!tags) return [];
   return tags
     .split(',')
@@ -154,7 +179,7 @@ const getTagsList = (tags: string | null) => {
     .filter((t) => t);
 };
 
-const handleDownload = async (material: any) => {
+const handleDownload = async (material: MaterialItem) => {
   try {
     await api.post(`/api/materials/${material.id}/download`);
     if (typeof material.downloads === 'number') {
@@ -183,7 +208,7 @@ const handleDownload = async (material: any) => {
   }
 };
 
-const toggleFavorite = async (material: any, event?: Event) => {
+const toggleFavorite = async (material: MaterialItem, event?: Event) => {
   if (event) event.stopPropagation();
   try {
     const res = await api.post(`/api/materials/${material.id}/favorite`);
@@ -198,7 +223,7 @@ const toggleFavorite = async (material: any, event?: Event) => {
   }
 };
 
-const openDetail = async (material: any) => {
+const openDetail = async (material: MaterialItem) => {
   selectedMaterial.value = material;
   showDetailDialog.value = true;
   isLoadingDetail.value = true;
@@ -267,10 +292,7 @@ onUnmounted(() => {
             @keyup.enter="fetchMaterials"
           />
         </div>
-        <button
-          class="flex items-center justify-center p-1.5 bg-orange-500 text-white rounded-lg shadow-md shadow-orange-500/20 transition-all hover:bg-orange-600 shrink-0 cursor-pointer"
-          @click="isUploadDialogOpen = true"
-        >
+        <button type="button" class="flex items-center justify-center p-1.5 bg-orange-500 text-white rounded-lg shadow-md shadow-orange-500/20 transition-all hover:bg-orange-600 shrink-0 cursor-pointer" @click="isUploadDialogOpen = true">
           <Plus class="w-3.5 h-3.5" />
           <span class="hidden sm:inline ml-1 text-xs font-bold">上传</span>
         </button>
@@ -285,24 +307,18 @@ onUnmounted(() => {
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           <button
-            v-for="cat in categories"
-            :key="cat"
-            class="px-2 sm:px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-all whitespace-nowrap"
-            :class="
+v-for="cat in categories" :key="cat" type="button" class="px-2 sm:px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-all whitespace-nowrap" :class="
               activeCategory === cat
                 ? 'bg-slate-800 text-white dark:bg-accent dark:text-white'
                 : 'hover:opacity-80'
-            "
-            :style="
+            " :style="
               activeCategory !== cat
                 ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                 : ''
-            "
-            @click="
+            " @click="
               activeCategory = cat;
               fetchMaterials();
-            "
-          >
+            ">
             {{ cat }}
           </button>
         </div>
@@ -310,45 +326,36 @@ onUnmounted(() => {
         <div class="flex items-center gap-1.5 shrink-0">
           <!-- Favorites Toggle -->
           <button
-            class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all"
-            :class="
+type="button" class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
               showFavoritesOnly
                 ? 'bg-rose-500/10 text-rose-500'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-rose-500'
-            "
-            @click="showFavoritesOnly = !showFavoritesOnly"
-          >
+            " @click="showFavoritesOnly = !showFavoritesOnly">
             <Heart class="w-3 h-3" :class="showFavoritesOnly ? 'fill-rose-500' : ''" />
             <span class="hidden sm:inline">收藏</span>
           </button>
 
           <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-white/5 p-0.5 rounded-md shrink-0">
             <button
-              class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all"
-              :class="
+type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
                 sortBy === 'latest'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600'
-              "
-              @click="
+              " @click="
                 sortBy = 'latest';
                 fetchMaterials();
-              "
-            >
+              ">
               最新
             </button>
             <button
-              class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all"
-              :class="
+type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
                 sortBy === 'popular'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600'
-              "
-              @click="
+              " @click="
                 sortBy = 'popular';
                 fetchMaterials();
-              "
-            >
+              ">
               最热
             </button>
           </div>
@@ -375,10 +382,7 @@ onUnmounted(() => {
               class="aspect-square relative overflow-hidden"
               style="background-color: var(--bg-app)"
             >
-              <img
-                :src="mat.previewUrl"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
+              <img alt="" :src="mat.previewUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
 
               <!-- Resolution Badge -->
               <div
@@ -402,14 +406,11 @@ onUnmounted(() => {
 
               <!-- Favorite Button -->
               <button
-                class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur transition-all opacity-0 group-hover:opacity-100"
-                :class="
+type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur transition-all opacity-0 group-hover:opacity-100" :class="
                   mat.isFavorited
                     ? 'bg-rose-500/20 text-rose-500'
                     : 'bg-black/30 text-white hover:text-rose-400'
-                "
-                @click.stop="toggleFavorite(mat)"
-              >
+                " @click.stop="toggleFavorite(mat)">
                 <Heart class="w-3 h-3" :class="mat.isFavorited ? 'fill-rose-500' : ''" />
               </button>
 
@@ -417,16 +418,10 @@ onUnmounted(() => {
               <div
                 class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5"
               >
-                <button
-                  class="p-1.5 rounded-md bg-white text-slate-800 hover:text-orange-600 transition-all shadow-md"
-                  @click.stop="openDetail(mat)"
-                >
+                <button type="button" class="p-1.5 rounded-md bg-white text-slate-800 hover:text-orange-600 transition-all shadow-md" @click.stop="openDetail(mat)">
                   <Eye class="w-3.5 h-3.5" />
                 </button>
-                <button
-                  class="p-1.5 rounded-md bg-white text-slate-800 hover:text-orange-600 transition-all shadow-md"
-                  @click.stop="handleDownload(mat)"
-                >
+                <button type="button" class="p-1.5 rounded-md bg-white text-slate-800 hover:text-orange-600 transition-all shadow-md" @click.stop="handleDownload(mat)">
                   <Download class="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -510,12 +505,9 @@ onUnmounted(() => {
           <template v-else-if="selectedMaterial">
             <!-- Preview Image -->
             <div class="relative aspect-[16/10] overflow-hidden shrink-0">
-              <img :src="selectedMaterial.previewUrl" class="w-full h-full object-cover" />
+              <img alt="" :src="selectedMaterial.previewUrl" class="w-full h-full object-cover" />
               <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-              <button
-                class="absolute top-2 right-2 p-1 bg-black/30 backdrop-blur rounded text-white hover:bg-black/50 transition-colors"
-                @click="showDetailDialog = false"
-              >
+              <button type="button" class="absolute top-2 right-2 p-1 bg-black/30 backdrop-blur rounded text-white hover:bg-black/50 transition-colors" @click="showDetailDialog = false">
                 <X class="w-4 h-4" />
               </button>
               <div class="absolute bottom-3 left-4 right-4">
@@ -627,7 +619,11 @@ onUnmounted(() => {
                     {{ selectedMaterial.user.name || '匿名用户' }}
                   </p>
                   <p class="text-[9px] text-[var(--text-muted)]">
-                    上传于 {{ new Date(selectedMaterial.createdAt).toLocaleDateString() }}
+                    上传于 {{
+                      selectedMaterial.createdAt
+                        ? new Date(selectedMaterial.createdAt).toLocaleDateString()
+                        : '未知'
+                    }}
                   </p>
                 </div>
               </div>
@@ -639,24 +635,18 @@ onUnmounted(() => {
               style="border-color: var(--border-base)"
             >
               <button
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
-                :class="
+type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all" :class="
                   selectedMaterial.isFavorited
                     ? 'bg-rose-500/10 text-rose-500'
                     : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-rose-500'
-                "
-                @click="toggleFavorite(selectedMaterial)"
-              >
+                " @click="toggleFavorite(selectedMaterial)">
                 <Heart
                   class="w-3.5 h-3.5"
                   :class="selectedMaterial.isFavorited ? 'fill-rose-500' : ''"
                 />
                 {{ selectedMaterial.isFavorited ? '已收藏' : '收藏' }}
               </button>
-              <button
-                class="flex-1 py-1.5 bg-orange-500 text-white rounded-md text-xs font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                @click="handleDownload(selectedMaterial)"
-              >
+              <button type="button" class="flex-1 py-1.5 bg-orange-500 text-white rounded-md text-xs font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 cursor-pointer" @click="handleDownload(selectedMaterial)">
                 <Download class="w-3.5 h-3.5" /> 下载材料包
               </button>
             </div>
@@ -681,7 +671,7 @@ onUnmounted(() => {
         >
           <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-base)">
             <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">贡献新材料</h3>
-            <button class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
+            <button type="button" class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
               <X class="w-4 h-4" />
             </button>
           </div>
@@ -825,11 +815,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <button
-            :disabled="isUploading"
-            class="w-full py-2 bg-orange-500 text-white rounded-lg font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer hover:scale-102"
-            @click="handleUpload"
-          >
+          <button type="button" :disabled="isUploading" class="w-full py-2 bg-orange-500 text-white rounded-lg font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer hover:scale-102" @click="handleUpload">
             <div
               v-if="isUploading"
               class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"

@@ -27,6 +27,7 @@ import {
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
+import { getApiErrorMessage } from '@/utils/error';
 
 interface MirrorSource {
   id: string;
@@ -216,9 +217,9 @@ const handleIconUpload = async (event: Event) => {
     const { data } = await api.post('/api/admin/mirror/upload', formDataObj);
     formData.value.iconUrl = data.url;
     ElMessage.success('图标上传成功');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Icon upload error:', error);
-    ElMessage.error(error.response?.data?.error || '图标上传失败');
+    ElMessage.error(getApiErrorMessage(error, '图标上传失败'));
   } finally {
     isUploadingIcon.value = false;
     target.value = '';
@@ -255,8 +256,8 @@ async function createSource() {
     ElMessage.success('镜像源创建成功');
     showCreateDialog.value = false;
     await fetchSources();
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '创建失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '创建失败'));
   }
 }
 
@@ -270,8 +271,8 @@ async function updateSource() {
     ElMessage.success('更新成功');
     showEditDialog.value = false;
     await fetchSources();
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '更新失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '更新失败'));
   }
 }
 
@@ -290,9 +291,9 @@ async function deleteSource(source: MirrorSource) {
     await api.delete(`/api/admin/mirror/sources/${source.id}`);
     ElMessage.success('镜像源及所有关联数据已删除');
     await fetchSources();
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error(e.response?.data?.error || '删除失败');
+      ElMessage.error(getApiErrorMessage(e, '删除失败'));
     }
   }
 }
@@ -303,8 +304,8 @@ async function triggerSync(sourceId: string, type: 'FULL' | 'INCREMENTAL') {
     ElMessage.success(`${type === 'FULL' ? '全量' : '增量'}同步已触发`);
     await fetchSources();
     startPolling();
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '触发同步失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '触发同步失败'));
   }
 }
 
@@ -313,8 +314,8 @@ async function cancelSync(sourceId: string) {
     await api.post(`/api/admin/mirror/sources/${sourceId}/sync/cancel`);
     ElMessage.success('同步取消已请求');
     await fetchSources();
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '取消同步失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '取消同步失败'));
   }
 }
 
@@ -325,7 +326,7 @@ async function viewSyncLogs(source: MirrorSource) {
   try {
     const res = await api.get(`/api/admin/mirror/sources/${source.id}/sync-logs?limit=30`);
     syncLogs.value = res.data;
-  } catch (e: any) {
+  } catch (_e) {
     ElMessage.error('加载日志失败');
   } finally {
     isLoadingLogs.value = false;
@@ -384,8 +385,8 @@ async function uploadAndMatch() {
       totalLinks: res.data.totalLinks,
       matchedCount: res.data.matchedCount,
     };
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '匹配失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '匹配失败'));
   } finally {
     isUploading.value = false;
   }
@@ -396,7 +397,7 @@ async function fetchSources() {
   try {
     const res = await api.get('/api/admin/mirror/sources');
     sources.value = res.data;
-  } catch (e: any) {
+  } catch (_e) {
     ElMessage.error('加载镜像源失败');
   } finally {
     isLoading.value = false;
@@ -480,7 +481,7 @@ async function fetchResources(sourceId: string) {
     resourceList.value = res.data.resources;
     resourceTotal.value = res.data.total;
     resourceTotalPages.value = res.data.totalPages;
-  } catch (e: any) {
+  } catch (_e) {
     ElMessage.error('加载资源列表失败');
   } finally {
     isLoadingResources.value = false;
@@ -652,8 +653,8 @@ async function saveResource() {
       await fetchResources(expandedSourceId.value);
       await fetchSources();
     }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '操作失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '操作失败'));
   }
 }
 
@@ -675,9 +676,9 @@ async function deleteResource(res: MirrorResource) {
       await fetchResources(expandedSourceId.value);
       await fetchSources();
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error(e.response?.data?.error || '删除失败');
+      ElMessage.error(getApiErrorMessage(e, '删除失败'));
     }
   }
 }
@@ -741,8 +742,8 @@ async function saveCategory() {
     if (expandedSourceId.value) {
       await fetchCategories(expandedSourceId.value);
     }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '操作失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '操作失败'));
   }
 }
 
@@ -764,9 +765,9 @@ async function deleteCategory(cat: MirrorCategory) {
       await fetchCategories(expandedSourceId.value);
       await fetchResources(expandedSourceId.value);
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error(e.response?.data?.error || '删除失败');
+      ElMessage.error(getApiErrorMessage(e, '删除失败'));
     }
   }
 }
@@ -838,18 +839,11 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="openCreate"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreate">
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">添加镜像源</span>
           </button>
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchSources"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchSources">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
@@ -864,7 +858,7 @@ onUnmounted(() => {
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
+v-for="filter in [
                 {
                   key: 'ALL',
                   label: '所有镜像源',
@@ -893,10 +887,7 @@ onUnmounted(() => {
                   color: 'rose',
                   icon: X,
                 },
-              ]"
-              :key="filter.key"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
+              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 statusFilter === filter.key
                   ? filter.key === 'ACTIVE'
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
@@ -906,9 +897,7 @@ onUnmounted(() => {
                         ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                         : 'bg-blue-500/10 text-blue-500 border-blue-500/30 ring-1 ring-blue-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]"
-              @click="statusFilter = filter.key as any"
-            >
+              ]" @click="statusFilter = filter.key as any">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
@@ -1020,10 +1009,7 @@ onUnmounted(() => {
           </div>
 
           <div class="text-center">
-            <button
-              class="relative inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 duration-200"
-              @click="openCreate"
-            >
+            <button type="button" class="relative inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 duration-200" @click="openCreate">
               <Plus class="w-5 h-5" />
               配置首个镜像同步源
             </button>
@@ -1042,11 +1028,7 @@ onUnmounted(() => {
                   <div
                     class="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950/20 text-violet-500 flex items-center justify-center shrink-0 border border-violet-100 dark:border-violet-950/50 overflow-hidden"
                   >
-                    <img
-                      v-if="source.iconUrl"
-                      :src="getAssetUrl(source.iconUrl)"
-                      class="w-full h-full object-cover"
-                    />
+                    <img v-if="source.iconUrl" alt="" :src="getAssetUrl(source.iconUrl)" class="w-full h-full object-cover" />
                     <Globe v-else class="w-6 h-6" />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -1096,13 +1078,9 @@ onUnmounted(() => {
 
                   <template v-if="source.adapterType !== 'MANUAL'">
                     <button
-                      class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
-                      :class="
+type="button" class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" :class="
                         source.syncStatus === 'SYNCING' ? 'opacity-50 pointer-events-none' : ''
-                      "
-                      title="全量同步"
-                      @click="triggerSync(source.id, 'FULL')"
-                    >
+                      " title="全量同步" @click="triggerSync(source.id, 'FULL')">
                       <RefreshCw
                         class="w-4 h-4"
                         :class="source.syncStatus === 'SYNCING' ? 'animate-spin' : ''"
@@ -1110,62 +1088,32 @@ onUnmounted(() => {
                     </button>
 
                     <!-- Start / Stop Button -->
-                    <button
-                      v-if="source.syncStatus === 'SYNCING'"
-                      class="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                      title="停止同步"
-                      @click="cancelSync(source.id)"
-                    >
+                    <button v-if="source.syncStatus === 'SYNCING'" type="button" class="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="停止同步" @click="cancelSync(source.id)">
                       <Square class="w-4 h-4" />
                     </button>
-                    <button
-                      v-else
-                      class="p-2 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors"
-                      title="增量同步"
-                      @click="triggerSync(source.id, 'INCREMENTAL')"
-                    >
+                    <button v-else type="button" class="p-2 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors" title="增量同步" @click="triggerSync(source.id, 'INCREMENTAL')">
                       <Play class="w-4 h-4" />
                     </button>
-                    <button
-                      class="p-2 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors"
-                      title="同步日志"
-                      @click="viewSyncLogs(source)"
-                    >
+                    <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors" title="同步日志" @click="viewSyncLogs(source)">
                       <History class="w-4 h-4" />
                     </button>
-                    <button
-                      class="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
-                      title="匹配提取链接"
-                      @click="openMatchLinks(source)"
-                    >
+                    <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="匹配提取链接" @click="openMatchLinks(source)">
                       <Link2 class="w-4 h-4" />
                     </button>
                   </template>
 
                   <button
-                    class="p-2 rounded-lg transition-colors"
-                    :class="
+type="button" class="p-2 rounded-lg transition-colors" :class="
                       expandedSourceId === source.id
                         ? 'text-cyan-500 bg-cyan-50 dark:bg-cyan-500/10'
                         : 'text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10'
-                    "
-                    title="管理资源"
-                    @click="toggleResourcePanel(source)"
-                  >
+                    " title="管理资源" @click="toggleResourcePanel(source)">
                     <Database class="w-4 h-4" />
                   </button>
-                  <button
-                    class="p-2 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-                    title="编辑"
-                    @click="openEdit(source)"
-                  >
+                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEdit(source)">
                     <Edit3 class="w-4 h-4" />
                   </button>
-                  <button
-                    class="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                    title="删除"
-                    @click="deleteSource(source)"
-                  >
+                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="删除" @click="deleteSource(source)">
                     <Trash2 class="w-4 h-4" />
                   </button>
                 </div>
@@ -1249,26 +1197,20 @@ onUnmounted(() => {
                 <!-- Tab Navigation for Mirror Sources -->
                 <div class="flex border-b border-slate-200 dark:border-slate-700/60 mb-5 gap-6">
                   <button
-                    class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5"
-                    :class="
+type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5" :class="
                       expandedTab === 'resources'
                         ? 'text-cyan-500 border-cyan-500'
                         : 'text-slate-400 border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                    "
-                    @click="expandedTab = 'resources'"
-                  >
+                    " @click="expandedTab = 'resources'">
                     <FileText class="w-4 h-4" />
                     资源管理
                   </button>
                   <button
-                    class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5"
-                    :class="
+type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5" :class="
                       expandedTab === 'categories'
                         ? 'text-cyan-500 border-cyan-500'
                         : 'text-slate-400 border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                    "
-                    @click="expandedTab = 'categories'"
-                  >
+                    " @click="expandedTab = 'categories'">
                     <Layers class="w-4 h-4" />
                     分类管理
                   </button>
@@ -1314,10 +1256,7 @@ onUnmounted(() => {
                           {{ cat.name }}
                         </option>
                       </select>
-                      <button
-                        class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors"
-                        @click="openCreateResource"
-                      >
+                      <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors" @click="openCreateResource">
                         <Plus class="w-3.5 h-3.5" />
                         新增资源
                       </button>
@@ -1373,11 +1312,7 @@ onUnmounted(() => {
                         >
                           <td class="py-2.5 px-2">
                             <div class="flex items-center gap-2 max-w-xs">
-                              <img
-                                v-if="res.thumbnailUrl"
-                                :src="res.thumbnailUrl"
-                                class="w-8 h-8 rounded object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-700"
-                              />
+                              <img v-if="res.thumbnailUrl" alt="" :src="res.thumbnailUrl" class="w-8 h-8 rounded object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-700" />
                               <div
                                 v-else
                                 class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0"
@@ -1408,18 +1343,10 @@ onUnmounted(() => {
                           </td>
                           <td class="py-2.5 px-2">
                             <div class="flex items-center justify-end gap-1">
-                              <button
-                                class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-                                title="编辑"
-                                @click="openEditResource(res)"
-                              >
+                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEditResource(res)">
                                 <Edit3 class="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                                title="删除"
-                                @click="deleteResource(res)"
-                              >
+                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="删除" @click="deleteResource(res)">
                                 <Trash2 class="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -1438,18 +1365,10 @@ onUnmounted(() => {
                         {{ resourceTotal }} 条</span
                       >
                       <div class="flex items-center gap-1">
-                        <button
-                          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                          :disabled="resourcePage <= 1"
-                          @click="changeResourcePage(resourcePage - 1)"
-                        >
+                        <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none" :disabled="resourcePage <= 1" @click="changeResourcePage(resourcePage - 1)">
                           <ChevronLeft class="w-4 h-4" />
                         </button>
-                        <button
-                          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                          :disabled="resourcePage >= resourceTotalPages"
-                          @click="changeResourcePage(resourcePage + 1)"
-                        >
+                        <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none" :disabled="resourcePage >= resourceTotalPages" @click="changeResourcePage(resourcePage + 1)">
                           <ChevronRight class="w-4 h-4" />
                         </button>
                       </div>
@@ -1469,10 +1388,7 @@ onUnmounted(() => {
                         >共 {{ sourceCategories.length }} 个分类</span
                       >
                     </h4>
-                    <button
-                      class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors"
-                      @click="openCreateCategory"
-                    >
+                    <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors" @click="openCreateCategory">
                       <Plus class="w-3.5 h-3.5" />
                       新增分类
                     </button>
@@ -1516,18 +1432,10 @@ onUnmounted(() => {
                           </td>
                           <td class="py-2.5 px-2">
                             <div class="flex items-center justify-end gap-1">
-                              <button
-                                class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-                                title="编辑"
-                                @click="openEditCategory(cat)"
-                              >
+                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEditCategory(cat)">
                                 <Edit3 class="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                                title="删除"
-                                @click="deleteCategory(cat)"
-                              >
+                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="删除" @click="deleteCategory(cat)">
                                 <Trash2 class="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -1561,12 +1469,10 @@ onUnmounted(() => {
                   {{ showEditDialog ? '编辑镜像源' : '添加镜像源' }}
                 </h2>
                 <button
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  @click="
+type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="
                     showCreateDialog = false;
                     showEditDialog = false;
-                  "
-                >
+                  ">
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -1602,11 +1508,7 @@ onUnmounted(() => {
                     <div
                       class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"
                     >
-                      <img
-                        v-if="formData.iconUrl"
-                        :src="getAssetUrl(formData.iconUrl)"
-                        class="w-full h-full object-cover"
-                      />
+                      <img v-if="formData.iconUrl" alt="" :src="getAssetUrl(formData.iconUrl)" class="w-full h-full object-cover" />
                       <Globe v-else class="w-6 h-6 text-slate-400" />
 
                       <label
@@ -1703,26 +1605,16 @@ onUnmounted(() => {
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700"
               >
                 <button
-                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  @click="
+type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" @click="
                     showCreateDialog = false;
                     showEditDialog = false;
-                  "
-                >
+                  ">
                   取消
                 </button>
-                <button
-                  v-if="showCreateDialog"
-                  class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
-                  @click="createSource"
-                >
+                <button v-if="showCreateDialog" type="button" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors" @click="createSource">
                   创建
                 </button>
-                <button
-                  v-else
-                  class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
-                  @click="updateSource"
-                >
+                <button v-else type="button" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors" @click="updateSource">
                   保存
                 </button>
               </div>
@@ -1743,10 +1635,7 @@ onUnmounted(() => {
                 <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
                   同步日志 - {{ editingSource?.displayName }}
                 </h2>
-                <button
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  @click="showSyncLogsDialog = false"
-                >
+                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showSyncLogsDialog = false">
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -1849,10 +1738,7 @@ onUnmounted(() => {
                   <Link2 class="w-5 h-5 text-indigo-500" />
                   匹配提取链接 - {{ selectedSource?.displayName }}
                 </h2>
-                <button
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  @click="showMatchDialog = false"
-                >
+                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showMatchDialog = false">
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -1914,10 +1800,7 @@ onUnmounted(() => {
                     class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1"
                   >
                     <span>已选择的文件 ({{ excelFiles.length }})</span>
-                    <button
-                      class="text-indigo-500 hover:text-indigo-600 transition-colors"
-                      @click="excelFiles = []"
-                    >
+                    <button type="button" class="text-indigo-500 hover:text-indigo-600 transition-colors" @click="excelFiles = []">
                       清空全部
                     </button>
                   </div>
@@ -1937,10 +1820,7 @@ onUnmounted(() => {
                         >({{ (file.size / 1024).toFixed(1) }} KB)</span
                       >
                     </div>
-                    <button
-                      class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0"
-                      @click="removeFile(index)"
-                    >
+                    <button type="button" class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0" @click="removeFile(index)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1979,18 +1859,10 @@ onUnmounted(() => {
               <div
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
               >
-                <button
-                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  :disabled="isUploading"
-                  @click="showMatchDialog = false"
-                >
+                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" :disabled="isUploading" @click="showMatchDialog = false">
                   关闭
                 </button>
-                <button
-                  class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5"
-                  :disabled="excelFiles.length === 0 || isUploading"
-                  @click="uploadAndMatch"
-                >
+                <button type="button" class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5" :disabled="excelFiles.length === 0 || isUploading" @click="uploadAndMatch">
                   <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
                   {{ isUploading ? '匹配中...' : '开始匹配' }}
                 </button>
@@ -2015,10 +1887,7 @@ onUnmounted(() => {
                   <FileText class="w-5 h-5 text-cyan-500" />
                   {{ isEditingResource ? '编辑资源' : '新增资源' }}
                 </h2>
-                <button
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  @click="showResourceDialog = false"
-                >
+                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showResourceDialog = false">
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -2126,16 +1995,10 @@ onUnmounted(() => {
               <div
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700"
               >
-                <button
-                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  @click="showResourceDialog = false"
-                >
+                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" @click="showResourceDialog = false">
                   取消
                 </button>
-                <button
-                  class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
-                  @click="saveResource"
-                >
+                <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors" @click="saveResource">
                   {{ isEditingResource ? '保存' : '创建' }}
                 </button>
               </div>
@@ -2160,10 +2023,7 @@ onUnmounted(() => {
                   <Layers class="w-5 h-5 text-cyan-500" />
                   {{ isEditingCategory ? '编辑分类' : '新增分类' }}
                 </h2>
-                <button
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  @click="showCategoryDialog = false"
-                >
+                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showCategoryDialog = false">
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -2220,10 +2080,10 @@ onUnmounted(() => {
                       class="flex items-center gap-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 p-1 rounded-lg transition-colors"
                     >
                       <input
-                        type="checkbox"
                         :id="'subcat-' + cat.id"
-                        :value="cat.externalId"
                         v-model="categoryForm.childExternalIds"
+                        type="checkbox"
+                        :value="cat.externalId"
                         class="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
                       />
                       <label
@@ -2270,16 +2130,10 @@ onUnmounted(() => {
               <div
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
               >
-                <button
-                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  @click="showCategoryDialog = false"
-                >
+                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" @click="showCategoryDialog = false">
                   取消
                 </button>
-                <button
-                  class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
-                  @click="saveCategory"
-                >
+                <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors" @click="saveCategory">
                   {{ isEditingCategory ? '保存' : '创建' }}
                 </button>
               </div>

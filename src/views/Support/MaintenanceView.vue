@@ -26,12 +26,14 @@ const goToLogin = async () => {
     style="background-color: var(--bg-app)"
   >
     <!-- Decorative background elements -->
-    <div
-      class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/10 blur-[120px] rounded-full"
-    ></div>
-    <div
-      class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full"
-    ></div>
+    <div class="hidden md:block">
+      <div
+        class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/10 glass-glow-xl rounded-full"
+      ></div>
+      <div
+        class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-indigo-600/10 glass-glow-lg rounded-full"
+      ></div>
+    </div>
 
     <div class="max-w-2xl w-full text-center relative z-10">
       <div
@@ -72,10 +74,7 @@ const goToLogin = async () => {
         >
           如果您是管理员
         </p>
-        <button
-          class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all active:scale-95"
-          @click="goToLogin"
-        >
+        <button type="button" class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all active:scale-95" @click="goToLogin">
           进入后台管理
         </button>
       </div>

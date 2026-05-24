@@ -29,7 +29,8 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
-import { sanitizeHtml } from '@/utils/sanitize';
+import SafeHtml from '@/components/SafeHtml.vue';
+import { getApiErrorMessage } from '@/utils/error';
 
 const systemStore = useSystemStore();
 const isLoading = ref(false);
@@ -131,8 +132,40 @@ const defaultSettings = {
   OAUTH_GITHUB_CLIENT_SECRET: '',
 };
 
+type SettingValue = string | boolean;
+type SettingsRecord = Record<string, SettingValue>;
+
+interface ApiSetting {
+  key: string;
+  value: unknown;
+}
+
+interface MicrosoftEmailAccount {
+  id: string;
+  email: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'ERROR' | string;
+  statusMessage?: string | null;
+  proxy?: string | null;
+  dailyLimit?: number;
+  sentCountToday?: number;
+}
+
 const settings = ref({ ...defaultSettings });
 const originalSettings = ref({ ...defaultSettings });
+
+const isKnownSettingKey = (key: string): key is keyof typeof defaultSettings => {
+  return Object.prototype.hasOwnProperty.call(defaultSettings, key);
+};
+
+const setSettingValue = (key: string, value: SettingValue) => {
+  if (isKnownSettingKey(key)) {
+    (settings.value as SettingsRecord)[key] = value;
+  }
+};
+
+const getDefaultSettingValue = (key: string): SettingValue => {
+  return (defaultSettings as SettingsRecord)[key] ?? '';
+};
 
 interface SmtpConfig {
   id: string;
@@ -191,7 +224,7 @@ const addNewSmtpConfig = async () => {
     // Auto select the new configuration
     selectSmtpConfig(newId);
     ElMessage.success(`方案 "${name}" 已新增`);
-  } catch (error) {
+  } catch (_error) {
     // User canceled
   }
 };
@@ -212,7 +245,7 @@ const renameSmtpConfig = async () => {
     activeCfg.name = name;
     settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
     ElMessage.success('方案重命名成功');
-  } catch (error) {
+  } catch (_error) {
     // User canceled
   }
 };
@@ -317,7 +350,7 @@ const fetchSettings = async () => {
 
     // Support both array and object formats for backward compatibility during transition
     if (Array.isArray(data)) {
-      data.forEach((s: any) => {
+      data.forEach((s: ApiSetting) => {
         if (
           s.key === 'ALLOW_REGISTRATION' ||
           s.key === 'MAINTENANCE_MODE' ||
@@ -326,42 +359,42 @@ const fetchSettings = async () => {
           s.key === 'MICROSOFT_POOL_FAILBACK' ||
           s.key.endsWith('_ENABLED')
         ) {
-          (settings.value as any)[s.key] = s.value === 'true';
+          setSettingValue(s.key, s.value === 'true');
         } else if (
           s.key === 'MATERIAL_CATEGORIES' ||
           s.key === 'ALLOWED_FILE_TYPES' ||
           s.key === 'ALLOWED_EXTENSIONS'
         ) {
           try {
-            const arr: string[] = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
-            (settings.value as any)[s.key] = arr.join(', ');
+            const arr = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
+            setSettingValue(s.key, Array.isArray(arr) ? arr.join(', ') : String(arr || ''));
           } catch {
-            (settings.value as any)[s.key] = (defaultSettings as any)[s.key];
+            setSettingValue(s.key, getDefaultSettingValue(s.key));
           }
         } else if (Object.keys(settings.value).includes(s.key)) {
-          (settings.value as any)[s.key] = s.value;
+          setSettingValue(s.key, typeof s.value === 'boolean' ? s.value : String(s.value ?? ''));
         }
       });
     } else {
       // Object format
       Object.entries(data).forEach(([key, value]) => {
         if (key === 'MICROSOFT_POOL_FAILBACK') {
-          (settings.value as any)[key] = value === true || value === 'true';
+          setSettingValue(key, value === true || value === 'true');
         } else if (typeof value === 'boolean') {
-          (settings.value as any)[key] = value;
+          setSettingValue(key, value);
         } else if (Array.isArray(value)) {
-          (settings.value as any)[key] = value.join(', ');
+          setSettingValue(key, value.join(', '));
         } else if (Object.keys(settings.value).includes(key)) {
           if (key !== 'SMTP_CONFIGS' && typeof value === 'string' && value.trim().startsWith('[')) {
             try {
               const parsed = JSON.parse(value);
               if (Array.isArray(parsed)) {
-                (settings.value as any)[key] = parsed.join(', ');
+                setSettingValue(key, parsed.join(', '));
                 return;
               }
-            } catch (e) {}
+            } catch (_e) {}
           }
-          (settings.value as any)[key] = value;
+          setSettingValue(key, typeof value === 'boolean' ? value : String(value ?? ''));
         }
       });
     }
@@ -442,16 +475,16 @@ const saveSettings = async () => {
       systemStore.settings.FOOTER_TEXT = settings.value.FOOTER_TEXT;
       systemStore.updateBrowserBranding();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Save settings error:', error);
-    ElMessage.error(error.response?.data?.error || '保存设置失败');
+    ElMessage.error(getApiErrorMessage(error, '保存设置失败'));
   } finally {
     isSaving.value = false;
   }
 };
 
-const handleToggleMaintenance = async (val: boolean) => {
-  if (val) {
+const handleToggleMaintenance = async (val: string | number | boolean) => {
+  if (val === true || val === 'true') {
     try {
       await ElMessageBox.confirm(
         '开启维护模式后，所有非管理员用户将无法访问平台。确定要开启吗？',
@@ -524,10 +557,10 @@ const testSmtp = async () => {
       to: testRecipient,
     });
     ElMessage.success(data.message);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error === 'cancel') return;
     console.error('Test SMTP error:', error);
-    ElMessage.error(error.response?.data?.error || 'SMTP 测试失败');
+    ElMessage.error(getApiErrorMessage(error, 'SMTP 测试失败'));
   } finally {
     isTestingSmtp.value = false;
   }
@@ -567,17 +600,17 @@ const handleCleanupStorage = async () => {
         type: 'success',
       },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error !== 'cancel') {
       console.error('Cleanup storage error:', error);
-      ElMessage.error(error.response?.data?.error || '清理存储空间失败');
+      ElMessage.error(getApiErrorMessage(error, '清理存储空间失败'));
     }
   } finally {
     isCleaning.value = false;
   }
 };
 
-const microsoftAccounts = ref<any[]>([]);
+const microsoftAccounts = ref<MicrosoftEmailAccount[]>([]);
 const isLoadingAccounts = ref(false);
 
 const fetchMicrosoftAccounts = async () => {
@@ -676,19 +709,21 @@ window.addEventListener('beforeunload', (e) => {
             >
           </div>
           <button
+type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
             style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="resetToDefaults"
             title="恢复默认"
+            @click="resetToDefaults"
           >
             <RotateCcw class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">恢复默认</span>
           </button>
           <button
+type="button"
             :disabled="isSaving"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 text-white rounded-xl font-bold text-[11px] hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0 whitespace-nowrap shadow-sm cursor-pointer"
-            @click="saveSettings"
             :title="isSaving ? '正在保存...' : '保存全局设置'"
+            @click="saveSettings"
           >
             <Save v-if="!isSaving" class="w-3.5 h-3.5" />
             <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
@@ -710,8 +745,9 @@ window.addEventListener('beforeunload', (e) => {
           class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden"
         >
           <button
-            v-for="tab in tabs"
+v-for="tab in tabs"
             :key="tab.id"
+            type="button"
             class="flex-1 lg:flex-none w-auto lg:w-full flex items-center justify-center lg:justify-start gap-0.5 lg:gap-3 px-1 py-1 sm:px-2 lg:px-4 lg:py-3 rounded-lg lg:rounded-xl text-[8px] xs:text-[9px] lg:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === tab.id
@@ -1208,6 +1244,7 @@ window.addEventListener('beforeunload', (e) => {
                     </p>
                   </div>
                   <button
+type="button"
                     :disabled="isCleaning"
                     class="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-600/50 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer"
                     @click="handleCleanupStorage"
@@ -1548,6 +1585,7 @@ window.addEventListener('beforeunload', (e) => {
                 </div>
 
                 <button
+type="button"
                   :disabled="isTestingSmtp"
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
                   @click="testSmtp"
@@ -1620,6 +1658,7 @@ window.addEventListener('beforeunload', (e) => {
                       "
                     />
                     <button
+type="button"
                       class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                       @click="showPassword = !showPassword"
                     >
@@ -1750,6 +1789,7 @@ window.addEventListener('beforeunload', (e) => {
                         "
                       />
                       <button
+type="button"
                         class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                         @click="showPassword = !showPassword"
                       >
@@ -1834,6 +1874,7 @@ window.addEventListener('beforeunload', (e) => {
                         "
                       />
                       <button
+type="button"
                         class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                         @click="showPassword = !showPassword"
                       >
@@ -1872,6 +1913,7 @@ window.addEventListener('beforeunload', (e) => {
                   </h2>
                 </div>
                 <button
+type="button"
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors"
                   @click="showEmailPreview = !showEmailPreview"
                 >
@@ -1942,7 +1984,7 @@ window.addEventListener('beforeunload', (e) => {
                     </p>
                   </div>
                 </div>
-                <div class="p-6 bg-white" v-html="sanitizeHtml(emailPreviewHtml)"></div>
+                <SafeHtml class="p-6 bg-white" :html="emailPreviewHtml" />
               </div>
             </section>
           </div>

@@ -6,17 +6,41 @@ import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
 
+import { config as envConfig } from '../../config/env';
+
 /**
- * 自定义 DNS 查找：绕过 Mihomo/Clash TUN Fake-IP 劫持
- * 直接使用国内公共 DNS 查询真实 IP
+ * 自定义 DNS 查找：支持动态配置 DNS 服务器绕过 TUN Fake-IP 劫持
+ * 默认使用系统 DNS lookup，若提供 DNS_SERVERS 环境变量则使用其指定的 DNS 查询
  */
 function resolveSmtpRealIp(hostname: string): Promise<string> {
   return new Promise((resolve) => {
-    const resolver = new dns.Resolver();
-    resolver.setServers(['119.29.29.29', '223.5.5.5', '8.8.8.8']);
-    resolver.resolve4(hostname, (err, addresses) => {
-      if (!err && addresses && addresses.length > 0) {
-        resolve(addresses[0] || hostname);
+    const dnsServers = process.env.DNS_SERVERS;
+    if (dnsServers) {
+      try {
+        const servers = dnsServers
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (servers.length > 0) {
+          const resolver = new dns.Resolver();
+          resolver.setServers(servers);
+          resolver.resolve4(hostname, (err, addresses) => {
+            if (!err && addresses && addresses.length > 0) {
+              resolve(addresses[0] || hostname);
+            } else {
+              resolve(hostname);
+            }
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
+      }
+    }
+
+    dns.lookup(hostname, (err, address) => {
+      if (!err && address) {
+        resolve(address);
       } else {
         resolve(hostname);
       }
@@ -204,7 +228,7 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
         pass,
       },
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: envConfig.NODE_ENV === 'production',
         minVersion: 'TLSv1.2',
         servername: host,
       },
@@ -230,20 +254,20 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
     });
 
     res.json({ message: 'SMTP 连接测试成功，已向您的邮箱发送测试邮件' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('SMTP Test Error Detail:', error);
-    let errorMsg = error.message;
+    let errorMsg = (error instanceof Error ? error.message : String(error)) || '未知错误';
 
     // Detailed error mapping
-    if (error.code === 'ECONNRESET')
+    if ((error as any).code === 'ECONNRESET')
       errorMsg = '连接被重置。通常是因为网络防火墙拦截或 SSL/TLS 协议不匹配。';
-    else if (error.code === 'ETIMEDOUT')
+    else if ((error as any).code === 'ETIMEDOUT')
       errorMsg = '连接超时。请检查 465/587 端口是否在云服务器安全组中开放。';
-    else if (error.code === 'ECONNREFUSED')
+    else if ((error as any).code === 'ECONNREFUSED')
       errorMsg = '连接被拒绝。目标服务器可能不可达，或端口被本地 ISP 封锁。';
-    else if (error.code === 'EAUTH')
+    else if ((error as any).code === 'EAUTH')
       errorMsg = '验证失败。请确保您使用的是 Gmail 的 16 位“应用专用密码”而非主密码。';
-    else if (error.message.includes('secure TLS connection'))
+    else if ((error instanceof Error ? error.message : String(error)).includes('secure TLS connection'))
       errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';
 
     next(new AppError(`SMTP 连接失败: ${errorMsg}`, 500));
@@ -288,7 +312,7 @@ export const cleanupStorage = async (req: AuthRequest, res: Response, next: Next
       message: '存储空间清理完成',
       stats,
     });
-  } catch (error: any) {
-    next(new AppError('清理存储空间失败: ' + error.message, 500));
+  } catch (error) {
+    next(new AppError('清理存储空间失败: ' + (error instanceof Error ? error.message : String(error)), 500));
   }
 };

@@ -145,7 +145,7 @@ const handleAddTask = async () => {
     isAddDialogOpen.value = false;
     newTask.value = { title: '', description: '', status: 'TODO', dueDate: '' };
     fetchDashboardData();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error(t('dashboard.addTaskFailed'));
   }
 };
@@ -220,10 +220,7 @@ onMounted(() => {
             <Calendar class="w-4 h-4 text-slate-400" />
           </template>
         </el-date-picker>
-        <button
-          class="p-2 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer"
-          @click="isAddDialogOpen = true"
-        >
+        <button type="button" class="p-2 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer" @click="isAddDialogOpen = true">
           <Plus class="w-5 h-5" />
         </button>
       </div>
@@ -286,7 +283,7 @@ onMounted(() => {
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold" style="color: var(--text-primary)">新建学习任务</h3>
-            <button style="color: var(--text-secondary)" @click="isAddDialogOpen = false">
+            <button type="button" style="color: var(--text-secondary)" @click="isAddDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -332,10 +329,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <button
-            class="w-full py-4 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all"
-            @click="handleAddTask"
-          >
+          <button type="button" class="w-full py-4 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all" @click="handleAddTask">
             创建任务
           </button>
         </div>

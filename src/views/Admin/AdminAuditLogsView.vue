@@ -37,7 +37,7 @@ const fetchLogs = async () => {
     logs.value = data.logs;
     total.value = data.total;
     totalPages.value = data.pages;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取审计日志失败');
   } finally {
     isLoading.value = false;
@@ -120,11 +120,7 @@ onMounted(fetchLogs);
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchLogs"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchLogs">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
@@ -139,10 +135,7 @@ onMounted(fetchLogs);
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="m in modules"
-              :key="m.value"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
+v-for="m in modules" :key="m.value" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 moduleFilter === m.value
                   ? m.value === 'SETTINGS'
                     ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 ring-1 ring-blue-500/20 font-extrabold shadow-sm'
@@ -158,9 +151,7 @@ onMounted(fetchLogs);
                               ? 'bg-rose-500/10 text-rose-600 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                               : 'bg-slate-500/10 text-slate-600 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
-              ]"
-              @click="moduleFilter = m.value"
-            >
+              ]" @click="moduleFilter = m.value">
               <span>{{ m.label }}</span>
             </button>
           </div>
@@ -370,20 +361,10 @@ onMounted(fetchLogs);
             第 {{ currentPage }} / {{ totalPages }} 页
           </div>
           <div class="flex items-center gap-2">
-            <button
-              :disabled="currentPage === 1"
-              class="p-2 rounded-xl border hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all shadow-sm"
-              style="border-color: var(--border-base)"
-              @click="currentPage--"
-            >
+            <button type="button" :disabled="currentPage === 1" class="p-2 rounded-xl border hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all shadow-sm" style="border-color: var(--border-base)" @click="currentPage--">
               <ChevronLeft class="w-4 h-4" />
             </button>
-            <button
-              :disabled="currentPage === totalPages"
-              class="p-2 rounded-xl border hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all shadow-sm"
-              style="border-color: var(--border-base)"
-              @click="currentPage++"
-            >
+            <button type="button" :disabled="currentPage === totalPages" class="p-2 rounded-xl border hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 transition-all shadow-sm" style="border-color: var(--border-base)" @click="currentPage++">
               <ChevronRight class="w-4 h-4" />
             </button>
           </div>

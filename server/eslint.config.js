@@ -31,7 +31,7 @@ module.exports = [
       "prettier/prettier": "error",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
-      "no-console": "off",
+      "no-console": ["warn", { "allow": ["warn", "error"] }],
       "no-useless-catch": "off",
       "no-undef": "off",
       "no-empty": "off",

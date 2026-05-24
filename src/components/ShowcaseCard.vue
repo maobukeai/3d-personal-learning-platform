@@ -107,10 +107,7 @@ function handleUserClick() {
       class="aspect-video relative overflow-hidden"
       style="background-color: var(--bg-app)"
     >
-      <img
-        :src="item.thumbnailUrl"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-      />
+      <img alt="" :src="item.thumbnailUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       <div
         v-if="item.isVideo"
         class="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1"
@@ -179,11 +176,7 @@ function handleUserClick() {
         </div>
 
         <div class="flex items-center gap-2">
-          <button
-            class="flex items-center gap-1 text-[9px] font-bold transition-all hover:scale-105 active:scale-95"
-            :class="item.isLiked ? 'text-rose-500' : 'text-slate-400'"
-            @click.stop="handleLikeClick"
-          >
+          <button type="button" class="flex items-center gap-1 text-[9px] font-bold transition-all hover:scale-105 active:scale-95" :class="item.isLiked ? 'text-rose-500' : 'text-slate-400'" @click.stop="handleLikeClick">
             <Heart class="w-3 h-3" :class="item.isLiked ? 'fill-rose-500' : ''" />
             {{ item.likesCount }}
           </button>

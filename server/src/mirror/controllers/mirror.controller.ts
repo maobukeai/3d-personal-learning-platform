@@ -5,6 +5,7 @@ import prisma from '../../services/prisma';
 import { getPlanName } from '../../utils/plan-utils';
 import { encryptText } from '../../utils/crypto';
 import { clampLimit, clampPage } from '../../utils/pagination';
+import { config } from '../../config/env';
 
 export const getSources = async (req: AuthRequest, res: Response) => {
   try {
@@ -31,8 +32,8 @@ export const getSources = async (req: AuthRequest, res: Response) => {
     }));
 
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -46,8 +47,8 @@ export const getSource = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(source);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -90,8 +91,8 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
 
     const categories = await mirrorService.getCategories(sourceId);
     res.json(categories);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -118,8 +119,8 @@ export const getResources = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -144,7 +145,7 @@ export const getResource = async (req: AuthRequest, res: Response) => {
     }
 
     // Rewrite relative image/link paths in contentHtml and thumbnailUrl to include the request host
-    const hostUrl = `${req.protocol}://${req.get('host')}`;
+    const hostUrl = config.BACKEND_URL.replace(/\/$/, '');
     let cleanHtml = resource.contentHtml || '';
     if (cleanHtml) {
       cleanHtml = cleanHtml.replace(
@@ -200,16 +201,16 @@ export const getResource = async (req: AuthRequest, res: Response) => {
 
     res.json({
       ...resource,
-      contentHtml: strippedHtml,
+      contentHtml: access.hasAccess ? strippedHtml : null,
       thumbnailUrl: finalThumbnail,
       hasAccess: access.hasAccess,
       hasLinks: hasManualLink,
-      links: linksMeta,
+      links: access.hasAccess ? linksMeta : [],
       requiredPlan: access.requiredPlan,
       currentPlan: access.currentPlan,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -232,8 +233,8 @@ export const searchResources = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -247,8 +248,8 @@ export const getSourceStats = async (req: AuthRequest, res: Response) => {
 
     const stats = await mirrorService.getSourceStats(sourceId);
     res.json(stats);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -270,8 +271,8 @@ export const getPlanRequiredForSource = async (req: Request, res: Response) => {
       minPlanPriority: source.minPlanPriority,
       minPlanName: getPlanName(source.minPlanPriority),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -301,8 +302,8 @@ export const getResourceComments = async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
     res.json(comments);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -352,8 +353,8 @@ export const createResourceComment = async (req: AuthRequest, res: Response) => 
     });
 
     res.status(201).json(comment);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -389,8 +390,8 @@ export const deleteResourceComment = async (req: AuthRequest, res: Response) => 
     });
 
     res.json({ message: '评论删除成功' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -447,8 +448,8 @@ export const toggleResourceLike = async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ liked, count });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -484,8 +485,8 @@ export const getResourceLikeStatus = async (req: AuthRequest, res: Response) => 
     }
 
     res.json({ liked, count });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -552,7 +553,7 @@ export const extractResourceLink = async (req: AuthRequest, res: Response) => {
               ? '123云盘'
               : '资源网盘',
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -25,6 +26,7 @@ import {
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
@@ -50,7 +52,7 @@ const fetchCourse = async () => {
   try {
     const { data } = await api.get(`/api/courses/${courseId}`);
     course.value = data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('加载课程失败');
     router.push('/academy');
   } finally {
@@ -105,7 +107,6 @@ const ratingDistribution = computed(() => {
 });
 
 const handleEnroll = async () => {
-  const { useAuthStore } = await import('@/stores/auth');
   const authStore = useAuthStore();
 
   if (!authStore.isAuthenticated) {
@@ -122,8 +123,8 @@ const handleEnroll = async () => {
     await api.post('/api/courses/enroll', { courseId });
     ElMessage.success('成功加入课程');
     fetchCourse();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '加入课程失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '加入课程失败'));
   } finally {
     isEnrolling.value = false;
   }
@@ -157,7 +158,6 @@ const handleShare = () => {
 const handleSubmitReview = async () => {
   if (!reviewComment.value.trim() && reviewRating.value === 0) return;
 
-  const { useAuthStore } = await import('@/stores/auth');
   const authStore = useAuthStore();
 
   if (!authStore.isAuthenticated) {
@@ -180,8 +180,8 @@ const handleSubmitReview = async () => {
     reviewComment.value = '';
     reviewRating.value = 5;
     fetchCourse();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '提交评价失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '提交评价失败'));
   } finally {
     isSubmittingReview.value = false;
   }
@@ -226,29 +226,20 @@ onMounted(fetchCourse);
       class="h-14 px-4 sm:px-6 md:px-8 flex items-center gap-4 shrink-0 border-b transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <button
-        class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-        @click="router.push('/academy')"
-      >
+      <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="router.push('/academy')">
         <ChevronLeft class="w-5 h-5" style="color: var(--text-secondary)" />
       </button>
       <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
       <span class="text-sm font-bold" style="color: var(--text-primary)">课程详情</span>
       <div class="ml-auto flex items-center gap-2">
-        <button
-          class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-          @click="toggleBookmark"
-        >
+        <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="toggleBookmark">
           <Bookmark
             class="w-4 h-4"
             :class="isBookmarked ? 'text-amber-400 fill-amber-400' : ''"
             style="color: var(--text-muted)"
           />
         </button>
-        <button
-          class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-          @click="handleShare"
-        >
+        <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="handleShare">
           <Share2 class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
       </div>
@@ -268,13 +259,10 @@ onMounted(fetchCourse);
           <div class="relative rounded-xl md:rounded-2xl overflow-hidden shadow-md border" style="border-color: var(--border-base)">
             <div class="h-40 md:h-52 overflow-hidden">
               <img
-                :src="
+alt="" :src="
                   course.thumbnail ||
                   'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=60'
-                "
-                referrerpolicy="no-referrer"
-                class="w-full h-full object-cover"
-              />
+                " referrerpolicy="no-referrer" class="w-full h-full object-cover" />
               <div
                 class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent"
               ></div>
@@ -409,27 +397,19 @@ onMounted(fetchCourse);
                 style="background-color: var(--bg-card); border-color: var(--border-base)"
               >
                 <button
-                  class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer"
-                  :class="
+type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer" :class="
                     activeSection === 'outline'
                       ? 'bg-accent text-white shadow-sm shadow-accent/15'
                       : ''
-                  "
-                  :style="activeSection !== 'outline' ? 'color: var(--text-secondary)' : ''"
-                  @click="activeSection = 'outline'"
-                >
+                  " :style="activeSection !== 'outline' ? 'color: var(--text-secondary)' : ''" @click="activeSection = 'outline'">
                   课程大纲
                 </button>
                 <button
-                  class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer"
-                  :class="
+type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer" :class="
                     activeSection === 'reviews'
                       ? 'bg-accent text-white shadow-sm shadow-accent/15'
                       : ''
-                  "
-                  :style="activeSection !== 'reviews' ? 'color: var(--text-secondary)' : ''"
-                  @click="activeSection = 'reviews'"
-                >
+                  " :style="activeSection !== 'reviews' ? 'color: var(--text-secondary)' : ''" @click="activeSection = 'reviews'">
                   学员评价 ({{ course._count?.reviews || 0 }})
                 </button>
               </div>
@@ -486,10 +466,7 @@ onMounted(fetchCourse);
                         </span>
                       </div>
                     </div>
-                    <button
-                      v-if="isEnrolled"
-                      class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10 cursor-pointer shrink-0"
-                    >
+                    <button v-if="isEnrolled" type="button" class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10 cursor-pointer shrink-0">
                       <PlayCircle class="w-3.5 h-3.5 text-accent" />
                     </button>
                   </div>
@@ -573,12 +550,7 @@ onMounted(fetchCourse);
                   </h4>
                   <div class="flex items-center gap-2 mb-3">
                     <span class="text-[11px] font-bold" style="color: var(--text-muted)">评分：</span>
-                    <button
-                      v-for="i in 5"
-                      :key="i"
-                      class="p-0.5 transition-transform hover:scale-125 cursor-pointer"
-                      @click="reviewRating = i"
-                    >
+                    <button v-for="i in 5" :key="i" type="button" class="p-0.5 transition-transform hover:scale-125 cursor-pointer" @click="reviewRating = i">
                       <Star
                         class="w-4.5 h-4.5 transition-colors"
                         :class="
@@ -601,11 +573,7 @@ onMounted(fetchCourse);
                     "
                   ></textarea>
                   <div class="flex justify-end mt-2">
-                    <button
-                      :disabled="isSubmittingReview"
-                      class="flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white font-bold text-xs rounded-lg shadow disabled:opacity-50 transition-all cursor-pointer"
-                      @click="handleSubmitReview"
-                    >
+                    <button type="button" :disabled="isSubmittingReview" class="flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white font-bold text-xs rounded-lg shadow disabled:opacity-50 transition-all cursor-pointer" @click="handleSubmitReview">
                       <Send class="w-3.5 h-3.5" />
                       提交评价
                     </button>
@@ -703,10 +671,7 @@ onMounted(fetchCourse);
                   <p class="text-[10px] mb-3" style="color: var(--text-muted)">
                     已完成 {{ completedLessonCount }} / {{ course.lessons?.length || 0 }} 课时
                   </p>
-                  <button
-                    class="w-full py-2 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
-                    @click="handleStartLearning()"
-                  >
+                  <button type="button" class="w-full py-2 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md flex items-center justify-center gap-1.5 cursor-pointer" @click="handleStartLearning()">
                     <PlayCircle class="w-4 h-4" />
                     继续学习
                   </button>
@@ -740,11 +705,7 @@ onMounted(fetchCourse);
                         >{{ course._count?.enrollments || 0 }} 人已参加</span>
                     </div>
                   </div>
-                  <button
-                    :disabled="isEnrolling"
-                    class="w-full py-2.5 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
-                    @click="handleEnroll"
-                  >
+                  <button type="button" :disabled="isEnrolling" class="w-full py-2.5 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer" @click="handleEnroll">
                     <GraduationCap class="w-4 h-4" />
                     {{ isEnrolling ? '加入中...' : '立即参加' }}
                   </button>
@@ -811,10 +772,7 @@ onMounted(fetchCourse);
                       color: var(--text-primary);
                     "
                   ></textarea>
-                  <button
-                    class="w-full mt-2 py-1.5 border border-slate-200 dark:border-white/10 text-[10px] font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    style="color: var(--text-secondary)"
-                  >
+                  <button type="button" class="w-full mt-2 py-1.5 border border-slate-200 dark:border-white/10 text-[10px] font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5 cursor-pointer" style="color: var(--text-secondary)">
                     <StickyNote class="w-3.5 h-3.5" /> 保存笔记
                   </button>
                 </div>
@@ -828,11 +786,7 @@ onMounted(fetchCourse);
             class="lg:hidden sticky bottom-0 p-4 border-t"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <button
-              :disabled="isEnrolling"
-              class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2"
-              @click="handleEnroll"
-            >
+            <button type="button" :disabled="isEnrolling" class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleEnroll">
               <GraduationCap class="w-5 h-5" />
               {{ isEnrolling ? '加入中...' : '立即参加课程' }}
             </button>
@@ -842,10 +796,7 @@ onMounted(fetchCourse);
             class="lg:hidden sticky bottom-0 p-4 border-t"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <button
-              class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center gap-2"
-              @click="handleStartLearning()"
-            >
+            <button type="button" class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center gap-2" @click="handleStartLearning()">
               <PlayCircle class="w-5 h-5" />
               继续学习 ({{ courseProgress }}%)
             </button>

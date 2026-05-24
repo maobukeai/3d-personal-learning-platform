@@ -1,19 +1,58 @@
 import { Response } from 'express';
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
 
 // Admin: Get all activation codes
 export const getAllActivationCodes = async (req: AuthRequest, res: Response) => {
   try {
-    const codes = await prisma.activationCode.findMany({
-      include: {
-        plan: true,
-        usedBy: { select: { name: true, email: true, avatarUrl: true } },
-      },
-      orderBy: { createdAt: 'desc' },
+    const { page, limit, skip } = getPaginationParams(req.query, 100, 500);
+    const status =
+      typeof req.query.status === 'string' && req.query.status !== 'ALL'
+        ? req.query.status
+        : undefined;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const where: Prisma.ActivationCodeWhereInput = {
+      ...(status === 'DISABLED'
+        ? { status: { notIn: ['ACTIVE', 'USED'] } }
+        : status
+          ? { status }
+          : {}),
+      ...(q
+        ? {
+            OR: [
+              { code: { contains: q } },
+              { bindEmail: { contains: q } },
+              { description: { contains: q } },
+              { plan: { is: { name: { contains: q } } } },
+              { plan: { is: { displayName: { contains: q } } } },
+              { usedBy: { is: { name: { contains: q } } } },
+              { usedBy: { is: { email: { contains: q } } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, codes] = await prisma.$transaction([
+      prisma.activationCode.count({ where }),
+      prisma.activationCode.findMany({
+        where,
+        include: {
+          plan: true,
+          usedBy: { select: { name: true, email: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      data: codes,
+      pagination: createPaginationMeta(page, limit, total),
     });
-    res.json(codes);
   } catch (error) {
     console.error('Get all activation codes error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -258,7 +297,7 @@ export const redeemActivationCode = async (req: AuthRequest, res: Response) => {
       planName: result.planName,
       endDate: result.endDate,
     });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message || '兑换失败，请稍后重试' });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : '兑换失败，请稍后重试' });
   }
 };

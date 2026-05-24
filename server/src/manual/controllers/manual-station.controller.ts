@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import prisma from '../../services/prisma';
 import { clampLimit, clampPage } from '../../utils/pagination';
+import { config } from '../../config/env';
 
 // Helper to check user plan priority vs station priority
 const getUserPlanPriority = async (userId: string): Promise<number> => {
@@ -69,8 +70,8 @@ export const getStations = async (req: AuthRequest, res: Response) => {
     }));
 
     res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -94,8 +95,8 @@ export const getStation = async (req: AuthRequest, res: Response) => {
       ...station,
       hasAccess: userPlanPriority >= station.minPlanPriority,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -112,8 +113,8 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
       orderBy: { order: 'asc' },
     });
     res.json(categories);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -173,8 +174,8 @@ export const getResources = async (req: AuthRequest, res: Response) => {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -206,7 +207,7 @@ export const getResource = async (req: AuthRequest, res: Response) => {
     }
 
     // Host url mapping for local media files
-    const hostUrl = `${req.protocol}://${req.get('host')}`;
+    const hostUrl = config.BACKEND_URL.replace(/\/$/, '');
     let cleanHtml = resource.contentHtml || '';
     if (cleanHtml) {
       cleanHtml = cleanHtml.replace(
@@ -263,7 +264,7 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       title: resource.title,
       description: resource.description,
       thumbnailUrl: finalThumbnail,
-      contentHtml: cleanHtml,
+      contentHtml: access.hasAccess ? cleanHtml : null,
       resourceType: resource.resourceType,
       viewCount: resource.viewCount + 1,
       createdAt: resource.createdAt,
@@ -271,12 +272,12 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       comments: resource.comments,
       likeCount: resource.likes.length,
       hasLiked,
-      links: linksMeta,
+      links: access.hasAccess ? linksMeta : [],
       hasAccess: access.hasAccess,
       minPlanPriority: access.requiredPlan,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -294,6 +295,9 @@ export const extractDownloadLink = async (req: AuthRequest, res: Response) => {
 
     const access = await checkStationAccess(resource.stationId, req);
     if (!access.hasAccess) {
+      if (access.error === '站点不存在') {
+        return res.status(404).json({ error: '站点不存在' });
+      }
       return res.status(403).json({
         error: '权限不足',
         message: '您的会员权限不足，无法提取此资源链接',
@@ -305,8 +309,8 @@ export const extractDownloadLink = async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ downloadUrl: resource.contentUrl });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -339,8 +343,8 @@ export const createComment = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(comment);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -366,8 +370,8 @@ export const toggleLike = async (req: AuthRequest, res: Response) => {
       });
       return res.json({ liked: true });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -399,8 +403,8 @@ export const createStation = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(station);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -426,8 +430,8 @@ export const updateStation = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(station);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -436,8 +440,8 @@ export const deleteStation = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
     await prisma.manualStation.delete({ where: { id } });
     res.json({ message: '站点删除成功' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -473,8 +477,8 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
     }
 
     res.status(201).json(category);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -518,8 +522,8 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(category);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -535,8 +539,8 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
 
     await prisma.manualCategory.delete({ where: { id: catId } });
     res.json({ message: '分类删除成功' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -580,8 +584,8 @@ export const createResource = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(resource);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -614,8 +618,8 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(resource);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -640,8 +644,8 @@ export const deleteResource = async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ message: '资源删除成功' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
 
@@ -652,7 +656,7 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
     }
     const relativePath = `/uploads/manual/${req.file.filename}`;
     res.json({ url: relativePath });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: '图片上传失败' });
   }
 };

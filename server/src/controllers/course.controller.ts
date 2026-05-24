@@ -74,8 +74,8 @@ export const parseBilibili = async (req: AuthRequest, res: Response, next: NextF
   try {
     const metadata = await parseBilibiliUrl(url);
     res.json(metadata);
-  } catch (error: any) {
-    next(new AppError(error.message || 'Failed to parse Bilibili URL', 400));
+  } catch (error) {
+    next(new AppError((error instanceof Error ? error.message : 'Failed to parse Bilibili URL'), 400));
   }
 };
 
@@ -310,8 +310,8 @@ export const enrollInCourse = async (req: AuthRequest, res: Response, next: Next
     });
 
     res.status(201).json(enrollment);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
       return next(new AppError('You are already enrolled in this course in this workspace', 400));
     }
     next(error);
@@ -467,8 +467,8 @@ export const createReview = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
     res.status(201).json(review);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
       return next(new AppError('You have already reviewed this course', 400));
     }
     next(error);

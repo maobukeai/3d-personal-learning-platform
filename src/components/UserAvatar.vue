@@ -4,8 +4,8 @@ import { User } from 'lucide-vue-next';
 
 const props = defineProps<{
   user?: {
-    name?: string;
-    email?: string;
+    name?: string | null;
+    email?: string | null;
     avatarUrl?: string | null;
     role?: string;
     subscription?: {
@@ -201,13 +201,7 @@ const fallbackBgColor = computed(() => {
         <div
           class="w-full h-full rounded-[inherit] overflow-hidden bg-[var(--bg-card)] relative z-10"
         >
-          <img
-            v-if="user?.avatarUrl && !imageError"
-            :src="user.avatarUrl"
-            class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
-            :alt="user.name"
-            @error="handleImageError"
-          />
+          <img v-if="user?.avatarUrl && !imageError" :src="user.avatarUrl" class="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110" :alt="user.name || ''" @error="handleImageError" />
           <div
             v-else
             class="w-full h-full flex items-center justify-center text-white font-bold"

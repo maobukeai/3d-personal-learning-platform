@@ -20,6 +20,7 @@ import {
   Globe
 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
 
 // Account structure definition
 interface EmailAccount {
@@ -181,8 +182,8 @@ const fetchAccounts = async () => {
   try {
     const res = await api.get('/api/email/accounts');
     accounts.value = res.data || [];
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '获取邮箱账号列表失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '获取邮箱账号列表失败'));
   } finally {
     isAccountsLoading.value = false;
   }
@@ -207,8 +208,8 @@ const fetchMessages = async () => {
       },
     });
     messages.value = res.data || [];
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '同步邮件失败，请确认令牌有效性');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '同步邮件失败，请确认令牌有效性'));
     messages.value = [];
   } finally {
     isMessagesLoading.value = false;
@@ -237,11 +238,11 @@ const testConnection = async (account: EmailAccount) => {
       type: 'success',
     });
     await fetchAccounts();
-  } catch (e: any) {
+  } catch (e: unknown) {
     loading.close();
     ElNotification({
       title: '连接测试失败',
-      message: `${account.email}: ${e.response?.data?.details || e.message}`,
+      message: `${account.email}: ${getApiErrorMessage(e, '连接测试失败')}`,
       type: 'error',
     });
     await fetchAccounts();
@@ -269,7 +270,7 @@ const deleteAccount = async (account: EmailAccount) => {
         messages.value = [];
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // cancelled
   }
 };
@@ -299,8 +300,8 @@ const handleBatchImport = async () => {
       selectedAccountId.value = accounts.value[0].id;
       await fetchMessages();
     }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '导入失败，请检查数据格式');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '导入失败，请检查数据格式'));
   } finally {
     isAccountsLoading.value = false;
   }
@@ -343,8 +344,8 @@ const handleAddSingle = async () => {
       selectedAccountId.value = accounts.value[0].id;
       await fetchMessages();
     }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.error || '添加账号失败');
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '添加账号失败'));
   } finally {
     isAccountsLoading.value = false;
   }
@@ -376,8 +377,8 @@ const toggleMessageReadStatus = async (msg: MailMessage) => {
     });
     msg.isRead = targetState;
     ElMessage.success(targetState ? '邮件已标记为已读' : '邮件已标记为未读');
-  } catch (e: any) {
-    ElMessage.error('操作失败: ' + e.message);
+  } catch (e: unknown) {
+    ElMessage.error(`操作失败: ${getApiErrorMessage(e, '未知错误')}`);
   }
 };
 
@@ -395,7 +396,7 @@ const deleteMessage = async (msg: MailMessage) => {
     if (selectedMessage.value?.id === msg.id) {
       selectedMessage.value = null;
     }
-  } catch (e) {
+  } catch (_e) {
     // cancelled
   }
 };
@@ -415,7 +416,7 @@ const handleBatchTest = async () => {
     try {
       await api.post(`/api/email/accounts/${id}/test`);
       successCount++;
-    } catch (e) {
+    } catch (_e) {
       failCount++;
     }
   });
@@ -464,7 +465,7 @@ const handleBatchDelete = async () => {
 
     isMultiSelectMode.value = false;
     await fetchAccounts();
-  } catch (e) {
+  } catch (_e) {
     // cancelled
   } finally {
     isBatchDeleting.value = false;
@@ -518,8 +519,8 @@ const handleSendEmail = async () => {
     if (selectedAccountId.value) {
       await fetchMessages();
     }
-  } catch (e: any) {
-    ElMessageBox.alert(e.response?.data?.error || '邮件发送异常，请检查账号限制及代理配置', '邮件发送失败', {
+  } catch (e: unknown) {
+    ElMessageBox.alert(getApiErrorMessage(e, '邮件发送异常，请检查账号限制及代理配置'), '邮件发送失败', {
       confirmButtonText: '了解',
       type: 'error',
     });
@@ -557,23 +558,17 @@ const formatDate = (dateStr: string) => {
             <span class="font-semibold text-slate-800 dark:text-slate-100">微软邮箱集成系统</span>
           </div>
           <el-tooltip content="刷新账号列表" placement="top">
-            <button @click="fetchAccounts" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors duration-200">
+            <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors duration-200" @click="fetchAccounts">
               <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isAccountsLoading }" />
             </button>
           </el-tooltip>
         </div>
 
         <div class="grid grid-cols-2 gap-2 mt-1">
-          <button
-            @click="isImportDialogVisible = true"
-            class="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs font-medium transition-all duration-200 shadow-sm shadow-indigo-200 dark:shadow-none"
-          >
+          <button type="button" class="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs font-medium transition-all duration-200 shadow-sm shadow-indigo-200 dark:shadow-none" @click="isImportDialogVisible = true">
             <Plus class="w-3.5 h-3.5" /> 批量导入
           </button>
-          <button
-            @click="isAddDialogVisible = true"
-            class="flex items-center justify-center gap-1.5 py-1.5 px-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-xs font-medium transition-all duration-200"
-          >
+          <button type="button" class="flex items-center justify-center gap-1.5 py-1.5 px-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-xs font-medium transition-all duration-200" @click="isAddDialogVisible = true">
             <Plus class="w-3.5 h-3.5" /> 添加账号
           </button>
         </div>
@@ -583,41 +578,29 @@ const formatDate = (dateStr: string) => {
       <div class="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-4">
         <div>
           <div class="flex items-center justify-between px-2 mb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
-            <div class="flex items-center gap-1.5" v-if="isMultiSelectMode">
+            <div v-if="isMultiSelectMode" class="flex items-center gap-1.5">
               <input
                 type="checkbox"
                 :checked="isAllSelected"
-                @change="toggleSelectAll"
                 class="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                @change="toggleSelectAll"
               />
               <span>全选 ({{ selectedAccountIds.length }}/{{ accounts.length }})</span>
             </div>
             <span v-else>已绑定账号 ({{ accounts.length }})</span>
             
-            <button
-              v-if="accounts.length > 0"
-              @click="isMultiSelectMode = !isMultiSelectMode"
-              class="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer transition-colors"
-            >
+            <button v-if="accounts.length > 0" type="button" class="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer transition-colors" @click="isMultiSelectMode = !isMultiSelectMode">
               {{ isMultiSelectMode ? '取消多选' : '多选管理' }}
             </button>
           </div>
 
           <!-- Batch Action Buttons -->
           <div v-if="isMultiSelectMode && accounts.length > 0" class="flex gap-2 mb-3 px-1">
-            <button
-              @click="handleBatchTest"
-              :disabled="selectedAccountIds.length === 0 || isBatchTesting"
-              class="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100/80 text-indigo-600 dark:text-indigo-400 disabled:opacity-50 disabled:pointer-events-none rounded-lg text-[10px] font-bold border border-indigo-200/50 dark:border-indigo-900/40 transition-all cursor-pointer"
-            >
+            <button type="button" :disabled="selectedAccountIds.length === 0 || isBatchTesting" class="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100/80 text-indigo-600 dark:text-indigo-400 disabled:opacity-50 disabled:pointer-events-none rounded-lg text-[10px] font-bold border border-indigo-200/50 dark:border-indigo-900/40 transition-all cursor-pointer" @click="handleBatchTest">
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isBatchTesting }" />
               批量校验
             </button>
-            <button
-              @click="handleBatchDelete"
-              :disabled="selectedAccountIds.length === 0 || isBatchDeleting"
-              class="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100/80 text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:pointer-events-none rounded-lg text-[10px] font-bold border border-rose-200/50 dark:border-rose-900/40 transition-all cursor-pointer"
-            >
+            <button type="button" :disabled="selectedAccountIds.length === 0 || isBatchDeleting" class="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100/80 text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:pointer-events-none rounded-lg text-[10px] font-bold border border-rose-200/50 dark:border-rose-900/40 transition-all cursor-pointer" @click="handleBatchDelete">
               <Trash2 class="w-3.5 h-3.5" />
               批量解绑
             </button>
@@ -632,7 +615,6 @@ const formatDate = (dateStr: string) => {
           <ul v-else class="flex flex-col gap-1.5">
             <li v-for="acc in accounts" :key="acc.id">
               <div
-                @click="isMultiSelectMode ? toggleSelectAccount(acc.id) : selectAccount(acc.id)"
                 class="group w-full text-left p-2.5 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col gap-1.5"
                 :class="[
                   selectedAccountId === acc.id && !isMultiSelectMode
@@ -641,6 +623,7 @@ const formatDate = (dateStr: string) => {
                     ? 'bg-indigo-50/30 border-indigo-200/60 dark:bg-indigo-950/10 dark:border-indigo-900/30'
                     : 'bg-white dark:bg-slate-950 border-slate-200/60 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800'
                 ]"
+                @click="isMultiSelectMode ? toggleSelectAccount(acc.id) : selectAccount(acc.id)"
               >
                 <!-- Email & Connection Indicator -->
                 <div class="flex items-center justify-between gap-1.5">
@@ -649,8 +632,8 @@ const formatDate = (dateStr: string) => {
                       v-if="isMultiSelectMode"
                       type="checkbox"
                       :checked="selectedAccountIds.includes(acc.id)"
-                      @click.stop="toggleSelectAccount(acc.id)"
                       class="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer"
+                      @click.stop="toggleSelectAccount(acc.id)"
                     />
                     <span
                       class="font-medium text-xs truncate"
@@ -699,19 +682,11 @@ const formatDate = (dateStr: string) => {
                     {{ acc.proxy ? acc.proxy.split('@').pop() : 'Direct' }}
                   </span>
                   
-                  <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" v-if="!isMultiSelectMode">
-                    <button
-                      @click.stop="testConnection(acc)"
-                      class="p-0.5 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/50 text-indigo-500 rounded transition-colors"
-                      title="校验微软令牌"
-                    >
+                  <div v-if="!isMultiSelectMode" class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button type="button" class="p-0.5 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/50 text-indigo-500 rounded transition-colors" title="校验微软令牌" @click.stop="testConnection(acc)">
                       <CheckCircle class="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      @click.stop="deleteAccount(acc)"
-                      class="p-0.5 hover:bg-rose-100/50 dark:hover:bg-rose-950/50 text-rose-500 rounded transition-colors"
-                      title="安全解绑账号"
-                    >
+                    <button type="button" class="p-0.5 hover:bg-rose-100/50 dark:hover:bg-rose-950/50 text-rose-500 rounded transition-colors" title="安全解绑账号" @click.stop="deleteAccount(acc)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -727,19 +702,16 @@ const formatDate = (dateStr: string) => {
           <ul class="flex flex-col gap-0.5">
             <li v-for="folder in foldersList" :key="folder.id">
               <button
-                @click="changeFolder(folder.id)"
-                class="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-200 text-left"
-                :class="[
+type="button" class="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-200 text-left" :class="[
                   currentFolder === folder.id
                     ? 'bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold'
                     : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-slate-800 dark:hover:text-slate-200'
-                ]"
-              >
+                ]" @click="changeFolder(folder.id)">
                 <div class="flex items-center gap-2">
                   <component :is="folder.icon" class="w-4 h-4 text-slate-400" />
                   <span>{{ folder.name }}</span>
                 </div>
-                <ChevronRight class="w-3 h-3 text-slate-300" v-show="currentFolder === folder.id" />
+                <ChevronRight v-show="currentFolder === folder.id" class="w-3 h-3 text-slate-300" />
               </button>
             </li>
           </ul>
@@ -768,18 +740,10 @@ const formatDate = (dateStr: string) => {
           </h2>
           
           <div class="flex items-center gap-2">
-            <button
-              @click="triggerCompose"
-              class="p-1.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all duration-200 select-none"
-            >
+            <button type="button" class="p-1.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all duration-200 select-none" @click="triggerCompose">
               <Send class="w-3.5 h-3.5" /> 写信
             </button>
-            <button
-              @click="fetchMessages"
-              :disabled="!selectedAccountId"
-              class="p-1.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="拉取最新邮件"
-            >
+            <button type="button" :disabled="!selectedAccountId" class="p-1.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" title="拉取最新邮件" @click="fetchMessages">
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isMessagesLoading }" />
             </button>
           </div>
@@ -822,13 +786,13 @@ const formatDate = (dateStr: string) => {
           <li
             v-for="msg in filteredMessages"
             :key="msg.id"
-            @click="viewMessage(msg)"
             class="p-3.5 border-b border-slate-100/60 dark:border-slate-900 hover:bg-slate-50/70 dark:hover:bg-slate-900/30 transition-all duration-200 cursor-pointer text-left flex flex-col gap-1.5 relative"
             :class="[
               selectedMessage?.id === msg.id
                 ? 'bg-indigo-50/30 dark:bg-indigo-950/10 border-l-2 border-l-indigo-500'
                 : ''
             ]"
+            @click="viewMessage(msg)"
           >
             <!-- Unread Dot Badge -->
             <span
@@ -883,17 +847,11 @@ const formatDate = (dateStr: string) => {
         <!-- Control Header -->
         <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex items-center justify-between shrink-0">
           <div class="flex items-center gap-2">
-            <button
-              @click="toggleMessageReadStatus(selectedMessage)"
-              class="flex items-center gap-1.5 py-1.5 px-3 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
-            >
+            <button type="button" class="flex items-center gap-1.5 py-1.5 px-3 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg text-xs font-semibold transition-colors" @click="toggleMessageReadStatus(selectedMessage)">
               <Eye class="w-3.5 h-3.5" />
               <span>标记为{{ selectedMessage.isRead ? '未读' : '已读' }}</span>
             </button>
-            <button
-              @click="deleteMessage(selectedMessage)"
-              class="flex items-center gap-1.5 py-1.5 px-3 border border-rose-100 hover:bg-rose-50 text-rose-500 rounded-lg text-xs font-semibold transition-colors"
-            >
+            <button type="button" class="flex items-center gap-1.5 py-1.5 px-3 border border-rose-100 hover:bg-rose-50 text-rose-500 rounded-lg text-xs font-semibold transition-colors" @click="deleteMessage(selectedMessage)">
               <Trash2 class="w-3.5 h-3.5" />
               <span>删除邮件</span>
             </button>
@@ -929,7 +887,7 @@ const formatDate = (dateStr: string) => {
                 发件人: <span class="text-slate-500">{{ selectedMessage.from?.emailAddress?.address }}</span>
               </div>
               <div class="text-[11px] text-slate-400 truncate max-w-[500px]">
-                收件人: <span class="text-slate-500" v-for="rec in selectedMessage.toRecipients" :key="rec.emailAddress.address">{{ rec.emailAddress.name || rec.emailAddress.address }}; </span>
+                收件人: <span v-for="rec in selectedMessage.toRecipients" :key="rec.emailAddress.address" class="text-slate-500">{{ rec.emailAddress.name || rec.emailAddress.address }}; </span>
               </div>
             </div>
           </div>
@@ -976,17 +934,10 @@ const formatDate = (dateStr: string) => {
             <span>编写新邮件</span>
           </h2>
           <div class="flex items-center gap-2">
-            <button
-              @click="isComposeMode = false"
-              class="py-1.5 px-3 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
-            >
+            <button type="button" class="py-1.5 px-3 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg text-xs font-semibold transition-colors" @click="isComposeMode = false">
               取消发送
             </button>
-            <button
-              @click="handleSendEmail"
-              :disabled="isSending"
-              class="flex items-center gap-1.5 py-1.5 px-4.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-200 dark:shadow-none"
-            >
+            <button type="button" :disabled="isSending" class="flex items-center gap-1.5 py-1.5 px-4.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-200 dark:shadow-none" @click="handleSendEmail">
               <Send class="w-3.5 h-3.5" />
               <span>{{ isSending ? '正在发出...' : '立即发出' }}</span>
             </button>
@@ -1139,8 +1090,8 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
       
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button @click="isImportDialogVisible = false" size="small">取消</el-button>
-          <el-button type="primary" @click="handleBatchImport" :loading="isAccountsLoading" size="small">确认解析导入</el-button>
+          <el-button size="small" @click="isImportDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="isAccountsLoading" size="small" @click="handleBatchImport">确认解析导入</el-button>
         </div>
       </template>
     </el-dialog>
@@ -1222,8 +1173,8 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button @click="isAddDialogVisible = false" size="small">取消</el-button>
-          <el-button type="primary" @click="handleAddSingle" :loading="isAccountsLoading" size="small">保存并激活</el-button>
+          <el-button size="small" @click="isAddDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="isAccountsLoading" size="small" @click="handleAddSingle">保存并激活</el-button>
         </div>
       </template>
     </el-dialog>

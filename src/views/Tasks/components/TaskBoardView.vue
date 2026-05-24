@@ -1,0 +1,219 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import draggable from 'vuedraggable';
+import { Plus } from 'lucide-vue-next';
+import { ElMessage } from 'element-plus';
+import TaskCard from '@/components/TaskCard.vue';
+import api from '@/utils/api';
+import { useWorkspaceStore } from '@/stores/workspace';
+
+interface Props {
+  tasksByGroup: Record<string, any[]>;
+  activeColumns: any[];
+  groupBy: 'status' | 'priority';
+}
+
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+  (e: 'refresh'): void;
+  (e: 'refresh-stats'): void;
+  (e: 'open-add-dialog', colId: string): void;
+  (e: 'open-detail', task: any): void;
+  (e: 'open-profile', userId: string): void;
+}>();
+
+const workspaceStore = useWorkspaceStore();
+const inlineTitles = ref<Record<string, string>>({});
+
+const onDragChange = async (event: any, columnId: string) => {
+  if (event.added) {
+    const task = event.added.element;
+    try {
+      const updatePayload: any = { ...task };
+      if (props.groupBy === 'status') {
+        updatePayload.status = columnId;
+      } else {
+        updatePayload.priority = columnId;
+      }
+
+      const cleanPayload = {
+        title: updatePayload.title,
+        description: updatePayload.description,
+        status: updatePayload.status,
+        priority: updatePayload.priority,
+        tags: updatePayload.tags,
+        dueDate: updatePayload.dueDate,
+        assigneeId: updatePayload.assigneeId,
+        projectId: updatePayload.projectId,
+        subtasks: updatePayload.subtasks,
+        participantIds: updatePayload.participants
+          ? updatePayload.participants.map((p: any) => p.userId)
+          : [],
+      };
+
+      await api.put(`/api/tasks/${task.id}`, cleanPayload);
+
+      if (props.groupBy === 'status') {
+        const labels: Record<string, string> = {
+          TODO: '待办',
+          IN_PROGRESS: '进行中',
+          DONE: '已完成',
+        };
+        ElMessage.success(`已移动到 ${labels[columnId] || columnId}`);
+      } else {
+        const labels: Record<string, string> = {
+          URGENT: '紧急',
+          HIGH: '高',
+          MEDIUM: '中',
+          LOW: '低',
+          NONE: '无',
+        };
+        ElMessage.success(`优先级已更新为 ${labels[columnId] || columnId}`);
+      }
+      emit('refresh-stats');
+      emit('refresh');
+    } catch {
+      ElMessage.error('更新失败');
+      emit('refresh');
+    }
+  }
+};
+
+const handleInlineAdd = async (columnId: string) => {
+  const title = inlineTitles.value[columnId]?.trim();
+  if (!title) return;
+
+  try {
+    const payload = {
+      title,
+      status: props.groupBy === 'status' ? columnId : 'TODO',
+      priority: props.groupBy === 'priority' ? columnId : 'MEDIUM',
+      teamId: workspaceStore.activeTeamId || null,
+      subtasks: '[]',
+      tags: null,
+      dueDate: null,
+      assigneeId: null,
+      projectId: null,
+      participantIds: [],
+    };
+
+    await api.post('/api/tasks', payload);
+    ElMessage.success('任务已快速创建');
+    inlineTitles.value[columnId] = '';
+    emit('refresh');
+    emit('refresh-stats');
+  } catch {
+    ElMessage.error('快速创建任务失败');
+  }
+};
+
+const openAddDialogByCol = (colId: string) => {
+  emit('open-add-dialog', colId);
+};
+
+const openDetailDrawer = (task: any) => {
+  emit('open-detail', task);
+};
+
+const openUserProfile = (userId: string) => {
+  emit('open-profile', userId);
+};
+</script>
+
+<template>
+  <div class="flex-1 overflow-hidden p-1 sm:p-4">
+    <div class="md:gap-4 gap-1 sm:gap-2.5 h-full flex w-full">
+      <div
+        v-for="col in activeColumns"
+        :key="col.id"
+        class="flex flex-col min-w-0 sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border"
+        style="background-color: var(--bg-card); border-color: var(--border-base)"
+      >
+        <!-- Column Header -->
+        <div
+          class="px-1.5 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2.5"
+          :class="'bg-gradient-to-b ' + col.headerBg"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1 sm:gap-1.5 min-w-0">
+              <div
+                class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
+                :class="col.color"
+              ></div>
+              <h2
+                class="text-[9px] sm:text-xs font-black uppercase tracking-wider truncate"
+                style="color: var(--text-primary)"
+              >
+                {{ col.title }}
+              </h2>
+              <span
+                class="hidden sm:inline-block text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500"
+              >
+                {{ tasksByGroup[col.id]?.length || 0 }}
+              </span>
+            </div>
+            <button type="button" class="hidden sm:inline-flex p-1 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all shrink-0" @click="openAddDialogByCol(col.id)">
+              <Plus class="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Draggable Task List -->
+        <draggable
+          :list="tasksByGroup[col.id] || []"
+          group="tasks"
+          item-key="id"
+          class="flex-1 overflow-y-auto space-y-1 sm:space-y-2 px-1 sm:px-3 pb-3 scrollbar-hide min-h-[100px]"
+          :animation="200"
+          ghost-class="opacity-50"
+          :delay="100"
+          :delay-on-touch-only="true"
+          :touch-start-threshold="5"
+          @change="(e: any) => onDragChange(e, col.id)"
+        >
+          <template #item="{ element: task }">
+            <div>
+              <TaskCard
+                :task="task"
+                layout="board"
+                @click="openDetailDrawer"
+                @user-click="openUserProfile"
+              />
+            </div>
+          </template>
+        </draggable>
+
+        <!-- Inline Column Quick Add -->
+        <div
+          class="px-1 pb-1.5 pt-1 border-t shrink-0 bg-slate-50/30 dark:bg-white/2"
+          style="border-color: var(--border-base)"
+        >
+          <div class="relative flex items-center">
+            <input
+              v-model="inlineTitles[col.id]"
+              type="text"
+              placeholder="+ 快速添加..."
+              class="w-full px-1.5 sm:px-2.5 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/70 focus:bg-white dark:focus:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 focus:border-accent/40 rounded-lg text-[9px] sm:text-[10px] focus:outline-none transition-all pr-8"
+              style="color: var(--text-primary)"
+              @keyup.enter="handleInlineAdd(col.id)"
+            />
+            <button v-show="inlineTitles[col.id]?.trim()" type="button" class="absolute right-1 p-0.5 sm:p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all" @click="handleInlineAdd(col.id)">
+              <Plus class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div
+          v-if="!tasksByGroup[col.id] || tasksByGroup[col.id].length === 0"
+          class="absolute inset-x-3 top-16 bottom-14 flex flex-col items-center justify-center border-2 border-dashed rounded-lg sm:rounded-xl opacity-20 hover:opacity-100 hover:border-accent hover:text-accent cursor-pointer transition-all pointer-events-none"
+          style="border-color: var(--border-base)"
+        >
+          <Plus class="w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
+          <p class="hidden sm:block text-[10px] font-bold">拖拽或点击新建</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

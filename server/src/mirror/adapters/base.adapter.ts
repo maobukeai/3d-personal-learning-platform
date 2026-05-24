@@ -94,8 +94,8 @@ export abstract class BaseAdapter {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         return await fn();
-      } catch (e: any) {
-        lastError = e;
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e));
 
         if (this.isNonRetryableError(e)) {
           throw e;
@@ -104,7 +104,7 @@ export abstract class BaseAdapter {
         if (attempt < retries) {
           const delayMs = this.retryBaseDelay * Math.pow(2, attempt) + Math.random() * 500;
           console.warn(
-            `[BaseAdapter] Attempt ${attempt + 1}/${retries + 1} failed: ${e.message}. Retrying in ${Math.round(delayMs)}ms...`,
+            `[BaseAdapter] Attempt ${attempt + 1}/${retries + 1} failed: ${(e instanceof Error ? e.message : String(e))}. Retrying in ${Math.round(delayMs)}ms...`,
           );
           await this.delay(delayMs);
         }
@@ -114,11 +114,13 @@ export abstract class BaseAdapter {
     throw lastError;
   }
 
-  private isNonRetryableError(error: any): boolean {
-    if (error?.message?.includes('HTTP 4')) return true;
-    if (error?.message?.includes('HTTP 403')) return true;
-    if (error?.message?.includes('HTTP 404')) return true;
-    if (error?.name === 'AbortError') return false;
+  private isNonRetryableError(error: unknown): boolean {
+    if (error instanceof Error) {
+      if (error.message?.includes('HTTP 4')) return true;
+      if (error.message?.includes('HTTP 403')) return true;
+      if (error.message?.includes('HTTP 404')) return true;
+      if (error.name === 'AbortError') return false;
+    }
     return false;
   }
 

@@ -23,6 +23,11 @@ server/.env.*
 # 用户上传的文件 - 不应纳入版本控制
 server/uploads/
 
+# Local review artifacts and ad-hoc scratch files
+.codex-review-screens/
+scratch/
+server/scratch/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -34,3 +39,4 @@ server/uploads/
 *.sln
 *.sw?
 .gstack/
+.superpowers/

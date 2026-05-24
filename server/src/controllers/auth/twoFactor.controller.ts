@@ -72,11 +72,20 @@ export const regenerateRecoveryCodes = async (
 };
 
 export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { code } = req.body;
+  const { code, password } = req.body;
   try {
+    if (!password) {
+      return next(new AppError('启用两步验证需要验证当前密码', 400));
+    }
+
     const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
     if (!user || !user.twoFactorSecret) {
       return next(new AppError('Invalid request', 400));
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return next(new AppError('密码错误', 400));
     }
 
     const isValid = speakeasy.totp.verify({

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import {
   Users,
@@ -21,8 +22,40 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 
 const workspaceStore = useWorkspaceStore();
-const teams = ref<any[]>([]);
-const users = ref<any[]>([]);
+
+interface AdminTeamUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+}
+
+interface AdminTeamMember {
+  id?: string;
+  userId: string;
+  role: string;
+  user?: AdminTeamUser;
+}
+
+interface AdminTeam {
+  id: string;
+  name: string;
+  description?: string | null;
+  avatarUrl?: string | null;
+  ownerId: string;
+  owner: AdminTeamUser;
+  members?: AdminTeamMember[];
+  _count?: {
+    members: number;
+  };
+}
+
+interface AdminUsersResponse {
+  data?: AdminTeamUser[];
+}
+
+const teams = ref<AdminTeam[]>([]);
+const users = ref<AdminTeamUser[]>([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const isModalOpen = ref(false);
@@ -30,7 +63,7 @@ const isSubmitting = ref(false);
 const modalMode = ref<'create' | 'edit'>('create');
 
 const isMemberDrawerOpen = ref(false);
-const selectedTeam = ref<any>(null);
+const selectedTeam = ref<AdminTeam | null>(null);
 
 const isMobile = ref(false);
 const updateMobileStatus = () => {
@@ -41,7 +74,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateMobileStatus);
 });
 
-const openMemberDrawer = (team: any) => {
+const openMemberDrawer = (team: AdminTeam) => {
   selectedTeam.value = team;
   isMemberDrawerOpen.value = true;
 };
@@ -58,11 +91,11 @@ const form = ref({ ...initialForm });
 const fetchTeams = async () => {
   try {
     isLoading.value = true;
-    const { data } = await api.get('/api/admin/teams');
+    const { data } = await api.get<AdminTeam[]>('/api/admin/teams');
     teams.value = data;
     // Update selectedTeam if drawer is open
     if (isMemberDrawerOpen.value && selectedTeam.value) {
-      const updated = data.find((t: any) => t.id === selectedTeam.value.id);
+      const updated = data.find((t) => t.id === selectedTeam.value?.id);
       if (updated) selectedTeam.value = updated;
     }
   } catch (error) {
@@ -79,8 +112,10 @@ onMounted(() => {
 
 const fetchUsers = async () => {
   try {
-    const { data } = await api.get('/api/admin/users');
-    users.value = data;
+    const { data } = await api.get<AdminTeamUser[] | AdminUsersResponse>('/api/admin/users', {
+      params: { page: 1, limit: 200 },
+    });
+    users.value = Array.isArray(data) ? data : data.data ?? [];
   } catch (error) {
     console.error('Fetch users error:', error);
   }
@@ -92,7 +127,7 @@ const openCreateModal = () => {
   isModalOpen.value = true;
 };
 
-const openEditModal = (team: any) => {
+const openEditModal = (team: AdminTeam) => {
   modalMode.value = 'edit';
   form.value = {
     id: team.id,
@@ -122,8 +157,8 @@ const handleSubmit = async () => {
     isModalOpen.value = false;
     fetchTeams();
     workspaceStore.fetchWorkspaces();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '操作失败'));
   } finally {
     isSubmitting.value = false;
   }
@@ -146,9 +181,9 @@ const deleteTeam = async (id: string) => {
     if (selectedTeam.value?.id === id) isMemberDrawerOpen.value = false;
     fetchTeams();
     workspaceStore.fetchWorkspaces();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '删除失败');
+      ElMessage.error(getApiErrorMessage(error, '删除失败'));
     }
   }
 };
@@ -159,8 +194,8 @@ const updateMemberRole = async (teamId: string, userId: string, role: string) =>
     ElMessage.success('成员角色已更新');
     fetchTeams();
     workspaceStore.fetchWorkspaces();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '更新角色失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '更新角色失败'));
   }
 };
 
@@ -175,18 +210,18 @@ const removeMember = async (teamId: string, userId: string, userName: string) =>
     ElMessage.success('成员已移除');
     fetchTeams();
     workspaceStore.fetchWorkspaces();
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.error || '移除失败');
+      ElMessage.error(getApiErrorMessage(error, '移除失败'));
     }
   }
 };
 
 const addMemberDialogVisible = ref(false);
-const currentTeamForAddMember = ref<any>(null);
+const currentTeamForAddMember = ref<AdminTeam | null>(null);
 const selectedUserId = ref('');
 
-const openAddMemberDialog = (team: any) => {
+const openAddMemberDialog = (team: AdminTeam) => {
   currentTeamForAddMember.value = team;
   selectedUserId.value = '';
   addMemberDialogVisible.value = true;
@@ -204,14 +239,14 @@ const handleAddMember = async () => {
     addMemberDialogVisible.value = false;
     fetchTeams();
     workspaceStore.fetchWorkspaces();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '添加成员失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '添加成员失败'));
   }
 };
 
 const getAvailableUsersForAdd = computed(() => {
   if (!currentTeamForAddMember.value) return [];
-  const existingMemberIds = currentTeamForAddMember.value.members?.map((m: any) => m.userId) || [];
+  const existingMemberIds = currentTeamForAddMember.value.members?.map((m) => m.userId) || [];
   return users.value.filter((u) => !existingMemberIds.includes(u.id));
 });
 
@@ -288,20 +323,14 @@ onMounted(() => {
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="
+type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="
               fetchTeams();
               fetchUsers();
-            "
-          >
+            ">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-accent text-white rounded-xl font-bold text-[11px] shadow-sm hover:scale-105 active:scale-95 transition-all whitespace-nowrap cursor-pointer"
-            @click="openCreateModal"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-accent text-white rounded-xl font-bold text-[11px] shadow-sm hover:scale-105 active:scale-95 transition-all whitespace-nowrap cursor-pointer" @click="openCreateModal">
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">创建团队</span>
           </button>
@@ -324,7 +353,9 @@ onMounted(() => {
         </div>
 
         <!-- 检索工具 -->
-        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+        <div
+          class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0"
+        >
           <div class="relative flex-1 md:flex-none md:w-64">
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
@@ -338,11 +369,7 @@ onMounted(() => {
                 color: var(--text-primary);
               "
             />
-            <button
-              v-if="searchQuery"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              @click="searchQuery = ''"
-            >
+            <button v-if="searchQuery" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" @click="searchQuery = ''">
               <X class="w-3 h-3" />
             </button>
           </div>
@@ -370,19 +397,29 @@ onMounted(() => {
                 class="border-b bg-slate-50/50 dark:bg-slate-800/50"
                 style="border-color: var(--border-base)"
               >
-                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                >
                   团队名称
                 </th>
-                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                >
                   负责人
                 </th>
-                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                >
                   描述
                 </th>
-                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <th
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                >
                   团队规模
                 </th>
-                <th class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                <th
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right"
+                >
                   操作管理
                 </th>
               </tr>
@@ -400,11 +437,7 @@ onMounted(() => {
                     <div
                       class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0 shadow-inner"
                     >
-                      <img
-                        v-if="team.avatarUrl"
-                        :src="team.avatarUrl"
-                        class="w-full h-full object-cover"
-                      />
+                      <img v-if="team.avatarUrl" alt="" :src="team.avatarUrl" class="w-full h-full object-cover" />
                       <Users v-else class="w-full h-full p-2.5 text-slate-400" />
                     </div>
                     <div class="min-w-0">
@@ -422,7 +455,9 @@ onMounted(() => {
                     }}</span>
                   </div>
                 </td>
-                <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-slate-400 max-w-[300px] truncate">
+                <td
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-slate-400 max-w-[300px] truncate"
+                >
                   {{ team.description || '暂无团队描述' }}
                 </td>
                 <td class="px-4 sm:px-6 py-3.5 sm:py-4">
@@ -434,22 +469,13 @@ onMounted(() => {
                 </td>
                 <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-right" @click.stop>
                   <div class="flex items-center justify-end gap-2">
-                    <button
-                      class="p-2 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/5 transition-all"
-                      @click="openEditModal(team)"
-                    >
+                    <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/5 transition-all" @click="openEditModal(team)">
                       <Edit3 class="w-4 h-4" />
                     </button>
-                    <button
-                      class="p-2 rounded-lg text-slate-400 hover:text-rose-50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
-                      @click="deleteTeam(team.id)"
-                    >
+                    <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-rose-50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all" @click="deleteTeam(team.id)">
                       <Trash2 class="w-4 h-4" />
                     </button>
-                    <button
-                      class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-accent hover:bg-accent/10 transition-all"
-                      @click="openMemberDrawer(team)"
-                    >
+                    <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-accent hover:bg-accent/10 transition-all" @click="openMemberDrawer(team)">
                       <ChevronRight class="w-4 h-4" />
                     </button>
                   </div>
@@ -460,7 +486,10 @@ onMounted(() => {
                 class="hover:bg-accent/5 transition-colors cursor-pointer"
                 @click="openCreateModal"
               >
-                <td colspan="5" class="px-4 sm:px-6 py-3.5 sm:py-4 text-center text-xs font-bold text-accent tracking-widest uppercase">
+                <td
+                  colspan="5"
+                  class="px-4 sm:px-6 py-3.5 sm:py-4 text-center text-xs font-bold text-accent tracking-widest uppercase"
+                >
                   <div class="flex items-center justify-center gap-2">
                     <Plus class="w-4 h-4" />
                     创建新团队
@@ -482,19 +511,27 @@ onMounted(() => {
           >
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 shadow-sm border border-[var(--border-base)]">
-                  <img v-if="team.avatarUrl" :src="team.avatarUrl" class="w-full h-full object-cover" />
+                <div
+                  class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 shadow-sm border border-[var(--border-base)]"
+                >
+                  <img v-if="team.avatarUrl" alt="" :src="team.avatarUrl" class="w-full h-full object-cover" />
                   <Users v-else class="w-full h-full p-3 text-slate-400" />
                 </div>
                 <div class="min-w-0">
-                  <h4 class="font-black text-base truncate" style="color: var(--text-primary)">{{ team.name }}</h4>
+                  <h4 class="font-black text-base truncate" style="color: var(--text-primary)">
+                    {{ team.name }}
+                  </h4>
                   <div class="flex items-center gap-1.5 mt-0.5">
                     <UserAvatar :user="team.owner" size="xs" />
-                    <span class="text-[10px] font-bold text-slate-400">{{ team.owner?.name || '管理员' }}</span>
+                    <span class="text-[10px] font-bold text-slate-400">{{
+                      team.owner?.name || '管理员'
+                    }}</span>
                   </div>
                 </div>
               </div>
-              <span class="px-2 py-0.5 rounded-lg bg-accent/10 text-accent text-[9px] font-black uppercase tracking-widest">
+              <span
+                class="px-2 py-0.5 rounded-lg bg-accent/10 text-accent text-[9px] font-black uppercase tracking-widest"
+              >
                 {{ team._count?.members || 0 }} 成员
               </span>
             </div>
@@ -504,32 +541,20 @@ onMounted(() => {
             </p>
 
             <div class="flex items-center gap-2" @click.stop>
-              <button
-                class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] font-bold text-[10px] text-slate-600 dark:text-slate-400 transition-all flex items-center justify-center gap-1.5"
-                @click="openEditModal(team)"
-              >
+              <button type="button" class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] font-bold text-[10px] text-slate-600 dark:text-slate-400 transition-all flex items-center justify-center gap-1.5" @click="openEditModal(team)">
                 <Edit3 class="w-3.5 h-3.5" /> 编辑资料
               </button>
-              <button
-                class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-transparent active:border-rose-200 transition-all"
-                @click="deleteTeam(team.id)"
-              >
+              <button type="button" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-transparent active:border-rose-200 transition-all" @click="deleteTeam(team.id)">
                 <Trash2 class="w-4 h-4" />
               </button>
-              <button
-                class="p-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/20 active:scale-90 transition-all"
-                @click="openMemberDrawer(team)"
-              >
+              <button type="button" class="p-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/20 active:scale-90 transition-all" @click="openMemberDrawer(team)">
                 <ChevronRight class="w-4 h-4" />
               </button>
             </div>
           </div>
 
           <!-- Mobile Create Button -->
-          <button
-            class="w-full py-4 rounded-2xl border-2 border-dashed border-accent/20 bg-accent/5 flex items-center justify-center gap-2 text-accent font-black text-xs uppercase tracking-widest active:bg-accent/10 transition-all"
-            @click="openCreateModal"
-          >
+          <button type="button" class="w-full py-4 rounded-2xl border-2 border-dashed border-accent/20 bg-accent/5 flex items-center justify-center gap-2 text-accent font-black text-xs uppercase tracking-widest active:bg-accent/10 transition-all" @click="openCreateModal">
             <Plus class="w-4 h-4" /> 创建新团队协作
           </button>
         </div>
@@ -542,7 +567,12 @@ onMounted(() => {
     </div>
 
     <!-- Member Drawer -->
-    <el-drawer v-model="isMemberDrawerOpen" direction="rtl" :size="isMobile ? '100%' : '450px'" :with-header="false">
+    <el-drawer
+      v-model="isMemberDrawerOpen"
+      direction="rtl"
+      :size="isMobile ? '100%' : '450px'"
+      :with-header="false"
+    >
       <div
         v-if="selectedTeam"
         class="h-full flex flex-col"
@@ -554,11 +584,7 @@ onMounted(() => {
               <div
                 class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0"
               >
-                <img
-                  v-if="selectedTeam.avatarUrl"
-                  :src="selectedTeam.avatarUrl"
-                  class="w-full h-full object-cover"
-                />
+                <img v-if="selectedTeam.avatarUrl" alt="" :src="selectedTeam.avatarUrl" class="w-full h-full object-cover" />
                 <Users v-else class="w-full h-full p-3.5 text-slate-400" />
               </div>
               <div>
@@ -566,22 +592,16 @@ onMounted(() => {
                   {{ selectedTeam.name }}
                 </h3>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  成员管理 ({{ selectedTeam._count.members }})
+                  成员管理 ({{ selectedTeam._count?.members || 0 }})
                 </p>
               </div>
             </div>
-            <button
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"
-              @click="isMemberDrawerOpen = false"
-            >
+            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors" @click="isMemberDrawerOpen = false">
               <X class="w-6 h-6 text-slate-400" />
             </button>
           </div>
 
-          <button
-            class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-accent text-white text-xs font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all"
-            @click="openAddMemberDialog(selectedTeam)"
-          >
+          <button type="button" class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-accent text-white text-xs font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all" @click="openAddMemberDialog(selectedTeam)">
             <UserPlus class="w-4 h-4" />
             添加成员
           </button>
@@ -614,9 +634,7 @@ onMounted(() => {
 
               <template v-if="member.role !== 'OWNER'">
                 <el-dropdown trigger="click">
-                  <button
-                    class="p-1.5 rounded-lg text-slate-300 hover:text-accent hover:bg-accent/5 transition-all"
-                  >
+                  <button type="button" class="p-1.5 rounded-lg text-slate-300 hover:text-accent hover:bg-accent/5 transition-all">
                     <Settings class="w-4 h-4" />
                   </button>
                   <template #dropdown>
@@ -647,7 +665,7 @@ onMounted(() => {
                           removeMember(
                             selectedTeam.id,
                             member.userId,
-                            member.user?.name || member.user?.email,
+                            member.user?.name || member.user?.email || '未知成员',
                           )
                         "
                       >
@@ -680,10 +698,7 @@ onMounted(() => {
           <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
             {{ modalMode === 'create' ? '创建协作团队' : '编辑团队信息' }}
           </h3>
-          <button
-            class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"
-            @click="isModalOpen = false"
-          >
+          <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" @click="isModalOpen = false">
             <X class="w-6 h-6 text-slate-400" />
           </button>
         </div>
@@ -746,18 +761,10 @@ onMounted(() => {
           </div>
 
           <div class="pt-4 flex gap-4">
-            <button
-              class="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
-              style="border-color: var(--border-base); color: var(--text-secondary)"
-              @click="isModalOpen = false"
-            >
+            <button type="button" class="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border hover:bg-slate-50 dark:hover:bg-white/5 transition-all" style="border-color: var(--border-base); color: var(--text-secondary)" @click="isModalOpen = false">
               取消
             </button>
-            <button
-              :disabled="isSubmitting"
-              class="flex-1 py-4 rounded-2xl bg-accent text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 disabled:opacity-50"
-              @click="handleSubmit"
-            >
+            <button type="button" :disabled="isSubmitting" class="flex-1 py-4 rounded-2xl bg-accent text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 disabled:opacity-50" @click="handleSubmit">
               {{
                 isSubmitting
                   ? 'Processing...'
@@ -801,17 +808,10 @@ onMounted(() => {
       </div>
       <template #footer>
         <div class="flex gap-3 mt-4">
-          <button
-            class="flex-1 py-3 rounded-2xl border border-slate-200 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-            @click="addMemberDialogVisible = false"
-          >
+          <button type="button" class="flex-1 py-3 rounded-2xl border border-slate-200 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all" @click="addMemberDialogVisible = false">
             取消
           </button>
-          <button
-            :disabled="!selectedUserId"
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-accent/20 disabled:opacity-50 transition-all active:scale-95"
-            @click="handleAddMember"
-          >
+          <button type="button" :disabled="!selectedUserId" class="flex-1 py-3 rounded-2xl bg-accent text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-accent/20 disabled:opacity-50 transition-all active:scale-95" @click="handleAddMember">
             确认添加
           </button>
         </div>

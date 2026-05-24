@@ -20,13 +20,14 @@ interface Props {
   asset: Asset;
 }
 
-const props = defineProps<Props>();
+const _props = defineProps<Props>();
 
 /**
  * Format file size into human readable string
  */
 const formatSize = (bytes?: number) => {
-  if (!bytes || bytes === 0) return '---';
+  if (bytes === undefined || bytes === null) return '---';
+  if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -55,18 +56,8 @@ const getFormatIcon = (format?: string) => {
       class="preview-area relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800"
     >
       <!-- Main Thumbnail -->
-      <img
-        v-if="asset.thumbnail"
-        :src="asset.thumbnail"
-        :alt="asset.title"
-        class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-      />
-      <img
-        v-else
-        :src="getDefaultThumbnailUrl(asset.type)"
-        :alt="asset.title"
-        class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105"
-      />
+      <img v-if="asset.thumbnail" :src="asset.thumbnail" :alt="asset.title" class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+      <img v-else :src="getDefaultThumbnailUrl(asset.type)" :alt="asset.title" class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105" />
 
       <!-- Gradient Overlay for Contrast -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-60 transition-opacity duration-500 group-hover:opacity-80"></div>

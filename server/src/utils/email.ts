@@ -2,14 +2,37 @@ import nodemailer from 'nodemailer';
 import dns from 'dns';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
+import { config as envConfig } from '../config/env';
 
 function resolveRealIp(hostname: string): Promise<string> {
   return new Promise((resolve) => {
-    const resolver = new dns.Resolver();
-    resolver.setServers(['119.29.29.29', '223.5.5.5', '8.8.8.8']);
-    resolver.resolve4(hostname, (err, addresses) => {
-      if (!err && addresses && addresses.length > 0) {
-        resolve(addresses[0]!);
+    const dnsServers = process.env.DNS_SERVERS;
+    if (dnsServers) {
+      try {
+        const servers = dnsServers
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (servers.length > 0) {
+          const resolver = new dns.Resolver();
+          resolver.setServers(servers);
+          resolver.resolve4(hostname, (err, addresses) => {
+            if (!err && addresses && addresses.length > 0) {
+              resolve(addresses[0] || hostname);
+            } else {
+              resolve(hostname);
+            }
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
+      }
+    }
+
+    dns.lookup(hostname, (err, address) => {
+      if (!err && address) {
+        resolve(address);
       } else {
         resolve(hostname);
       }
@@ -69,7 +92,7 @@ async function getTransporter(): Promise<{
       pass: config.SMTP_PASS,
     },
     tls: {
-      rejectUnauthorized: false,
+      rejectUnauthorized: envConfig.NODE_ENV === 'production',
       minVersion: 'TLSv1.2',
       servername: config.SMTP_HOST,
     },
@@ -135,8 +158,8 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
         }
         console.log('[Email Pool Fallback] Falling back to standard SMTP sending...');
       }
-    } catch (err: any) {
-      console.error(`[Email Pool Error] Failed to send via Microsoft Pool:`, err.message);
+    } catch (err) {
+      console.error(`[Email Pool Error] Failed to send via Microsoft Pool:`, err instanceof Error ? err.message : err);
       if (!fallbackSmtp) {
         return false;
       }

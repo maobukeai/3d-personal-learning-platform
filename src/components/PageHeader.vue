@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { Component } from 'vue';
 
 const props = withDefaults(
   defineProps<{
     title: string;
     subtitle?: string;
-    icon?: any; // Lucide icon component
+    icon?: Component;
     iconClass?: string;
     iconContainerClass?: string;
   }>(),
   {
+    subtitle: '',
+    icon: undefined,
     iconClass: 'text-accent',
     iconContainerClass: 'p-1.5 bg-accent-subtle rounded-xl shrink-0 border border-accent/10',
   }

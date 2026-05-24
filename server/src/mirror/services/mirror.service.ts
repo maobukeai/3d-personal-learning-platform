@@ -200,9 +200,9 @@ export class MirrorService {
           });
           return updated;
         }
-      } catch (e: any) {
+      } catch (e) {
         console.warn(
-          `[MirrorService] Failed to load detail page on-demand for ${resource.externalId}: ${e.message}`,
+          `[MirrorService] Failed to load detail page on-demand for ${resource.externalId}: ${(e instanceof Error ? e.message : String(e))}`,
         );
       }
     }

@@ -29,10 +29,7 @@ const handleJoin = () => {
   >
     <div v-if="props.group" class="relative">
       <!-- Custom Close Button -->
-      <button
-        class="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all"
-        @click="handleClose"
-      >
+      <button type="button" class="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/40 transition-all" @click="handleClose">
         <X class="w-5 h-5" />
       </button>
 
@@ -42,14 +39,11 @@ const handleJoin = () => {
         <!-- Left: Image & Quick Stats -->
         <div class="h-64 md:h-auto md:w-5/12 relative shrink-0">
           <img
-            :src="
+:src="
               props.group.avatarUrl ||
               props.group.image ||
               `https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=500&q=80`
-            "
-            class="w-full h-full object-cover"
-            :alt="props.group.name"
-          />
+            " class="w-full h-full object-cover" :alt="props.group.name" />
           <div
             class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"
           ></div>
@@ -162,10 +156,7 @@ const handleJoin = () => {
                 >
                 <span class="text-sm font-black text-slate-900 dark:text-white mt-1">开放加入</span>
               </div>
-              <button
-                class="px-8 py-3 rounded-full bg-accent text-white font-black text-sm shadow-xl shadow-accent/20 hover:bg-accent-dark hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-2"
-                @click="handleJoin"
-              >
+              <button type="button" class="px-8 py-3 rounded-full bg-accent text-white font-black text-sm shadow-xl shadow-accent/20 hover:bg-accent-dark hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-2" @click="handleJoin">
                 申请加入 <ArrowRight class="w-4 h-4" />
               </button>
             </div>

@@ -57,12 +57,32 @@ interface Props {
 
 const props = defineProps<Props>();
 
+export interface TaskUpdatePayload {
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  dueDate: string | null;
+  assigneeId: string | null;
+  projectId: string | null;
+  teamId: string | null;
+  tags: string | null;
+  subtasks: string;
+  participantIds: string[];
+}
+
+interface Subtask {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
   (e: 'update:viewMode', value: 'drawer' | 'modal'): void;
   (e: 'close'): void;
   (e: 'delete', task: Task): void;
-  (e: 'save', payload: any): void;
+  (e: 'save', payload: TaskUpdatePayload): void;
   (e: 'user-click', userId: string): void;
 }>();
 
@@ -87,7 +107,7 @@ const parseTags = (tagsStr: string | null | undefined): string[] => {
   if (!tagsStr) return [];
   try {
     return JSON.parse(tagsStr);
-  } catch (e) {
+  } catch (_e) {
     return tagsStr.split(',').map((t) => t.trim()).filter((t) => t);
   }
 };
@@ -96,7 +116,7 @@ const parseSubtasks = (subtasksStr: string | null | undefined) => {
   if (!subtasksStr) return [];
   try {
     return JSON.parse(subtasksStr);
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 };
@@ -180,7 +200,7 @@ const addSubtask = () => {
   triggerSave();
 };
 
-const toggleSubtask = (subtask: any) => {
+const toggleSubtask = (subtask: Subtask) => {
   subtask.done = !subtask.done;
   triggerSave();
 };
@@ -278,28 +298,17 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
           </div>
           <div class="flex items-center gap-3">
             <!-- View Mode Toggle (Drawer vs Modal) -->
-            <button
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
-              :title="viewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'"
-              @click="toggleDetailViewMode"
-            >
+            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer" :title="viewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'" @click="toggleDetailViewMode">
               <component
                 :is="viewMode === 'drawer' ? Maximize2 : Minimize2"
                 class="w-4.5 h-4.5"
               />
             </button>
 
-            <button
-              class="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer"
-              @click="handleDelete"
-            >
+            <button type="button" class="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer" @click="handleDelete">
               <Trash2 class="w-3.5 h-3.5" /> 删除任务
             </button>
-            <button
-              class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer"
-              style="color: var(--text-secondary)"
-              @click="handleClose"
-            >
+            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer" style="color: var(--text-secondary)" @click="handleClose">
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -380,14 +389,11 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
                 >
                   <!-- Toggle Checkbox -->
                   <button
-                    class="w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0"
-                    :class="
+type="button" class="w-4 h-4 rounded-md border flex items-center justify-center transition-colors shrink-0" :class="
                       sub.done
                         ? 'bg-emerald-500 border-emerald-500 text-white'
                         : 'border-slate-300 dark:border-slate-600 hover:border-accent'
-                    "
-                    @click="toggleSubtask(sub)"
-                  >
+                    " @click="toggleSubtask(sub)">
                     <CheckCircle2 v-if="sub.done" class="w-3.5 h-3.5" />
                   </button>
 
@@ -406,10 +412,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
                   />
 
                   <!-- Delete Button -->
-                  <button
-                    class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity"
-                    @click="removeSubtask(index)"
-                  >
+                  <button type="button" class="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-opacity" @click="removeSubtask(index)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -425,10 +428,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
                   style="color: var(--text-primary)"
                   @keyup.enter="addSubtask"
                 />
-                <button
-                  class="px-3 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all"
-                  @click="addSubtask"
-                >
+                <button type="button" class="px-3 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:opacity-85 transition-all" @click="addSubtask">
                   添加
                 </button>
               </div>
@@ -509,11 +509,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
                 >
                   <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                     <div class="flex items-center gap-2">
-                      <img
-                        v-if="m.avatarUrl"
-                        :src="m.avatarUrl"
-                        class="w-4 h-4 rounded-lg object-cover"
-                      />
+                      <img v-if="m.avatarUrl" alt="" :src="m.avatarUrl" class="w-4 h-4 rounded-lg object-cover" />
                       <span class="text-xs">{{ m.name }}</span>
                     </div>
                   </el-option>
@@ -568,11 +564,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
               >
                 <el-option v-for="m in teamMembers" :key="m.id" :label="m.name" :value="m.id">
                   <div class="flex items-center gap-2">
-                    <img
-                      v-if="m.avatarUrl"
-                      :src="m.avatarUrl"
-                      class="w-4 h-4 rounded-lg object-cover"
-                    />
+                    <img v-if="m.avatarUrl" alt="" :src="m.avatarUrl" class="w-4 h-4 rounded-lg object-cover" />
                     <span class="text-xs">{{ m.name }}</span>
                   </div>
                 </el-option>
@@ -593,7 +585,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
                   :class="getTagClass(tag)"
                 >
                   # {{ tag }}
-                  <button @click="drawerRemoveTag(tag)">
+                  <button type="button" @click="drawerRemoveTag(tag)">
                     <X class="w-2 h-2 hover:opacity-75" />
                   </button>
                 </span>
@@ -606,10 +598,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
                   class="flex-1 px-2.5 py-1 bg-slate-100 dark:bg-white/5 border-none rounded-lg text-[10px] focus:outline-none"
                   @keyup.enter="drawerAddTag"
                 />
-                <button
-                  class="p-1 bg-slate-100 dark:bg-white/5 hover:text-accent rounded-lg text-xs"
-                  @click="drawerAddTag"
-                >
+                <button type="button" class="p-1 bg-slate-100 dark:bg-white/5 hover:text-accent rounded-lg text-xs" @click="drawerAddTag">
                   +
                 </button>
               </div>
@@ -617,10 +606,7 @@ const getTagClass = (tag: string) => tagColorMap[tag] || defaultTagClass;
 
             <!-- Final Manual Save Feedback -->
             <div class="pt-4 border-t" style="border-color: var(--border-base)">
-              <button
-                class="w-full py-2.5 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/25 hover:shadow-lg hover:shadow-accent/35 transition-all"
-                @click="handleClose"
-              >
+              <button type="button" class="w-full py-2.5 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/25 hover:shadow-lg hover:shadow-accent/35 transition-all" @click="handleClose">
                 关闭并保存所有更改
               </button>
             </div>

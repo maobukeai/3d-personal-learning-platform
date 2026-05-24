@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -99,8 +100,8 @@ const handleSendBroadcast = async () => {
     } else {
       showBroadcastModal.value = false;
     }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '广播发送失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '广播发送失败'));
   } finally {
     isBroadcasting.value = false;
   }
@@ -111,8 +112,8 @@ const handleDeleteBroadcast = async (id: string) => {
     await api.delete(`/api/admin/broadcasts/${id}`);
     ElMessage.success('广播已成功撤回');
     fetchBroadcastHistory();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '撤回失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '撤回失败'));
   }
 };
 
@@ -195,11 +196,7 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchAdminStats"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchAdminStats">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新数据</span>
           </button>
@@ -226,11 +223,7 @@ onMounted(() => {
         >
           <h3 class="font-bold text-base sm:text-lg mb-4 sm:mb-6 px-1 sm:px-0" style="color: var(--text-primary)">管理操作</h3>
           <div class="grid grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-4">
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/users')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/users')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 group-hover:scale-110 transition-transform"
               >
@@ -238,11 +231,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">用户管理</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/audits')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/audits')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 group-hover:scale-110 transition-transform"
               >
@@ -250,11 +239,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">内容审核</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/courses')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/courses')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 group-hover:scale-110 transition-transform"
               >
@@ -262,11 +247,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">课程管理</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/roadmaps')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/roadmaps')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 group-hover:scale-110 transition-transform"
               >
@@ -274,11 +255,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">学习路线</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/teams')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/teams')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 group-hover:scale-110 transition-transform"
               >
@@ -286,11 +263,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">团队管理</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/feedback')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/feedback')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 group-hover:scale-110 transition-transform"
               >
@@ -298,11 +271,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">反馈中心</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="router.push('/admin/settings')"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/settings')">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-white/10 text-slate-600 group-hover:scale-110 transition-transform"
               >
@@ -310,11 +279,7 @@ onMounted(() => {
               </div>
               <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">系统设置</span>
             </button>
-            <button
-              class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group"
-              style="border-color: var(--border-base)"
-              @click="showBroadcastModal = true"
-            >
+            <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="showBroadcastModal = true">
               <div
                 class="p-1.5 sm:p-3 rounded-lg sm:rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 group-hover:scale-110 transition-transform"
               >
@@ -347,10 +312,7 @@ onMounted(() => {
           >
             <div class="flex items-center justify-between gap-4 mb-6 sm:mb-8">
               <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新注册用户</h3>
-              <button
-                class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap"
-                @click="router.push('/admin/users')"
-              >
+              <button type="button" class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap" @click="router.push('/admin/users')">
                 管理所有
               </button>
             </div>
@@ -365,11 +327,7 @@ onMounted(() => {
                   <div
                     class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden shrink-0"
                   >
-                    <img
-                      v-if="user.avatarUrl"
-                      :src="user.avatarUrl"
-                      class="w-full h-full object-cover"
-                    />
+                    <img v-if="user.avatarUrl" alt="" :src="user.avatarUrl" class="w-full h-full object-cover" />
                     <Users v-else class="w-4 h-4 sm:w-5 h-5 text-slate-400" />
                   </div>
                   <div class="min-w-0">
@@ -396,10 +354,7 @@ onMounted(() => {
           >
             <div class="flex items-center justify-between gap-4 mb-6 sm:mb-8">
               <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新提交资产</h3>
-              <button
-                class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap"
-                @click="router.push('/admin/assets')"
-              >
+              <button type="button" class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap" @click="router.push('/admin/assets')">
                 审核所有
               </button>
             </div>
@@ -414,11 +369,7 @@ onMounted(() => {
                   <div
                     class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-slate-100 dark:bg-white/5 overflow-hidden flex-shrink-0"
                   >
-                    <img
-                      v-if="asset.thumbnail"
-                      :src="asset.thumbnail"
-                      class="w-full h-full object-cover"
-                    />
+                    <img v-if="asset.thumbnail" alt="" :src="asset.thumbnail" class="w-full h-full object-cover" />
                     <Box v-else class="w-full h-full p-2 sm:p-3 text-slate-400" />
                   </div>
                   <div class="min-w-0">
@@ -471,10 +422,7 @@ onMounted(() => {
               <p class="text-[10px] sm:text-xs text-slate-400 mt-1">发布并管理全局通知</p>
             </div>
           </div>
-          <button
-            class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"
-            @click="showBroadcastModal = false"
-          >
+          <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full" @click="showBroadcastModal = false">
             <Plus class="w-5 h-5 sm:w-6 h-6 rotate-45 text-slate-400" />
           </button>
         </div>
@@ -482,26 +430,20 @@ onMounted(() => {
         <!-- Tabs -->
         <div class="flex p-1 gap-2 rounded-2xl mb-6" style="background-color: var(--bg-app)">
           <button
-            class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-            :style="
+type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2" :style="
               broadcastTab === 'send'
                 ? 'background-color: var(--bg-card); color: var(--text-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05)'
                 : 'color: var(--text-muted)'
-            "
-            @click="switchBroadcastTab('send')"
-          >
+            " @click="switchBroadcastTab('send')">
             <Send class="w-3.5 h-3.5" />
             发送新广播
           </button>
           <button
-            class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-            :style="
+type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2" :style="
               broadcastTab === 'history'
                 ? 'background-color: var(--bg-card); color: var(--text-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05)'
                 : 'color: var(--text-muted)'
-            "
-            @click="switchBroadcastTab('history')"
-          >
+            " @click="switchBroadcastTab('history')">
             <History class="w-3.5 h-3.5" />
             广播历史
           </button>
@@ -559,11 +501,7 @@ onMounted(() => {
           </div>
 
           <div class="pt-4">
-            <button
-              :disabled="isBroadcasting"
-              class="w-full py-4 rounded-2xl bg-rose-500 text-white font-bold transition-all shadow-lg shadow-rose-500/20 hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2"
-              @click="handleSendBroadcast"
-            >
+            <button type="button" :disabled="isBroadcasting" class="w-full py-4 rounded-2xl bg-rose-500 text-white font-bold transition-all shadow-lg shadow-rose-500/20 hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleSendBroadcast">
               <RefreshCw v-if="isBroadcasting" class="w-4 h-4 animate-spin" />
               {{ isBroadcasting ? '正在发送...' : '立即发布广播' }}
             </button>
@@ -594,10 +532,7 @@ onMounted(() => {
               <h4 class="font-bold text-sm pr-8" style="color: var(--text-primary)">
                 {{ broadcast.title }}
               </h4>
-              <button
-                class="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors opacity-0 group-hover:opacity-100"
-                @click="handleDeleteBroadcast(broadcast.id)"
-              >
+              <button type="button" class="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors opacity-0 group-hover:opacity-100" @click="handleDeleteBroadcast(broadcast.id)">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>

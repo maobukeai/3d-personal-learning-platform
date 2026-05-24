@@ -319,14 +319,14 @@ router.beforeEach(async (to) => {
   if (!authStore.user && to.meta.requiresAuth) {
     try {
       await authStore.fetchMe();
-    } catch (e) {
+    } catch (_e) {
       // fetchMe handles logout/redirect if it fails
     }
   } else if (!authStore.user && systemStore.settings.MAINTENANCE_MODE && to.name !== 'Maintenance' && to.name !== 'Login') {
     // If in maintenance mode and no user in state, try fetching to see if it's an admin
     try {
       await authStore.fetchMe();
-    } catch (e) {
+    } catch (_e) {
       // If it fails, they are likely not logged in or not an admin
     }
   }

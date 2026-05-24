@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import { TrendingUp } from 'lucide-vue-next';
 
@@ -9,13 +10,15 @@ const props = withDefaults(
     value: string | number;
     trend?: string;
     color?: string;
-    icon: any; // Lucide icon component
+    icon: Component;
     route?: string;
     compact?: boolean;
-    horizontal?: boolean; // New prop for horizontal layout
+    horizontal?: boolean;
   }>(),
   {
+    trend: '',
     color: 'text-slate-500',
+    route: '',
     compact: false,
     horizontal: false,
   }
@@ -149,4 +152,3 @@ function handleClick() {
     </template>
   </div>
 </template>
-

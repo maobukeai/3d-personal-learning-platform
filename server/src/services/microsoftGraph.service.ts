@@ -93,10 +93,10 @@ export class MicrosoftGraphService {
       });
 
       return data.access_token;
-    } catch (error: any) {
+    } catch (error) {
       const errorMsg =
-        error.response?.data?.error_description ||
-        error.message ||
+        (error as any).response?.data?.error_description ||
+        (error instanceof Error ? error.message : String(error)) ||
         'Unknown error refreshing token';
       console.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
 
@@ -173,9 +173,9 @@ export class MicrosoftGraphService {
       });
 
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       const errorMsg =
-        error.response?.data?.error?.message || error.message || 'Connection test failed';
+        (error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)) || 'Connection test failed';
       console.error(
         `MicrosoftGraphService: Test connection failed for ${account.email}:`,
         errorMsg,
@@ -206,9 +206,9 @@ export class MicrosoftGraphService {
         proxy: proxyConfig,
       });
       return response.data.value || [];
-    } catch (error: any) {
-      console.error(`MicrosoftGraphService: Fetch folders failed for ${accountId}:`, error.message);
-      throw new Error(error.response?.data?.error?.message || error.message);
+    } catch (error) {
+      console.error(`MicrosoftGraphService: Fetch folders failed for ${accountId}:`, error instanceof Error ? error.message : error);
+      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -238,12 +238,12 @@ export class MicrosoftGraphService {
         },
       );
       return response.data.value || [];
-    } catch (error: any) {
+    } catch (error) {
       console.error(
         `MicrosoftGraphService: Fetch messages failed for folder ${folderId} inside ${accountId}:`,
-        error.message,
+        (error instanceof Error ? error.message : String(error)),
       );
-      throw new Error(error.response?.data?.error?.message || error.message);
+      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -271,12 +271,12 @@ export class MicrosoftGraphService {
           proxy: proxyConfig,
         },
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error(
         `MicrosoftGraphService: Mark message read failed for message ${messageId}:`,
-        error.message,
+        (error instanceof Error ? error.message : String(error)),
       );
-      throw new Error(error.response?.data?.error?.message || error.message);
+      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -329,12 +329,12 @@ export class MicrosoftGraphService {
           },
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(
         `MicrosoftGraphService: Delete message failed for message ${messageId}:`,
-        error.message,
+        (error instanceof Error ? error.message : String(error)),
       );
-      throw new Error(error.response?.data?.error?.message || error.message);
+      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -422,9 +422,9 @@ export class MicrosoftGraphService {
           sentCountToday: { increment: 1 },
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       const errorMsg =
-        error.response?.data?.error?.message || error.message || 'Failed to send mail';
+        (error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)) || 'Failed to send mail';
       console.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
       throw new Error(errorMsg);
     }

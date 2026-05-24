@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { getApiErrorMessage } from '@/utils/error';
+import { ref, onMounted, computed, watch } from 'vue';
 import {
   Users,
   Search,
@@ -19,12 +20,58 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 
-const users = ref<any[]>([]);
+interface AdminSubscriptionPlan {
+  id: string;
+  name?: string;
+  displayName?: string;
+  price?: number;
+  badgeColor?: string;
+}
+
+interface AdminUserSubscription {
+  id: string;
+  planId: string;
+  interval: string;
+  endDate?: string | null;
+  status: string;
+  plan: AdminSubscriptionPlan & { name: string };
+}
+
+interface AdminUser {
+  id: string;
+  name?: string | null;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  avatarUrl?: string | null;
+  subscription?: AdminUserSubscription;
+}
+
+interface PaginationState {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+interface AdminUsersResponse {
+  data: AdminUser[];
+  pagination?: PaginationState;
+}
+
+const users = ref<AdminUser[]>([]);
 const isLoading = ref(false);
 const searchQuery = ref('');
 const roleFilter = ref('ALL');
 const statusFilter = ref('ALL');
-const plans = ref<any[]>([]);
+const plans = ref<AdminSubscriptionPlan[]>([]);
+const pagination = ref({
+  page: 1,
+  limit: 50,
+  total: 0,
+  totalPages: 1,
+});
 
 const roleMap: Record<string, string> = {
   ADMIN: '管理员',
@@ -49,18 +96,19 @@ const createForm = ref({
 // Edit Dialog
 const editDialogVisible = ref(false);
 const isSubmitting = ref(false);
-const editingUser = ref<any>({
+const editingUser = ref<AdminUser>({
   id: '',
   name: '',
   email: '',
   role: '',
   status: '',
+  createdAt: '',
 });
 
 // Subscription Dialog
 const subDialogVisible = ref(false);
 const isSubLoading = ref(false);
-const selectedUser = ref<any>(null);
+const selectedUser = ref<AdminUser | null>(null);
 const subForm = ref({
   planId: '',
   interval: 'MONTHLY',
@@ -68,12 +116,28 @@ const subForm = ref({
   status: 'ACTIVE',
 });
 
-const fetchUsers = async () => {
+const fetchUsers = async (page: number | Event = pagination.value.page) => {
+  const nextPage = typeof page === 'number' ? page : pagination.value.page;
   isLoading.value = true;
   try {
-    const response = await api.get('/api/admin/users');
-    users.value = response.data;
-  } catch (error) {
+    const response = await api.get('/api/admin/users', {
+      params: {
+        page: nextPage,
+        limit: pagination.value.limit,
+        q: searchQuery.value || undefined,
+        role: roleFilter.value !== 'ALL' ? roleFilter.value : undefined,
+        status: statusFilter.value !== 'ALL' ? statusFilter.value : undefined,
+      },
+    });
+    const responseData = response.data as AdminUser[] | AdminUsersResponse;
+    users.value = Array.isArray(responseData) ? responseData : responseData.data;
+    pagination.value = (!Array.isArray(responseData) && responseData.pagination) || {
+      page: nextPage,
+      limit: pagination.value.limit,
+      total: users.value.length,
+      totalPages: 1,
+    };
+  } catch {
     ElMessage.error('无法加载用户列表');
   } finally {
     isLoading.value = false;
@@ -83,7 +147,7 @@ const fetchUsers = async () => {
 const fetchPlans = async () => {
   try {
     const response = await api.get('/api/admin/subscription-plans');
-    plans.value = response.data;
+    plans.value = response.data as AdminSubscriptionPlan[];
   } catch (error) {
     console.error('Fetch plans error:', error);
   }
@@ -124,14 +188,14 @@ const handleCreateUser = async () => {
     ElMessage.success('用户创建成功');
     createDialogVisible.value = false;
     fetchUsers();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '创建失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '创建失败'));
   } finally {
     isSubmitting.value = false;
   }
 };
 
-const openEditDialog = (user: any) => {
+const openEditDialog = (user: AdminUser) => {
   editingUser.value = { ...user };
   editDialogVisible.value = true;
 };
@@ -150,14 +214,14 @@ const handleUpdateUser = async () => {
 
     ElMessage.success('用户信息已更新');
     editDialogVisible.value = false;
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '更新失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '更新失败'));
   } finally {
     isSubmitting.value = false;
   }
 };
 
-const openSubDialog = (user: any) => {
+const openSubDialog = (user: AdminUser) => {
   selectedUser.value = user;
   if (user.subscription) {
     subForm.value = {
@@ -180,6 +244,7 @@ const openSubDialog = (user: any) => {
 };
 
 const handleManageSub = async () => {
+  if (!selectedUser.value) return;
   isSubLoading.value = true;
   try {
     if (selectedUser.value.subscription) {
@@ -199,15 +264,15 @@ const handleManageSub = async () => {
     }
     subDialogVisible.value = false;
     fetchUsers();
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '操作失败');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '操作失败'));
   } finally {
     isSubLoading.value = false;
   }
 };
 
 const handleCancelSub = async () => {
-  if (!selectedUser.value.subscription) return;
+  if (!selectedUser.value?.subscription) return;
 
   try {
     await ElMessageBox.confirm('确定要取消该用户的订阅吗？', '确认操作', {
@@ -227,7 +292,7 @@ const handleCancelSub = async () => {
   }
 };
 
-const handleToggleStatus = async (user: any) => {
+const handleToggleStatus = async (user: AdminUser) => {
   const newStatus = user.status === 'BANNED' ? 'ACTIVE' : 'BANNED';
   const actionText = newStatus === 'BANNED' ? '封禁' : '解封';
 
@@ -237,12 +302,12 @@ const handleToggleStatus = async (user: any) => {
     });
     user.status = newStatus;
     ElMessage.success(`用户 ${user.name || user.email} 已${actionText}`);
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || `${actionText}失败`);
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, `${actionText}失败`));
   }
 };
 
-const handleResetPassword = (user: any) => {
+const handleResetPassword = (user: AdminUser) => {
   ElMessageBox.prompt('请输入该用户的新密码（至少6位）', '重置用户密码', {
     confirmButtonText: '确定重置',
     cancelButtonText: '取消',
@@ -253,13 +318,13 @@ const handleResetPassword = (user: any) => {
     try {
       await api.post(`/api/admin/users/${user.id}/reset-password`, { password: value });
       ElMessage.success(`用户 ${user.name || user.email} 的密码已重置`);
-    } catch (error: any) {
-      ElMessage.error(error.response?.data?.error || '密码重置失败');
+    } catch (error) {
+      ElMessage.error(getApiErrorMessage(error, '密码重置失败'));
     }
   });
 };
 
-const handleDeleteUser = (user: any) => {
+const handleDeleteUser = (user: AdminUser) => {
   ElMessageBox.confirm(
     `确定要删除用户 ${user.name || user.email} 吗？此操作不可逆，将删除其所有相关数据。`,
     '极端危险操作',
@@ -274,14 +339,14 @@ const handleDeleteUser = (user: any) => {
       await api.delete(`/api/admin/users/${user.id}`);
       users.value = users.value.filter((u) => u.id !== user.id);
       ElMessage.success('用户及其数据已从系统移除');
-    } catch (error) {
+    } catch {
       ElMessage.error('删除失败');
     }
   });
 };
 
 const stats = computed(() => {
-  const total = users.value.length;
+  const total = pagination.value.total || users.value.length;
   const active = users.value.filter((u) => u.status === 'ACTIVE').length;
   const banned = users.value.filter((u) => u.status === 'BANNED').length;
 
@@ -291,6 +356,20 @@ const stats = computed(() => {
 
   return { total, active, banned, admin, instructor, normal };
 });
+
+let fetchUsersTimer: ReturnType<typeof setTimeout> | null = null;
+watch([searchQuery, roleFilter, statusFilter], () => {
+  if (fetchUsersTimer) clearTimeout(fetchUsersTimer);
+  fetchUsersTimer = setTimeout(() => {
+    pagination.value.page = 1;
+    fetchUsers(1);
+  }, 250);
+});
+
+const handlePageChange = (page: number) => {
+  pagination.value.page = page;
+  fetchUsers(page);
+};
 
 onMounted(() => {
   fetchUsers();
@@ -330,18 +409,11 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-            @click="openCreateDialog"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreateDialog">
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">创建新用户</span>
           </button>
-          <button
-            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer"
-            style="border-color: var(--border-base); color: var(--text-secondary)"
-            @click="fetchUsers"
-          >
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchUsers">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
@@ -357,24 +429,25 @@ onMounted(() => {
           <!-- 状态 Pills -->
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
+v-for="filter in [
                 { key: 'ALL', label: '所有状态', count: stats.total, color: 'indigo', icon: Users },
-                { key: 'ACTIVE', label: '活跃', count: stats.active, color: 'emerald', icon: UserCheck },
-                { key: 'BANNED', label: '已封禁', count: stats.banned, color: 'rose', icon: UserX }
-              ]"
-              :key="filter.key"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
+                {
+                  key: 'ACTIVE',
+                  label: '活跃',
+                  count: stats.active,
+                  color: 'emerald',
+                  icon: UserCheck,
+                },
+                { key: 'BANNED', label: '已封禁', count: stats.banned, color: 'rose', icon: UserX },
+              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 statusFilter === filter.key
                   ? filter.key === 'ACTIVE'
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
                     : filter.key === 'BANNED'
                       ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                       : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
-              ]"
-              @click="statusFilter = filter.key"
-            >
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
+              ]" @click="statusFilter = filter.key">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
@@ -386,21 +459,16 @@ onMounted(() => {
           <!-- 角色 Pills -->
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-              v-for="filter in [
+v-for="filter in [
                 { key: 'ALL', label: '所有角色', count: stats.total, icon: Users },
                 { key: 'ADMIN', label: '管理员', count: stats.admin, icon: Crown },
                 { key: 'INSTRUCTOR', label: '导师', count: stats.instructor, icon: Zap },
-                { key: 'USER', label: '普通用户', count: stats.normal, icon: Users }
-              ]"
-              :key="filter.key"
-              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
-              :class="[
+                { key: 'USER', label: '普通用户', count: stats.normal, icon: Users },
+              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 roleFilter === filter.key
                   ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
-              ]"
-              @click="roleFilter = filter.key"
-            >
+                  : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
+              ]" @click="roleFilter = filter.key">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
@@ -409,7 +477,9 @@ onMounted(() => {
         </div>
 
         <!-- 检索与统计 -->
-        <div class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0">
+        <div
+          class="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto shrink-0"
+        >
           <div class="relative flex-1 lg:flex-none lg:w-64">
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
@@ -425,7 +495,8 @@ onMounted(() => {
             />
           </div>
           <div class="text-[10px] font-bold text-right shrink-0" style="color: var(--text-muted)">
-            已过滤: <span class="text-indigo-600 font-extrabold">{{ filteredUsers.length }}</span> / 总计: {{ users.length }}
+            已过滤: <span class="text-indigo-600 font-extrabold">{{ filteredUsers.length }}</span> /
+            总计: {{ pagination.total }}
           </div>
         </div>
       </div>
@@ -452,22 +523,34 @@ onMounted(() => {
                   class="border-b bg-slate-50/50 dark:bg-slate-800/50"
                   style="border-color: var(--border-base)"
                 >
-                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     用户信息
                   </th>
-                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     角色
                   </th>
-                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     状态
                   </th>
-                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     订阅情况
                   </th>
-                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th
+                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                  >
                     注册日期
                   </th>
-                  <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">
+                  <th
+                    class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right"
+                  >
                     操作管理
                   </th>
                 </tr>
@@ -536,7 +619,12 @@ onMounted(() => {
                         {{ user.subscription.plan.name }}
                       </span>
                       <span class="text-[9px] text-slate-400 mt-0.5">
-                        到期: {{ user.subscription.endDate ? new Date(user.subscription.endDate).toLocaleDateString() : '永久' }}
+                        到期:
+                        {{
+                          user.subscription.endDate
+                            ? new Date(user.subscription.endDate).toLocaleDateString()
+                            : '永久'
+                        }}
                       </span>
                     </div>
                     <span v-else class="text-xs text-slate-400">-</span>
@@ -547,9 +635,7 @@ onMounted(() => {
                   <td class="px-6 py-4 text-right">
                     <div class="flex items-center justify-end gap-2">
                       <el-dropdown trigger="click">
-                        <button
-                          class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-xs transition-all flex items-center gap-1.5"
-                        >
+                        <button type="button" class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-xs transition-all flex items-center gap-1.5">
                           <MoreVertical class="w-3.5 h-3.5" />
                           管理
                         </button>
@@ -575,24 +661,16 @@ onMounted(() => {
                       </el-dropdown>
 
                       <button
-                        class="p-2 rounded-xl transition-all shadow-sm"
-                        :title="user.status === 'BANNED' ? '解封' : '封禁'"
-                        :class="
+type="button" class="p-2 rounded-xl transition-all shadow-sm" :title="user.status === 'BANNED' ? '解封' : '封禁'" :class="
                           user.status === 'BANNED'
                             ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
                             : 'bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white'
-                        "
-                        @click="handleToggleStatus(user)"
-                      >
+                        " @click="handleToggleStatus(user)">
                         <UserCheck v-if="user.status === 'BANNED'" class="w-3.5 h-3.5" />
                         <UserX v-else class="w-3.5 h-3.5" />
                       </button>
 
-                      <button
-                        title="永久删除"
-                        class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                        @click="handleDeleteUser(user)"
-                      >
+                      <button type="button" title="永久删除" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm" @click="handleDeleteUser(user)">
                         <Trash2 class="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -610,7 +688,7 @@ onMounted(() => {
               class="p-4 rounded-2xl border transition-all relative overflow-hidden"
               :class="{
                 'opacity-60 grayscale-[0.5]': user.status === 'BANNED',
-                'bg-white dark:bg-slate-900': true
+                'bg-white dark:bg-slate-900': true,
               }"
               style="border-color: var(--border-base)"
             >
@@ -648,57 +726,59 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-4 py-3 border-y border-dashed mb-4" style="border-color: var(--border-base)">
+              <div
+                class="grid grid-cols-2 gap-4 py-3 border-y border-dashed mb-4"
+                style="border-color: var(--border-base)"
+              >
                 <div>
-                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">注册日期</p>
-                  <p class="text-[10px] font-bold" style="color: var(--text-secondary)">{{ new Date(user.createdAt).toLocaleDateString() }}</p>
+                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    注册日期
+                  </p>
+                  <p class="text-[10px] font-bold" style="color: var(--text-secondary)">
+                    {{ new Date(user.createdAt).toLocaleDateString() }}
+                  </p>
                 </div>
                 <div>
-                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">当前订阅</p>
+                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    当前订阅
+                  </p>
                   <div v-if="user.subscription" class="flex items-center gap-1.5">
-                    <Crown v-if="user.subscription.plan.name === 'SVIP'" class="w-2.5 h-2.5 text-amber-500" />
-                    <Zap v-else-if="user.subscription.plan.name === 'VIP'" class="w-2.5 h-2.5 text-purple-500" />
-                    <span class="text-[10px] font-black" style="color: var(--text-primary)">{{ user.subscription.plan.name }}</span>
+                    <Crown
+                      v-if="user.subscription.plan.name === 'SVIP'"
+                      class="w-2.5 h-2.5 text-amber-500"
+                    />
+                    <Zap
+                      v-else-if="user.subscription.plan.name === 'VIP'"
+                      class="w-2.5 h-2.5 text-purple-500"
+                    />
+                    <span class="text-[10px] font-black" style="color: var(--text-primary)">{{
+                      user.subscription.plan.name
+                    }}</span>
                   </div>
                   <p v-else class="text-[10px] font-bold text-slate-400">无活跃订阅</p>
                 </div>
               </div>
 
               <div class="flex items-center gap-2">
-                <button
-                  class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-[10px] transition-all flex items-center justify-center gap-1.5"
-                  style="border-color: var(--border-base)"
-                  @click="openEditDialog(user)"
-                >
+                <button type="button" class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-[10px] transition-all flex items-center justify-center gap-1.5" style="border-color: var(--border-base)" @click="openEditDialog(user)">
                   <Users class="w-3.5 h-3.5" />
                   编辑资料
                 </button>
-                <button
-                  class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-[10px] transition-all flex items-center justify-center gap-1.5"
-                  style="border-color: var(--border-base)"
-                  @click="openSubDialog(user)"
-                >
+                <button type="button" class="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-600 dark:text-slate-400 hover:text-indigo-600 font-bold text-[10px] transition-all flex items-center justify-center gap-1.5" style="border-color: var(--border-base)" @click="openSubDialog(user)">
                   <CreditCard class="w-3.5 h-3.5" />
                   订阅管理
                 </button>
                 <div class="flex gap-2">
                   <button
-                    class="p-2 rounded-xl border transition-all"
-                    style="border-color: var(--border-base)"
-                    :class="
+type="button" class="p-2 rounded-xl border transition-all" style="border-color: var(--border-base)" :class="
                       user.status === 'BANNED'
                         ? 'bg-emerald-50 text-emerald-600'
                         : 'bg-slate-50 text-slate-600'
-                    "
-                    @click="handleToggleStatus(user)"
-                  >
+                    " @click="handleToggleStatus(user)">
                     <UserCheck v-if="user.status === 'BANNED'" class="w-3.5 h-3.5" />
                     <UserX v-else class="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-transparent hover:border-rose-200 transition-all"
-                    @click="handleDeleteUser(user)"
-                  >
+                  <button type="button" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-transparent hover:border-rose-200 transition-all" @click="handleDeleteUser(user)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -718,6 +798,20 @@ onMounted(() => {
           </div>
           <h3 class="text-xl font-bold mb-2" style="color: var(--text-primary)">未找到匹配用户</h3>
           <p class="text-sm text-slate-400 max-w-sm">尝试更换关键词或筛选条件再次搜索。</p>
+        </div>
+
+        <div
+          v-if="pagination.totalPages > 1 && !isLoading"
+          class="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-bold"
+          style="color: var(--text-secondary)"
+        >
+          <button type="button" class="px-3 py-1.5 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed" style="border-color: var(--border-base)" :disabled="pagination.page <= 1" @click="handlePageChange(pagination.page - 1)">
+            上一页
+          </button>
+          <span>第 {{ pagination.page }} / {{ pagination.totalPages }} 页</span>
+          <button type="button" class="px-3 py-1.5 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed" style="border-color: var(--border-base)" :disabled="pagination.page >= pagination.totalPages" @click="handlePageChange(pagination.page + 1)">
+            下一页
+          </button>
         </div>
       </div>
     </div>
@@ -784,17 +878,10 @@ onMounted(() => {
       </div>
       <template #footer>
         <div class="flex gap-2 p-2">
-          <button
-            class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-200 transition-all"
-            @click="createDialogVisible = false"
-          >
+          <button type="button" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-200 transition-all" @click="createDialogVisible = false">
             取消
           </button>
-          <button
-            :disabled="isSubmitting"
-            class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2"
-            @click="handleCreateUser"
-          >
+          <button type="button" :disabled="isSubmitting" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2" @click="handleCreateUser">
             <Plus v-if="!isSubmitting" class="w-4 h-4" />
             <RefreshCw v-else class="w-4 h-4 animate-spin" />
             立即创建
@@ -866,17 +953,10 @@ onMounted(() => {
       </div>
       <template #footer>
         <div class="flex gap-2 p-2">
-          <button
-            class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-200 transition-all"
-            @click="editDialogVisible = false"
-          >
+          <button type="button" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-200 transition-all" @click="editDialogVisible = false">
             取消
           </button>
-          <button
-            :disabled="isSubmitting"
-            class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2"
-            @click="handleUpdateUser"
-          >
+          <button type="button" :disabled="isSubmitting" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2" @click="handleUpdateUser">
             <RefreshCw v-if="isSubmitting" class="w-4 h-4 animate-spin" />
             保存修改
           </button>
@@ -1023,26 +1103,15 @@ onMounted(() => {
       <template #footer>
         <div class="flex flex-col gap-2 p-2">
           <div class="flex gap-2">
-            <button
-              class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-200 transition-all"
-              @click="subDialogVisible = false"
-            >
+            <button type="button" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-200 transition-all" @click="subDialogVisible = false">
               取消
             </button>
-            <button
-              :disabled="isSubLoading"
-              class="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2"
-              @click="handleManageSub"
-            >
+            <button type="button" :disabled="isSubLoading" class="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2" @click="handleManageSub">
               <RefreshCw v-if="isSubLoading" class="w-4 h-4 animate-spin" />
               {{ selectedUser?.subscription ? '更新并保存订阅' : '确认开通订阅' }}
             </button>
           </div>
-          <button
-            v-if="selectedUser?.subscription"
-            class="w-full py-2.5 text-[11px] font-black text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-all"
-            @click="handleCancelSub"
-          >
+          <button v-if="selectedUser?.subscription" type="button" class="w-full py-2.5 text-[11px] font-black text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-all" @click="handleCancelSub">
             取消并移除当前订阅
           </button>
         </div>

@@ -1,0 +1,151 @@
+import { onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElNotification } from 'element-plus';
+import { socketService } from '@/utils/socket';
+import { useAuthStore } from '@/stores/auth';
+import { useWorkspaceStore } from '@/stores/workspace';
+import type { AppNotification } from '@/services/notification.service';
+
+export function useLayoutSocket(options: {
+  fetchNotifications: () => Promise<void>;
+  fetchUnreadMessagesCount: () => Promise<void>;
+  onNewNotificationCallback?: (notification: AppNotification) => void;
+}) {
+  const router = useRouter();
+  const route = useRoute();
+  const authStore = useAuthStore();
+  const workspaceStore = useWorkspaceStore();
+
+  const onNewNotification = (notification: AppNotification) => {
+    if (options.onNewNotificationCallback) {
+      options.onNewNotificationCallback(notification);
+    }
+
+    // Immediate sync when notification arrives
+    if (authStore.user?.role === 'ADMIN') {
+      workspaceStore.fetchAdminStats();
+    }
+
+    ElNotification({
+      title: notification.title,
+      message: notification.content,
+      type: 'info',
+      duration: 5000,
+      position: 'top-right',
+      onClick: () => {
+        if (notification.link) {
+          const resolved = router.resolve(notification.link);
+          if (resolved.name) {
+            router.push(notification.link);
+          }
+        }
+      },
+    });
+  };
+
+  const onOnlineUsersList = (ids: string[]) => {
+    authStore.setOnlineUsers(ids);
+  };
+
+  const onUserStatus = ({ userId, status }: { userId: string; status: 'online' | 'offline' }) => {
+    authStore.updateUserStatus(userId, status);
+  };
+
+  const onMessageReceived = ({ conversationId: _conversationId, message }: any) => {
+    const isMessagesPage = route.path === '/messages';
+
+    if (!isMessagesPage) {
+      authStore.incrementUnreadMessagesCount();
+
+      ElNotification({
+        title: `来自 ${message.sender.name} 的新消息`,
+        message: message.type === 'TEXT' ? message.content : '[图片/文件]',
+        type: 'success',
+        duration: 3000,
+        position: 'bottom-right',
+        onClick: () => {
+          router.push('/messages');
+        },
+      });
+    }
+  };
+
+  const onMirrorSyncStarted = ({ sourceName, type }: any) => {
+    ElNotification({
+      title: '镜像同步开始',
+      message: `镜像源「${sourceName}」的${type === 'FULL' ? '全量' : '增量'}同步任务已启动...`,
+      type: 'info',
+      duration: 4000,
+      position: 'top-right',
+    });
+  };
+
+  const onMirrorSyncFinished = ({ sourceName, status, result, error }: any) => {
+    if (status === 'SUCCESS') {
+      ElNotification({
+        title: '镜像同步成功',
+        message: `镜像源「${sourceName}」同步完成！新增 ${result?.resourcesCreated || 0} 个资源，更新 ${result?.resourcesUpdated || 0} 个资源。`,
+        type: 'success',
+        duration: 6000,
+        position: 'top-right',
+      });
+    } else if (status === 'CANCELLED') {
+      ElNotification({
+        title: '镜像同步已取消',
+        message: `镜像源「${sourceName}」的同步任务已由用户手动取消。`,
+        type: 'warning',
+        duration: 4000,
+        position: 'top-right',
+      });
+    } else {
+      ElNotification({
+        title: '镜像同步失败',
+        message: `镜像源「${sourceName}」同步遇到错误：${error || '未知错误'}`,
+        type: 'error',
+        duration: 6000,
+        position: 'top-right',
+      });
+    }
+    workspaceStore.fetchWorkspaces();
+  };
+
+  let statsInterval: any = null;
+
+  onMounted(() => {
+    socketService.connect();
+
+    // Set up listeners
+    socketService.on('new_notification', onNewNotification);
+    socketService.on('online_users_list', onOnlineUsersList);
+    socketService.on('user_status', onUserStatus);
+    socketService.on('message_received', onMessageReceived);
+    socketService.on('mirror_sync_started', onMirrorSyncStarted);
+    socketService.on('mirror_sync_finished', onMirrorSyncFinished);
+
+    // Custom event for immediate admin stat refresh
+    socketService.on('refresh_admin_stats', () => {
+      if (authStore.user?.role === 'ADMIN') {
+        workspaceStore.fetchAdminStats();
+      }
+    });
+
+    // Real-time Sync: Polling every 15 seconds
+    statsInterval = setInterval(() => {
+      options.fetchNotifications();
+      if (authStore.user?.role === 'ADMIN') {
+        workspaceStore.fetchAdminStats();
+      }
+    }, 15000);
+  });
+
+  onUnmounted(() => {
+    if (statsInterval) clearInterval(statsInterval);
+    socketService.off('new_notification', onNewNotification);
+    socketService.off('message_received', onMessageReceived);
+    socketService.off('online_users_list', onOnlineUsersList);
+    socketService.off('user_status', onUserStatus);
+    socketService.off('mirror_sync_started', onMirrorSyncStarted);
+    socketService.off('mirror_sync_finished', onMirrorSyncFinished);
+    socketService.off('refresh_admin_stats');
+  });
+}

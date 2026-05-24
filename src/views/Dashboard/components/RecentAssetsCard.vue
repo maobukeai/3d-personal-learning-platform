@@ -15,10 +15,7 @@ const router = useRouter();
       <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
         最新创作资产
       </h3>
-      <button
-        class="text-xs sm:text-sm font-bold text-accent hover:underline cursor-pointer"
-        @click="router.push('/my-works')"
-      >
+      <button type="button" class="text-xs sm:text-sm font-bold text-accent hover:underline cursor-pointer" @click="router.push('/my-works')">
         管理作品集
       </button>
     </div>
@@ -32,11 +29,7 @@ const router = useRouter();
         <div
           class="w-11 h-11 sm:w-13 sm:h-13 rounded-lg overflow-hidden flex items-center justify-center p-0.5 shrink-0 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
         >
-          <img
-            v-if="asset.thumbnail"
-            :src="asset.thumbnail"
-            class="w-full h-full object-cover rounded-lg group-hover:scale-110 transition-transform"
-          />
+          <img v-if="asset.thumbnail" alt="" :src="asset.thumbnail" class="w-full h-full object-cover rounded-lg group-hover:scale-110 transition-transform" />
           <div
             v-else
             class="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-white/5 rounded-lg"

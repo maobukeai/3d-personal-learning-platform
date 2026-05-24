@@ -82,7 +82,7 @@ const handleMarkAllRead = async () => {
     await api.put('/api/notifications/read-all');
     notifications.value.forEach((n) => (n.isRead = true));
     ElMessage.success('已将所有通知标记为已读');
-  } catch (error) {
+  } catch {
     ElMessage.error('操作失败');
   }
 };
@@ -166,21 +166,11 @@ onMounted(() => {
       </div>
 
       <div class="flex items-center gap-1.5 md:gap-3 shrink-0">
-        <button
-          :disabled="unreadCount === 0"
-          class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40"
-          title="全部已读"
-          @click="handleMarkAllRead"
-        >
+        <button type="button" :disabled="unreadCount === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40" title="全部已读" @click="handleMarkAllRead">
           <CheckCheck class="w-3.5 h-3.5 md:w-4 md:h-4" />
           <span class="hidden sm:inline whitespace-nowrap">全部已读</span>
         </button>
-        <button
-          :disabled="notifications.length === 0"
-          class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40"
-          title="清空"
-          @click="handleDeleteAll"
-        >
+        <button type="button" :disabled="notifications.length === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40" title="清空" @click="handleDeleteAll">
           <Trash2 class="w-3.5 h-3.5 md:w-4 md:h-4" />
           <span class="hidden sm:inline whitespace-nowrap">清空</span>
         </button>
@@ -211,19 +201,14 @@ onMounted(() => {
             <!-- Quick Filters (All/Unread) -->
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
-                v-for="filter in [
+v-for="filter in [
                   { id: 'all', label: '全部', icon: Inbox, count: notifications.length },
                   { id: 'unread', label: '未读', icon: Bell, count: unreadCount },
-                ]"
-                :key="filter.id"
-                class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0"
-                :class="
+                ]" :key="filter.id" type="button" class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0" :class="
                   activeFilter === filter.id
                     ? 'bg-accent text-white shadow-md shadow-accent/20'
                     : 'text-slate-600 dark:text-slate-400 bg-white/40 dark:bg-white/5 hover:bg-white/60'
-                "
-                @click="activeFilter = filter.id"
-              >
+                " @click="activeFilter = filter.id">
                 <div class="flex items-center gap-1.5 md:gap-2">
                   <component :is="filter.icon" class="w-3.5 h-3.5" />
                   {{ filter.label }}
@@ -247,23 +232,18 @@ onMounted(() => {
             <!-- Category List: Also in horizontal scroll on mobile -->
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
-                v-for="cat in [
+v-for="cat in [
                   { id: 'all', label: '全部类型', icon: Inbox, color: 'text-slate-400', desktopOnly: true },
                   { id: 'SYSTEM', label: '系统通知', icon: Info, color: 'text-indigo-500' },
                   { id: 'TEAM', label: '团队动态', icon: Users, color: 'text-blue-500' },
                   { id: 'TASK', label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
                   { id: 'MESSAGE', label: '私信消息', icon: MessageSquare, color: 'text-emerald-500' },
-                ]"
-                :key="cat.id"
-                class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0"
-                :class="[
+                ]" :key="cat.id" type="button" class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0" :class="[
                   cat.desktopOnly ? 'hidden md:flex' : 'flex',
                   activeCategory === cat.id
                     ? 'bg-white shadow-sm text-slate-900 dark:bg-slate-800 dark:text-white ring-1 ring-accent/10'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/5',
-                ]"
-                @click="handleCategoryChange(cat.id)"
-              >
+                ]" @click="handleCategoryChange(cat.id)">
                 <component :is="cat.icon" class="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" :class="cat.color" />
                 {{ cat.label }}
               </button>
@@ -279,18 +259,13 @@ onMounted(() => {
 
         <div class="lg:hidden flex overflow-x-auto gap-2 px-4 py-2 -mx-3.5 mb-4 scrollbar-hide">
           <button
-            v-for="cat in [
+v-for="cat in [
               { id: 'all', label: '全部', icon: Inbox },
               { id: 'SYSTEM', label: '系统', icon: Info },
               { id: 'TEAM', label: '团队', icon: Users },
               { id: 'TASK', label: '任务', icon: Briefcase },
               { id: 'MESSAGE', label: '私信', icon: MessageSquare },
-            ]"
-            :key="cat.id"
-            class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors"
-            :class="activeCategory === cat.id ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
-            @click="handleCategoryChange(cat.id)"
-          >
+            ]" :key="cat.id" type="button" class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors" :class="activeCategory === cat.id ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click="handleCategoryChange(cat.id)">
             <component :is="cat.icon" class="w-3.5 h-3.5" />
             {{ cat.label }}
           </button>
@@ -355,16 +330,10 @@ onMounted(() => {
                     {{ n.content }}
                   </p>
                   <div class="flex items-center gap-4">
-                    <button
-                      v-if="n.link"
-                      class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1"
-                    >
+                    <button v-if="n.link" type="button" class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
                       立即处理 <ChevronRight class="w-3 h-3" />
                     </button>
-                    <button
-                      v-if="!n.isRead"
-                      class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                    >
+                    <button v-if="!n.isRead" type="button" class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                       标记为已读
                     </button>
                   </div>

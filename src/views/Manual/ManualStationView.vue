@@ -210,35 +210,19 @@ function handlePageJump() {
           class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm"
           @keyup.enter="doSearch"
         />
-        <button
-          v-if="manualStore.searchQuery"
-          class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-          @click="manualStore.searchQuery = ''; doSearch()"
-        >
+        <button v-if="manualStore.searchQuery" type="button" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" @click="manualStore.searchQuery = ''; doSearch()">
           <X class="w-4 h-4" />
         </button>
       </div>
       <div class="flex items-center gap-2">
-        <button
-          class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all font-medium shadow-sm"
-          :class="showFilters ? 'border-cyan-500/30 text-cyan-600 dark:text-cyan-400' : ''"
-          @click="showFilters = !showFilters"
-        >
+        <button type="button" class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all font-medium shadow-sm" :class="showFilters ? 'border-cyan-500/30 text-cyan-600 dark:text-cyan-400' : ''" @click="showFilters = !showFilters">
           <SlidersHorizontal class="w-4 h-4" />
           排序过滤
         </button>
-        <button
-          class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm"
-          :class="viewMode === 'grid' ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400' : ''"
-          @click="viewMode = 'grid'"
-        >
+        <button type="button" class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm" :class="viewMode === 'grid' ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400' : ''" @click="viewMode = 'grid'">
           <LayoutGrid class="w-4.5 h-4.5" />
         </button>
-        <button
-          class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm"
-          :class="viewMode === 'list' ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400' : ''"
-          @click="viewMode = 'list'"
-        >
+        <button type="button" class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 bg-white dark:bg-slate-900/50 hover:text-slate-600 dark:hover:text-slate-200 transition-all shadow-sm" :class="viewMode === 'list' ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 text-cyan-600 dark:text-cyan-400' : ''" @click="viewMode = 'list'">
           <List class="w-4.5 h-4.5" />
         </button>
       </div>
@@ -247,16 +231,10 @@ function handlePageJump() {
     <!-- Active sorting indicators -->
     <div v-if="showFilters" class="flex items-center gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/50">
       <span class="text-xs text-slate-400 font-bold">排序选项：</span>
-      <button
-        v-for="opt in [{ label: '最新发布', value: 'newest' }, { label: '最早发布', value: 'oldest' }, { label: '资源浏览量', value: 'views' }, { label: '拼音标题', value: 'title' }]"
-        :key="opt.value"
-        class="px-3.5 py-1.5 text-xs rounded-lg font-semibold transition-all"
-        :class="manualStore.sortBy === opt.value ? 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 shadow-sm border border-cyan-500/20' : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 border border-transparent'"
-        @click="manualStore.setSortBy(opt.value); doSearch()"
-      >
+      <button v-for="opt in [{ label: '最新发布', value: 'newest' }, { label: '最早发布', value: 'oldest' }, { label: '资源浏览量', value: 'views' }, { label: '拼音标题', value: 'title' }]" :key="opt.value" type="button" class="px-3.5 py-1.5 text-xs rounded-lg font-semibold transition-all" :class="manualStore.sortBy === opt.value ? 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 shadow-sm border border-cyan-500/20' : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 border border-transparent'" @click="manualStore.setSortBy(opt.value); doSearch()">
         {{ opt.label }}
       </button>
-      <button class="ml-auto p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" @click="showFilters = false">
+      <button type="button" class="ml-auto p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" @click="showFilters = false">
         <X class="w-4.5 h-4.5" />
       </button>
     </div>
@@ -292,13 +270,7 @@ function handlePageJump() {
                 v-if="resource.thumbnailUrl"
                 class="w-full h-full bg-slate-50 dark:bg-slate-800"
               >
-                <img
-                  :src="getAssetUrl(resource.thumbnailUrl)"
-                  :alt="resource.title"
-                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  @error="($event.target as HTMLImageElement).src = ''"
-                />
+                <img :src="getAssetUrl(resource.thumbnailUrl)" :alt="resource.title" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" @error="($event.target as HTMLImageElement).src = ''" />
               </div>
               <div
                 v-else
@@ -357,21 +329,13 @@ function handlePageJump() {
 
         <!-- Pagination -->
         <div v-if="manualStore.totalPages > 1" class="flex flex-wrap items-center justify-center gap-3 mt-10 p-4 bg-white dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/50 rounded-2xl shadow-sm">
-          <button
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer"
-            :disabled="manualStore.currentPage <= 1"
-            @click="goToPage(manualStore.currentPage - 1)"
-          >
+          <button type="button" class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer" :disabled="manualStore.currentPage <= 1" @click="goToPage(manualStore.currentPage - 1)">
             <ChevronLeft class="w-4 h-4" />
           </button>
           <span class="text-xs font-bold text-slate-500 px-2 dark:text-slate-400">
             第 {{ manualStore.currentPage }} 页 / 共 {{ manualStore.totalPages }} 页
           </span>
-          <button
-            class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer mr-2"
-            :disabled="manualStore.currentPage >= manualStore.totalPages"
-            @click="goToPage(manualStore.currentPage + 1)"
-          >
+          <button type="button" class="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-30 transition-all cursor-pointer mr-2" :disabled="manualStore.currentPage >= manualStore.totalPages" @click="goToPage(manualStore.currentPage + 1)">
             <ChevronRight class="w-4 h-4" />
           </button>
 

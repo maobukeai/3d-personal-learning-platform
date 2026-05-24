@@ -56,7 +56,7 @@ const fetchMembers = async () => {
   try {
     const response = await api.get('/api/auth/users/public');
     members.value = response.data;
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('获取成员列表失败');
   } finally {
     isLoading.value = false;
@@ -82,7 +82,7 @@ const handleChatWithMember = async (member: any) => {
       isGroup: false,
     });
     router.push('/messages');
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('无法发起对话');
   }
 };
@@ -118,9 +118,7 @@ const handleChatWithMember = async (member: any) => {
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
-        <button
-          class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2 shrink-0"
-        >
+        <button type="button" class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2 shrink-0">
           <UserPlus class="w-4 h-4" /> <span class="hidden sm:inline">邀请伙伴</span>
         </button>
       </div>
@@ -133,19 +131,13 @@ const handleChatWithMember = async (member: any) => {
     >
       <div class="flex items-center gap-2 min-w-max">
         <button
-          v-for="filter in filters"
-          :key="filter"
-          class="px-4 py-1.5 rounded-lg text-sm font-bold transition-all"
-          :class="
+v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded-lg text-sm font-bold transition-all" :class="
             activeFilter === filter ? 'bg-slate-800 dark:bg-accent text-white' : 'hover:opacity-80'
-          "
-          :style="
+          " :style="
             activeFilter !== filter
               ? 'color: var(--text-secondary); background-color: var(--bg-app)'
               : ''
-          "
-          @click="activeFilter = filter"
-        >
+          " @click="activeFilter = filter">
           {{ roleLabels[filter] || filter }}
         </button>
       </div>
@@ -253,18 +245,10 @@ const handleChatWithMember = async (member: any) => {
                 <div
                   class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <button
-                    class="p-2 hover:text-accent hover:bg-accent-subtle rounded-lg transition-all"
-                    style="color: var(--text-muted)"
-                    title="发送消息"
-                    @click="handleChatWithMember(member)"
-                  >
+                  <button type="button" class="p-2 hover:text-accent hover:bg-accent-subtle rounded-lg transition-all" style="color: var(--text-muted)" title="发送消息" @click="handleChatWithMember(member)">
                     <MessageSquare class="w-4 h-4" />
                   </button>
-                  <button
-                    class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
-                    style="color: var(--text-muted)"
-                  >
+                  <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-muted)">
                     <MoreHorizontal class="w-4 h-4" />
                   </button>
                 </div>
@@ -325,17 +309,10 @@ const handleChatWithMember = async (member: any) => {
 
             <!-- Action Buttons -->
             <div class="w-full flex gap-1.5 mt-auto">
-              <button
-                class="flex-1 py-1.5 bg-accent text-white rounded-xl text-[10px] font-bold hover:opacity-90 transition-all flex items-center justify-center gap-1"
-                @click="handleChatWithMember(member)"
-              >
+              <button type="button" class="flex-1 py-1.5 bg-accent text-white rounded-xl text-[10px] font-bold hover:opacity-90 transition-all flex items-center justify-center gap-1" @click="handleChatWithMember(member)">
                 <MessageSquare class="w-3 h-3" /> 发消息
               </button>
-              <button
-                class="px-2 py-1.5 bg-slate-100 dark:bg-white/5 rounded-xl border border-[var(--border-base)] transition-all hover:bg-slate-200 dark:hover:bg-white/10 shrink-0"
-                style="color: var(--text-secondary)"
-                @click="openUserProfile(member.id)"
-              >
+              <button type="button" class="px-2 py-1.5 bg-slate-100 dark:bg-white/5 rounded-xl border border-[var(--border-base)] transition-all hover:bg-slate-200 dark:hover:bg-white/10 shrink-0" style="color: var(--text-secondary)" @click="openUserProfile(member.id)">
                 <MoreHorizontal class="w-3.5 h-3.5" />
               </button>
             </div>

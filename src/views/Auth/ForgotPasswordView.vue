@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -43,8 +44,8 @@ const handleCheckEmail = async () => {
     } else {
       ElMessage.warning('该账户未启用两步验证，邮箱验证功能开发中，请联系管理员');
     }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '无法验证邮箱');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '无法验证邮箱'));
   } finally {
     isLoading.value = false;
   }
@@ -70,8 +71,8 @@ const handleResetWith2FA = async () => {
     });
     step.value = 3;
     ElMessage.success('密码已成功重置');
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '重置失败，验证码可能不正确');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '重置失败，验证码可能不正确'));
   } finally {
     isLoading.value = false;
   }
@@ -84,12 +85,14 @@ const handleResetWith2FA = async () => {
     style="background-color: var(--bg-app)"
   >
     <!-- Decorative background elements -->
-    <div
-      class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent-subtle/50 blur-[100px] rounded-full"
-    ></div>
-    <div
-      class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100/50 dark:bg-indigo-900/20 blur-[100px] rounded-full"
-    ></div>
+    <div class="hidden md:block">
+      <div
+        class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent-subtle/50 glass-glow-lg rounded-full"
+      ></div>
+      <div
+        class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100/50 dark:bg-indigo-900/20 glass-glow-lg rounded-full"
+      ></div>
+    </div>
 
     <div class="w-full max-w-md relative z-10">
       <div
@@ -140,11 +143,7 @@ const handleResetWith2FA = async () => {
                 </div>
               </div>
 
-              <button
-                :disabled="isLoading"
-                class="w-full bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-accent/20 hover:bg-accent transition-all flex items-center justify-center gap-2"
-                @click="handleCheckEmail"
-              >
+              <button type="button" :disabled="isLoading" class="w-full bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-accent/20 hover:bg-accent transition-all flex items-center justify-center gap-2" @click="handleCheckEmail">
                 <span v-if="!isLoading">继续</span>
                 <span
                   v-else
@@ -212,10 +211,7 @@ const handleResetWith2FA = async () => {
                       color: var(--text-primary);
                     "
                   />
-                  <button
-                    class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-accent"
-                    @click="showPassword = !showPassword"
-                  >
+                  <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-accent" @click="showPassword = !showPassword">
                     <Eye v-if="!showPassword" class="w-4 h-4" />
                     <EyeOff v-else class="w-4 h-4" />
                   </button>
@@ -247,11 +243,7 @@ const handleResetWith2FA = async () => {
                 </div>
               </div>
 
-              <button
-                :disabled="isLoading"
-                class="w-full bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-accent/20 hover:bg-accent transition-all flex items-center justify-center gap-2"
-                @click="handleResetWith2FA"
-              >
+              <button type="button" :disabled="isLoading" class="w-full bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-accent/20 hover:bg-accent transition-all flex items-center justify-center gap-2" @click="handleResetWith2FA">
                 <span v-if="!isLoading">重置密码</span>
                 <span
                   v-else
@@ -259,11 +251,7 @@ const handleResetWith2FA = async () => {
                 ></span>
               </button>
 
-              <button
-                class="w-full py-2 text-xs font-bold hover:text-accent transition-colors"
-                style="color: var(--text-secondary)"
-                @click="step = 1"
-              >
+              <button type="button" class="w-full py-2 text-xs font-bold hover:text-accent transition-colors" style="color: var(--text-secondary)" @click="step = 1">
                 返回修改邮箱
               </button>
             </div>
@@ -275,10 +263,7 @@ const handleResetWith2FA = async () => {
             <p class="text-sm mb-8 leading-relaxed" style="color: var(--text-secondary)">
               你的账号密码已成功更新。现在你可以使用新密码重新登录平台了。
             </p>
-            <button
-              class="w-full bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-accent/20 hover:bg-accent transition-all flex items-center justify-center gap-2"
-              @click="router.push('/login')"
-            >
+            <button type="button" class="w-full bg-accent text-white py-4 rounded-2xl font-bold shadow-lg shadow-accent/20 hover:bg-accent transition-all flex items-center justify-center gap-2" @click="router.push('/login')">
               前往登录
               <ArrowRight class="w-4 h-4" />
             </button>

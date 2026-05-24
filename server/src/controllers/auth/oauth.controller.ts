@@ -68,10 +68,7 @@ export const googleCallback = async (req: Request, res: Response) => {
       // Try by email for automatic linking
       user = await prisma.user.findUnique({ where: { email: oauthUser.email } });
       if (user) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { googleId: oauthUser.id },
-        });
+        return res.redirect(frontendLoginUrl('error=email_exists'));
       } else {
         // Create new user
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
@@ -152,10 +149,7 @@ export const githubCallback = async (req: Request, res: Response) => {
     if (!user) {
       user = await prisma.user.findUnique({ where: { email: oauthUser.email } });
       if (user) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { githubId: oauthUser.id },
-        });
+        return res.redirect(frontendLoginUrl('error=email_exists'));
       } else {
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
         user = await prisma.$transaction(async (tx) => {

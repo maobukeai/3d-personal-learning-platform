@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-next';
@@ -41,7 +42,7 @@ onMounted(async () => {
       await authStore.fetchMe();
       ElMessage.success('社交登录成功！');
       router.replace('/dashboard');
-    } catch (err) {
+    } catch (_err) {
       ElMessage.error('获取用户信息失败');
       router.replace({ query: {} });
     } finally {
@@ -87,8 +88,8 @@ const handleLogin = async () => {
         router.push('/dashboard');
       }
     }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '登录失败，请检查账号密码');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '登录失败，请检查账号密码'));
   } finally {
     isLoading.value = false;
   }
@@ -106,8 +107,8 @@ const handle2FAVerify = async () => {
     } else {
       router.push('/dashboard');
     }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '验证码错误');
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '验证码错误'));
   } finally {
     isLoading.value = false;
   }
@@ -120,15 +121,15 @@ const handle2FAVerify = async () => {
     style="background-color: var(--bg-app)"
   >
     <!-- Background Abstract Shapes -->
-    <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden hidden md:block">
       <div
-        class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-accent/15 blur-[120px] rounded-full animate-float-blob"
+        class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-accent/15 glass-glow-xl rounded-full animate-float-blob"
       ></div>
       <div
-        class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/15 blur-[100px] rounded-full animate-float-blob-reverse"
+        class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/15 glass-glow-lg rounded-full animate-float-blob-reverse"
       ></div>
       <div
-        class="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-pink-500/5 blur-[80px] rounded-full animate-pulse-slow"
+        class="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-pink-500/5 glass-glow-md rounded-full animate-pulse-slow"
       ></div>
     </div>
 
@@ -147,11 +148,7 @@ const handle2FAVerify = async () => {
                 : 'bg-accent shadow-lg shadow-accent/30'
             "
           >
-            <img
-              v-if="systemStore.settings.PLATFORM_LOGO_URL"
-              :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
-              class="w-full h-full object-contain"
-            />
+            <img v-if="systemStore.settings.PLATFORM_LOGO_URL" alt="" :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)" class="w-full h-full object-contain" />
             <span v-else class="text-white font-bold text-xl">{{
               systemStore.settings.PLATFORM_NAME.substring(0, 2).toUpperCase()
             }}</span>
@@ -183,27 +180,19 @@ const handle2FAVerify = async () => {
             class="grid grid-cols-2 gap-4"
           >
             <button
-              v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED"
-              class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
-              style="
+v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED" type="button" class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95" style="
                 border-color: var(--border-base);
                 background-color: var(--bg-app);
                 color: var(--text-primary);
-              "
-              @click="handleSocialLogin('google')"
-            >
+              " @click="handleSocialLogin('google')">
               <Chrome class="w-4 h-4" /> Google
             </button>
             <button
-              v-if="systemStore.settings.OAUTH_GITHUB_ENABLED"
-              class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
-              style="
+v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95" style="
                 border-color: var(--border-base);
                 background-color: var(--bg-app);
                 color: var(--text-primary);
-              "
-              @click="handleSocialLogin('github')"
-            >
+              " @click="handleSocialLogin('github')">
               <Github class="w-4 h-4" /> GitHub
             </button>
           </div>
@@ -280,11 +269,7 @@ const handle2FAVerify = async () => {
                   "
                   @keydown.enter="handleLogin"
                 />
-                <button
-                  class="absolute right-4 top-1/2 -translate-y-1/2 hover:text-accent transition-colors"
-                  style="color: var(--text-secondary)"
-                  @click="showPassword = !showPassword"
-                >
+                <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 hover:text-accent transition-colors" style="color: var(--text-secondary)" @click="showPassword = !showPassword">
                   <Eye v-if="!showPassword" class="w-4 h-4" />
                   <EyeOff v-else class="w-4 h-4" />
                 </button>
@@ -296,11 +281,7 @@ const handle2FAVerify = async () => {
             <el-checkbox v-model="loginForm.remember" label="记住我的登录状态" />
           </div>
 
-          <button
-            :disabled="isLoading"
-            class="w-full btn-premium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-            @click="handleLogin"
-          >
+          <button type="button" :disabled="isLoading" class="w-full btn-premium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group disabled:opacity-50" @click="handleLogin">
             <span v-if="!isLoading">进入平台</span>
             <span
               v-else
@@ -356,11 +337,7 @@ const handle2FAVerify = async () => {
             <el-checkbox v-model="rememberDevice" label="记住此浏览器 (下次登录免验证)" />
           </div>
 
-          <button
-            :disabled="isLoading || twoFactorCode.length < 6"
-            class="w-full bg-accent text-white py-3.5 rounded-xl font-bold shadow-lg shadow-accent/30 hover:bg-accent transition-all flex items-center justify-center gap-2"
-            @click="handle2FAVerify"
-          >
+          <button type="button" :disabled="isLoading || twoFactorCode.length < 6" class="w-full bg-accent text-white py-3.5 rounded-xl font-bold shadow-lg shadow-accent/30 hover:bg-accent transition-all flex items-center justify-center gap-2" @click="handle2FAVerify">
             <span v-if="!isLoading">确认验证</span>
             <span
               v-else
@@ -368,11 +345,7 @@ const handle2FAVerify = async () => {
             ></span>
           </button>
 
-          <button
-            class="w-full text-sm font-bold hover:text-accent transition-colors mt-4"
-            style="color: var(--text-secondary)"
-            @click="is2FARequired = false"
-          >
+          <button type="button" class="w-full text-sm font-bold hover:text-accent transition-colors mt-4" style="color: var(--text-secondary)" @click="is2FARequired = false">
             返回登录
           </button>
         </div>

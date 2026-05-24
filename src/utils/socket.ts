@@ -2,9 +2,16 @@ import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+type SocketCallback<TArgs extends unknown[] = unknown[]> = (...args: TArgs) => void;
+type StoredListener = {
+  event: string;
+  callback: SocketCallback;
+  wrapped: SocketCallback;
+};
+
 class SocketService {
   private socket: Socket | null = null;
-  private listeners: { event: string; callback: (...args: any[]) => void }[] = [];
+  private listeners: StoredListener[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -24,8 +31,8 @@ class SocketService {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0;
-      this.listeners.forEach(({ event, callback }) => {
-        this.socket?.on(event, callback);
+      this.listeners.forEach(({ event, wrapped }) => {
+        this.socket?.on(event, wrapped);
       });
     });
 
@@ -62,33 +69,41 @@ class SocketService {
     return this.socket;
   }
 
-  on(event: string, callback: (...args: any[]) => void) {
+  on<TArgs extends unknown[]>(event: string, callback: SocketCallback<TArgs>) {
+    const storedCallback = callback as SocketCallback;
+    const wrapped: SocketCallback = (...args) => callback(...(args as TArgs));
+
     if (this.socket) {
-      this.socket.on(event, callback);
+      this.socket.on(event, wrapped);
     }
-    if (!this.listeners.some((l) => l.event === event && l.callback === callback)) {
-      this.listeners.push({ event, callback });
+    if (!this.listeners.some((l) => l.event === event && l.callback === storedCallback)) {
+      this.listeners.push({ event, callback: storedCallback, wrapped });
     }
   }
 
-  off(event: string, callback?: (...args: any[]) => void) {
+  off<TArgs extends unknown[]>(event: string, callback?: SocketCallback<TArgs>) {
+    const storedCallback = callback as SocketCallback | undefined;
+    const matchingListeners = storedCallback
+      ? this.listeners.filter((l) => l.event === event && l.callback === storedCallback)
+      : this.listeners.filter((l) => l.event === event);
+
     if (this.socket) {
-      if (callback) {
-        this.socket.off(event, callback);
+      if (storedCallback) {
+        matchingListeners.forEach((listener) => this.socket?.off(event, listener.wrapped));
       } else {
         this.socket.off(event);
       }
     }
-    if (callback) {
+    if (storedCallback) {
       this.listeners = this.listeners.filter(
-        (l) => !(l.event === event && l.callback === callback),
+        (l) => !(l.event === event && l.callback === storedCallback),
       );
     } else {
       this.listeners = this.listeners.filter((l) => l.event !== event);
     }
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     if (this.socket?.connected) {
       this.socket.emit(event, ...args);
     } else {

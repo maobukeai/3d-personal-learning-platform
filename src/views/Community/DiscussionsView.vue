@@ -29,9 +29,48 @@ const authStore = useAuthStore();
 const currentUserId = computed(() => authStore.user?.id);
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 
+interface DiscussionUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+}
+
+interface DiscussionCounts {
+  likes: number;
+  comments: number;
+  replies: number;
+}
+
+interface DiscussionComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: DiscussionUser;
+  parentId?: string | null;
+  replies: DiscussionComment[];
+  isLiked?: boolean;
+  _count: DiscussionCounts;
+}
+
+interface Discussion {
+  id: string;
+  title: string;
+  content: string;
+  tags: string | null;
+  images: string | null;
+  createdAt: string;
+  viewCount?: number;
+  isPinned?: boolean;
+  isLiked?: boolean;
+  user: DiscussionUser;
+  comments: DiscussionComment[];
+  _count: DiscussionCounts;
+}
+
 const searchQuery = ref('');
 const showCreateModal = ref(false);
-const discussions = ref<any[]>([]);
+const discussions = ref<Discussion[]>([]);
 const isLoading = ref(false);
 const sortBy = ref('newest');
 const selectedTag = ref('');
@@ -90,17 +129,17 @@ const removeImage = (index: number) => {
   imagePreviews.value.splice(index, 1);
 };
 
-const selectedDiscussion = ref<any>(null);
+const selectedDiscussion = ref<Discussion | null>(null);
 const isDetailOpen = ref(false);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
-const replyingTo = ref<any>(null);
+const replyingTo = ref<DiscussionComment | null>(null);
 const replyContent = ref('');
 
-const parseImages = (imagesStr: string) => {
+const parseImages = (imagesStr: string | null) => {
   try {
     return imagesStr ? JSON.parse(imagesStr) : [];
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 };
@@ -108,7 +147,7 @@ const parseImages = (imagesStr: string) => {
 const parseTags = (tagsStr: string | null) => {
   try {
     return tagsStr ? JSON.parse(tagsStr) : [];
-  } catch (e) {
+  } catch (_e) {
     return [];
   }
 };
@@ -174,7 +213,7 @@ const hotDiscussions = computed(() => {
 });
 
 const topContributors = computed(() => {
-  const counts: Record<string, { user: any; count: number }> = {};
+  const counts: Record<string, { user: DiscussionUser; count: number }> = {};
   discussions.value.forEach((d) => {
     if (d.user) {
       if (!counts[d.user.id]) {
@@ -219,7 +258,7 @@ const handleCreateDiscussion = async () => {
     imagePreviews.value = [];
     fetchDiscussions();
     fetchTags();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('发布失败');
   }
 };
@@ -231,12 +270,13 @@ const openDiscussion = async (id: string) => {
     isDetailOpen.value = true;
     replyingTo.value = null;
     replyContent.value = '';
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('无法加载讨论详情');
   }
 };
 
 const handleAddComment = async () => {
+  if (!selectedDiscussion.value) return;
   if (!newComment.value.trim()) return;
   isSubmittingComment.value = true;
   try {
@@ -244,11 +284,12 @@ const handleAddComment = async () => {
       discussionId: selectedDiscussion.value.id,
       content: newComment.value,
     });
+    if (!selectedDiscussion.value.comments) selectedDiscussion.value.comments = [];
     selectedDiscussion.value.comments.push(response.data);
     newComment.value = '';
     ElMessage.success('评论已发表');
     fetchDiscussions();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('发表评论失败');
   } finally {
     isSubmittingComment.value = false;
@@ -256,6 +297,7 @@ const handleAddComment = async () => {
 };
 
 const handleReplyComment = async (parentId: string) => {
+  if (!selectedDiscussion.value) return;
   if (!replyContent.value.trim()) return;
   try {
     const response = await api.post('/api/discussions/comments', {
@@ -263,7 +305,7 @@ const handleReplyComment = async (parentId: string) => {
       content: replyContent.value,
       parentId,
     });
-    const parentComment = selectedDiscussion.value.comments.find((c: any) => c.id === parentId);
+    const parentComment = selectedDiscussion.value.comments?.find((c) => c.id === parentId);
     if (parentComment) {
       if (!parentComment.replies) parentComment.replies = [];
       parentComment.replies.push(response.data);
@@ -276,12 +318,12 @@ const handleReplyComment = async (parentId: string) => {
     replyingTo.value = null;
     ElMessage.success('回复已发表');
     fetchDiscussions();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('回复失败');
   }
 };
 
-const toggleLikeDiscussion = async (discussion: any, event?: Event) => {
+const toggleLikeDiscussion = async (discussion: Discussion, event?: Event) => {
   if (event) event.stopPropagation();
   try {
     const response = await api.post(`/api/discussions/${discussion.id}/like`);
@@ -291,12 +333,12 @@ const toggleLikeDiscussion = async (discussion: any, event?: Event) => {
         ? discussion._count.likes + 1
         : discussion._count.likes - 1;
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('操作失败');
   }
 };
 
-const toggleLikeComment = async (comment: any) => {
+const toggleLikeComment = async (comment: DiscussionComment) => {
   try {
     const response = await api.post(`/api/discussions/comments/${comment.id}/like`);
     comment.isLiked = response.data.isLiked;
@@ -305,24 +347,24 @@ const toggleLikeComment = async (comment: any) => {
         ? comment._count.likes + 1
         : comment._count.likes - 1;
     }
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('操作失败');
   }
 };
 
-const togglePinDiscussion = async (discussion: any, event?: Event) => {
+const togglePinDiscussion = async (discussion: Discussion, event?: Event) => {
   if (event) event.stopPropagation();
   try {
     await api.post(`/api/discussions/${discussion.id}/pin`);
     discussion.isPinned = !discussion.isPinned;
     ElMessage.success(discussion.isPinned ? '已置顶' : '已取消置顶');
     fetchDiscussions();
-  } catch (error) {
+  } catch (_error) {
     ElMessage.error('操作失败');
   }
 };
 
-const deleteDiscussion = async (discussion: any, event?: Event) => {
+const deleteDiscussion = async (discussion: Discussion, event?: Event) => {
   if (event) event.stopPropagation();
   try {
     await ElMessageBox.confirm('确定要删除这篇讨论吗？此操作不可撤销。', '删除确认', {
@@ -343,7 +385,7 @@ const deleteDiscussion = async (discussion: any, event?: Event) => {
   }
 };
 
-const deleteComment = async (comment: any, parentComment?: any) => {
+const deleteComment = async (comment: DiscussionComment, parentComment?: DiscussionComment) => {
   try {
     await ElMessageBox.confirm('确定要删除这条评论吗？', '删除确认', {
       confirmButtonText: '删除',
@@ -352,15 +394,17 @@ const deleteComment = async (comment: any, parentComment?: any) => {
     });
     await api.delete(`/api/discussions/comments/${comment.id}`);
     if (parentComment) {
-      parentComment.replies = parentComment.replies.filter((r: any) => r.id !== comment.id);
+      parentComment.replies = (parentComment.replies || []).filter((r) => r.id !== comment.id);
       parentComment._count = {
         ...parentComment._count,
         replies: (parentComment._count?.replies || 1) - 1,
       };
     } else {
-      selectedDiscussion.value.comments = selectedDiscussion.value.comments.filter(
-        (c: any) => c.id !== comment.id,
-      );
+      if (selectedDiscussion.value?.comments) {
+        selectedDiscussion.value.comments = selectedDiscussion.value.comments.filter(
+          (c) => c.id !== comment.id,
+        );
+      }
     }
     ElMessage.success('已删除');
     fetchDiscussions();
@@ -413,16 +457,10 @@ onMounted(() => {
             "
           />
         </div>
-        <button
-          class="hidden md:flex bg-accent hover:bg-accent text-white px-4 py-2 rounded-full text-sm font-medium items-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20"
-          @click="showCreateModal = true"
-        >
+        <button type="button" class="hidden md:flex bg-accent hover:bg-accent text-white px-4 py-2 rounded-full text-sm font-medium items-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20" @click="showCreateModal = true">
           <Edit3 class="w-4 h-4" /> 发起讨论
         </button>
-        <button
-          class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20"
-          @click="showCreateModal = true"
-        >
+        <button type="button" class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20" @click="showCreateModal = true">
           <Edit3 class="w-4 h-4" />
         </button>
       </div>
@@ -436,16 +474,11 @@ onMounted(() => {
       <!-- Sort Options -->
       <div class="flex items-center gap-1 shrink-0">
         <button
-          v-for="opt in sortOptions"
-          :key="opt.value"
-          class="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all whitespace-nowrap"
-          :style="
+v-for="opt in sortOptions" :key="opt.value" type="button" class="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
             sortBy === opt.value
               ? 'background-color: var(--accent); color: white'
               : 'background-color: var(--bg-app); color: var(--text-secondary)'
-          "
-          @click="sortBy = opt.value"
-        >
+          " @click="sortBy = opt.value">
           {{ opt.label }}
         </button>
       </div>
@@ -456,27 +489,19 @@ onMounted(() => {
       <div v-if="availableTags.length > 0" class="flex lg:hidden items-center gap-1.5 shrink-0">
         <Tag class="w-3 h-3" style="color: var(--text-muted)" />
         <button
-          class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap"
-          :style="
+type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
             !selectedTag
               ? 'background-color: var(--accent); color: white'
               : 'background-color: var(--bg-app); color: var(--text-secondary)'
-          "
-          @click="selectedTag = ''"
-        >
+          " @click="selectedTag = ''">
           全部
         </button>
         <button
-          v-for="tag in availableTags"
-          :key="tag"
-          class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap"
-          :style="
+v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
             selectedTag === tag
               ? 'background-color: var(--accent); color: white'
               : 'background-color: var(--bg-app); color: var(--text-secondary)'
-          "
-          @click="selectedTag = selectedTag === tag ? '' : tag"
-        >
+          " @click="selectedTag = selectedTag === tag ? '' : tag">
           #{{ tag }}
         </button>
       </div>
@@ -538,10 +563,7 @@ onMounted(() => {
             <p class="text-xs leading-relaxed" style="color: var(--text-muted)">
               欢迎来到创作者交流社区！在这里分享您的 3D 渲染成品、建模心得、软件技术，与同行一起成长。
             </p>
-            <button
-              class="w-full bg-accent hover:bg-accent text-white py-2.5 rounded-xl text-xs font-bold items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20 flex cursor-pointer"
-              @click="showCreateModal = true"
-            >
+            <button type="button" class="w-full bg-accent hover:bg-accent text-white py-2.5 rounded-xl text-xs font-bold items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20 flex cursor-pointer" @click="showCreateModal = true">
               <Edit3 class="w-4 h-4" /> 发起讨论帖子
             </button>
           </div>
@@ -605,16 +627,11 @@ onMounted(() => {
             <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">热门话题标签</h4>
             <div class="flex flex-wrap gap-1.5">
               <button
-                v-for="tag in availableTags.slice(0, 15)"
-                :key="tag"
-                class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all hover:opacity-85"
-                :style="
+v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all hover:opacity-85" :style="
                   selectedTag === tag
                     ? 'background-color: var(--accent); color: white'
                     : 'background-color: var(--bg-app); color: var(--text-secondary); border: 1px solid var(--border-base)'
-                "
-                @click="selectedTag = selectedTag === tag ? '' : tag"
-              >
+                " @click="selectedTag = selectedTag === tag ? '' : tag">
                 #{{ tag }}
               </button>
             </div>
@@ -661,27 +678,13 @@ onMounted(() => {
               </div>
             </div>
             <div class="flex items-center gap-1">
-              <button
-                v-if="isAdmin"
-                class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                style="color: var(--text-secondary)"
-                @click="togglePinDiscussion(selectedDiscussion)"
-              >
+              <button v-if="isAdmin" type="button" class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="togglePinDiscussion(selectedDiscussion)">
                 <Pin class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'text-accent': selectedDiscussion.isPinned }" />
               </button>
-              <button
-                v-if="currentUserId === selectedDiscussion.user?.id || isAdmin"
-                class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                style="color: var(--text-secondary)"
-                @click="deleteDiscussion(selectedDiscussion)"
-              >
+              <button v-if="currentUserId === selectedDiscussion.user?.id || isAdmin" type="button" class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="deleteDiscussion(selectedDiscussion)">
                 <Trash2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </button>
-              <button
-                class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                style="color: var(--text-secondary)"
-                @click="isDetailOpen = false"
-              >
+              <button type="button" class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isDetailOpen = false">
                 <X class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
@@ -712,12 +715,7 @@ onMounted(() => {
               class="flex items-center gap-3.5 sm:gap-4 mb-3 sm:mb-3.5 pb-2 border-b"
               style="border-color: var(--border-base)"
             >
-              <button
-                class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold transition-colors cursor-pointer"
-                :class="selectedDiscussion.isLiked ? 'text-red-500' : ''"
-                :style="!selectedDiscussion.isLiked ? 'color: var(--text-muted)' : ''"
-                @click="toggleLikeDiscussion(selectedDiscussion)"
-              >
+              <button type="button" class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold transition-colors cursor-pointer" :class="selectedDiscussion.isLiked ? 'text-red-500' : ''" :style="!selectedDiscussion.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeDiscussion(selectedDiscussion)">
                 <Heart class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'fill-red-500': selectedDiscussion.isLiked }" />
                 {{ selectedDiscussion._count?.likes || 0 }} <span class="hidden sm:inline">赞</span>
               </button>
@@ -750,12 +748,7 @@ onMounted(() => {
                 parseImages(selectedDiscussion.images).length === 2 ? 'grid-cols-2' : 'grid-cols-3'
               ]"
             >
-              <img
-                v-for="(img, idx) in parseImages(selectedDiscussion.images)"
-                :key="idx"
-                :src="img"
-                class="w-full h-28 sm:h-36 object-cover rounded-lg shadow-sm border border-slate-100 dark:border-white/5"
-              />
+              <img v-for="(img, idx) in parseImages(selectedDiscussion.images)" :key="idx" alt="" :src="img" class="w-full h-28 sm:h-36 object-cover rounded-lg shadow-sm border border-slate-100 dark:border-white/5" />
             </div>
 
             <!-- Comments Section -->
@@ -794,31 +787,18 @@ onMounted(() => {
                     </div>
                     <!-- Comment Actions -->
                     <div class="flex items-center gap-3.5 mt-1 ml-1.5">
-                      <button
-                        class="flex items-center gap-0.5 text-[9px] font-medium transition-colors cursor-pointer"
-                        :class="comment.isLiked ? 'text-red-500' : ''"
-                        :style="!comment.isLiked ? 'color: var(--text-muted)' : ''"
-                        @click="toggleLikeComment(comment)"
-                      >
+                      <button type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors cursor-pointer" :class="comment.isLiked ? 'text-red-500' : ''" :style="!comment.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeComment(comment)">
                         <Heart class="w-2.5 h-2.5" :class="{ 'fill-red-500': comment.isLiked }" />
                         {{ comment._count?.likes || 0 }}
                       </button>
                       <button
-                        class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-accent cursor-pointer"
-                        style="color: var(--text-muted)"
-                        @click="
+type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-accent cursor-pointer" style="color: var(--text-muted)" @click="
                           replyingTo = replyingTo?.id === comment.id ? null : comment;
                           replyContent = '';
-                        "
-                      >
+                        ">
                         <MessageSquare class="w-2.5 h-2.5" /> 回复
                       </button>
-                      <button
-                        v-if="currentUserId === comment.user?.id || isAdmin"
-                        class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-red-500 cursor-pointer"
-                        style="color: var(--text-muted)"
-                        @click="deleteComment(comment)"
-                      >
+                      <button v-if="currentUserId === comment.user?.id || isAdmin" type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-red-500 cursor-pointer" style="color: var(--text-muted)" @click="deleteComment(comment)">
                         <Trash2 class="w-2.5 h-2.5" /> 删除
                       </button>
                     </div>
@@ -837,18 +817,10 @@ onMounted(() => {
                         :placeholder="`回复 ${comment.user?.name || '匿名用户'}...`"
                       ></textarea>
                       <div class="flex justify-end gap-1.5">
-                        <button
-                          class="px-2.5 py-1 rounded-xl text-[9px] transition-all font-bold cursor-pointer"
-                          style="color: var(--text-muted)"
-                          @click="replyingTo = null"
-                        >
+                        <button type="button" class="px-2.5 py-1 rounded-xl text-[9px] transition-all font-bold cursor-pointer" style="color: var(--text-muted)" @click="replyingTo = null">
                           取消
                         </button>
-                        <button
-                          :disabled="!replyContent"
-                          class="px-3 py-1 bg-accent text-white font-bold rounded-xl text-[9px] shadow-md shadow-accent/10 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer"
-                          @click="handleReplyComment(comment.id)"
-                        >
+                        <button type="button" :disabled="!replyContent" class="px-3 py-1 bg-accent text-white font-bold rounded-xl text-[9px] shadow-md shadow-accent/10 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer" @click="handleReplyComment(comment.id)">
                           <Send class="w-2 h-2" /> 发表回复
                         </button>
                       </div>
@@ -856,22 +828,15 @@ onMounted(() => {
 
                     <!-- Show Replies Toggle -->
                     <button
-                      v-if="
+v-if="
                         comment._count?.replies > 0 &&
                         (!comment.replies ||
                           comment.replies.length === 0 ||
                           !expandedReplies.has(comment.id))
-                      "
-                      class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer"
-                      @click="toggleReplies(comment.id)"
-                    >
+                      " type="button" class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer" @click="toggleReplies(comment.id)">
                       <ChevronDown class="w-2.5 h-2.5" /> 查看 {{ comment._count?.replies }} 条回复
                     </button>
-                    <button
-                      v-if="expandedReplies.has(comment.id) && comment._count?.replies > 0"
-                      class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer"
-                      @click="toggleReplies(comment.id)"
-                    >
+                    <button v-if="expandedReplies.has(comment.id) && comment._count?.replies > 0" type="button" class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer" @click="toggleReplies(comment.id)">
                       <ChevronUp class="w-2.5 h-2.5" /> 收起回复
                     </button>
 
@@ -903,24 +868,14 @@ onMounted(() => {
                             </div>
                           </div>
                           <div class="flex items-center gap-2.5 mt-0.5 ml-0.5">
-                            <button
-                              class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors cursor-pointer"
-                              :class="reply.isLiked ? 'text-red-500' : ''"
-                              :style="!reply.isLiked ? 'color: var(--text-muted)' : ''"
-                              @click="toggleLikeComment(reply)"
-                            >
+                            <button type="button" class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors cursor-pointer" :class="reply.isLiked ? 'text-red-500' : ''" :style="!reply.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeComment(reply)">
                               <Heart
                                 class="w-2 h-2"
                                 :class="{ 'fill-red-500': reply.isLiked }"
                               />
                               {{ reply._count?.likes || 0 }}
                             </button>
-                            <button
-                              v-if="currentUserId === reply.user?.id || isAdmin"
-                              class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors hover:text-red-500 cursor-pointer"
-                              style="color: var(--text-muted)"
-                              @click="deleteComment(reply, comment)"
-                            >
+                            <button v-if="currentUserId === reply.user?.id || isAdmin" type="button" class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors hover:text-red-500 cursor-pointer" style="color: var(--text-muted)" @click="deleteComment(reply, comment)">
                               <Trash2 class="w-2 h-2" /> 删除
                             </button>
                           </div>
@@ -953,11 +908,7 @@ onMounted(() => {
                   placeholder="撰写你的回复..."
                 ></textarea>
                 <div class="flex justify-end">
-                  <button
-                    :disabled="!newComment || isSubmittingComment"
-                    class="px-3.5 py-1 bg-accent text-white font-bold rounded-xl text-xs shadow-lg shadow-accent/20 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer"
-                    @click="handleAddComment"
-                  >
+                  <button type="button" :disabled="!newComment || isSubmittingComment" class="px-3.5 py-1 bg-accent text-white font-bold rounded-xl text-xs shadow-lg shadow-accent/20 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer" @click="handleAddComment">
                     <Send class="w-3 h-3" /> 发表回复
                   </button>
                 </div>
@@ -981,7 +932,7 @@ onMounted(() => {
         >
           <div class="flex items-center justify-between pb-1">
             <h3 class="text-md sm:text-lg font-black" style="color: var(--text-primary)">发布新讨论</h3>
-            <button class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-secondary)" @click="showCreateModal = false">
+            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-secondary)" @click="showCreateModal = false">
               <X class="w-4 h-4 sm:w-5 h-5" />
             </button>
           </div>
@@ -1042,13 +993,7 @@ onMounted(() => {
                 <span class="text-[9px] font-bold" style="color: var(--text-muted)"
                   >热门标签:</span
                 >
-                <button
-                  v-for="tag in availableTags.slice(0, 8)"
-                  :key="tag"
-                  class="px-2 py-0.5 rounded-full text-[9px] font-bold hover:opacity-80 transition-opacity"
-                  style="background-color: var(--bg-app); color: var(--accent)"
-                  @click="postForm.tags = postForm.tags ? `${postForm.tags}, ${tag}` : tag"
-                >
+                <button v-for="tag in availableTags.slice(0, 8)" :key="tag" type="button" class="px-2 py-0.5 rounded-full text-[9px] font-bold hover:opacity-80 transition-opacity" style="background-color: var(--bg-app); color: var(--accent)" @click="postForm.tags = postForm.tags ? `${postForm.tags}, ${tag}` : tag">
                   #{{ tag }}
                 </button>
               </div>
@@ -1068,11 +1013,8 @@ onMounted(() => {
                   class="relative w-16 h-16 rounded-lg overflow-hidden group border"
                   style="border-color: var(--border-base)"
                 >
-                  <img :src="img" class="w-full h-full object-cover" />
-                  <button
-                    class="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    @click="removeImage(idx)"
-                  >
+                  <img alt="" :src="img" class="w-full h-full object-cover" />
+                  <button type="button" class="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" @click="removeImage(idx)">
                     <X class="w-2.5 h-2.5" />
                   </button>
                 </div>
@@ -1096,10 +1038,7 @@ onMounted(() => {
           </div>
 
           <div class="pt-2">
-            <button
-              class="w-full py-2.5 sm:py-3 bg-accent text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              @click="handleCreateDiscussion"
-            >
+            <button type="button" class="w-full py-2.5 sm:py-3 bg-accent text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all flex items-center justify-center gap-2 cursor-pointer" @click="handleCreateDiscussion">
               <Send class="w-3.5 h-3.5" /> 立即发布
             </button>
           </div>

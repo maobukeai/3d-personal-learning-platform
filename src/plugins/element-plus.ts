@@ -7,21 +7,17 @@ import { ElDatePicker } from 'element-plus/es/components/date-picker/index.mjs';
 import { ElDialog } from 'element-plus/es/components/dialog/index.mjs';
 import { ElDivider } from 'element-plus/es/components/divider/index.mjs';
 import { ElDrawer } from 'element-plus/es/components/drawer/index.mjs';
-import {
-  ElDropdown,
-  ElDropdownItem,
-  ElDropdownMenu,
-} from 'element-plus/es/components/dropdown/index.mjs';
+import { ElDropdown } from 'element-plus/es/components/dropdown/index.mjs';
 import { ElIcon } from 'element-plus/es/components/icon/index.mjs';
 import { ElInput } from 'element-plus/es/components/input/index.mjs';
 import { ElInputNumber } from 'element-plus/es/components/input-number/index.mjs';
 import { ElPagination } from 'element-plus/es/components/pagination/index.mjs';
 import { ElPopover } from 'element-plus/es/components/popover/index.mjs';
-import { ElRadio, ElRadioButton, ElRadioGroup } from 'element-plus/es/components/radio/index.mjs';
-import { ElOption, ElSelect } from 'element-plus/es/components/select/index.mjs';
+import { ElRadio } from 'element-plus/es/components/radio/index.mjs';
+import { ElSelect } from 'element-plus/es/components/select/index.mjs';
 import { ElSlider } from 'element-plus/es/components/slider/index.mjs';
 import { ElSwitch } from 'element-plus/es/components/switch/index.mjs';
-import { ElTabPane, ElTabs } from 'element-plus/es/components/tabs/index.mjs';
+import { ElTabs } from 'element-plus/es/components/tabs/index.mjs';
 import { ElTag } from 'element-plus/es/components/tag/index.mjs';
 import { ElTooltip } from 'element-plus/es/components/tooltip/index.mjs';
 
@@ -61,35 +57,21 @@ const components = [
   ElDivider,
   ElDrawer,
   ElDropdown,
-  ElDropdownItem,
-  ElDropdownMenu,
   ElIcon,
   ElInput,
   ElInputNumber,
-  ElOption,
   ElPagination,
   ElPopover,
   ElRadio,
-  ElRadioButton,
-  ElRadioGroup,
   ElSelect,
   ElSlider,
   ElSwitch,
-  ElTabPane,
   ElTabs,
   ElTag,
   ElTooltip,
 ];
 
 export const registerElementPlus = (app: App) => {
-  components.forEach((component) => {
-    app.use(component);
-    if (component && (component as any).name) {
-      const name = (component as any).name;
-      if (!app.component(name)) {
-        app.component(name, component);
-      }
-    }
-  });
+  components.forEach((component) => app.use(component));
 };
 

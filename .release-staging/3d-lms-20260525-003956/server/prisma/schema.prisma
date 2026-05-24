@@ -1,0 +1,1124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                         String                      @id @default(uuid())
+  email                      String                      @unique
+  password                   String
+  name                       String?
+  avatarUrl                  String?
+  bio                        String?
+  location                   String?
+  website                    String?
+  role                       String                      @default("USER") // 'USER' or 'ADMIN'
+  status                     String                      @default("ACTIVE") // 'ACTIVE' or 'BANNED'
+  emailVerified              Boolean                     @default(false)
+  twoFactorEnabled           Boolean                     @default(false)
+  twoFactorSecret            String?
+  twoFactorRecoveryCodes     String? // Hashed JSON string of recovery codes
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  assets                     Asset[]
+  refreshTokens              RefreshToken[]
+  discussions                Discussion[]
+  comments                   Comment[]
+  enrollments                Enrollment[]
+  trustedDevices             TrustedDevice[]
+  feedbacks                  Feedback[]
+  notifications              Notification[]
+  notificationPreference     NotificationPreference?
+  tasks                      Task[]
+  roadmapProgress            UserRoadmapProgress[]
+  roadmaps                   Roadmap[]                   @relation("UserRoadmaps")
+  projects                   ProjectMember[]
+  materials                  Material[]
+  materialFavorites          MaterialFavorite[]
+  showcases                  Showcase[]
+  showcaseLikes              ShowcaseLike[]
+  showcaseComments           ShowcaseComment[]
+  discussionLikes            DiscussionLike[]
+  commentLikes               CommentLike[]
+  projectDiscussions         ProjectDiscussion[]
+  projectDiscussionReactions ProjectDiscussionReaction[]
+  projectInvitationsReceived ProjectInvitation[]
+
+  // Course learning
+  courseReviews  CourseReview[]
+  lessonProgress LessonProgress[]
+  courseNotes    CourseNote[]
+  noteLikes      NoteLike[]
+  notes          Note[]
+  noteComments   NoteComment[]
+
+  // Messaging & Teams
+  conversations    Conversation[]    @relation("UserConversations")
+  messages         Message[]
+  messageReads     MessageRead[]
+  messageReactions MessageReaction[]
+  ownedTeams       Team[]            @relation("TeamOwner")
+  teamMemberships  TeamMember[]
+  assignedTasks    Task[]            @relation("TaskAssignee")
+  taskParticipants TaskParticipant[]
+  teamApplications TeamApplication[]
+
+  // Subscriptions & Billing
+  subscription Subscription?
+  transactions Transaction[]
+  activationCodesRedeemed ActivationCode[]
+  userSettings UserSetting[]
+  auditLogs      AuditLog[]
+  mirrorComments MirrorResourceComment[]
+  mirrorLikes    MirrorResourceLike[]
+  manualComments ManualResourceComment[]
+  manualLikes    ManualResourceLike[]
+
+  googleId   String? @unique
+  githubId   String? @unique
+  microsoftEmailAccounts MicrosoftEmailAccount[]
+}
+
+model Conversation {
+  id           String    @id @default(uuid())
+  name         String?
+  avatarUrl    String?
+  isGroup      Boolean   @default(false)
+  participants User[]    @relation("UserConversations")
+  messages     Message[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Message {
+  id             String            @id @default(uuid())
+  content        String
+  type           String            @default("TEXT")
+  senderId       String
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyToId      String?
+  replyTo        Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]         @relation("MessageReplies")
+  readBy         MessageRead[]
+  reactions      MessageReaction[]
+  createdAt      DateTime          @default(now())
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+}
+
+model Team {
+  id           String            @id @default(uuid())
+  name         String
+  description  String?
+  avatarUrl    String?
+  coverUrl     String?
+  type         String            @default("TEAM") // 'PERSONAL', 'TEAM'
+  visibility   String            @default("PRIVATE") // 'PUBLIC', 'PRIVATE'
+  category     String?
+  ownerId      String
+  owner        User              @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      TeamMember[]
+  invitations  TeamInvitation[]
+  applications TeamApplication[]
+
+  // Associated data
+  assets      Asset[]
+  tasks       Task[]
+  projects    Project[]
+  materials   Material[]
+  showcases   Showcase[]
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Unique constraint for public space to prevent duplicates
+  @@unique([name, type])
+}
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     String   @default("MEMBER") // 'OWNER', 'ADMIN', 'MEMBER'
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model TeamInvitation {
+  id           String   @id @default(uuid())
+  teamId       String
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviterId    String
+  inviteeEmail String
+  status       String   @default("PENDING") // 'PENDING', 'ACCEPTED', 'REJECTED'
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([teamId])
+}
+
+model Notification {
+  id          String     @id @default(uuid())
+  type        String // 'REPLY', 'COURSE_UPDATE', 'SYSTEM'
+  title       String
+  content     String
+  isRead      Boolean    @default(false)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link        String? // Optional link to redirect user
+  broadcastId String?
+  broadcast   Broadcast? @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+
+  @@index([userId, isRead])
+}
+
+model NotificationPreference {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailSystemUpdates Boolean  @default(true)
+  emailTeamActivity  Boolean  @default(true)
+  emailMarketing     Boolean  @default(false)
+  pushMentions       Boolean  @default(true)
+  pushDirectMessages Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Broadcast {
+  id            String         @id @default(uuid())
+  title         String
+  content       String
+  link          String?
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+}
+
+model TrustedDevice {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserSetting {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model Asset {
+  id           String  @id @default(uuid())
+  title        String
+  description  String?
+  url          String
+  thumbnail    String?
+  type         String // e.g., 'GLB', 'GLTF', 'FBX'
+  status       String  @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  rejectReason String?
+  formats      String? // 存储 JSON 字符串，如 ["FBX", "OBJ"]
+
+  // 3D Metadata
+  vertices      Int?
+  faces         Int?
+  materials     Int?
+  animations    Int?
+  hasAnimations Boolean @default(false)
+  size          Float? // in MB
+  dimensions    String? // e.g., "10x20x15"
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId    String?
+  team      Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  showcases Showcase[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([teamId])
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  icon      String?
+  order     Int      @default(0)
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Course {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  thumbnail   String?
+  difficulty  String          @default("BEGINNER") // 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'
+  status      String          @default("PUBLISHED") // 'DRAFT', 'PUBLISHED'
+  lessons     Lesson[]
+  enrollments Enrollment[]
+  discussions Discussion[]
+  reviews     CourseReview[]
+  categoryId  String?
+  category    CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model CourseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  order     Int      @default(0)
+  courses   Course[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lesson {
+  id          String           @id @default(uuid())
+  title       String
+  content     String? // Markdown or HTML
+  videoUrl    String?
+  hotspots    String? // JSON string for 3D hotspots
+  sceneConfig String? // JSON string for environment, lighting, post-processing
+  duration    Int              @default(0) // Duration in minutes
+  courseId    String
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order       Int
+  progress    LessonProgress[]
+  notes       CourseNote[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  progress  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId, teamId])
+}
+
+model Discussion {
+  id        String           @id @default(uuid())
+  title     String
+  content   String
+  images    String? // JSON array of image URLs
+  tags      String? // JSON array of tag names
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String? // Optional: link to a course
+  course    Course?          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  isPinned  Boolean          @default(false)
+  viewCount Int              @default(0)
+  comments  Comment[]
+  likes     DiscussionLike[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
+}
+
+model DiscussionLike {
+  id           String     @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([discussionId, userId])
+  @@index([userId])
+}
+
+model Comment {
+  id           String        @id @default(uuid())
+  content      String
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discussionId String
+  discussion   Discussion    @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      Comment[]     @relation("CommentReplies")
+  likes        CommentLike[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([discussionId])
+  @@index([parentId])
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
+}
+
+model Task {
+  id           String            @id @default(uuid())
+  title        String
+  description  String?
+  status       String // 'TODO', 'IN_PROGRESS', 'DONE'
+  priority     String            @default("MEDIUM") // 'LOW', 'MEDIUM', 'HIGH', 'URGENT'
+  tags         String? // JSON string of tag names
+  subtasks     String? // JSON string of [{ id: string, text: string, done: boolean }]
+  dueDate      DateTime?
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assigneeId   String?
+  assignee     User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  teamId       String?
+  team         Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  projectId    String?
+  project      Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participants TaskParticipant[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([assigneeId])
+  @@index([teamId])
+  @@index([projectId])
+}
+
+model TaskParticipant {
+  id       String   @id @default(uuid())
+  taskId   String
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TeamApplication {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?
+  status    String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teamId, userId])
+}
+
+model Feedback {
+  id            String    @id @default(uuid())
+  type          String // 'Bug', 'Feature', 'UI', 'Other'
+  title         String
+  description   String
+  priority      String // 'LOW', 'MEDIUM', 'HIGH'
+  status        String    @default("OPEN") // 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'
+  attachmentUrl String?
+  adminReply    String? // Admin's response
+  repliedAt     DateTime?
+  adminId       String? // ID of the admin who replied
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model Roadmap {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  steps       RoadmapStep[]
+  creatorId   String?
+  creator     User?         @relation("UserRoadmaps", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model RoadmapStep {
+  id           String                @id @default(uuid())
+  title        String
+  description  String?
+  subtasks     String?
+  order        Int
+  roadmapId    String
+  roadmap      Roadmap               @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  userProgress UserRoadmapProgress[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model UserRoadmapProgress {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roadmapStepId String
+  roadmapStep   RoadmapStep @relation(fields: [roadmapStepId], references: [id], onDelete: Cascade)
+  completed     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([userId, roadmapStepId])
+}
+
+model Project {
+  id          String              @id @default(uuid())
+  title       String
+  description String?
+  progress    Int                 @default(0)
+  status      String              @default("IN_PROGRESS") // 'IN_PROGRESS', 'COMPLETED', 'PAUSED'
+  dueDate     DateTime?
+  color       String              @default("bg-accent")
+  tags        String? // JSON string or comma separated
+  visibility  String              @default("PRIVATE") // 'PUBLIC', 'PRIVATE' (Team internal)
+  maxMembers  Int                 @default(10)
+  members     ProjectMember[]
+  tasks       Task[]
+  discussions ProjectDiscussion[]
+  invitations ProjectInvitation[]
+  teamId      String?
+  team        Team?               @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([teamId])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER") // 'OWNER', 'MEMBER'
+  joinedAt  DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model ProjectDiscussion {
+  id        String                      @id @default(uuid())
+  content   String
+  type      String                      @default("TEXT")
+  images    String?
+  fileUrl   String?
+  fileName  String?
+  fileSize  Float?
+  projectId String
+  project   Project                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions ProjectDiscussionReaction[]
+  createdAt DateTime                    @default(now())
+}
+
+model ProjectDiscussionReaction {
+  id           String            @id @default(uuid())
+  discussionId String
+  discussion   ProjectDiscussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji        String
+  createdAt    DateTime          @default(now())
+
+  @@unique([discussionId, userId, emoji])
+}
+
+model ProjectInvitation {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  inviterId String
+  inviteeId String
+  invitee   User     @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+  status    String   @default("PENDING")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, inviteeId])
+}
+
+model Material {
+  id           String             @id @default(uuid())
+  title        String
+  description  String?
+  category     String
+  resolution   String? // '4K', '8K', '矢量', etc.
+  previewUrl   String?
+  fileUrl      String
+  fileSize     Float? // in MB
+  tags         String?
+  isProcedural Boolean            @default(false)
+  downloads    Int                @default(0)
+  status       String             @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  rejectReason String?
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId       String?
+  team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  favorites    MaterialFavorite[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model MaterialFavorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, materialId])
+}
+
+model Showcase {
+  id           String            @id @default(uuid())
+  title        String
+  description  String?
+  tags         String?
+  type         String            @default("IMAGE") // 'IMAGE', 'VIDEO', 'MODEL', 'OTHER'
+  thumbnailUrl String
+  images       String? // JSON array of image URLs
+  videoUrl     String?
+  isVideo      Boolean           @default(false)
+  views        Int               @default(0)
+  status       String            @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  assetId      String? // Optional link to Asset
+  asset        Asset?            @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId       String?
+  team         Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  likes        ShowcaseLike[]
+  comments     ShowcaseComment[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([assetId])
+  @@index([userId])
+  @@index([teamId])
+}
+
+model ShowcaseLike {
+  id         String   @id @default(uuid())
+  showcaseId String
+  showcase   Showcase @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([showcaseId, userId])
+  @@index([userId])
+}
+
+model ShowcaseComment {
+  id         String   @id @default(uuid())
+  content    String
+  showcaseId String
+  showcase   Showcase @relation(fields: [showcaseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([showcaseId, userId])
+}
+
+model SubscriptionPlan {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  displayName   String?
+  price         Float
+  yearlyPrice   Float?
+  interval      String         @default("MONTHLY")
+  features      String?
+  maxStorage    Float          @default(1)
+  maxTeams      Int            @default(1)
+  maxProjects   Int            @default(5)
+  maxAssets     Int            @default(50)
+  priority      Int            @default(0)
+  isPopular     Boolean        @default(false)
+  badgeColor    String?
+  subscriptions Subscription[]
+  activationCodes ActivationCode[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Subscription {
+  id                String           @id @default(uuid())
+  userId            String           @unique
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              SubscriptionPlan @relation(fields: [planId], references: [id])
+  status            String           @default("ACTIVE")
+  interval          String           @default("MONTHLY")
+  startDate         DateTime         @default(now())
+  endDate           DateTime?
+  cancelAtPeriodEnd Boolean          @default(false)
+  autoRenew         Boolean          @default(true)
+  paymentMethod     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model ActivationCode {
+  id           String           @id @default(uuid())
+  code         String           @unique
+  planId       String
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  durationDays Int              @default(30)
+  status       String           @default("ACTIVE") // 'ACTIVE', 'USED', 'EXPIRED'
+  usedById     String?
+  usedBy       User?            @relation(fields: [usedById], references: [id], onDelete: SetNull)
+  usedAt       DateTime?
+  expiresAt    DateTime?
+  bindEmail    String?
+  description  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([planId])
+  @@index([usedById])
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Float
+  currency      String   @default("CNY")
+  status        String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'
+  paymentMethod String? // 'ALIPAY', 'WECHAT', 'MOCK'
+  paymentId     String?  @unique // Third-party payment ID
+  description   String?
+  planId        String?
+  planName      String?
+  interval      String?
+  invoiceNo     String?  @unique
+  metadata      String? // JSON string for additional data
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+}
+
+model CourseReview {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rating    Int // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+model CourseNote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  content   String
+  timestamp Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, lessonId])
+}
+
+model Note {
+  id         String        @id @default(uuid())
+  title      String
+  content    String        @db.Text
+  summary    String?
+  visibility String        @default("PRIVATE")
+  tags       String?
+  category   String?
+  views      Int           @default(0)
+  isPinned   Boolean       @default(false)
+  isPopular  Boolean       @default(false)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes      NoteLike[]
+  comments   NoteComment[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model NoteLike {
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([noteId, userId])
+}
+
+model NoteComment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([noteId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String // e.g., 'UPDATE_SETTINGS', 'DELETE_USER', 'APPROVE_ASSET'
+  module      String // e.g., 'SETTINGS', 'USER', 'ASSET'
+  description String? // Human readable description
+  oldValue    String?  @db.Text // JSON string of before state
+  newValue    String?  @db.Text // JSON string of after state
+  ipAddress   String?
+  userAgent   String?
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model MirrorSource {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  displayName     String
+  baseUrl         String
+  adapterType     String           @default("GENERIC_WP")
+  status          String           @default("ACTIVE")
+  syncStatus      String           @default("IDLE")
+  lastSyncAt      DateTime?
+  lastSyncDuration Int?
+  totalResources  Int              @default(0)
+  syncInterval    Int              @default(3600)
+  syncConfig      String?
+  minPlanPriority Int              @default(1)
+  iconUrl         String?
+  description     String?
+  categories      MirrorCategory[]
+  resources       MirrorResource[]
+  syncLogs        SyncLog[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model MirrorCategory {
+  id               String          @id @default(uuid())
+  sourceId         String
+  source           MirrorSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId       String
+  name             String
+  slug             String?
+  parentExternalId String?
+  order            Int             @default(0)
+  resourceCount    Int             @default(0)
+  resources        MirrorResource[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([sourceId, externalId])
+}
+
+model MirrorResource {
+  id            String                  @id @default(uuid())
+  sourceId      String
+  source        MirrorSource            @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId    String
+  categoryId    String?
+  category      MirrorCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title         String
+  description   String?                 @db.Text
+  thumbnailUrl  String?
+  contentUrl    String?
+  tags          String?
+  externalData  String?                 @db.Text
+  contentHtml   String?                 @db.Text
+  resourceType  String                  @default("COURSE")
+  viewCount     Int                     @default(0)
+  publishedAt   DateTime?
+  syncedAt      DateTime                @default(now())
+  contentHash   String?
+  comments      MirrorResourceComment[]
+  likes         MirrorResourceLike[]
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@unique([sourceId, externalId])
+  @@index([sourceId, categoryId])
+  @@index([title])
+  @@index([syncedAt])
+}
+
+model SyncLog {
+  id               String       @id @default(uuid())
+  sourceId         String
+  source           MirrorSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  type             String
+  status           String
+  startedAt        DateTime     @default(now())
+  finishedAt       DateTime?
+  duration         Int?
+  resourcesFound   Int          @default(0)
+  resourcesCreated Int          @default(0)
+  resourcesUpdated Int          @default(0)
+  resourcesDeleted Int          @default(0)
+  error            String?
+  metadata         String?
+  createdAt        DateTime     @default(now())
+}
+
+model MirrorResourceComment {
+  id         String         @id @default(uuid())
+  content    String
+  resourceId String
+  resource   MirrorResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model MirrorResourceLike {
+  id         String         @id @default(uuid())
+  resourceId String
+  resource   MirrorResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@unique([resourceId, userId])
+}
+
+model ManualStation {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  displayName     String
+  status          String           @default("ACTIVE")
+  totalResources  Int              @default(0)
+  minPlanPriority Int              @default(1)
+  iconUrl         String?
+  description     String?
+  categories      ManualCategory[]
+  resources       ManualResource[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ManualCategory {
+  id               String          @id @default(uuid())
+  stationId        String
+  station          ManualStation   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  name             String
+  slug             String?
+  parentId         String?
+  parent           ManualCategory? @relation("ManualCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children         ManualCategory[] @relation("ManualCategoryParent")
+  order            Int             @default(0)
+  resourceCount    Int             @default(0)
+  resources        ManualResource[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([stationId])
+}
+
+model ManualResource {
+  id            String                  @id @default(uuid())
+  stationId     String
+  station       ManualStation           @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      ManualCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title         String
+  description   String?                 @db.Text
+  thumbnailUrl  String?
+  contentUrl    String?
+  tags          String?
+  contentHtml   String?                 @db.Text
+  resourceType  String                  @default("COURSE")
+  viewCount     Int                     @default(0)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  comments      ManualResourceComment[]
+  likes         ManualResourceLike[]
+
+  @@index([stationId, categoryId])
+  @@index([title])
+}
+
+model ManualResourceComment {
+  id         String         @id @default(uuid())
+  resourceId String
+  resource   ManualResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String
+  createdAt  DateTime       @default(now())
+
+  @@index([resourceId])
+  @@index([userId])
+}
+
+model ManualResourceLike {
+  id         String         @id @default(uuid())
+  resourceId String
+  resource   ManualResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@unique([resourceId, userId])
+  @@index([resourceId])
+  @@index([userId])
+}
+
+model MicrosoftEmailAccount {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email            String   @unique
+  password         String?  // Encrypted with enc:v1 when provided
+  clientId         String   // Microsoft OAuth Client ID
+  refreshToken     String   @db.Text // OAuth2 Refresh Token (used to acquire access tokens)
+  accessToken      String?  @db.Text // Current active ephemeral access token
+  tokenExpiresAt   DateTime? // Expiry timestamp of the current access token
+  status           String   @default("ACTIVE") // 'ACTIVE', 'EXPIRED', 'ERROR'
+  statusMessage    String?  @db.Text
+  
+  // Anti-Ban & Safe Sending Configurations
+  proxy            String?  // Proxy URL, e.g., http://user:pass@host:port
+  userAgent        String?  @db.Text // Custom User-Agent
+  dailyLimit       Int      @default(50) // Max sends per day
+  sentCountToday   Int      @default(0) // Counter for today
+  lastResetDate    DateTime @default(now()) // Daily limit reset tracker
+  minDelay         Int      @default(5) // Min seconds delay between actions
+  maxDelay         Int      @default(15) // Max seconds delay between actions
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+}

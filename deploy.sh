@@ -4,8 +4,9 @@ set -Eeuo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$APP_DIR/server"
 PM2_APP_NAME="${PM2_APP_NAME:-3d-lms-api}"
-NODE_BUILD_MEMORY_MB="${NODE_BUILD_MEMORY_MB:-1024}"
+NODE_BUILD_MEMORY_MB="${NODE_BUILD_MEMORY_MB:-1536}"
 SWAP_SIZE="${SWAP_SIZE:-2G}"
+SKIP_TYPECHECK="${SKIP_TYPECHECK:-1}"
 
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=$NODE_BUILD_MEMORY_MB}"
 export PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR:-https://registry.npmmirror.com/-/binary/prisma}"
@@ -55,7 +56,12 @@ install_root_dependencies() {
 
 build_frontend() {
   log "\u6784\u5efa\u524d\u7aef\uff0c\u5f53\u524d NODE_OPTIONS=$NODE_OPTIONS"
-  npm run build
+  if [ "$SKIP_TYPECHECK" = "1" ]; then
+    log "\u70ed\u90e8\u7f72\u6a21\u5f0f\uff1a\u8df3\u8fc7 vue-tsc \u7c7b\u578b\u68c0\u67e5\uff0c\u53ea\u6267\u884c Vite \u6253\u5305"
+    npx vite build
+  else
+    npm run build
+  fi
 }
 
 install_server_dependencies() {

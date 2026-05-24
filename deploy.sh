@@ -11,7 +11,7 @@ export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=$NODE_BUILD_MEMORY_MB}
 export PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR:-https://registry.npmmirror.com/-/binary/prisma}"
 
 log() {
-  printf '\n==> %s\n' "$1"
+  printf '\n==> %b\n' "$1"
 }
 
 run_as_root() {
@@ -24,12 +24,12 @@ run_as_root() {
 
 ensure_swap() {
   if swapon --show=NAME --noheadings 2>/dev/null | grep -q '^/swapfile$'; then
-    log "检测到 swap 已启用"
+    log "\u68c0\u6d4b\u5230 swap \u5df2\u542f\u7528"
     free -h || true
     return
   fi
 
-  log "正在创建 $SWAP_SIZE swapfile，降低小内存服务器构建失败概率"
+  log "\u6b63\u5728\u521b\u5efa $SWAP_SIZE swapfile\uff0c\u964d\u4f4e\u5c0f\u5185\u5b58\u670d\u52a1\u5668\u6784\u5efa\u5931\u8d25\u6982\u7387"
   if command -v fallocate >/dev/null 2>&1; then
     run_as_root fallocate -l "$SWAP_SIZE" /swapfile
   else
@@ -48,29 +48,29 @@ ensure_swap() {
 }
 
 install_root_dependencies() {
-  log "安装前端依赖"
+  log "\u5b89\u88c5\u524d\u7aef\u4f9d\u8d56"
   npm config set registry https://registry.npmmirror.com
   npm install --include=dev --no-audit --no-fund
 }
 
 build_frontend() {
-  log "构建前端，当前 NODE_OPTIONS=$NODE_OPTIONS"
+  log "\u6784\u5efa\u524d\u7aef\uff0c\u5f53\u524d NODE_OPTIONS=$NODE_OPTIONS"
   npm run build
 }
 
 install_server_dependencies() {
-  log "安装后端依赖"
+  log "\u5b89\u88c5\u540e\u7aef\u4f9d\u8d56"
   cd "$SERVER_DIR"
   npm config set registry https://registry.npmmirror.com
   npm install --include=dev --no-audit --no-fund
 }
 
 sync_database() {
-  log "生成 Prisma Client"
+  log "\u751f\u6210 Prisma Client"
   cd "$SERVER_DIR"
   npx prisma generate
 
-  log "同步数据库结构"
+  log "\u540c\u6b65\u6570\u636e\u5e93\u7ed3\u6784"
   if [ -f .env ] && grep -Eq '^(DATABASE_URL=.*(mysql|postgresql)://|.*(mysql|postgresql)://)' .env; then
     npx prisma db push --skip-generate
   else
@@ -79,13 +79,13 @@ sync_database() {
 }
 
 build_server() {
-  log "构建后端"
+  log "\u6784\u5efa\u540e\u7aef"
   cd "$SERVER_DIR"
   npm run build
 }
 
 reload_service() {
-  log "重载 PM2 服务"
+  log "\u91cd\u8f7d PM2 \u670d\u52a1"
   cd "$APP_DIR"
 
   if pm2 list | grep -q "$PM2_APP_NAME"; then
@@ -100,7 +100,7 @@ reload_service() {
 
 main() {
   cd "$APP_DIR"
-  log "开始部署：$APP_DIR"
+  log "\u5f00\u59cb\u90e8\u7f72\uff1a$APP_DIR"
   node -v
   npm -v
 
@@ -113,7 +113,7 @@ main() {
   build_server
   reload_service
 
-  log "部署完成"
+  log "\u90e8\u7f72\u5b8c\u6210"
 }
 
 main "$@"

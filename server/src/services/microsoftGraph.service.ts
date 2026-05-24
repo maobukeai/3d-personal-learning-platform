@@ -148,10 +148,10 @@ export class MicrosoftGraphService {
       throw new Error('Account not found');
     }
 
-    const token = await this.getValidAccessToken(accountId);
-    const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
-
     try {
+      const token = await this.getValidAccessToken(accountId);
+      const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
+
       // Use /me/mailFolders instead of /me, as personal accounts (Outlook/Hotmail) can return 401 UnknownError on /me
       const response = await axios.get('https://graph.microsoft.com/v1.0/me/mailFolders', {
         headers: {
@@ -196,11 +196,11 @@ export class MicrosoftGraphService {
    * Fetches folders for the Microsoft account
    */
   public static async fetchFolders(accountId: string): Promise<any[]> {
-    const token = await this.getValidAccessToken(accountId);
-    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-    const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
-
     try {
+      const token = await this.getValidAccessToken(accountId);
+      const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+
       const response = await axios.get('https://graph.microsoft.com/v1.0/me/mailFolders', {
         headers: { Authorization: `Bearer ${token}` },
         proxy: proxyConfig,
@@ -220,11 +220,11 @@ export class MicrosoftGraphService {
     folderId: string = 'inbox',
     limit: number = 20,
   ): Promise<any[]> {
-    const token = await this.getValidAccessToken(accountId);
-    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-    const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
-
     try {
+      const token = await this.getValidAccessToken(accountId);
+      const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+
       // Fetch headers and basic body preview
       const response = await axios.get(
         `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages?$top=${limit}&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,hasAttachments,isRead`,
@@ -255,11 +255,11 @@ export class MicrosoftGraphService {
     messageId: string,
     isRead: boolean,
   ): Promise<void> {
-    const token = await this.getValidAccessToken(accountId);
-    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-    const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
-
     try {
+      const token = await this.getValidAccessToken(accountId);
+      const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+
       await axios.patch(
         `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
         { isRead },
@@ -284,11 +284,11 @@ export class MicrosoftGraphService {
    * Deletes a message from Microsoft (moves to Deleted Items if not already there, otherwise permanently deletes)
    */
   public static async deleteMessage(accountId: string, messageId: string): Promise<void> {
-    const token = await this.getValidAccessToken(accountId);
-    const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-    const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
-
     try {
+      const token = await this.getValidAccessToken(accountId);
+      const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
+      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+
       // 1. Fetch message details to find its parentFolderId
       const msgRes = await axios.get(
         `https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=parentFolderId`,
@@ -372,9 +372,6 @@ export class MicrosoftGraphService {
       );
     }
 
-    const token = await this.getValidAccessToken(accountId);
-    const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
-
     // Support comma, semicolon, or space separated multiple recipients
     const recipients = params.to
       .split(/[,;\s]+/)
@@ -404,6 +401,9 @@ export class MicrosoftGraphService {
     };
 
     try {
+      const token = await this.getValidAccessToken(accountId);
+      const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
+
       await axios.post('https://graph.microsoft.com/v1.0/me/sendMail', emailPayload, {
         headers: {
           Authorization: `Bearer ${token}`,

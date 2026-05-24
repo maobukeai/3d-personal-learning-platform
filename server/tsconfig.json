@@ -1,6 +1,7 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     // File Layout
     "rootDir": "./",
     "outDir": "./dist",
@@ -38,7 +39,6 @@
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "ignoreDeprecations": "6.0",
     "skipLibCheck": true,
     "esModuleInterop": true
   },

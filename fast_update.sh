@@ -4,7 +4,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${FAST_UPDATE_APP_DIR:-$SCRIPT_DIR}"
 TMP_ZIP="$APP_DIR/update.zip"
-TMP_DIR="$APP_DIR/.update_extract"
+TMP_DIR="${FAST_UPDATE_TMP_DIR:-/tmp/3d-lms-update-$$}"
 SRC_DIR="$TMP_DIR/3d-personal-learning-platform-main"
 
 URLS=(

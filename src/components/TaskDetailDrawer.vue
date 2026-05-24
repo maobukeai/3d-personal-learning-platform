@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, type Component } from 'vue';
 import {
   CheckCircle2,
   Copy,
@@ -27,7 +27,7 @@ interface PriorityOption {
   label: string;
   color: string;
   textColor: string;
-  icon?: any;
+  icon?: Component;
 }
 
 interface Task {
@@ -112,10 +112,11 @@ const parseTags = (tagsStr: string | null | undefined): string[] => {
   }
 };
 
-const parseSubtasks = (subtasksStr: string | null | undefined) => {
+const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   if (!subtasksStr) return [];
   try {
-    return JSON.parse(subtasksStr);
+    const parsed = JSON.parse(subtasksStr);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (_e) {
     return [];
   }
@@ -136,7 +137,7 @@ watch(
         assigneeId: newTask.assigneeId || '',
         projectId: newTask.projectId || '',
         teamId: newTask.teamId || '',
-        participantIds: newTask.participants ? newTask.participants.map((p: any) => p.userId) : [],
+        participantIds: newTask.participants ? newTask.participants.map((p) => p.userId) : [],
       };
       drawerSubtasks.value = parseSubtasks(newTask.subtasks);
       newSubtaskText.value = '';
@@ -408,7 +409,7 @@ type="button" class="w-4 h-4 rounded-md border flex items-center justify-center 
                         : 'text-slate-750 dark:text-slate-200'
                     "
                     @blur="updateSubtaskText(index, sub.text)"
-                    @keyup.enter="($event.target as any).blur()"
+                    @keyup.enter="($event.target as HTMLInputElement | null)?.blur()"
                   />
 
                   <!-- Delete Button -->

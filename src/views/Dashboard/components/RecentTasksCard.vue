@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import type { DashboardTask } from '../types';
 
 defineProps<{
-  recentTasks: any[];
+  recentTasks: DashboardTask[];
 }>();
 
 const router = useRouter();

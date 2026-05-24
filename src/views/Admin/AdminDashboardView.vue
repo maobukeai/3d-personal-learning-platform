@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Users,
@@ -25,10 +25,33 @@ import {
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
 import StatCard from '@/components/StatCard.vue';
+import type { Asset, User } from '@/types';
+
+interface DashboardStat {
+  label: string;
+  value: string;
+  color: string;
+  icon: Component;
+  route: string;
+}
+
+interface BroadcastHistoryItem {
+  id: string;
+  title: string;
+  content: string;
+  link?: string | null;
+  createdAt: string;
+}
+
+interface AdminStatsResponse {
+  counts: Record<string, number | undefined>;
+  recentUsers: User[];
+  recentAssets: Asset[];
+}
 
 const router = useRouter();
 
-const stats = ref([
+const stats = ref<DashboardStat[]>([
   { label: '总用户数', value: '0', color: 'text-blue-600', icon: Users, route: '/admin/users' },
   { label: '3D资产', value: '0', color: 'text-emerald-600', icon: Box, route: '/admin/assets' },
   { label: '材质材料', value: '0', color: 'text-amber-600', icon: Layers, route: '/admin/audits' },
@@ -57,14 +80,14 @@ const stats = ref([
   },
 ]);
 
-const recentUsers = ref<any[]>([]);
-const recentAssets = ref<any[]>([]);
+const recentUsers = ref<User[]>([]);
+const recentAssets = ref<Asset[]>([]);
 const isLoading = ref(true);
 
 const showBroadcastModal = ref(false);
 const broadcastTab = ref('send'); // 'send' or 'history'
 const isBroadcasting = ref(false);
-const broadcastHistory = ref<any[]>([]);
+const broadcastHistory = ref<BroadcastHistoryItem[]>([]);
 const isHistoryLoading = ref(false);
 const broadcastForm = ref({
   title: '',
@@ -127,21 +150,21 @@ const switchBroadcastTab = (tab: string) => {
 const fetchAdminStats = async () => {
   try {
     isLoading.value = true;
-    const { data } = await api.get('/api/admin/stats');
+    const { data } = await api.get<AdminStatsResponse>('/api/admin/stats');
 
-    stats.value[0].value = data.counts.users.toString();
-    stats.value[1].value = data.counts.assets.toString();
-    stats.value[2].value = data.counts.materials.toString();
-    stats.value[3].value = data.counts.showcases.toString();
-    stats.value[4].value = data.counts.courses.toString();
-    stats.value[5].value = data.counts.teams.toString();
+    stats.value[0].value = String(data.counts.users ?? 0);
+    stats.value[1].value = String(data.counts.assets ?? 0);
+    stats.value[2].value = String(data.counts.materials ?? 0);
+    stats.value[3].value = String(data.counts.showcases ?? 0);
+    stats.value[4].value = String(data.counts.courses ?? 0);
+    stats.value[5].value = String(data.counts.teams ?? 0);
 
     const totalPending =
       (data.counts.pendingAssets || 0) +
       (data.counts.pendingMaterials || 0) +
       (data.counts.pendingShowcases || 0);
     stats.value[6].value = totalPending.toString();
-    stats.value[7].value = data.counts.openFeedbacks.toString();
+    stats.value[7].value = String(data.counts.openFeedbacks ?? 0);
 
     recentUsers.value = data.recentUsers;
     recentAssets.value = data.recentAssets;
@@ -377,7 +400,7 @@ onMounted(() => {
                       {{ asset.title }}
                     </p>
                     <p class="text-[9px] sm:text-[10px] truncate" style="color: var(--text-muted)">
-                      作者: {{ asset.user.name }}
+                      作者: {{ asset.user?.name || asset.user?.email || '-' }}
                     </p>
                   </div>
                 </div>

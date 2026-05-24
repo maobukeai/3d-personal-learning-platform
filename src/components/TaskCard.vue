@@ -39,6 +39,12 @@ interface Task {
   project?: Project | null;
 }
 
+interface Subtask {
+  id?: string;
+  text?: string;
+  done?: boolean;
+}
+
 interface Props {
   task: Task;
   layout?: 'board' | 'list';
@@ -48,10 +54,11 @@ const props = withDefaults(defineProps<Props>(), {
   layout: 'board',
 });
 
-const parseSubtasks = (subtasksStr: string | null | undefined) => {
+const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   if (!subtasksStr) return [];
   try {
-    return JSON.parse(subtasksStr);
+    const parsed = JSON.parse(subtasksStr);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (_e) {
     return [];
   }
@@ -61,7 +68,7 @@ const parsedSubtasks = computed(() => parseSubtasks(props.task.subtasks));
 const hasSubtasks = computed(() => parsedSubtasks.value.length > 0);
 const subtasksProgress = computed(() => {
   const total = parsedSubtasks.value.length;
-  const completed = parsedSubtasks.value.filter((s: any) => s.done).length;
+  const completed = parsedSubtasks.value.filter((s) => s.done).length;
   return `${completed}/${total}`;
 });
 

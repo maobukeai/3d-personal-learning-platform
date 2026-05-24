@@ -8,14 +8,41 @@ import {
   MessageCircle,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { Asset } from '@/types';
+
+type ShowcaseCardItem = {
+  id: string;
+  title: string;
+  description: string;
+  tags?: string;
+  type: 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
+  thumbnailUrl: string;
+  isVideo?: boolean;
+  views: number;
+  likes: number;
+  createdAt: string;
+  asset?: Asset | null;
+  user: {
+    id: string;
+    name: string;
+    avatar?: string;
+    avatarUrl?: string | null;
+    role?: string;
+    email?: string;
+    bio?: string;
+  };
+  isLiked?: boolean;
+  likesCount: number;
+  commentsCount: number;
+};
 
 const props = defineProps<{
-  item: any;
+  item: ShowcaseCardItem;
 }>();
 
 const emit = defineEmits<{
-  (e: 'click', item: any): void;
-  (e: 'like', item: any): void;
+  (e: 'click', item: ShowcaseCardItem): void;
+  (e: 'like', item: ShowcaseCardItem): void;
   (e: 'user-click', userId: string): void;
 }>();
 
@@ -107,7 +134,7 @@ function handleUserClick() {
       class="aspect-video relative overflow-hidden"
       style="background-color: var(--bg-app)"
     >
-      <img alt="" :src="item.thumbnailUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+      <img alt="" :src="item.thumbnailUrl || undefined" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       <div
         v-if="item.isVideo"
         class="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1"

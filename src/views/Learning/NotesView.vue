@@ -175,11 +175,22 @@ const handleDrop = async (event: DragEvent, targetNotebookName: string) => {
 
 const totalPages = computed(() => Math.ceil(totalNotes.value / pageSize));
 
+type NoteQueryParams = {
+  page: number;
+  limit: number;
+  sort: string;
+  author?: string;
+  visibility?: string;
+  search?: string;
+  tag?: string;
+  category?: string;
+};
+
 const loadNotes = async () => {
   loading.value = true;
   try {
     let endpoint = '/api/notes';
-    const params: any = {
+    const params: NoteQueryParams = {
       page: currentPage.value,
       limit: pageSize,
       sort: sortBy.value,

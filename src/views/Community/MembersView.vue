@@ -16,13 +16,14 @@ import api from '@/utils/api';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
+import type { User } from '@/types';
 
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
 const router = useRouter();
 const searchQuery = ref('');
 const activeFilter = ref('全部');
-const members = ref<any[]>([]);
+const members = ref<User[]>([]);
 const isLoading = ref(false);
 
 const isProfileDialogOpen = ref(false);
@@ -75,7 +76,7 @@ const filteredMembers = computed(() => {
   });
 });
 
-const handleChatWithMember = async (member: any) => {
+const handleChatWithMember = async (member: User) => {
   try {
     await api.post('/api/messages/conversations', {
       participantIds: [member.id],

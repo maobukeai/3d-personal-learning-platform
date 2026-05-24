@@ -6,11 +6,12 @@ import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { Project, ProjectMember } from '@/types/task';
 
 interface TeamMember {
   id: string;
   name?: string;
-  email: string;
+  email?: string;
   avatarUrl?: string | null;
 }
 
@@ -44,7 +45,7 @@ const projectForm = ref({
   inviteUserIds: [] as string[],
 });
 
-const projectMembers = ref<any[]>([]);
+const projectMembers = ref<ProjectMember[]>([]);
 
 const toggleProjectFormViewMode = () => {
   projectFormViewMode.value = projectFormViewMode.value === 'drawer' ? 'modal' : 'drawer';
@@ -92,7 +93,7 @@ const openAdd = () => {
   isDrawerOpen.value = true;
 };
 
-const openEdit = (project: any) => {
+const openEdit = (project: Project) => {
   isEditMode.value = true;
   projectForm.value = {
     id: project.id,

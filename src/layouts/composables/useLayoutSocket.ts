@@ -6,6 +6,32 @@ import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type { AppNotification } from '@/services/notification.service';
 
+interface ChatMessageEvent {
+  conversationId: string;
+  message: {
+    type: string;
+    content?: string;
+    sender: {
+      name: string;
+    };
+  };
+}
+
+interface MirrorSyncStartedEvent {
+  sourceName: string;
+  type: 'FULL' | 'INCREMENTAL' | string;
+}
+
+interface MirrorSyncFinishedEvent {
+  sourceName: string;
+  status: 'SUCCESS' | 'CANCELLED' | 'FAILED' | string;
+  result?: {
+    resourcesCreated?: number;
+    resourcesUpdated?: number;
+  };
+  error?: string;
+}
+
 export function useLayoutSocket(options: {
   fetchNotifications: () => Promise<void>;
   fetchUnreadMessagesCount: () => Promise<void>;
@@ -51,7 +77,7 @@ export function useLayoutSocket(options: {
     authStore.updateUserStatus(userId, status);
   };
 
-  const onMessageReceived = ({ conversationId: _conversationId, message }: any) => {
+  const onMessageReceived = ({ conversationId: _conversationId, message }: ChatMessageEvent) => {
     const isMessagesPage = route.path === '/messages';
 
     if (!isMessagesPage) {
@@ -70,7 +96,7 @@ export function useLayoutSocket(options: {
     }
   };
 
-  const onMirrorSyncStarted = ({ sourceName, type }: any) => {
+  const onMirrorSyncStarted = ({ sourceName, type }: MirrorSyncStartedEvent) => {
     ElNotification({
       title: '镜像同步开始',
       message: `镜像源「${sourceName}」的${type === 'FULL' ? '全量' : '增量'}同步任务已启动...`,
@@ -80,7 +106,7 @@ export function useLayoutSocket(options: {
     });
   };
 
-  const onMirrorSyncFinished = ({ sourceName, status, result, error }: any) => {
+  const onMirrorSyncFinished = ({ sourceName, status, result, error }: MirrorSyncFinishedEvent) => {
     if (status === 'SUCCESS') {
       ElNotification({
         title: '镜像同步成功',
@@ -109,7 +135,7 @@ export function useLayoutSocket(options: {
     workspaceStore.fetchWorkspaces();
   };
 
-  let statsInterval: any = null;
+  let statsInterval: ReturnType<typeof setInterval> | null = null;
 
   onMounted(() => {
     socketService.connect();

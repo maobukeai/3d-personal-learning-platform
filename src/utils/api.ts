@@ -6,6 +6,25 @@ import { useSystemStore } from '@/stores/system';
 import { getApiErrorStatus } from '@/utils/error';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const NORMALIZED_API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
+
+const isLocalUploadUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return (
+      ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname) &&
+      parsed.pathname.startsWith('/uploads/')
+    );
+  } catch {
+    return false;
+  }
+};
+
+const normalizeLocalUploadUrl = (value: string): string => {
+  if (!isLocalUploadUrl(value)) return value;
+  const parsed = new URL(value);
+  return `${NORMALIZED_API_BASE_URL}${parsed.pathname}${parsed.search}${parsed.hash}`;
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,15 +36,15 @@ export const getAssetUrl = (url: string | null | undefined): string => {
   // Fix corrupted 'undefined/' urls from previous bugs
   if (url.startsWith('undefined/')) {
     const clean = url.replace('undefined/', '/');
-    return `${API_BASE_URL.replace(/\/$/, '')}${clean}`;
+    return `${NORMALIZED_API_BASE_URL}${clean}`;
   }
   // Return absolute urls as is
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url;
+    return normalizeLocalUploadUrl(url);
   }
   // Prepend base url for relative paths
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
-  return `${API_BASE_URL.replace(/\/$/, '')}${cleanPath}`;
+  return `${NORMALIZED_API_BASE_URL}${cleanPath}`;
 };
 
 // 请求拦截器：自动注入 Workspace ID

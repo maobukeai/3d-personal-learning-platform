@@ -18,7 +18,8 @@ export interface Category {
   icon?: string | null;
   order: number;
   _count?: {
-    assets: number;
+    assets?: number;
+    courses?: number;
   };
 }
 
@@ -35,9 +36,16 @@ export interface Course {
   thumbnail?: string | null;
   difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
   status: 'DRAFT' | 'PUBLISHED';
+  tags?: string | null;
+  avgRating?: number | null;
   categoryId?: string | null;
   category?: CourseCategory | null;
   lessons?: Lesson[];
+  _count?: {
+    lessons?: number;
+    enrollments?: number;
+    reviews?: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -63,9 +71,14 @@ export interface Asset {
   url: string;
   thumbnail?: string | null;
   type: string;
+  format?: string | null;
+  formats?: string[] | string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectReason?: string | null;
+  fileSize?: number | null;
   size?: number | null;
+  viewCount?: number | null;
+  downloads?: number | null;
   vertices?: number | null;
   faces?: number | null;
   materials?: number | null;
@@ -90,6 +103,12 @@ export interface Team {
   type: 'PERSONAL' | 'TEAM';
   visibility: 'PUBLIC' | 'PRIVATE';
   category?: string | null;
+  image?: string | null;
+  rating?: string | number | null;
+  members?: number | TeamMember[];
+  _count?: {
+    members?: number;
+  };
   ownerId: string;
   owner?: User;
   createdAt: string;
@@ -110,7 +129,7 @@ export interface Project {
   title: string;
   description?: string | null;
   progress: number;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED';
+  status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'PAUSED';
   dueDate?: string | null;
   color: string;
   tags?: string | null;
@@ -146,6 +165,7 @@ export interface Task {
   teamId?: string | null;
   projectId?: string | null;
   project?: Project | null;
+  participants?: { userId: string; user?: User | null }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -155,12 +175,15 @@ export interface Showcase {
   title: string;
   description?: string | null;
   tags?: string | null;
-  type: 'IMAGE' | 'VIDEO' | 'MODEL' | 'OTHER';
+  type: 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
   thumbnailUrl: string;
   images?: string | null;
   videoUrl?: string | null;
   isVideo: boolean;
   views: number;
+  isLiked?: boolean;
+  likesCount?: number;
+  commentsCount?: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   assetId?: string | null;
   asset?: Asset | null;

@@ -25,7 +25,7 @@ const isLoading = ref(false);
 const verificationCode = ref('');
 const isSendingCode = ref(false);
 const countdown = ref(0);
-let timer: any = null;
+let timer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   if (!systemStore.isInitialized) {
@@ -49,7 +49,9 @@ const startCountdown = () => {
     if (countdown.value > 0) {
       countdown.value--;
     } else {
-      clearInterval(timer);
+      if (timer) {
+        clearInterval(timer);
+      }
     }
   }, 1000);
 };

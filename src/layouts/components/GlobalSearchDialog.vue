@@ -35,7 +35,7 @@ const isSearchVisible = computed({
   set: (val) => emit('update:modelValue', val),
 });
 
-const searchInput = ref<any>(null);
+const searchInput = ref<HTMLInputElement | null>(null);
 const searchQuery = ref('');
 const searchResults = ref<GlobalSearchResults>(emptyGlobalSearchResults());
 const isSearching = ref(false);

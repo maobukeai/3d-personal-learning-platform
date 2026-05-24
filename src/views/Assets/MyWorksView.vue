@@ -22,6 +22,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
@@ -381,8 +382,7 @@ const handlePublishToShowcase = async () => {
     ElMessage.success('作品已成功发布到展示墙，等待审核');
     isPublishDialogOpen.value = false;
   } catch (error) {
-    const msg = (error as any)?.response?.data?.error || '发布失败';
-    ElMessage.error(msg);
+    ElMessage.error(getApiErrorMessage(error, '发布失败'));
   } finally {
     isPublishing.value = false;
   }

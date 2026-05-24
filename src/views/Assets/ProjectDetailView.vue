@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '@/utils/error';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
+import type { Project, ProjectMember, Task, User } from '@/types';
 
 // Subcomponents
 import ProjectSidebar from './components/ProjectSidebar.vue';
@@ -27,7 +28,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const projectId = computed(() => route.params.id as string);
 
-const project = ref<any>(null);
+const project = ref<Project | null>(null);
 const isLoading = ref(true);
 const activeTab = ref('tasks'); // 'tasks', 'discussions', 'settings'
 
@@ -44,7 +45,7 @@ const openUserProfile = (userId: string) => {
   isProfileDialogOpen.value = true;
 };
 
-const handleStartChat = async (user: any) => {
+const handleStartChat = async (user: User) => {
   try {
     await api.post('/api/messages/conversations', {
       participantIds: [user.id],
@@ -75,12 +76,12 @@ const fetchProject = async () => {
 
 const isMember = computed(() => {
   if (!project.value || !authStore.user) return false;
-  return project.value.members.some((m: any) => m.userId === authStore.user?.id);
+  return (project.value.members || []).some((member: ProjectMember) => member.userId === authStore.user?.id);
 });
 
 const existingMemberIds = computed(() => {
   if (!project.value?.members) return [];
-  return project.value.members.map((m: any) => m.userId);
+  return project.value.members.map((member) => member.userId);
 });
 
 const handleJoin = async () => {
@@ -93,7 +94,7 @@ const handleJoin = async () => {
   }
 };
 
-const openEditTaskDialog = (task: any) => {
+const openEditTaskDialog = (task: Task) => {
   taskEditDrawerRef.value?.open(task);
 };
 

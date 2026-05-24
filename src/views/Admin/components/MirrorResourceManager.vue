@@ -43,6 +43,13 @@ interface MirrorCategory {
   parentExternalId?: string | null;
 }
 
+type ResourceQueryParams = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  categoryId?: string;
+};
+
 const props = defineProps<{
   sourceId: string;
 }>();
@@ -162,7 +169,7 @@ function getParentCategoryName(cat: MirrorCategory) {
 async function fetchResources(sourceId: string) {
   isLoadingResources.value = true;
   try {
-    const params: any = { page: resourcePage.value, pageSize: resourcePageSize.value };
+    const params: ResourceQueryParams = { page: resourcePage.value, pageSize: resourcePageSize.value };
     if (resourceSearch.value) params.search = resourceSearch.value;
     if (resourceCategoryFilter.value) params.categoryId = resourceCategoryFilter.value;
     const res = await api.get(`/api/admin/mirror/sources/${sourceId}/resources`, { params });

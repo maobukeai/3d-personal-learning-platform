@@ -16,8 +16,18 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 
+interface NotificationItem {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  link?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
 const router = useRouter();
-const notifications = ref<any[]>([]);
+const notifications = ref<NotificationItem[]>([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const activeFilter = ref('all');
@@ -62,7 +72,7 @@ const filteredNotifications = computed(() => {
 
 const unreadCount = computed(() => notifications.value.filter((n) => !n.isRead).length);
 
-const handleMarkAsRead = async (notification: any) => {
+const handleMarkAsRead = async (notification: NotificationItem) => {
   if (!notification.isRead) {
     try {
       await api.put(`/api/notifications/${notification.id}/read`);

@@ -1,10 +1,26 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Star, BookOpen, ArrowRight, X, Users } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { TeamMember } from '@/types';
+
+interface GroupDetailTeam {
+  id: string;
+  name: string;
+  description?: string | null;
+  avatarUrl?: string | null;
+  image?: string | null;
+  category?: string | null;
+  rating?: string | number | null;
+  members?: number | TeamMember[];
+  _count?: {
+    members?: number;
+  };
+}
 
 const props = defineProps<{
   visible: boolean;
-  group: any;
+  group: GroupDetailTeam | null;
 }>();
 
 const emit = defineEmits(['update:visible', 'join']);
@@ -14,8 +30,14 @@ const handleClose = () => {
 };
 
 const handleJoin = () => {
-  emit('join', props.group.name);
+  if (props.group) {
+    emit('join', props.group.name);
+  }
 };
+
+const displayMembers = computed(() => {
+  return Array.isArray(props.group?.members) ? props.group.members : [];
+});
 </script>
 
 <template>
@@ -25,7 +47,7 @@ const handleJoin = () => {
     class="detail-dialog"
     :show-close="false"
     align-center
-    @update:model-value="(val: any) => emit('update:visible', val)"
+    @update:model-value="(val: boolean) => emit('update:visible', val)"
   >
     <div v-if="props.group" class="relative">
       <!-- Custom Close Button -->
@@ -124,9 +146,9 @@ const handleJoin = () => {
               </h3>
               <div class="flex items-center gap-3">
                 <div class="flex -space-x-3">
-                  <template v-if="props.group.members?.length">
+                  <template v-if="displayMembers.length">
                     <UserAvatar
-                      v-for="member in props.group.members"
+                      v-for="member in displayMembers"
                       :key="member.id"
                       :user="member.user"
                       size="md"

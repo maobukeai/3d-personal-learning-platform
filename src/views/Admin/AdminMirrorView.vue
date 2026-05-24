@@ -47,8 +47,15 @@ interface MirrorSource {
   description: string | null;
   createdAt: string;
   _count?: { resources: number; categories: number };
-  latestSync?: any;
+  latestSync?: SyncLog | null;
 }
+
+type ResourceQueryParams = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  categoryId?: string;
+};
 
 interface SyncProgress {
   type: string;
@@ -474,7 +481,7 @@ async function toggleResourcePanel(source: MirrorSource) {
 async function fetchResources(sourceId: string) {
   isLoadingResources.value = true;
   try {
-    const params: any = { page: resourcePage.value, pageSize: resourcePageSize.value };
+    const params: ResourceQueryParams = { page: resourcePage.value, pageSize: resourcePageSize.value };
     if (resourceSearch.value) params.search = resourceSearch.value;
     if (resourceCategoryFilter.value) params.categoryId = resourceCategoryFilter.value;
     const res = await api.get(`/api/admin/mirror/sources/${sourceId}/resources`, { params });
@@ -773,6 +780,11 @@ async function deleteCategory(cat: MirrorCategory) {
 }
 
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'PAUSED' | 'ERROR'>('ALL');
+const setStatusFilter = (key: string) => {
+  if (key === 'ALL' || key === 'ACTIVE' || key === 'PAUSED' || key === 'ERROR') {
+    statusFilter.value = key;
+  }
+};
 const mirrorSearchQuery = ref('');
 
 const filteredSources = computed(() => {
@@ -897,7 +909,7 @@ v-for="filter in [
                         ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                         : 'bg-blue-500/10 text-blue-500 border-blue-500/30 ring-1 ring-blue-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]" @click="statusFilter = filter.key as any">
+              ]" @click="setStatusFilter(filter.key)">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>

@@ -20,6 +20,12 @@ import RecentTasksCard from './components/RecentTasksCard.vue';
 import RecentAssetsCard from './components/RecentAssetsCard.vue';
 import TeamActivityCard from './components/TeamActivityCard.vue';
 import CollaborationInviteCard from './components/CollaborationInviteCard.vue';
+import type {
+  DashboardActivity,
+  DashboardAsset,
+  DashboardEnrollment,
+  DashboardTask,
+} from './types';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -66,10 +72,10 @@ watch(
   },
 );
 
-const activeEnrollment = ref<any>(null);
-const activityLog = ref<any[]>([]);
-const recentAssets = ref<any[]>([]);
-const recentTasks = ref<any[]>([]);
+const activeEnrollment = ref<DashboardEnrollment | null>(null);
+const activityLog = ref<DashboardActivity[]>([]);
+const recentAssets = ref<DashboardAsset[]>([]);
+const recentTasks = ref<DashboardTask[]>([]);
 const selectedDate = ref(new Date());
 const isAddDialogOpen = ref(false);
 const newTask = ref({
@@ -154,7 +160,7 @@ onMounted(() => {
   fetchDashboardData();
 
   // Listen for real-time activity updates
-  socketService.on('new_activity', (activity: any) => {
+  socketService.on('new_activity', (activity: DashboardActivity) => {
     // Check if activity matches current date filter
     const year = selectedDate.value.getFullYear();
     const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0');

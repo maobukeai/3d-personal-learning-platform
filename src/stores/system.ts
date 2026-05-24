@@ -92,7 +92,7 @@ export const useSystemStore = defineStore('system', {
         const { data } = await api.get('/api/auth/settings');
         
         // Helper for safe JSON parsing
-        const safeParseArray = (val: any, fallback: string[]) => {
+        const safeParseArray = (val: unknown, fallback: string[]) => {
           if (Array.isArray(val)) return val;
           if (typeof val !== 'string') return fallback;
           try {

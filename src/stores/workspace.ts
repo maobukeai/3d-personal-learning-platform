@@ -7,6 +7,7 @@ import {
   fetchMirrorSources,
   fetchTeams,
 } from '@/services/workspace.service';
+import type { Asset } from '@/types';
 
 export interface Workspace {
   id: string;
@@ -32,7 +33,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       pendingMaterials: 0,
       pendingShowcases: 0,
     },
-    selectedAsset: null as any,
+    selectedAsset: null as Asset | null,
     isDetailDrawerOpen: false,
   }),
   getters: {
@@ -222,7 +223,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       }
     },
 
-    openDetails(asset: any) {
+    openDetails(asset: Asset) {
       this.selectedAsset = asset;
       this.isDetailDrawerOpen = true;
     },

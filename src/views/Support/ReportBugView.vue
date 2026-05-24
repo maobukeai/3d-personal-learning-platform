@@ -39,6 +39,7 @@ import { ElMessage } from 'element-plus';
 
 
 import api from '@/utils/api';
+import type { Feedback } from '@/types';
 
 
 
@@ -56,7 +57,7 @@ const previewUrl = ref('');
 
 const activeTab = ref('submit'); // 'submit' or 'history'
 
-const myFeedbacks = ref<any[]>([]);
+const myFeedbacks = ref<Feedback[]>([]);
 
 const isLoadingHistory = ref(false);
 

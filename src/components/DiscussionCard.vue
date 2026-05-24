@@ -8,10 +8,45 @@ import {
   Trash2,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { User } from '@/types';
+
+interface DiscussionCardItem {
+  id: string;
+  title: string;
+  content: string;
+  tags: string | null;
+  images: string | null;
+  isPinned?: boolean;
+  isLiked?: boolean;
+  viewCount?: number;
+  createdAt: string;
+  user: Pick<User, 'id' | 'name' | 'avatarUrl'> & { email?: string | null };
+  comments: DiscussionCardComment[];
+  _count: {
+    likes: number;
+    comments: number;
+    replies: number;
+  };
+}
+
+interface DiscussionCardComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: Pick<User, 'id' | 'name' | 'avatarUrl'> & { email?: string | null };
+  parentId?: string | null;
+  replies: DiscussionCardComment[];
+  isLiked?: boolean;
+  _count: {
+    likes: number;
+    comments: number;
+    replies: number;
+  };
+}
 
 const props = withDefaults(
   defineProps<{
-    discussion: any;
+    discussion: DiscussionCardItem;
     currentUserId?: string;
     isAdmin?: boolean;
   }>(),
@@ -23,9 +58,9 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'click', id: string): void;
-  (e: 'like', discussion: any, event: Event): void;
-  (e: 'pin', discussion: any, event: Event): void;
-  (e: 'delete', discussion: any, event: Event): void;
+  (e: 'like', discussion: DiscussionCardItem, event: Event): void;
+  (e: 'pin', discussion: DiscussionCardItem, event: Event): void;
+  (e: 'delete', discussion: DiscussionCardItem, event: Event): void;
 }>();
 
 const isOwner = computed(() => {
@@ -35,7 +70,8 @@ const isOwner = computed(() => {
 const parsedTags = computed(() => {
   try {
     const tagsStr = props.discussion?.tags;
-    return tagsStr ? JSON.parse(tagsStr) : [];
+    const parsed = tagsStr ? JSON.parse(tagsStr) : [];
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === 'string') : [];
   } catch (_e) {
     return [];
   }
@@ -44,7 +80,8 @@ const parsedTags = computed(() => {
 const parsedImages = computed(() => {
   try {
     const imagesStr = props.discussion?.images;
-    return imagesStr ? JSON.parse(imagesStr) : [];
+    const parsed = imagesStr ? JSON.parse(imagesStr) : [];
+    return Array.isArray(parsed) ? parsed.filter((img): img is string => typeof img === 'string') : [];
   } catch (_e) {
     return [];
   }

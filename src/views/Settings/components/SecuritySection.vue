@@ -34,7 +34,7 @@ const emailChangeForm = ref({
 const isSendingEmailCode = ref(false);
 const isConfirmingEmail = ref(false);
 const emailCodeCountdown = ref(0);
-let countdownTimer: any = null;
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const startEmailCountdown = () => {
   emailCodeCountdown.value = 60;
@@ -42,7 +42,9 @@ const startEmailCountdown = () => {
     if (emailCodeCountdown.value > 0) {
       emailCodeCountdown.value--;
     } else {
-      clearInterval(countdownTimer);
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+      }
     }
   }, 1000);
 };
@@ -172,7 +174,17 @@ const disable2FA = async () => {
 };
 
 // Trusted Devices State
-const trustedDevices = ref<any[]>([]);
+interface TrustedDevice {
+  id: string;
+  deviceName?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  ip?: string | null;
+  lastUsedAt?: string | null;
+  createdAt?: string | null;
+}
+
+const trustedDevices = ref<TrustedDevice[]>([]);
 const isLoadingDevices = ref(false);
 
 const fetchTrustedDevices = async () => {
@@ -518,7 +530,7 @@ onUnmounted(() => {
             <div>
               <p class="text-xs font-bold" style="color: var(--text-primary)">受信任设备</p>
               <p class="text-[10px] text-slate-400">
-                添加于 {{ new Date(device.createdAt).toLocaleDateString() }}
+                添加于 {{ device.createdAt ? new Date(device.createdAt).toLocaleDateString() : '-' }}
               </p>
             </div>
           </div>

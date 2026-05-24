@@ -5,6 +5,7 @@ export interface TeamWorkspaceResponse {
   name: string;
   type: 'PERSONAL' | 'TEAM';
   avatarUrl?: string | null;
+  ownerId?: string | null;
   _count?: {
     members?: number;
   };

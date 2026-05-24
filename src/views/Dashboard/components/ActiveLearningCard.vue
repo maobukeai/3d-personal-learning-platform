@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { BookOpen, Layout } from 'lucide-vue-next';
+import type { DashboardEnrollment } from '../types';
 
 defineProps<{
-  activeEnrollment: any;
+  activeEnrollment: DashboardEnrollment | null;
 }>();
 
 const router = useRouter();

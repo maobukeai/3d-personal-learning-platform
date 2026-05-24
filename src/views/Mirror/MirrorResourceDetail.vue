@@ -53,6 +53,31 @@ import api, { getAssetUrl } from '@/utils/api';
 import { decryptText } from '@/utils/crypto';
 
 import { getPlanName } from '@/utils/plans';
+import type { MirrorResource } from '@/stores/mirror';
+import type { User } from '@/types';
+
+type MirrorResourceDetail = MirrorResource & {
+  sourceId?: string;
+  contentHtml?: string | null;
+  source?: {
+    name?: string;
+    displayName?: string;
+    minPlanPriority?: number;
+  } | null;
+  hasAccess?: boolean;
+  hasLinks?: boolean;
+  links?: Array<{ name: string; type: string }> | null;
+  requiredPlan?: number | null;
+  currentPlan?: number | null;
+};
+
+interface MirrorComment {
+  id: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  user?: Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'> | null;
+}
 
 
 
@@ -68,7 +93,7 @@ const authStore = useAuthStore();
 
 const resourceId = computed(() => route.params.id as string);
 
-const resource = ref<any>(null);
+const resource = ref<MirrorResourceDetail | null>(null);
 
 const isLoading = ref(true);
 
@@ -80,7 +105,7 @@ async function loadResource() {
 
   // Check Pinia store cache first for instant visual rendering
 
-  const cached = mirrorStore.resources.find((r: any) => r.id === resourceId.value);
+  const cached = mirrorStore.resources.find((r) => r.id === resourceId.value);
 
   if (cached) {
 
@@ -182,7 +207,7 @@ function goBack() {
 
 
 
-const comments = ref<any[]>([]);
+const comments = ref<MirrorComment[]>([]);
 
 const likeStatus = ref({ liked: false, count: 0 });
 
@@ -574,7 +599,7 @@ watch(resourceId, () => {
 
           <div class="text-sm text-amber-800 dark:text-amber-200 font-medium">
 
-            会员权限不足。提取该资源需要更高的会员权限（需要级别: {{ getPlanName(resource.requiredPlan) }}，您当前的级别: {{ getPlanName(resource.currentPlan) || '普通用户' }}）。
+            会员权限不足。提取该资源需要更高的会员权限（需要级别: {{ getPlanName(resource.requiredPlan ?? 0) }}，您当前的级别: {{ getPlanName(resource.currentPlan ?? 0) || '普通用户' }}）。
 
           </div>
 

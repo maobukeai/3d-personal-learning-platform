@@ -3,15 +3,16 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Users } from 'lucide-vue-next';
 import api from '@/utils/api';
+import type { Team } from '@/types';
 
 const router = useRouter();
-const teams = ref<any[]>([]);
+const teams = ref<Team[]>([]);
 const totalTeamsCount = ref(0);
 
 const fetchTeams = async () => {
   try {
     const response = await api.get('/api/teams/public');
-    const allTeams = response.data || [];
+    const allTeams = (response.data || []) as Team[];
     teams.value = allTeams.slice(0, 4);
     totalTeamsCount.value = allTeams.length;
   } catch (error) {

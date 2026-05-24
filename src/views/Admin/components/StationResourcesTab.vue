@@ -28,6 +28,18 @@ interface ManualCategory {
   parentId?: string | null;
 }
 
+type ResourceQueryParams = {
+  page: number;
+  pageSize: number;
+  categoryId?: string;
+  search?: string;
+};
+
+type ManualResourceDialogExpose = {
+  openCreate: () => void;
+  openEdit: (resource: ManualResource) => void;
+};
+
 const props = defineProps<{
   stationId: string;
   categories: ManualCategory[];
@@ -47,13 +59,13 @@ const resourceSearch = ref('');
 const resourceCategoryFilter = ref<string | null>(null);
 const isLoadingResources = ref(false);
 
-const manualResourceDialogRef = ref<any>(null);
+const manualResourceDialogRef = ref<ManualResourceDialogExpose | null>(null);
 
 const fetchStationResources = async () => {
   if (!props.stationId) return;
   isLoadingResources.value = true;
   try {
-    const params: any = {
+    const params: ResourceQueryParams = {
       page: resourcePage.value,
       pageSize: resourcePageSize.value,
     };

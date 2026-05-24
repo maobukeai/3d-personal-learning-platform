@@ -24,6 +24,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const draggedTask = ref<Task | null>(null);
 const dragOverColumn = ref<string | null>(null);
+type TaskStatus = Task['status'];
 
 const updateTaskStatus = async (task: Task, newStatus: Task['status']) => {
   if (task.status === newStatus) return;
@@ -69,7 +70,7 @@ const onDragEnd = () => {
   dragOverColumn.value = null;
 };
 
-const tasksByStatus = computed(() => {
+const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   if (!props.project?.tasks) return { TODO: [], IN_PROGRESS: [], DONE: [] };
 
   let filtered = props.project.tasks;
@@ -165,14 +166,14 @@ const tasksByStatus = computed(() => {
           </div>
           <span
             class="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-xs font-bold text-slate-500 shadow-sm border border-[var(--border-base)]"
-            >{{ (tasksByStatus as any)[col.id].length }}</span
+            >{{ tasksByStatus[col.id as TaskStatus].length }}</span
           >
         </div>
 
         <!-- Column Body (Task List) -->
         <div class="flex-1 overflow-y-auto px-4 pb-4 space-y-4 scrollbar-hide">
           <div
-            v-for="task in (tasksByStatus as any)[col.id]"
+            v-for="task in tasksByStatus[col.id as TaskStatus]"
             :key="task.id"
             draggable="true"
             class="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border hover:shadow-xl hover:-translate-y-1 transition-all cursor-grab active:cursor-grabbing group"
@@ -230,7 +231,7 @@ const tasksByStatus = computed(() => {
                     class="border-2 cursor-pointer hover:z-10 hover:scale-110 transition-all"
                     style="border-color: var(--bg-card)"
                     :title="p.user?.name"
-                    @click.stop="emit('open-profile', p.user.id)"
+                    @click.stop="p.user && emit('open-profile', p.user.id)"
                   />
                   <span
                     v-if="task.participants.length > 3"
@@ -261,7 +262,7 @@ const tasksByStatus = computed(() => {
 
           <!-- Empty Drop Zone Hint -->
           <div
-            v-if="(tasksByStatus as any)[col.id].length === 0"
+            v-if="tasksByStatus[col.id as TaskStatus].length === 0"
             class="h-20 md:h-32 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-400 text-xs font-bold opacity-50"
           >
             拖拽任务至此

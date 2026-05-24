@@ -39,8 +39,10 @@ import { useLayoutSocket } from './composables/useLayoutSocket';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { useWorkspaceStore } from '@/stores/workspace';
+import type { Workspace } from '@/stores/workspace';
 import { getAssetUrl } from '@/utils/api';
 import { fetchUnreadMessageCount } from '@/services/message.service';
+import type { AppNotification } from '@/services/notification.service';
 import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
 import { preferences, type ThemePreference } from '@/utils/preferences';
 
@@ -61,7 +63,12 @@ const isSearchVisible = ref(false);
 const isMobileSidebarOpen = ref(false);
 const isMobile = ref(window.innerWidth < 768);
 
-const notificationCenterRef = ref<any>(null);
+interface NotificationCenterExpose {
+  fetchNotifications: () => Promise<void> | void;
+  addNotification: (notification: AppNotification) => void;
+}
+
+const notificationCenterRef = ref<NotificationCenterExpose | null>(null);
 
 const updateIsMobile = () => {
   isMobile.value = window.innerWidth < 768;
@@ -84,7 +91,7 @@ const handleExternalLink = () => {
   window.open(window.location.href, '_blank', 'noopener,noreferrer');
 };
 
-const handleTeamCreated = (team: any) => {
+const handleTeamCreated = (team: { id: string }) => {
   workspaceStore.fetchWorkspaces();
   router.push(`/team/${team.id}`);
 };
@@ -96,7 +103,7 @@ const handleInvitationSuccess = (data: { accept: boolean; teamId?: string }) => 
   }
 };
 
-const handleSwitchWorkspace = (ws: any) => {
+const handleSwitchWorkspace = (ws: Workspace) => {
   workspaceStore.setWorkspace(ws);
   if (ws.type === 'admin') {
     router.push('/admin/dashboard');
@@ -117,7 +124,7 @@ const handleSwitchWorkspace = (ws: any) => {
   }
 };
 
-const handleQuickSettings = (ws: any) => {
+const handleQuickSettings = (ws: Workspace) => {
   if (ws.type === 'admin') {
     router.push('/admin/settings');
   } else if (ws.type === 'mirror') {

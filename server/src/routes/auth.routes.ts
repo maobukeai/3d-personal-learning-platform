@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import type { Request } from 'express';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { authenticate } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
 import { sanitizeInput } from '../middlewares/validation.middleware';
@@ -76,12 +77,47 @@ const router = Router();
 
 const isDev = process.env.NODE_ENV === 'development';
 
-const authLimiter = rateLimit({
+const readPositiveInt = (value: string | undefined, fallback: number) => {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const getAuthAttemptKey = (req: Request) => {
+  const body = req.body as {
+    email?: unknown;
+    tempUserId?: unknown;
+    userId?: unknown;
+  };
+
+  const subject =
+    typeof body.email === 'string'
+      ? body.email.trim().toLowerCase()
+      : typeof body.tempUserId === 'string'
+        ? body.tempUserId
+        : typeof body.userId === 'string'
+          ? body.userId
+          : req.path;
+
+  return `${ipKeyGenerator(req.ip || '')}:${subject}`;
+};
+
+const authIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isDev ? 1000 : 20,
+  max: isDev ? 1000 : readPositiveInt(process.env.AUTH_IP_RATE_LIMIT_MAX, 200),
   message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 1000 : readPositiveInt(process.env.AUTH_CREDENTIAL_RATE_LIMIT_MAX, 20),
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: getAuthAttemptKey,
 });
 
 const passwordResetLimiter = rateLimit({
@@ -102,6 +138,7 @@ const emailLimiter = rateLimit({
 
 router.post(
   '/register',
+  authIpLimiter,
   authLimiter,
   sanitizeInput,
   validateRequest({ body: registerSchema }),
@@ -123,7 +160,14 @@ router.post(
   verifyPublicEmail,
 );
 
-router.post('/login', authLimiter, sanitizeInput, validateRequest({ body: loginSchema }), login);
+router.post(
+  '/login',
+  authIpLimiter,
+  authLimiter,
+  sanitizeInput,
+  validateRequest({ body: loginSchema }),
+  login,
+);
 
 router.post('/refresh', refreshToken);
 router.post('/logout', logout);
@@ -132,6 +176,7 @@ router.get('/settings', getPublicSettings);
 
 router.post(
   '/login/2fa',
+  authIpLimiter,
   authLimiter,
   sanitizeInput,
   validateRequest({ body: login2FASchema }),

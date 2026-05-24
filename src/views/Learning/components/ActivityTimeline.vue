@@ -34,6 +34,14 @@ interface Note {
   updatedAt: string;
 }
 
+interface NoteComment {
+  id: string;
+  content: string;
+  userId: string;
+  createdAt: string;
+  user: Note['user'];
+}
+
 const props = defineProps<{
   notes: Note[];
   tags: string[];
@@ -56,7 +64,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 
 // Comment states
-const noteCommentsMap = ref<Record<string, any[]>>({});
+const noteCommentsMap = ref<Record<string, NoteComment[]>>({});
 const activeCommentsNoteId = ref<string | null>(null);
 const commentInputText = ref('');
 const commentsLoading = ref<Record<string, boolean>>({});
@@ -96,7 +104,7 @@ const submitComment = async (note: Note) => {
     if (note._count) {
       note._count.comments = (note._count.comments || 0) + 1;
     } else {
-      (note as any)._count = { likes: 0, comments: 1 };
+      note._count = { likes: 0, comments: 1 };
     }
     ElMessage.success('发布评论成功');
   } catch {
@@ -132,7 +140,7 @@ const dailyQuote = computed(() => {
 });
 
 const topContributors = computed(() => {
-  const counts: Record<string, { user: any; count: number }> = {};
+  const counts: Record<string, { user: Note['user']; count: number }> = {};
   props.notes.forEach((note) => {
     if (note.user && note.user.id) {
       const uid = note.user.id;
@@ -265,11 +273,11 @@ const parseTags = (note: Note): string[] => {
 
             <!-- Comments List -->
             <div v-else class="flex flex-col gap-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
-              <div v-for="c in noteCommentsMap[note.id]" :key="c.id" class="flex gap-2 items-start">
+              <div v-for="c in noteCommentsMap[note.id] || []" :key="c.id" class="flex gap-2 items-start">
                 <UserAvatar :user="c.user" size="xs" class="shrink-0 mt-0.5" />
                 <div class="flex-1 bg-slate-50 dark:bg-white/[0.02] border border-[var(--border-base)] rounded-xl p-2 relative group/comment">
                   <div class="flex items-center justify-between gap-2 leading-none">
-                    <span class="text-[9px] font-black text-[var(--text-primary)]">{{ c.user.name }}</span>
+                    <span class="text-[9px] font-black text-[var(--text-primary)]">{{ c.user?.name || '用户' }}</span>
                     <span class="text-[8px] text-[var(--text-muted)]">{{ formatDate(c.createdAt) }}</span>
                   </div>
                   <p class="text-[10px] md:text-[11px] text-[var(--text-secondary)] mt-1 whitespace-pre-line leading-relaxed">

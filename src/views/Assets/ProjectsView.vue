@@ -19,11 +19,39 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
 import ProjectCard from '@/components/ProjectCard.vue';
 import StatCard from '@/components/StatCard.vue';
+import type { User } from '@/types';
+
+type TeamMemberResponse = {
+  user: User;
+};
+
+interface ProjectListMember {
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
+}
+
+interface ProjectListItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  dueDate?: string | null;
+  color?: string;
+  tags?: string | null;
+  progress?: number;
+  status: string;
+  visibility?: 'PUBLIC' | 'PRIVATE';
+  maxMembers?: number;
+  members: ProjectListMember[];
+}
 
 const workspaceStore = useWorkspaceStore();
 const searchQuery = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
-const projects = ref<any[]>([]);
+const projects = ref<ProjectListItem[]>([]);
 const isLoading = ref(true);
 
 onMounted(() => {
@@ -53,7 +81,7 @@ const projectForm = ref({
   inviteUserIds: [] as string[],
 });
 
-const teamMembers = ref<any[]>([]);
+const teamMembers = ref<User[]>([]);
 
 const colors = [
   { name: '电光蓝', value: 'bg-blue-500' },
@@ -75,7 +103,10 @@ const fetchProjects = async () => {
   isLoading.value = true;
   try {
     const response = await api.get('/api/projects');
-    projects.value = response.data;
+    projects.value = ((response.data || []) as ProjectListItem[]).map((project) => ({
+      ...project,
+      members: project.members || [],
+    }));
   } catch (_error) {
     ElMessage.error('获取项目失败');
   } finally {
@@ -88,7 +119,8 @@ const fetchTeamMembers = async () => {
     const tid = workspaceStore.activeTeamId;
     if (!tid) return;
     const response = await api.get(`/api/teams/${tid}/members`);
-    teamMembers.value = response.data?.map((m: any) => m.user) || [];
+    const members = (response.data || []) as TeamMemberResponse[];
+    teamMembers.value = members.map((m) => m.user);
   } catch (_error) {
     // silently fail
   }
@@ -114,7 +146,7 @@ const openAddDrawer = () => {
   isDrawerOpen.value = true;
 };
 
-const openEditDrawer = (project: any) => {
+const openEditDrawer = (project: ProjectListItem) => {
   isEditMode.value = true;
   projectForm.value = {
     id: project.id,

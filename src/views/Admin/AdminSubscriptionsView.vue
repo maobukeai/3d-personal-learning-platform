@@ -7,10 +7,51 @@ import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
 import UserSubscriptionsTab from './components/UserSubscriptionsTab.vue';
 import ActivationCodesTab from './components/ActivationCodesTab.vue';
 
-const plans = ref<any[]>([]);
-const subscriptions = ref<any[]>([]);
-const users = ref<any[]>([]);
-const activationCodes = ref<any[]>([]);
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  displayName: string | null;
+  price: number;
+  badgeColor: string | null;
+  interval: string;
+  maxStorage: number;
+  maxTeams: number;
+  [key: string]: unknown;
+}
+
+interface SubscriptionRecord {
+  id: string;
+  userId: string;
+  planId: string;
+  status: string;
+  interval: string;
+  startDate: string;
+  endDate: string | null;
+  autoRenew: boolean;
+  cancelAtPeriodEnd: boolean;
+  paymentMethod: string | null;
+  [key: string]: unknown;
+}
+
+interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  [key: string]: unknown;
+}
+
+interface ActivationCodeRecord {
+  id: string;
+  code: string;
+  status: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+const plans = ref<SubscriptionPlan[]>([]);
+const subscriptions = ref<SubscriptionRecord[]>([]);
+const users = ref<AdminUser[]>([]);
+const activationCodes = ref<ActivationCodeRecord[]>([]);
 const isLoading = ref(true);
 const activeTab = ref('plans');
 

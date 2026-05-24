@@ -19,8 +19,26 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
 
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  displayName?: string | null;
+  price?: number;
+  yearlyPrice?: number | null;
+  interval?: string;
+  features?: string[];
+  maxStorage?: number;
+  maxTeams?: number;
+  maxProjects?: number | null;
+  maxAssets?: number | null;
+  priority?: number | null;
+  isPopular?: boolean | null;
+  badgeColor?: string | null;
+  subscriberCount?: number;
+}
+
 interface Props {
-  plans: any[];
+  plans: SubscriptionPlan[];
   isLoading: boolean;
 }
 
@@ -30,7 +48,7 @@ const emit = defineEmits<{
 }>();
 
 const showPlanDialog = ref(false);
-const editingPlan = ref<any>(null);
+const editingPlan = ref<SubscriptionPlan | null>(null);
 const newFeature = ref('');
 
 const defaultPlanForm = {
@@ -67,17 +85,17 @@ const openCreatePlan = () => {
   showPlanDialog.value = true;
 };
 
-const openEditPlan = (plan: any) => {
+const openEditPlan = (plan: SubscriptionPlan) => {
   editingPlan.value = plan;
   planForm.value = {
     name: plan.name,
     displayName: plan.displayName || '',
-    price: plan.price,
+    price: plan.price || 0,
     yearlyPrice: plan.yearlyPrice || 0,
-    interval: plan.interval,
+    interval: plan.interval || 'MONTHLY',
     features: Array.isArray(plan.features) ? [...plan.features] : [],
-    maxStorage: plan.maxStorage,
-    maxTeams: plan.maxTeams,
+    maxStorage: plan.maxStorage || 1,
+    maxTeams: plan.maxTeams || 1,
     maxProjects: plan.maxProjects || 5,
     maxAssets: plan.maxAssets || 50,
     priority: plan.priority || 0,
@@ -109,9 +127,9 @@ const handleSavePlan = async () => {
   }
 };
 
-const handleDeletePlan = async (plan: any) => {
-  if (plan.subscriberCount > 0) {
-    ElMessage.warning(`该计划仍有 ${plan.subscriberCount} 名订阅者，无法删除`);
+const handleDeletePlan = async (plan: SubscriptionPlan) => {
+  if ((plan.subscriberCount || 0) > 0) {
+    ElMessage.warning(`该计划仍有 ${plan.subscriberCount || 0} 名订阅者，无法删除`);
     return;
   }
   try {
@@ -184,22 +202,22 @@ const getPlanIcon = (name: string) => {
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><HardDrive class="w-3 h-3 shrink-0" />{{
-                    plan.maxStorage >= 9999 ? '无限' : plan.maxStorage + 'GB'
+                    (plan.maxStorage || 0) >= 9999 ? '无限' : (plan.maxStorage || 0) + 'GB'
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><Users class="w-3 h-3 shrink-0" />{{
-                    plan.maxTeams >= 999 ? '无限' : plan.maxTeams + '团队'
+                    (plan.maxTeams || 0) >= 999 ? '无限' : (plan.maxTeams || 0) + '团队'
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><FolderOpen class="w-3 h-3 shrink-0" />{{
-                    plan.maxProjects >= 9999 ? '无限' : plan.maxProjects + '项目'
+                    (plan.maxProjects || 0) >= 9999 ? '无限' : (plan.maxProjects || 0) + '项目'
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><Box class="w-3 h-3 shrink-0" />{{
-                    plan.maxAssets >= 9999 ? '无限' : plan.maxAssets + '资产'
+                    (plan.maxAssets || 0) >= 9999 ? '无限' : (plan.maxAssets || 0) + '资产'
                   }}</span
                 >
               </div>

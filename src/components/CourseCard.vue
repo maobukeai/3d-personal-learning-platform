@@ -9,9 +9,27 @@ import {
   Bookmark,
 } from 'lucide-vue-next';
 
+type CourseCardItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  difficulty?: string;
+  category?: {
+    name?: string | null;
+  } | null;
+  tags?: string | null;
+  avgRating?: number | null;
+  _count?: {
+    lessons?: number;
+    enrollments?: number;
+    reviews?: number;
+  };
+};
+
 const props = withDefaults(
   defineProps<{
-    course: any;
+    course: CourseCardItem;
     layout?: 'row-simple' | 'row-detailed' | 'card' | 'card-simple';
     enrolled?: boolean;
     bookmarked?: boolean;
@@ -38,7 +56,7 @@ const difficultyMap: Record<string, { label: string; color: string; bg: string }
 
 const diffInfo = computed(() => {
   return (
-    difficultyMap[props.course?.difficulty] || {
+    difficultyMap[props.course?.difficulty || ''] || {
       label: '入门',
       color: 'text-emerald-500',
       bg: 'bg-emerald-500/10',

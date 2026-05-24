@@ -22,14 +22,51 @@ import PageHeader from '@/components/PageHeader.vue';
 import CourseCard from '@/components/CourseCard.vue';
 import { useAuthStore } from '@/stores/auth';
 
+type CourseSortKey = 'newest' | 'popular' | 'rating';
+
+interface AcademyCategory {
+  id: string;
+  name: string;
+  _count?: {
+    courses?: number;
+  };
+}
+
+interface AcademyCourse {
+  id: string;
+  title: string;
+  description?: string | null;
+  categoryId?: string | null;
+  difficulty?: string;
+  thumbnail?: string | null;
+  tags?: string | null;
+  avgRating?: number;
+  _count?: {
+    enrollments?: number;
+    lessons?: number;
+  };
+}
+
+interface AcademyEnrollment {
+  id: string;
+  courseId: string;
+  progress: number;
+  updatedAt?: string | null;
+  course?: AcademyCourse;
+}
+
+interface ContinuingEnrollment extends AcademyEnrollment {
+  course: AcademyCourse;
+}
+
 const router = useRouter();
 const searchQuery = ref('');
-const categories = ref<any[]>([]);
+const categories = ref<AcademyCategory[]>([]);
 const activeCategoryId = ref<string | null>(null);
-const courses = ref<any[]>([]);
-const myEnrollments = ref<any[]>([]);
+const courses = ref<AcademyCourse[]>([]);
+const myEnrollments = ref<AcademyEnrollment[]>([]);
 const isLoading = ref(false);
-const sortBy = ref<'newest' | 'popular' | 'rating'>('newest');
+const sortBy = ref<CourseSortKey>('newest');
 const difficultyFilter = ref<string | null>(null);
 const showFilters = ref(false);
 const bookmarkedCourseIds = ref<Set<string>>(new Set());
@@ -51,9 +88,9 @@ const learningStats = computed(() => {
   return { totalCourses, completedCourses, inProgressCourses, totalLessons, avgProgress };
 });
 
-const continueLearningCourses = computed(() => {
+const continueLearningCourses = computed<ContinuingEnrollment[]>(() => {
   return myEnrollments.value
-    .filter((e) => e.progress > 0 && e.progress < 100)
+    .filter((e): e is ContinuingEnrollment => !!e.course && e.progress > 0 && e.progress < 100)
     .sort(
       (a, b) =>
         (b.updatedAt ? new Date(b.updatedAt).getTime() : 0) -
@@ -79,7 +116,7 @@ const fetchData = async () => {
   try {
     const authStore = useAuthStore();
 
-    const promises: Promise<any>[] = [
+    const promises = [
       api.get('/api/courses', {
         params: { sort: sortBy.value, difficulty: difficultyFilter.value || undefined },
       }),
@@ -136,11 +173,18 @@ const isBookmarked = (courseId: string) => {
   return bookmarkedCourseIds.value.has(courseId);
 };
 
+const setSortBy = (key: string) => {
+  if (key === 'newest' || key === 'popular' || key === 'rating') {
+    sortBy.value = key;
+    fetchData();
+  }
+};
+
 const filteredCourses = computed(() => {
   let list = courses.value;
 
   if (activeCategoryId.value === 'mine') {
-    list = myEnrollments.value.map((e) => e.course);
+    list = myEnrollments.value.map((e) => e.course).filter((course): course is AcademyCourse => !!course);
   } else if (activeCategoryId.value === 'bookmarked') {
     list = courses.value.filter((c) => bookmarkedCourseIds.value.has(c.id));
   } else if (activeCategoryId.value) {
@@ -159,7 +203,9 @@ const filteredCourses = computed(() => {
 });
 
 const featuredCourses = computed(() => {
-  return courses.value.filter((c) => c.avgRating >= 4 && c._count?.enrollments >= 0).slice(0, 4);
+  return courses.value
+    .filter((course) => (course.avgRating || 0) >= 4 && (course._count?.enrollments || 0) >= 0)
+    .slice(0, 4);
 });
 
 const activeCategory = computed(() => {
@@ -224,8 +270,7 @@ v-for="sort in [
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
                 : 'text-slate-400 hover:text-slate-600'
             " @click="
-              sortBy = sort.key as any;
-              fetchData();
+              setSortBy(sort.key);
             ">
             {{ sort.label }}
           </button>

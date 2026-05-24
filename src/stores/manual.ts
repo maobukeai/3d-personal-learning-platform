@@ -43,6 +43,14 @@ export interface ManualResource {
   updatedAt: string;
 }
 
+type ResourceQueryParams = {
+  page: number;
+  pageSize: number;
+  categoryId?: string;
+  search?: string;
+  sort?: string;
+};
+
 export const useManualStore = defineStore('manual', () => {
   const stations = ref<ManualStation[]>([]);
   const currentStation = ref<ManualStation | null>(null);
@@ -100,7 +108,7 @@ export const useManualStore = defineStore('manual', () => {
   ) {
     isLoadingResources.value = true;
     try {
-      const params: any = {
+      const params: ResourceQueryParams = {
         page: options?.page || 1,
         pageSize: options?.pageSize || 21,
       };

@@ -3,6 +3,12 @@ import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 
+interface EditableCategory {
+  id: string;
+  name?: string | null;
+  order?: number | null;
+}
+
 const props = defineProps<{
   categoriesCount: number;
 }>();
@@ -12,14 +18,14 @@ const emit = defineEmits<{
 }>();
 
 const visible = ref(false);
-const currentCategory = ref<any>(null);
+const currentCategory = ref<EditableCategory | null>(null);
 
 const categoryForm = ref({
   name: '',
   order: 0,
 });
 
-const open = (category: any = null) => {
+const open = (category: EditableCategory | null = null) => {
   currentCategory.value = category;
   if (category) {
     categoryForm.value = {

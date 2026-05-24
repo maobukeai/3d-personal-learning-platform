@@ -22,6 +22,7 @@ import {
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
+import type { Category, Course } from '@/types';
 
 // Subcomponents
 import CourseEditDialog from './components/CourseEditDialog.vue';
@@ -31,8 +32,8 @@ import LessonEditDialog from './components/LessonEditDialog.vue';
 
 const router = useRouter();
 
-const courses = ref<any[]>([]);
-const categories = ref<any[]>([]);
+const courses = ref<Course[]>([]);
+const categories = ref<Category[]>([]);
 const isLoading = ref(true);
 const activeTab = ref<'courses' | 'categories'>('courses');
 
@@ -53,6 +54,11 @@ const handleTabChange = (tab: 'courses' | 'categories') => {
 const searchQuery = ref('');
 const sortBy = ref<'newest' | 'enrollments' | 'rating'>('newest');
 const statusFilter = ref<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
+const setStatusFilter = (key: string) => {
+  if (key === 'ALL' || key === 'PUBLISHED' || key === 'DRAFT') {
+    statusFilter.value = key;
+  }
+};
 
 const courseStats = computed(() => {
   const total = courses.value.length;
@@ -166,7 +172,7 @@ const handleDeleteCourse = async (id: string) => {
   }
 };
 
-const toggleCourseStatus = async (course: any) => {
+const toggleCourseStatus = async (course: Course) => {
   const newStatus = course.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
   try {
     await api.put(`/api/admin/courses/${course.id}`, { ...course, status: newStatus });
@@ -313,7 +319,7 @@ v-for="filter in [
                       ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 ring-1 ring-amber-500/20 font-extrabold shadow-sm'
                       : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]" @click="statusFilter = filter.key as any">
+              ]" @click="setStatusFilter(filter.key)">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>

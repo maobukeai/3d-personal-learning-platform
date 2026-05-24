@@ -30,6 +30,11 @@ interface Category {
   };
 }
 
+interface SettingItem {
+  key: string;
+  value: string | string[];
+}
+
 const activeTab = ref<'assets' | 'courses' | 'materials' | 'showcases'>('assets');
 const isLoading = ref(false);
 const searchQuery = ref('');
@@ -70,12 +75,14 @@ const fetchSettingsCategories = async () => {
     const { data } = await api.get('/api/admin/settings');
 
     // Handle both array and object responses from different versions of the API
-    const getVal = (key: string) => {
+    const getVal = (key: string): string | string[] => {
       if (Array.isArray(data)) {
-        const s = data.find((item: any) => item.key === key);
+        const settings = data as SettingItem[];
+        const s = settings.find((item) => item.key === key);
         return s ? s.value : '[]';
       }
-      return data[key] || '[]';
+      const settings = data as Record<string, string | string[] | undefined>;
+      return settings[key] || '[]';
     };
 
     try {
@@ -130,14 +137,15 @@ const filteredCategories = computed(() => {
   }
 });
 
-const openModal = (category: any = null) => {
+const openModal = (category: Category | string | null = null) => {
   currentCategory.value = category;
   if (activeTab.value === 'assets' || activeTab.value === 'courses') {
     if (category) {
+      const typedCategory = category as Category;
       categoryForm.value = {
-        name: category.name,
-        icon: category.icon || '',
-        order: category.order,
+        name: typedCategory.name,
+        icon: typedCategory.icon || '',
+        order: typedCategory.order,
       };
     } else {
       const list = activeTab.value === 'assets' ? assetCategories.value : courseCategories.value;
@@ -150,7 +158,7 @@ const openModal = (category: any = null) => {
   } else {
     // For materials and showcases (string array)
     categoryForm.value = {
-      name: category || '',
+      name: typeof category === 'string' ? category : '',
       icon: '',
       order: 0,
     };
@@ -214,9 +222,13 @@ const handleSaveCategory = async () => {
   }
 };
 
-const handleDeleteCategory = async (category: any) => {
+const handleDeleteCategory = async (category: Category | string) => {
   if (activeTab.value === 'assets' || activeTab.value === 'courses') {
-    const count = activeTab.value === 'assets' ? category._count?.assets : category._count?.courses;
+    const typedCategory = category as Category;
+    const count =
+      activeTab.value === 'assets'
+        ? typedCategory._count?.assets
+        : typedCategory._count?.courses;
     if (count && count > 0) {
       return ElMessage.error(
         `该分类下仍有 ${count} 个${activeTab.value === 'assets' ? '资产' : '课程'}，无法删除`,
@@ -224,7 +236,7 @@ const handleDeleteCategory = async (category: any) => {
     }
 
     try {
-      await ElMessageBox.confirm(`确定要删除分类 "${category.name}" 吗？`, '警告', {
+      await ElMessageBox.confirm(`确定要删除分类 "${typedCategory.name}" 吗？`, '警告', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
@@ -234,7 +246,7 @@ const handleDeleteCategory = async (category: any) => {
         activeTab.value === 'assets'
           ? '/api/admin/asset-categories'
           : '/api/admin/course-categories';
-      await api.delete(`${endpoint}/${category.id}`);
+      await api.delete(`${endpoint}/${typedCategory.id}`);
       ElMessage.success('分类已删除');
       if (activeTab.value === 'assets') {
         fetchAssetCategories();

@@ -4,6 +4,13 @@ import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Users, Check, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
+import type { Team } from '@/types';
+
+interface TeamInvitation {
+  id: string;
+  teamId: string;
+  team: Pick<Team, 'id' | 'name' | 'avatarUrl'>;
+}
 
 const props = defineProps<{
   visible: boolean;
@@ -12,7 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:visible', 'success']);
 
-const invitation = ref<any>(null);
+const invitation = ref<TeamInvitation | null>(null);
 const loading = ref(false);
 const processing = ref(false);
 
@@ -22,7 +29,8 @@ const fetchInvitation = async () => {
   try {
     // We can use the getMyInvitations endpoint and find the specific one
     const { data } = await api.get('/api/teams/invitations/my');
-    invitation.value = data.find((i: any) => i.id === props.invitationId);
+    const invitations = (data || []) as TeamInvitation[];
+    invitation.value = invitations.find((i) => i.id === props.invitationId) || null;
     if (!invitation.value) {
       ElMessage.warning('该邀请已失效或不存在');
       emit('update:visible', false);
@@ -71,7 +79,7 @@ const handleRespond = async (accept: boolean) => {
     class="custom-rounded-dialog"
     :show-close="!processing"
     :close-on-click-modal="!processing"
-    @update:model-value="(val: any) => emit('update:visible', val)"
+    @update:model-value="(val: boolean) => emit('update:visible', val)"
   >
     <div v-if="loading" class="flex flex-col items-center justify-center py-12">
       <Loader2 class="w-10 h-10 text-accent animate-spin mb-4" />

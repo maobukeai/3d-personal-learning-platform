@@ -3,11 +3,11 @@ import { ref, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { Users, ExternalLink } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
-import { fetchTeams } from '@/services/workspace.service';
+import { fetchTeams, type TeamWorkspaceResponse } from '@/services/workspace.service';
 
 const authStore = useAuthStore();
 
-const myTeams = ref<any[]>([]);
+const myTeams = ref<TeamWorkspaceResponse[]>([]);
 const isLoadingTeams = ref(false);
 
 const fetchMyTeams = async () => {

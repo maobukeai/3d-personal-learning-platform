@@ -14,14 +14,42 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 
+interface RoadmapStepForm {
+  id?: string;
+  title: string;
+  description: string;
+  subtasks: string[];
+}
+
+interface RoadmapStepInput {
+  id?: string;
+  title: string;
+  description?: string | null;
+  subtasks?: string[] | string | null;
+}
+
+interface RoadmapFormData {
+  id: string;
+  title: string;
+  description: string;
+  steps: RoadmapStepForm[];
+}
+
+interface RoadmapInput {
+  id: string;
+  title: string;
+  description?: string | null;
+  steps: RoadmapStepInput[];
+}
+
 const props = defineProps<{
   show: boolean;
-  roadmap: any | null;
+  roadmap: RoadmapInput | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'saved', data: any): void;
+  (e: 'saved', data: RoadmapFormData): void;
 }>();
 
 const formLoading = ref(false);
@@ -29,7 +57,7 @@ const customRoadmapForm = ref({
   id: '',
   title: '',
   description: '',
-  steps: [] as Array<{ id?: string; title: string; description: string; subtasks: string[] }>,
+  steps: [] as RoadmapStepForm[],
 });
 
 watch(
@@ -42,11 +70,14 @@ watch(
           id: props.roadmap.id,
           title: props.roadmap.title,
           description: props.roadmap.description || '',
-          steps: props.roadmap.steps.map((s: any) => {
-            let subtasksArr = [];
+          steps: props.roadmap.steps.map((s) => {
+            let subtasksArr: string[] = [];
             if (s.subtasks) {
               try {
-                subtasksArr = typeof s.subtasks === 'string' ? JSON.parse(s.subtasks) : s.subtasks;
+                const parsed = typeof s.subtasks === 'string' ? JSON.parse(s.subtasks) : s.subtasks;
+                subtasksArr = Array.isArray(parsed)
+                  ? parsed.filter((item): item is string => typeof item === 'string')
+                  : [];
               } catch (e) {
                 console.error('Parse step subtasks error:', e);
               }

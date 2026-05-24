@@ -2,9 +2,10 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import type { Category, Course } from '@/types';
 
 const props = defineProps<{
-  categories: any[];
+  categories: Category[];
 }>();
 
 const emit = defineEmits<{
@@ -12,7 +13,7 @@ const emit = defineEmits<{
 }>();
 
 const visible = ref(false);
-const currentCourse = ref<any>(null);
+const currentCourse = ref<Course | null>(null);
 
 const courseForm = ref({
   title: '',
@@ -23,7 +24,7 @@ const courseForm = ref({
   status: 'PUBLISHED',
 });
 
-const open = (course: any = null) => {
+const open = (course: Course | null = null) => {
   currentCourse.value = course;
   if (course) {
     courseForm.value = {

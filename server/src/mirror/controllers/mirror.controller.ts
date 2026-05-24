@@ -81,6 +81,48 @@ const checkSourceAccess = async (sourceId: string, req: AuthRequest) => {
   return { hasAccess: true };
 };
 
+const getPublicBaseUrl = (req: AuthRequest): string => {
+  const configured = config.BACKEND_URL?.replace(/\/$/, '');
+  const isLocalConfigured = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(
+    configured || '',
+  );
+
+  if (configured && !isLocalConfigured) {
+    return configured;
+  }
+
+  const forwardedProto = req.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const protocol = forwardedProto || req.protocol;
+  const forwardedHost = req.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const host = forwardedHost || req.get('host');
+
+  return `${protocol}://${host}`.replace(/\/$/, '');
+};
+
+const normalizeUploadUrl = (value: string | null | undefined, baseUrl: string): string | null => {
+  if (!value) return null;
+
+  if (value.startsWith('/uploads/')) {
+    return `${baseUrl}${value}`;
+  }
+
+  return value.replace(
+    /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(\/uploads\/.*)$/i,
+    `${baseUrl}$1`,
+  );
+};
+
+const normalizeUploadUrlsInHtml = (html: string, baseUrl: string) =>
+  html
+    .replace(
+      /(src|href)=["'](\/uploads\/[^"']+)["']/gi,
+      (_match, attr, uploadPath) => `${attr}="${baseUrl}${uploadPath}"`,
+    )
+    .replace(
+      /(src|href)=["']https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(\/uploads\/[^"']+)["']/gi,
+      (_match, attr, uploadPath) => `${attr}="${baseUrl}${uploadPath}"`,
+    );
+
 export const getCategories = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
@@ -144,14 +186,12 @@ export const getResource = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '镜像源不存在' });
     }
 
-    // Rewrite relative image/link paths in contentHtml and thumbnailUrl to include the request host
-    const hostUrl = config.BACKEND_URL.replace(/\/$/, '');
+    // Rewrite upload URLs to the public HTTPS host. This also fixes historical
+    // localhost upload URLs stored before production env vars were configured.
+    const hostUrl = getPublicBaseUrl(req);
     let cleanHtml = resource.contentHtml || '';
     if (cleanHtml) {
-      cleanHtml = cleanHtml.replace(
-        /(src|href)=["'](\/uploads\/[^"']+)["']/gi,
-        `$1="${hostUrl}$2"`,
-      );
+      cleanHtml = normalizeUploadUrlsInHtml(cleanHtml, hostUrl);
     }
 
     // Check if it has a matched manual download link block
@@ -195,9 +235,7 @@ export const getResource = async (req: AuthRequest, res: Response) => {
     );
 
     let finalThumbnail = resource.thumbnailUrl;
-    if (finalThumbnail && finalThumbnail.startsWith('/uploads/')) {
-      finalThumbnail = `${hostUrl}${finalThumbnail}`;
-    }
+    finalThumbnail = normalizeUploadUrl(finalThumbnail, hostUrl);
 
     res.json({
       ...resource,

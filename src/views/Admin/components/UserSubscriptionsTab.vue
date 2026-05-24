@@ -64,6 +64,17 @@ const editingSubscription = ref<SubscriptionType | null>(null);
 const userSearchQuery = ref('');
 const subSearchQuery = ref('');
 const subStatusFilter = ref<'ALL' | 'ACTIVE' | 'CANCELED' | 'EXPIRED' | 'PAST_DUE'>('ALL');
+const setSubStatusFilter = (key: string) => {
+  if (
+    key === 'ALL' ||
+    key === 'ACTIVE' ||
+    key === 'CANCELED' ||
+    key === 'EXPIRED' ||
+    key === 'PAST_DUE'
+  ) {
+    subStatusFilter.value = key;
+  }
+};
 
 const defaultSubForm = {
   userId: '',
@@ -263,7 +274,7 @@ v-for="filter in [
                         ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
                         : 'bg-violet-500/10 text-violet-500 border-violet-500/30 ring-1 ring-violet-500/20 font-extrabold shadow-sm'
                 : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-            ]" @click="subStatusFilter = filter.key as any">
+            ]" @click="setSubStatusFilter(filter.key)">
             <span>{{ filter.label }}</span>
             <span class="opacity-60">({{ filter.count }})</span>
           </button>

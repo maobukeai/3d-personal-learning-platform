@@ -48,9 +48,17 @@ export interface MirrorResource {
   syncedAt: string;
 }
 
+type ResourceQueryParams = {
+  page: number;
+  pageSize: number;
+  categoryId?: string;
+  search?: string;
+  sort?: string;
+};
+
 export const useMirrorStore = defineStore('mirror', () => {
   const sources = ref<MirrorSource[]>([]);
-  const currentSource = ref<any>(null);
+  const currentSource = ref<MirrorSource | null>(null);
   const categories = ref<MirrorCategory[]>([]);
   const resources = ref<MirrorResource[]>([]);
   const totalResources = ref(0);
@@ -105,7 +113,7 @@ export const useMirrorStore = defineStore('mirror', () => {
   ) {
     isLoadingResources.value = true;
     try {
-      const params: any = {
+      const params: ResourceQueryParams = {
         page: options?.page || 1,
         pageSize: options?.pageSize || 21,
       };

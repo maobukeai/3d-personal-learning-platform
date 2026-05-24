@@ -4,6 +4,15 @@ import { X, MapPin, Calendar, Box, MessageSquare, Link as LinkIcon } from 'lucid
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from './UserAvatar.vue';
+import type { User } from '@/types';
+
+type UserProfile = User & {
+  _count?: {
+    assets?: number;
+    posts?: number;
+    discussions?: number;
+  };
+};
 
 const props = defineProps<{
   modelValue: boolean;
@@ -12,7 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'chat']);
 
-const userProfile = ref<any>(null);
+const userProfile = ref<UserProfile | null>(null);
 const isLoading = ref(false);
 
 const fetchProfile = async () => {

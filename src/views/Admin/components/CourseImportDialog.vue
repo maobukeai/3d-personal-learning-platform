@@ -4,9 +4,17 @@ import { ElMessage } from 'element-plus';
 import { Plus, Loader2, CheckCircle2 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import type { Category, Lesson } from '@/types';
+
+interface ParsedCourseMetadata {
+  title: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  lessons?: Partial<Lesson>[];
+}
 
 const props = defineProps<{
-  categories: any[];
+  categories: Category[];
 }>();
 
 const emit = defineEmits<{
@@ -16,7 +24,7 @@ const emit = defineEmits<{
 const visible = ref(false);
 const externalUrl = ref('');
 const isParsing = ref(false);
-const parsedMetadata = ref<any>(null);
+const parsedMetadata = ref<ParsedCourseMetadata | null>(null);
 const selectedCategoryId = ref('');
 
 const open = () => {
@@ -140,7 +148,7 @@ defineExpose({ open });
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="flex gap-4">
-            <img alt="" :src="parsedMetadata.thumbnail" referrerpolicy="no-referrer" class="w-32 aspect-video rounded-lg object-cover shadow-sm" />
+            <img alt="" :src="parsedMetadata.thumbnail || undefined" referrerpolicy="no-referrer" class="w-32 aspect-video rounded-lg object-cover shadow-sm" />
             <div class="flex-1 min-w-0">
               <h4 class="font-bold text-sm mb-1 truncate" style="color: var(--text-primary)">
                 {{ parsedMetadata.title }}
@@ -153,7 +161,7 @@ defineExpose({ open });
 
           <div class="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
             <div
-              v-for="lesson in parsedMetadata.lessons"
+              v-for="lesson in parsedMetadata.lessons || []"
               :key="lesson.order"
               class="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-white/5 border border-transparent"
             >
@@ -168,7 +176,7 @@ defineExpose({ open });
           </div>
 
           <p class="text-[10px] text-center font-bold text-slate-400">
-            共解析出 {{ parsedMetadata.lessons.length }} 个课时
+            共解析出 {{ parsedMetadata.lessons?.length || 0 }} 个课时
           </p>
         </div>
       </div>

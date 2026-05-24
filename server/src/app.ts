@@ -32,8 +32,21 @@ import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
 
 const app = express();
 
+const readPositiveInt = (value: string | undefined, fallback: number) => {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parseTrustProxy = (value: string | undefined) => {
+  if (!value) return 1;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : value;
+};
+
 // Trust proxy - essential for getting real client IP when behind a reverse proxy (Nginx, etc.)
-app.set('trust proxy', 1);
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 // Security Middleware
 app.use(
@@ -88,11 +101,27 @@ app.use(checkMaintenanceMode);
 
 // Global API rate limiting
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'development' ? 10000 : 300,
+  windowMs: readPositiveInt(process.env.API_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+  max:
+    process.env.NODE_ENV === 'development'
+      ? 10000
+      : readPositiveInt(process.env.API_RATE_LIMIT_MAX, 3000),
   message: { error: '请求过于频繁，请稍后再试' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    const requestPath = req.originalUrl.split('?')[0] || req.originalUrl;
+    return (
+      [
+        '/api/auth/settings',
+        '/api/auth/refresh',
+        '/api/auth/logout',
+        '/api/auth/login',
+        '/api/auth/login/2fa',
+        '/api/auth/register',
+      ].includes(requestPath) || requestPath.startsWith('/api/auth/email/')
+    );
+  },
 });
 app.use('/api', globalLimiter);
 

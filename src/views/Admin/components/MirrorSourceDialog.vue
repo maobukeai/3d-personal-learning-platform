@@ -24,6 +24,18 @@ interface MirrorSource {
   createdAt: string;
 }
 
+interface MirrorSourceForm {
+  name: string;
+  displayName: string;
+  baseUrl: string;
+  adapterType: string;
+  syncInterval: number;
+  minPlanPriority: number;
+  description: string;
+  iconUrl: string;
+  syncConfig: string | null;
+}
+
 const props = defineProps<{
   modelValue: boolean;
   source: MirrorSource | null;
@@ -31,7 +43,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'save', data: any): void;
+  (e: 'save', data: MirrorSourceForm): void;
 }>();
 
 const adapterTypes = [

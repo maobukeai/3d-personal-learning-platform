@@ -6,10 +6,11 @@ import { ElMessage } from 'element-plus';
 import TaskCard from '@/components/TaskCard.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
+import type { ActiveColumn, Task } from '@/types/task';
 
 interface Props {
-  tasksByGroup: Record<string, any[]>;
-  activeColumns: any[];
+  tasksByGroup: Record<string, Task[]>;
+  activeColumns: ActiveColumn[];
   groupBy: 'status' | 'priority';
 }
 
@@ -19,18 +20,24 @@ const emit = defineEmits<{
   (e: 'refresh'): void;
   (e: 'refresh-stats'): void;
   (e: 'open-add-dialog', colId: string): void;
-  (e: 'open-detail', task: any): void;
+  (e: 'open-detail', task: Task): void;
   (e: 'open-profile', userId: string): void;
 }>();
 
 const workspaceStore = useWorkspaceStore();
 const inlineTitles = ref<Record<string, string>>({});
 
-const onDragChange = async (event: any, columnId: string) => {
+interface DragChangeEvent {
+  added?: {
+    element: Task;
+  };
+}
+
+const onDragChange = async (event: DragChangeEvent, columnId: string) => {
   if (event.added) {
     const task = event.added.element;
     try {
-      const updatePayload: any = { ...task };
+      const updatePayload: Task = { ...task };
       if (props.groupBy === 'status') {
         updatePayload.status = columnId;
       } else {
@@ -48,7 +55,7 @@ const onDragChange = async (event: any, columnId: string) => {
         projectId: updatePayload.projectId,
         subtasks: updatePayload.subtasks,
         participantIds: updatePayload.participants
-          ? updatePayload.participants.map((p: any) => p.userId)
+          ? updatePayload.participants.map((p) => p.userId)
           : [],
       };
 
@@ -112,7 +119,7 @@ const openAddDialogByCol = (colId: string) => {
   emit('open-add-dialog', colId);
 };
 
-const openDetailDrawer = (task: any) => {
+const openDetailDrawer = (task: Task) => {
   emit('open-detail', task);
 };
 
@@ -170,7 +177,7 @@ const openUserProfile = (userId: string) => {
           :delay="100"
           :delay-on-touch-only="true"
           :touch-start-threshold="5"
-          @change="(e: any) => onDragChange(e, col.id)"
+          @change="(e: DragChangeEvent) => onDragChange(e, col.id)"
         >
           <template #item="{ element: task }">
             <div>

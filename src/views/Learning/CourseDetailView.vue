@@ -27,12 +27,51 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
+import type { Lesson, User } from '@/types';
+
+interface CourseReview {
+  id: string;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+  user?: User;
+}
+
+interface CourseInstructor extends User {
+  _count?: {
+    courses?: number;
+  };
+}
+
+interface CourseDetail {
+  id: string;
+  title: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  difficulty: string;
+  category?: {
+    name: string;
+  } | null;
+  tags?: string | null;
+  totalDuration?: number;
+  lessons?: Lesson[];
+  lessonProgressMap?: Record<string, boolean>;
+  userEnrollment?: unknown;
+  reviews?: CourseReview[];
+  user?: CourseInstructor | null;
+  avgRating?: number;
+  _count?: {
+    enrollments?: number;
+    lessons?: number;
+    reviews?: number;
+  };
+}
 
 const route = useRoute();
 const router = useRouter();
 const courseId = route.params.id as string;
 
-const course = ref<any>(null);
+const course = ref<CourseDetail | null>(null);
 const isLoading = ref(true);
 const activeSection = ref<'outline' | 'reviews'>('outline');
 const reviewRating = ref(5);
@@ -95,7 +134,7 @@ const instructorInfo = computed(() => {
 const ratingDistribution = computed(() => {
   if (!course.value?.reviews?.length) return [];
   const dist = [0, 0, 0, 0, 0];
-  course.value.reviews.forEach((r: any) => {
+  course.value.reviews.forEach((r) => {
     if (r.rating >= 1 && r.rating <= 5) dist[r.rating - 1]++;
   });
   const total = course.value.reviews.length;
@@ -131,10 +170,10 @@ const handleEnroll = async () => {
 };
 
 const handleStartLearning = (lessonIndex?: number) => {
-  const query = lessonIndex !== undefined ? { lesson: lessonIndex } : {};
+  const query = lessonIndex !== undefined ? { lesson: String(lessonIndex) } : {};
   router.push({
     path: `/academy/player/${courseId}`,
-    query: query as Record<string, any>,
+    query,
   });
 };
 
@@ -187,14 +226,14 @@ const handleSubmitReview = async () => {
   }
 };
 
-const getLessonTypeIcon = (lesson: any) => {
+const getLessonTypeIcon = (lesson: Lesson) => {
   const url = lesson.videoUrl;
   if (!url) return FileText;
   if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf')) return Box;
   return Video;
 };
 
-const getLessonTypeLabel = (lesson: any) => {
+const getLessonTypeLabel = (lesson: Lesson) => {
   const url = lesson.videoUrl;
   if (!url) return '图文';
   if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf')) return '3D 交互';

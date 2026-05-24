@@ -2,9 +2,16 @@
 import { computed } from 'vue';
 import { BookOpen, ChevronRight } from 'lucide-vue-next';
 
+interface RoadmapCardItem {
+  id: string;
+  title?: string;
+  description?: string | null;
+  steps?: unknown[];
+}
+
 const props = withDefaults(
   defineProps<{
-    roadmap: any;
+    roadmap: RoadmapCardItem;
     active?: boolean;
     progress?: number;
   }>(),

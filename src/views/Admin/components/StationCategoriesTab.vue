@@ -13,6 +13,11 @@ interface ManualCategory {
   parentId?: string | null;
 }
 
+type ManualCategoryDialogExpose = {
+  openCreate: () => void;
+  openEdit: (category: ManualCategory) => void;
+};
+
 const props = defineProps<{
   stationId: string;
   categories: ManualCategory[];
@@ -23,7 +28,7 @@ const emit = defineEmits<{
   (e: 'refresh'): void;
 }>();
 
-const manualCategoryDialogRef = ref<any>(null);
+const manualCategoryDialogRef = ref<ManualCategoryDialogExpose | null>(null);
 
 function getParentCategoryName(cat: ManualCategory) {
   if (!cat.parentId) return '-';

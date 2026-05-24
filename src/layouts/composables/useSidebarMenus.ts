@@ -34,8 +34,8 @@ import {
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
-import { useMirrorStore } from '@/stores/mirror';
-import { useManualStore } from '@/stores/manual';
+import { useMirrorStore, type MirrorCategory } from '@/stores/mirror';
+import { useManualStore, type ManualCategory } from '@/stores/manual';
 import type { Component } from 'vue';
 
 export interface SidebarMenuItem {
@@ -214,7 +214,7 @@ export function useSidebarMenus() {
     const categories = mirrorStore.categories || [];
     if (categories.length) {
       // 1. Group categories by parentExternalId
-      const parentMap = new Map<string, any[]>();
+      const parentMap = new Map<string, MirrorCategory[]>();
       categories.forEach((cat) => {
         if (cat.parentExternalId) {
           if (!parentMap.has(cat.parentExternalId)) {
@@ -225,10 +225,10 @@ export function useSidebarMenus() {
       });
 
       // 2. Identify top level and check if they have children
-      const topLevel: any[] = [];
+      const topLevel: MirrorCategory[] = [];
       categories.forEach((cat) => {
         const hasParent =
-          cat.parentExternalId && categories.some((p: any) => p.externalId === cat.parentExternalId);
+          cat.parentExternalId && categories.some((p) => p.externalId === cat.parentExternalId);
         if (!hasParent) {
           topLevel.push(cat);
         }
@@ -298,7 +298,7 @@ export function useSidebarMenus() {
     const categories = manualStore.categories || [];
     if (categories.length) {
       // 1. Group categories by parentId
-      const parentMap = new Map<string, any[]>();
+      const parentMap = new Map<string, ManualCategory[]>();
       categories.forEach((cat) => {
         if (cat.parentId) {
           if (!parentMap.has(cat.parentId)) {
@@ -309,9 +309,9 @@ export function useSidebarMenus() {
       });
 
       // 2. Identify top level and check if they have children
-      const topLevel: any[] = [];
+      const topLevel: ManualCategory[] = [];
       categories.forEach((cat) => {
-        const hasParent = cat.parentId && categories.some((p: any) => p.id === cat.parentId);
+        const hasParent = cat.parentId && categories.some((p) => p.id === cat.parentId);
         if (!hasParent) {
           topLevel.push(cat);
         }

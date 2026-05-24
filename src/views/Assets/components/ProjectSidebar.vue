@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { ArrowLeft, Users, UserPlus } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { Project, ProjectMember } from '@/types';
 
 const props = defineProps<{
-  project: any;
+  project: Project;
   isMember: boolean;
   isMobile: boolean;
 }>();
@@ -16,13 +18,20 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const members = computed(() => props.project.members || []);
 
-const getTagsList = (tags: string | null) => {
+const getTagsList = (tags: string | null | undefined) => {
   if (!tags) return [];
   return tags
     .split(',')
     .map((t) => t.trim())
     .filter((t) => t);
+};
+
+const openMemberProfile = (member: ProjectMember) => {
+  if (member.user?.id) {
+    emit('open-profile', member.user.id);
+  }
 };
 </script>
 
@@ -126,7 +135,7 @@ const getTagsList = (tags: string | null) => {
         <h3
           class="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
         >
-          <Users class="w-4 h-4" /> 团队成员 ({{ props.project.members.length }}/{{
+          <Users class="w-4 h-4" /> 团队成员 ({{ members.length }}/{{
             props.project.maxMembers
           }})
         </h3>
@@ -134,7 +143,7 @@ const getTagsList = (tags: string | null) => {
           <button v-if="props.isMember" type="button" class="text-xs font-bold text-accent hover:underline flex items-center gap-1 cursor-pointer" @click="emit('invite')">
             <UserPlus class="w-3 h-3" /> 邀请
           </button>
-          <button v-if="!props.isMember && props.project.members.length < props.project.maxMembers" type="button" class="text-xs font-bold text-accent hover:underline cursor-pointer" @click="emit('join')">
+          <button v-if="!props.isMember && members.length < props.project.maxMembers" type="button" class="text-xs font-bold text-accent hover:underline cursor-pointer" @click="emit('join')">
             报名加入
           </button>
         </div>
@@ -142,10 +151,10 @@ const getTagsList = (tags: string | null) => {
 
       <div class="space-y-4">
         <div
-          v-for="member in props.project.members"
+          v-for="member in members"
           :key="member.id"
           class="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
-          @click="emit('open-profile', member.user.id)"
+          @click="openMemberProfile(member)"
         >
           <UserAvatar
             :user="member.user"
@@ -157,7 +166,7 @@ const getTagsList = (tags: string | null) => {
               class="text-sm font-bold truncate group-hover:text-accent transition-colors"
               style="color: var(--text-primary)"
             >
-              {{ member.user.name || member.user.email }}
+              {{ member.user?.name || member.user?.email || '未知用户' }}
             </p>
             <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
               {{ member.role }}
@@ -167,7 +176,7 @@ const getTagsList = (tags: string | null) => {
 
         <!-- Empty Slots -->
         <div
-          v-for="n in Math.max(0, props.project.maxMembers - props.project.members.length)"
+          v-for="n in Math.max(0, props.project.maxMembers - members.length)"
           :key="`slot-${n}`"
           class="flex items-center gap-3 p-3 rounded-2xl border-2 border-dashed opacity-50"
           style="border-color: var(--border-base)"

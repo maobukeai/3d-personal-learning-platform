@@ -7,10 +7,27 @@ import {
   ArrowRight,
 } from 'lucide-vue-next';
 
+interface RoadmapStep {
+  id: string;
+  title: string;
+  description?: string | null;
+  subtasks?: string[] | string | null;
+}
+
+interface RoadmapTimelineItem {
+  id: string;
+  steps: RoadmapStep[];
+}
+
+interface RoadmapProgressItem {
+  roadmapStepId: string;
+  completed: boolean;
+}
+
 const props = defineProps<{
-  selectedRoadmap: any;
+  selectedRoadmap: RoadmapTimelineItem;
   activeStepId: string | null;
-  myProgress: any[];
+  myProgress: RoadmapProgressItem[];
 }>();
 
 const emit = defineEmits<{
@@ -21,7 +38,7 @@ const isStepCompleted = (stepId: string) => {
   return props.myProgress.some((p) => p.roadmapStepId === stepId && p.completed);
 };
 
-const isStepLocked = (_step: any, index: number | string) => {
+const isStepLocked = (_step: RoadmapStep, index: number | string) => {
   const idx = Number(index);
   if (idx === 0) return false;
   if (!props.selectedRoadmap) return false;
@@ -29,7 +46,7 @@ const isStepLocked = (_step: any, index: number | string) => {
   return prevStep && !isStepCompleted(prevStep.id);
 };
 
-const getStepStatus = (step: any, index: number | string) => {
+const getStepStatus = (step: RoadmapStep, index: number | string) => {
   const idx = Number(index);
   if (isStepCompleted(step.id)) return 'completed';
   if (isStepLocked(step, idx)) return 'locked';

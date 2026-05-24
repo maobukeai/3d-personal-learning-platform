@@ -15,11 +15,23 @@ const emit = defineEmits<{
   (e: 'published'): void;
 }>();
 
+interface ApprovedAsset {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+}
+
+interface AssetCategory {
+  id: string;
+  name: string;
+}
+
 const isPublishing = ref(false);
 const publishCategory = ref<'model' | 'asset' | 'work'>('work');
-const myApprovedAssets = ref<any[]>([]);
+const myApprovedAssets = ref<ApprovedAsset[]>([]);
 const selectedAssetId = ref('');
-const assetCategories = ref<any[]>([]);
+const assetCategories = ref<AssetCategory[]>([]);
 const isMobile = ref(false);
 
 const handleResize = () => {
@@ -74,7 +86,7 @@ const getTypeLabel = (type: string) => {
 const fetchMyApprovedAssets = async () => {
   try {
     const response = await api.get('/api/assets/my');
-    myApprovedAssets.value = response.data.filter((a: any) => a.status === 'APPROVED');
+    myApprovedAssets.value = (response.data as ApprovedAsset[]).filter((asset) => asset.status === 'APPROVED');
   } catch (_error) {
     console.error('Failed to fetch my assets');
   }
@@ -107,20 +119,20 @@ const onAssetSelected = () => {
   }
 };
 
-const handleThumbnailChange = (e: any) => {
-  const file = e.target.files[0];
+const handleThumbnailChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.thumbnail = file;
   }
 };
 
-const handleImagesChange = (e: any) => {
-  const files = Array.from(e.target.files) as File[];
+const handleImagesChange = (e: Event) => {
+  const files = Array.from((e.target as HTMLInputElement).files || []);
   publishForm.value.images = files;
 };
 
-const handleAssetFileChange = (e: any) => {
-  const file = e.target.files[0];
+const handleAssetFileChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     publishForm.value.assetFile = file;
     if (!publishForm.value.title) {

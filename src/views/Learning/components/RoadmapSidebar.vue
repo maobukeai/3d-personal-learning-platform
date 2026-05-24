@@ -2,10 +2,24 @@
 import { Compass, User, Plus, Map } from 'lucide-vue-next';
 import RoadmapCard from '@/components/RoadmapCard.vue';
 
+interface RoadmapStep {
+  id: string;
+}
+
+interface RoadmapProgress {
+  roadmapStepId: string;
+  completed: boolean;
+}
+
+interface RoadmapSummary {
+  id: string;
+  steps?: RoadmapStep[];
+}
+
 const props = defineProps<{
   isLoading: boolean;
-  filteredRoadmaps: any[];
-  selectedRoadmap: any;
+  filteredRoadmaps: RoadmapSummary[];
+  selectedRoadmap: RoadmapSummary | null;
   activeTab: 'system' | 'custom';
   overallStats: {
     systemCount: number;
@@ -15,12 +29,12 @@ const props = defineProps<{
     completedRoadmaps: number;
     overallProgress: number;
   };
-  myProgress: any[];
+  myProgress: RoadmapProgress[];
 }>();
 
 const emit = defineEmits<{
   (e: 'tab-change', tab: 'system' | 'custom'): void;
-  (e: 'select-roadmap', roadmap: any): void;
+  (e: 'select-roadmap', roadmap: RoadmapSummary): void;
   (e: 'open-create'): void;
 }>();
 
@@ -28,9 +42,9 @@ const isStepCompleted = (stepId: string) => {
   return props.myProgress.some((p) => p.roadmapStepId === stepId && p.completed);
 };
 
-const calculateRoadmapProgress = (roadmap: any) => {
+const calculateRoadmapProgress = (roadmap: RoadmapSummary) => {
   if (!roadmap || !roadmap.steps || roadmap.steps.length === 0) return 0;
-  const completedCount = roadmap.steps.filter((s: any) => isStepCompleted(s.id)).length;
+  const completedCount = roadmap.steps.filter((step) => isStepCompleted(step.id)).length;
   return Math.round((completedCount / roadmap.steps.length) * 100);
 };
 </script>

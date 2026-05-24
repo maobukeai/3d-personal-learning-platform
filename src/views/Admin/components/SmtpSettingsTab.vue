@@ -16,6 +16,15 @@ interface SmtpConfig {
   secure: string;
 }
 
+interface MicrosoftAccount {
+  id: string;
+  email?: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'ERROR' | string;
+  sentCountToday?: number;
+  dailyLimit?: number;
+  proxy?: string | null;
+}
+
 const props = defineProps<{
   settings: {
     SMTP_HOST: string;
@@ -207,7 +216,7 @@ watch(
 );
 
 // Microsoft accounts pool state
-const microsoftAccounts = ref<any[]>([]);
+const microsoftAccounts = ref<MicrosoftAccount[]>([]);
 const isLoadingAccounts = ref(false);
 
 const fetchMicrosoftAccounts = async () => {

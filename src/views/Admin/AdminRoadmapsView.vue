@@ -23,21 +23,40 @@ import {
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
-const roadmaps = ref<any[]>([]);
+interface RoadmapStep {
+  id?: string;
+  title: string;
+  description?: string | null;
+  subtasks?: string[] | string | null;
+  order: number;
+}
+
+interface Roadmap {
+  id: string;
+  title: string;
+  description?: string | null;
+  steps?: RoadmapStep[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface RoadmapFormStep {
+  id?: string;
+  title: string;
+  description: string;
+  subtasks: string[];
+  order: number;
+}
+
+const roadmaps = ref<Roadmap[]>([]);
 const isLoading = ref(true);
 const showEditModal = ref(false);
-const currentRoadmap = ref<any>(null);
+const currentRoadmap = ref<Roadmap | null>(null);
 
 const editForm = ref({
   title: '',
   description: '',
-  steps: [] as {
-    id?: string;
-    title: string;
-    description: string;
-    subtasks: string[];
-    order: number;
-  }[],
+  steps: [] as RoadmapFormStep[],
 });
 
 const searchQuery = ref('');
@@ -68,7 +87,7 @@ const fetchRoadmaps = async () => {
   }
 };
 
-const openEditModal = (roadmap: any = null) => {
+const openEditModal = (roadmap: Roadmap | null = null) => {
   currentRoadmap.value = roadmap;
   if (roadmap) {
     editForm.value = {
@@ -76,11 +95,14 @@ const openEditModal = (roadmap: any = null) => {
       description: roadmap.description || '',
       // Deep clone existing steps so that local edits don't leak until saved
       steps: roadmap.steps
-        ? roadmap.steps.map((s: any) => {
-            let subtasksArr = [];
+        ? roadmap.steps.map((s) => {
+            let subtasksArr: string[] = [];
             if (s.subtasks) {
               try {
-                subtasksArr = typeof s.subtasks === 'string' ? JSON.parse(s.subtasks) : s.subtasks;
+                const parsed = typeof s.subtasks === 'string' ? JSON.parse(s.subtasks) : s.subtasks;
+                subtasksArr = Array.isArray(parsed)
+                  ? parsed.filter((item): item is string => typeof item === 'string')
+                  : [];
               } catch (e) {
                 console.error('Parse step subtasks error:', e);
               }
@@ -512,7 +534,7 @@ onMounted(() => {
             >
               <div class="flex items-center gap-1">
                 <Calendar class="w-3 h-3 opacity-60" />
-                <span>更新时间: {{ new Date(roadmap.createdAt).toLocaleDateString() }}</span>
+                <span>更新时间: {{ roadmap.createdAt ? new Date(roadmap.createdAt).toLocaleDateString() : '-' }}</span>
               </div>
               <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5" @click="openEditModal(roadmap)">
                 <span>进入编辑器</span>

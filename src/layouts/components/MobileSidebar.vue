@@ -41,6 +41,7 @@ const isOpen = computed({
     <aside
       class="fixed inset-y-0 left-0 w-44 max-w-[75vw] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
       :class="isOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
+      :aria-hidden="!isOpen"
     >
       <!-- Header -->
       <div

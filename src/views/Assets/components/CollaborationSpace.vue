@@ -13,9 +13,42 @@ import {
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { Project, User } from '@/types';
+
+interface DiscussionReaction {
+  emoji: string;
+  userId: string;
+}
+
+interface ProjectDiscussion {
+  id: string;
+  content?: string | null;
+  type?: string;
+  images?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  userId: string;
+  user: Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>;
+  reactions?: DiscussionReaction[];
+  createdAt: string;
+}
+
+type CollaborationProject = Project & {
+  discussions?: ProjectDiscussion[];
+};
+
+type DiscussionPayload = {
+  content: string;
+  type: 'TEXT' | 'IMAGE' | 'FILE';
+  images?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+};
 
 const props = defineProps<{
-  project: any;
+  project: CollaborationProject;
   projectId: string;
   isMember: boolean;
 }>();
@@ -58,7 +91,7 @@ const handleSendComment = async () => {
   if (!newComment.value.trim() && selectedImages.value.length === 0 && !selectedFile.value) return;
   isSendingComment.value = true;
   try {
-    const payload: any = {
+    const payload: DiscussionPayload = {
       content: newComment.value || ' ',
       type: 'TEXT',
     };
@@ -153,7 +186,7 @@ const handleReaction = async (discussionId: string, emoji: string) => {
   }
 };
 
-const parseImages = (images: string | null): string[] => {
+const parseImages = (images: string | null | undefined): string[] => {
   if (!images) return [];
   try {
     return JSON.parse(images);
@@ -171,6 +204,14 @@ const formatFileSize = (sizeMb: number | null): string => {
   if (sizeMb < 1) return `${Math.round(sizeMb * 1024)} KB`;
   return `${sizeMb.toFixed(1)} MB`;
 };
+
+const hasReaction = (reactions: DiscussionReaction[] | undefined, emoji: string) => {
+  return reactions?.some((r) => r.emoji === emoji && r.userId === authStore.user?.id) || false;
+};
+
+const getReactionCount = (reactions: DiscussionReaction[] | undefined, emoji: string) => {
+  return reactions?.filter((r) => r.emoji === emoji).length || 0;
+};
 </script>
 
 <template>
@@ -178,7 +219,7 @@ const formatFileSize = (sizeMb: number | null): string => {
     <template v-if="props.isMember">
       <div ref="chatScroll" class="flex-1 overflow-y-auto p-10 space-y-8 scrollbar-hide">
         <div
-          v-for="msg in props.project.discussions"
+          v-for="msg in props.project.discussions || []"
           :key="msg.id"
           class="flex gap-4 max-w-3xl animate-fade-in"
           :class="msg.userId === authStore.user?.id ? 'ml-auto flex-row-reverse' : ''"
@@ -251,17 +292,15 @@ const formatFileSize = (sizeMb: number | null): string => {
             <div class="flex items-center gap-1 mt-2 flex-wrap">
               <button
 v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 py-0.5 rounded-full text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer" :class="
-                  msg.reactions?.some(
-                    (r: any) => r.emoji === emoji && r.userId === authStore.user?.id,
-                  )
+                  hasReaction(msg.reactions, emoji)
                     ? 'bg-accent/10 ring-1 ring-accent/30'
                     : ''
                 " @click="handleReaction(msg.id, emoji)">
                 {{ emoji }}
                 <span
-                  v-if="msg.reactions?.filter((r: any) => r.emoji === emoji).length"
+                  v-if="getReactionCount(msg.reactions, emoji)"
                   class="text-[10px] text-slate-400"
-                  >{{ msg.reactions.filter((r: any) => r.emoji === emoji).length }}</span
+                  >{{ getReactionCount(msg.reactions, emoji) }}</span
                 >
               </button>
             </div>
@@ -269,7 +308,7 @@ v-for="emoji in quickEmojis.slice(0, 6)" :key="emoji" type="button" class="px-2 
         </div>
 
         <div
-          v-if="props.project.discussions.length === 0"
+          v-if="(props.project.discussions?.length || 0) === 0"
           class="h-full flex flex-col items-center justify-center text-slate-400 opacity-50 py-16"
         >
           <MessageSquare class="w-16 h-16 mb-6" />
@@ -386,7 +425,7 @@ type="button" :disabled="
       <p class="text-sm text-slate-500 max-w-md mb-8 leading-relaxed">
         协作空间仅对项目正式成员开放。这里存放着最核心的讨论和进度档案。如果你想参与其中，请立即报名。
       </p>
-      <button v-if="props.project.members.length < props.project.maxMembers" type="button" class="px-10 py-4 bg-accent text-white rounded-2xl font-black shadow-2xl shadow-accent/20 hover:scale-105 transition-all cursor-pointer" @click="emit('join')">
+      <button v-if="(props.project.members?.length || 0) < props.project.maxMembers" type="button" class="px-10 py-4 bg-accent text-white rounded-2xl font-black shadow-2xl shadow-accent/20 hover:scale-105 transition-all cursor-pointer" @click="emit('join')">
         立即报名加入
       </button>
     </div>

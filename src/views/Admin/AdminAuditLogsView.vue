@@ -4,8 +4,21 @@ import { RefreshCw, Terminal, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { User } from '@/types';
 
-const logs = ref<any[]>([]);
+interface AuditLog {
+  id: string;
+  module: string;
+  action: string;
+  detail?: string | null;
+  description?: string | null;
+  ip?: string | null;
+  ipAddress?: string | null;
+  createdAt: string;
+  user?: User | null;
+}
+
+const logs = ref<AuditLog[]>([]);
 const total = ref(0);
 const currentPage = ref(1);
 const totalPages = ref(1);

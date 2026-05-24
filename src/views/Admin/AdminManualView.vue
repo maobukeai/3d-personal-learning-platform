@@ -70,6 +70,13 @@ interface ManualCategory {
   parentId?: string | null;
 }
 
+type ResourceQueryParams = {
+  page: number;
+  pageSize: number;
+  categoryId?: string;
+  search?: string;
+};
+
 const route = useRoute();
 const stations = ref<ManualStation[]>([]);
 const isLoading = ref(false);
@@ -250,7 +257,7 @@ async function fetchStationCategories(stationId: string) {
 async function fetchStationResources(stationId: string) {
   isLoadingResources.value = true;
   try {
-    const params: any = {
+    const params: ResourceQueryParams = {
       page: resourcePage.value,
       pageSize: resourcePageSize.value,
     };
@@ -678,6 +685,11 @@ function handleEditorKeydown(e: KeyboardEvent) {
 }
 
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
+const setStatusFilter = (key: string) => {
+  if (key === 'ALL' || key === 'ACTIVE' || key === 'DISABLED') {
+    statusFilter.value = key;
+  }
+};
 const stationSearchQuery = ref('');
 
 const filteredStations = computed(() => {
@@ -771,7 +783,7 @@ v-for="filter in [
                       ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                       : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
-              ]" @click="statusFilter = filter.key as any">
+              ]" @click="setStatusFilter(filter.key)">
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>

@@ -39,7 +39,7 @@ const defaultRoleOptions = [
   { label: '讲师', value: 'INSTRUCTOR' },
 ];
 
-const handleToggleMaintenance = async (val: any) => {
+const handleToggleMaintenance = async (val: string | number | boolean) => {
   if (val) {
     try {
       await ElMessageBox.confirm(

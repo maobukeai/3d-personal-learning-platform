@@ -13,15 +13,27 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import MasonryGrid from '@/components/MasonryGrid.vue';
 import AssetCard from '@/components/AssetCard.vue';
+import type { Asset, Category } from '@/types';
+
+type AssetListItem = Asset & {
+  fileSize?: number | null;
+  format?: string | null;
+};
+
+type AssetCategory = Category & {
+  _count?: {
+    assets?: number;
+  };
+};
 
 const router = useRouter();
 const searchQuery = ref('');
 const activeCategory = ref('全部');
 const isMobile = ref(window.innerWidth < 768);
 const isFilterMenuOpen = ref(false);
-const assets = ref<any[]>([]);
+const assets = ref<AssetListItem[]>([]);
 const isLoading = ref(false);
-const assetCategories = ref<any[]>([]);
+const assetCategories = ref<AssetCategory[]>([]);
 const isUploading = ref(false);
 const isUploadDialogOpen = ref(false);
 
@@ -122,8 +134,9 @@ const goToDetail = (id: string) => {
   router.push({ name: 'AssetDetail', params: { id } });
 };
 
-const handleFileChange = (e: any) => {
-  const file = e.target.files[0];
+const handleFileChange = (e: Event) => {
+  const input = e.target as HTMLInputElement | null;
+  const file = input?.files?.[0];
   if (file) {
     uploadForm.value.file = file;
     if (!uploadForm.value.title) {
@@ -132,8 +145,9 @@ const handleFileChange = (e: any) => {
   }
 };
 
-const handleThumbnailChange = (e: any) => {
-  const file = e.target.files[0];
+const handleThumbnailChange = (e: Event) => {
+  const input = e.target as HTMLInputElement | null;
+  const file = input?.files?.[0];
   if (file) {
     uploadForm.value.thumbnail = file;
   }
@@ -330,7 +344,7 @@ onUnmounted(() => {
               :asset="{
                 id: asset.id,
                 title: asset.title,
-                thumbnail: asset.thumbnail,
+                thumbnail: asset.thumbnail || undefined,
                 type: asset.type,
                 fileSize: asset.size ? asset.size * 1024 * 1024 : undefined,
                 format: asset.type,

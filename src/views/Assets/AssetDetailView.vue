@@ -18,6 +18,25 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import type { Asset } from '@/types';
+
+type ModelViewerExpose = {
+  setViewMode?: (mode: 'solid' | 'wireframe') => void;
+  toggleClayMode?: () => void;
+  isClayMode?: boolean;
+};
+
+type ModelStats = {
+  vertices?: number;
+  faces?: number;
+  materials?: number;
+  animations?: number;
+  dimensions?: string;
+};
+
+type AssetDetail = Asset & {
+  formats?: string[] | string | null;
+};
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
@@ -25,7 +44,7 @@ const route = useRoute();
 const router = useRouter();
 
 const assetId = route.params.id as string;
-const asset = ref<any>(null);
+const asset = ref<AssetDetail | null>(null);
 const isLoading = ref(true);
 
 // Viewer Configuration State
@@ -43,8 +62,8 @@ const environments = [
   { id: 'room', name: 'Room', icon: Box }
 ];
 
-const modelViewerRef = ref<any>(null);
-const modelStats = ref<any>(null);
+const modelViewerRef = ref<ModelViewerExpose | null>(null);
+const modelStats = ref<ModelStats | null>(null);
 
 const fetchAsset = async () => {
   try {
@@ -81,7 +100,7 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-const handleMetadataLoaded = (stats: any) => {
+const handleMetadataLoaded = (stats: ModelStats) => {
   modelStats.value = stats;
 };
 
@@ -97,7 +116,7 @@ const isClayMode = ref(false);
 const toggleClayMode = () => {
   if (modelViewerRef.value && modelViewerRef.value.toggleClayMode) {
     modelViewerRef.value.toggleClayMode();
-    isClayMode.value = modelViewerRef.value.isClayMode;
+    isClayMode.value = modelViewerRef.value.isClayMode || false;
   }
 };
 
@@ -244,11 +263,11 @@ const parsedFormats = computed(() => {
             <h3 class="text-[9px] font-black uppercase tracking-wider text-slate-400" style="color: var(--text-secondary)">模型数据</h3>
             <div class="grid grid-cols-3 gap-1.5">
               <div class="flex flex-col items-center justify-center p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">
-                <span class="text-sm font-extrabold mb-0.5">{{ (modelStats.vertices / 1000).toFixed(1) }}k</span>
+                <span class="text-sm font-extrabold mb-0.5">{{ ((modelStats.vertices || 0) / 1000).toFixed(1) }}k</span>
                 <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">顶点数</span>
               </div>
               <div class="flex flex-col items-center justify-center p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">
-                <span class="text-sm font-extrabold mb-0.5">{{ (modelStats.faces / 1000).toFixed(1) }}k</span>
+                <span class="text-sm font-extrabold mb-0.5">{{ ((modelStats.faces || 0) / 1000).toFixed(1) }}k</span>
                 <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">面数</span>
               </div>
               <div class="flex flex-col items-center justify-center p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">

@@ -3,15 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { Info, RefreshCw, Layers } from 'lucide-vue-next';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-
-import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
 type ModelHotspot = {
@@ -135,7 +127,7 @@ const updateHotspotsPosition = () => {
   });
 };
 
-const updateSceneConfig = () => {
+const updateSceneConfig = async () => {
   if (!scene || !renderer) return;
 
   const config = props.sceneConfig || {};
@@ -155,6 +147,7 @@ const updateSceneConfig = () => {
 
   // Environment
   if (config.environment && envMaps[config.environment]) {
+    const { HDRLoader } = await import('three/examples/jsm/loaders/HDRLoader.js');
     new HDRLoader().load(envMaps[config.environment], (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       scene.environment = texture;
@@ -224,7 +217,7 @@ const handleCanvasClick = (event: MouseEvent) => {
   }
 };
 
-const initScene = () => {
+const initScene = async () => {
   if (!container.value) return;
 
   scene = new THREE.Scene();
@@ -260,15 +253,16 @@ const initScene = () => {
   fillLight.position.set(-5, 5, -5);
   scene.add(fillLight);
 
-  updateSceneConfig(); // Apply initial config
+  await updateSceneConfig(); // Apply initial config
 
+  const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   controls.autoRotate = !!props.autoRotate;
 
   if (props.modelUrl) {
-    loadModel(props.modelUrl);
+    void loadModel(props.modelUrl);
   } else {
     addPlaceholder();
   }
@@ -421,7 +415,7 @@ const onModelLoaded = (object: THREE.Object3D, animCount: number = 0) => {
   }, 800);
 };
 
-const loadModel = (url: string) => {
+const loadModel = async (url: string) => {
   // Reset Clay Mode
   isClayMode.value = false;
 
@@ -492,6 +486,10 @@ const loadModel = (url: string) => {
   switch (ext) {
     case '.glb':
     case '.gltf': {
+      const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([
+        import('three/examples/jsm/loaders/GLTFLoader.js'),
+        import('three/examples/jsm/loaders/DRACOLoader.js'),
+      ]);
       const loader = new GLTFLoader(manager);
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -517,6 +515,7 @@ const loadModel = (url: string) => {
       break;
     }
     case '.fbx': {
+      const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
       const loader = new FBXLoader(manager);
       loader.load(
         url,
@@ -537,6 +536,7 @@ const loadModel = (url: string) => {
       break;
     }
     case '.obj': {
+      const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js');
       const loader = new OBJLoader(manager);
       loader.load(
         url,
@@ -549,6 +549,7 @@ const loadModel = (url: string) => {
       break;
     }
     case '.stl': {
+      const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
       const loader = new STLLoader(manager);
       loader.load(
         url,
@@ -693,7 +694,7 @@ const handleResize = () => {
 };
 
 onMounted(() => {
-  initScene();
+  void initScene();
   window.addEventListener('resize', handleResize);
 });
 
@@ -724,7 +725,7 @@ onUnmounted(() => {
 watch(
   () => props.modelUrl,
   (newUrl) => {
-    if (newUrl) loadModel(newUrl);
+    if (newUrl) void loadModel(newUrl);
   },
 );
 watch(
@@ -736,7 +737,7 @@ watch(
 watch(
   () => props.sceneConfig,
   () => {
-    updateSceneConfig();
+    void updateSceneConfig();
   },
   { deep: true },
 );

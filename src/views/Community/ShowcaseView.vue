@@ -24,6 +24,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
+import type { Asset } from '@/types';
 
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -63,7 +64,7 @@ interface ShowcaseItem {
   isVideo?: boolean;
   videoUrl?: string;
   tags?: string;
-  asset?: any;
+  asset?: Asset | null;
 }
 
 interface CommentItem {

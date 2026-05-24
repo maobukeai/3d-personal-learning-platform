@@ -4,10 +4,11 @@ import { ElMessage } from 'element-plus';
 import { X } from 'lucide-vue-next';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { ProjectMember } from '@/types';
 
 const props = defineProps<{
   projectId: string;
-  members: any[];
+  members: ProjectMember[];
 }>();
 
 const emit = defineEmits<{

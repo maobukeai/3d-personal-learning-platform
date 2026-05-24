@@ -4,9 +4,14 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { X } from 'lucide-vue-next';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { ProjectMember, Task } from '@/types';
+
+interface EditableTask extends Task {
+  participants?: Array<{ userId: string }>;
+}
 
 const props = defineProps<{
-  members: any[];
+  members: ProjectMember[];
 }>();
 
 const emit = defineEmits<{
@@ -14,7 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const visible = ref(false);
-const editingTask = ref<any>(null);
+const editingTask = ref<EditableTask | null>(null);
 const editTaskForm = ref({
   title: '',
   description: '',
@@ -24,7 +29,7 @@ const editTaskForm = ref({
   participantIds: [] as string[],
 });
 
-const open = (task: any) => {
+const open = (task: EditableTask) => {
   editingTask.value = task;
   editTaskForm.value = {
     title: task.title || '',
@@ -32,7 +37,7 @@ const open = (task: any) => {
     assigneeId: task.assigneeId || '',
     dueDate: task.dueDate || '',
     status: task.status || 'TODO',
-    participantIds: task.participants?.map((p: any) => p.userId) || [],
+    participantIds: task.participants?.map((participant) => participant.userId) || [],
   };
   visible.value = true;
 };
@@ -43,6 +48,7 @@ const handleUpdateTask = async () => {
     return;
   }
   try {
+    if (!editingTask.value) return;
     await api.put(`/api/projects/tasks/${editingTask.value.id}`, editTaskForm.value);
     visible.value = false;
     emit('saved');

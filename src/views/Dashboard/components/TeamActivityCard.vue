@@ -2,9 +2,10 @@
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { DashboardActivity } from '../types';
 
 defineProps<{
-  activityLog: any[];
+  activityLog: DashboardActivity[];
 }>();
 
 const { t } = useI18n();
@@ -21,7 +22,7 @@ const formatTime = (date: string) => {
   return then.toLocaleDateString();
 };
 
-const handleActivityClick = (log: any) => {
+const handleActivityClick = (log: DashboardActivity) => {
   const [prefix] = log.id.split('-');
   if (prefix === 'a') router.push('/assets');
   else if (prefix === 'd') router.push('/discussions');

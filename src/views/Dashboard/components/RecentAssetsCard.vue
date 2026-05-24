@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { Box } from 'lucide-vue-next';
+import type { DashboardAsset } from '../types';
 
 defineProps<{
-  recentAssets: any[];
+  recentAssets: DashboardAsset[];
 }>();
 
 const router = useRouter();

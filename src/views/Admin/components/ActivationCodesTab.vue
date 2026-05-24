@@ -12,9 +12,38 @@ import { getApiErrorMessage } from '@/utils/error';
 import api from '@/utils/api';
 
 interface Props {
-  activationCodes: any[];
-  plans: any[];
+  activationCodes: ActivationCode[];
+  plans: SubscriptionPlan[];
   isLoading: boolean;
+}
+
+interface SubscriptionPlan {
+  id: string;
+  name?: string;
+  displayName?: string | null;
+  badgeColor?: string | null;
+  price?: number | string | null;
+}
+
+interface ActivationCodeUser {
+  name?: string | null;
+  email?: string | null;
+}
+
+type CodeStatus = 'ALL' | 'ACTIVE' | 'USED' | 'DISABLED';
+
+interface ActivationCode {
+  id: string;
+  code: string;
+  status: Exclude<CodeStatus, 'ALL'> | string;
+  plan?: SubscriptionPlan | null;
+  usedBy?: ActivationCodeUser | null;
+  bindEmail?: string;
+  durationDays?: number;
+  expiresAt?: string;
+  usedAt?: string;
+  createdAt: string;
+  description?: string;
 }
 
 const props = defineProps<Props>();
@@ -25,7 +54,7 @@ const emit = defineEmits<{
 const showCodeDialog = ref(false);
 const isGeneratingCodes = ref(false);
 const codeSearchQuery = ref('');
-const codeStatusFilter = ref<'ALL' | 'ACTIVE' | 'USED' | 'DISABLED'>('ALL');
+const codeStatusFilter = ref<CodeStatus>('ALL');
 
 const codeForm = ref({
   planId: '',
@@ -51,18 +80,18 @@ const filteredCodes = computed(() => {
   let result = props.activationCodes;
   if (codeStatusFilter.value !== 'ALL') {
     if (codeStatusFilter.value === 'DISABLED') {
-      result = result.filter((c: any) => c.status !== 'ACTIVE' && c.status !== 'USED');
+      result = result.filter((code) => code.status !== 'ACTIVE' && code.status !== 'USED');
     } else {
-      result = result.filter((c: any) => c.status === codeStatusFilter.value);
+      result = result.filter((code) => code.status === codeStatusFilter.value);
     }
   }
   if (codeSearchQuery.value) {
     const q = codeSearchQuery.value.toLowerCase();
     result = result.filter(
-      (c: any) =>
-        c.code.toLowerCase().includes(q) ||
-        (c.plan?.displayName || c.plan?.name || '').toLowerCase().includes(q) ||
-        (c.usedBy?.name || c.usedBy?.email || '').toLowerCase().includes(q),
+      (code) =>
+        code.code.toLowerCase().includes(q) ||
+        (code.plan?.displayName || code.plan?.name || '').toLowerCase().includes(q) ||
+        (code.usedBy?.name || code.usedBy?.email || '').toLowerCase().includes(q),
     );
   }
   return result;
@@ -102,7 +131,7 @@ const handleGenerateCodes = async () => {
   }
 };
 
-const handleDeleteCode = async (code: any) => {
+const handleDeleteCode = async (code: ActivationCode) => {
   try {
     await ElMessageBox.confirm(
       `确定要删除/失效该激活码 (${code.code}) 吗？此操作不可恢复。`,
@@ -165,7 +194,7 @@ v-for="filter in [
                       ? 'bg-slate-500/10 text-slate-500 border-slate-500/30 ring-1 ring-slate-500/20 font-extrabold shadow-sm'
                       : 'bg-violet-500/10 text-violet-500 border-violet-500/30 ring-1 ring-violet-500/20 font-extrabold shadow-sm'
                 : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-            ]" @click="codeStatusFilter = filter.key as any">
+            ]" @click="codeStatusFilter = filter.key as CodeStatus">
             <span>{{ filter.label }}</span>
             <span class="opacity-60">({{ filter.count }})</span>
           </button>

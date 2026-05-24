@@ -6,18 +6,25 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
 
+interface ChatUser {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+}
+
 const props = defineProps<{
   modelValue: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'start-chat', user: any): void;
+  (e: 'start-chat', user: ChatUser): void;
 }>();
 
 const { t } = useI18n();
 const userSearchQuery = ref('');
-const publicUsers = ref<any[]>([]);
+const publicUsers = ref<ChatUser[]>([]);
 const isLoadingUsers = ref(false);
 
 const filteredPublicUsers = computed(() => {
@@ -31,7 +38,10 @@ const fetchPublicUsers = async () => {
   isLoadingUsers.value = true;
   try {
     const response = await api.get('/api/auth/users/public');
-    publicUsers.value = response.data;
+    publicUsers.value = ((response.data || []) as ChatUser[]).map((user) => ({
+      ...user,
+      name: user.name || user.email,
+    }));
   } catch (error) {
     console.error('Fetch users error:', error);
     ElMessage.error('获取用户列表失败');
@@ -49,7 +59,7 @@ watch(
   },
 );
 
-const handleStartChat = (user: any) => {
+const handleStartChat = (user: ChatUser) => {
   emit('start-chat', user);
 };
 

@@ -67,7 +67,7 @@ const handleCreate = async () => {
     width="min(500px, 95%)"
     class="custom-rounded-dialog"
     :show-close="true"
-    @update:model-value="(val: any) => emit('update:visible', val)"
+    @update:model-value="(val: boolean) => emit('update:visible', val)"
   >
     <div class="space-y-4 md:space-y-6 py-2">
       <div class="space-y-2">

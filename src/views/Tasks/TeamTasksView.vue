@@ -17,6 +17,7 @@ import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import ProjectCard from '@/components/ProjectCard.vue';
 import StatCard from '@/components/StatCard.vue';
+import type { Project, Team, UserType } from '@/types/task';
 
 // Import child components
 import ProjectDetailPanel from './components/ProjectDetailPanel.vue';
@@ -27,14 +28,27 @@ const route = useRoute();
 
 const searchQuery = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
-const projects = ref<any[]>([]);
+const projects = ref<Project[]>([]);
 const isLoading = ref(true);
 
-const projectDetailPanelRef = ref<any>(null);
-const projectFormPanelRef = ref<any>(null);
+interface ProjectDetailPanelExpose {
+  open: (projectId: string) => Promise<void> | void;
+}
 
-const teamMembers = ref<any[]>([]);
-const teams = ref<any[]>([]);
+interface ProjectFormPanelExpose {
+  openAdd: () => void;
+  openEdit: (project: Project) => void;
+}
+
+interface TeamMemberResponse {
+  user: UserType;
+}
+
+const projectDetailPanelRef = ref<ProjectDetailPanelExpose | null>(null);
+const projectFormPanelRef = ref<ProjectFormPanelExpose | null>(null);
+
+const teamMembers = ref<UserType[]>([]);
+const teams = ref<Team[]>([]);
 
 const windowWidth = ref(window.innerWidth);
 const updateWidth = () => {
@@ -86,7 +100,7 @@ const fetchTeamMembers = async (teamId?: string) => {
     const tid = teamId || workspaceStore.activeTeamId;
     if (!tid) return;
     const response = await api.get(`/api/teams/${tid}/members`);
-    teamMembers.value = response.data?.map((m: any) => m.user) || [];
+    teamMembers.value = ((response.data || []) as TeamMemberResponse[]).map((m) => m.user);
   } catch {
     // silently fail
   }
@@ -111,7 +125,7 @@ const openAddDrawer = () => {
   projectFormPanelRef.value?.openAdd();
 };
 
-const openEditDrawer = (project: any) => {
+const openEditDrawer = (project: Project) => {
   projectFormPanelRef.value?.openEdit(project);
 };
 

@@ -5,6 +5,11 @@ import { Users, X } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { User } from '@/types';
+
+type TeamMemberResponse = {
+  user: User;
+};
 
 const props = defineProps<{
   projectId: string;
@@ -18,7 +23,7 @@ const emit = defineEmits<{
 
 const visible = ref(false);
 const inviteUserIds = ref<string[]>([]);
-const teamMembersForInvite = ref<any[]>([]);
+const teamMembersForInvite = ref<User[]>([]);
 const loading = ref(false);
 
 const open = async () => {
@@ -29,9 +34,10 @@ const open = async () => {
   loading.value = true;
   try {
     const response = await api.get(`/api/teams/${props.teamId}/members`);
-    const allMembers = response.data?.map((m: any) => m.user) || [];
+    const members = (response.data || []) as TeamMemberResponse[];
+    const allMembers = members.map((m) => m.user);
     const filterSet = new Set(props.existingMemberIds);
-    teamMembersForInvite.value = allMembers.filter((m: any) => !filterSet.has(m.id));
+    teamMembersForInvite.value = allMembers.filter((m) => !filterSet.has(m.id));
   } catch {
     // silently fail
   } finally {

@@ -14,11 +14,18 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import UserAvatar from '@/components/UserAvatar.vue';
+import type { Feedback } from '@/types';
 
-const feedbacks = ref<any[]>([]);
+type FeedbackStatusFilter = 'ALL' | Feedback['status'];
+type AdminFeedback = Feedback & {
+  attachmentUrl?: string | null;
+  user: NonNullable<Feedback['user']>;
+};
+
+const feedbacks = ref<AdminFeedback[]>([]);
 const isLoading = ref(false);
 const searchQuery = ref('');
-const filterStatus = ref('ALL');
+const filterStatus = ref<FeedbackStatusFilter>('ALL');
 
 const fetchFeedbacks = async () => {
   isLoading.value = true;
@@ -49,10 +56,10 @@ const filteredFeedbacks = computed(() => {
 // Reply functionality
 const replyDialogVisible = ref(false);
 const isSubmittingReply = ref(false);
-const currentFeedback = ref<any>(null);
+const currentFeedback = ref<AdminFeedback | null>(null);
 const replyText = ref('');
 
-const openReplyDialog = (item: any) => {
+const openReplyDialog = (item: AdminFeedback) => {
   currentFeedback.value = item;
   replyText.value = item.adminReply || '';
   replyDialogVisible.value = true;
@@ -83,6 +90,18 @@ const updateStatus = async (id: string, status: string) => {
     fetchFeedbacks();
   } catch (_error) {
     ElMessage.error('更新状态失败');
+  }
+};
+
+const setFilterStatus = (status: string) => {
+  if (
+    status === 'ALL' ||
+    status === 'OPEN' ||
+    status === 'IN_PROGRESS' ||
+    status === 'RESOLVED' ||
+    status === 'CLOSED'
+  ) {
+    filterStatus.value = status;
   }
 };
 
@@ -258,7 +277,7 @@ v-for="filter in [
                           : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
               ]"
-              @click="filterStatus = filter.key as any"
+              @click="setFilterStatus(filter.key)"
             >
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>

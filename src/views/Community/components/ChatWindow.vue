@@ -61,7 +61,7 @@ interface Message {
   createdAt: string;
   replyTo?: Message | null;
   reactions?: MessageReaction[];
-  readBy?: any[];
+  readBy?: Array<{ userId: string; readAt?: string }>;
 }
 
 const props = defineProps<{
@@ -104,7 +104,7 @@ const currentlyPlaying = ref<string | null>(null);
 const isUploading = ref(false);
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
-let recordingTimer: any = null;
+let recordingTimer: ReturnType<typeof setInterval> | null = null;
 
 const commonEmojis = [
   '😊', '😂', '🤣', '😍', '😒', '👌', '😘', '👍',

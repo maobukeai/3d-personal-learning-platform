@@ -170,10 +170,19 @@ const toggleProjectCollapse = (projectId: string | null) => {
 const parseSubtasks = (subtasksStr: string | null | undefined): Subtask[] => {
   if (!subtasksStr) return [];
   try {
-    return JSON.parse(subtasksStr);
+    const parsed = JSON.parse(subtasksStr);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
+};
+
+const getSubtaskProgress = (task: Task) => {
+  const subtasks = parseSubtasks(task.subtasks);
+  return {
+    total: subtasks.length,
+    completed: subtasks.filter((subtask) => subtask.done).length,
+  };
 };
 
 const quickStatusChange = async (task: Task, newStatus: string) => {
@@ -185,6 +194,34 @@ const quickStatusChange = async (task: Task, newStatus: string) => {
     emit('refresh');
   } catch {
     ElMessage.error('更新状态失败');
+  }
+};
+
+const handleStatusCommand = (task: Task, command: string | number | object) => {
+  if (typeof command === 'string') {
+    void quickStatusChange(task, command);
+  }
+};
+
+const handleProjectCommand = (task: Task, command: string | number | object) => {
+  if (typeof command === 'string') {
+    void handleProjectChange(task, command || null);
+  }
+};
+
+const handleAssigneeCommand = (task: Task, command: string | number | object) => {
+  if (typeof command === 'string') {
+    void handleAssigneeChange(task, command || null);
+  }
+};
+
+const handleSubtaskAssigneeCommand = (
+  task: Task,
+  subtaskIndex: number,
+  command: string | number | object,
+) => {
+  if (typeof command === 'string') {
+    void handleSubtaskAssigneeChange(task, subtaskIndex, command || null);
   }
 };
 
@@ -509,14 +546,12 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
 
                       <!-- Subtasks Checklist Badge -->
                       <span
-                        v-if="task.subtasks && JSON.parse(task.subtasks).length > 0"
+                        v-if="getSubtaskProgress(task).total > 0"
                         class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded-md text-[9px] font-bold text-slate-400 shrink-0"
                         title="子任务进度"
                       >
                         <CheckSquare class="w-2.5 h-2.5" />
-                        {{ JSON.parse(task.subtasks).filter((s: any) => s.done).length }}/{{
-                          JSON.parse(task.subtasks).length
-                        }}
+                        {{ getSubtaskProgress(task).completed }}/{{ getSubtaskProgress(task).total }}
                       </span>
 
                       <!-- Tags (small) -->
@@ -543,7 +578,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                     >
                       <el-dropdown
                         trigger="click"
-                        @command="(cmd: any) => quickStatusChange(task, cmd)"
+                        @command="(cmd: string | number | object) => handleStatusCommand(task, cmd)"
                       >
                         <span
                           class="inline-flex items-center gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
@@ -585,7 +620,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                     >
                       <el-dropdown
                         trigger="click"
-                        @command="(cmd: any) => handleProjectChange(task, cmd)"
+                        @command="(cmd: string | number | object) => handleProjectCommand(task, cmd)"
                       >
                         <span
                           class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
@@ -602,7 +637,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                         </span>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item :command="null as any">清除项目</el-dropdown-item>
+                            <el-dropdown-item command="">清除项目</el-dropdown-item>
                             <el-dropdown-item v-for="p in projects" :key="p.id" :command="p.id">
                               {{ p.title }}
                             </el-dropdown-item>
@@ -619,7 +654,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                     >
                       <el-dropdown
                         trigger="click"
-                        @command="(cmd: any) => handleAssigneeChange(task, cmd)"
+                        @command="(cmd: string | number | object) => handleAssigneeCommand(task, cmd)"
                       >
                         <span
                           class="inline-flex items-center gap-0.5 sm:gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
@@ -644,7 +679,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                         </span>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item :command="null as any">清除负责人</el-dropdown-item>
+                            <el-dropdown-item command="">清除负责人</el-dropdown-item>
                             <el-dropdown-item
                               v-for="m in teamMembers"
                               :key="m.id"
@@ -769,8 +804,8 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                           <el-dropdown
                             trigger="click"
                             @command="
-                              (cmd: any) =>
-                                handleSubtaskAssigneeChange(task, index, cmd)
+                              (cmd: string | number | object) =>
+                                handleSubtaskAssigneeCommand(task, Number(index), cmd)
                             "
                           >
                             <span
@@ -790,7 +825,7 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                             </span>
                             <template #dropdown>
                               <el-dropdown-menu>
-                                <el-dropdown-item :command="null as any">清除成员</el-dropdown-item>
+                                <el-dropdown-item command="">清除成员</el-dropdown-item>
                                 <el-dropdown-item
                                   v-for="m in getMembersForSubtask(task)"
                                   :key="m.id"

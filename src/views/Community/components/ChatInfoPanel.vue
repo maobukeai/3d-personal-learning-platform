@@ -5,11 +5,35 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/utils/api';
 
+type InfoTab = 'info' | 'photos' | 'files';
+
+interface Participant {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+}
+
+interface Conversation {
+  id: string;
+  name?: string | null;
+  avatarUrl?: string | null;
+  isGroup?: boolean;
+  participants?: Participant[];
+}
+
+interface SharedMedia {
+  id: string;
+  url: string;
+  name?: string;
+  createdAt?: string | Date;
+}
+
 const _props = defineProps<{
   modelValue: boolean;
-  activeConversation: any;
-  sharedPhotos: any[];
-  sharedFiles: any[];
+  activeConversation: Conversation | null;
+  sharedPhotos: SharedMedia[];
+  sharedFiles: SharedMedia[];
 }>();
 
 const emit = defineEmits<{
@@ -19,11 +43,22 @@ const emit = defineEmits<{
 }>();
 
 const authStore = useAuthStore();
-const infoTab = ref<'info' | 'photos' | 'files'>('info');
+const infoTab = ref<InfoTab>('info');
+const infoTabs: InfoTab[] = ['info', 'photos', 'files'];
 
-const getOtherParticipant = (conv: any) => {
+const getOtherParticipant = (conv: Conversation | null) => {
   if (!conv) return null;
-  return conv.participants?.find((p: any) => p.id !== authStore.user?.id) || conv.participants?.[0];
+  return conv.participants?.find((p) => p.id !== authStore.user?.id) || conv.participants?.[0];
+};
+
+const isParticipantOnline = (participant?: Participant | null) => {
+  return participant?.id ? authStore.isUserOnline(participant.id) : false;
+};
+
+const openParticipantProfile = (participant?: Participant | null) => {
+  if (participant?.id) {
+    emit('open-profile', participant.id);
+  }
 };
 
 const formatDateSeparator = (date: string | Date) => {
@@ -61,7 +96,7 @@ const openLink = (url: string) => {
 
     <!-- Tabs Header -->
     <div class="flex p-0.5 gap-0.5 mx-3 mt-3 rounded-lg bg-[var(--bg-app)] shrink-0">
-      <button v-for="tab in ['info', 'photos', 'files']" :key="tab" type="button" class="flex-1 py-1 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider cursor-pointer" :class="infoTab === tab ? 'bg-[var(--bg-card)] shadow-sm' : 'text-[var(--text-muted)]'" :style="infoTab === tab ? 'color: var(--text-primary)' : ''" @click="infoTab = tab as any">
+      <button v-for="tab in infoTabs" :key="tab" type="button" class="flex-1 py-1 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider cursor-pointer" :class="infoTab === tab ? 'bg-[var(--bg-card)] shadow-sm' : 'text-[var(--text-muted)]'" :style="infoTab === tab ? 'color: var(--text-primary)' : ''" @click="infoTab = tab">
         {{ tab === 'info' ? '信息' : tab === 'photos' ? '照片' : '文件' }}
       </button>
     </div>
@@ -101,14 +136,14 @@ const openLink = (url: string) => {
           <h3
             class="text-sm sm:text-base font-bold mb-0.5 cursor-pointer hover:text-accent transition-colors"
             style="color: var(--text-primary)"
-            @click="emit('open-profile', getOtherParticipant(activeConversation)?.id)"
+            @click="openParticipantProfile(getOtherParticipant(activeConversation))"
           >
             {{ getOtherParticipant(activeConversation)?.name || '未知用户' }}
           </h3>
           <p
             class="text-[11px] flex items-center justify-center gap-1"
             :class="
-              authStore.isUserOnline(getOtherParticipant(activeConversation)?.id)
+              isParticipantOnline(getOtherParticipant(activeConversation))
                 ? 'text-emerald-500'
                 : 'text-slate-400'
             "
@@ -116,13 +151,13 @@ const openLink = (url: string) => {
             <span
               class="w-1.5 h-1.5 rounded-full"
               :class="
-                authStore.isUserOnline(getOtherParticipant(activeConversation)?.id)
+                isParticipantOnline(getOtherParticipant(activeConversation))
                   ? 'bg-emerald-500'
                   : 'bg-slate-300'
               "
             ></span>
             {{
-              authStore.isUserOnline(getOtherParticipant(activeConversation)?.id)
+              isParticipantOnline(getOtherParticipant(activeConversation))
                 ? '在线'
                 : '离线'
             }}
@@ -215,10 +250,10 @@ const openLink = (url: string) => {
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
-                {{ file.name }}
+                {{ file.name || '未命名文件' }}
               </p>
               <p class="text-[9px]" style="color: var(--text-muted)">
-                {{ formatDateSeparator(file.createdAt) }}
+                {{ file.createdAt ? formatDateSeparator(file.createdAt) : '' }}
               </p>
             </div>
             <a

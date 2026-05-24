@@ -4,6 +4,7 @@ import { Search, Plus, Users, X } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
+import type { User } from '@/types';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -15,9 +16,9 @@ const emit = defineEmits<{
 }>();
 
 const groupChatName = ref('');
-const groupChatParticipants = ref<any[]>([]);
+const groupChatParticipants = ref<User[]>([]);
 const groupChatSearchQuery = ref('');
-const publicUsers = ref<any[]>([]);
+const publicUsers = ref<User[]>([]);
 const isLoadingUsers = ref(false);
 
 const filteredGroupUsers = computed(() => {
@@ -58,7 +59,7 @@ watch(
   },
 );
 
-const addGroupParticipant = (user: any) => {
+const addGroupParticipant = (user: User) => {
   if (!groupChatParticipants.value.some((p) => p.id === user.id)) {
     groupChatParticipants.value.push(user);
   }

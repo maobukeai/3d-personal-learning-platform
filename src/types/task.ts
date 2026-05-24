@@ -1,6 +1,7 @@
 export interface UserType {
   id: string;
   name: string;
+  email?: string;
   avatarUrl?: string | null;
   role?: string;
   language?: string;
@@ -9,15 +10,33 @@ export interface UserType {
 export interface TeamMember {
   id: string;
   name: string;
+  email?: string;
   avatarUrl?: string | null;
   role?: string;
   user: UserType;
 }
 
-export interface Project {
+export interface ProjectMember {
+  userId: string;
+  user: UserType;
+  role?: string;
+}
+
+export interface TaskProject {
   id: string;
   title: string;
   color?: string;
+}
+
+export interface Project extends TaskProject {
+  description?: string | null;
+  progress?: number;
+  status: string;
+  tags?: string | null;
+  dueDate?: string | null;
+  visibility?: string;
+  maxMembers?: number;
+  members: ProjectMember[];
 }
 
 export interface Team {
@@ -46,7 +65,7 @@ export interface Task {
   projectId?: string | null;
   teamId?: string | null;
   subtasks?: string | null;
-  project?: Project | null;
+  project?: TaskProject | null;
   team?: Team | null;
   assignee?: UserType | null;
   participants?: { userId: string }[];

@@ -4,6 +4,7 @@ import { Search, Users, ArrowRight, Loader2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import GroupDetailDialog from '@/components/GroupDetailDialog.vue';
 import api from '@/utils/api';
+import type { Team } from '@/types';
 
 const props = defineProps<{
   visible: boolean;
@@ -14,9 +15,9 @@ const emit = defineEmits(['update:visible']);
 const searchQuery = ref('');
 const selectedCategory = ref('全部');
 const showDetail = ref(false);
-const selectedGroup = ref<any>(null);
+const selectedGroup = ref<Team | null>(null);
 const isLoading = ref(false);
-const publicTeams = ref<any[]>([]);
+const publicTeams = ref<Team[]>([]);
 
 const categories = ['全部', '建模', '渲染', '动画', '材质', '游戏引擎'];
 
@@ -57,7 +58,7 @@ const handleJoinGroup = (groupName: string) => {
   ElMessage.success(`申请加入小组 "${groupName}" 成功！请等待管理员审核。`);
 };
 
-const handleViewDetails = (group: any) => {
+const handleViewDetails = (group: Team) => {
   selectedGroup.value = group;
   showDetail.value = true;
 };
@@ -77,7 +78,7 @@ onMounted(() => {
     title="探索学习小组"
     width="840px"
     class="custom-rounded-dialog"
-    @update:model-value="(val: any) => emit('update:visible', val)"
+    @update:model-value="(val: boolean) => emit('update:visible', val)"
   >
     <div class="space-y-8">
       <div class="relative group">

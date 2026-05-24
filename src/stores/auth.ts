@@ -28,6 +28,35 @@ interface User {
   };
 }
 
+interface LoginCredentials {
+  email: string;
+  password: string;
+  rememberDevice?: boolean;
+  twoFactorCode?: string;
+  [key: string]: unknown;
+}
+
+interface RegisterPayload {
+  email: string;
+  password: string;
+  name?: string;
+  verificationCode?: string;
+  [key: string]: unknown;
+}
+
+interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+interface ResetPasswordWith2FAPayload {
+  email: string;
+  code?: string;
+  newPassword: string;
+  twoFactorCode?: string;
+  resetToken?: string;
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: preferences.getUser<User>(),
@@ -58,7 +87,7 @@ export const useAuthStore = defineStore('auth', {
       // Force reactivity by re-assigning (Set reactivity can be tricky in some Vue versions)
       this.onlineUserIds = new Set(this.onlineUserIds);
     },
-    async login(credentials: any) {
+    async login(credentials: LoginCredentials) {
       try {
         const response = await api.post('/api/auth/login', {
           ...credentials,
@@ -73,7 +102,7 @@ export const useAuthStore = defineStore('auth', {
         throw error;
       }
     },
-    async register(userData: any) {
+    async register(userData: RegisterPayload) {
       try {
         await api.post('/api/auth/register', userData);
       } catch (error) {
@@ -121,7 +150,7 @@ export const useAuthStore = defineStore('auth', {
         throw error;
       }
     },
-    async changePassword(passwordData: any) {
+    async changePassword(passwordData: ChangePasswordPayload) {
       try {
         const response = await api.put('/api/auth/change-password', passwordData);
         return response.data;
@@ -192,7 +221,7 @@ export const useAuthStore = defineStore('auth', {
         throw error;
       }
     },
-    async resetPasswordWith2FA(resetData: any) {
+    async resetPasswordWith2FA(resetData: ResetPasswordWith2FAPayload) {
       try {
         const response = await api.post('/api/auth/forgot-password/reset-2fa', resetData);
         return response.data;

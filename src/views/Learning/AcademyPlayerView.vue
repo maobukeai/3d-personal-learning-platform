@@ -25,26 +25,82 @@ const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.
 
 import SafeHtml from '@/components/SafeHtml.vue';
 
+interface ModelHotspot {
+  x: number;
+  y: number;
+  z: number;
+  title: string;
+  content: string;
+  cameraPos?: { x: number; y: number; z: number };
+  cameraTarget?: { x: number; y: number; z: number };
+}
+
+interface SceneConfig {
+  environment?: string;
+  exposure?: number;
+  bloom?: {
+    enabled: boolean;
+    strength: number;
+    radius: number;
+    threshold: number;
+  };
+  lights?: {
+    intensity: number;
+    color: string;
+  };
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  content?: string;
+  videoUrl?: string;
+  duration?: number;
+  hotspots?: ModelHotspot[] | string | null;
+  sceneConfig?: SceneConfig | string | null;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description?: string | null;
+  instructor?: {
+    name?: string | null;
+    avatar?: string | null;
+  } | null;
+  lessons?: Lesson[];
+  lessonProgressMap?: Record<string, boolean>;
+  userEnrollment?: {
+    progress: number;
+  };
+}
+
+interface CourseNote {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
 const route = useRoute();
 const router = useRouter();
 const courseId = route.params.id as string;
 
-const course = ref<any>(null);
-const lessons = ref<any[]>([]);
+const course = ref<Course | null>(null);
+const lessons = ref<Lesson[]>([]);
 const currentLessonIndex = ref(0);
 const isLoading = ref(true);
 const isSidebarOpen = ref(true);
 const activeTab = ref<'content' | 'notes' | 'discussion'>('content');
 const progress = ref(0);
 const lessonProgressMap = ref<Record<string, boolean>>({});
-const notes = ref<any[]>([]);
+const notes = ref<CourseNote[]>([]);
 const newNoteContent = ref('');
 const isSavingNote = ref(false);
 const isTogglingComplete = ref(false);
 const autoPlayNext = ref(true);
 const showCompletionModal = ref(false);
 
-const currentLesson = computed(() => lessons.value[currentLessonIndex.value]);
+const currentLesson = computed<Lesson | undefined>(() => lessons.value[currentLessonIndex.value]);
 
 const completedCount = computed(() => {
   return Object.values(lessonProgressMap.value).filter(Boolean).length;
@@ -59,12 +115,13 @@ const fetchCourseData = async () => {
   try {
     const { data } = await api.get(`/api/courses/${courseId}`);
 
-    course.value = data;
-    lessons.value = data.lessons || [];
-    lessonProgressMap.value = data.lessonProgressMap || {};
+    const courseData = data as Course;
+    course.value = courseData;
+    lessons.value = courseData.lessons || [];
+    lessonProgressMap.value = courseData.lessonProgressMap || {};
 
-    if (data.userEnrollment) {
-      progress.value = data.userEnrollment.progress;
+    if (courseData.userEnrollment) {
+      progress.value = courseData.userEnrollment.progress;
 
       // Prioritize query param for lesson selection
       const lessonQuery = route.query.lesson;
@@ -79,7 +136,7 @@ const fetchCourseData = async () => {
 
       if (lessons.value.length > 0 && progress.value > 0) {
         let lastIncompleteIndex = lessons.value.findIndex(
-          (l: any) => !lessonProgressMap.value[l.id],
+          (lesson) => !lessonProgressMap.value[lesson.id],
         );
         if (lastIncompleteIndex === -1) lastIncompleteIndex = lessons.value.length - 1;
         currentLessonIndex.value = Math.max(0, lastIncompleteIndex);
@@ -97,7 +154,7 @@ const fetchNotes = async () => {
   if (!currentLesson.value) return;
   try {
     const { data } = await api.get(`/api/courses/lessons/${currentLesson.value.id}/notes`);
-    notes.value = data;
+    notes.value = data as CourseNote[];
   } catch (error) {
     console.error('Fetch notes error:', error);
   }
@@ -135,7 +192,7 @@ const handleSaveNote = async () => {
       lessonId: currentLesson.value.id,
       content: newNoteContent.value.trim(),
     });
-    notes.value.unshift(data);
+    notes.value.unshift(data as CourseNote);
     newNoteContent.value = '';
   } catch (_error) {
     ElMessage.error('保存笔记失败');
@@ -171,6 +228,7 @@ const selectLesson = (index: number) => {
 };
 
 const handleVideoEnded = () => {
+  if (!currentLesson.value) return;
   if (!isLessonCompleted(currentLesson.value.id)) {
     toggleLessonComplete();
   }
@@ -221,11 +279,11 @@ const formatYoutubeUrl = (url: string) => {
   return url;
 };
 
-const parseHotspots = (hotspots: any) => {
+const parseHotspots = (hotspots: Lesson['hotspots']): ModelHotspot[] => {
   if (!hotspots) return [];
   if (typeof hotspots === 'string') {
     try {
-      return JSON.parse(hotspots);
+      return JSON.parse(hotspots) as ModelHotspot[];
     } catch {
       return [];
     }
@@ -233,11 +291,11 @@ const parseHotspots = (hotspots: any) => {
   return hotspots;
 };
 
-const parseSceneConfig = (config: any) => {
+const parseSceneConfig = (config: Lesson['sceneConfig']): SceneConfig => {
   if (!config) return {};
   if (typeof config === 'string') {
     try {
-      return JSON.parse(config);
+      return JSON.parse(config) as SceneConfig;
     } catch {
       return {};
     }
@@ -333,7 +391,7 @@ onMounted(fetchCourseData);
             class="w-full h-full flex items-center justify-center bg-black"
           >
             <iframe
-              :src="formatBilibiliUrl(currentLesson.videoUrl)"
+              :src="formatBilibiliUrl(currentLesson.videoUrl || '')"
               class="w-full h-full border-0"
               scrolling="no"
               frameborder="0"
@@ -358,7 +416,7 @@ onMounted(fetchCourseData);
             class="w-full h-full flex items-center justify-center bg-black"
           >
             <iframe
-              :src="formatYoutubeUrl(currentLesson.videoUrl)"
+              :src="formatYoutubeUrl(currentLesson.videoUrl || '')"
               class="w-full h-full border-0"
               frameborder="0"
               allow="
@@ -380,7 +438,7 @@ onMounted(fetchCourseData);
             class="w-full h-full flex items-center justify-center bg-black"
           >
             <video
-              :src="currentLesson.videoUrl"
+              :src="currentLesson.videoUrl || ''"
               controls
               class="max-w-full max-h-full"
               @ended="handleVideoEnded"
@@ -400,7 +458,7 @@ onMounted(fetchCourseData);
                 class="prose dark:prose-invert prose-sm max-w-none leading-relaxed transition-colors duration-300"
                 style="color: var(--text-secondary)"
               >
-                <SafeHtml :html="currentLesson.content" />
+                <SafeHtml :html="currentLesson.content || ''" />
               </div>
               <div class="pt-6 flex justify-center">
                 <button type="button" class="px-5 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-lg shadow-md shadow-accent/15 flex items-center gap-1.5 transition-colors cursor-pointer" @click="handleVideoEnded">

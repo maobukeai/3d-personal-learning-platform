@@ -5,6 +5,7 @@ import { mirrorService } from '../services/mirror.service';
 import { thumbnailLocalizer } from '../services/thumbnail-localizer.service';
 import prisma from '../../services/prisma';
 import { readSheet } from 'read-excel-file/node';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -12,8 +13,45 @@ import { clampLimit, clampPage } from '../../utils/pagination';
 
 type SpreadsheetRow = Record<string, string>;
 
+const emptyInlineStringCellPattern =
+  /<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*>\s*<\/c>|<c\b(?=[^>]*\bt="inlineStr")(?=[^>]*\br="[^"]+")[^>]*\/>/g;
+
+const sanitizeXlsxEmptyInlineStrings = (filePath: string): Buffer => {
+  const archive = unzipSync(new Uint8Array(fs.readFileSync(filePath)));
+
+  for (const [entryName, content] of Object.entries(archive)) {
+    if (!/^xl\/worksheets\/sheet\d+\.xml$/i.test(entryName)) continue;
+
+    const xml = strFromU8(content);
+    const cleanedXml = xml.replace(emptyInlineStringCellPattern, '');
+
+    if (cleanedXml !== xml) {
+      archive[entryName] = strToU8(cleanedXml);
+    }
+  }
+
+  return Buffer.from(zipSync(archive));
+};
+
 const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> => {
-  const sheetRows = await readSheet(filePath);
+  let sheetRows;
+
+  try {
+    sheetRows = await readSheet(filePath);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('Unsupported "inline string" cell value structure')
+    ) {
+      console.warn(
+        `[MirrorLinkMatch] Sanitizing empty inline string cells before reading ${path.basename(filePath)}`,
+      );
+      sheetRows = await readSheet(sanitizeXlsxEmptyInlineStrings(filePath));
+    } else {
+      throw error;
+    }
+  }
+
   const [headerRow, ...dataRows] = sheetRows;
   if (!headerRow) return [];
 

@@ -70,6 +70,7 @@ const viewMode = ref<ViewMode>('solid');
 const showStats = ref(false);
 const activeHotspot = ref<number | null>(null);
 const isFullscreen = ref(false);
+const hasInitialized = ref(false);
 
 // Clay Mode State
 const isClayMode = ref(false);
@@ -100,6 +101,10 @@ let currentActions: THREE.AnimationAction[] = [];
 let ambientLight: THREE.AmbientLight;
 let directionalLight: THREE.DirectionalLight;
 let fillLight: THREE.DirectionalLight;
+let intersectionObserver: IntersectionObserver | null = null;
+let renderLoopActive = false;
+let isInitializing = false;
+let isViewerVisible = false;
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -218,57 +223,62 @@ const handleCanvasClick = (event: MouseEvent) => {
 };
 
 const initScene = async () => {
-  if (!container.value) return;
+  if (!container.value || hasInitialized.value || isInitializing) return;
+  isInitializing = true;
 
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0f172a);
+  try {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
 
-  const width = container.value.clientWidth;
-  const height = container.value.clientHeight;
-  camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-  camera.position.set(5, 5, 5);
+    const width = container.value.clientWidth;
+    const height = container.value.clientHeight;
+    camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(5, 5, 5);
 
-  renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    preserveDrawingBuffer: true,
-  });
-  renderer.setSize(width, height);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
-  container.value.appendChild(renderer.domElement);
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+    });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    container.value.appendChild(renderer.domElement);
 
-  ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
 
-  directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-  directionalLight.position.set(5, 10, 7.5);
-  directionalLight.castShadow = true;
-  scene.add(directionalLight);
+    directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight.position.set(5, 10, 7.5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
 
-  fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-  fillLight.position.set(-5, 5, -5);
-  scene.add(fillLight);
+    fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight.position.set(-5, 5, -5);
+    scene.add(fillLight);
 
-  await updateSceneConfig(); // Apply initial config
+    await updateSceneConfig(); // Apply initial config
 
-  const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.autoRotate = !!props.autoRotate;
+    const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = !!props.autoRotate;
 
-  if (props.modelUrl) {
-    void loadModel(props.modelUrl);
-  } else {
-    addPlaceholder();
+    if (props.modelUrl) {
+      void loadModel(props.modelUrl);
+    } else {
+      addPlaceholder();
+    }
+
+    hasInitialized.value = true;
+    if (isViewerVisible || !intersectionObserver) startRenderLoop();
+  } finally {
+    isInitializing = false;
   }
-
-  lastTime = performance.now();
-  animate();
 };
 
 const addPlaceholder = () => {
@@ -676,6 +686,7 @@ const resetCamera = () => {
 };
 
 const animate = () => {
+  if (!renderLoopActive) return;
   animationId = requestAnimationFrame(animate);
   const time = performance.now();
   const delta = (time - lastTime) / 1000;
@@ -686,6 +697,18 @@ const animate = () => {
   renderer.render(scene, camera);
 };
 
+const startRenderLoop = () => {
+  if (renderLoopActive || !renderer || !scene || !camera) return;
+  renderLoopActive = true;
+  lastTime = performance.now();
+  animationId = requestAnimationFrame(animate);
+};
+
+const stopRenderLoop = () => {
+  renderLoopActive = false;
+  if (animationId) cancelAnimationFrame(animationId);
+};
+
 const handleResize = () => {
   if (!container.value || !camera || !renderer) return;
   camera.aspect = container.value.clientWidth / container.value.clientHeight;
@@ -694,13 +717,34 @@ const handleResize = () => {
 };
 
 onMounted(() => {
-  void initScene();
+  if ('IntersectionObserver' in window && container.value) {
+    intersectionObserver = new IntersectionObserver(
+      ([entry]) => {
+        isViewerVisible = entry.isIntersecting;
+        if (entry.isIntersecting) {
+          void initScene().then(() => {
+            if (isViewerVisible) startRenderLoop();
+          });
+        } else {
+          stopRenderLoop();
+        }
+      },
+      { rootMargin: '160px' },
+    );
+    intersectionObserver.observe(container.value);
+  } else {
+    isViewerVisible = true;
+    void initScene();
+  }
   window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
-  cancelAnimationFrame(animationId);
+  isViewerVisible = false;
+  intersectionObserver?.disconnect();
+  intersectionObserver = null;
+  stopRenderLoop();
   if (loadedModel) {
     // If clay mode was active, original materials are in the map, so dispose them
     originalMaterials.forEach((material) => {
@@ -725,7 +769,7 @@ onUnmounted(() => {
 watch(
   () => props.modelUrl,
   (newUrl) => {
-    if (newUrl) void loadModel(newUrl);
+    if (newUrl && hasInitialized.value) void loadModel(newUrl);
   },
 );
 watch(
@@ -737,7 +781,7 @@ watch(
 watch(
   () => props.sceneConfig,
   () => {
-    void updateSceneConfig();
+    if (hasInitialized.value) void updateSceneConfig();
   },
   { deep: true },
 );

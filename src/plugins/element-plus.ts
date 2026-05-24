@@ -85,7 +85,10 @@ export const registerElementPlus = (app: App) => {
   components.forEach((component) => {
     app.use(component);
     if (component && (component as any).name) {
-      app.component((component as any).name, component);
+      const name = (component as any).name;
+      if (!app.component(name)) {
+        app.component(name, component);
+      }
     }
   });
 };

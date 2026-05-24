@@ -300,7 +300,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    class="admin-users-page flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
     <!-- 奢华顶栏 (超紧凑高阶版) -->
@@ -350,7 +350,7 @@ onMounted(() => {
 
       <!-- Row 2: 状态与角色筛选 Pills & 检索 -->
       <div
-        class="px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
+        class="user-filter-bar px-4 sm:px-8 py-2 flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
       >
         <!-- 状态/角色筛选 -->
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
@@ -1058,5 +1058,31 @@ onMounted(() => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (max-width: 767px) {
+  .admin-users-page button,
+  .admin-users-page a {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  .user-filter-bar > div:first-child {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .user-filter-bar button {
+    min-width: auto;
+    min-height: 2.25rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  .user-filter-bar input {
+    min-height: 2.5rem;
+  }
 }
 </style>

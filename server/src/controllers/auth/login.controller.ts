@@ -10,6 +10,20 @@ import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
 
+const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: config.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+  };
+
+  res.cookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+  res.cookie('refreshToken', refreshToken, {
+    ...cookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+};
+
 export const getPublicSettings = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const settings = await settingsService.getAll();
@@ -65,6 +79,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         if (trusted) {
           const accessToken = generateAccessToken(user.id, user.role);
           const refreshToken = await generateRefreshToken(user.id);
+          setAuthCookies(res, accessToken, refreshToken);
 
           await auditService.log({
             userId: user.id,
@@ -87,16 +102,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-
-    res.cookie('token', accessToken, { ...cookieOptions, maxAge: 3600000 }); // 1 hour
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    setAuthCookies(res, accessToken, refreshToken);
 
     await auditService.log({
       userId: user.id,
@@ -167,6 +173,7 @@ export const login2FA = async (req: Request, res: Response, next: NextFunction) 
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
+    setAuthCookies(res, accessToken, refreshToken);
 
     await auditService.log({
       userId: user.id,
@@ -209,16 +216,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     const accessToken = generateAccessToken(storedToken.user.id, storedToken.user.role);
     const newRefreshToken = await generateRefreshToken(storedToken.user.id);
     await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => {});
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-
-    res.cookie('token', accessToken, { ...cookieOptions, maxAge: 3600000 });
-    res.cookie('refreshToken', newRefreshToken, cookieOptions);
+    setAuthCookies(res, accessToken, newRefreshToken);
 
     res.json({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {

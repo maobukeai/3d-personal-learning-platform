@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import {
   Search,
   FolderPlus,
@@ -10,12 +10,15 @@ import {
   TrendingUp,
   Activity,
   Award,
+  Maximize2,
+  Minimize2,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
 import ProjectCard from '@/components/ProjectCard.vue';
+import StatCard from '@/components/StatCard.vue';
 
 const workspaceStore = useWorkspaceStore();
 const searchQuery = ref('');
@@ -23,24 +26,17 @@ const viewMode = ref<'grid' | 'list'>('grid');
 const projects = ref<any[]>([]);
 const isLoading = ref(true);
 
-const windowWidth = ref(window.innerWidth);
-const isMobile = computed(() => windowWidth.value < 768);
-
-const updateWidth = () => {
-  windowWidth.value = window.innerWidth;
-};
-
 onMounted(() => {
-  window.addEventListener('resize', updateWidth);
   fetchProjects();
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateWidth);
 });
 
 // Create/Edit Project related
 const isDrawerOpen = ref(false);
+const projectFormViewMode = ref(localStorage.getItem('project_form_view_mode') || 'drawer');
+const toggleProjectFormViewMode = () => {
+  projectFormViewMode.value = projectFormViewMode.value === 'drawer' ? 'modal' : 'drawer';
+  localStorage.setItem('project_form_view_mode', projectFormViewMode.value);
+};
 const isEditMode = ref(false);
 const projectForm = ref({
   id: '',
@@ -263,84 +259,39 @@ onMounted(fetchProjects);
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-10 scrollbar-hide">
       <div class="max-w-[1600px] mx-auto space-y-6 sm:space-y-10">
-        <!-- Dashboard Stats -->
-        <div
-          class="grid grid-cols-4 gap-2 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
-        >
+        <!-- Limit metric cards block width to prevent excessive horizontal stretching -->
+        <div class="max-w-4xl">
           <div
-            class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] p-2 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
-            style="border-color: var(--border-base)"
+            class="grid grid-cols-4 gap-2 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
           >
-            <div
-              class="w-8 h-8 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0"
-            >
-              <Layers class="w-4 h-4 sm:w-6 sm:h-6 text-blue-500" />
-            </div>
-            <div>
-              <p class="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5 sm:mb-1">
-                总项目
-              </p>
-              <h3 class="text-sm sm:text-3xl font-black" style="color: var(--text-primary)">
-                {{ stats.total }}
-              </h3>
-            </div>
-          </div>
-          <div
-            class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] p-3 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
-            style="border-color: var(--border-base)"
-          >
-            <div
-              class="w-8 h-8 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-orange-500/10 flex items-center justify-center shrink-0"
-            >
-              <Activity class="w-4 h-4 sm:w-6 sm:h-6 text-orange-500" />
-            </div>
-            <div>
-              <p class="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5 sm:mb-1">
-                进行中
-              </p>
-              <h3 class="text-sm sm:text-3xl font-black" style="color: var(--text-primary)">
-                {{ stats.active }}
-              </h3>
-            </div>
-          </div>
-          <div
-            class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] p-3 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
-            style="border-color: var(--border-base)"
-          >
-            <div
-              class="w-8 h-8 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0"
-            >
-              <Award class="w-4 h-4 sm:w-6 sm:h-6 text-emerald-500" />
-            </div>
-            <div>
-              <p class="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5 sm:mb-1">
-                已交付
-              </p>
-              <h3 class="text-sm sm:text-3xl font-black" style="color: var(--text-primary)">
-                {{ stats.completed }}
-              </h3>
-            </div>
-          </div>
-          <div
-            class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] p-3 sm:p-6 border shadow-sm flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left gap-1.5 sm:gap-6"
-            style="border-color: var(--border-base)"
-          >
-            <div
-              class="w-8 h-8 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-purple-500/10 flex items-center justify-center shrink-0"
-            >
-              <TrendingUp class="w-4 h-4 sm:w-6 sm:h-6 text-purple-500" />
-            </div>
-            <div>
-              <p class="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5 sm:mb-1">
-                完成率
-              </p>
-              <div class="flex items-baseline gap-0.5 sm:gap-2 justify-center sm:justify-start">
-                <h3 class="text-sm sm:text-3xl font-black" style="color: var(--text-primary)">
-                  {{ stats.completionRate }}
-                </h3>
-                <span class="text-[7px] sm:text-sm font-bold text-slate-400">%</span>
-              </div>
-            </div>
+            <StatCard
+              label="总项目"
+              :value="stats.total"
+              :icon="Layers"
+              color="text-blue-500"
+              horizontal
+            />
+            <StatCard
+              label="进行中"
+              :value="stats.active"
+              :icon="Activity"
+              color="text-orange-500"
+              horizontal
+            />
+            <StatCard
+              label="已交付"
+              :value="stats.completed"
+              :icon="Award"
+              color="text-emerald-500"
+              horizontal
+            />
+            <StatCard
+              label="完成率"
+              :value="stats.completionRate + '%'"
+              :icon="TrendingUp"
+              color="text-purple-500"
+              horizontal
+            />
           </div>
         </div>
 
@@ -391,20 +342,20 @@ onMounted(fetchProjects);
         <!-- Empty State -->
         <div
           v-else-if="filteredProjects.length === 0"
-          class="flex flex-col items-center justify-center py-20 sm:py-32 text-center bg-white/50 dark:bg-slate-900/50 rounded-2xl sm:rounded-[3rem] border border-dashed"
+          class="flex flex-col items-center justify-center py-10 sm:py-16 text-center bg-white/50 dark:bg-slate-900/50 rounded-xl sm:rounded-2xl border border-dashed"
           style="border-color: var(--border-base)"
         >
           <div
-            class="w-16 h-16 sm:w-24 sm:h-24 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6"
+            class="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4"
           >
-            <Search class="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
+            <Search class="w-6 h-6 sm:w-8 sm:h-8 text-slate-300" />
           </div>
-          <h3 class="text-lg sm:text-xl font-black mb-2" style="color: var(--text-primary)">未找到项目</h3>
-          <p class="text-xs sm:text-sm text-slate-400 max-w-xs sm:max-w-md mb-8">
+          <h3 class="text-md sm:text-lg font-black mb-1.5" style="color: var(--text-primary)">未找到项目</h3>
+          <p class="text-[10px] sm:text-xs text-slate-400 max-w-xs sm:max-w-md mb-6">
             没有匹配当前搜索条件的项目，或者你还没有创建任何项目。
           </p>
           <button
-            class="px-6 sm:px-8 py-2.5 sm:py-3 bg-accent text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-base"
+            class="px-5 sm:px-6 py-2 sm:py-2.5 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-sm cursor-pointer"
             @click="openAddDrawer"
           >
             创建第一个项目
@@ -430,7 +381,7 @@ onMounted(fetchProjects);
         <!-- List View -->
         <div
           v-else
-          class="bg-transparent md:bg-white dark:md:bg-slate-900 md:rounded-2xl sm:md:rounded-[2.5rem] md:border md:shadow-sm md:overflow-hidden animate-in fade-in slide-in-from-bottom-8"
+          class="bg-transparent md:bg-white dark:md:bg-slate-900 md:rounded-2xl md:border md:shadow-sm md:overflow-hidden animate-in fade-in slide-in-from-bottom-8"
           style="border-color: var(--border-base)"
         >
           <!-- Mobile List View (Card Simple Mode) -->
@@ -501,238 +452,278 @@ onMounted(fetchProjects);
       </div>
     </div>
 
-    <!-- Create/Edit Project Drawer -->
-    <el-drawer
-      v-model="isDrawerOpen"
-      :title="isEditMode ? '项目设定' : '启动新项目'"
-      :size="isMobile ? '100%' : '500px'"
-      :show-close="false"
-      class="custom-drawer"
-    >
-      <template #header="{ close }">
-        <div class="flex items-center justify-between">
-          <h3 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-            {{ isEditMode ? '配置工作流' : '构思新世界' }}
-          </h3>
-          <button
-            class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all"
-            @click="close"
-          >
-            <X class="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-      </template>
-
-      <div class="space-y-8 p-1">
-        <div>
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-            >项目标识 (名称)</label
-          >
-          <input
-            v-model="projectForm.title"
-            type="text"
-            class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
-            style="border-color: var(--border-base); color: var(--text-primary)"
-            placeholder="例如：代号 M8 重构"
-          />
-        </div>
-
-        <div>
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-            >项目愿景 (描述)</label
-          >
-          <textarea
-            v-model="projectForm.description"
-            rows="4"
-            class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all resize-none"
-            style="border-color: var(--border-base); color: var(--text-primary)"
-            placeholder="一句话概括这个项目的终极目标..."
-          ></textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-6">
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >交付日</label
-            >
-            <el-date-picker
-              v-model="projectForm.dueDate"
-              type="date"
-              placeholder="选择 Deadline"
-              class="!w-full !rounded-2xl custom-date-picker"
-            />
-          </div>
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >视觉色彩</label
-            >
-            <el-select
-              v-model="projectForm.color"
-              class="!w-full custom-select"
-              popper-class="custom-select-dropdown"
-            >
-              <el-option v-for="c in colors" :key="c.value" :label="c.name" :value="c.value">
-                <div class="flex items-center gap-3">
-                  <div class="w-4 h-4 rounded-full shadow-inner" :class="c.value"></div>
-                  <span class="font-bold">{{ c.name }}</span>
-                </div>
-              </el-option>
-            </el-select>
-          </div>
-        </div>
-
+    <!-- Create/Edit Project Custom Dialog/Drawer -->
+    <Transition :name="projectFormViewMode === 'drawer' ? 'project-form-slide' : 'project-form-fade'">
+      <div
+        v-if="isDrawerOpen"
+        class="fixed inset-0 z-50 flex transition-all duration-300"
+        :class="
+          projectFormViewMode === 'drawer'
+            ? 'justify-end'
+            : 'items-center justify-center p-3 sm:p-6 bg-black/40 backdrop-blur-sm'
+        "
+      >
+        <!-- Backdrop -->
         <div
-          v-if="isEditMode"
-          class="p-6 bg-slate-50 dark:bg-slate-800/30 rounded-[2rem] border space-y-6"
-          style="border-color: var(--border-base)"
+          class="absolute inset-0 cursor-pointer"
+          :class="projectFormViewMode === 'drawer' ? 'bg-black/40 backdrop-blur-sm' : ''"
+          @click="isDrawerOpen = false"
+        ></div>
+
+        <!-- Content Container -->
+        <div
+          class="project-form-content relative shadow-2xl flex flex-col overflow-hidden transition-all duration-300"
+          :class="[
+            projectFormViewMode === 'drawer'
+              ? 'w-full sm:w-[500px] h-full sm:rounded-l-2xl border-l'
+              : 'w-full max-w-lg h-[90vh] md:h-[85vh] rounded-2xl border',
+          ]"
+          :style="{
+            backgroundColor: 'var(--bg-card)',
+            borderColor: 'var(--border-base)',
+          }"
         >
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >当前状态</label
+          <!-- Header -->
+          <div
+            class="px-6 py-4 border-b flex items-center justify-between shrink-0"
+            style="border-color: var(--border-base)"
+          >
+            <h3
+              class="text-lg sm:text-xl font-black tracking-tight"
+              style="color: var(--text-primary)"
             >
-            <el-select v-model="projectForm.status" class="!w-full custom-select">
-              <el-option
-                v-for="s in statusOptions"
-                :key="s.value"
-                :label="s.label"
-                :value="s.value"
-              />
-            </el-select>
-          </div>
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >完成进度控制</label
+              {{ isEditMode ? '配置工作流' : '构思新世界' }}
+            </h3>
+            <div class="flex items-center gap-2">
+              <!-- View Mode Toggle -->
+              <button
+                class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
+                :title="projectFormViewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'"
+                @click="toggleProjectFormViewMode"
               >
-              <span class="text-xs font-black text-accent">{{ projectForm.progress }}%</span>
+                <component
+                  :is="projectFormViewMode === 'drawer' ? Maximize2 : Minimize2"
+                  class="w-4.5 h-4.5"
+                />
+              </button>
+              <button
+                class="p-2 bg-slate-100 dark:bg-slate-800 hover:scale-110 rounded-full transition-all cursor-pointer"
+                @click="isDrawerOpen = false"
+              >
+                <X class="w-4 h-4 text-slate-500" />
+              </button>
             </div>
-            <div class="px-2">
-              <el-slider
-                v-model="projectForm.progress"
-                :step="5"
-                show-stops
-                class="custom-slider"
+          </div>
+
+          <!-- Body -->
+          <div class="flex-1 overflow-y-auto p-5 scrollbar-hide space-y-3.5">
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                >项目标识 (名称)</label
+              >
+              <input
+                v-model="projectForm.title"
+                type="text"
+                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
+                style="border-color: var(--border-base); color: var(--text-primary)"
+                placeholder="例如：代号 M8 重构"
               />
             </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-6">
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >可见性与报名</label
-            >
-            <el-select v-model="projectForm.visibility" class="!w-full custom-select">
-              <el-option label="私有 (仅邀请)" value="PRIVATE" />
-              <el-option label="公开 (成员可报名)" value="PUBLIC" />
-            </el-select>
-          </div>
-          <div>
-            <label
-              class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >人员满载限制</label
-            >
-            <el-input-number
-              v-model="projectForm.maxMembers"
-              :min="1"
-              :max="50"
-              class="!w-full custom-number"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-            >分类标签 (逗号分隔)</label
-          >
-          <input
-            v-model="projectForm.tags"
-            type="text"
-            class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
-            style="border-color: var(--border-base); color: var(--text-primary)"
-            placeholder="如：3D建模, WebGL, 内部工具"
-          />
-        </div>
-
-        <div v-if="!isEditMode && teamMembers.length > 0">
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-            >直接加入的成员</label
-          >
-          <el-select
-            v-model="projectForm.memberIds"
-            multiple
-            placeholder="选择直接加入的成员"
-            class="!w-full custom-select"
-          >
-            <el-option
-              v-for="m in teamMembers"
-              :key="m.id"
-              :label="m.name || m.email"
-              :value="m.id"
-            >
-              <div class="flex items-center gap-3">
-                <UserAvatar :user="m" size="xs" />
-                <span class="font-bold">{{ m.name || m.email }}</span>
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                >项目愿景 (描述)</label
+              >
+              <textarea
+                v-model="projectForm.description"
+                rows="2"
+                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all resize-none"
+                style="border-color: var(--border-base); color: var(--text-primary)"
+                placeholder="一句话概括这个项目的终极目标..."
+              ></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >交付日</label
+                >
+                <el-date-picker
+                  v-model="projectForm.dueDate"
+                  type="date"
+                  placeholder="选择 Deadline"
+                  class="!w-full !rounded-xl custom-date-picker-compact"
+                />
               </div>
-            </el-option>
-          </el-select>
-        </div>
-
-        <div v-if="!isEditMode && teamMembers.length > 0">
-          <label
-            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-            >发送邀请的成员</label
-          >
-          <el-select
-            v-model="projectForm.inviteUserIds"
-            multiple
-            placeholder="选择要邀请的成员"
-            class="!w-full custom-select"
-          >
-            <el-option
-              v-for="m in teamMembers"
-              :key="m.id"
-              :label="m.name || m.email"
-              :value="m.id"
-            >
-              <div class="flex items-center gap-3">
-                <UserAvatar :user="m" size="xs" />
-                <span class="font-bold">{{ m.name || m.email }}</span>
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >视觉色彩</label
+                >
+                <el-select
+                  v-model="projectForm.color"
+                  class="!w-full custom-select-compact"
+                  popper-class="custom-select-dropdown"
+                >
+                  <el-option v-for="c in colors" :key="c.value" :label="c.name" :value="c.value">
+                    <div class="flex items-center gap-3">
+                      <div class="w-4 h-4 rounded-full shadow-inner" :class="c.value"></div>
+                      <span class="font-bold text-xs sm:text-sm">{{ c.name }}</span>
+                    </div>
+                  </el-option>
+                </el-select>
               </div>
-            </el-option>
-          </el-select>
-          <p class="text-[10px] text-slate-400 mt-2 ml-1">
-            被邀请的成员将收到通知，可自行决定是否加入
-          </p>
+            </div>
+            <div
+              v-if="isEditMode"
+              class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border space-y-3"
+              style="border-color: var(--border-base)"
+            >
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >当前状态</label
+                >
+                <el-select v-model="projectForm.status" class="!w-full custom-select-compact">
+                  <el-option
+                    v-for="s in statusOptions"
+                    :key="s.value"
+                    :label="s.label"
+                    :value="s.value"
+                  />
+                </el-select>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
+                    >完成进度控制</label
+                  >
+                  <span class="text-xs font-black text-accent">{{ projectForm.progress }}%</span>
+                </div>
+                <div class="px-2">
+                  <el-slider
+                    v-model="projectForm.progress"
+                    :step="5"
+                    show-stops
+                    class="custom-slider"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >可见性与报名</label
+                >
+                <el-select v-model="projectForm.visibility" class="!w-full custom-select-compact">
+                  <el-option label="私有 (仅邀请)" value="PRIVATE" />
+                  <el-option label="公开 (成员可报名)" value="PUBLIC" />
+                </el-select>
+              </div>
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >人员满载限制</label
+                >
+                <el-input-number
+                  v-model="projectForm.maxMembers"
+                  :min="1"
+                  :max="50"
+                  class="!w-full custom-number-compact"
+                />
+              </div>
+            </div>
+            <div>
+              <label
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                >分类标签 (逗号分隔)</label
+              >
+              <input
+                v-model="projectForm.tags"
+                type="text"
+                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
+                style="border-color: var(--border-base); color: var(--text-primary)"
+                placeholder="如：3D建模, WebGL, 内部工具"
+              />
+            </div>
+
+            <div v-if="!isEditMode && teamMembers.length > 0" class="space-y-3.5">
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >直接加入的成员</label
+                >
+                <el-select
+                  v-model="projectForm.memberIds"
+                  multiple
+                  placeholder="选择直接加入的成员"
+                  class="!w-full custom-select-compact"
+                >
+                  <el-option
+                    v-for="m in teamMembers"
+                    :key="m.id"
+                    :label="m.name || m.email"
+                    :value="m.id"
+                  >
+                    <div class="flex items-center gap-3">
+                      <UserAvatar :user="m" size="xs" />
+                      <span class="font-bold text-xs">{{ m.name || m.email }}</span>
+                    </div>
+                  </el-option>
+                </el-select>
+              </div>
+
+              <div>
+                <label
+                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
+                  >发送邀请的成员</label
+                >
+                <el-select
+                  v-model="projectForm.inviteUserIds"
+                  multiple
+                  placeholder="选择要邀请的成员"
+                  class="!w-full custom-select-compact"
+                >
+                  <el-option
+                    v-for="m in teamMembers"
+                    :key="m.id"
+                    :label="m.name || m.email"
+                    :value="m.id"
+                  >
+                    <div class="flex items-center gap-3">
+                      <UserAvatar :user="m" size="xs" />
+                      <span class="font-bold text-xs">{{ m.name || m.email }}</span>
+                    </div>
+                  </el-option>
+                </el-select>
+                <p class="text-[9px] text-slate-400 mt-1.5 ml-1">
+                  被邀请的成员将收到通知，可自行决定是否加入
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="flex gap-3.5 p-3.5 border-t shrink-0 bg-slate-50/30 dark:bg-slate-900/10" style="border-color: var(--border-base)">
+            <button
+              class="flex-1 py-2 sm:py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-black transition-all text-xs"
+              style="color: var(--text-primary)"
+              @click="isDrawerOpen = false"
+            >
+              取消操作
+            </button>
+            <button
+              class="flex-[2] py-2 sm:py-2.5 bg-accent text-white rounded-xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs"
+              @click="handleSaveProject"
+            >
+              {{ isEditMode ? '确认并应用更改' : '正式启动项目' }}
+            </button>
+          </div>
         </div>
       </div>
-
-      <template #footer>
-        <div class="flex gap-4 p-4 border-t" style="border-color: var(--border-base)">
-          <button
-            class="flex-1 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black transition-all"
-            style="color: var(--text-primary)"
-            @click="isDrawerOpen = false"
-          >
-            取消操作
-          </button>
-          <button
-            class="flex-[2] py-4 bg-accent text-white rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            @click="handleSaveProject"
-          >
-            {{ isEditMode ? '确认并应用更改' : '正式启动项目' }}
-          </button>
-        </div>
-      </template>
-    </el-drawer>
+    </Transition>
   </div>
 </template>
 

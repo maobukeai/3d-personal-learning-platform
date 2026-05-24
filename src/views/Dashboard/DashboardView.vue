@@ -8,6 +8,7 @@ import {
   Calendar,
   Plus,
   X,
+  LayoutDashboard,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
@@ -182,16 +183,28 @@ onMounted(() => {
   >
     <!-- Dashboard Header -->
     <div
-      class="flex flex-col sm:flex-row gap-3 py-4 sm:py-0 sm:h-16 border-b px-4 sm:px-6 md:px-8 sm:items-center justify-between shrink-0 transition-colors duration-300"
+      class="flex flex-col sm:flex-row gap-2 py-2.5 sm:py-0 sm:h-13 border-b px-3 sm:px-4 md:px-6 sm:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div>
-        <h1 class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">
-          {{ t('dashboard.title') }}
-        </h1>
-        <p class="text-xs font-medium mt-1" style="color: var(--text-muted)">
-          {{ t('dashboard.welcome') }}
-        </p>
+      <div class="flex items-center gap-3">
+        <div
+          class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-accent to-indigo-600 flex items-center justify-center shadow-lg shadow-accent/20"
+        >
+          <LayoutDashboard class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-white" />
+        </div>
+        <div>
+          <h1
+            class="text-md sm:text-lg font-black tracking-tight"
+            style="color: var(--text-primary)"
+          >
+            {{ t('dashboard.title') }}
+          </h1>
+          <p
+            class="hidden sm:block text-[9px] font-bold uppercase tracking-widest text-slate-400"
+          >
+            {{ t('dashboard.welcome') }}
+          </p>
+        </div>
       </div>
       <div class="flex items-center gap-3">
         <el-date-picker
@@ -208,7 +221,7 @@ onMounted(() => {
           </template>
         </el-date-picker>
         <button
-          class="p-2.5 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer"
+          class="p-2 bg-accent text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 transition-all cursor-pointer"
           @click="isAddDialogOpen = true"
         >
           <Plus class="w-5 h-5" />
@@ -217,10 +230,10 @@ onMounted(() => {
     </div>
 
     <!-- Main Content Scroll Area -->
-    <div class="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-4 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-4 md:space-y-5 min-w-0">
+    <div class="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-3.5 scrollbar-hide">
+      <div class="max-w-7xl mx-auto space-y-3 md:space-y-3.5 min-w-0">
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+        <div class="grid grid-cols-4 gap-1.5 sm:gap-3 lg:gap-3.5">
           <StatCard
             v-for="stat in stats"
             :key="stat.label"
@@ -232,9 +245,9 @@ onMounted(() => {
           />
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-3.5">
           <!-- Left Column: Tasks & Assets -->
-          <div class="lg:col-span-2 space-y-4 md:space-y-5">
+          <div class="lg:col-span-2 space-y-3 md:space-y-3.5">
             <!-- Active Learning Card -->
             <ActiveLearningCard :active-enrollment="activeEnrollment" />
 
@@ -246,7 +259,7 @@ onMounted(() => {
           </div>
 
           <!-- Right Column: Community & Feed -->
-          <div class="space-y-4 md:space-y-5">
+          <div class="space-y-3 md:space-y-3.5">
             <!-- Activity Feed -->
             <TeamActivityCard :activity-log="activityLog" />
 
@@ -268,7 +281,8 @@ onMounted(() => {
           @click="isAddDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-md p-8 glass-card border border-white/20 dark:border-white/5 space-y-6"
+          class="relative w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border space-y-5 sm:space-y-6"
+          style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold" style="color: var(--text-primary)">新建学习任务</h3>

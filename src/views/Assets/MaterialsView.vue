@@ -242,52 +242,52 @@ onUnmounted(() => {
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <div
-      class="h-auto md:h-16 border-b px-4 md:px-8 py-3 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-3"
+      class="h-auto md:h-13 border-b px-3.5 md:px-4.5 py-2.5 md:py-0 flex flex-col md:flex-row md:items-center justify-between shrink-0 gap-2.5"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="flex items-center gap-2.5">
-        <div class="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-          <Layers class="w-5 h-5 text-orange-600 dark:text-orange-400" />
+      <div class="flex items-center gap-2">
+        <div class="p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+          <Layers class="w-4 h-4 text-orange-600 dark:text-orange-400" />
         </div>
-        <h1 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">材料与纹理库</h1>
+        <h1 class="text-md sm:text-lg font-bold" style="color: var(--text-primary)">材料与纹理库</h1>
       </div>
 
       <div class="flex items-center gap-2 w-full md:w-auto">
         <div class="relative flex-1">
           <Search
-            class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2"
             style="color: var(--text-secondary)"
           />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="搜索材料..."
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-full md:w-72 transition-all"
+            class="pl-8 pr-3.5 py-1.5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-full md:w-56 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
             @keyup.enter="fetchMaterials"
           />
         </div>
         <button
-          class="flex items-center justify-center p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600 shrink-0"
+          class="flex items-center justify-center p-1.5 bg-orange-500 text-white rounded-lg shadow-md shadow-orange-500/20 transition-all hover:bg-orange-600 shrink-0 cursor-pointer"
           @click="isUploadDialogOpen = true"
         >
-          <Plus class="w-5 h-5" />
-          <span class="hidden sm:inline ml-1.5 text-sm font-bold">上传</span>
+          <Plus class="w-3.5 h-3.5" />
+          <span class="hidden sm:inline ml-1 text-xs font-bold">上传</span>
         </button>
       </div>
     </div>
 
     <!-- Category Toolbar -->
     <div
-      class="border-b px-4 md:px-8 py-2 shrink-0 overflow-x-auto scrollbar-hide"
+      class="border-b px-3.5 md:px-4.5 py-1 shrink-0 overflow-x-auto scrollbar-hide"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           <button
             v-for="cat in categories"
             :key="cat"
-            class="px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap"
+            class="px-2 sm:px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-all whitespace-nowrap"
             :class="
               activeCategory === cat
                 ? 'bg-slate-800 text-white dark:bg-accent dark:text-white'
@@ -307,10 +307,10 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1.5 shrink-0">
           <!-- Favorites Toggle -->
           <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
+            class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all"
             :class="
               showFavoritesOnly
                 ? 'bg-rose-500/10 text-rose-500'
@@ -318,13 +318,13 @@ onUnmounted(() => {
             "
             @click="showFavoritesOnly = !showFavoritesOnly"
           >
-            <Heart class="w-3.5 h-3.5" :class="showFavoritesOnly ? 'fill-rose-500' : ''" />
+            <Heart class="w-3 h-3" :class="showFavoritesOnly ? 'fill-rose-500' : ''" />
             <span class="hidden sm:inline">收藏</span>
           </button>
 
-          <div class="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl shrink-0">
+          <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-white/5 p-0.5 rounded-md shrink-0">
             <button
-              class="px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
+              class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all"
               :class="
                 sortBy === 'latest'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
@@ -338,7 +338,7 @@ onUnmounted(() => {
               最新
             </button>
             <button
-              class="px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all"
+              class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all"
               :class="
                 sortBy === 'popular'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
@@ -357,16 +357,16 @@ onUnmounted(() => {
     </div>
 
     <!-- Content Area -->
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-2.5 sm:p-3.5 md:p-4 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <div
           v-if="filteredMaterials.length > 0"
-          class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5"
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-2.5"
         >
           <div
             v-for="mat in filteredMaterials"
             :key="mat.id"
-            class="group rounded-2xl border overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer"
+            class="group rounded-lg border overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col cursor-pointer"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
             @click="openDetail(mat)"
           >
@@ -377,12 +377,12 @@ onUnmounted(() => {
             >
               <img
                 :src="mat.previewUrl"
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
 
               <!-- Resolution Badge -->
               <div
-                class="absolute top-2 right-2 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-bold shadow-sm border"
+                class="absolute top-1 right-1 backdrop-blur px-1 py-0.5 rounded text-[7.5px] font-bold shadow-sm border"
                 style="
                   background-color: var(--bg-card);
                   color: var(--text-primary);
@@ -395,14 +395,14 @@ onUnmounted(() => {
               <!-- Procedural Indicator -->
               <div
                 v-if="mat.isProcedural"
-                class="absolute top-2 left-2 bg-accent px-1.5 py-0.5 rounded text-[9px] font-bold text-white shadow-sm flex items-center gap-1"
+                class="absolute top-1 left-1 bg-accent px-1 py-0.5 rounded text-[7.5px] font-bold text-white shadow-sm flex items-center gap-0.5"
               >
-                <Box class="w-2.5 h-2.5" /> 程序化
+                <Box class="w-2 h-2" /> 程序化
               </div>
 
               <!-- Favorite Button -->
               <button
-                class="absolute top-2 right-2 mt-6 p-1.5 rounded-lg backdrop-blur transition-all opacity-0 group-hover:opacity-100"
+                class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur transition-all opacity-0 group-hover:opacity-100"
                 :class="
                   mat.isFavorited
                     ? 'bg-rose-500/20 text-rose-500'
@@ -410,69 +410,69 @@ onUnmounted(() => {
                 "
                 @click.stop="toggleFavorite(mat)"
               >
-                <Heart class="w-3.5 h-3.5" :class="mat.isFavorited ? 'fill-rose-500' : ''" />
+                <Heart class="w-3 h-3" :class="mat.isFavorited ? 'fill-rose-500' : ''" />
               </button>
 
               <!-- Hover Actions -->
               <div
-                class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2"
+                class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5"
               >
                 <button
-                  class="p-2 rounded-lg bg-white text-slate-800 hover:text-orange-600 transition-all shadow-lg"
+                  class="p-1.5 rounded-md bg-white text-slate-800 hover:text-orange-600 transition-all shadow-md"
                   @click.stop="openDetail(mat)"
                 >
-                  <Eye class="w-4 h-4" />
+                  <Eye class="w-3.5 h-3.5" />
                 </button>
                 <button
-                  class="p-2 rounded-lg bg-white text-slate-800 hover:text-orange-600 transition-all shadow-lg"
+                  class="p-1.5 rounded-md bg-white text-slate-800 hover:text-orange-600 transition-all shadow-md"
                   @click.stop="handleDownload(mat)"
                 >
-                  <Download class="w-4 h-4" />
+                  <Download class="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
             <!-- Material Info -->
-            <div class="p-3 flex-1 flex flex-col">
-              <h3 class="text-xs font-bold truncate mb-1" style="color: var(--text-primary)">
+            <div class="p-1.5 sm:p-2 flex-1 flex flex-col">
+              <h3 class="text-[11px] sm:text-xs font-bold truncate mb-0.5" style="color: var(--text-primary)">
                 {{ mat.title }}
               </h3>
               <p
                 v-if="mat.description"
-                class="text-[10px] line-clamp-1 mb-2"
+                class="text-[9px] line-clamp-1 mb-1"
                 style="color: var(--text-muted)"
               >
                 {{ mat.description }}
               </p>
               <div class="mt-auto flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="text-[10px] font-medium" style="color: var(--text-secondary)">{{
+                <div class="flex items-center gap-1">
+                  <span class="text-[9px] font-medium" style="color: var(--text-secondary)">{{
                     mat.category
                   }}</span>
                   <span
                     v-if="mat.fileSize"
-                    class="text-[9px] flex items-center gap-0.5"
+                    class="text-[8px] flex items-center gap-0.5"
                     style="color: var(--text-muted)"
                   >
-                    <HardDrive class="w-2.5 h-2.5" /> {{ formatFileSize(mat.fileSize) }}
+                    <HardDrive class="w-2 h-2" /> {{ formatFileSize(mat.fileSize) }}
                   </span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1">
                   <span
-                    class="flex items-center gap-0.5 text-[9px] font-bold"
+                    class="flex items-center gap-0.5 text-[8px] font-bold"
                     style="color: var(--text-muted)"
                   >
                     <Heart
-                      class="w-2.5 h-2.5"
+                      class="w-2 h-2"
                       :class="mat.isFavorited ? 'text-rose-500 fill-rose-500' : ''"
                     />
                     {{ mat._count?.favorites || 0 }}
                   </span>
                   <span
-                    class="flex items-center gap-0.5 text-[9px] font-bold"
+                    class="flex items-center gap-0.5 text-[8px] font-bold"
                     style="color: var(--text-muted)"
                   >
-                    <Download class="w-2.5 h-2.5" /> {{ mat.downloads || 0 }}
+                    <Download class="w-2 h-2" /> {{ mat.downloads || 0 }}
                   </span>
                 </div>
               </div>
@@ -481,8 +481,8 @@ onUnmounted(() => {
         </div>
 
         <div v-else class="h-64 flex flex-col items-center justify-center text-slate-400">
-          <Layers class="w-12 h-12 mb-4 opacity-10" />
-          <p class="text-sm font-bold">
+          <Layers class="w-10 h-10 mb-3 opacity-10" />
+          <p class="text-xs font-bold">
             {{ showFavoritesOnly ? '暂无收藏材料' : '该分类下暂无材料' }}
           </p>
         </div>
@@ -497,118 +497,115 @@ onUnmounted(() => {
           @click="showDetailDialog = false"
         ></div>
         <div
-          class="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-3xl shadow-2xl flex flex-col"
+          class="relative w-full max-w-md max-h-[85vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col"
           style="background-color: var(--bg-card)"
         >
           <!-- Loading -->
-          <div v-if="isLoadingDetail" class="flex-1 flex items-center justify-center py-24">
+          <div v-if="isLoadingDetail" class="flex-1 flex items-center justify-center py-12">
             <div
-              class="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"
+              class="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin"
             ></div>
           </div>
 
           <template v-else-if="selectedMaterial">
             <!-- Preview Image -->
-            <div class="relative aspect-video overflow-hidden shrink-0">
+            <div class="relative aspect-[16/10] overflow-hidden shrink-0">
               <img :src="selectedMaterial.previewUrl" class="w-full h-full object-cover" />
               <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
               <button
-                class="absolute top-4 right-4 p-2 bg-black/30 backdrop-blur rounded-lg text-white hover:bg-black/50 transition-colors"
+                class="absolute top-2 right-2 p-1 bg-black/30 backdrop-blur rounded text-white hover:bg-black/50 transition-colors"
                 @click="showDetailDialog = false"
               >
-                <X class="w-5 h-5" />
+                <X class="w-4 h-4" />
               </button>
-              <div class="absolute bottom-4 left-6 right-6">
-                <div class="flex items-center gap-2 mb-1">
+              <div class="absolute bottom-3 left-4 right-4">
+                <div class="flex items-center gap-1.5 mb-1">
                   <span
                     v-if="selectedMaterial.isProcedural"
-                    class="px-2 py-0.5 rounded text-[9px] font-bold bg-accent text-white"
+                    class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-accent text-white"
                     >程序化</span
                   >
                   <span
-                    class="px-2 py-0.5 rounded text-[9px] font-bold backdrop-blur bg-white/10 text-white"
+                    class="px-1.5 py-0.5 rounded text-[8px] font-bold backdrop-blur bg-white/10 text-white"
                     >{{ selectedMaterial.resolution || '未知' }}</span
                   >
                   <span
                     v-if="selectedMaterial.fileSize"
-                    class="px-2 py-0.5 rounded text-[9px] font-bold backdrop-blur bg-white/10 text-white"
+                    class="px-1.5 py-0.5 rounded text-[8px] font-bold backdrop-blur bg-white/10 text-white"
                     >{{ formatFileSize(selectedMaterial.fileSize) }}</span
                   >
                 </div>
-                <h2 class="text-xl font-black text-white">{{ selectedMaterial.title }}</h2>
+                <h2 class="text-base sm:text-lg font-black text-white">{{ selectedMaterial.title }}</h2>
               </div>
             </div>
 
             <!-- Content -->
-            <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
+            <div class="flex-1 overflow-y-auto p-3 sm:p-4 scrollbar-hide">
               <!-- Description -->
               <p
                 v-if="selectedMaterial.description"
-                class="text-sm leading-relaxed mb-6"
+                class="text-xs leading-relaxed mb-2.5"
                 style="color: var(--text-secondary)"
               >
                 {{ selectedMaterial.description }}
               </p>
 
               <!-- Info Grid -->
-              <div class="grid grid-cols-3 gap-3 mb-6">
-                <div class="p-3 rounded-xl text-center" style="background-color: var(--bg-app)">
-                  <p class="text-[9px] font-bold uppercase" style="color: var(--text-muted)">
+              <div class="grid grid-cols-3 gap-1.5 mb-3">
+                <div class="p-1.5 rounded-md text-center bg-[var(--bg-app)]">
+                  <p class="text-[8px] font-bold uppercase text-[var(--text-muted)]">
                     分类
                   </p>
-                  <p class="text-xs font-bold mt-1" style="color: var(--text-primary)">
+                  <p class="text-[11px] font-bold mt-0.5 text-[var(--text-primary)]">
                     {{ selectedMaterial.category }}
                   </p>
                 </div>
-                <div class="p-3 rounded-xl text-center" style="background-color: var(--bg-app)">
-                  <p class="text-[9px] font-bold uppercase" style="color: var(--text-muted)">
+                <div class="p-1.5 rounded-md text-center bg-[var(--bg-app)]">
+                  <p class="text-[8px] font-bold uppercase text-[var(--text-muted)]">
                     分辨率
                   </p>
-                  <p class="text-xs font-bold mt-1" style="color: var(--text-primary)">
+                  <p class="text-[11px] font-bold mt-0.5 text-[var(--text-primary)]">
                     {{ selectedMaterial.resolution || '未知' }}
                   </p>
                 </div>
-                <div class="p-3 rounded-xl text-center" style="background-color: var(--bg-app)">
-                  <p class="text-[9px] font-bold uppercase" style="color: var(--text-muted)">
+                <div class="p-1.5 rounded-md text-center bg-[var(--bg-app)]">
+                  <p class="text-[8px] font-bold uppercase text-[var(--text-muted)]">
                     类型
                   </p>
-                  <p class="text-xs font-bold mt-1" style="color: var(--text-primary)">
+                  <p class="text-[11px] font-bold mt-0.5 text-[var(--text-primary)]">
                     {{ selectedMaterial.isProcedural ? '程序化' : '静态纹理' }}
                   </p>
                 </div>
               </div>
 
               <!-- Tags -->
-              <div v-if="getTagsList(selectedMaterial.tags).length > 0" class="mb-6">
-                <p class="text-[10px] font-bold uppercase mb-2" style="color: var(--text-muted)">
+              <div v-if="getTagsList(selectedMaterial.tags).length > 0" class="mb-3">
+                <p class="text-[9px] font-bold uppercase mb-1 text-[var(--text-muted)]">
                   标签
                 </p>
-                <div class="flex flex-wrap gap-1.5">
+                <div class="flex flex-wrap gap-1">
                   <span
                     v-for="tag in getTagsList(selectedMaterial.tags)"
                     :key="tag"
-                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold"
-                    style="background-color: var(--bg-app); color: var(--text-secondary)"
+                    class="px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-[var(--bg-app)] text-[var(--text-secondary)]"
                     >{{ tag }}</span
                   >
                 </div>
               </div>
 
               <!-- Stats -->
-              <div class="flex items-center gap-6 mb-6">
+              <div class="flex items-center gap-3.5 mb-3">
                 <div
-                  class="flex items-center gap-1.5 text-xs font-bold"
-                  style="color: var(--text-secondary)"
+                  class="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)]"
                 >
-                  <Download class="w-4 h-4 text-orange-500" />
+                  <Download class="w-3.5 h-3.5 text-orange-500" />
                   {{ selectedMaterial.downloads || 0 }} 次下载
                 </div>
                 <div
-                  class="flex items-center gap-1.5 text-xs font-bold"
-                  style="color: var(--text-secondary)"
+                  class="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)]"
                 >
                   <Heart
-                    class="w-4 h-4"
+                    class="w-3.5 h-3.5"
                     :class="
                       selectedMaterial.isFavorited
                         ? 'text-rose-500 fill-rose-500'
@@ -622,15 +619,14 @@ onUnmounted(() => {
               <!-- Uploader Info -->
               <div
                 v-if="selectedMaterial.user"
-                class="flex items-center gap-3 p-3 rounded-xl"
-                style="background-color: var(--bg-app)"
+                class="flex items-center gap-2 p-1.5 rounded-md bg-[var(--bg-app)]"
               >
-                <UserAvatar :user="selectedMaterial.user" size="md" />
+                <UserAvatar :user="selectedMaterial.user" size="sm" />
                 <div>
-                  <p class="text-xs font-bold" style="color: var(--text-primary)">
+                  <p class="text-[11px] font-bold text-[var(--text-primary)]">
                     {{ selectedMaterial.user.name || '匿名用户' }}
                   </p>
-                  <p class="text-[10px]" style="color: var(--text-muted)">
+                  <p class="text-[9px] text-[var(--text-muted)]">
                     上传于 {{ new Date(selectedMaterial.createdAt).toLocaleDateString() }}
                   </p>
                 </div>
@@ -639,11 +635,11 @@ onUnmounted(() => {
 
             <!-- Bottom Actions -->
             <div
-              class="p-4 border-t flex items-center gap-3 shrink-0"
+              class="p-2.5 sm:p-3 border-t flex items-center gap-2 shrink-0"
               style="border-color: var(--border-base)"
             >
               <button
-                class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all"
                 :class="
                   selectedMaterial.isFavorited
                     ? 'bg-rose-500/10 text-rose-500'
@@ -652,16 +648,16 @@ onUnmounted(() => {
                 @click="toggleFavorite(selectedMaterial)"
               >
                 <Heart
-                  class="w-4 h-4"
+                  class="w-3.5 h-3.5"
                   :class="selectedMaterial.isFavorited ? 'fill-rose-500' : ''"
                 />
                 {{ selectedMaterial.isFavorited ? '已收藏' : '收藏' }}
               </button>
               <button
-                class="flex-1 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
+                class="flex-1 py-1.5 bg-orange-500 text-white rounded-md text-xs font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 @click="handleDownload(selectedMaterial)"
               >
-                <Download class="w-4 h-4" /> 下载材料包
+                <Download class="w-3.5 h-3.5" /> 下载材料包
               </button>
             </div>
           </template>
@@ -680,50 +676,50 @@ onUnmounted(() => {
           @click="isUploadDialogOpen = false"
         ></div>
         <div
-          class="relative w-full max-w-lg p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
+          class="relative w-full max-w-md p-4 rounded-xl shadow-xl space-y-3 max-h-[90vh] overflow-y-auto"
           style="background-color: var(--bg-card)"
         >
-          <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold" style="color: var(--text-primary)">贡献新材料</h3>
-            <button style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
-              <X class="w-5 h-5" />
+          <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-base)">
+            <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">贡献新材料</h3>
+            <button class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
+              <X class="w-4 h-4" />
             </button>
           </div>
 
-          <div class="grid grid-cols-2 gap-6">
-            <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3 max-h-[68vh] overflow-y-auto pr-1">
+            <div class="space-y-2.5">
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >材料名称</label
                 >
                 <input
                   v-model="uploadForm.title"
                   type="text"
-                  class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
                   placeholder="例如：锈蚀铁片 PBR"
                 />
               </div>
 
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >材料描述</label
                 >
                 <textarea
                   v-model="uploadForm.description"
                   rows="2"
-                  class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all resize-none"
+                  class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all resize-none"
                   placeholder="描述材料的特点和用途..."
                 ></textarea>
               </div>
 
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >分类</label
                 >
-                <el-select v-model="uploadForm.category" class="!w-full !rounded-2xl custom-select">
+                <el-select v-model="uploadForm.category" class="!w-full custom-select">
                   <el-option
                     v-for="cat in categories.filter((c) => c !== '全部材料')"
                     :key="cat"
@@ -735,12 +731,12 @@ onUnmounted(() => {
 
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >分辨率 / 类型</label
                 >
                 <el-select
                   v-model="uploadForm.resolution"
-                  class="!w-full !rounded-2xl custom-select"
+                  class="!w-full custom-select"
                 >
                   <el-option
                     v-for="res in ['2K', '4K', '8K', '矢量', '程序化']"
@@ -751,21 +747,21 @@ onUnmounted(() => {
                 </el-select>
               </div>
 
-              <div class="flex items-center gap-3 pt-2">
+              <div class="flex items-center gap-2 pt-0.5">
                 <el-switch v-model="uploadForm.isProcedural" active-color="var(--accent)" />
-                <span class="text-xs font-bold" style="color: var(--text-secondary)"
-                  >这是程序化材料 (.sbsar)</span
+                <span class="text-[10px] font-bold" style="color: var(--text-secondary)"
+                  >程序化 (.sbsar)</span
                 >
               </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-2.5">
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >材料包 (ZIP)</label
                 >
-                <div class="relative group h-24">
+                <div class="relative group h-16">
                   <input
                     type="file"
                     accept=".zip,.sbsar"
@@ -773,15 +769,15 @@ onUnmounted(() => {
                     @change="handleFileChange"
                   />
                   <div
-                    class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-orange-500 group-hover:bg-orange-500/5"
+                    class="w-full h-full border border-dashed rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all group-hover:border-orange-500 group-hover:bg-orange-500/5"
                     style="border-color: var(--border-base)"
                   >
-                    <Box class="w-5 h-5 text-orange-500/40" />
+                    <Box class="w-4.5 h-4.5 text-orange-500/40" />
                     <p
-                      class="text-[10px] font-medium truncate px-4"
+                      class="text-[9px] font-medium truncate px-2 w-full text-center"
                       style="color: var(--text-secondary)"
                     >
-                      {{ uploadForm.file ? uploadForm.file.name : '点击选择 ZIP/SBSAR' }}
+                      {{ uploadForm.file ? uploadForm.file.name : '选择 ZIP/SBSAR' }}
                     </p>
                   </div>
                 </div>
@@ -789,10 +785,10 @@ onUnmounted(() => {
 
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >预览图</label
                 >
-                <div class="relative group h-24">
+                <div class="relative group h-16">
                   <input
                     type="file"
                     accept="image/*"
@@ -800,15 +796,15 @@ onUnmounted(() => {
                     @change="handlePreviewChange"
                   />
                   <div
-                    class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-orange-500 group-hover:bg-orange-500/5"
+                    class="w-full h-full border border-dashed rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all group-hover:border-orange-500 group-hover:bg-orange-500/5"
                     style="border-color: var(--border-base)"
                   >
-                    <UploadCloud class="w-5 h-5 text-orange-500/40" />
+                    <UploadCloud class="w-4.5 h-4.5 text-orange-500/40" />
                     <p
-                      class="text-[10px] font-medium truncate px-4"
+                      class="text-[9px] font-medium truncate px-2 w-full text-center"
                       style="color: var(--text-secondary)"
                     >
-                      {{ uploadForm.preview ? uploadForm.preview.name : '点击上传预览图' }}
+                      {{ uploadForm.preview ? uploadForm.preview.name : '上传预览图' }}
                     </p>
                   </div>
                 </div>
@@ -816,13 +812,13 @@ onUnmounted(() => {
 
               <div>
                 <label
-                  class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
+                  class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
                   >标签</label
                 >
                 <input
                   v-model="uploadForm.tags"
                   type="text"
-                  class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
                   placeholder="用逗号分隔"
                 />
               </div>
@@ -831,12 +827,12 @@ onUnmounted(() => {
 
           <button
             :disabled="isUploading"
-            class="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
+            class="w-full py-2 bg-orange-500 text-white rounded-lg font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer hover:scale-102"
             @click="handleUpload"
           >
             <div
               v-if="isUploading"
-              class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+              class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"
             ></div>
             {{ isUploading ? '正在上传...' : '发布材料' }}
           </button>
@@ -869,8 +865,14 @@ onUnmounted(() => {
   overflow: hidden;
 }
 .custom-select :deep(.el-input__wrapper) {
-  border-radius: 1rem !important;
+  border-radius: 0.5rem !important;
   background-color: var(--bg-app) !important;
   box-shadow: none !important;
+  padding: 0.15rem 0.5rem !important;
+  border: 1px solid var(--border-base);
+}
+.custom-select :deep(.el-input__inner) {
+  font-size: 12px;
 }
 </style>
+

@@ -3,6 +3,7 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToConversation, emitToUser } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
+import { clampLimit } from '../utils/pagination';
 
 export const getConversations = async (req: AuthRequest, res: Response) => {
   const userId = req.userId as string;
@@ -56,7 +57,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
   const conversationId = req.params.conversationId as string;
   const userId = req.userId as string;
   const cursor = req.query.cursor as string | undefined;
-  const limit = parseInt(req.query.limit as string) || 50;
+  const limit = clampLimit(req.query.limit, 50, 100);
 
   try {
     const conversation = await prisma.conversation.findFirst({

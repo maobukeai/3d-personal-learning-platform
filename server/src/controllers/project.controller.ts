@@ -414,6 +414,81 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
   }
 };
 
+export const batchCreateProjectTasks = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const id = req.params.id as string;
+  const { tasks } = req.body;
+
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    return next(new AppError('Tasks array is required', 400));
+  }
+
+  try {
+    // 检查项目是否在当前工作区并且用户是项目成员
+    const project = await prisma.project.findFirst({
+      where: { id, teamId: req.workspaceId || null },
+      include: {
+        members: {
+          where: { userId: req.userId },
+        },
+      },
+    });
+
+    if (!project) {
+      return next(new AppError('Project not found', 404));
+    }
+
+    if (!project.members || project.members.length === 0) {
+      return next(new AppError('Not authorized to create tasks in this project', 403));
+    }
+
+    const createdTasks = [];
+    for (const t of tasks) {
+      if (!t.title) continue;
+
+      const task = await prisma.task.create({
+        data: {
+          title: t.title,
+          description: t.description || null,
+          status: 'TODO',
+          priority: t.priority || 'MEDIUM',
+          dueDate: t.dueDate ? new Date(t.dueDate) : null,
+          projectId: id,
+          assigneeId: t.assigneeId || null,
+          userId: req.userId as string,
+          teamId: req.workspaceId || null,
+          participants:
+            t.participantIds && Array.isArray(t.participantIds) && t.participantIds.length > 0
+              ? {
+                  create: t.participantIds.map((userId: string) => ({ userId })),
+                }
+              : undefined,
+        },
+        include: {
+          assignee: { select: { id: true, name: true, avatarUrl: true } },
+          participants: {
+            select: {
+              id: true,
+              userId: true,
+              user: { select: { id: true, name: true, avatarUrl: true } },
+            },
+          },
+        },
+      });
+      createdTasks.push(task);
+    }
+
+    await recalcProjectProgress(id);
+
+    res.status(201).json(createdTasks);
+  } catch (error) {
+    next(error);
+  }
+};
+
 async function recalcProjectProgress(projectId: string) {
   const tasks = await prisma.task.findMany({
     where: { projectId },

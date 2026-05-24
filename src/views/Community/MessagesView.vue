@@ -994,38 +994,38 @@ watch(
       :class="activeConversation ? 'hidden lg:flex' : 'flex'"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <div class="p-6 border-b" style="border-color: var(--border-base)">
-        <div class="flex items-center justify-between mb-4">
-          <h1 class="text-xl font-bold" style="color: var(--text-primary)">
+      <div class="p-3 border-b" style="border-color: var(--border-base)">
+        <div class="flex items-center justify-between mb-2.5">
+          <h1 class="text-base font-bold" style="color: var(--text-primary)">
             {{ t('messages.title') }}
           </h1>
           <div class="flex gap-1">
             <button
-              class="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl hover:bg-indigo-500 hover:text-white transition-all"
+              class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all cursor-pointer"
               title="创建群聊"
               @click="isGroupChatDialogOpen = true"
             >
-              <Users class="w-4 h-4" />
+              <Users class="w-3 h-3" />
             </button>
             <button
-              class="p-2 bg-accent/10 text-accent rounded-xl hover:bg-accent hover:text-white transition-all"
+              class="p-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all cursor-pointer"
               title="发起新聊天"
               @click="isNewChatDialogOpen = true"
             >
-              <Plus class="w-4 h-4" />
+              <Plus class="w-3 h-3" />
             </button>
           </div>
         </div>
         <div class="relative">
           <Search
-            class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2"
             style="color: var(--text-muted)"
           />
           <input
             v-model="searchQuery"
             type="text"
             :placeholder="t('messages.searchPlaceholder')"
-            class="pl-10 pr-4 py-2 border-none rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full transition-all"
+            class="pl-8 pr-3 py-1.5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
@@ -1045,7 +1045,7 @@ watch(
           <div
             v-for="conv in filteredConversations"
             :key="conv.id"
-            class="p-4 flex gap-3 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-white/5 relative group overflow-hidden"
+            class="p-2 sm:p-2.5 flex gap-2 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-white/5 relative group overflow-hidden"
             :class="activeConversation?.id === conv.id ? 'bg-accent-subtle' : ''"
             @click="selectConversation(conv)"
             @contextmenu="handleConversationContextMenu($event, conv)"
@@ -1067,55 +1067,55 @@ watch(
                 class="w-full h-full flex items-center justify-center text-white"
                 @click.stop="deleteConversation(conv)"
               >
-                <Trash2 class="w-5 h-5" />
+                <Trash2 class="w-4 h-4" />
               </button>
             </div>
 
             <!-- Content Area -->
             <div
-              class="flex flex-1 gap-3 transition-transform duration-200 z-10"
+              class="flex flex-1 gap-2 transition-transform duration-200 z-10"
               :style="{ transform: `translateX(-${swipeOffset[conv.id] || 0}px)` }"
             >
               <div class="relative shrink-0">
                 <template v-if="conv.isGroup">
                   <div
-                    class="w-12 h-12 rounded-full border flex items-center justify-center"
+                    class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 bg-[var(--bg-app)]"
                     :class="conv.avatarUrl ? '' : 'bg-indigo-500/10'"
                     style="border-color: var(--border-base)"
                   >
                     <img
                       v-if="conv.avatarUrl"
                       :src="conv.avatarUrl"
-                      class="w-12 h-12 rounded-full object-cover"
+                      class="w-6 h-6 rounded-full object-cover"
                     />
-                    <Users v-else class="w-5 h-5 text-indigo-500" />
+                    <Users v-else class="w-3 h-3 text-indigo-500" />
                   </div>
                 </template>
                 <template v-else>
                   <UserAvatar
                     :user="getOtherParticipant(conv)"
-                    size="md"
-                    class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                    size="sm"
+                    class="cursor-pointer hover:ring-2 hover:ring-accent transition-all animate-none"
                     @click.stop="openUserProfile(getOtherParticipant(conv)?.id)"
                   />
                   <div
                     v-if="authStore.isUserOnline(getOtherParticipant(conv)?.id)"
-                    class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 rounded-full z-40"
+                    class="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 border rounded-full z-40"
                     style="border-color: var(--bg-card)"
                   ></div>
                 </template>
               </div>
 
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center justify-between mb-0.5">
                   <span
-                    class="text-sm font-bold truncate pr-2 flex items-center gap-1.5"
+                    class="text-[11px] sm:text-xs font-bold truncate pr-2 flex items-center gap-1"
                     style="color: var(--text-primary)"
                   >
-                    <Hash v-if="conv.isGroup" class="w-3 h-3 text-indigo-400 shrink-0" />
+                    <Hash v-if="conv.isGroup" class="w-2.5 h-2.5 text-indigo-400 shrink-0" />
                     {{ getConversationName(conv) }}
                   </span>
-                  <span class="text-[9px] font-medium shrink-0" style="color: var(--text-muted)">
+                  <span class="text-[8px] font-medium shrink-0" style="color: var(--text-muted)">
                     {{
                       new Date(conv.updatedAt).toLocaleTimeString([], {
                         hour: '2-digit',
@@ -1125,12 +1125,12 @@ watch(
                   </span>
                 </div>
                 <div class="flex items-center justify-between">
-                  <p class="text-xs truncate pr-4" style="color: var(--text-secondary)">
+                  <p class="text-[10px] sm:text-[11px] truncate pr-4" style="color: var(--text-secondary)">
                     {{ getLastMessagePreview(conv) }}
                   </p>
                   <div
                     v-if="conv.unreadCount > 0"
-                    class="shrink-0 min-w-[16px] h-4 bg-accent text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+                    class="shrink-0 min-w-[12px] h-3 bg-accent text-white text-[7px] font-bold rounded-full flex items-center justify-center px-0.5"
                   >
                     {{ conv.unreadCount }}
                   </div>
@@ -1140,11 +1140,11 @@ watch(
 
             <!-- Hover Delete Button (for Desktop) -->
             <button
-              class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden"
               title="删除会话"
               @click.stop="deleteConversation(conv)"
             >
-              <Trash2 class="w-4 h-4" />
+              <Trash2 class="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -1180,59 +1180,58 @@ watch(
       <template v-if="activeConversation">
         <!-- Chat Header -->
         <div
-          class="h-16 border-b px-4 md:px-6 flex items-center justify-between shrink-0"
+          class="h-13 border-b px-4 flex items-center justify-between shrink-0"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <div class="flex items-center gap-2 md:gap-3">
+          <div class="flex items-center gap-2 md:gap-2.5">
             <!-- Mobile Back Button -->
             <button
-              class="lg:hidden p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500"
+              class="lg:hidden p-1.5 -ml-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-all text-slate-500 cursor-pointer"
               @click="activeConversation = null"
             >
-              <ChevronLeft class="w-6 h-6" />
+              <ChevronLeft class="w-5 h-5" />
             </button>
 
             <template v-if="activeConversation.isGroup">
               <div
-                class="w-10 h-10 rounded-full flex items-center justify-center"
-                :class="activeConversation.avatarUrl ? '' : 'bg-indigo-500/10'"
+                class="w-6 h-6 rounded-full flex items-center justify-center bg-indigo-500/10 shrink-0"
               >
                 <img
                   v-if="activeConversation.avatarUrl"
                   :src="activeConversation.avatarUrl"
-                  class="w-10 h-10 rounded-full object-cover"
+                  class="w-6 h-6 rounded-full object-cover"
                 />
-                <Users v-else class="w-5 h-5 text-indigo-500" />
+                <Users v-else class="w-3.5 h-3.5 text-indigo-500" />
               </div>
             </template>
             <template v-else>
               <UserAvatar
                 :user="getOtherParticipant(activeConversation)"
-                size="md"
+                size="sm"
                 class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
                 @click="openUserProfile(getOtherParticipant(activeConversation)?.id)"
               />
             </template>
             <div>
               <p
-                class="text-sm font-bold flex items-center gap-1.5"
+                class="text-xs font-bold flex items-center gap-1"
                 style="color: var(--text-primary)"
               >
-                <Hash v-if="activeConversation.isGroup" class="w-3.5 h-3.5 text-indigo-400" />
+                <Hash v-if="activeConversation.isGroup" class="w-3 h-3 text-indigo-400" />
                 {{ getConversationName(activeConversation) }}
                 <span
                   v-if="activeConversation.isGroup"
-                  class="text-[10px] font-medium text-slate-400 ml-1"
+                  class="text-[9px] font-medium text-slate-400 ml-1"
                   >{{ activeConversation.participants?.length || 0
                   }}{{ t('messages.groupParticipants') }}</span
                 >
               </p>
-              <p v-if="isOtherTyping" class="text-[10px] text-accent font-bold animate-pulse">
+              <p v-if="isOtherTyping" class="text-[9px] text-accent font-bold animate-pulse">
                 {{ t('messages.typing') }}
               </p>
               <p
                 v-else-if="!activeConversation.isGroup"
-                class="text-[10px] font-bold flex items-center gap-1"
+                class="text-[9px] font-bold flex items-center gap-1"
                 :class="
                   authStore.isUserOnline(getOtherParticipant(activeConversation)?.id)
                     ? 'text-emerald-500'
@@ -1240,7 +1239,7 @@ watch(
                 "
               >
                 <span
-                  class="w-1.5 h-1.5 rounded-full"
+                  class="w-1 h-1 rounded-full"
                   :class="
                     authStore.isUserOnline(getOtherParticipant(activeConversation)?.id)
                       ? 'bg-emerald-500'
@@ -1315,7 +1314,7 @@ watch(
         <!-- Messages Area -->
         <div
           ref="messagesContainer"
-          class="flex-1 overflow-y-auto p-6 space-y-1 scrollbar-hide"
+          class="flex-1 overflow-y-auto p-3.5 sm:p-4.5 space-y-1 scrollbar-hide"
           @scroll="handleScroll"
         >
           <!-- Load older messages button -->
@@ -1337,10 +1336,10 @@ watch(
             <!-- Date Separator -->
             <div
               v-if="shouldShowDateSeparator(msg, filteredMessages[index - 1])"
-              class="flex items-center justify-center my-6"
+              class="flex items-center justify-center my-3 sm:my-4"
             >
               <div
-                class="px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                class="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider"
                 style="
                   background-color: var(--bg-card);
                   color: var(--text-muted);
@@ -1352,9 +1351,9 @@ watch(
             </div>
 
             <!-- System Message -->
-            <div v-if="msg.type === 'SYSTEM'" class="flex items-center justify-center my-3">
+            <div v-if="msg.type === 'SYSTEM'" class="flex items-center justify-center my-2">
               <div
-                class="px-4 py-1.5 rounded-full text-[10px] font-medium"
+                class="px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-medium"
                 style="background-color: var(--bg-card); color: var(--text-muted)"
               >
                 {{ msg.content }}
@@ -1368,24 +1367,24 @@ watch(
               :class="msg.senderId === authStore.user?.id ? 'justify-end' : 'justify-start'"
             >
               <div
-                class="flex gap-3 max-w-[85%] md:max-w-[70%]"
+                class="flex gap-2 max-w-[85%] md:max-w-[70%]"
                 :class="msg.senderId === authStore.user?.id ? 'flex-row-reverse' : ''"
               >
                 <!-- Avatar -->
                 <div
                   v-if="shouldShowSenderAvatar(msg, filteredMessages[index - 1])"
-                  class="shrink-0 mb-1"
+                  class="shrink-0 mb-0.5"
                 >
                   <UserAvatar
                     v-if="msg.senderId !== authStore.user?.id"
                     :user="msg.sender"
-                    size="md"
+                    size="sm"
                     class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
                     @click="openUserProfile(msg.senderId)"
                   />
-                  <UserAvatar v-else :user="authStore.user" size="md" />
+                  <UserAvatar v-else :user="authStore.user" size="sm" />
                 </div>
-                <div v-else class="w-10 shrink-0"></div>
+                <div v-else class="w-6 shrink-0"></div>
 
                 <div
                   class="flex flex-col relative"
@@ -1398,7 +1397,7 @@ watch(
                       msg.senderId !== authStore.user?.id &&
                       shouldShowSenderAvatar(msg, filteredMessages[index - 1])
                     "
-                    class="text-[10px] font-bold mb-1 px-1"
+                    class="text-[9px] font-bold mb-0.5 px-1"
                     style="color: var(--text-muted)"
                   >
                     {{ msg.sender?.name || '未知' }}
@@ -1407,7 +1406,7 @@ watch(
                   <!-- Reply Preview -->
                   <div
                     v-if="msg.replyTo"
-                    class="mb-1 px-3 py-1.5 rounded-xl text-[10px] max-w-full border-l-2 border-accent"
+                    class="mb-0.5 px-2 py-1 rounded-lg text-[9px] max-w-full border-l-2 border-accent"
                     style="background-color: var(--bg-card); color: var(--text-secondary)"
                   >
                     <span class="font-bold text-accent">{{
@@ -1424,7 +1423,7 @@ watch(
 
                   <!-- Message Content -->
                   <div
-                    class="px-4 py-2.5 rounded-2xl text-sm shadow-sm relative"
+                    class="px-3 py-1.5 rounded-xl text-xs sm:text-sm shadow-sm relative animate-none"
                     :class="
                       msg.senderId === authStore.user?.id
                         ? 'bg-accent text-white rounded-br-none'
@@ -1445,9 +1444,9 @@ watch(
                       />
                     </template>
                     <template v-else-if="msg.type === 'VOICE'">
-                      <div class="flex items-center gap-3 py-1 min-w-[140px]">
+                      <div class="flex items-center gap-2 py-0.5 min-w-[120px]">
                         <button 
-                          class="w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 shadow-sm"
+                          class="w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 shadow-sm"
                           :class="[
                             msg.senderId === authStore.user?.id 
                               ? 'bg-white/20 hover:bg-white/30 text-white' 
@@ -1455,10 +1454,10 @@ watch(
                           ]"
                           @click.stop="playVoiceMessage(msg.id, msg.content)"
                         >
-                          <component :is="currentlyPlaying === msg.id ? Pause : Play" class="w-4 h-4" :class="currentlyPlaying === msg.id ? '' : 'ml-0.5'" />
+                          <component :is="currentlyPlaying === msg.id ? Pause : Play" class="w-3.5 h-3.5" :class="currentlyPlaying === msg.id ? '' : 'ml-0.5'" />
                           <audio :id="`audio-${msg.id}`" :src="api.defaults.baseURL + msg.content" class="hidden"></audio>
                         </button>
-                        <div class="flex-1 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div class="flex-1 h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
                           <div 
                             class="h-full transition-all duration-300"
                             :class="msg.senderId === authStore.user?.id ? 'bg-white/60' : 'bg-accent'"
@@ -1466,7 +1465,7 @@ watch(
                           ></div>
                         </div>
                         <span 
-                          class="text-[10px] font-black uppercase tracking-widest opacity-70"
+                          class="text-[9px] font-black uppercase tracking-widest opacity-70"
                           :class="msg.senderId === authStore.user?.id ? 'text-white' : 'text-accent'"
                         >
                           {{ currentlyPlaying === msg.id ? '播放中' : '语音' }}
@@ -1475,21 +1474,21 @@ watch(
                     </template>
                     <template v-else-if="msg.type === 'FILE'">
                       <div
-                        class="flex items-center gap-3 p-2 bg-black/5 dark:bg-white/5 rounded-xl border border-white/10"
+                        class="flex items-center gap-2 p-1.5 bg-black/5 dark:bg-white/5 rounded-lg border border-white/10"
                       >
                         <div
-                          class="w-10 h-10 bg-accent/20 rounded-lg flex items-center justify-center text-accent"
+                          class="w-8 h-8 bg-accent/20 rounded-md flex items-center justify-center text-accent shrink-0"
                         >
-                          <Paperclip class="w-5 h-5" />
+                          <Paperclip class="w-4 h-4" />
                         </div>
                         <div class="flex-1 min-w-0 pr-4">
-                          <p class="text-xs font-bold truncate">
+                          <p class="text-[11px] font-bold truncate">
                             {{ msg.content.split('/').pop() }}
                           </p>
                           <a
                             :href="api.defaults.baseURL + msg.content"
                             target="_blank"
-                            class="text-[10px] text-accent hover:underline font-bold"
+                            class="text-[9px] text-accent hover:underline font-bold"
                             >点击下载</a
                           >
                         </div>
@@ -1501,13 +1500,13 @@ watch(
                       <!-- Translation Display -->
                       <div
                         v-if="translations[msg.id]"
-                        class="mt-2 pt-2 border-t border-white/20 dark:border-slate-800 flex flex-col gap-1"
+                        class="mt-1.5 pt-1.5 border-t border-white/20 dark:border-slate-800 flex flex-col gap-0.5"
                       >
-                        <div class="flex items-center gap-1.5 text-[9px] font-bold opacity-60">
-                          <Languages class="w-3 h-3" />
+                        <div class="flex items-center gap-1 text-[8px] font-bold opacity-60">
+                          <Languages class="w-2.5 h-2.5" />
                           {{ t('messages.translate') }}
                         </div>
-                        <p class="text-xs italic opacity-90">{{ translations[msg.id] }}</p>
+                        <p class="text-[11px] italic opacity-90">{{ translations[msg.id] }}</p>
                       </div>
                     </template>
                   </div>
@@ -1641,15 +1640,15 @@ watch(
         <!-- Reply Bar -->
         <div
           v-if="replyToMessage"
-          class="px-6 py-2 border-t flex items-center gap-3"
+          class="px-4 py-1.5 border-t flex items-center gap-2.5"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <Reply class="w-4 h-4 text-accent shrink-0" />
+          <Reply class="w-3.5 h-3.5 text-accent shrink-0" />
           <div class="flex-1 min-w-0">
-            <p class="text-[10px] font-bold text-accent">
+            <p class="text-[9px] font-bold text-accent">
               {{ replyToMessage.sender?.name || '未知' }}
             </p>
-            <p class="text-xs truncate" style="color: var(--text-secondary)">
+            <p class="text-[11px] truncate" style="color: var(--text-secondary)">
               {{
                 replyToMessage.type === 'IMAGE'
                   ? '[图片]'
@@ -1660,28 +1659,28 @@ watch(
             </p>
           </div>
           <button
-            class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
+            class="p-0.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all"
             @click="cancelReply"
           >
-            <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+            <X class="w-3 h-3" style="color: var(--text-muted)" />
           </button>
         </div>
 
         <!-- Input Area -->
         <div
-          class="p-3 md:p-6 border-t relative"
+          class="p-2.5 sm:p-3 border-t relative"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
           <!-- Emoji Picker -->
           <div
             v-if="showEmojiPicker"
-            class="absolute bottom-full mb-2 left-2 right-2 md:left-6 md:right-auto p-3 rounded-2xl shadow-2xl border z-50 grid grid-cols-8 md:grid-cols-4 gap-1.5 md:gap-2 max-w-[calc(100%-1rem)] md:w-80"
+            class="absolute bottom-full mb-2 left-2 right-2 md:left-3 md:right-auto p-2 rounded-xl shadow-xl border z-50 grid grid-cols-8 md:grid-cols-4 gap-1 sm:gap-1.5 max-w-[calc(100%-1rem)] md:w-72"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <button
               v-for="emoji in commonEmojis"
               :key="emoji"
-              class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-lg md:text-xl hover:bg-accent-subtle rounded-lg md:rounded-xl transition-all"
+              class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-base sm:text-lg hover:bg-accent-subtle rounded-md sm:rounded-lg transition-all"
               @click="addEmoji(emoji)"
             >
               {{ emoji }}
@@ -1689,32 +1688,32 @@ watch(
           </div>
 
           <div
-            class="flex items-end gap-1.5 md:gap-3 p-1.5 md:p-2 rounded-2xl focus-within:ring-4 focus-within:ring-accent/20 transition-all border"
-            :class="isDragOver ? 'border-accent ring-4 ring-accent/20' : ''"
+            class="flex items-end gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-xl focus-within:ring-2 focus-within:ring-accent/20 transition-all border"
+            :class="isDragOver ? 'border-accent ring-2 ring-accent/20' : ''"
             style="background-color: var(--bg-app); border-color: var(--border-base)"
           >
-            <div class="flex items-center gap-0.5 md:gap-1 shrink-0">
+            <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
               <button
-                class="p-1 md:p-2 hover:text-accent transition-colors"
+                class="p-1 hover:text-accent transition-colors"
                 :class="showEmojiPicker ? 'text-accent' : ''"
                 style="color: var(--text-muted)"
                 @click="showEmojiPicker = !showEmojiPicker"
               >
-                <Smile class="w-4 h-4 md:w-5 md:h-5" />
+                <Smile class="w-4 h-4" />
               </button>
               <button
-                class="p-1 md:p-2 hover:text-accent transition-colors"
+                class="p-1 hover:text-accent transition-colors"
                 style="color: var(--text-muted)"
                 @click="triggerFileUpload"
               >
-                <Paperclip class="w-4 h-4 md:w-5 md:h-5" />
+                <Paperclip class="w-4 h-4" />
               </button>
               <button
-                class="p-1 md:p-2 hover:text-accent transition-colors"
+                class="p-1 hover:text-accent transition-colors"
                 :class="isRecording ? 'text-rose-500 animate-pulse' : 'text-slate-400'"
                 @click="isRecording ? stopRecording() : startRecording()"
               >
-                <Mic class="w-4 h-4 md:w-5 md:h-5" />
+                <Mic class="w-4 h-4" />
               </button>
               <span v-if="isRecording" class="text-[9px] font-black text-rose-500 animate-pulse ml-0.5">{{ formatDuration(recordingDuration) }}</span>
             </div>
@@ -1725,7 +1724,7 @@ watch(
               v-model="newMessage"
               :placeholder="t('sidebar.messages') + '...'"
               rows="1"
-              class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 resize-none max-h-32 scrollbar-hide"
+              class="flex-1 bg-transparent border-none focus:ring-0 text-xs sm:text-sm py-1.5 resize-none max-h-32 scrollbar-hide focus:outline-none"
               style="color: var(--text-primary)"
               @input="handleTyping"
               @keydown.enter.prevent="handleSendMessage('TEXT')"
@@ -1733,14 +1732,14 @@ watch(
 
             <button
               :disabled="!newMessage.trim() || isUploading"
-              class="p-2.5 bg-accent text-white rounded-xl hover:bg-accent transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center min-w-[40px]"
+              class="p-2 bg-accent text-white rounded-lg hover:bg-accent transition-all shadow-md shadow-accent/20 disabled:opacity-50 flex items-center justify-center min-w-[32px] h-8 w-8 shrink-0"
               @click="handleSendMessage('TEXT')"
             >
               <div
                 v-if="isUploading"
                 class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
               ></div>
-              <Send v-else class="w-4 h-4" />
+              <Send v-else class="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -1749,25 +1748,25 @@ watch(
       <!-- Empty State -->
       <div
         v-else
-        class="flex-1 flex flex-col items-center justify-center p-12 text-center"
+        class="flex-1 flex flex-col items-center justify-center p-6 text-center"
         style="background-color: var(--bg-app)"
       >
-        <div class="w-20 h-20 bg-accent/5 rounded-full flex items-center justify-center mb-6">
-          <MessageSquare class="w-10 h-10 text-accent opacity-20" />
+        <div class="w-16 h-16 bg-accent/5 rounded-full flex items-center justify-center mb-4 shrink-0">
+          <MessageSquare class="w-8 h-8 text-accent opacity-20" />
         </div>
-        <h2 class="text-xl font-bold mb-2" style="color: var(--text-primary)">开启新对话</h2>
-        <p class="text-sm max-w-xs mx-auto mb-8" style="color: var(--text-secondary)">
+        <h2 class="text-lg font-bold mb-1.5" style="color: var(--text-primary)">开启新对话</h2>
+        <p class="text-xs max-w-xs mx-auto mb-6" style="color: var(--text-secondary)">
           在左侧选择一个联系人开始聊天，或者点击加号查找新朋友。
         </p>
-        <div class="flex gap-3">
+        <div class="flex gap-2">
           <button
-            class="px-8 py-3 bg-accent text-white rounded-2xl font-bold shadow-lg shadow-accent/20 hover:scale-105 transition-all"
+            class="px-5 py-2 bg-accent text-white rounded-xl font-bold shadow-md shadow-accent/20 hover:scale-102 transition-all text-xs cursor-pointer"
             @click="isNewChatDialogOpen = true"
           >
             寻找联系人
           </button>
           <button
-            class="px-8 py-3 bg-indigo-500 text-white rounded-2xl font-bold shadow-lg shadow-indigo-500/20 hover:scale-105 transition-all"
+            class="px-5 py-2 bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 hover:scale-102 transition-all text-xs cursor-pointer"
             @click="isGroupChatDialogOpen = true"
           >
             创建群聊
@@ -1783,24 +1782,24 @@ watch(
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div
-        class="p-6 border-b flex items-center justify-between shrink-0"
+        class="p-3.5 sm:p-4 border-b flex items-center justify-between shrink-0"
         style="border-color: var(--border-base)"
       >
-        <h3 class="text-sm font-bold" style="color: var(--text-primary)">会话详情</h3>
+        <h3 class="text-xs font-bold" style="color: var(--text-primary)">会话详情</h3>
         <button
-          class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all"
+          class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded transition-all"
           @click="isInfoPanelOpen = false"
         >
-          <X class="w-4 h-4" style="color: var(--text-muted)" />
+          <X class="w-3.5 h-3.5" style="color: var(--text-muted)" />
         </button>
       </div>
 
       <!-- Tabs Header -->
-      <div class="flex p-1 gap-1 mx-4 mt-4 rounded-xl bg-[var(--bg-app)] shrink-0">
+      <div class="flex p-0.5 gap-0.5 mx-3 mt-3 rounded-lg bg-[var(--bg-app)] shrink-0">
         <button
           v-for="tab in ['info', 'photos', 'files']"
           :key="tab"
-          class="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider"
+          class="flex-1 py-1 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider"
           :class="infoTab === tab ? 'bg-[var(--bg-card)] shadow-sm' : 'text-[var(--text-muted)]'"
           :style="infoTab === tab ? 'color: var(--text-primary)' : ''"
           @click="infoTab = tab as any"
@@ -1815,44 +1814,44 @@ watch(
           <!-- Group Info -->
           <div
             v-if="activeConversation.isGroup"
-            class="p-6 text-center border-b"
+            class="p-4 text-center border-b"
             style="border-color: var(--border-base)"
           >
             <div
-              class="w-20 h-20 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+              class="w-14 h-14 rounded-xl mx-auto mb-2 flex items-center justify-center bg-[var(--bg-app)]"
               :class="activeConversation.avatarUrl ? '' : 'bg-indigo-500/10'"
             >
               <img
                 v-if="activeConversation.avatarUrl"
                 :src="activeConversation.avatarUrl"
-                class="w-20 h-20 rounded-2xl object-cover"
+                class="w-14 h-14 rounded-xl object-cover"
               />
-              <Users v-else class="w-8 h-8 text-indigo-500" />
+              <Users v-else class="w-6 h-6 text-indigo-500" />
             </div>
-            <h3 class="text-lg font-bold mb-1" style="color: var(--text-primary)">
+            <h3 class="text-sm sm:text-base font-bold mb-0.5" style="color: var(--text-primary)">
               {{ activeConversation.name || '未命名群聊' }}
             </h3>
-            <p class="text-xs" style="color: var(--text-muted)">
+            <p class="text-[11px]" style="color: var(--text-muted)">
               群聊 · {{ activeConversation.participants?.length || 0 }} 位成员
             </p>
           </div>
 
           <!-- 1:1 User Info -->
-          <div v-else class="p-6 text-center border-b" style="border-color: var(--border-base)">
+          <div v-else class="p-4 text-center border-b" style="border-color: var(--border-base)">
             <UserAvatar
               :user="getOtherParticipant(activeConversation)"
-              size="xl"
-              class="mx-auto mb-3"
+              size="lg"
+              class="mx-auto mb-2"
             />
             <h3
-              class="text-lg font-bold mb-1 cursor-pointer hover:text-accent transition-colors"
+              class="text-sm sm:text-base font-bold mb-0.5 cursor-pointer hover:text-accent transition-colors"
               style="color: var(--text-primary)"
               @click="openUserProfile(getOtherParticipant(activeConversation)?.id)"
             >
               {{ getOtherParticipant(activeConversation)?.name || '未知用户' }}
             </h3>
             <p
-              class="text-xs flex items-center justify-center gap-1"
+              class="text-[11px] flex items-center justify-center gap-1"
               :class="
                 authStore.isUserOnline(getOtherParticipant(activeConversation)?.id)
                   ? 'text-emerald-500'
@@ -1876,38 +1875,38 @@ watch(
           </div>
 
           <!-- Members List -->
-          <div class="p-6">
+          <div class="p-4">
             <h4
-              class="text-xs font-bold uppercase tracking-wider mb-3"
+              class="text-[10px] font-bold uppercase tracking-wider mb-2"
               style="color: var(--text-muted)"
             >
               {{ activeConversation.isGroup ? '群成员' : '共享群聊' }}
             </h4>
-            <div class="space-y-2">
+            <div class="space-y-1.5">
               <div
                 v-for="participant in activeConversation.participants"
                 :key="participant.id"
-                class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+                class="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
                 @click="participant.id !== authStore.user?.id && openUserProfile(participant.id)"
               >
                 <div class="relative shrink-0">
                   <UserAvatar :user="participant" size="sm" />
                   <div
                     v-if="authStore.isUserOnline(participant.id)"
-                    class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 rounded-full z-40"
+                    class="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 border rounded-full z-40"
                     style="border-color: var(--bg-card)"
                   ></div>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium truncate" style="color: var(--text-primary)">
+                  <p class="text-xs font-medium truncate" style="color: var(--text-primary)">
                     {{ participant.name || '未命名用户' }}
                     <span
                       v-if="participant.id === authStore.user?.id"
-                      class="text-[10px] text-slate-400 ml-1"
+                      class="text-[9px] text-slate-400 ml-1"
                       >(你)</span
                     >
                   </p>
-                  <p class="text-[10px] truncate" style="color: var(--text-muted)">
+                  <p class="text-[9px] truncate" style="color: var(--text-muted)">
                     {{ participant.email }}
                   </p>
                 </div>
@@ -1915,12 +1914,12 @@ watch(
             </div>
 
             <!-- Group Actions -->
-            <div v-if="activeConversation.isGroup" class="mt-6 space-y-2">
+            <div v-if="activeConversation.isGroup" class="mt-4 space-y-1.5">
               <button
-                class="w-full py-3 px-4 flex items-center gap-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all text-sm font-medium"
+                class="w-full py-2 px-3 flex items-center gap-2.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all text-xs font-medium"
                 @click="leaveGroupChat"
               >
-                <LogOut class="w-4 h-4" />
+                <LogOut class="w-3.5 h-3.5" />
                 退出群聊
               </button>
             </div>
@@ -1928,12 +1927,12 @@ watch(
         </div>
 
         <!-- Photos Tab -->
-        <div v-else-if="infoTab === 'photos'" class="p-4">
-          <div v-if="sharedPhotos.length === 0" class="py-20 text-center opacity-40">
-            <ImageIcon class="w-10 h-10 mx-auto mb-2" />
+        <div v-else-if="infoTab === 'photos'" class="p-3">
+          <div v-if="sharedPhotos.length === 0" class="py-16 text-center opacity-40">
+            <ImageIcon class="w-8 h-8 mx-auto mb-1.5" />
             <p class="text-xs">暂无共享照片</p>
           </div>
-          <div v-else class="grid grid-cols-3 gap-2">
+          <div v-else class="grid grid-cols-3 gap-1.5">
             <div
               v-for="photo in sharedPhotos"
               :key="photo.id"
@@ -1946,36 +1945,36 @@ watch(
         </div>
 
         <!-- Files Tab -->
-        <div v-else-if="infoTab === 'files'" class="p-4">
-          <div v-if="sharedFiles.length === 0" class="py-20 text-center opacity-40">
-            <Paperclip class="w-10 h-10 mx-auto mb-2" />
+        <div v-else-if="infoTab === 'files'" class="p-3">
+          <div v-if="sharedFiles.length === 0" class="py-16 text-center opacity-40">
+            <Paperclip class="w-8 h-8 mx-auto mb-1.5" />
             <p class="text-xs">暂无共享文件</p>
           </div>
-          <div v-else class="space-y-2">
+          <div v-else class="space-y-1.5">
             <div
               v-for="file in sharedFiles"
               :key="file.id"
-              class="p-3 rounded-2xl border border-[var(--border-base)] bg-[var(--bg-app)] flex items-center gap-3 group"
+              class="p-2 rounded-xl border border-[var(--border-base)] bg-[var(--bg-app)] flex items-center gap-2 group"
             >
               <div
-                class="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent"
+                class="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center text-accent shrink-0"
               >
-                <Paperclip class="w-5 h-5" />
+                <Paperclip class="w-4 h-4" />
               </div>
               <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
+                <p class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
                   {{ file.name }}
                 </p>
-                <p class="text-[10px]" style="color: var(--text-muted)">
+                <p class="text-[9px]" style="color: var(--text-muted)">
                   {{ formatDateSeparator(file.createdAt) }}
                 </p>
               </div>
               <a
                 :href="api.defaults.baseURL + file.url"
                 target="_blank"
-                class="p-2 opacity-0 group-hover:opacity-100 transition-all hover:text-accent"
+                class="p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:text-accent"
               >
-                <Download class="w-4 h-4" />
+                <Download class="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
@@ -2068,55 +2067,55 @@ watch(
     <el-dialog
       v-model="isNewChatDialogOpen"
       :title="t('messages.startNewChat') || '发起新聊天'"
-      width="min(440px, 95%)"
+      width="min(400px, 95%)"
       class="custom-dialog"
       :show-close="true"
       destroy-on-close
     >
-      <div class="space-y-6">
+      <div class="space-y-4">
         <div class="relative">
-          <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             v-model="userSearchQuery"
             type="text"
             placeholder="搜索用户姓名或邮箱..."
-            class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+            class="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
             style="color: var(--text-primary)"
           />
         </div>
 
-        <div class="max-h-80 overflow-y-auto scrollbar-hide space-y-2">
-          <div v-if="isLoadingUsers" class="py-10 text-center">
+        <div class="max-h-64 overflow-y-auto scrollbar-hide space-y-1">
+          <div v-if="isLoadingUsers" class="py-6 text-center">
             <div
-              class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2"
+              class="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-1"
             ></div>
           </div>
 
           <div
             v-for="user in filteredPublicUsers"
             :key="user.id"
-            class="p-3 flex items-center gap-3 rounded-2xl hover:bg-accent/10 cursor-pointer transition-all group"
+            class="p-2 flex items-center gap-2.5 rounded-xl hover:bg-accent/10 cursor-pointer transition-all group"
             @click.stop="startNewChat(user)"
           >
-            <UserAvatar :user="user" size="md" />
+            <UserAvatar :user="user" size="sm" />
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-bold truncate" style="color: var(--text-primary)">
+              <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
                 {{ user.name || '未命名用户' }}
               </p>
-              <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
+              <p class="text-[9px] text-slate-400 truncate">{{ user.email }}</p>
             </div>
             <div
-              class="w-8 h-8 rounded-full bg-accent/5 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all"
+              class="w-7 h-7 rounded-lg bg-accent/5 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all shrink-0"
             >
-              <Plus class="w-4 h-4" />
+              <Plus class="w-3.5 h-3.5" />
             </div>
           </div>
 
           <div
             v-if="filteredPublicUsers.length === 0 && !isLoadingUsers"
-            class="py-10 text-center text-slate-400"
+            class="py-6 text-center text-slate-400"
           >
-            <UserIcon class="w-8 h-8 mx-auto mb-2 opacity-10" />
+            <UserIcon class="w-6 h-6 mx-auto mb-1.5 opacity-10" />
             <p class="text-xs">未找到匹配的用户</p>
           </div>
         </div>
@@ -2127,15 +2126,15 @@ watch(
     <el-dialog
       v-model="isGroupChatDialogOpen"
       title="创建群聊"
-      width="min(480px, 95%)"
+      width="min(440px, 95%)"
       class="custom-dialog"
       :show-close="true"
       destroy-on-close
     >
-      <div class="space-y-4 md:space-y-5">
+      <div class="space-y-3.5">
         <div>
           <label
-            class="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2 block"
+            class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block"
             style="color: var(--text-muted)"
             >群聊名称</label
           >
@@ -2143,7 +2142,7 @@ watch(
             v-model="groupChatName"
             type="text"
             placeholder="输入群聊名称..."
-            class="w-full px-4 py-2.5 md:py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl md:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            class="w-full px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
             style="color: var(--text-primary)"
           />
         </div>
@@ -2151,15 +2150,15 @@ watch(
         <!-- Selected Members -->
         <div v-if="groupChatParticipants.length > 0">
           <label
-            class="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2 block"
+            class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block"
             style="color: var(--text-muted)"
             >已选择 ({{ groupChatParticipants.length }})</label
           >
-          <div class="flex flex-wrap gap-1.5 md:gap-2 max-h-24 overflow-y-auto scrollbar-hide py-1">
+          <div class="flex flex-wrap gap-1 max-h-20 overflow-y-auto scrollbar-hide py-0.5">
             <div
               v-for="user in groupChatParticipants"
               :key="user.id"
-              class="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-xs font-medium"
+              class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium"
               style="
                 background-color: var(--bg-app);
                 color: var(--text-primary);
@@ -2167,12 +2166,12 @@ watch(
               "
             >
               <UserAvatar :user="user" size="xs" />
-              <span class="max-w-[80px] md:max-w-[120px] truncate">{{ user.name || user.email }}</span>
+              <span class="max-w-[80px] md:max-w-[120px] truncate text-[11px]">{{ user.name || user.email }}</span>
               <button
                 class="hover:text-rose-500 transition-colors"
                 @click="removeGroupParticipant(user.id)"
               >
-                <X class="w-3 h-3" />
+                <X class="w-2.5 h-2.5" />
               </button>
             </div>
           </div>
@@ -2180,45 +2179,45 @@ watch(
 
         <div>
           <label
-            class="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-2 block"
+            class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block"
             style="color: var(--text-muted)"
             >添加成员</label
           >
-          <div class="relative mb-3">
-            <Search class="w-3.5 h-3.5 md:w-4 md:h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div class="relative mb-2">
+            <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               v-model="groupChatSearchQuery"
               type="text"
               placeholder="搜索用户..."
-              class="w-full pl-10 pr-4 py-2.5 md:py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl md:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              class="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
               style="color: var(--text-primary)"
             />
           </div>
 
-          <div class="max-h-48 md:max-h-60 overflow-y-auto scrollbar-hide space-y-1.5 md:space-y-2">
-            <div v-if="isLoadingUsers" class="py-10 text-center">
+          <div class="max-h-40 overflow-y-auto scrollbar-hide space-y-1">
+            <div v-if="isLoadingUsers" class="py-6 text-center">
               <div
-                class="w-5 h-5 md:w-6 md:h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"
+                class="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-1"
               ></div>
             </div>
 
             <div
               v-for="user in filteredGroupUsers"
               :key="user.id"
-              class="p-2.5 md:p-3 flex items-center gap-3 rounded-xl md:rounded-2xl hover:bg-indigo-500/10 cursor-pointer transition-all group"
+              class="p-2 flex items-center gap-2.5 rounded-lg hover:bg-indigo-500/10 cursor-pointer transition-all group"
               @click="addGroupParticipant(user)"
             >
-              <UserAvatar :user="user" size="md" />
+              <UserAvatar :user="user" size="sm" />
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold truncate" style="color: var(--text-primary)">
+                <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
                   {{ user.name || '未命名用户' }}
                 </p>
-                <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
+                <p class="text-[9px] text-slate-400 truncate">{{ user.email }}</p>
               </div>
               <div
-                class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-indigo-500/5 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-all"
+                class="w-7 h-7 rounded-lg bg-indigo-500/5 flex items-center justify-center text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-all shrink-0"
               >
-                <Plus class="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <Plus class="w-3.5 h-3.5" />
               </div>
             </div>
           </div>
@@ -2226,10 +2225,10 @@ watch(
 
         <button
           :disabled="!groupChatName.trim() || groupChatParticipants.length === 0"
-          class="w-full py-3 md:py-3.5 bg-indigo-500 text-white rounded-xl md:rounded-2xl font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm md:text-base"
+          class="w-full py-2.5 bg-indigo-500 text-white rounded-lg font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-xs hover:scale-102"
           @click="createGroupChat"
         >
-          <Users class="w-3.5 h-3.5 md:w-4 md:h-4" />
+          <Users class="w-3.5 h-3.5" />
           创建群聊
         </button>
       </div>
@@ -2260,30 +2259,30 @@ watch(
 
 <style>
 .custom-dialog {
-  border-radius: 2rem !important;
+  border-radius: 1.25rem !important;
   overflow: hidden;
   background-color: var(--bg-card) !important;
   border: 1px solid var(--border-base) !important;
 }
 .custom-dialog .el-dialog__header {
   margin-right: 0;
-  padding: 1.5rem 2rem 0;
+  padding: 1.25rem 1.5rem 0;
 }
 .custom-dialog .el-dialog__title {
   font-weight: 800;
   color: var(--text-primary);
-  font-size: 1.25rem;
+  font-size: 1.1rem;
 }
 .custom-dialog .el-dialog__body {
-  padding: 1.5rem 2rem 2rem;
+  padding: 1rem 1.5rem 1.5rem;
 }
 .custom-dialog .el-dialog__headerbtn {
-  top: 1.5rem;
+  top: 1.25rem;
   right: 1.5rem;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2rem;
+  height: 2rem;
   background-color: var(--bg-app);
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   transition: all 0.3s;
 }
 .custom-dialog .el-dialog__headerbtn:hover {

@@ -52,7 +52,7 @@ export default {
     assets: '资源库',
     myWorks: '我的作品',
     work: '任务看板',
-    teamTasks: '团队任务',
+    teamTasks: '项目管理',
     discussions: '讨论区',
     roadmaps: '学习路线',
     academy: '学院',
@@ -62,7 +62,7 @@ export default {
     messages: '消息',
     showcase: '作品展示',
     settings: '设置',
-    dashboard: '仪表盘',
+    dashboard: '工作台概览',
     notes: '我的笔记',
   },
   messages: {

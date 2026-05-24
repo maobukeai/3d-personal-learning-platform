@@ -140,7 +140,7 @@ const frameConfig = computed(() => {
 });
 
 const showBadge = computed(
-  () => frameConfig.value.badgeText !== '' || frameConfig.value.badgeIcon !== '',
+  () => props.size !== 'xs' && props.size !== 'sm' && (frameConfig.value.badgeText !== '' || frameConfig.value.badgeIcon !== ''),
 );
 const size = computed(() => sizeConfig[props.size as keyof typeof sizeConfig] || sizeConfig.md);
 

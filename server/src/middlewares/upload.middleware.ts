@@ -10,7 +10,11 @@ const storage = multer.diskStorage({
 
     if (file.fieldname === 'cover') {
       dir = './uploads/covers';
-    } else if (file.fieldname === 'attachment' || file.fieldname === 'file') {
+    } else if (
+      file.fieldname === 'attachment' ||
+      file.fieldname === 'file' ||
+      file.fieldname === 'files'
+    ) {
       dir = './uploads/feedback';
     } else if (file.fieldname === 'message_file') {
       dir = './uploads/messages';
@@ -31,6 +35,8 @@ const storage = multer.diskStorage({
       dir = './uploads/discussions';
     } else if (file.fieldname === 'manual_image') {
       dir = './uploads/manual';
+    } else if (file.fieldname === 'mirror_image') {
+      dir = './uploads/mirror';
     }
 
     if (!fs.existsSync(dir)) {
@@ -77,9 +83,10 @@ const createUploadMiddleware = (config: {
         config.fieldname === 'avatar' ||
         config.fieldname === 'cover' ||
         config.fieldname === 'manual_image' ||
+        config.fieldname === 'mirror_image' ||
         (config.fields &&
           config.fields.some((f) =>
-            ['logo', 'favicon', 'avatar', 'cover', 'manual_image'].includes(f.name),
+            ['logo', 'favicon', 'avatar', 'cover', 'manual_image', 'mirror_image'].includes(f.name),
           ));
 
       if (isSystemImage) {
@@ -90,7 +97,7 @@ const createUploadMiddleware = (config: {
         storage: storage,
         limits: {
           fileSize: maxFileSize,
-          files: 10,
+          files: 100,
         },
       });
 
@@ -107,10 +114,13 @@ const createUploadMiddleware = (config: {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             const displayLimit = isSystemImage ? '5' : settings.MAX_FILE_SIZE || '100';
+            console.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit}MB)`);
             return res.status(400).json({ error: `文件大小超过限制 (${displayLimit}MB)` });
           }
+          console.error(`[UploadError] MulterError: ${err.message}`);
           return res.status(400).json({ error: err.message });
         } else if (err) {
+          console.error(`[UploadError] Unknown error: ${err.message}`);
           return res.status(400).json({ error: err.message });
         }
 
@@ -137,10 +147,15 @@ const createUploadMiddleware = (config: {
                 file.fieldname === 'favicon' ||
                 file.fieldname === 'avatar' ||
                 file.fieldname === 'cover' ||
-                file.fieldname === 'manual_image'
+                file.fieldname === 'manual_image' ||
+                file.fieldname === 'mirror_image'
               ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
-              } else if (file.fieldname === 'file' || file.fieldname === 'excel') {
+              } else if (
+                file.fieldname === 'file' ||
+                file.fieldname === 'excel' ||
+                file.fieldname === 'files'
+              ) {
                 finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls'];
               } else if (file.fieldname === 'message_file') {
                 finalAllowedExtensions = [
@@ -175,6 +190,9 @@ const createUploadMiddleware = (config: {
               }
 
               if (!finalAllowedExtensions.includes(ext)) {
+                console.error(
+                  `[UploadError] Extension not allowed: ${ext} for field ${file.fieldname}. Allowed: ${finalAllowedExtensions.join(', ')}`,
+                );
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 return res.status(400).json({ error: `不支持的文件类型: ${ext}` });
               }
@@ -187,6 +205,9 @@ const createUploadMiddleware = (config: {
                   file.fieldname === 'cover'
                     ? '5'
                     : settings.MAX_FILE_SIZE;
+                console.error(
+                  `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}MB`,
+                );
                 return res.status(400).json({
                   error: `文件 ${file.originalname} 超过大小限制 (${displayLimit}MB)`,
                 });
@@ -222,6 +243,59 @@ const model3dExtensions = [
   '.abc',
 ];
 const documentExtensions = ['.pdf', '.zip', '.rar', '.7z'];
+const imageUploadFields = new Set([
+  'avatar',
+  'cover',
+  'thumbnail',
+  'images',
+  'manual_image',
+  'mirror_image',
+]);
+
+const detectImageMime = (buffer: Buffer): string | null => {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return 'image/png';
+  }
+  if (
+    buffer.subarray(0, 6).toString('ascii') === 'GIF87a' ||
+    buffer.subarray(0, 6).toString('ascii') === 'GIF89a'
+  ) {
+    return 'image/gif';
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  if (buffer.subarray(0, 2).toString('ascii') === 'BM') {
+    return 'image/bmp';
+  }
+  return null;
+};
+
+const looksLikeExecutableContent = (buffer: Buffer): boolean => {
+  const text = buffer.subarray(0, 4096).toString('utf8').toLowerCase();
+  return (
+    text.includes('<script') ||
+    text.includes('<!doctype html') ||
+    text.includes('<html') ||
+    text.includes('<?php') ||
+    text.startsWith('#!/bin/sh') ||
+    text.startsWith('#!/usr/bin/env') ||
+    text.startsWith('@echo off')
+  );
+};
 
 export const validateFileContent = async (req: Request, res: Response, next: NextFunction) => {
   const files = req.file
@@ -232,8 +306,6 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
   if (files.length === 0) return next();
 
   try {
-    const FileType = await import('file-type');
-
     for (const file of files) {
       const ext = path.extname(file.originalname).toLowerCase();
 
@@ -265,38 +337,16 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
 
       const buffer = await fs.promises.readFile(file.path);
       if (buffer.length > 0) {
-        const result = await FileType.fromBuffer(buffer);
+        const imageMime = detectImageMime(buffer);
 
-        if (
-          file.fieldname === 'avatar' ||
-          file.fieldname === 'cover' ||
-          file.fieldname === 'thumbnail' ||
-          file.fieldname === 'images' ||
-          file.fieldname === 'manual_image'
-        ) {
-          if (
-            !result ||
-            ![
-              'image/jpeg',
-              'image/png',
-              'image/gif',
-              'image/webp',
-              'image/svg+xml',
-              'image/bmp',
-            ].includes(result.mime)
-          ) {
+        if (imageUploadFields.has(file.fieldname)) {
+          if (!imageMime) {
             fs.unlinkSync(file.path);
             return res.status(400).json({ error: '无效的图片文件内容' });
           }
         }
 
-        if (
-          result &&
-          (result.mime.includes('javascript') ||
-            result.mime.includes('php') ||
-            result.mime.includes('html') ||
-            result.mime.includes('x-shellscript'))
-        ) {
+        if (looksLikeExecutableContent(buffer)) {
           fs.unlinkSync(file.path);
           return res.status(400).json({ error: '不允许上传可执行或脚本文件' });
         }

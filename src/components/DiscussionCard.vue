@@ -85,53 +85,54 @@ function handleDeleteClick(event: Event) {
 
 <template>
   <div
-    class="group p-3 sm:p-5 glass-card glass-card-hover cursor-pointer relative transition-all"
+    class="group p-2 sm:p-2.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl hover:shadow-lg hover:-translate-y-0.5 cursor-pointer relative transition-all duration-300"
     :class="discussion.isPinned ? 'ring-1 ring-accent' : ''"
     @click="handleCardClick"
   >
     <!-- Pinned Badge -->
     <div
       v-if="discussion.isPinned"
-      class="absolute top-2.5 right-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+      class="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[7.5px] sm:text-[8px] font-bold"
       style="background-color: var(--accent); color: white"
     >
-      <Pin class="w-2.5 h-2.5" /> 置顶
+      <Pin class="w-2 h-2" /> 置顶
     </div>
 
-    <div class="flex gap-3 sm:gap-4">
-      <UserAvatar :user="discussion.user" size="sm" class="shrink-0 sm:size-md" />
+    <div class="flex gap-2 sm:gap-2.5">
+      <UserAvatar :user="discussion.user" size="xs" class="shrink-0" />
 
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 mb-1">
+        <div class="flex items-center gap-1.5 mb-0">
           <span
-            class="text-xs sm:text-sm font-bold"
+            class="text-[10px] sm:text-[11px] font-bold"
             style="color: var(--text-primary)"
           >
             {{ discussion.user?.name || '匿名用户' }}
           </span>
-          <span class="text-[10px]" style="color: var(--text-muted)">
+          <span class="text-[8px] sm:text-[9px]" style="color: var(--text-muted)">
             {{ formattedTime }}
           </span>
         </div>
 
         <h3
-          class="text-sm sm:text-base font-bold mb-1 group-hover:text-accent transition-colors pr-12 sm:pr-16"
+          class="text-[11px] sm:text-xs font-black mb-0 group-hover:text-accent transition-colors pr-10 sm:pr-14"
+          style="color: var(--text-primary)"
         >
           {{ discussion.title }}
         </h3>
         <p
-          class="text-[11px] sm:text-sm line-clamp-2 mb-2 sm:mb-3"
+          class="text-[9px] sm:text-[10px] line-clamp-2 mb-1 sm:mb-1.5 leading-relaxed"
           style="color: var(--text-secondary)"
         >
           {{ discussion.content }}
         </p>
 
         <!-- Tags -->
-        <div v-if="parsedTags.length > 0" class="flex flex-wrap gap-1 mb-2 sm:mb-3">
+        <div v-if="parsedTags.length > 0" class="flex flex-wrap gap-1 mb-1 sm:mb-1.5">
           <span
             v-for="tag in parsedTags"
             :key="tag"
-            class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium"
+            class="px-1 py-0.1 rounded-full text-[7.5px] sm:text-[8.5px] font-bold"
             style="background-color: var(--bg-app); color: var(--accent)"
           >
             #{{ tag }}
@@ -141,18 +142,18 @@ function handleDeleteClick(event: Event) {
         <!-- Image Preview in List -->
         <div
           v-if="parsedImages.length > 0"
-          class="flex gap-2 mb-2 sm:mb-3 overflow-hidden h-16 sm:h-20"
+          class="flex gap-1 mb-1 sm:mb-1.5 overflow-hidden h-9 sm:h-10"
         >
           <div
             v-for="(img, idx) in parsedImages.slice(0, 3)"
             :key="idx"
-            class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-slate-100 dark:border-white/5"
+            class="w-9 h-9 sm:w-10 sm:h-10 rounded-md overflow-hidden shrink-0 border border-slate-100 dark:border-white/5"
           >
             <img :src="img" class="w-full h-full object-cover" />
           </div>
           <div
             v-if="parsedImages.length > 3"
-            class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[10px] font-bold text-slate-400"
+            class="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-slate-100 dark:bg-white/5 flex items-center justify-center text-[8px] font-bold text-slate-400"
           >
             +{{ parsedImages.length - 3 }}
           </div>
@@ -160,46 +161,46 @@ function handleDeleteClick(event: Event) {
 
         <!-- Actions Bar -->
         <div
-          class="flex items-center gap-4 sm:gap-5 text-[10px] sm:text-[11px] font-bold"
+          class="flex items-center gap-3 text-[8.5px] sm:text-[9.5px] font-bold"
           style="color: var(--text-muted)"
         >
           <button
-            class="flex items-center gap-1 hover:text-red-500 transition-colors"
+            class="flex items-center gap-0.5 hover:text-red-500 transition-colors cursor-pointer"
             :class="{ 'text-red-500': discussion.isLiked }"
             @click.stop="handleLikeClick"
           >
             <Heart
-              class="w-3 h-3 sm:w-3.5 sm:h-3.5"
+              class="w-2.5 h-2.5 sm:w-3 sm:h-3"
               :class="{ 'fill-red-500': discussion.isLiked }"
             />
             <span>{{ discussion._count?.likes || 0 }}</span>
           </button>
-          <div class="flex items-center gap-1">
-            <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <div class="flex items-center gap-0.5">
+            <MessageSquare class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             <span>{{ discussion._count?.comments || 0 }}</span>
           </div>
-          <div class="flex items-center gap-1">
-            <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <div class="flex items-center gap-0.5">
+            <Eye class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             <span>{{ discussion.viewCount || 0 }}</span>
           </div>
 
           <!-- Admin/Owner Actions -->
           <div
             v-if="isOwner || isAdmin"
-            class="flex items-center gap-1.5 sm:gap-2 ml-auto"
+            class="flex items-center gap-1 ml-auto"
           >
             <button
               v-if="isAdmin"
-              class="hover:text-accent transition-colors p-1"
+              class="hover:text-accent transition-colors p-0.5 cursor-pointer"
               @click.stop="handlePinClick"
             >
-              <Pin class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <Pin class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
             <button
-              class="hover:text-red-500 transition-colors p-1"
+              class="hover:text-red-500 transition-colors p-0.5 cursor-pointer"
               @click.stop="handleDeleteClick"
             >
-              <Trash2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <Trash2 class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             </button>
           </div>
         </div>

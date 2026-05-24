@@ -4,6 +4,7 @@ import { mirrorService } from '../services/mirror.service';
 import prisma from '../../services/prisma';
 import { getPlanName } from '../../utils/plan-utils';
 import { encryptText } from '../../utils/crypto';
+import { clampLimit, clampPage } from '../../utils/pagination';
 
 export const getSources = async (req: AuthRequest, res: Response) => {
   try {
@@ -102,8 +103,8 @@ export const getResources = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '镜像源不存在' });
     }
 
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 21;
+    const page = clampPage(req.query.page);
+    const pageSize = clampLimit(req.query.pageSize, 21, 100);
     const categoryId = (req.query.categoryId as string) || undefined;
     const search = (req.query.search as string) || undefined;
     const sort = (req.query.sort as string) || undefined;
@@ -221,8 +222,8 @@ export const searchResources = async (req: AuthRequest, res: Response) => {
     }
 
     const q = (req.query.q as string) || '';
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 21;
+    const page = clampPage(req.query.page);
+    const pageSize = clampLimit(req.query.pageSize, 21, 100);
 
     const result = await mirrorService.getResources(sourceId, {
       page,

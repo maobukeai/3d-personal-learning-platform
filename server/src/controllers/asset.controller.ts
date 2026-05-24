@@ -11,6 +11,7 @@ import { checkAssetQuota, checkStorageQuota } from '../utils/quota';
 import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
+import { clampLimit, clampPage } from '../utils/pagination';
 
 export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -267,8 +268,8 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
 
 export const getPublicAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 12;
+    const page = clampPage(req.query.page);
+    const limit = clampLimit(req.query.limit, 12, 100);
     const lite = req.query.lite === 'true';
     const search = req.query.search as string;
     const categoryId = req.query.categoryId as string;

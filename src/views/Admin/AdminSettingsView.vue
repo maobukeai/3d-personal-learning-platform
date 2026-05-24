@@ -149,11 +149,11 @@ const smtpConfigs = ref<SmtpConfig[]>([]);
 const activeConfigId = ref<string>('');
 
 const selectSmtpConfig = (configId: string) => {
-  const cfg = smtpConfigs.value.find(c => c.id === configId);
+  const cfg = smtpConfigs.value.find((c) => c.id === configId);
   if (cfg) {
     activeConfigId.value = cfg.id;
     settings.value.SMTP_ACTIVE_CONFIG_ID = cfg.id;
-    
+
     // Copy values to form fields
     settings.value.SMTP_HOST = cfg.host;
     settings.value.SMTP_PORT = cfg.port;
@@ -166,16 +166,12 @@ const selectSmtpConfig = (configId: string) => {
 
 const addNewSmtpConfig = async () => {
   try {
-    const { value: name } = await ElMessageBox.prompt(
-      '请输入新方案名称：',
-      '新增邮件配置方案',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPattern: /\S+/,
-        inputErrorMessage: '方案名称不能为空',
-      }
-    );
+    const { value: name } = await ElMessageBox.prompt('请输入新方案名称：', '新增邮件配置方案', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /\S+/,
+      inputErrorMessage: '方案名称不能为空',
+    });
 
     const newId = 'cfg_' + Date.now();
     const newCfg: SmtpConfig = {
@@ -191,7 +187,7 @@ const addNewSmtpConfig = async () => {
 
     smtpConfigs.value.push(newCfg);
     settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
-    
+
     // Auto select the new configuration
     selectSmtpConfig(newId);
     ElMessage.success(`方案 "${name}" 已新增`);
@@ -201,21 +197,17 @@ const addNewSmtpConfig = async () => {
 };
 
 const renameSmtpConfig = async () => {
-  const activeCfg = smtpConfigs.value.find(c => c.id === activeConfigId.value);
+  const activeCfg = smtpConfigs.value.find((c) => c.id === activeConfigId.value);
   if (!activeCfg) return;
 
   try {
-    const { value: name } = await ElMessageBox.prompt(
-      '请输入新方案名称：',
-      '重命名配置方案',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPattern: /\S+/,
-        inputErrorMessage: '方案名称不能为空',
-        inputValue: activeCfg.name,
-      }
-    );
+    const { value: name } = await ElMessageBox.prompt('请输入新方案名称：', '重命名配置方案', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /\S+/,
+      inputErrorMessage: '方案名称不能为空',
+      inputValue: activeCfg.name,
+    });
 
     activeCfg.name = name;
     settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
@@ -230,25 +222,21 @@ const deleteSmtpConfig = async () => {
     return ElMessage.warning('必须保留至少一个配置方案');
   }
 
-  const activeCfg = smtpConfigs.value.find(c => c.id === activeConfigId.value);
+  const activeCfg = smtpConfigs.value.find((c) => c.id === activeConfigId.value);
   if (!activeCfg) return;
 
   try {
-    await ElMessageBox.confirm(
-      `确定要删除配置方案 "${activeCfg.name}" 吗？`,
-      '删除配置方案',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    );
+    await ElMessageBox.confirm(`确定要删除配置方案 "${activeCfg.name}" 吗？`, '删除配置方案', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
 
-    const index = smtpConfigs.value.findIndex(c => c.id === activeConfigId.value);
+    const index = smtpConfigs.value.findIndex((c) => c.id === activeConfigId.value);
     if (index !== -1) {
       smtpConfigs.value.splice(index, 1);
       settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
-      
+
       // Select the first configuration
       selectSmtpConfig(smtpConfigs.value[0].id);
       ElMessage.success('方案已删除');
@@ -268,7 +256,7 @@ watch(
     () => settings.value.SMTP_SECURE,
   ],
   () => {
-    const activeCfg = smtpConfigs.value.find(cfg => cfg.id === activeConfigId.value);
+    const activeCfg = smtpConfigs.value.find((cfg) => cfg.id === activeConfigId.value);
     if (activeCfg) {
       activeCfg.host = settings.value.SMTP_HOST || '';
       activeCfg.port = settings.value.SMTP_PORT || '465';
@@ -276,10 +264,10 @@ watch(
       activeCfg.pass = settings.value.SMTP_PASS || '';
       activeCfg.from = settings.value.SMTP_FROM || '';
       activeCfg.secure = settings.value.SMTP_SECURE || 'true';
-      
+
       settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
     }
-  }
+  },
 );
 
 const tabs = [
@@ -404,10 +392,10 @@ const fetchSettings = async () => {
 
     // Set active config
     const activeId = settings.value.SMTP_ACTIVE_CONFIG_ID || 'default';
-    const activeCfg = smtpConfigs.value.find(c => c.id === activeId) || smtpConfigs.value[0];
+    const activeCfg = smtpConfigs.value.find((c) => c.id === activeId) || smtpConfigs.value[0];
     activeConfigId.value = activeCfg.id;
     settings.value.SMTP_ACTIVE_CONFIG_ID = activeCfg.id;
-    
+
     // Copy active configuration to form fields to display
     settings.value.SMTP_HOST = activeCfg.host;
     settings.value.SMTP_PORT = activeCfg.port;
@@ -503,7 +491,7 @@ const resetToDefaults = async () => {
         pass: '',
         from: '',
         secure: 'true',
-      }
+      },
     ];
     activeConfigId.value = 'default';
     ElMessage.info('已恢复默认值，请点击保存以生效');
@@ -518,10 +506,11 @@ const testSmtp = async () => {
       {
         confirmButtonText: '开始测试',
         cancelButtonText: '取消',
-        inputPattern: /[\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?/,
+        inputPattern:
+          /[\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?/,
         inputErrorMessage: '邮箱格式不正确',
         inputValue: settings.value.SMTP_FROM || settings.value.SMTP_USER || '',
-      }
+      },
     );
 
     isTestingSmtp.value = true;
@@ -1238,21 +1227,22 @@ window.addEventListener('beforeunload', (e) => {
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
             <!-- Mode selection -->
+            <!-- Mode selection -->
             <section
-              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+              class="p-4 sm:p-5 rounded-2xl border transition-colors duration-300"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
-              <div class="flex items-center gap-3 mb-6">
-                <Settings class="w-5 h-5 text-indigo-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+              <div class="flex items-center gap-2 mb-4">
+                <Settings class="w-4 h-4 text-indigo-500" />
+                <h2 class="text-sm font-bold" style="color: var(--text-primary)">
                   系统发信模式选择
                 </h2>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Option 1: SMTP -->
                 <div
-                  class="p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between"
+                  class="p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between gap-4"
                   :style="
                     settings.SYSTEM_EMAIL_PROVIDER === 'SMTP'
                       ? { borderColor: 'var(--accent)', backgroundColor: 'rgba(99,102,241,0.04)' }
@@ -1260,38 +1250,41 @@ window.addEventListener('beforeunload', (e) => {
                   "
                   @click="settings.SYSTEM_EMAIL_PROVIDER = 'SMTP'"
                 >
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600"
-                      >
-                        <Mail class="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 class="text-sm font-bold" style="color: var(--text-primary)">
-                          标准 SMTP 发信
-                        </h3>
-                        <p class="text-[10px]" style="color: var(--text-muted)">
-                          通过独立 SMTP 服务器进行发信，支持 SSL/TLS 握手
-                        </p>
-                      </div>
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 shrink-0"
+                    >
+                      <Mail class="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 class="text-xs font-bold" style="color: var(--text-primary)">
+                        标准 SMTP 发信
+                      </h3>
+                      <p class="text-[10px] mt-0.5 leading-normal" style="color: var(--text-muted)">
+                        通过独立 SMTP 服务器进行发信，支持 SSL/TLS 握手
+                      </p>
                     </div>
                   </div>
-                  <div class="mt-4 flex items-center justify-between">
-                    <span
-                      class="text-[10px] text-indigo-500 font-bold"
-                      v-if="settings.SYSTEM_EMAIL_PROVIDER === 'SMTP'"
-                      >● 已启用此发信模式</span
+                  <div class="shrink-0 flex items-center">
+                    <div
+                      class="w-4 h-4 rounded-full border flex items-center justify-center transition-all"
+                      :style="
+                        settings.SYSTEM_EMAIL_PROVIDER === 'SMTP'
+                          ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent)' }
+                          : { borderColor: 'var(--border-base)' }
+                      "
                     >
-                    <span class="text-[10px]" style="color: var(--text-muted)" v-else
-                      >点击切换为标准 SMTP</span
-                    >
+                      <div
+                        v-if="settings.SYSTEM_EMAIL_PROVIDER === 'SMTP'"
+                        class="w-1.5 h-1.5 rounded-full bg-white"
+                      ></div>
+                    </div>
                   </div>
                 </div>
 
                 <!-- Option 2: Microsoft Account Pool -->
                 <div
-                  class="p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between"
+                  class="p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between gap-4"
                   :style="
                     settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
                       ? { borderColor: 'var(--accent)', backgroundColor: 'rgba(99,102,241,0.04)' }
@@ -1299,32 +1292,35 @@ window.addEventListener('beforeunload', (e) => {
                   "
                   @click="settings.SYSTEM_EMAIL_PROVIDER = 'MICROSOFT_POOL'"
                 >
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600"
-                      >
-                        <Sparkles class="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 class="text-sm font-bold" style="color: var(--text-primary)">
-                          微软 Graph 账号池 (防封版)
-                        </h3>
-                        <p class="text-[10px]" style="color: var(--text-muted)">
-                          支持 Outlook/Hotmail 轮询发信，抗封锁且支持代理路由
-                        </p>
-                      </div>
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 shrink-0"
+                    >
+                      <Sparkles class="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 class="text-xs font-bold" style="color: var(--text-primary)">
+                        微软 Graph 账号池 (防封版)
+                      </h3>
+                      <p class="text-[10px] mt-0.5 leading-normal" style="color: var(--text-muted)">
+                        支持 Outlook/Hotmail 轮询发信，抗封锁且支持代理
+                      </p>
                     </div>
                   </div>
-                  <div class="mt-4 flex items-center justify-between">
-                    <span
-                      class="text-[10px] text-indigo-500 font-bold"
-                      v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
-                      >● 已启用此发信模式</span
+                  <div class="shrink-0 flex items-center">
+                    <div
+                      class="w-4 h-4 rounded-full border flex items-center justify-center transition-all"
+                      :style="
+                        settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
+                          ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent)' }
+                          : { borderColor: 'var(--border-base)' }
+                      "
                     >
-                    <span class="text-[10px]" style="color: var(--text-muted)" v-else
-                      >点击切换为微软账号池</span
-                    >
+                      <div
+                        v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
+                        class="w-1.5 h-1.5 rounded-full bg-white"
+                      ></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1485,70 +1481,79 @@ window.addEventListener('beforeunload', (e) => {
               class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300 animate-in"
               style="background-color: var(--bg-card); border-color: var(--border-base)"
             >
-              <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-3">
-                  <Mail class="w-5 h-5 text-accent" />
-                  <h2 class="text-lg font-bold" style="color: var(--text-primary)">
-                    SMTP 邮件服务配置
-                    <span
-                      v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
-                      class="text-xs font-normal text-amber-500"
-                      >(作为微软池备用发信通道)</span
+              <div
+                class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-100 dark:border-white/5 pb-4"
+              >
+                <div class="flex flex-wrap items-center gap-3">
+                  <div class="flex items-center gap-2">
+                    <Mail class="w-5 h-5 text-accent" />
+                    <h2
+                      class="text-sm sm:text-base font-bold whitespace-nowrap"
+                      style="color: var(--text-primary)"
                     >
-                  </h2>
+                      SMTP 配置
+                      <span
+                        v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
+                        class="text-[10px] font-normal text-amber-500 ml-1"
+                        >(备用)</span
+                      >
+                    </h2>
+                  </div>
+
+                  <!-- 分割线 -->
+                  <span class="text-slate-300 dark:text-white/10">|</span>
+
+                  <!-- 一行展示：配置方案与管理按钮 -->
+                  <div class="flex items-center gap-2 text-xs">
+                    <span class="font-bold text-slate-400 whitespace-nowrap">方案:</span>
+                    <el-select
+                      v-model="activeConfigId"
+                      placeholder="选择方案"
+                      size="small"
+                      style="width: 110px"
+                      class="shrink-0 cursor-pointer"
+                      @change="selectSmtpConfig"
+                    >
+                      <el-option
+                        v-for="cfg in smtpConfigs"
+                        :key="cfg.id"
+                        :label="cfg.name"
+                        :value="cfg.id"
+                      />
+                    </el-select>
+
+                    <button
+                      type="button"
+                      class="text-accent hover:underline font-medium px-1 whitespace-nowrap cursor-pointer"
+                      @click="addNewSmtpConfig"
+                    >
+                      新增
+                    </button>
+                    <button
+                      type="button"
+                      class="text-amber-500 hover:underline font-medium px-1 whitespace-nowrap cursor-pointer"
+                      @click="renameSmtpConfig"
+                    >
+                      重命名
+                    </button>
+                    <button
+                      type="button"
+                      :disabled="smtpConfigs.length <= 1"
+                      class="text-rose-500 hover:underline font-medium px-1 whitespace-nowrap disabled:opacity-30 disabled:no-underline cursor-pointer"
+                      @click="deleteSmtpConfig"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
+
                 <button
                   :disabled="isTestingSmtp"
-                  class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50"
+                  class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
                   @click="testSmtp"
                 >
                   {{ isTestingSmtp ? '正在尝试握手...' : '测试连接' }}
                 </button>
-              </div>
-
-              <!-- 配置方案管理工具条 -->
-              <div class="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 animate-in fade-in slide-in-from-top-4 duration-300">
-                <div class="flex items-center gap-3">
-                  <span class="text-xs font-bold whitespace-nowrap" style="color: var(--text-secondary)">选择配置方案：</span>
-                  <el-select
-                    v-model="activeConfigId"
-                    placeholder="选择配置方案"
-                    size="small"
-                    class="w-48"
-                    @change="selectSmtpConfig"
-                  >
-                    <el-option
-                      v-for="cfg in smtpConfigs"
-                      :key="cfg.id"
-                      :label="cfg.name"
-                      :value="cfg.id"
-                    />
-                  </el-select>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="text-[11px] font-bold text-accent px-3 py-1.5 rounded-lg border border-accent/20 hover:bg-accent/5 transition-all"
-                    @click="addNewSmtpConfig"
-                  >
-                    ✨ 新增方案
-                  </button>
-                  <button
-                    type="button"
-                    class="text-[11px] font-bold text-amber-500 px-3 py-1.5 rounded-lg border border-amber-500/20 hover:bg-amber-500/5 transition-all"
-                    @click="renameSmtpConfig"
-                  >
-                    ✏️ 重命名
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="smtpConfigs.length <= 1"
-                    class="text-[11px] font-bold text-rose-500 px-3 py-1.5 rounded-lg border border-rose-500/20 hover:bg-rose-500/5 transition-all disabled:opacity-40 disabled:hover:bg-transparent"
-                    @click="deleteSmtpConfig"
-                  >
-                    🗑️ 删除当前方案
-                  </button>
-                </div>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

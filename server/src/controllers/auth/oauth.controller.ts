@@ -8,6 +8,23 @@ import { settingsService } from '../../services/settings.service';
 import { OAuthService } from '../../services/oauth.service';
 import { AppError } from '../../middlewares/error.middleware';
 
+const frontendLoginUrl = (query: string) =>
+  `${config.FRONTEND_URL.replace(/\/$/, '')}/login?${query}`;
+
+const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: config.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+  };
+
+  res.cookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+  res.cookie('refreshToken', refreshToken, {
+    ...cookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+};
+
 export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const settings = await settingsService.getAll();
@@ -34,15 +51,15 @@ export const googleCallback = async (req: Request, res: Response) => {
   res.clearCookie('oauth_state');
 
   if (!state || state !== cookieState) {
-    return res.redirect(`${config.FRONTEND_URL}/login?error=csrf_detected`);
+    return res.redirect(frontendLoginUrl('error=csrf_detected'));
   }
 
-  if (!code) return res.redirect(`${config.FRONTEND_URL}/login?error=no_code`);
+  if (!code) return res.redirect(frontendLoginUrl('error=no_code'));
 
   try {
     const settings = await settingsService.getAll();
     if (!settings.OAUTH_GOOGLE_ENABLED) {
-      return res.redirect(`${config.FRONTEND_URL}/login?error=oauth_not_enabled`);
+      return res.redirect(frontendLoginUrl('error=oauth_not_enabled'));
     }
     const oauthUser = await OAuthService.getGoogleUser(code as string);
     let user = await prisma.user.findUnique({ where: { googleId: oauthUser.id } });
@@ -86,9 +103,10 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    res.redirect(`${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
+    setAuthCookies(res, accessToken, refreshToken);
+    res.redirect(frontendLoginUrl('oauth=success'));
   } catch (error) {
-    res.redirect(`${config.FRONTEND_URL}/login?error=oauth_failed`);
+    res.redirect(frontendLoginUrl('error=oauth_failed'));
   }
 };
 
@@ -118,15 +136,15 @@ export const githubCallback = async (req: Request, res: Response) => {
   res.clearCookie('oauth_state');
 
   if (!state || state !== cookieState) {
-    return res.redirect(`${config.FRONTEND_URL}/login?error=csrf_detected`);
+    return res.redirect(frontendLoginUrl('error=csrf_detected'));
   }
 
-  if (!code) return res.redirect(`${config.FRONTEND_URL}/login?error=no_code`);
+  if (!code) return res.redirect(frontendLoginUrl('error=no_code'));
 
   try {
     const settings = await settingsService.getAll();
     if (!settings.OAUTH_GITHUB_ENABLED) {
-      return res.redirect(`${config.FRONTEND_URL}/login?error=oauth_not_enabled`);
+      return res.redirect(frontendLoginUrl('error=oauth_not_enabled'));
     }
     const oauthUser = await OAuthService.getGithubUser(code as string);
     let user = await prisma.user.findUnique({ where: { githubId: oauthUser.id } });
@@ -167,8 +185,9 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    res.redirect(`${config.FRONTEND_URL}/login?token=${accessToken}&refreshToken=${refreshToken}`);
+    setAuthCookies(res, accessToken, refreshToken);
+    res.redirect(frontendLoginUrl('oauth=success'));
   } catch (error) {
-    res.redirect(`${config.FRONTEND_URL}/login?error=oauth_failed`);
+    res.redirect(frontendLoginUrl('error=oauth_failed'));
   }
 };

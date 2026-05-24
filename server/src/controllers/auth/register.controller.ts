@@ -66,57 +66,6 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           },
         });
 
-        // 2. 查找或创建公共空间 - 使用并发安全的方式
-        let publicTeam = await tx.team.findUnique({
-          where: { name_type: { name: '公共空间', type: 'TEAM' } },
-        });
-
-        if (!publicTeam) {
-          // 尝试创建公共空间，如果并发创建失败则重新查找
-          try {
-            publicTeam = await tx.team.create({
-              data: {
-                name: '公共空间',
-                description: '全站公共协作与创作空间',
-                type: 'TEAM',
-                visibility: 'PUBLIC',
-                ownerId: user.id, // 第一个用户成为公共空间的所有者
-                members: {
-                  create: {
-                    userId: user.id,
-                    role: 'OWNER',
-                  },
-                },
-              },
-            });
-          } catch (e) {
-            // 如果唯一约束冲突，说明有其他请求先创建了公共空间，重新查找
-            publicTeam = await tx.team.findUnique({
-              where: { name_type: { name: '公共空间', type: 'TEAM' } },
-            });
-            if (!publicTeam) {
-              throw e; // 如果还是找不到，抛出原始错误
-            }
-          }
-        }
-
-        // 将用户添加到公共团队作为成员
-        if (publicTeam.ownerId !== user.id) {
-          await tx.teamMember.upsert({
-            where: {
-              teamId_userId: {
-                teamId: publicTeam.id,
-                userId: user.id,
-              },
-            },
-            update: {},
-            create: {
-              teamId: publicTeam.id,
-              userId: user.id,
-              role: 'MEMBER',
-            },
-          });
-        }
 
         await auditService.log({
           userId: user.id,

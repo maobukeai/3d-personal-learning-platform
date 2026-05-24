@@ -38,6 +38,7 @@ model User {
   notificationPreference     NotificationPreference?
   tasks                      Task[]
   roadmapProgress            UserRoadmapProgress[]
+  roadmaps                   Roadmap[]                   @relation("UserRoadmaps")
   projects                   ProjectMember[]
   materials                  Material[]
   materialFavorites          MaterialFavorite[]
@@ -56,6 +57,7 @@ model User {
   courseNotes    CourseNote[]
   noteLikes      NoteLike[]
   notes          Note[]
+  noteComments   NoteComment[]
 
   // Messaging & Teams
   conversations    Conversation[]    @relation("UserConversations")
@@ -442,6 +444,7 @@ model Task {
   status       String // 'TODO', 'IN_PROGRESS', 'DONE'
   priority     String            @default("MEDIUM") // 'LOW', 'MEDIUM', 'HIGH', 'URGENT'
   tags         String? // JSON string of tag names
+  subtasks     String? // JSON string of [{ id: string, text: string, done: boolean }]
   dueDate      DateTime?
   userId       String
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -520,6 +523,8 @@ model Roadmap {
   title       String
   description String?
   steps       RoadmapStep[]
+  creatorId   String?
+  creator     User?         @relation("UserRoadmaps", fields: [creatorId], references: [id], onDelete: Cascade)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -528,6 +533,7 @@ model RoadmapStep {
   id           String                @id @default(uuid())
   title        String
   description  String?
+  subtasks     String?
   order        Int
   roadmapId    String
   roadmap      Roadmap               @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
@@ -837,21 +843,22 @@ model CourseNote {
 }
 
 model Note {
-  id         String     @id @default(uuid())
+  id         String        @id @default(uuid())
   title      String
-  content    String
+  content    String        @db.Text
   summary    String?
-  visibility String     @default("PRIVATE")
+  visibility String        @default("PRIVATE")
   tags       String?
   category   String?
-  views      Int        @default(0)
-  isPinned   Boolean    @default(false)
-  isPopular  Boolean    @default(false)
+  views      Int           @default(0)
+  isPinned   Boolean       @default(false)
+  isPopular  Boolean       @default(false)
   userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes      NoteLike[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  comments   NoteComment[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   @@index([userId])
 }
@@ -864,6 +871,20 @@ model NoteLike {
   createdAt DateTime @default(now())
 
   @@unique([noteId, userId])
+}
+
+model NoteComment {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([noteId])
+  @@index([userId])
 }
 
 model AuditLog {

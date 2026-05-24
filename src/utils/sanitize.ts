@@ -76,6 +76,7 @@ export const sanitizeHtml = (html: string): string => {
       'img',
       'video',
     ],
-    ALLOWED_ATTR: ['href', 'name', 'target', 'src', 'alt', 'class', 'style', 'controls'],
+    ALLOWED_ATTR: ['href', 'name', 'target', 'src', 'alt', 'class', 'controls'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
   });
 };

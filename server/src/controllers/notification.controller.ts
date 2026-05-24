@@ -1,9 +1,10 @@
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { clampLimit } from '../utils/pagination';
 export const getMyNotifications = async (req: AuthRequest, res: Response) => {
   const { type, cursor } = req.query;
-  const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+  const limit = clampLimit(req.query.limit, 20, 50);
   try {
     const where: any = { userId: req.userId as string };
 

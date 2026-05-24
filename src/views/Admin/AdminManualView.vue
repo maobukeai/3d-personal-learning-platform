@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus,
@@ -68,6 +69,7 @@ interface ManualCategory {
   parentId?: string | null;
 }
 
+const route = useRoute();
 const stations = ref<ManualStation[]>([]);
 const isLoading = ref(false);
 const showCreateDialog = ref(false);
@@ -688,8 +690,15 @@ const filteredStations = computed(() => {
   });
 });
 
-onMounted(() => {
-  fetchStations();
+onMounted(async () => {
+  await fetchStations();
+  const stationId = route.query.stationId as string;
+  if (stationId) {
+    const station = stations.value.find((s) => s.id === stationId);
+    if (station) {
+      handleExpandStation(stationId);
+    }
+  }
   window.addEventListener('keydown', handleEditorKeydown);
 });
 

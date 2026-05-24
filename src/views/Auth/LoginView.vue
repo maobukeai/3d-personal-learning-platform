@@ -24,32 +24,31 @@ const loginForm = ref({
 });
 
 onMounted(async () => {
-  // Handle OAuth callback tokens from URL
+  // Handle OAuth callback state. Auth cookies are set by the API callback.
   const query = router.currentRoute.value.query;
-  const token = query.token as string;
-  const refreshToken = query.refreshToken as string;
   const error = query.error as string;
+  const oauth = query.oauth as string;
 
   if (error) {
     ElMessage.error(error === 'oauth_failed' ? '社交登录失败，请重试' : '认证过程中出现错误');
     // Clear URL
     router.replace({ query: {} });
-  } else if (token && refreshToken) {
+  } else if (oauth === 'success') {
     isLoading.value = true;
     try {
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       await authStore.fetchMe();
       ElMessage.success('社交登录成功！');
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } catch (err) {
       ElMessage.error('获取用户信息失败');
+      router.replace({ query: {} });
     } finally {
       isLoading.value = false;
-      router.replace({ query: {} });
     }
   }
-  
+
   if (!systemStore.isInitialized) {
     await systemStore.fetchSettings();
   }
@@ -116,7 +115,10 @@ const handle2FAVerify = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center font-sans overflow-hidden relative" style="background-color: var(--bg-app)">
+  <div
+    class="min-h-screen flex items-center justify-center font-sans overflow-hidden relative"
+    style="background-color: var(--bg-app)"
+  >
     <!-- Background Abstract Shapes -->
     <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
       <div
@@ -139,7 +141,11 @@ const handle2FAVerify = async () => {
         <div class="mb-8 flex items-center justify-center gap-3">
           <div
             class="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-            :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent shadow-lg shadow-accent/30'"
+            :class="
+              systemStore.settings.PLATFORM_LOGO_URL
+                ? 'bg-transparent'
+                : 'bg-accent shadow-lg shadow-accent/30'
+            "
           >
             <img
               v-if="systemStore.settings.PLATFORM_LOGO_URL"
@@ -170,7 +176,12 @@ const handle2FAVerify = async () => {
 
         <div v-if="!is2FARequired" class="space-y-6">
           <!-- Social Logins -->
-          <div v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED || systemStore.settings.OAUTH_GITHUB_ENABLED" class="grid grid-cols-2 gap-4">
+          <div
+            v-if="
+              systemStore.settings.OAUTH_GOOGLE_ENABLED || systemStore.settings.OAUTH_GITHUB_ENABLED
+            "
+            class="grid grid-cols-2 gap-4"
+          >
             <button
               v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED"
               class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95"
@@ -197,7 +208,12 @@ const handle2FAVerify = async () => {
             </button>
           </div>
 
-          <div v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED || systemStore.settings.OAUTH_GITHUB_ENABLED" class="relative py-2 flex items-center">
+          <div
+            v-if="
+              systemStore.settings.OAUTH_GOOGLE_ENABLED || systemStore.settings.OAUTH_GITHUB_ENABLED
+            "
+            class="relative py-2 flex items-center"
+          >
             <div class="flex-grow border-t" style="border-color: var(--border-base)"></div>
             <span
               class="flex-shrink mx-4 text-xs font-bold uppercase tracking-widest"

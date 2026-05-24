@@ -46,6 +46,9 @@ export const getAllTasks = async (req: AuthRequest, res: Response) => {
         project: {
           select: { id: true, title: true, color: true },
         },
+        team: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
         participants: {
           select: {
             id: true,
@@ -69,6 +72,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     status,
     priority,
     tags,
+    subtasks,
     dueDate,
     assigneeId,
     projectId,
@@ -97,6 +101,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         status: status || 'TODO',
         priority: priority || 'MEDIUM',
         tags: tags || null,
+        subtasks: subtasks || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         assigneeId: assigneeId || null,
         projectId: projectId || null,
@@ -115,6 +120,9 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         },
         project: {
           select: { id: true, title: true, color: true },
+        },
+        team: {
+          select: { id: true, name: true, avatarUrl: true },
         },
         participants: {
           select: {
@@ -147,6 +155,20 @@ export const createTask = async (req: AuthRequest, res: Response) => {
       req,
     });
 
+    if (task.projectId) {
+      const projectTasks = await prisma.task.findMany({
+        where: { projectId: task.projectId },
+        select: { status: true },
+      });
+      const total = projectTasks.length;
+      const done = projectTasks.filter((t) => t.status === 'DONE').length;
+      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+      await prisma.project.update({
+        where: { id: task.projectId },
+        data: { progress },
+      });
+    }
+
     res.status(201).json(task);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -161,9 +183,11 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     status,
     priority,
     tags,
+    subtasks,
     dueDate,
     assigneeId,
     projectId,
+    teamId,
     participantIds,
   } = req.body;
   try {
@@ -172,7 +196,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     });
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
-    const effectiveTeamId = existingTask.teamId || req.workspaceId;
+    const effectiveTeamId = teamId || existingTask.teamId || req.workspaceId;
     if (participantIds && participantIds.length > 0 && effectiveTeamId) {
       const teamMembers = await prisma.teamMember.findMany({
         where: { teamId: effectiveTeamId },
@@ -193,9 +217,11 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         status,
         priority,
         tags,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        assigneeId: assigneeId || null,
-        projectId: projectId || null,
+        subtasks: subtasks !== undefined ? subtasks : undefined,
+        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
+        assigneeId: assigneeId !== undefined ? assigneeId || null : undefined,
+        projectId: projectId !== undefined ? projectId || null : undefined,
+        teamId: teamId !== undefined ? teamId : undefined,
         participants: participantIds
           ? {
               deleteMany: {},
@@ -209,6 +235,9 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         },
         project: {
           select: { id: true, title: true, color: true },
+        },
+        team: {
+          select: { id: true, name: true, avatarUrl: true },
         },
         participants: {
           select: {
@@ -256,19 +285,37 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
       req,
     });
 
-    if (status !== undefined && task.projectId) {
-      // ...
-      const projectTasks = await prisma.task.findMany({
-        where: { projectId: task.projectId },
-        select: { status: true },
-      });
-      const total = projectTasks.length;
-      const done = projectTasks.filter((t) => t.status === 'DONE').length;
-      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
-      await prisma.project.update({
-        where: { id: task.projectId },
-        data: { progress },
-      });
+    const projectIdChanged = task.projectId !== existingTask.projectId;
+    const statusChanged = status !== undefined && status !== existingTask.status;
+
+    if (projectIdChanged || statusChanged) {
+      if (task.projectId) {
+        const projectTasks = await prisma.task.findMany({
+          where: { projectId: task.projectId },
+          select: { status: true },
+        });
+        const total = projectTasks.length;
+        const done = projectTasks.filter((t) => t.status === 'DONE').length;
+        const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+        await prisma.project.update({
+          where: { id: task.projectId },
+          data: { progress },
+        });
+      }
+
+      if (existingTask.projectId && projectIdChanged) {
+        const oldProjectTasks = await prisma.task.findMany({
+          where: { projectId: existingTask.projectId },
+          select: { status: true },
+        });
+        const total = oldProjectTasks.length;
+        const done = oldProjectTasks.filter((t) => t.status === 'DONE').length;
+        const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+        await prisma.project.update({
+          where: { id: existingTask.projectId },
+          data: { progress },
+        });
+      }
     }
 
     res.json(task);

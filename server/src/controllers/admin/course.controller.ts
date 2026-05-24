@@ -272,6 +272,9 @@ export const deleteLesson = async (req: AuthRequest, res: Response, next: NextFu
 export const getAllRoadmaps = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const roadmaps = await prisma.roadmap.findMany({
+      where: {
+        creatorId: null, // Exclude user-created roadmaps
+      },
       include: {
         steps: { orderBy: { order: 'asc' } },
       },
@@ -284,12 +287,41 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response, next: Next
 };
 
 export const createRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { title, description } = req.body;
+  const { title, description, steps } = req.body;
   try {
-    const roadmap = await prisma.roadmap.create({
-      data: { title, description },
+    const roadmap = await prisma.$transaction(async (tx) => {
+      const rm = await tx.roadmap.create({
+        data: { title, description },
+      });
+
+      if (steps && Array.isArray(steps)) {
+        for (let i = 0; i < steps.length; i++) {
+          const step = steps[i];
+          const subtasksJson =
+            step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null;
+          await tx.roadmapStep.create({
+            data: {
+              roadmapId: rm.id,
+              title: step.title || `阶段 ${i + 1}`,
+              description: step.description || '',
+              subtasks: subtasksJson,
+              order: i + 1,
+            },
+          });
+        }
+      }
+
+      return rm;
     });
-    res.status(201).json(roadmap);
+
+    const fullRoadmap = await prisma.roadmap.findUnique({
+      where: { id: roadmap.id },
+      include: {
+        steps: { orderBy: { order: 'asc' } },
+      },
+    });
+
+    res.status(201).json(fullRoadmap);
   } catch (error) {
     next(error);
   }
@@ -297,13 +329,76 @@ export const createRoadmap = async (req: AuthRequest, res: Response, next: NextF
 
 export const updateRoadmap = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
-  const { title, description } = req.body;
+  const { title, description, steps } = req.body;
   try {
-    const roadmap = await prisma.roadmap.update({
-      where: { id: id as any },
-      data: { title, description },
+    const roadmap = await prisma.$transaction(async (tx) => {
+      // 1. Update the roadmap metadata
+      const rm = await tx.roadmap.update({
+        where: { id: id as any },
+        data: { title, description },
+      });
+
+      if (steps && Array.isArray(steps)) {
+        // 2. Load existing steps from database
+        const existingSteps = await tx.roadmapStep.findMany({
+          where: { roadmapId: id },
+        });
+        const existingStepIds = existingSteps.map((s) => s.id);
+
+        // 3. Identify steps to delete
+        const incomingStepIds = steps.filter((s: any) => s.id).map((s: any) => s.id);
+        const stepsToDelete = existingStepIds.filter((dbId) => !incomingStepIds.includes(dbId));
+
+        if (stepsToDelete.length > 0) {
+          await tx.roadmapStep.deleteMany({
+            where: { id: { in: stepsToDelete } },
+          });
+        }
+
+        // 4. Create or update steps sequentially to enforce correct ordering
+        for (let i = 0; i < steps.length; i++) {
+          const step = steps[i];
+          const orderValue = i + 1;
+          const subtasksJson =
+            step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null;
+
+          if (step.id && existingStepIds.includes(step.id)) {
+            // Update existing step
+            await tx.roadmapStep.update({
+              where: { id: step.id },
+              data: {
+                title: step.title || `阶段 ${orderValue}`,
+                description: step.description || '',
+                subtasks: subtasksJson,
+                order: orderValue,
+              },
+            });
+          } else {
+            // Create new step
+            await tx.roadmapStep.create({
+              data: {
+                roadmapId: id,
+                title: step.title || `阶段 ${orderValue}`,
+                description: step.description || '',
+                subtasks: subtasksJson,
+                order: orderValue,
+              },
+            });
+          }
+        }
+      }
+
+      return rm;
     });
-    res.json(roadmap);
+
+    const fullRoadmap = await prisma.roadmap.findUnique({
+      where: { id: id as any },
+      include: {
+        steps: { orderBy: { order: 'asc' } },
+      },
+    });
+
+    res.json(fullRoadmap);
   } catch (error) {
     next(error);
   }

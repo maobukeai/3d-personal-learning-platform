@@ -4,9 +4,41 @@ import { syncEngine } from '../services/sync-engine.service';
 import { mirrorService } from '../services/mirror.service';
 import { thumbnailLocalizer } from '../services/thumbnail-localizer.service';
 import prisma from '../../services/prisma';
-import * as xlsx from 'xlsx';
+import { readSheet } from 'read-excel-file/node';
 import fs from 'fs';
+import path from 'path';
 import crypto from 'crypto';
+import { clampLimit, clampPage } from '../../utils/pagination';
+
+type SpreadsheetRow = Record<string, string>;
+
+const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> => {
+  const sheetRows = await readSheet(filePath);
+  const [headerRow, ...dataRows] = sheetRows;
+  if (!headerRow) return [];
+
+  const headers = headerRow.map((cell) => String(cell ?? '').trim());
+
+  const rows: SpreadsheetRow[] = [];
+  for (const row of dataRows) {
+    const parsedRow: SpreadsheetRow = {};
+    for (let columnIndex = 0; columnIndex < headers.length; columnIndex++) {
+      const header = headers[columnIndex];
+      if (!header) continue;
+
+      const value = String(row[columnIndex] ?? '').trim();
+      if (value) {
+        parsedRow[header] = value;
+      }
+    }
+
+    if (Object.keys(parsedRow).length > 0) {
+      rows.push(parsedRow);
+    }
+  }
+
+  return rows;
+};
 
 export const createSource = async (req: AuthRequest, res: Response) => {
   try {
@@ -250,7 +282,7 @@ export const getSyncStatus = async (req: AuthRequest, res: Response) => {
 export const getSyncLogs = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = clampLimit(req.query.limit, 20, 100);
 
     const logs = await mirrorService.getSyncLogs(id, limit);
     res.json(logs);
@@ -260,12 +292,51 @@ export const getSyncLogs = async (req: AuthRequest, res: Response) => {
 };
 
 export const matchLinks = async (req: AuthRequest, res: Response) => {
+  const filesArray: Express.Multer.File[] = [];
+
+  if (req.file) {
+    filesArray.push(req.file);
+  }
+
+  if (req.files) {
+    if (Array.isArray(req.files)) {
+      filesArray.push(...req.files);
+    } else {
+      const dictionary = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (dictionary['file']) {
+        filesArray.push(...dictionary['file']);
+      }
+      if (dictionary['files']) {
+        filesArray.push(...dictionary['files']);
+      }
+    }
+  }
+
+  const cleanUpFiles = (filesList: Express.Multer.File[]) => {
+    for (const f of filesList) {
+      if (f.path && fs.existsSync(f.path)) {
+        try {
+          fs.unlinkSync(f.path);
+        } catch (err) {
+          console.error(`Failed to delete temp file ${f.path}:`, err);
+        }
+      }
+    }
+  };
+
   try {
     const sourceId = req.params.id as string;
-    const file = req.file;
 
-    if (!file) {
+    if (filesArray.length === 0) {
       return res.status(400).json({ error: '请上传Excel文件' });
+    }
+
+    const unsupportedFile = filesArray.find(
+      (file) => path.extname(file.originalname).toLowerCase() !== '.xlsx',
+    );
+    if (unsupportedFile) {
+      cleanUpFiles(filesArray);
+      return res.status(400).json({ error: '仅支持 .xlsx 文件' });
     }
 
     // Verify the mirror source exists
@@ -273,34 +344,9 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
       where: { id: sourceId },
     });
     if (!source) {
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
+      cleanUpFiles(filesArray);
       return res.status(404).json({ error: '镜像源不存在' });
     }
-
-    // Parse Excel file
-    const workbook = xlsx.readFile(file.path);
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
-      return res.status(400).json({ error: 'Excel文件没有工作表' });
-    }
-    const worksheet = workbook.Sheets[sheetName];
-    if (!worksheet) {
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
-      return res.status(400).json({ error: 'Excel文件为空' });
-    }
-
-    // Convert sheet to JSON array
-    const rawData = xlsx.utils.sheet_to_json<any>(worksheet);
-
-    let totalLinks = 0;
-    let matchedCount = 0;
 
     // Load all resources under this source to do clean in-memory name comparisons
     const resources = await prisma.mirrorResource.findMany({
@@ -318,56 +364,61 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
     const resourceByExternalId = new Map(resources.map((r) => [r.externalId, r]));
     const resourceByCleanTitle = new Map(resources.map((r) => [cleanString(r.title), r]));
 
-    const batchUpdates = [];
+    const updatesMap = new Map<string, { contentHtml: string; contentUrl: string }>();
+    let totalLinks = 0;
+    let matchedCount = 0;
 
-    for (const row of rawData) {
-      const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '').toString().trim();
-      const link = (row['链接'] || row['网盘链接'] || row['提取链接'] || '').toString().trim();
-      const linkPassword = (row['链接密码'] || row['提取码'] || row['密码'] || '')
-        .toString()
-        .trim();
-      const courseNotes = (row['课程备注'] || row['备注'] || '').toString().trim();
+    for (const file of filesArray) {
+      const rawData = await readSpreadsheetRows(file.path);
 
-      if (!courseName && !courseNotes) continue;
+      for (const row of rawData) {
+        const courseName = (row['课程名称'] || row['名称'] || row['课程'] || '').toString().trim();
+        const link = (row['链接'] || row['网盘链接'] || row['提取链接'] || '').toString().trim();
+        const linkPassword = (row['链接密码'] || row['提取码'] || row['密码'] || '')
+          .toString()
+          .trim();
+        const courseNotes = (row['课程备注'] || row['备注'] || '').toString().trim();
 
-      totalLinks++;
+        if (!courseName && !courseNotes) continue;
 
-      let matchedResource: any = null;
+        totalLinks++;
 
-      // 1. Try matching by externalId extracted from the courseNotes URL
-      if (courseNotes && courseNotes.startsWith('http')) {
-        const match =
-          courseNotes.match(/\/(\d+)\.html/i) ||
-          courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
-        if (match && match[1]) {
-          const externalId = match[1];
-          matchedResource = resourceByExternalId.get(externalId);
+        let matchedResource: any = null;
+
+        // 1. Try matching by externalId extracted from the courseNotes URL
+        if (courseNotes && courseNotes.startsWith('http')) {
+          const match =
+            courseNotes.match(/\/(\d+)\.html/i) ||
+            courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
+          if (match && match[1]) {
+            const externalId = match[1];
+            matchedResource = resourceByExternalId.get(externalId);
+          }
         }
-      }
 
-      // 2. If no match by URL, try matching by Title
-      if (!matchedResource && courseName) {
-        const exactMatch = resources.find((r) => r.title === courseName);
-        if (exactMatch) {
-          matchedResource = exactMatch;
-        } else {
-          const cleanName = cleanString(courseName);
-          matchedResource = resourceByCleanTitle.get(cleanName);
+        // 2. If no match by URL, try matching by Title
+        if (!matchedResource && courseName) {
+          const exactMatch = resources.find((r) => r.title === courseName);
+          if (exactMatch) {
+            matchedResource = exactMatch;
+          } else {
+            const cleanName = cleanString(courseName);
+            matchedResource = resourceByCleanTitle.get(cleanName);
+          }
         }
-      }
 
-      if (matchedResource && link) {
-        const driveName = link.includes('quark.cn')
-          ? '夸克网盘'
-          : link.includes('baidu.com')
-            ? '百度网盘'
-            : link.includes('alipan.com') || link.includes('aliyundrive.com')
-              ? '阿里云盘'
-              : link.includes('123pan.com')
-                ? '123云盘'
-                : '资源网盘';
+        if (matchedResource && link) {
+          const driveName = link.includes('quark.cn')
+            ? '夸克网盘'
+            : link.includes('baidu.com')
+              ? '百度网盘'
+              : link.includes('alipan.com') || link.includes('aliyundrive.com')
+                ? '阿里云盘'
+                : link.includes('123pan.com')
+                  ? '123云盘'
+                  : '资源网盘';
 
-        const manualLinkHtml = `
+          const manualLinkHtml = `
 <!-- MANUAL_DOWNLOAD_LINK_START -->
 <div class="manual-download-link-container" style="margin-top: 20px; padding: 15px; border: 1px dashed #409eff; border-radius: 8px; background-color: rgba(64, 158, 255, 0.05);">
   <h4 style="margin: 0 0 10px 0; color: #409eff; font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
@@ -388,50 +439,52 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 </div>
 <!-- MANUAL_DOWNLOAD_LINK_END -->`;
 
-        let currentHtml = matchedResource.contentHtml || '';
-        const manualLinkRegex =
-          /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g;
+          let currentHtml = matchedResource.contentHtml || '';
+          const manualLinkRegex =
+            /<!-- MANUAL_DOWNLOAD_LINK_START -->[\s\S]*?<!-- MANUAL_DOWNLOAD_LINK_END -->/g;
 
-        if (manualLinkRegex.test(currentHtml)) {
-          currentHtml = currentHtml.replace(manualLinkRegex, manualLinkHtml);
-        } else {
-          currentHtml = currentHtml + '\n' + manualLinkHtml;
+          if (manualLinkRegex.test(currentHtml)) {
+            currentHtml = currentHtml.replace(manualLinkRegex, manualLinkHtml);
+          } else {
+            currentHtml = currentHtml + '\n' + manualLinkHtml;
+          }
+
+          // Update in-memory so subsequent rows/files see the updated HTML and URL
+          matchedResource.contentHtml = currentHtml;
+          matchedResource.contentUrl = link;
+
+          updatesMap.set(matchedResource.id, {
+            contentHtml: currentHtml,
+            contentUrl: link,
+          });
+          matchedCount++;
         }
-
-        batchUpdates.push(
-          prisma.mirrorResource.update({
-            where: { id: matchedResource.id },
-            data: {
-              contentHtml: currentHtml,
-              contentUrl: link,
-            },
-          }),
-        );
-        matchedCount++;
       }
     }
 
-    if (batchUpdates.length > 0) {
+    if (updatesMap.size > 0) {
+      const batchUpdates = Array.from(updatesMap.entries()).map(([id, data]) =>
+        prisma.mirrorResource.update({
+          where: { id },
+          data,
+        }),
+      );
       await prisma.$transaction(batchUpdates);
     }
 
     console.log(
-      `[MirrorLinkMatch] Source ID: ${sourceId}, Excel uploaded. Found ${totalLinks} records, successfully matched and updated ${matchedCount} resources.`,
+      `[MirrorLinkMatch] Source ID: ${sourceId}, Excel uploaded. Found ${totalLinks} records, successfully matched and updated ${matchedCount} resources across ${filesArray.length} files.`,
     );
 
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    cleanUpFiles(filesArray);
 
     res.json({
-      message: `自动匹配完成！共发现 ${totalLinks} 条记录，成功匹配并更新 ${matchedCount} 个课程资源的提取链接。`,
+      message: `自动匹配完成！共在 ${filesArray.length} 个文件中发现 ${totalLinks} 条记录，成功匹配并更新 ${matchedCount} 个课程资源的提取链接。`,
       totalLinks,
       matchedCount,
     });
   } catch (error: any) {
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
+    cleanUpFiles(filesArray);
     console.error('[MirrorLinkMatch] Error matching links:', error);
     res.status(500).json({ error: error.message });
   }
@@ -440,8 +493,8 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 export const getSourceResources = async (req: AuthRequest, res: Response) => {
   try {
     const sourceId = req.params.sourceId as string;
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const page = clampPage(req.query.page);
+    const pageSize = clampLimit(req.query.pageSize, 20, 100);
     const search = req.query.search as string | undefined;
     const categoryId = req.query.categoryId as string | undefined;
 
@@ -743,5 +796,17 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
     res.json({ message: '分类已删除' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const uploadImage = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '请选择要上传的图片文件' });
+    }
+    const relativePath = `/uploads/mirror/${req.file.filename}`;
+    res.json({ url: relativePath });
+  } catch (error: any) {
+    res.status(500).json({ error: '图片上传失败' });
   }
 };

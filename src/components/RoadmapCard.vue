@@ -11,7 +11,7 @@ const props = withDefaults(
   {
     active: false,
     progress: 0,
-  }
+  },
 );
 
 defineEmits<{
@@ -27,7 +27,7 @@ const progressOffset = computed(() => {
 
 <template>
   <div
-    class="group p-2 md:p-4 rounded-xl md:rounded-2xl border transition-all cursor-pointer relative overflow-hidden shrink-0 w-48 md:w-full"
+    class="group p-1.5 md:p-4 rounded-lg md:rounded-2xl border transition-all cursor-pointer relative overflow-hidden shrink-0 w-32 sm:w-48 md:w-full"
     :class="
       active
         ? 'border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10 shadow-lg shadow-emerald-500/5'
@@ -36,20 +36,18 @@ const progressOffset = computed(() => {
     @click="$emit('click')"
   >
     <div class="relative z-10">
-      <div class="flex items-start justify-between mb-1 md:mb-2">
+      <div class="flex items-start justify-between mb-0.5 md:mb-2">
         <h3
-          class="text-[10px] md:text-sm font-bold truncate md:whitespace-normal"
+          class="text-[9px] md:text-sm font-bold truncate md:whitespace-normal"
           :class="
-            active
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : 'text-slate-700 dark:text-slate-200'
+            active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'
           "
         >
           {{ roadmap.title }}
         </h3>
         <!-- Progress Ring -->
-        <div class="relative w-4 h-4 md:w-8 md:h-8 shrink-0 ml-1 md:ml-2">
-          <svg class="w-4 h-4 md:w-8 md:h-8 -rotate-90" viewBox="0 0 40 40">
+        <div class="relative w-3.5 h-3.5 md:w-8 md:h-8 shrink-0 ml-1 md:ml-2">
+          <svg class="w-3.5 h-3.5 md:w-8 md:h-8 -rotate-90" viewBox="0 0 40 40">
             <circle
               cx="20"
               cy="20"
@@ -83,7 +81,7 @@ const progressOffset = computed(() => {
       </div>
 
       <p
-        class="text-[7px] md:text-[10px] line-clamp-1 md:line-clamp-2 mb-1 md:mb-3"
+        class="hidden sm:block text-[7px] md:text-[10px] line-clamp-1 md:line-clamp-2 mb-1 md:mb-3"
         style="color: var(--text-secondary)"
       >
         {{ roadmap.description }}

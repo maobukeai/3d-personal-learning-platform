@@ -1,6 +1,29 @@
 import { Request, Response } from 'express';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
+import { encryptSecret, maskProxyUrl } from '../utils/secret-field';
+
+const toPublicEmailAccount = (account: any) => ({
+  id: account.id,
+  userId: account.userId,
+  email: account.email,
+  clientId: account.clientId,
+  tokenExpiresAt: account.tokenExpiresAt,
+  status: account.status,
+  statusMessage: account.statusMessage,
+  proxy: maskProxyUrl(account.proxy),
+  userAgent: account.userAgent,
+  dailyLimit: account.dailyLimit,
+  sentCountToday: account.sentCountToday,
+  lastResetDate: account.lastResetDate,
+  minDelay: account.minDelay,
+  maxDelay: account.maxDelay,
+  createdAt: account.createdAt,
+  updatedAt: account.updatedAt,
+  hasPassword: Boolean(account.password),
+  hasRefreshToken: Boolean(account.refreshToken),
+  hasAccessToken: Boolean(account.accessToken),
+});
 
 export class EmailController {
   /**
@@ -16,39 +39,31 @@ export class EmailController {
       return;
     }
 
-    const lines = importData.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    const lines = importData
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
     const parsedAccounts: any[] = [];
     const errors: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line) continue;
-      const parts = line.split('----').map(part => part.trim());
-      
+      const parts = line.split('----').map((part) => part.trim());
+
       // We need at least email, client_id, and refresh_token
       // Standard: 邮箱----密码----client_id----令牌
       if (parts.length < 3) {
-        errors.push(`第 ${i + 1} 行格式不正确，缺少字段。要求格式: 邮箱----密码----client_id----令牌`);
+        errors.push(
+          `第 ${i + 1} 行格式不正确，缺少字段。要求格式: 邮箱----密码----client_id----令牌`,
+        );
         continue;
       }
 
-      let email = '';
-      let password = '';
-      let clientId = '';
-      let token = '';
-
-      if (parts.length === 3) {
-        // e.g. email----client_id----token
-        email = parts[0] || '';
-        clientId = parts[1] || '';
-        token = parts[2] || '';
-      } else {
-        // e.g. email----password----client_id----token (possibly more)
-        email = parts[0] || '';
-        password = parts[1] || '';
-        clientId = parts[2] || '';
-        token = parts[3] || '';
-      }
+      const [email, password, clientId, token] =
+        parts.length === 3
+          ? [parts[0] || '', '', parts[1] || '', parts[2] || '']
+          : [parts[0] || '', parts[1] || '', parts[2] || '', parts[3] || ''];
 
       if (!email.includes('@') || !clientId || !token) {
         errors.push(`第 ${i + 1} 行数据内容无效。请确保邮箱、Client ID及令牌完整且有效`);
@@ -71,15 +86,25 @@ export class EmailController {
     try {
       const results = [];
       for (const account of parsedAccounts) {
+        const existingAccount = await prisma.microsoftEmailAccount.findUnique({
+          where: { email: account.email },
+          select: { userId: true },
+        });
+
+        if (existingAccount && existingAccount.userId !== userId) {
+          errors.push(`账号 ${account.email} 已存在，无法导入到当前用户`);
+          continue;
+        }
+
         // Create or update based on unique email
         const record = await prisma.microsoftEmailAccount.upsert({
           where: { email: account.email },
           update: {
-            password: account.password || undefined,
+            password: encryptSecret(account.password) || undefined,
             clientId: account.clientId,
-            refreshToken: account.refreshToken,
+            refreshToken: encryptSecret(account.refreshToken) || account.refreshToken,
             userId, // Bind to the importing user
-            proxy: proxy || undefined,
+            proxy: encryptSecret(proxy) || undefined,
             minDelay: minDelay !== undefined ? parseInt(minDelay, 10) : undefined,
             maxDelay: maxDelay !== undefined ? parseInt(maxDelay, 10) : undefined,
             dailyLimit: dailyLimit !== undefined ? parseInt(dailyLimit, 10) : undefined,
@@ -88,11 +113,11 @@ export class EmailController {
           },
           create: {
             email: account.email,
-            password: account.password,
+            password: encryptSecret(account.password),
             clientId: account.clientId,
-            refreshToken: account.refreshToken,
+            refreshToken: encryptSecret(account.refreshToken) || account.refreshToken,
             userId,
-            proxy: proxy || null,
+            proxy: encryptSecret(proxy),
             minDelay: minDelay !== undefined ? parseInt(minDelay, 10) : 5,
             maxDelay: maxDelay !== undefined ? parseInt(maxDelay, 10) : 15,
             dailyLimit: dailyLimit !== undefined ? parseInt(dailyLimit, 10) : 50,
@@ -107,7 +132,7 @@ export class EmailController {
         success: true,
         message: `成功导入/更新 ${results.length} 个微软邮箱账号。`,
         count: results.length,
-        accounts: results.map(r => ({ id: r.id, email: r.email, status: r.status })),
+        accounts: results.map((r) => ({ id: r.id, email: r.email, status: r.status })),
         errors: errors.length > 0 ? errors : undefined,
       });
     } catch (e: any) {
@@ -126,7 +151,7 @@ export class EmailController {
         where: { userId },
         orderBy: { createdAt: 'desc' },
       });
-      res.status(200).json(accounts);
+      res.status(200).json(accounts.map(toPublicEmailAccount));
     } catch (e: any) {
       res.status(500).json({ error: '获取账号列表失败', details: e.message });
     }
@@ -233,7 +258,7 @@ export class EmailController {
       const messages = await MicrosoftGraphService.fetchMessages(
         id,
         (folderId as string) || 'inbox',
-        parsedLimit
+        parsedLimit,
       );
       res.status(200).json(messages);
     } catch (e: any) {
@@ -317,9 +342,13 @@ export class EmailController {
         }
 
         // Filter out those that hit their limits
-        const eligibleAccounts = activeAccounts.filter(acc => acc.sentCountToday < acc.dailyLimit);
+        const eligibleAccounts = activeAccounts.filter(
+          (acc) => acc.sentCountToday < acc.dailyLimit,
+        );
         if (eligibleAccounts.length === 0) {
-          res.status(400).json({ error: '所有可用账号已达到每日发送限额，请调整每日限额或明日再试' });
+          res
+            .status(400)
+            .json({ error: '所有可用账号已达到每日发送限额，请调整每日限额或明日再试' });
           return;
         }
 
@@ -343,7 +372,9 @@ export class EmailController {
         }
 
         if (account.status !== 'ACTIVE') {
-          res.status(400).json({ error: `选定的账号状态非激活 (${account.status})，请重新测试连接` });
+          res
+            .status(400)
+            .json({ error: `选定的账号状态非激活 (${account.status})，请重新测试连接` });
           return;
         }
 
@@ -367,7 +398,9 @@ export class EmailController {
       await MicrosoftGraphService.sendMail(selectedAccountId, { to, subject, content });
 
       // Calculate safe next delays response metadata for the frontend
-      const randomDelaySec = Math.floor(Math.random() * (sendingAccount.maxDelay - sendingAccount.minDelay + 1)) + sendingAccount.minDelay;
+      const randomDelaySec =
+        Math.floor(Math.random() * (sendingAccount.maxDelay - sendingAccount.minDelay + 1)) +
+        sendingAccount.minDelay;
 
       res.status(200).json({
         success: true,

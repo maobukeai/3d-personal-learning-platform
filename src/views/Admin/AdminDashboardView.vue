@@ -162,7 +162,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    class="admin-dashboard flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
     <!-- Admin Header (奢华顶栏) -->
@@ -629,5 +629,13 @@ onMounted(() => {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (max-width: 767px) {
+  .admin-dashboard button,
+  .admin-dashboard a {
+    min-height: 2.25rem;
+    min-width: 2.25rem;
+  }
 }
 </style>

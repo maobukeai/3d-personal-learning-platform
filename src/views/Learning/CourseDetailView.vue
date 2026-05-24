@@ -263,10 +263,10 @@ onMounted(fetchCourse);
       </div>
 
       <template v-else-if="course">
-        <div class="max-w-6xl mx-auto">
-          <!-- Hero Section -->
-          <div class="relative">
-            <div class="h-64 md:h-80 overflow-hidden">
+        <!-- Hero Section -->
+        <div class="max-w-6xl mx-auto px-3 sm:px-4.5 md:px-6 pt-3 sm:pt-4">
+          <div class="relative rounded-xl md:rounded-2xl overflow-hidden shadow-md border" style="border-color: var(--border-base)">
+            <div class="h-40 md:h-52 overflow-hidden">
               <img
                 :src="
                   course.thumbnail ||
@@ -276,16 +276,16 @@ onMounted(fetchCourse);
                 class="w-full h-full object-cover"
               />
               <div
-                class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
+                class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent"
               ></div>
             </div>
-            <div class="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8">
+            <div class="absolute bottom-0 left-0 right-0 p-3.5 sm:p-5 md:p-6">
               <div class="flex items-end justify-between">
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-3 mb-3">
+                  <div class="flex items-center gap-2 mb-2">
                     <span
                       v-if="course.category"
-                      class="px-3 py-1 rounded-lg bg-accent/20 text-accent text-xs font-bold backdrop-blur-sm"
+                      class="px-2 py-0.5 rounded bg-accent/25 text-accent text-[10px] font-bold backdrop-blur-sm"
                     >
                       {{ course.category.name }}
                     </span>
@@ -293,69 +293,70 @@ onMounted(fetchCourse);
                       :class="
                         difficultyMap[course.difficulty]?.color || 'text-slate-400 bg-slate-400/10'
                       "
-                      class="px-3 py-1 rounded-lg text-xs font-bold backdrop-blur-sm"
+                      class="px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm"
                     >
                       {{ difficultyMap[course.difficulty]?.label || '入门' }}
                     </span>
                   </div>
-                  <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 leading-tight">
+                  <h1 class="text-lg sm:text-xl md:text-2xl font-black text-white mb-2 leading-tight">
                     {{ course.title }}
                   </h1>
-                  <p class="text-white/70 text-sm line-clamp-2 max-w-2xl">
+                  <p class="text-white/80 text-xs line-clamp-2 max-w-2xl font-medium">
                     {{ course.description }}
                   </p>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Stats Bar -->
+        <!-- Stats Bar Card -->
+        <div class="max-w-6xl mx-auto px-3 sm:px-4.5 md:px-6 mt-3">
           <div
-            class="px-4 sm:px-6 md:px-8 py-6 border-b flex overflow-x-auto sm:grid sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-y-4 gap-x-6 transition-colors duration-300 scrollbar-hide"
+            class="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border flex flex-row flex-nowrap items-center gap-2 sm:gap-5 justify-between sm:justify-start transition-colors duration-300 overflow-x-auto scrollbar-hide text-[10px] sm:text-xs"
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
-            <div class="flex items-center gap-2 shrink-0">
-              <Star class="w-4 h-4 text-amber-400 fill-amber-400" />
-              <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+            <div class="flex items-center gap-1 shrink-0">
+              <Star class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 fill-amber-400" />
+              <span class="font-bold" style="color: var(--text-primary)">{{
                 course.avgRating || '暂无'
               }}</span>
-              <span class="text-xs hidden xs:inline" style="color: var(--text-muted)"
-                >({{ course._count?.reviews || 0 }} 评价)</span
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)"
+                >({{ course._count?.reviews || 0 }})</span
               >
             </div>
-            <div class="h-4 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
-            <div class="flex items-center gap-2 shrink-0">
-              <Users class="w-4 h-4" style="color: var(--text-muted)" />
-              <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+            <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div class="flex items-center gap-1 shrink-0">
+              <Users class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+              <span class="font-bold" style="color: var(--text-primary)">{{
                 course._count?.enrollments || 0
               }}</span>
-              <span class="text-xs hidden xs:inline" style="color: var(--text-muted)">人已参加</span>
-              <span class="text-xs inline xs:hidden" style="color: var(--text-muted)">人参加</span>
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">参加</span>
             </div>
-            <div class="h-4 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
-            <div class="flex items-center gap-2 shrink-0">
-              <BookOpen class="w-4 h-4" style="color: var(--text-muted)" />
-              <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+            <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div class="flex items-center gap-1 shrink-0">
+              <BookOpen class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+              <span class="font-bold" style="color: var(--text-primary)">{{
                 course.lessons?.length || 0
               }}</span>
-              <span class="text-xs" style="color: var(--text-muted)">课时</span>
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">课时</span>
             </div>
-            <div class="h-4 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
-            <div class="flex items-center gap-2 shrink-0">
-              <Timer class="w-4 h-4" style="color: var(--text-muted)" />
-              <span class="text-sm font-bold" style="color: var(--text-primary)">{{
+            <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+            <div class="flex items-center gap-1 shrink-0">
+              <Timer class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+              <span class="font-bold" style="color: var(--text-primary)">{{
                 totalDurationFormatted
               }}</span>
             </div>
             <!-- Tags -->
             <template v-if="courseTags.length > 0">
-              <div class="h-4 w-px hidden lg:block shrink-0" style="background-color: var(--border-base)"></div>
-              <div class="flex items-center gap-2 flex-nowrap shrink-0 sm:shrink lg:shrink-0 overflow-x-visible">
-                <Tag class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+              <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
+              <div class="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-visible">
+                <Tag class="w-3 h-3 text-slate-400" />
                 <span
-                  v-for="tag in courseTags.slice(0, 4)"
+                  v-for="tag in courseTags.slice(0, 2)"
                   :key="tag"
-                  class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-accent/10 text-accent whitespace-nowrap"
+                  class="px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-accent/10 text-accent whitespace-nowrap"
                 >
                   {{ tag }}
                 </span>
@@ -364,32 +365,32 @@ onMounted(fetchCourse);
           </div>
 
           <!-- Main Content + Sidebar -->
-          <div class="flex flex-col lg:flex-row gap-6 md:gap-8 p-4 sm:p-6 md:p-8">
+          <div class="flex flex-col lg:flex-row gap-5 p-3.5 sm:p-5 md:p-6">
             <!-- Left Content -->
-            <div class="flex-1 min-w-0 space-y-8">
+            <div class="flex-1 min-w-0 space-y-5">
               <!-- Instructor Card -->
               <div
                 v-if="instructorInfo"
-                class="p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-4"
+                class="p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center gap-3"
                 style="background-color: var(--bg-card); border-color: var(--border-base)"
               >
-                <UserAvatar :user="instructorInfo" size="lg" />
+                <UserAvatar :user="instructorInfo" size="sm" />
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <h4 class="text-sm font-bold" style="color: var(--text-primary)">
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="text-xs font-bold" style="color: var(--text-primary)">
                       {{ instructorInfo.name || '讲师' }}
                     </h4>
                     <span
-                      class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-indigo-500/10 text-indigo-500"
+                      class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-500/10 text-indigo-500 leading-none"
                       >讲师</span
                     >
                   </div>
-                  <p class="text-xs mt-0.5" style="color: var(--text-muted)">
+                  <p class="text-[10px] mt-0.5 leading-normal" style="color: var(--text-muted)">
                     {{ instructorInfo.bio || instructorInfo.email }}
                   </p>
                 </div>
                 <div
-                  class="flex items-center gap-4 text-[10px] font-bold"
+                  class="flex items-center gap-3 text-[9px] font-bold shrink-0"
                   style="color: var(--text-muted)"
                 >
                   <span class="flex items-center gap-1"
@@ -404,14 +405,14 @@ onMounted(fetchCourse);
 
               <!-- Section Tabs -->
               <div
-                class="flex items-center gap-1 p-1 rounded-xl w-fit transition-colors duration-300"
-                style="background-color: var(--bg-card)"
+                class="flex items-center gap-0.5 p-0.5 rounded-lg w-fit border transition-colors duration-300"
+                style="background-color: var(--bg-card); border-color: var(--border-base)"
               >
                 <button
-                  class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all"
+                  class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer"
                   :class="
                     activeSection === 'outline'
-                      ? 'bg-accent text-white shadow-md shadow-accent/20'
+                      ? 'bg-accent text-white shadow-sm shadow-accent/15'
                       : ''
                   "
                   :style="activeSection !== 'outline' ? 'color: var(--text-secondary)' : ''"
@@ -420,10 +421,10 @@ onMounted(fetchCourse);
                   课程大纲
                 </button>
                 <button
-                  class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all"
+                  class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer"
                   :class="
                     activeSection === 'reviews'
-                      ? 'bg-accent text-white shadow-md shadow-accent/20'
+                      ? 'bg-accent text-white shadow-sm shadow-accent/15'
                       : ''
                   "
                   :style="activeSection !== 'reviews' ? 'color: var(--text-secondary)' : ''"
@@ -435,11 +436,11 @@ onMounted(fetchCourse);
 
               <!-- Outline Section -->
               <template v-if="activeSection === 'outline'">
-                <div class="space-y-3">
+                <div class="space-y-2">
                   <div
                     v-for="(lesson, index) in course.lessons"
                     :key="lesson.id"
-                    class="group flex items-center gap-4 p-4 rounded-2xl border transition-all hover:shadow-md"
+                    class="group flex items-center gap-3 p-3 rounded-xl border transition-all hover:shadow-sm"
                     :class="[
                       course.lessonProgressMap?.[lesson.id]
                         ? 'border-emerald-200 dark:border-emerald-800/30'
@@ -450,60 +451,60 @@ onMounted(fetchCourse);
                     @click="isEnrolled && handleStartLearning(index as number)"
                   >
                     <div
-                      class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"
                       :class="
                         course.lessonProgressMap?.[lesson.id]
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-slate-100 dark:bg-white/5'
+                          ? 'bg-emerald-500 text-white border-emerald-500'
+                          : 'bg-slate-50 dark:bg-white/5 border-[var(--border-base)]'
                       "
                       style="color: var(--text-muted)"
                     >
                       <CheckCircle2
                         v-if="course.lessonProgressMap?.[lesson.id]"
-                        class="w-5 h-5 text-white"
+                        class="w-4 h-4 text-white"
                       />
-                      <span v-else class="text-xs font-black">{{ (index as number) + 1 }}</span>
+                      <span v-else class="text-[11px] font-black">{{ (index as number) + 1 }}</span>
                     </div>
                     <div class="flex-1 min-w-0">
-                      <h4 class="text-sm font-bold truncate" style="color: var(--text-primary)">
+                      <h4 class="text-xs font-bold truncate" style="color: var(--text-primary)">
                         {{ lesson.title }}
                       </h4>
-                      <div class="flex items-center gap-3 mt-1">
+                      <div class="flex items-center gap-2.5 mt-0.5">
                         <span
-                          class="flex items-center gap-1 text-[10px] font-medium"
+                          class="flex items-center gap-1 text-[9px] font-bold"
                           style="color: var(--text-muted)"
                         >
-                          <component :is="getLessonTypeIcon(lesson)" class="w-3 h-3" />
+                          <component :is="getLessonTypeIcon(lesson)" class="w-3 h-3 text-slate-400" />
                           {{ getLessonTypeLabel(lesson) }}
                         </span>
                         <span
                           v-if="lesson.duration"
-                          class="flex items-center gap-1 text-[10px] font-medium"
+                          class="flex items-center gap-1 text-[9px] font-bold"
                           style="color: var(--text-muted)"
                         >
-                          <Clock class="w-3 h-3" /> {{ lesson.duration }} 分钟
+                          <Clock class="w-3 h-3 text-slate-400" /> {{ lesson.duration }} 分钟
                         </span>
                       </div>
                     </div>
                     <button
                       v-if="isEnrolled"
-                      class="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10"
+                      class="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent/10 cursor-pointer shrink-0"
                     >
-                      <PlayCircle class="w-4 h-4 text-accent" />
+                      <PlayCircle class="w-3.5 h-3.5 text-accent" />
                     </button>
                   </div>
                 </div>
 
                 <div
                   v-if="!course.lessons?.length"
-                  class="py-16 text-center rounded-3xl border-2 border-dashed"
+                  class="py-12 text-center rounded-xl border border-dashed"
                   style="border-color: var(--border-base)"
                 >
                   <BookOpen
-                    class="w-12 h-12 mx-auto mb-4 opacity-20"
+                    class="w-10 h-10 mx-auto mb-3 opacity-20"
                     style="color: var(--text-muted)"
                   />
-                  <p class="text-sm" style="color: var(--text-muted)">课程内容正在准备中</p>
+                  <p class="text-xs" style="color: var(--text-muted)">课程内容正在准备中</p>
                 </div>
               </template>
 
@@ -511,19 +512,19 @@ onMounted(fetchCourse);
               <template v-if="activeSection === 'reviews'">
                 <!-- Rating Summary -->
                 <div
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
-                  <div class="flex gap-8">
-                    <div class="text-center">
-                      <div class="text-5xl font-black" style="color: var(--text-primary)">
+                  <div class="flex gap-6 items-center">
+                    <div class="text-center px-2">
+                      <div class="text-4xl font-black" style="color: var(--text-primary)">
                         {{ course.avgRating || '-' }}
                       </div>
-                      <div class="flex items-center gap-0.5 mt-2 justify-center">
+                      <div class="flex items-center gap-0.5 mt-1.5 justify-center">
                         <Star
                           v-for="i in 5"
                           :key="i"
-                          class="w-4 h-4"
+                          class="w-3.5 h-3.5"
                           :class="
                             i <= Math.round(course.avgRating || 0)
                               ? 'text-amber-400 fill-amber-400'
@@ -531,23 +532,22 @@ onMounted(fetchCourse);
                           "
                         />
                       </div>
-                      <p class="text-xs mt-2" style="color: var(--text-muted)">
+                      <p class="text-[10px] mt-1.5" style="color: var(--text-muted)">
                         {{ course._count?.reviews || 0 }} 条评价
                       </p>
                     </div>
-                    <div class="flex-1 space-y-1.5">
+                    <div class="flex-1 space-y-1">
                       <div
                         v-for="item in ratingDistribution"
                         :key="item.stars"
-                        class="flex items-center gap-3"
+                        class="flex items-center gap-2"
                       >
                         <span
-                          class="text-xs font-bold w-8 text-right"
+                          class="text-[10px] font-bold w-7 text-right"
                           style="color: var(--text-secondary)"
-                          >{{ item.stars }} 星</span
-                        >
+                          >{{ item.stars }} 星</span>
                         <div
-                          class="flex-1 h-2 rounded-full overflow-hidden"
+                          class="flex-1 h-1.5 rounded-full overflow-hidden"
                           style="background-color: var(--bg-app)"
                         >
                           <div
@@ -555,9 +555,8 @@ onMounted(fetchCourse);
                             :style="{ width: item.percent + '%' }"
                           ></div>
                         </div>
-                        <span class="text-[10px] font-bold w-8" style="color: var(--text-muted)"
-                          >{{ item.percent }}%</span
-                        >
+                        <span class="text-[9px] font-bold w-7 text-left" style="color: var(--text-muted)"
+                          >{{ item.percent }}%</span>
                       </div>
                     </div>
                   </div>
@@ -566,22 +565,22 @@ onMounted(fetchCourse);
                 <!-- Write Review (only if enrolled) -->
                 <div
                   v-if="isEnrolled"
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
-                  <h4 class="text-sm font-bold mb-4" style="color: var(--text-primary)">
+                  <h4 class="text-xs font-bold mb-3" style="color: var(--text-primary)">
                     写下你的评价
                   </h4>
-                  <div class="flex items-center gap-2 mb-4">
-                    <span class="text-xs font-bold" style="color: var(--text-muted)">评分：</span>
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="text-[11px] font-bold" style="color: var(--text-muted)">评分：</span>
                     <button
                       v-for="i in 5"
                       :key="i"
-                      class="p-0.5 transition-transform hover:scale-125"
+                      class="p-0.5 transition-transform hover:scale-125 cursor-pointer"
                       @click="reviewRating = i"
                     >
                       <Star
-                        class="w-5 h-5 transition-colors"
+                        class="w-4.5 h-4.5 transition-colors"
                         :class="
                           i <= reviewRating
                             ? 'text-amber-400 fill-amber-400'
@@ -592,43 +591,43 @@ onMounted(fetchCourse);
                   </div>
                   <textarea
                     v-model="reviewComment"
-                    rows="3"
+                    rows="2"
                     placeholder="分享你的学习体验..."
-                    class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none text-sm"
+                    class="w-full px-3 py-2 rounded-xl border transition-all outline-none resize-none text-xs"
                     style="
                       background-color: var(--bg-app);
                       border-color: var(--border-base);
                       color: var(--text-primary);
                     "
                   ></textarea>
-                  <div class="flex justify-end mt-3">
+                  <div class="flex justify-end mt-2">
                     <button
                       :disabled="isSubmittingReview"
-                      class="flex items-center gap-2 px-6 py-2.5 bg-accent text-white font-bold text-sm rounded-xl shadow-lg shadow-accent/20 disabled:opacity-50 transition-all"
+                      class="flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white font-bold text-xs rounded-lg shadow disabled:opacity-50 transition-all cursor-pointer"
                       @click="handleSubmitReview"
                     >
-                      <Send class="w-4 h-4" />
+                      <Send class="w-3.5 h-3.5" />
                       提交评价
                     </button>
                   </div>
                 </div>
 
                 <!-- Reviews List -->
-                <div class="space-y-4">
+                <div class="space-y-2.5">
                   <div
                     v-for="review in course.reviews"
                     :key="review.id"
-                    class="p-5 rounded-2xl border"
+                    class="p-3.5 rounded-xl border"
                     style="background-color: var(--bg-card); border-color: var(--border-base)"
                   >
-                    <div class="flex items-center gap-3 mb-3">
-                      <UserAvatar :user="review.user" size="md" />
+                    <div class="flex items-center gap-2.5 mb-2">
+                      <UserAvatar :user="review.user" size="sm" class="shrink-0" />
                       <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold truncate" style="color: var(--text-primary)">
+                        <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
                           {{ review.user?.name || '匿名用户' }}
                         </p>
-                        <div class="flex items-center gap-2">
-                          <div class="flex items-center gap-0.5">
+                        <div class="flex items-center gap-2 leading-none mt-0.5">
+                          <div class="flex items-center">
                             <Star
                               v-for="i in 5"
                               :key="i"
@@ -640,7 +639,7 @@ onMounted(fetchCourse);
                               "
                             />
                           </div>
-                          <span class="text-[10px]" style="color: var(--text-muted)">{{
+                          <span class="text-[9px]" style="color: var(--text-muted)">{{
                             formatTimeAgo(review.createdAt)
                           }}</span>
                         </div>
@@ -648,7 +647,7 @@ onMounted(fetchCourse);
                     </div>
                     <p
                       v-if="review.comment"
-                      class="text-sm leading-relaxed"
+                      class="text-xs leading-relaxed"
                       style="color: var(--text-secondary)"
                     >
                       {{ review.comment }}
@@ -657,14 +656,14 @@ onMounted(fetchCourse);
 
                   <div
                     v-if="!course.reviews?.length"
-                    class="py-16 text-center rounded-3xl border-2 border-dashed"
+                    class="py-12 text-center rounded-xl border border-dashed"
                     style="border-color: var(--border-base)"
                   >
                     <MessageSquare
-                      class="w-12 h-12 mx-auto mb-4 opacity-20"
+                      class="w-10 h-10 mx-auto mb-3 opacity-20"
                       style="color: var(--text-muted)"
                     />
-                    <p class="text-sm" style="color: var(--text-muted)">
+                    <p class="text-xs" style="color: var(--text-muted)">
                       暂无评价，成为第一个评价的人吧
                     </p>
                   </div>
@@ -673,27 +672,27 @@ onMounted(fetchCourse);
             </div>
 
             <!-- Right Sidebar - Sticky CTA -->
-            <div class="w-80 shrink-0 hidden lg:block">
-              <div class="sticky top-8 space-y-4">
+            <div class="w-72 shrink-0 hidden lg:block">
+              <div class="sticky top-20 space-y-3.5">
                 <!-- Progress Card (if enrolled) -->
                 <div
                   v-if="isEnrolled"
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
-                  <div class="flex items-center gap-3 mb-4">
-                    <div class="p-2 bg-emerald-500/10 rounded-lg">
-                      <CheckCircle2 class="w-5 h-5 text-emerald-500" />
+                  <div class="flex items-center gap-2.5 mb-3.5">
+                    <div class="p-1.5 bg-emerald-500/10 rounded-lg">
+                      <CheckCircle2 class="w-4 h-4 text-emerald-500" />
                     </div>
                     <div>
-                      <p class="text-xs font-bold" style="color: var(--text-muted)">学习进度</p>
-                      <p class="text-lg font-black" style="color: var(--text-primary)">
+                      <p class="text-[10px] font-bold leading-none mb-1" style="color: var(--text-muted)">学习进度</p>
+                      <p class="text-base font-black leading-none" style="color: var(--text-primary)">
                         {{ courseProgress }}%
                       </p>
                     </div>
                   </div>
                   <div
-                    class="w-full h-2 rounded-full overflow-hidden mb-4"
+                    class="w-full h-1.5 rounded-full overflow-hidden mb-3"
                     style="background-color: var(--bg-app)"
                   >
                     <div
@@ -701,14 +700,14 @@ onMounted(fetchCourse);
                       :style="{ width: courseProgress + '%' }"
                     ></div>
                   </div>
-                  <p class="text-xs mb-4" style="color: var(--text-muted)">
+                  <p class="text-[10px] mb-3" style="color: var(--text-muted)">
                     已完成 {{ completedLessonCount }} / {{ course.lessons?.length || 0 }} 课时
                   </p>
                   <button
-                    class="w-full py-3 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 transition-all hover:shadow-xl flex items-center justify-center gap-2"
+                    class="w-full py-2 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                     @click="handleStartLearning()"
                   >
-                    <PlayCircle class="w-5 h-5" />
+                    <PlayCircle class="w-4 h-4" />
                     继续学习
                   </button>
                 </div>
@@ -716,54 +715,50 @@ onMounted(fetchCourse);
                 <!-- Enroll Card (if not enrolled) -->
                 <div
                   v-else
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
-                  <div class="space-y-4 mb-6">
-                    <div class="flex items-center gap-3">
-                      <BookOpen class="w-4 h-4" style="color: var(--text-muted)" />
-                      <span class="text-sm" style="color: var(--text-secondary)"
-                        >{{ course.lessons?.length || 0 }} 节课时</span
-                      >
+                  <div class="space-y-3 mb-4.5">
+                    <div class="flex items-center gap-2.5">
+                      <BookOpen class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+                      <span class="text-xs" style="color: var(--text-secondary)"
+                        >{{ course.lessons?.length || 0 }} 节课时</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                      <Timer class="w-4 h-4" style="color: var(--text-muted)" />
-                      <span class="text-sm" style="color: var(--text-secondary)"
-                        >总时长 {{ totalDurationFormatted }}</span
-                      >
+                    <div class="flex items-center gap-2.5">
+                      <Timer class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+                      <span class="text-xs" style="color: var(--text-secondary)"
+                        >总时长 {{ totalDurationFormatted }}</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                      <Signal class="w-4 h-4" style="color: var(--text-muted)" />
-                      <span class="text-sm" style="color: var(--text-secondary)"
-                        >{{ difficultyMap[course.difficulty]?.label || '入门' }}难度</span
-                      >
+                    <div class="flex items-center gap-2.5">
+                      <Signal class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+                      <span class="text-xs" style="color: var(--text-secondary)"
+                        >{{ difficultyMap[course.difficulty]?.label || '入门' }}难度</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                      <Users class="w-4 h-4" style="color: var(--text-muted)" />
-                      <span class="text-sm" style="color: var(--text-secondary)"
-                        >{{ course._count?.enrollments || 0 }} 人已参加</span
-                      >
+                    <div class="flex items-center gap-2.5">
+                      <Users class="w-3.5 h-3.5" style="color: var(--text-muted)" />
+                      <span class="text-xs" style="color: var(--text-secondary)"
+                        >{{ course._count?.enrollments || 0 }} 人已参加</span>
                     </div>
                   </div>
                   <button
                     :disabled="isEnrolling"
-                    class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 transition-all hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                    class="w-full py-2.5 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                     @click="handleEnroll"
                   >
-                    <GraduationCap class="w-5 h-5" />
+                    <GraduationCap class="w-4 h-4" />
                     {{ isEnrolling ? '加入中...' : '立即参加' }}
                   </button>
                 </div>
 
                 <!-- Course Description Card -->
                 <div
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
-                  <h4 class="text-sm font-bold mb-3" style="color: var(--text-primary)">
+                  <h4 class="text-xs font-bold mb-2" style="color: var(--text-primary)">
                     课程简介
                   </h4>
-                  <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+                  <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary)">
                     {{ course.description || '暂无简介' }}
                   </p>
                 </div>
@@ -771,20 +766,20 @@ onMounted(fetchCourse);
                 <!-- Tags Card -->
                 <div
                   v-if="courseTags.length > 0"
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
                   <h4
-                    class="text-sm font-bold mb-3 flex items-center gap-2"
+                    class="text-xs font-bold mb-2.5 flex items-center gap-1.5"
                     style="color: var(--text-primary)"
                   >
-                    <Tag class="w-4 h-4 text-accent" /> 课程标签
+                    <Tag class="w-3.5 h-3.5 text-accent" /> 课程标签
                   </h4>
-                  <div class="flex flex-wrap gap-2">
+                  <div class="flex flex-wrap gap-1.5">
                     <span
                       v-for="tag in courseTags"
                       :key="tag"
-                      class="px-3 py-1 rounded-lg text-xs font-bold bg-accent/10 text-accent"
+                      class="px-2 py-0.5 rounded text-[10px] font-bold bg-accent/10 text-accent"
                     >
                       {{ tag }}
                     </span>
@@ -794,22 +789,22 @@ onMounted(fetchCourse);
                 <!-- Quick Notes Entry -->
                 <div
                   v-if="isEnrolled"
-                  class="p-6 rounded-2xl border"
+                  class="p-4 rounded-xl border"
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
                   <h4
-                    class="text-sm font-bold mb-3 flex items-center gap-2"
+                    class="text-xs font-bold mb-2 flex items-center gap-1.5"
                     style="color: var(--text-primary)"
                   >
-                    <StickyNote class="w-4 h-4 text-amber-500" /> 学习笔记
+                    <StickyNote class="w-3.5 h-3.5 text-amber-500" /> 学习笔记
                   </h4>
-                  <p class="text-xs mb-3" style="color: var(--text-muted)">
+                  <p class="text-[10px] mb-2.5" style="color: var(--text-muted)">
                     记录你的学习心得和笔记
                   </p>
                   <textarea
-                    rows="5"
+                    rows="3"
                     placeholder="在这里快速记录笔记..."
-                    class="w-full px-3 py-2 rounded-xl border text-xs outline-none resize-none transition-all focus:ring-2 focus:ring-accent/20"
+                    class="w-full px-2.5 py-1.5 rounded-lg border text-[11px] outline-none resize-none transition-all focus:ring-2 focus:ring-accent/20"
                     style="
                       background-color: var(--bg-app);
                       border-color: var(--border-base);
@@ -817,7 +812,7 @@ onMounted(fetchCourse);
                     "
                   ></textarea>
                   <button
-                    class="w-full mt-2 py-2 border border-slate-200 dark:border-white/10 text-xs font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5"
+                    class="w-full mt-2 py-1.5 border border-slate-200 dark:border-white/10 text-[10px] font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     style="color: var(--text-secondary)"
                   >
                     <StickyNote class="w-3.5 h-3.5" /> 保存笔记

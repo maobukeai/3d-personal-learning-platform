@@ -64,12 +64,9 @@ export class OAuthService {
 
     const { access_token } = res.data;
 
-    const userRes = await axios.get(
-      `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${access_token}`,
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-      },
-    );
+    const userRes = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
 
     return {
       id: userRes.data.id,

@@ -47,7 +47,7 @@ const getFormatIcon = (format?: string) => {
 
 <template>
   <div
-    class="asset-card-container group relative flex flex-col overflow-hidden rounded-2xl border bg-white/50 backdrop-blur-md transition-all duration-500 hover:-translate-y-1.5 hover:scale-[1.02] hover:border-accent/50 hover:shadow-[0_20px_40px_-15px_rgba(var(--accent-rgb),0.3)] dark:bg-slate-900/50"
+    class="asset-card-container group relative flex flex-col overflow-hidden rounded-xl border bg-white/50 backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] hover:border-accent/50 hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-rgb),0.25)] dark:bg-slate-900/50"
     style="border-color: var(--border-base)"
   >
     <!-- Preview Area -->
@@ -59,13 +59,13 @@ const getFormatIcon = (format?: string) => {
         v-if="asset.thumbnail"
         :src="asset.thumbnail"
         :alt="asset.title"
-        class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+        class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
       />
       <img
         v-else
         :src="getDefaultThumbnailUrl(asset.type)"
         :alt="asset.title"
-        class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-110"
+        class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105"
       />
 
       <!-- Gradient Overlay for Contrast -->
@@ -76,53 +76,54 @@ const getFormatIcon = (format?: string) => {
         class="absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-sm transition-all duration-500 group-hover:opacity-100"
       >
         <div 
-          class="flex h-14 w-14 transform scale-50 items-center justify-center rounded-full bg-white/20 shadow-[0_0_30px_rgba(255,255,255,0.3)] backdrop-blur-md border border-white/30 transition-all duration-500 delay-75 group-hover:scale-100 dark:bg-black/40"
+          class="flex h-10 w-10 transform scale-50 items-center justify-center rounded-full bg-white/20 shadow-[0_0_20px_rgba(255,255,255,0.2)] backdrop-blur-md border border-white/30 transition-all duration-500 delay-75 group-hover:scale-100 dark:bg-black/40"
         >
-          <Maximize2 class="h-6 w-6 text-white drop-shadow-md" />
+          <Maximize2 class="h-4.5 w-4.5 text-white drop-shadow-md" />
         </div>
       </div>
 
       <!-- Type Badge -->
       <div 
-        class="absolute left-3 top-3 z-20 rounded-full border border-white/30 bg-black/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md transition-transform duration-500 group-hover:translate-x-1 shadow-lg"
+        class="absolute left-2 top-2 z-20 rounded-full border border-white/30 bg-black/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-md transition-transform duration-500 group-hover:translate-x-0.5 shadow-md"
       >
         {{ asset.type }}
       </div>
     </div>
 
     <!-- Content Area -->
-    <div class="flex flex-col p-4 z-20 relative bg-white dark:bg-slate-900 transition-colors duration-500 group-hover:bg-transparent">
+    <div class="flex flex-col p-2.5 sm:p-3 z-20 relative bg-white dark:bg-slate-900 transition-colors duration-500 group-hover:bg-transparent">
       <h3 
-        class="mb-3 line-clamp-1 text-sm font-bold tracking-tight transition-colors duration-300 group-hover:text-accent"
+        class="mb-1.5 line-clamp-1 text-xs sm:text-sm font-bold tracking-tight transition-colors duration-300 group-hover:text-accent"
         style="color: var(--text-primary)"
       >
         {{ asset.title }}
       </h3>
 
       <!-- Bottom Info Bar -->
-      <div class="flex items-center justify-between border-t pt-3" style="border-color: var(--border-base)">
+      <div class="flex items-center justify-between border-t pt-2.5" style="border-color: var(--border-base)">
         <!-- File Size -->
-        <div class="flex items-center gap-2">
-          <div class="h-1.5 w-1.5 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]"></div>
-          <span class="text-[11px] font-semibold tracking-wide" style="color: var(--text-secondary)">
+        <div class="flex items-center gap-1.5">
+          <div class="h-1 w-1 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]"></div>
+          <span class="text-[10px] font-semibold tracking-wide" style="color: var(--text-secondary)">
             {{ formatSize(asset.fileSize) }}
           </span>
         </div>
 
         <!-- Format Info -->
-        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 transition-colors duration-300 group-hover:bg-accent/10">
+        <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 transition-colors duration-300 group-hover:bg-accent/10">
           <component 
             :is="getFormatIcon(asset.format)" 
-            class="h-3.5 w-3.5 transition-colors duration-300 group-hover:text-accent" 
+            class="h-3 w-3 transition-colors duration-300 group-hover:text-accent" 
             style="color: var(--text-secondary)"
           />
-          <span class="text-[10px] font-bold uppercase tracking-wider transition-colors duration-300 group-hover:text-accent" style="color: var(--text-muted)">
+          <span class="text-[9px] font-bold uppercase tracking-wider transition-colors duration-300 group-hover:text-accent" style="color: var(--text-muted)">
             {{ asset.format || 'GLB' }}
           </span>
         </div>
       </div>
     </div>
   </div>
+
 </template>
 
 <style scoped>

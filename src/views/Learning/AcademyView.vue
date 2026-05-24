@@ -250,7 +250,7 @@ onMounted(() => {
     <!-- Filter Bar -->
     <div
       v-if="showFilters"
-      class="px-3 sm:px-5 lg:px-6 py-2 sm:py-3 border-b flex flex-wrap items-center gap-3 sm:gap-4 transition-colors duration-300"
+      class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex flex-wrap items-center gap-2.5 sm:gap-3 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
@@ -278,11 +278,11 @@ onMounted(() => {
 
     <!-- Category Tabs -->
     <div
-      class="px-3 sm:px-5 lg:px-6 py-2 sm:py-3 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300"
+      class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex items-center gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <button
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
         :class="
           !activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'
         "
@@ -292,7 +292,7 @@ onMounted(() => {
         全部课程
       </button>
       <button
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
         :class="
           activeCategoryId === 'mine'
             ? 'bg-accent text-white shadow-md shadow-accent/20'
@@ -304,7 +304,7 @@ onMounted(() => {
         <BookOpen class="w-3.5 h-3.5" /> 我的课程
       </button>
       <button
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
         :class="
           activeCategoryId === 'bookmarked'
             ? 'bg-accent text-white shadow-md shadow-accent/20'
@@ -322,7 +322,7 @@ onMounted(() => {
       <button
         v-for="cat in categories"
         :key="cat.id"
-        class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
         :class="
           activeCategoryId === cat.id
             ? 'bg-accent text-white shadow-md shadow-accent/20'
@@ -337,64 +337,64 @@ onMounted(() => {
     </div>
 
     <!-- Content Area -->
-    <div class="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-10">
+    <div class="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-4.5 scrollbar-hide">
+      <div class="max-w-7xl mx-auto space-y-6 sm:space-y-7">
         <!-- My Courses: Learning Stats & Continue Learning -->
         <template v-if="activeCategoryId === 'mine' && myEnrollments.length > 0">
           <!-- Learning Stats -->
           <section>
-            <div class="flex items-center gap-2 mb-3 sm:mb-4">
+            <div class="flex items-center gap-2 mb-2 sm:mb-2.5">
               <TrendingUp class="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
               <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">学习概览</h2>
             </div>
             <!-- Stats Container: Fixed 5 columns on mobile, Grid on desktop -->
-            <div class="grid grid-cols-5 gap-1.5 sm:gap-4">
+            <div class="grid grid-cols-5 gap-1 sm:gap-2.5">
               <div
-                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
+                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
               >
-                <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
+                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">在学</span>
                   <BookOpen class="hidden sm:block w-4 h-4 text-accent" />
                 </div>
-                <p class="text-sm sm:text-3xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
+                <p class="text-xs sm:text-2xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
               </div>
               <div
-                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
+                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
               >
-                <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
+                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">已完成</span>
                   <Trophy class="hidden sm:block w-4 h-4 text-amber-500" />
                 </div>
-                <p class="text-sm sm:text-3xl font-black text-amber-500">
+                <p class="text-xs sm:text-2xl font-black text-amber-500">
                   {{ learningStats.completedCourses }}
                 </p>
               </div>
               <div
-                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
+                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
               >
-                <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
+                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">课时</span>
                   <Clock class="hidden sm:block w-4 h-4 text-indigo-500" />
                 </div>
-                <p class="text-sm sm:text-3xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
+                <p class="text-xs sm:text-2xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
               </div>
               <div
-                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
+                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
               >
-                <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
+                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">平均</span>
                   <Target class="hidden sm:block w-4 h-4 text-emerald-500" />
                 </div>
-                <p class="text-sm sm:text-3xl font-black text-emerald-500">{{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span></p>
+                <p class="text-xs sm:text-2xl font-black text-emerald-500">{{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span></p>
               </div>
               <div
-                class="p-2 sm:p-5 glass-card flex flex-col items-center text-center"
+                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
               >
-                <div class="flex items-center justify-center sm:justify-between w-full mb-1 sm:mb-2">
+                <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">报名</span>
                   <Flame class="hidden sm:block w-4 h-4 text-rose-500" />
                 </div>
-                <p class="text-sm sm:text-3xl font-black text-rose-500">{{ learningStats.totalCourses }}</p>
+                <p class="text-xs sm:text-2xl font-black text-rose-500">{{ learningStats.totalCourses }}</p>
               </div>
             </div>
           </section>
@@ -424,7 +424,7 @@ onMounted(() => {
             !activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0
           "
         >
-          <div class="flex items-center gap-2 mb-4 sm:mb-5">
+          <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Sparkles class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">精选推荐</h2>
           </div>
@@ -449,11 +449,11 @@ onMounted(() => {
             recommendedCourses.length > 0
           "
         >
-          <div class="flex items-center gap-2 mb-4 sm:mb-5">
+          <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Heart class="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">猜你想学</h2>
           </div>
-          <div class="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-1.5 sm:gap-4">
             <CourseCard
               v-for="course in recommendedCourses"
               :key="course.id"
@@ -466,7 +466,7 @@ onMounted(() => {
 
         <!-- Course Grid -->
         <section>
-          <div class="flex items-center justify-between mb-4 sm:mb-5 px-1">
+          <div class="flex items-center justify-between mb-2.5 sm:mb-3 px-1">
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">
               {{ activeCategory }}
             </h2>
@@ -477,7 +477,7 @@ onMounted(() => {
 
           <div
             v-if="filteredCourses.length > 0"
-            class="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:gap-6"
+            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-3.5 lg:gap-4.5"
           >
             <CourseCard
               v-for="course in filteredCourses"

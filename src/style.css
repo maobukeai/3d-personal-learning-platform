@@ -204,6 +204,21 @@ body {
   line-height: 1.6;
 }
 
+@media (max-width: 767px) {
+  .animate-float-blob,
+  .animate-float-blob-reverse,
+  .animate-pulse-slow {
+    animation: none !important;
+  }
+
+  .glass-card,
+  .glass-sidebar,
+  .glass-header {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
 /* ============================================================
    Scrollbar
    ============================================================ */
@@ -1179,5 +1194,4 @@ html.theme-glass.dark kbd {
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
   color: var(--text-primary) !important;
 }
-
 

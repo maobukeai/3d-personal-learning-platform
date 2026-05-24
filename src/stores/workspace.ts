@@ -11,6 +11,7 @@ export interface Workspace {
   badgeCount?: number;
   mirrorSourceId?: string;
   manualStationId?: string;
+  avatarUrl?: string | null;
 }
 
 export const useWorkspaceStore = defineStore('workspace', {
@@ -74,6 +75,7 @@ export const useWorkspaceStore = defineStore('workspace', {
           type: t.type.toLowerCase() as 'personal' | 'team',
           color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
           description: t.type === 'PERSONAL' ? '默认个人空间' : `${t._count?.members || 1} 名成员`,
+          avatarUrl: t.avatarUrl || (t.type === 'PERSONAL' ? authStore.user?.avatarUrl : null),
         }));
 
         this.rawWorkspaces = fetchedWorkspaces;
@@ -101,6 +103,7 @@ export const useWorkspaceStore = defineStore('workspace', {
               color: 'bg-violet-600',
               description: ms.description || `${ms.totalResources} 个资源`,
               mirrorSourceId: ms.id,
+              avatarUrl: ms.iconUrl,
             });
           }
         } catch (e) {
@@ -119,6 +122,7 @@ export const useWorkspaceStore = defineStore('workspace', {
               color: 'bg-cyan-600',
               description: ms.description || `手动资源站 (${ms.totalResources} 个资源)`,
               manualStationId: ms.id,
+              avatarUrl: ms.iconUrl,
             });
           }
         } catch (e) {

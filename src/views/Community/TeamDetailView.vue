@@ -351,6 +351,7 @@ const handleAvatarChange = async (event: any) => {
     });
     if (team.value) team.value.avatarUrl = data.avatarUrl;
     ElMessage.success('团队头像已更新');
+    await workspaceStore.fetchWorkspaces();
   } catch (error) {
     ElMessage.error('头像更新失败');
   }
@@ -437,7 +438,19 @@ const confirmDeleteTeam = async () => {
 
 onMounted(() => {
   fetchTeamDetail();
+  if (route.query.tab) {
+    activeTab.value = route.query.tab as string;
+  }
 });
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab) {
+      activeTab.value = newTab as string;
+    }
+  }
+);
 
 watch(teamId, (newId) => {
   if (newId) {

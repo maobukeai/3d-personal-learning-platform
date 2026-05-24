@@ -64,6 +64,16 @@ export const useSystemStore = defineStore('system', {
           document.getElementsByTagName('head')[0].appendChild(link);
         }
         link.href = faviconUrl;
+        if (faviconUrl.indexOf('.svg') === -1) {
+          link.removeAttribute('type');
+        }
+        try {
+          localStorage.setItem('platform_favicon', faviconUrl);
+        } catch (e) {}
+      } else {
+        try {
+          localStorage.removeItem('platform_favicon');
+        } catch (e) {}
       }
 
       // Update meta description

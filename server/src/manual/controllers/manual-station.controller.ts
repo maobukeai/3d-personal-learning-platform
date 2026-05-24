@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import prisma from '../../services/prisma';
+import { clampLimit, clampPage } from '../../utils/pagination';
 
 // Helper to check user plan priority vs station priority
 const getUserPlanPriority = async (userId: string): Promise<number> => {
@@ -124,8 +125,8 @@ export const getResources = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: '站点不存在' });
     }
 
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 21;
+    const page = clampPage(req.query.page);
+    const pageSize = clampLimit(req.query.pageSize, 21, 100);
     const categoryId = (req.query.categoryId as string) || undefined;
     const search = (req.query.search as string) || undefined;
     const sort = (req.query.sort as string) || undefined;

@@ -67,11 +67,11 @@ function handleBookmarkClick(event: Event) {
   <!-- layout == 'row-simple' (e.g. Continue Learning) -->
   <div
     v-if="layout === 'row-simple'"
-    class="group flex gap-4 p-3.5 sm:p-4 glass-card glass-card-hover overflow-hidden cursor-pointer"
+    class="group flex gap-3 p-2.5 sm:p-3 glass-card glass-card-hover overflow-hidden cursor-pointer"
     @click="handleCardClick"
   >
     <div
-      class="w-24 sm:w-28 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
+      class="w-20 sm:w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
       <img
         :src="course.thumbnail || defaultThumbnail"
@@ -111,11 +111,11 @@ function handleBookmarkClick(event: Event) {
   <!-- layout == 'row-detailed' (e.g. Featured Recommended) -->
   <div
     v-else-if="layout === 'row-detailed'"
-    class="group flex flex-col sm:flex-row gap-4 sm:gap-5 p-4 sm:p-5 glass-card glass-card-hover overflow-hidden cursor-pointer"
+    class="group flex flex-col sm:flex-row gap-3 sm:gap-3.5 p-3 sm:p-3.5 glass-card glass-card-hover overflow-hidden cursor-pointer"
     @click="handleCardClick"
   >
     <div
-      class="w-full sm:w-48 lg:w-56 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
+      class="w-full sm:w-36 lg:w-44 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
       <img
         :src="course.thumbnail || defaultThumbnail"
@@ -125,7 +125,7 @@ function handleBookmarkClick(event: Event) {
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
       <div>
-        <div class="flex items-center gap-2 mb-2">
+        <div class="flex items-center gap-2 mb-1.5">
           <span
             v-if="course.category"
             class="px-1.5 py-0.5 rounded-md bg-accent/10 text-accent text-[10px] font-bold"
@@ -139,7 +139,7 @@ function handleBookmarkClick(event: Event) {
           </span>
         </div>
         <h3
-          class="text-base font-bold mb-2 line-clamp-2 leading-snug group-hover:text-accent transition-colors"
+          class="text-sm sm:text-base font-bold mb-1.5 line-clamp-2 leading-snug group-hover:text-accent transition-colors"
           style="color: var(--text-primary)"
         >
           {{ course.title }}
@@ -149,7 +149,7 @@ function handleBookmarkClick(event: Event) {
         </p>
       </div>
       <div
-        class="flex items-center gap-4 text-[10px] font-bold mt-3"
+        class="flex items-center gap-4 text-[10px] font-bold mt-2"
         style="color: var(--text-muted)"
       >
         <span class="flex items-center gap-1"
@@ -192,23 +192,23 @@ function handleBookmarkClick(event: Event) {
         </span>
       </div>
     </div>
-    <div class="p-4">
+    <div class="p-1.5 sm:p-2.5">
       <h3
-        class="text-sm font-bold mb-1 line-clamp-1 group-hover:text-accent transition-colors"
+        class="text-[10px] sm:text-sm font-bold mb-1 line-clamp-1 group-hover:text-accent transition-colors"
         style="color: var(--text-primary)"
       >
         {{ course.title }}
       </h3>
       <div
-        class="flex items-center gap-3 text-[10px] font-bold"
+        class="flex items-center gap-1.5 sm:gap-3 text-[8px] sm:text-[10px] font-bold"
         style="color: var(--text-muted)"
       >
-        <span class="flex items-center gap-1"
-          ><Star class="w-3 h-3 text-amber-400 fill-amber-400" />
+        <span class="flex items-center gap-0.5 sm:gap-1"
+          ><Star class="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
           {{ course.avgRating || '-' }}</span
         >
-        <span class="flex items-center gap-1"
-          ><Users class="w-3 h-3" /> {{ course._count?.enrollments || 0 }}</span
+        <span class="flex items-center gap-0.5 sm:gap-1"
+          ><Users class="w-2.5 h-2.5" /> {{ course._count?.enrollments || 0 }}</span
         >
       </div>
     </div>
@@ -279,8 +279,8 @@ function handleBookmarkClick(event: Event) {
     </div>
 
     <!-- Course Info -->
-    <div class="p-2.5 sm:p-5">
-      <div class="flex items-center gap-1.5 sm:gap-2 mb-2">
+    <div class="p-1.5 sm:p-3.5">
+      <div class="flex items-center gap-1 sm:gap-1.5 mb-1.5">
         <span
           v-if="course.category"
           class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-bold"
@@ -288,18 +288,18 @@ function handleBookmarkClick(event: Event) {
         >
         <span
           v-if="firstTag"
-          class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[9px] font-bold"
+          class="hidden xs:inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[9px] font-bold"
           >{{ firstTag }}</span
         >
       </div>
       <h3
-        class="text-xs sm:text-sm font-bold mb-2 line-clamp-2 min-h-[32px] sm:min-h-[40px] leading-snug group-hover:text-accent transition-colors"
+        class="text-[10px] sm:text-sm font-bold mb-1.5 line-clamp-2 min-h-[24px] sm:min-h-[32px] leading-tight sm:leading-snug group-hover:text-accent transition-colors"
         style="color: var(--text-primary)"
       >
         {{ course.title }}
       </h3>
 
-      <div class="flex items-center gap-1.5 mb-2.5">
+      <div class="flex items-center gap-1.5 mb-2">
         <div class="hidden xs:flex items-center gap-0.5">
           <Star
             v-for="i in 5"
@@ -319,18 +319,18 @@ function handleBookmarkClick(event: Event) {
       </div>
 
       <div
-        class="flex items-center justify-between pt-2.5 border-t transition-colors duration-300"
+        class="flex items-center justify-between pt-2 border-t transition-colors duration-300"
         style="border-color: var(--border-base)"
       >
         <div
-          class="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] font-bold"
+          class="flex items-center gap-1.5 sm:gap-3 text-[8px] sm:text-[10px] font-bold"
           style="color: var(--text-muted)"
         >
           <span class="flex items-center gap-0.5 sm:gap-1"
-            ><BookOpen class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {{ course._count?.lessons || 0 }} 课时</span
+            ><BookOpen class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {{ course._count?.lessons || 0 }}<span class="hidden xs:inline"> 课时</span></span
           >
           <span class="flex items-center gap-0.5 sm:gap-1"
-            ><Users class="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {{ course._count?.enrollments || 0 }}</span
+            ><Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" /> {{ course._count?.enrollments || 0 }}</span
           >
         </div>
         <ChevronRight

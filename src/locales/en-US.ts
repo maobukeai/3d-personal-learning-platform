@@ -53,7 +53,7 @@ export default {
     assets: 'Assets',
     myWorks: 'My Works',
     work: 'Task Board',
-    teamTasks: 'Team Tasks',
+    teamTasks: 'Project Management',
     discussions: 'Discussions',
     roadmaps: 'Roadmaps',
     academy: 'Academy',

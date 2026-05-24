@@ -112,7 +112,7 @@ describe('Phase 1 Security & Validation', () => {
         lastRes = await request(app)
           .post('/api/auth/login')
           .send({ email: 'rate-limit-test@example.com', password: 'wrongpassword' });
-        
+
         if (lastRes.status === 429) {
           break;
         }

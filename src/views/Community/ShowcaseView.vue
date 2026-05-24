@@ -341,26 +341,26 @@ onMounted(fetchShowcases);
     </PageHeader>
 
     <!-- Featured Banner -->
-    <div class="px-4 sm:px-8 py-4 sm:py-6 shrink-0">
-      <div class="relative h-40 md:h-48 rounded-3xl overflow-hidden bg-slate-900 group cursor-pointer">
+    <div class="px-4 sm:px-6 py-2.5 sm:py-3.5 shrink-0">
+      <div class="relative h-28 md:h-36 rounded-xl overflow-hidden bg-slate-900 group cursor-pointer">
         <img
           src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=80"
           class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
         />
         <div
-          class="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent"
+          class="absolute inset-0 p-4 sm:p-5 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent"
         >
-          <div class="flex items-center gap-2 mb-2">
+          <div class="flex items-center gap-2 mb-1">
             <span
-              class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest"
+              class="bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest"
               >社区精选</span
             >
-            <div class="flex items-center gap-1 text-white/60 text-xs">
+            <div class="flex items-center gap-1 text-white/60 text-[10px]">
               <Flame class="w-3 h-3 text-orange-500" /> 推荐作品
             </div>
           </div>
-          <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">展示你的创意作品</h2>
-          <p class="text-white/70 text-xs sm:text-sm max-w-xl line-clamp-2 sm:line-clamp-none">
+          <h2 class="text-base sm:text-lg font-bold text-white mb-1">展示你的创意作品</h2>
+          <p class="text-white/70 text-[11px] sm:text-xs max-w-xl line-clamp-2">
             发布你的渲染成品、3D模型、动画短片或任何创意作品，与全球创作者交流心得。
           </p>
         </div>
@@ -368,14 +368,14 @@ onMounted(fetchShowcases);
     </div>
 
     <!-- Filter Bar -->
-    <div class="px-4 sm:px-8 mb-6 flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
-      <div class="flex items-center gap-3 sm:gap-4 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4 sm:mx-0 sm:px-0 max-w-full">
-        <div class="flex items-center gap-2 shrink-0">
+    <div class="px-4 sm:px-6 mb-4 flex flex-col lg:flex-row gap-3 lg:items-center justify-between">
+      <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide py-1 -mx-4 px-4 sm:mx-0 sm:px-0 max-w-full">
+        <div class="flex items-center gap-1.5 shrink-0">
           <button
             v-for="f in filters"
             :key="f"
-            class="px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0"
-            :class="activeFilter === f ? 'bg-indigo-600 text-white shadow-md' : 'hover:opacity-80'"
+            class="px-3 py-1 rounded-md text-xs font-bold transition-all shrink-0"
+            :class="activeFilter === f ? 'bg-indigo-600 text-white shadow-sm' : 'hover:opacity-80'"
             :style="
               activeFilter !== f
                 ? 'color: var(--text-secondary); background-color: var(--bg-card)'
@@ -389,12 +389,12 @@ onMounted(fetchShowcases);
             {{ f }}
           </button>
         </div>
-        <div class="w-px h-5 shrink-0" style="background-color: var(--border-base)"></div>
-        <div class="flex items-center gap-1.5 shrink-0">
+        <div class="w-px h-4 shrink-0" style="background-color: var(--border-base)"></div>
+        <div class="flex items-center gap-1 shrink-0">
           <button
             v-for="tf in typeFilters"
             :key="tf"
-            class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all shrink-0"
+            class="px-2 py-0.5 rounded text-[10px] font-bold transition-all shrink-0"
             :class="
               activeTypeFilter === tf
                 ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
@@ -414,19 +414,19 @@ onMounted(fetchShowcases);
           </button>
         </div>
       </div>
-      <div class="flex items-center gap-2 text-xs font-bold shrink-0 self-start lg:self-auto" style="color: var(--text-muted)">
-        <Trophy class="w-4 h-4 text-amber-500 shrink-0" />
+      <div class="flex items-center gap-1.5 text-xs font-bold shrink-0 self-start lg:self-auto" style="color: var(--text-muted)">
+        <Trophy class="w-3.5 h-3.5 text-amber-500 shrink-0" />
         <span class="truncate">年度优秀作品选拔进行中</span>
         <ChevronRight class="w-3 h-3 shrink-0" />
       </div>
     </div>
 
     <!-- Showcase Grid -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-8 pt-0 scrollbar-hide">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 pt-0 scrollbar-hide">
       <div class="max-w-7xl mx-auto">
         <div
           v-if="filteredShowcases.length > 0"
-          class="grid grid-cols-2 lg:grid-cols-4 gap-6"
+          class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4"
         >
           <ShowcaseCard
             v-for="item in filteredShowcases"
@@ -450,15 +450,15 @@ onMounted(fetchShowcases);
       <div v-if="isDetailOpen" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeDetail"></div>
         <div
-          class="relative w-full md:max-w-4xl max-h-[85vh] md:max-h-[90vh] glass-card border border-white/10 shadow-2xl overflow-hidden flex flex-col rounded-t-3xl md:rounded-3xl"
+          class="relative w-full md:max-w-4xl max-h-[85vh] md:max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-base)] shadow-2xl overflow-hidden flex flex-col rounded-t-2xl md:rounded-2xl"
         >
           <!-- Close Button -->
           <button
-            class="absolute top-4 right-4 z-10 p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            class="absolute top-3 right-3 z-10 p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             style="color: var(--text-secondary)"
             @click="closeDetail"
           >
-            <X class="w-5 h-5" />
+            <X class="w-4 h-4" />
           </button>
 
           <div v-if="detailLoading" class="flex-1 flex items-center justify-center py-20">
@@ -532,14 +532,14 @@ onMounted(fetchShowcases);
               </div>
 
               <!-- Detail Content -->
-              <div class="p-8">
+              <div class="p-5 md:p-6">
                 <!-- Title & Author -->
-                <div class="flex items-start justify-between mb-4">
+                <div class="flex items-start justify-between mb-3.5">
                   <div class="flex-1">
-                    <h2 class="text-2xl font-bold mb-3" style="color: var(--text-primary)">
+                    <h2 class="text-lg sm:text-xl font-bold mb-2" style="color: var(--text-primary)">
                       {{ detailItem.title }}
                     </h2>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2.5">
                       <UserAvatar
                         :user="detailItem.user"
                         size="sm"
@@ -548,7 +548,7 @@ onMounted(fetchShowcases);
                       />
                       <div>
                         <p
-                          class="text-sm font-bold cursor-pointer hover:text-indigo-600 transition-colors"
+                          class="text-xs sm:text-sm font-bold cursor-pointer hover:text-indigo-600 transition-colors"
                           style="color: var(--text-primary)"
                           @click="openUserProfile(detailItem.user.id)"
                         >
@@ -556,7 +556,7 @@ onMounted(fetchShowcases);
                         </p>
                         <p
                           v-if="detailItem.user.bio"
-                          class="text-xs"
+                          class="text-[11px]"
                           style="color: var(--text-muted)"
                         >
                           {{ detailItem.user.bio }}
@@ -576,40 +576,40 @@ onMounted(fetchShowcases);
                 <!-- Tags -->
                 <div
                   v-if="parseTags(detailItem.tags).length"
-                  class="flex items-center gap-2 mb-4 flex-wrap"
+                  class="flex items-center gap-1.5 mb-3 flex-wrap"
                 >
                   <Tag class="w-3.5 h-3.5 text-indigo-500" />
                   <span
                     v-for="tag in parseTags(detailItem.tags)"
                     :key="tag"
-                    class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
+                    class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
                   >
                     {{ tag }}
                   </span>
                 </div>
 
                 <!-- Description (Markdown rendered) -->
-                <div v-if="detailItem.description" class="mb-6">
+                <div v-if="detailItem.description" class="mb-4">
                   <MdPreview :model-value="detailItem.description" class="md-preview-showcase" />
                 </div>
 
                 <!-- Linked Asset -->
                 <div
                   v-if="detailItem.asset"
-                  class="mb-6 p-4 rounded-xl border flex items-center gap-3"
+                  class="mb-4 p-3 rounded-lg border flex items-center gap-2.5"
                   style="background-color: var(--bg-app); border-color: var(--border-base)"
                 >
-                  <Box class="w-8 h-8 text-blue-500 shrink-0" />
+                  <Box class="w-6 h-6 text-blue-500 shrink-0" />
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold" style="color: var(--text-secondary)">关联3D模型</p>
-                    <p class="text-sm font-bold truncate" style="color: var(--text-primary)">
+                    <p class="text-[10px] font-bold" style="color: var(--text-secondary)">关联3D模型</p>
+                    <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
                       {{ detailItem.asset.title }}
                     </p>
                   </div>
                   <a
                     :href="detailItem.asset.url"
                     download
-                    class="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shrink-0"
+                    class="px-2.5 py-1 bg-blue-500 text-white rounded-lg text-[11px] font-bold hover:bg-blue-600 transition-all shrink-0"
                   >
                     下载模型
                   </a>
@@ -617,34 +617,34 @@ onMounted(fetchShowcases);
 
                 <!-- Stats Bar -->
                 <div
-                  class="flex items-center gap-6 py-4 border-t border-b"
+                  class="flex items-center gap-4 py-2.5 border-t border-b"
                   style="border-color: var(--border-base)"
                 >
-                  <div class="flex items-center gap-2 text-sm" style="color: var(--text-secondary)">
-                    <Eye class="w-4 h-4" />
+                  <div class="flex items-center gap-1.5 text-xs" style="color: var(--text-secondary)">
+                    <Eye class="w-3.5 h-3.5" />
                     <span class="font-bold">{{ detailItem.views }}</span> 浏览
                   </div>
                   <button
-                    class="flex items-center gap-2 text-sm transition-all"
+                    class="flex items-center gap-1.5 text-xs transition-all"
                     :class="detailItem.isLiked ? 'text-rose-500' : ''"
                     style="color: var(--text-secondary)"
                     @click="toggleLike(detailItem)"
                   >
-                    <Heart class="w-4 h-4" :class="detailItem.isLiked ? 'fill-rose-500' : ''" />
+                    <Heart class="w-3.5 h-3.5" :class="detailItem.isLiked ? 'fill-rose-500' : ''" />
                     <span class="font-bold">{{ detailItem.likesCount }}</span> 点赞
                   </button>
-                  <div class="flex items-center gap-2 text-sm" style="color: var(--text-secondary)">
-                    <MessageCircle class="w-4 h-4" />
+                  <div class="flex items-center gap-1.5 text-xs" style="color: var(--text-secondary)">
+                    <MessageCircle class="w-3.5 h-3.5" />
                     <span class="font-bold">{{ detailItem.commentsCount }}</span> 评论
                   </div>
                   <button
-                    class="flex items-center gap-2 text-sm ml-auto transition-all hover:text-indigo-600"
+                    class="flex items-center gap-1.5 text-xs ml-auto transition-all hover:text-indigo-600"
                     style="color: var(--text-secondary)"
                     @click="handleShare"
                   >
                     <component
                       :is="shareCopied ? Check : Share2"
-                      class="w-4 h-4"
+                      class="w-3.5 h-3.5"
                       :class="shareCopied ? 'text-emerald-500' : ''"
                     />
                     {{ shareCopied ? '已复制' : '分享' }}
@@ -652,55 +652,55 @@ onMounted(fetchShowcases);
                 </div>
 
                 <!-- Comments Section -->
-                <div class="mt-6">
-                  <h3 class="text-sm font-bold mb-4" style="color: var(--text-primary)">
+                <div class="mt-4">
+                  <h3 class="text-xs sm:text-sm font-bold mb-3" style="color: var(--text-primary)">
                     评论 ({{ detailItem.commentsCount }})
                   </h3>
 
                   <!-- Comment Input -->
-                  <div class="flex items-start gap-3 mb-6">
+                  <div class="flex items-start gap-2.5 mb-4">
                     <UserAvatar :user="authStore.user" size="sm" />
                     <div class="flex-1 flex items-center gap-2">
                       <input
                         v-model="newComment"
                         type="text"
                         placeholder="写下你的评论..."
-                        class="flex-1 px-4 py-2.5 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        class="flex-1 px-3 py-2 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
                         style="background-color: var(--bg-app); color: var(--text-primary)"
                         @keyup.enter="submitComment"
                       />
                       <button
                         :disabled="isSubmittingComment || !newComment.trim()"
-                        class="p-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        class="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         @click="submitComment"
                       >
-                        <Send class="w-4 h-4" />
+                        <Send class="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
                   <!-- Comments List -->
-                  <div v-if="commentsLoading" class="py-8 text-center">
+                  <div v-if="commentsLoading" class="py-6 text-center">
                     <div
-                      class="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"
+                      class="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"
                     ></div>
                   </div>
-                  <div v-else-if="comments.length === 0" class="py-8 text-center">
+                  <div v-else-if="comments.length === 0" class="py-6 text-center">
                     <p class="text-xs" style="color: var(--text-muted)">暂无评论，来说点什么吧</p>
                   </div>
-                  <div v-else class="space-y-4">
+                  <div v-else class="space-y-3">
                     <div
                       v-for="comment in comments"
                       :key="comment.id"
-                      class="flex items-start gap-3 group"
+                      class="flex items-start gap-2.5 group"
                     >
                       <UserAvatar :user="comment.user" size="sm" />
                       <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-0.5">
-                          <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                          <span class="text-[11px] font-bold" style="color: var(--text-primary)">{{
                             comment.user.name || '匿名用户'
                           }}</span>
-                          <span class="text-[10px]" style="color: var(--text-muted)">{{
+                          <span class="text-[9px]" style="color: var(--text-muted)">{{
                             formatTime(comment.createdAt)
                           }}</span>
                           <button
@@ -711,7 +711,7 @@ onMounted(fetchShowcases);
                             <Trash2 class="w-3 h-3" />
                           </button>
                         </div>
-                        <p class="text-sm leading-relaxed" style="color: var(--text-secondary)">
+                        <p class="text-xs sm:text-sm leading-relaxed" style="color: var(--text-secondary)">
                           {{ comment.content }}
                         </p>
                       </div>

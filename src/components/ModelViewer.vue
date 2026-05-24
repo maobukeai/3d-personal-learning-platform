@@ -357,6 +357,46 @@ const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
   });
 };
 
+const disposeMaterial = (material: THREE.Material) => {
+  material.dispose();
+  const textureSlots = [
+    'map',
+    'normalMap',
+    'roughnessMap',
+    'metalnessMap',
+    'emissiveMap',
+    'specularMap',
+    'aoMap',
+    'bumpMap',
+    'alphaMap',
+    'displacementMap',
+    'lightMap'
+  ];
+  for (const slot of textureSlots) {
+    const value = (material as any)[slot];
+    if (value && typeof value.dispose === 'function' && value instanceof THREE.Texture) {
+      value.dispose();
+    }
+  }
+};
+
+const disposeHierarchy = (obj: THREE.Object3D) => {
+  obj.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => disposeMaterial(m));
+        } else {
+          disposeMaterial(child.material);
+        }
+      }
+    }
+  });
+};
+
 const onModelLoaded = (object: THREE.Object3D, animCount: number = 0) => {
   loadedModel = object;
   optimizeTexturesForGPULimit(loadedModel);
@@ -379,12 +419,18 @@ const loadModel = (url: string) => {
   originalMaterials.clear();
 
   if (loadedModel) {
+    disposeHierarchy(loadedModel);
     scene.remove(loadedModel);
+    loadedModel = null;
     if (wireframeOverlay) {
+      disposeHierarchy(wireframeOverlay);
       scene.remove(wireframeOverlay);
       wireframeOverlay = null;
     }
-    if (mixer) mixer.stopAllAction();
+    if (mixer) {
+      mixer.stopAllAction();
+      mixer = null;
+    }
   }
 
   isLoading.value = true;
@@ -635,6 +681,14 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   cancelAnimationFrame(animationId);
+  if (loadedModel) {
+    disposeHierarchy(loadedModel);
+    loadedModel = null;
+  }
+  if (wireframeOverlay) {
+    disposeHierarchy(wireframeOverlay);
+    wireframeOverlay = null;
+  }
   if (renderer) renderer.dispose();
 });
 

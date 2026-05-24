@@ -1,12 +1,20 @@
 import { Router } from 'express';
 import { authenticate, isAdmin } from '../../middlewares/auth.middleware';
-import { upload } from '../../middlewares/upload.middleware';
+import { upload, validateFileContent } from '../../middlewares/upload.middleware';
 import * as adminMirrorController from '../controllers/admin-mirror.controller';
 
 const router = Router();
 
 router.use(authenticate);
 router.use(isAdmin);
+
+// Image Upload
+router.post(
+  '/upload',
+  upload.single('mirror_image'),
+  validateFileContent,
+  adminMirrorController.uploadImage,
+);
 
 router.get('/sources', adminMirrorController.getAllSources);
 router.post('/sources', adminMirrorController.createSource);
@@ -18,7 +26,14 @@ router.post('/sources/:id/sync', adminMirrorController.triggerSync);
 router.post('/sources/:id/sync/cancel', adminMirrorController.cancelSync);
 router.get('/sources/:id/sync-status', adminMirrorController.getSyncStatus);
 router.get('/sources/:id/sync-logs', adminMirrorController.getSyncLogs);
-router.post('/sources/:id/match-links', upload.single('file'), adminMirrorController.matchLinks);
+router.post(
+  '/sources/:id/match-links',
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'files', maxCount: 100 },
+  ]),
+  adminMirrorController.matchLinks,
+);
 
 // Category CRUD
 router.get('/sources/:sourceId/categories', adminMirrorController.getSourceCategories);

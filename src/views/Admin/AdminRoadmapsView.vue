@@ -1,25 +1,42 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { Plus, Trash2, Edit2, Milestone, Search, X } from 'lucide-vue-next';
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  Milestone,
+  Search,
+  X,
+  ChevronUp,
+  ChevronDown,
+  Layers,
+  Info,
+  BookOpen,
+  HelpCircle,
+  CheckCircle2,
+  FolderOpen,
+  Calendar,
+  Layers3,
+  Flame,
+  ArrowRight,
+} from 'lucide-vue-next';
 import api from '@/utils/api';
 
 const roadmaps = ref<any[]>([]);
 const isLoading = ref(true);
-const showRoadmapModal = ref(false);
-const showStepModal = ref(false);
+const showEditModal = ref(false);
 const currentRoadmap = ref<any>(null);
-const currentStep = ref<any>(null);
 
-const roadmapForm = ref({
+const editForm = ref({
   title: '',
   description: '',
-});
-
-const stepForm = ref({
-  title: '',
-  description: '',
-  order: 0,
-  roadmapId: '',
+  steps: [] as {
+    id?: string;
+    title: string;
+    description: string;
+    subtasks: string[];
+    order: number;
+  }[],
 });
 
 const searchQuery = ref('');
@@ -28,10 +45,14 @@ const filteredRoadmaps = computed(() => {
   if (!searchQuery.value) return roadmaps.value;
   const query = searchQuery.value.toLowerCase();
   return roadmaps.value.filter(
-    (r) =>
-      r.title?.toLowerCase().includes(query) ||
-      r.description?.toLowerCase().includes(query),
+    (r) => r.title?.toLowerCase().includes(query) || r.description?.toLowerCase().includes(query),
   );
+});
+
+// Calculate metrics for dashboard summary cards
+const totalRoadmapsCount = computed(() => roadmaps.value.length);
+const totalStepsCount = computed(() => {
+  return roadmaps.value.reduce((acc, curr) => acc + (curr.steps?.length || 0), 0);
 });
 
 const fetchRoadmaps = async () => {
@@ -46,85 +67,164 @@ const fetchRoadmaps = async () => {
   }
 };
 
+const openEditModal = (roadmap: any = null) => {
+  currentRoadmap.value = roadmap;
+  if (roadmap) {
+    editForm.value = {
+      title: roadmap.title || '',
+      description: roadmap.description || '',
+      // Deep clone existing steps so that local edits don't leak until saved
+      steps: roadmap.steps
+        ? roadmap.steps.map((s: any) => {
+            let subtasksArr = [];
+            if (s.subtasks) {
+              try {
+                subtasksArr = typeof s.subtasks === 'string' ? JSON.parse(s.subtasks) : s.subtasks;
+              } catch (e) {
+                console.error('Parse step subtasks error:', e);
+              }
+            }
+            return {
+              id: s.id,
+              title: s.title || '',
+              description: s.description || '',
+              subtasks: Array.isArray(subtasksArr) ? subtasksArr : [],
+              order: s.order || 0,
+            };
+          })
+        : [],
+    };
+  } else {
+    editForm.value = {
+      title: '',
+      description: '',
+      steps: [
+        {
+          title: '阶段 1: 核心基础概念',
+          description: '介绍基础的工具界面布局、关键操作快捷键，完成简单的几何体搭建',
+          subtasks: [
+            '构建基本的场景视口与画布模板',
+            '认识常用几何体模型并完成低模拼装',
+            '熟练使用挤出、环切和倒角命令建模',
+          ],
+          order: 1,
+        },
+        {
+          title: '阶段 2: 深入实战与优化',
+          description:
+            '引入进阶编辑指令，完成具有一定复杂度的完整实体作品，学会材质与灯光的基础配置',
+          subtasks: [
+            '运用 Subdivision 细分修改器给模型增加圆角细节',
+            '完成模型的 UV 展开且确保贴图无接缝拉伸',
+            '调试 HDRI 环境光渲染并导出一张高保真静帧',
+          ],
+          order: 2,
+        },
+      ],
+    };
+  }
+  showEditModal.value = true;
+};
+
+const addStep = () => {
+  editForm.value.steps.push({
+    title: '',
+    description: '',
+    subtasks: [],
+    order: editForm.value.steps.length + 1,
+  });
+};
+
+const removeStep = (index: number) => {
+  editForm.value.steps.splice(index, 1);
+  editForm.value.steps.forEach((step, idx) => {
+    step.order = idx + 1;
+  });
+};
+
+const moveStepUp = (index: number) => {
+  if (index === 0) return;
+  const temp = editForm.value.steps[index];
+  editForm.value.steps[index] = editForm.value.steps[index - 1];
+  editForm.value.steps[index - 1] = temp;
+  editForm.value.steps.forEach((step, idx) => {
+    step.order = idx + 1;
+  });
+};
+
+const moveStepDown = (index: number) => {
+  if (index === editForm.value.steps.length - 1) return;
+  const temp = editForm.value.steps[index];
+  editForm.value.steps[index] = editForm.value.steps[index + 1];
+  editForm.value.steps[index + 1] = temp;
+  editForm.value.steps.forEach((step, idx) => {
+    step.order = idx + 1;
+  });
+};
+
 const handleSaveRoadmap = async () => {
+  if (!editForm.value.title.trim()) {
+    alert('请输入学习路线名称');
+    return;
+  }
+
+  // Clean steps with empty titles
+  const validSteps = editForm.value.steps.filter((s) => s.title.trim());
+  if (validSteps.length === 0) {
+    if (!confirm('当前路线没有任何有效步骤，确认保存吗？')) return;
+  }
+
+  // Double check orders before submission and construct subtasks array
+  const formattedSteps = validSteps.map((step, idx) => {
+    const subtasks = step.subtasks
+      ? step.subtasks.map((t: string) => t.trim()).filter(Boolean)
+      : [];
+    return {
+      id: step.id,
+      title: step.title,
+      description: step.description,
+      subtasks,
+      order: idx + 1,
+    };
+  });
+
+  const payload = {
+    title: editForm.value.title,
+    description: editForm.value.description,
+    steps: formattedSteps,
+  };
+
   try {
+    isLoading.value = true;
     if (currentRoadmap.value) {
-      await api.put(`/api/admin/roadmaps/${currentRoadmap.value.id}`, roadmapForm.value);
+      await api.put(`/api/admin/roadmaps/${currentRoadmap.value.id}`, payload);
     } else {
-      await api.post('/api/admin/roadmaps', roadmapForm.value);
+      await api.post('/api/admin/roadmaps', payload);
     }
-    showRoadmapModal.value = false;
-    fetchRoadmaps();
+    showEditModal.value = false;
+    await fetchRoadmaps();
   } catch (error) {
     console.error('Save roadmap error:', error);
+    alert('保存失败，请检查数据库配置');
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const handleDeleteRoadmap = async (id: string) => {
-  if (!confirm('确定要删除这个路线吗？所有步骤将被删除。')) return;
+  if (
+    !confirm('确定要删除这个官方路线吗？该操作不可逆，将级联清除该路线的所有步骤及用户的学习记录！')
+  )
+    return;
   try {
+    isLoading.value = true;
     await api.delete(`/api/admin/roadmaps/${id}`);
-    fetchRoadmaps();
+    await fetchRoadmaps();
   } catch (error) {
     console.error('Delete roadmap error:', error);
-  }
-};
-
-const openRoadmapModal = (roadmap: any = null) => {
-  currentRoadmap.value = roadmap;
-  if (roadmap) {
-    roadmapForm.value = {
-      title: roadmap.title,
-      description: roadmap.description,
-    };
-  } else {
-    roadmapForm.value = { title: '', description: '' };
-  }
-  showRoadmapModal.value = true;
-};
-
-const openStepModal = (roadmap: any, step: any = null) => {
-  currentRoadmap.value = roadmap;
-  currentStep.value = step;
-  if (step) {
-    stepForm.value = {
-      title: step.title,
-      description: step.description,
-      order: step.order,
-      roadmapId: roadmap.id,
-    };
-  } else {
-    stepForm.value = {
-      title: '',
-      description: '',
-      order: (roadmap.steps?.length || 0) + 1,
-      roadmapId: roadmap.id,
-    };
-  }
-  showStepModal.value = true;
-};
-
-const handleSaveStep = async () => {
-  try {
-    if (currentStep.value) {
-      await api.put(`/api/admin/roadmaps/steps/${currentStep.value.id}`, stepForm.value);
-    } else {
-      await api.post('/api/admin/roadmaps/steps', stepForm.value);
-    }
-    showStepModal.value = false;
-    fetchRoadmaps();
-  } catch (error) {
-    console.error('Save step error:', error);
-  }
-};
-
-const handleDeleteStep = async (id: string) => {
-  if (!confirm('确定要删除这个步骤吗？')) return;
-  try {
-    await api.delete(`/api/admin/roadmaps/steps/${id}`);
-    fetchRoadmaps();
-  } catch (error) {
-    console.error('Delete step error:', error);
+    alert('删除失败，请重试');
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -145,31 +245,43 @@ onMounted(() => {
     >
       <!-- 极光背景装饰 -->
       <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-orange-500/10 via-amber-500/5 to-transparent pointer-events-none"
+        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"
       ></div>
 
       <!-- Row 1: 标题 & 主要动作 -->
       <div
-        class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
+        class="px-4 sm:px-8 py-3 flex flex-row items-center justify-between gap-3 relative z-10 border-b"
         style="border-color: var(--border-base)"
       >
         <div class="flex items-center gap-2">
           <span
-            class="p-1 rounded-xl bg-orange-500/10 text-orange-600 shadow-sm border border-orange-500/20"
+            class="p-1.5 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white shadow-sm border border-indigo-500/20"
           >
             <Milestone class="w-4 h-4" />
           </span>
-          <h1 class="text-sm font-black tracking-tight" style="color: var(--text-primary)">
-            学习路线管理
-          </h1>
+          <div>
+            <h1
+              class="text-sm font-black tracking-tight flex items-center gap-1.5"
+              style="color: var(--text-primary)"
+            >
+              官方学习路线管理
+              <span
+                class="px-1.5 py-0.5 rounded text-[8px] bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 font-bold uppercase tracking-widest scale-90"
+                >Official Only</span
+              >
+            </h1>
+            <p class="text-[10px] text-slate-400 font-medium hidden xs:block">
+              在这里定义、更新和维护官方推出的 3D 节点学习图谱
+            </p>
+          </div>
         </div>
 
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-bold text-[11px] transition-all shadow-sm cursor-pointer whitespace-nowrap"
-          @click="openRoadmapModal()"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-md shadow-indigo-500/15 cursor-pointer whitespace-nowrap hover:scale-102"
+          @click="openEditModal()"
         >
           <Plus class="w-3.5 h-3.5" />
-          <span class="hidden sm:inline">新建路线</span>
+          <span>新建学习路线</span>
         </button>
       </div>
 
@@ -178,25 +290,34 @@ onMounted(() => {
         class="px-4 sm:px-8 py-2 flex flex-col md:flex-row md:flex-wrap md:items-center justify-between gap-3 relative z-10 transition-colors duration-300"
       >
         <!-- 统计 Pills -->
-        <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
+        <div class="flex flex-wrap items-center gap-2 max-w-full shrink-0">
           <span
-            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-orange-500/30 bg-orange-500/10 text-orange-600 text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 shrink-0"
+            class="px-2.5 py-1 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 text-[10px] sm:text-[11px] font-bold flex items-center gap-1.5 shrink-0"
           >
-            <Milestone class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-            <span>全部路线</span>
-            <span class="opacity-60">({{ filteredRoadmaps.length }})</span>
+            <Milestone class="w-3 h-3" />
+            <span>官方路线</span>
+            <span class="opacity-60 font-black">({{ totalRoadmapsCount }})</span>
+          </span>
+          <span
+            class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-[10px] sm:text-[11px] font-bold flex items-center gap-1.5 shrink-0"
+          >
+            <Layers3 class="w-3 h-3" />
+            <span>核心步骤总数</span>
+            <span class="opacity-60 font-black">{{ totalStepsCount }}</span>
           </span>
         </div>
 
         <!-- 检索工具 -->
-        <div class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0">
+        <div
+          class="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto shrink-0"
+        >
           <div class="relative flex-1 md:flex-none md:w-64">
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索路线标题或描述..."
-              class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-orange-500/20 outline-none text-[11px] shadow-sm"
+              placeholder="快速查找官方路线..."
+              class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);
@@ -217,96 +338,187 @@ onMounted(() => {
 
     <!-- Main Content -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 text-slate-400">
-        <div
-          class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
-        ></div>
-        <p class="text-sm font-bold">加载学习路线...</p>
+      <!-- Loading State -->
+      <div v-if="isLoading" class="flex flex-col items-center justify-center py-32 text-slate-400">
+        <div class="relative w-16 h-16 flex items-center justify-center">
+          <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+          <div
+            class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"
+          ></div>
+          <Milestone class="w-6 h-6 text-indigo-500 animate-pulse" />
+        </div>
+        <p class="text-xs font-black tracking-widest text-indigo-500/70 mt-6 uppercase">
+          Syncing with database...
+        </p>
       </div>
 
-      <div v-else class="max-w-5xl mx-auto space-y-6 sm:space-y-8">
+      <!-- Empty State -->
+      <div
+        v-else-if="filteredRoadmaps.length === 0"
+        class="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto"
+      >
+        <div
+          class="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 flex items-center justify-center mb-6 shadow-inner text-slate-400"
+        >
+          <FolderOpen class="w-8 h-8" />
+        </div>
+        <h3 class="text-md font-bold mb-2" style="color: var(--text-primary)">没有找到学习路线</h3>
+        <p class="text-xs text-slate-400 leading-relaxed mb-6">
+          目前没有已发布的官方路线，或者搜索关键字未匹配到任何结果。点击右上角即可新建官方教学路径。
+        </p>
+        <button
+          class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer whitespace-nowrap"
+          @click="openEditModal()"
+        >
+          <Plus class="w-4 h-4" />
+          <span>创建首条官方路线</span>
+        </button>
+      </div>
+
+      <!-- Roadmaps Grid List -->
+      <div v-else class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
         <div
           v-for="roadmap in filteredRoadmaps"
           :key="roadmap.id"
-          class="group rounded-3xl border overflow-hidden transition-all hover:shadow-lg"
+          class="group relative rounded-3xl border flex flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <div class="p-4 sm:p-8">
-            <div class="flex items-start justify-between mb-6 gap-3">
-              <div class="flex items-center gap-3 sm:gap-4 min-w-0">
-                <div
-                  class="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 flex items-center justify-center shrink-0"
-                >
-                  <Milestone class="w-6 h-6" />
+          <!-- Neon border glow effect on hover -->
+          <div
+            class="absolute inset-0 border border-indigo-500/0 group-hover:border-indigo-500/20 pointer-events-none rounded-3xl transition-all duration-300"
+          ></div>
+
+          <!-- Top Gradient Accent -->
+          <div
+            class="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-400 opacity-60"
+          ></div>
+
+          <div class="p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <!-- Header Row -->
+              <div class="flex items-start justify-between mb-4 gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div
+                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-500/20"
+                  >
+                    <Milestone class="w-5 h-5" />
+                  </div>
+                  <div class="min-w-0">
+                    <h3
+                      class="font-bold text-md mb-0.5 truncate"
+                      style="color: var(--text-primary)"
+                    >
+                      {{ roadmap.title }}
+                    </h3>
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-slate-100 dark:bg-white/5 text-slate-400 border border-slate-200/50 dark:border-white/5"
+                      >
+                        {{ roadmap.steps?.length || 0 }} 个步骤节点
+                      </span>
+                      <span class="text-[9px] text-slate-400 flex items-center gap-0.5">
+                        <Flame class="w-2.5 h-2.5 text-indigo-500 animate-pulse" />
+                        系统发布
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div class="min-w-0">
-                  <h3 class="font-bold text-lg sm:text-xl mb-1 truncate" style="color: var(--text-primary)">
-                    {{ roadmap.title }}
-                  </h3>
-                  <p class="text-xs text-slate-400 max-w-2xl truncate">{{ roadmap.description }}</p>
+
+                <!-- Quick Metadata Actions -->
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors"
+                    title="编辑整条路线"
+                    @click="openEditModal(roadmap)"
+                  >
+                    <Edit2 class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
+                    title="级联删除路线"
+                    @click="handleDeleteRoadmap(roadmap.id)"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-              <div class="flex items-center gap-1 sm:gap-2 shrink-0">
-                <button
-                  class="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 transition-colors"
-                  @click="openRoadmapModal(roadmap)"
+
+              <!-- Roadmap Description -->
+              <p
+                class="text-xs text-slate-400 dark:text-slate-400 leading-relaxed mb-6 line-clamp-2"
+              >
+                {{ roadmap.description || '暂无路线描述，点击右上角编辑按钮进行补充。' }}
+              </p>
+
+              <!-- Step Outline Pipeline Visualization -->
+              <div
+                v-if="roadmap.steps && roadmap.steps.length > 0"
+                class="space-y-3 mb-6 bg-slate-50/50 dark:bg-white/2 p-4 rounded-2xl border border-slate-200/30 dark:border-white/5"
+              >
+                <div
+                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"
                 >
-                  <Edit2 class="w-4 h-4" />
-                </button>
-                <button
-                  class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors"
-                  @click="handleDeleteRoadmap(roadmap.id)"
+                  <BookOpen class="w-3 h-3 text-indigo-500" />
+                  <span>核心知识大纲预览</span>
+                </div>
+
+                <div
+                  class="relative pl-4 space-y-3 before:absolute before:left-[4px] before:top-2 before:bottom-2 before:w-[1.5px] before:bg-slate-200 dark:before:bg-white/5"
                 >
-                  <Trash2 class="w-4 h-4" />
-                </button>
+                  <div
+                    v-for="step in roadmap.steps.slice(0, 3)"
+                    :key="step.id"
+                    class="relative flex items-center gap-3 text-left"
+                  >
+                    <div
+                      class="absolute -left-[15px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-white dark:ring-slate-900"
+                    ></div>
+                    <div class="min-w-0 flex-1">
+                      <h4 class="text-xs font-bold truncate" style="color: var(--text-primary)">
+                        {{ step.title }}
+                      </h4>
+                      <p class="text-[9px] text-slate-400 truncate mt-0.5">
+                        {{ step.description }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Over-limit step counter indicator -->
+                  <div
+                    v-if="roadmap.steps.length > 3"
+                    class="pt-1 text-[10px] text-indigo-500/90 font-black flex items-center gap-1 pl-1"
+                  >
+                    <span>还有 {{ roadmap.steps.length - 3 }} 个高级进阶节点</span>
+                    <ArrowRight class="w-3 h-3" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- No steps placeholder -->
+              <div
+                v-else
+                class="py-6 text-center bg-slate-50/50 dark:bg-white/2 rounded-2xl border border-dashed border-slate-200 dark:border-white/5 text-slate-400 mb-6 flex flex-col items-center justify-center gap-1.5"
+              >
+                <Layers class="w-5 h-5 opacity-40" />
+                <span class="text-xs font-medium">当前路线还没有任何学习节点</span>
               </div>
             </div>
 
-            <!-- Steps Progress Line -->
+            <!-- Card Footer Metadata -->
             <div
-              class="relative pl-5 sm:pl-6 space-y-4 sm:space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-white/5"
+              class="pt-4 border-t flex items-center justify-between text-[10px] text-slate-400"
+              style="border-color: var(--border-base)"
             >
-              <div v-for="step in roadmap.steps" :key="step.id" class="relative group/step">
-                <div
-                  class="absolute -left-[23px] top-2 w-[18px] h-[18px] rounded-full bg-white dark:bg-slate-900 border-2 border-accent z-10"
-                ></div>
-
-                <div
-                  class="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent hover:border-accent/20 transition-all gap-3"
-                >
-                  <div class="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <span class="text-[10px] font-black text-slate-400 w-4 shrink-0">{{ step.order }}</span>
-                    <div class="min-w-0">
-                      <h4 class="text-xs sm:text-sm font-bold truncate" style="color: var(--text-primary)">
-                        {{ step.title }}
-                      </h4>
-                      <p class="text-[10px] text-slate-400 mt-0.5 truncate">{{ step.description }}</p>
-                    </div>
-                  </div>
-                  <div
-                    class="flex items-center gap-1 md:opacity-0 md:group-hover/step:opacity-100 transition-opacity shrink-0"
-                  >
-                    <button
-                      class="p-1.5 rounded-lg text-slate-400 hover:text-accent"
-                      @click="openStepModal(roadmap, step)"
-                    >
-                      <Edit2 class="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500"
-                      @click="handleDeleteStep(step.id)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+              <div class="flex items-center gap-1">
+                <Calendar class="w-3 h-3 opacity-60" />
+                <span>更新时间: {{ new Date(roadmap.createdAt).toLocaleDateString() }}</span>
               </div>
               <button
-                class="w-full py-3 rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/5 text-slate-400 hover:text-accent hover:border-accent/40 transition-all text-xs font-bold flex items-center justify-center gap-2"
-                @click="openStepModal(roadmap)"
+                class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5"
+                @click="openEditModal(roadmap)"
               >
-                <Plus class="w-4 h-4" />
-                添加步骤
+                <span>进入编辑器</span>
+                <ArrowRight class="w-3 h-3" />
               </button>
             </div>
           </div>
@@ -314,144 +526,334 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Roadmap Modal -->
+    <!-- Unified Edit Modal (One-stop Roadmap & Steps Editor) -->
     <div
-      v-if="showRoadmapModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+      v-if="showEditModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="w-full max-w-xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
-        style="background-color: var(--bg-card)"
+        class="w-full max-w-5xl rounded-[32px] p-6 sm:p-8 shadow-2xl transition-colors duration-300 flex flex-col max-h-[90vh] overflow-hidden relative"
+        style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
       >
-        <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-          {{ currentRoadmap ? '编辑路线' : '新建路线' }}
-        </h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >路线标题</label
+        <!-- Top Neon Stripe Accent -->
+        <div
+          class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500"
+        ></div>
+
+        <!-- Modal Header -->
+        <div
+          class="flex items-center justify-between border-b pb-4 mb-6"
+          style="border-color: var(--border-base)"
+        >
+          <div class="flex items-center gap-2">
+            <span
+              class="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"
             >
-            <input
-              v-model="roadmapForm.title"
-              type="text"
-              placeholder="例如：从零开始的 Blender 大师之路"
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            />
+              <Layers class="w-5 h-5" />
+            </span>
+            <div>
+              <h3
+                class="text-lg font-bold flex items-center gap-2"
+                style="color: var(--text-primary)"
+              >
+                {{ currentRoadmap ? '编辑官方学习路线' : '编排全新学习路线' }}
+              </h3>
+              <p class="text-[10px] text-slate-400">
+                在这里统一进行路线元数据配置以及高精度节点流的增删、行内编辑和顺序调整
+              </p>
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >路线描述</label
+          <button
+            class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            @click="showEditModal = false"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Split Grid Container (Scrollable) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto pr-1 flex-1 pb-4">
+          <!-- Left Column (lg:col-span-5): Basic Information -->
+          <div class="lg:col-span-5 space-y-5">
+            <div
+              class="p-5 rounded-2xl bg-slate-50/50 dark:bg-white/2 border border-slate-200/50 dark:border-white/5 space-y-4"
             >
-            <textarea
-              v-model="roadmapForm.description"
-              rows="3"
-              placeholder="简述该路线的学习目标..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            ></textarea>
+              <div
+                class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
+              >
+                <Info class="w-3.5 h-3.5" />
+                <span>基础属性配置</span>
+              </div>
+
+              <div>
+                <label
+                  class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider"
+                  >路线标题</label
+                >
+                <input
+                  v-model="editForm.title"
+                  type="text"
+                  placeholder="例如：3D 角色雕刻大师实战路线"
+                  class="w-full px-4 py-2.5 rounded-xl border transition-all outline-none text-xs font-bold"
+                  style="
+                    background-color: var(--bg-app);
+                    border-color: var(--border-base);
+                    color: var(--text-primary);
+                  "
+                />
+              </div>
+
+              <div>
+                <label
+                  class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider"
+                  >核心描述</label
+                >
+                <textarea
+                  v-model="editForm.description"
+                  rows="4"
+                  placeholder="简述该路线的学习大纲目标、预期产出及核心人群定位..."
+                  class="w-full px-4 py-2.5 rounded-xl border transition-all outline-none resize-none text-xs leading-relaxed"
+                  style="
+                    background-color: var(--bg-app);
+                    border-color: var(--border-base);
+                    color: var(--text-primary);
+                  "
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Standard Guide Card -->
+            <div
+              class="p-5 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 text-slate-400 space-y-3"
+            >
+              <div
+                class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
+              >
+                <HelpCircle class="w-3.5 h-3.5 text-indigo-500" />
+                <span>🎯 教学编排标准建议</span>
+              </div>
+              <ul class="text-[10px] leading-relaxed space-y-2 text-slate-400">
+                <li class="flex items-start gap-1.5">
+                  <span class="text-indigo-500 mt-0.5">•</span>
+                  <span><strong>步骤清晰</strong>：每个步骤节点目标建议足够聚焦且可度量。</span>
+                </li>
+                <li class="flex items-start gap-1.5">
+                  <span class="text-indigo-500 mt-0.5">•</span>
+                  <span><strong>步长合理</strong>：官方路线推荐规划 3-7 个重点主攻步骤。</span>
+                </li>
+                <li class="flex items-start gap-1.5">
+                  <span class="text-indigo-500 mt-0.5">•</span>
+                  <span
+                    ><strong>无损升级</strong
+                    >：对正在被学习的路线，请避免删除有用户进度的节点。修改标题及添加新步骤是完全无损安全的。</span
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Right Column (lg:col-span-7): Steps Composer -->
+          <div class="lg:col-span-7 flex flex-col h-full min-h-[300px]">
+            <div class="flex items-center justify-between mb-3">
+              <div
+                class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
+              >
+                <Layers3 class="w-3.5 h-3.5" />
+                <span>学习阶段节点设计</span>
+                <span
+                  class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/25"
+                >
+                  {{ editForm.steps.length }} 节点
+                </span>
+              </div>
+
+              <button
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black cursor-pointer"
+                @click="addStep"
+              >
+                <Plus class="w-3 h-3" />
+                <span>新增步骤</span>
+              </button>
+            </div>
+
+            <!-- Steps Scroll Container -->
+            <div
+              class="flex-1 overflow-y-auto space-y-4 max-h-[42vh] pr-2 scrollbar-hide border border-dashed border-slate-200/50 dark:border-white/5 rounded-2xl p-4 bg-slate-50/20 dark:bg-white/1"
+            >
+              <!-- Empty Steps State -->
+              <div
+                v-if="editForm.steps.length === 0"
+                class="py-12 flex flex-col items-center justify-center text-slate-400 gap-2"
+              >
+                <Layers class="w-8 h-8 opacity-30" />
+                <p class="text-xs font-medium">当前没有任何步骤节点</p>
+                <button
+                  class="mt-2 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white text-[10px] font-bold border border-indigo-500/20 transition-all cursor-pointer"
+                  @click="addStep"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>添加首个步骤</span>
+                </button>
+              </div>
+
+              <!-- Steps List with Dynamic Connected Lines -->
+              <div v-else class="relative space-y-4">
+                <div
+                  v-for="(step, index) in editForm.steps"
+                  :key="index"
+                  class="group/step relative rounded-2xl border p-4 bg-white dark:bg-slate-900 transition-all duration-300 hover:shadow-md hover:border-indigo-500/20"
+                  style="border-color: var(--border-base)"
+                >
+                  <div class="flex items-start gap-3">
+                    <!-- Left Rank Indicator & Reordering -->
+                    <div class="flex flex-col items-center gap-1.5 shrink-0">
+                      <!-- Sequential Rank Badge -->
+                      <span
+                        class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white font-extrabold text-[10px] flex items-center justify-center shadow-sm"
+                      >
+                        {{ index + 1 }}
+                      </span>
+
+                      <!-- Arrow Controls -->
+                      <div class="flex flex-col gap-0.5">
+                        <button
+                          class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          :disabled="index === 0"
+                          title="上移"
+                          @click="moveStepUp(index)"
+                        >
+                          <ChevronUp class="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                          :disabled="index === editForm.steps.length - 1"
+                          title="下移"
+                          @click="moveStepDown(index)"
+                        >
+                          <ChevronDown class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Step Text Inputs (Inline) -->
+                    <div class="flex-1 space-y-2">
+                      <input
+                        v-model="step.title"
+                        type="text"
+                        placeholder="输入节点标题（例如：掌握硬表面细分曲面建模）"
+                        class="w-full px-3 py-1.5 rounded-lg border text-xs font-bold outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      />
+                      <textarea
+                        v-model="step.description"
+                        rows="2"
+                        placeholder="简述学习要点、需要掌握的命令工具，以及达标建议（选填）..."
+                        class="w-full px-3 py-1.5 rounded-lg border text-[11px] leading-relaxed outline-none transition-all focus:ring-1 focus:ring-indigo-500/30 resize-none"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      ></textarea>
+
+                      <!-- Interactive Subtasks List Editor -->
+                      <div
+                        class="mt-3 space-y-2 border-t border-slate-100 dark:border-white/5 pt-2"
+                      >
+                        <div class="flex items-center justify-between">
+                          <label
+                            class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1"
+                          >
+                            <CheckCircle2 class="w-3.5 h-3.5 text-indigo-500" />
+                            <span>阶段细分任务清单（留空则生成智能默认词条）</span>
+                          </label>
+                          <button
+                            type="button"
+                            class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer"
+                            @click="step.subtasks.push('')"
+                          >
+                            <Plus class="w-3 h-3" />
+                            <span>添加任务项</span>
+                          </button>
+                        </div>
+
+                        <div class="space-y-1.5">
+                          <div
+                            v-for="(_, sIdx) in step.subtasks"
+                            :key="sIdx"
+                            class="flex items-center gap-2"
+                          >
+                            <div
+                              class="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 text-[9px] font-black text-slate-400"
+                            >
+                              {{ sIdx + 1 }}
+                            </div>
+                            <input
+                              v-model="step.subtasks[sIdx]"
+                              type="text"
+                              placeholder="例如：完成多边形布线与拓扑原理"
+                              class="flex-1 px-3 py-1 rounded-lg border text-[11px] outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
+                              style="
+                                background-color: var(--bg-app);
+                                border-color: var(--border-base);
+                                color: var(--text-primary);
+                              "
+                            />
+                            <button
+                              type="button"
+                              class="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 cursor-pointer"
+                              @click="step.subtasks.splice(sIdx, 1)"
+                            >
+                              <X class="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          <div
+                            v-if="step.subtasks.length === 0"
+                            class="text-[10px] text-slate-400 bg-slate-50 dark:bg-white/1 p-2.5 rounded-xl border border-dashed border-slate-200/40 dark:border-white/5 text-center font-medium"
+                          >
+                            暂无自定义任务，保存后系统将自动生成智能推荐词条
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Delete Step Action -->
+                    <button
+                      class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1"
+                      title="移除步骤"
+                      @click="removeStep(index)"
+                    >
+                      <Trash2 class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="flex items-center gap-4 mt-8">
+
+        <!-- Modal Footer Actions -->
+        <div
+          class="flex items-center gap-4 mt-6 pt-4 border-t"
+          style="border-color: var(--border-base)"
+        >
           <button
-            class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showRoadmapModal = false"
+            class="flex-1 py-2.5 rounded-xl font-bold text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border border-slate-200/50 dark:border-white/5"
+            @click="showEditModal = false"
           >
-            取消
+            取消返回
           </button>
           <button
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20"
+            class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5"
             @click="handleSaveRoadmap"
           >
-            保存路线
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step Modal -->
-    <div
-      v-if="showStepModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        class="w-full max-w-xl rounded-3xl p-5 sm:p-8 shadow-2xl transition-colors duration-300"
-        style="background-color: var(--bg-card)"
-      >
-        <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-          {{ currentStep ? '编辑步骤' : '新建步骤' }}
-        </h3>
-        <div class="space-y-4">
-          <div class="grid grid-cols-4 gap-4">
-            <div class="col-span-3">
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >步骤名称</label
-              >
-              <input
-                v-model="stepForm.title"
-                type="text"
-                placeholder="例如：掌握基础快捷键"
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-                >阶段排序</label
-              >
-              <input
-                v-model="stepForm.order"
-                type="number"
-                class="w-full px-4 py-3 rounded-2xl border transition-all outline-none text-center font-bold"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-              />
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >详细说明</label
-            >
-            <textarea
-              v-model="stepForm.description"
-              rows="3"
-              placeholder="该阶段具体需要学习哪些内容..."
-              class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
-              style="
-                background-color: var(--bg-app);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-            ></textarea>
-          </div>
-        </div>
-        <div class="flex items-center gap-4 mt-8">
-          <button
-            class="flex-1 py-3 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-            @click="showStepModal = false"
-          >
-            取消
-          </button>
-          <button
-            class="flex-1 py-3 rounded-2xl bg-accent text-white font-bold transition-all shadow-lg shadow-accent/20"
-            @click="handleSaveStep"
-          >
-            保存步骤
+            <CheckCircle2 class="w-4 h-4" />
+            <span>保存路线编排</span>
           </button>
         </div>
       </div>

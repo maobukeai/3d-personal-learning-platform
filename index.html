@@ -2,7 +2,23 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link id="favicon-link" rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function() {
+        try {
+          var favicon = localStorage.getItem('platform_favicon');
+          if (favicon) {
+            var link = document.getElementById('favicon-link');
+            if (link) {
+              link.href = favicon;
+              if (favicon.indexOf('.svg') === -1) {
+                link.removeAttribute('type');
+              }
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
     <meta name="description" content="3D 个人创意学习平台 — 学习建模、渲染与创作" />

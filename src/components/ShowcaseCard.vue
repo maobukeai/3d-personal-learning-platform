@@ -142,19 +142,19 @@ function handleUserClick() {
     </div>
 
     <!-- Content -->
-    <div class="p-5 flex-1 flex flex-col">
+    <div class="p-3.5 flex-1 flex flex-col">
       <h3
-        class="text-sm font-bold mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors"
+        class="text-xs sm:text-sm font-bold mb-1.5 line-clamp-1 group-hover:text-indigo-600 transition-colors"
         style="color: var(--text-primary)"
       >
         {{ item.title }}
       </h3>
 
-      <div v-if="parsedTags.length" class="flex items-center gap-1.5 mb-3 flex-wrap">
+      <div v-if="parsedTags.length" class="flex items-center gap-1 mb-2 flex-wrap">
         <span
           v-for="tag in parsedTags.slice(0, 3)"
           :key="tag"
-          class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
+          class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
         >
           {{ tag }}
         </span>
@@ -162,7 +162,7 @@ function handleUserClick() {
 
       <div class="flex items-center justify-between mt-auto">
         <div
-          class="flex items-center gap-2 cursor-pointer group/author"
+          class="flex items-center gap-1.5 cursor-pointer group/author"
           @click.stop="handleUserClick"
         >
           <UserAvatar
@@ -171,23 +171,23 @@ function handleUserClick() {
             class="group-hover/author:ring-2 group-hover/author:ring-indigo-500 transition-all"
           />
           <span
-            class="text-[11px] font-bold group-hover/author:text-indigo-600 transition-colors"
+            class="text-[10px] font-bold group-hover/author:text-indigo-600 transition-colors truncate max-w-[80px]"
             style="color: var(--text-secondary)"
           >
             {{ item.user?.name || item.user?.email || '匿名用户' }}
           </span>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
           <button
-            class="flex items-center gap-1 text-[10px] font-bold transition-all hover:scale-105 active:scale-95"
+            class="flex items-center gap-1 text-[9px] font-bold transition-all hover:scale-105 active:scale-95"
             :class="item.isLiked ? 'text-rose-500' : 'text-slate-400'"
             @click.stop="handleLikeClick"
           >
             <Heart class="w-3 h-3" :class="item.isLiked ? 'fill-rose-500' : ''" />
             {{ item.likesCount }}
           </button>
-          <div class="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+          <div class="flex items-center gap-1 text-[9px] font-bold text-slate-400">
             <MessageCircle class="w-3 h-3" /> {{ item.commentsCount }}
           </div>
         </div>

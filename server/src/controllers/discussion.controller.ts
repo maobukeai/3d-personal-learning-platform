@@ -5,11 +5,12 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToUser, emitToAll } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import { AppError } from '../middlewares/error.middleware';
+import { clampLimit, clampPage } from '../utils/pagination';
 
 export const getAllDiscussions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, tag, sort } = req.query;
-  const page = parseInt(req.query.page as string, 10) || 1;
-  const limit = Math.min(parseInt(req.query.limit as string, 10) || 10, 50);
+  const page = clampPage(req.query.page);
+  const limit = clampLimit(req.query.limit, 10, 50);
   const search = req.query.search as string;
   const skip = (page - 1) * limit;
 

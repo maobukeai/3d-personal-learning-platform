@@ -53,7 +53,9 @@ export async function cleanupOrphanedFiles() {
       prisma.feedback.findMany({ select: { attachmentUrl: true } }),
       prisma.message.findMany({ select: { content: true } }),
       prisma.projectDiscussion.findMany({ select: { fileUrl: true, images: true, content: true } }),
-      prisma.systemSetting.findMany({ where: { key: { in: ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL'] } } }),
+      prisma.systemSetting.findMany({
+        where: { key: { in: ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL'] } },
+      }),
     ]);
 
     const validPaths = new Set<string>();

@@ -20,6 +20,7 @@ router.post('/invitations/:invitationId/reject', projectController.rejectProject
 router.post('/:id/discussions', projectController.addDiscussion);
 router.post('/discussions/:discussionId/reactions', projectController.addDiscussionReaction);
 router.post('/:id/tasks', projectController.createProjectTask);
+router.post('/:id/tasks/batch', projectController.batchCreateProjectTasks);
 router.put('/tasks/:taskId', projectController.updateProjectTask);
 
 export default router;

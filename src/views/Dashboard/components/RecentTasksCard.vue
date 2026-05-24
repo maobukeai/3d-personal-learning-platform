@@ -9,9 +9,9 @@ const router = useRouter();
 </script>
 
 <template>
-  <div class="p-5 sm:p-6 glass-card">
-    <div class="flex items-center justify-between mb-3 sm:mb-4">
-      <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">
+  <div class="p-3.5 sm:p-4 glass-card">
+    <div class="flex items-center justify-between mb-2 sm:mb-3">
+      <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
         待办学习任务
       </h3>
       <button
@@ -21,11 +21,11 @@ const router = useRouter();
         查看全部任务
       </button>
     </div>
-    <div class="space-y-2 sm:space-y-2.5">
+    <div class="space-y-1.5">
       <div
         v-for="task in recentTasks"
         :key="task.id"
-        class="flex items-center justify-between p-2 sm:p-3 rounded-lg sm:rounded-xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
+        class="flex items-center justify-between p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all hover:bg-slate-50 dark:hover:bg-white/5"
         style="border-color: var(--border-base)"
       >
         <div class="flex items-center gap-2.5 sm:gap-3">
@@ -55,7 +55,7 @@ const router = useRouter();
           {{ task.status }}
         </span>
       </div>
-      <div v-if="recentTasks.length === 0" class="py-6 sm:py-8 text-center text-slate-400">
+      <div v-if="recentTasks.length === 0" class="py-3 sm:py-4 text-center text-slate-400">
         <p class="text-xs sm:text-sm font-bold">暂无近期任务</p>
       </div>
     </div>

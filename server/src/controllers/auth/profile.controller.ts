@@ -655,13 +655,57 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       where: { userId },
     });
 
+    const activeProgresses: number[] = [];
+
+    // 1. Platform Course Progress Dimension
     const enrollments = await prisma.enrollment.findMany({
       where: { userId },
     });
+    if (enrollments.length > 0) {
+      const courseProgress =
+        enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length;
+      activeProgresses.push(courseProgress);
+    }
 
+    // 2. Learning Path Steps Progress Dimension
+    const roadmaps = await prisma.roadmap.findMany({
+      where: {
+        OR: [{ creatorId: null }, { creatorId: userId }],
+      },
+      include: {
+        steps: true,
+      },
+    });
+    const totalSteps = roadmaps.reduce((sum, r) => sum + r.steps.length, 0);
+    if (totalSteps > 0) {
+      const stepProgresses = await prisma.userRoadmapProgress.findMany({
+        where: {
+          userId,
+          completed: true,
+          roadmapStepId: {
+            in: roadmaps.flatMap((r) => r.steps.map((s) => s.id)),
+          },
+        },
+      });
+      const completedSteps = stepProgresses.length;
+      const roadmapProgress = (completedSteps / totalSteps) * 100;
+      activeProgresses.push(roadmapProgress);
+    }
+
+    // 3. Workbench Daily Tasks Progress Dimension
+    const allTasks = await prisma.task.findMany({
+      where: { userId },
+    });
+    if (allTasks.length > 0) {
+      const completedTasks = allTasks.filter((t) => t.status === 'DONE').length;
+      const taskProgress = (completedTasks / allTasks.length) * 100;
+      activeProgresses.push(taskProgress);
+    }
+
+    // Compute the final multi-dimensional average (dynamic weighting)
     const totalProgress =
-      enrollments.length > 0
-        ? Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)
+      activeProgresses.length > 0
+        ? Math.round(activeProgresses.reduce((sum, p) => sum + p, 0) / activeProgresses.length)
         : 0;
 
     const now = new Date();

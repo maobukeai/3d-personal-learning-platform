@@ -242,7 +242,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       socketService.disconnect();
       api.post('/api/auth/logout').catch(() => {});
-      
+
       // Reset workspace store
       const { useWorkspaceStore } = await import('./workspace');
       const workspaceStore = useWorkspaceStore();
@@ -254,6 +254,8 @@ export const useAuthStore = defineStore('auth', {
       this.unreadMessagesCount = 0;
       localStorage.removeItem('user');
       localStorage.removeItem('deviceToken');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('activeWorkspaceId');
     },
   },

@@ -118,6 +118,14 @@ interface SidebarMenuGroup {
   items: SidebarMenuItem[];
 }
 
+interface MobileNavItem {
+  name: string;
+  icon: any;
+  path: string;
+  badge?: number;
+  active: (path: string) => boolean;
+}
+
 const adminGroups = computed<SidebarMenuGroup[]>(() => [
   {
     title: '系统概览',
@@ -572,7 +580,7 @@ const menuGroups = computed<SidebarMenuGroup[]>(() => {
     {
       title: '我的学习',
       items: [
-        { name: '仪表盘', icon: LayoutDashboard, path: '/dashboard' },
+        { name: t('sidebar.dashboard'), icon: LayoutDashboard, path: '/dashboard' },
         { name: t('sidebar.work'), icon: Briefcase, path: '/work' },
         { name: t('sidebar.roadmaps'), icon: MapPin, path: '/roadmaps' },
         { name: t('sidebar.academy'), icon: GraduationCap, path: '/academy' },
@@ -616,6 +624,88 @@ const menuGroups = computed<SidebarMenuGroup[]>(() => {
       items: [
         { name: '邮箱系统', icon: Mail, path: '/tools/email' },
       ],
+    },
+  ];
+});
+
+const mobileNavItems = computed<MobileNavItem[]>(() => {
+  if (workspaceStore.isAdminWorkspace || route.path.startsWith('/admin')) {
+    return [
+      {
+        name: '概览',
+        icon: BarChart3,
+        path: '/admin/dashboard',
+        active: (path) => path === '/admin/dashboard',
+      },
+      {
+        name: '用户',
+        icon: Users,
+        path: '/admin/users',
+        active: (path) => path.startsWith('/admin/users'),
+      },
+      {
+        name: '审核',
+        icon: ShieldCheck,
+        path: '/admin/audits',
+        badge:
+          workspaceStore.adminStats.pendingAssets +
+          workspaceStore.adminStats.pendingMaterials +
+          workspaceStore.adminStats.pendingShowcases,
+        active: (path) =>
+          path.startsWith('/admin/audits') ||
+          path.startsWith('/admin/assets') ||
+          path.startsWith('/admin/materials'),
+      },
+      {
+        name: '课程',
+        icon: GraduationCap,
+        path: '/admin/courses',
+        active: (path) =>
+          path.startsWith('/admin/courses') ||
+          path.startsWith('/admin/roadmaps') ||
+          path.startsWith('/admin/categories'),
+      },
+      {
+        name: '设置',
+        icon: Settings,
+        path: '/admin/settings',
+        active: (path) => path.startsWith('/admin/settings'),
+      },
+    ];
+  }
+
+  return [
+    {
+      name: '首页',
+      icon: LayoutDashboard,
+      path: '/dashboard',
+      active: (path) => path === '/dashboard' || path.startsWith('/dashboard'),
+    },
+    {
+      name: '学习',
+      icon: GraduationCap,
+      path: '/academy',
+      active: (path) => path.startsWith('/academy') || path.startsWith('/roadmaps'),
+    },
+    {
+      name: '作品',
+      icon: MonitorPlay,
+      path: '/showcase',
+      active: (path) =>
+        path.startsWith('/showcase') || path.startsWith('/assets') || path.startsWith('/my-works'),
+    },
+    {
+      name: '社区',
+      icon: MessageSquare,
+      path: '/discussions',
+      active: (path) => path.startsWith('/discussions') || path.startsWith('/members'),
+    },
+    {
+      name: '消息',
+      icon: MessageCircle,
+      path: '/messages',
+      badge: authStore.unreadMessagesCount,
+      active: (path) => path.startsWith('/messages'),
     },
   ];
 });
@@ -940,7 +1030,7 @@ onUnmounted(() => {
   >
     <!-- Global Glass Theme Animated Background Glowing Blobs -->
     <div
-      v-show="currentTheme === 'glass'"
+      v-show="currentTheme === 'glass' && !isMobile"
       class="absolute inset-0 overflow-hidden pointer-events-none z-0"
       style="contain: strict"
     >
@@ -956,7 +1046,7 @@ onUnmounted(() => {
       <!-- Left: Hamburger + Workspace Switcher / Logo -->
       <div class="flex items-center gap-1 md:gap-3">
         <button
-          class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors lg:hidden shrink-0 -ml-1"
+          class="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors lg:hidden shrink-0 -ml-1"
           @click="isMobileSidebarOpen = true"
         >
           <Menu class="w-5 h-5" style="color: var(--text-muted)" />
@@ -975,7 +1065,7 @@ onUnmounted(() => {
             placement="bottom-start"
           >
             <div
-              class="flex items-center gap-2 md:gap-2.5 cursor-pointer hover:opacity-80 ml-1 md:ml-4 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
+              class="min-h-10 px-1 rounded-lg flex items-center gap-2 md:gap-2.5 cursor-pointer hover:opacity-80 ml-1 md:ml-4 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
               :style="{
                 transform: `translateX(${
                   workspaceStore.currentWorkspace?.type === 'personal'
@@ -987,7 +1077,13 @@ onUnmounted(() => {
               }"
             >
               <div class="relative">
+                <img
+                  v-if="workspaceStore.currentWorkspace?.avatarUrl"
+                  :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)"
+                  class="w-7 h-7 rounded-xl object-cover shrink-0 shadow-sm border border-white/25 dark:border-white/10"
+                />
                 <div
+                  v-else
                   class="w-7 h-7 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
                   :class="
                     workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
@@ -1041,9 +1137,15 @@ onUnmounted(() => {
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center gap-3">
-                      <!-- 玻璃质感头像 -->
+                      <!-- 玻璃质感头像 / 团队头像 -->
                       <div class="relative">
+                        <img
+                          v-if="ws.avatarUrl"
+                          :src="getAssetUrl(ws.avatarUrl)"
+                          class="w-8 h-8 rounded-xl object-cover shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 border border-slate-200/50 dark:border-white/10"
+                        />
                         <div
+                          v-else
                           class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
                           :class="ws.color"
                         >
@@ -1137,21 +1239,21 @@ onUnmounted(() => {
       <div class="flex items-center gap-2 md:gap-3">
         <!-- Mobile Search Button -->
         <button
-          class="md:hidden w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          class="md:hidden w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           @click="handleSearch"
         >
           <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- Share -->
         <button
-          class="topbar-icon-btn hidden sm:flex w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           @click="handleShare"
         >
           <Share2 class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- External Link -->
         <button
-          class="topbar-icon-btn hidden sm:flex w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           @click="handleExternalLink"
         >
           <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
@@ -1159,7 +1261,7 @@ onUnmounted(() => {
         <!-- Notification Bell -->
         <el-dropdown trigger="click" placement="bottom-end" popper-class="notification-glass">
           <button
-            class="topbar-icon-btn w-9 h-9 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
+            class="topbar-icon-btn w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
           >
             <Bell class="w-4.5 h-4.5" style="color: var(--text-muted)" />
             <div
@@ -1317,7 +1419,7 @@ onUnmounted(() => {
               <li v-for="item in group.items" :key="item.name">
                 <RouterLink
                   :to="item.path"
-                  class="flex items-center justify-between px-3 py-1.5 rounded-md transition-colors duration-150"
+                  class="flex items-center justify-between px-3 py-2 rounded-md transition-colors duration-150"
                   :class="
                     route.fullPath === item.path
                       ? workspaceStore.isAdminWorkspace
@@ -1365,7 +1467,7 @@ onUnmounted(() => {
         <div class="p-2.5 border-t space-y-0.5" style="border-color: var(--border-base)">
           <RouterLink
             to="/settings"
-            class="flex items-center gap-3 px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
             :class="
               route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
             "
@@ -1377,7 +1479,7 @@ onUnmounted(() => {
             设置选项
           </RouterLink>
           <button
-            class="w-full flex items-center gap-3 px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
+            class="w-full flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors"
             @click="handleReportBug"
           >
             <HelpCircle class="w-4 h-4 text-slate-400" />
@@ -1417,9 +1519,31 @@ onUnmounted(() => {
 
     <!-- Mobile Bottom Tab Bar -->
     <nav
-      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 border-t backdrop-blur-xl bg-white/90 dark:bg-slate-900/90"
+      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 h-16 border-t bg-white/95 dark:bg-slate-900/95"
       style="border-color: var(--border-base); padding-bottom: env(safe-area-inset-bottom);"
     >
+      <RouterLink
+        v-for="item in mobileNavItems"
+        :key="item.path"
+        :to="item.path"
+        class="min-h-14 flex flex-col items-center justify-center gap-0.5 px-2 py-1 transition-colors relative"
+        :class="item.active(route.path) ? 'text-accent' : ''"
+        :style="item.active(route.path) ? {} : { color: 'var(--text-muted)' }"
+      >
+        <component :is="item.icon" class="w-5 h-5" />
+        <span class="text-[10px] font-semibold">{{ item.name }}</span>
+        <div
+          v-if="item.badge && item.badge > 0"
+          class="absolute -top-0.5 right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+        >
+          {{ item.badge > 99 ? '99+' : item.badge }}
+        </div>
+        <div
+          v-if="item.active(route.path)"
+          class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
+        ></div>
+      </RouterLink>
+      <template v-if="false">
       <RouterLink
         to="/dashboard"
         class="flex flex-col items-center justify-center gap-0.5 px-3 py-1 transition-colors relative"
@@ -1491,6 +1615,7 @@ onUnmounted(() => {
           class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-accent"
         ></div>
       </RouterLink>
+      </template>
     </nav>
 
     <!-- Create Team Dialog -->
@@ -1704,11 +1829,11 @@ onUnmounted(() => {
     </Transition>
 
     <aside
-      class="fixed inset-y-0 left-0 w-40 z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
+      class="fixed inset-y-0 left-0 w-44 max-w-[75vw] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
       :class="isMobileSidebarOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
     >
         <!-- Header -->
-        <div class="h-13 flex items-center justify-between px-3 border-b shrink-0" style="border-color: var(--border-base)">
+        <div class="h-14 flex items-center justify-between px-2.5 border-b shrink-0" style="border-color: var(--border-base)">
           <div class="flex items-center gap-2 min-w-0">
             <div
               class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
@@ -1726,7 +1851,7 @@ onUnmounted(() => {
             }}</span>
           </div>
           <button
-            class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+            class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             @click="isMobileSidebarOpen = false"
           >
             <X class="w-4 h-4" style="color: var(--text-muted)" />
@@ -1734,7 +1859,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Navigation Menu -->
-        <div class="flex-1 overflow-y-auto py-2.5 px-2.5 scrollbar-hide">
+        <div class="flex-1 overflow-y-auto py-3 px-3 scrollbar-hide">
           <div v-for="(group, index) in menuGroups" :key="index" :class="{ 'mt-1': index > 0 }">
             <!-- Divider before the group if it's not the first one -->
             <div
@@ -1759,7 +1884,7 @@ onUnmounted(() => {
               <li v-for="item in group.items" :key="item.name">
                 <RouterLink
                   :to="item.path"
-                  class="flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors duration-150"
+                  class="min-h-11 flex items-center justify-between px-3 py-2 rounded-lg transition-colors duration-150"
                   :class="
                     route.path === item.path
                       ? workspaceStore.isAdminWorkspace
@@ -1781,7 +1906,7 @@ onUnmounted(() => {
                           : 'text-slate-400'
                       "
                     />
-                    <span class="flex-1 text-xs truncate">{{ item.name }}</span>
+                    <span class="flex-1 text-sm truncate">{{ item.name }}</span>
 
                     <!-- High-Visibility Badge -->
                     <div
@@ -1806,7 +1931,7 @@ onUnmounted(() => {
         <div class="p-2 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
           <RouterLink
             to="/settings"
-            class="flex items-center gap-2 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-xs"
+            class="min-h-11 flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
             :class="
               route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
             "
@@ -1819,7 +1944,7 @@ onUnmounted(() => {
             <span class="flex-1 text-xs truncate">设置选项</span>
           </RouterLink>
           <button
-            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-xs"
+            class="min-h-11 w-full flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
             @click="
               handleReportBug();
               isMobileSidebarOpen = false;

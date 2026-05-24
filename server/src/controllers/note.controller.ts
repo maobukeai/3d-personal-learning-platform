@@ -1,11 +1,12 @@
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { clampLimit, clampPage } from '../utils/pagination';
 
 export const getNotes = async (req: AuthRequest, res: Response) => {
   const { visibility, search, sort, tag, category, author } = req.query;
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 12;
+  const page = clampPage(req.query.page);
+  const limit = clampLimit(req.query.limit, 12, 100);
   const skip = (page - 1) * limit;
 
   try {
@@ -48,7 +49,11 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
     }
 
     if (category) {
-      where.category = category as string;
+      if (category === '__uncategorized__') {
+        where.category = null;
+      } else {
+        where.category = category as string;
+      }
     }
 
     let orderBy: any = [{ isPinned: 'desc' as const }, { createdAt: 'desc' as const }];
@@ -68,7 +73,7 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
             select: { id: true, name: true, avatarUrl: true },
           },
           _count: {
-            select: { likes: true },
+            select: { likes: true, comments: true },
           },
           likes: {
             where: { userId: req.userId },
@@ -112,7 +117,7 @@ export const getPopularNotes = async (req: AuthRequest, res: Response) => {
           select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true },
+          select: { likes: true, comments: true },
         },
         likes: {
           where: { userId: req.userId },
@@ -190,7 +195,7 @@ export const getNoteById = async (req: AuthRequest, res: Response) => {
           select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true },
+          select: { likes: true, comments: true },
         },
         likes: {
           where: { userId: req.userId },
@@ -236,7 +241,7 @@ export const createNote = async (req: AuthRequest, res: Response) => {
           select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true },
+          select: { likes: true, comments: true },
         },
       },
     });
@@ -277,7 +282,7 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
           select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
-          select: { likes: true },
+          select: { likes: true, comments: true },
         },
         likes: {
           where: { userId: req.userId },

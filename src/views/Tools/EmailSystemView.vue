@@ -1269,4 +1269,47 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+@media (max-width: 767px) {
+  .email-system {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100%;
+  }
+
+  .email-system > aside,
+  .email-system > section,
+  .email-system > main {
+    width: 100% !important;
+    min-width: 0;
+    flex: none;
+    border-right: 0;
+  }
+
+  .email-system > aside {
+    max-height: none;
+  }
+
+  .email-system > section {
+    min-height: 22rem;
+    border-top: 1px solid var(--border-base);
+    border-bottom: 1px solid var(--border-base);
+  }
+
+  .email-system > main {
+    min-height: 28rem;
+    padding-bottom: 4rem;
+  }
+
+  .email-system button {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  .email-system input {
+    min-height: 2.5rem;
+  }
+}
 </style>

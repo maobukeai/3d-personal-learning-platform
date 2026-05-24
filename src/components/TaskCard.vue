@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
   Calendar,
   User,
-  Tag,
   Eye,
   CheckCircle2,
   Trash2,
   FolderOpen,
   Flame,
-  AlertCircle,
   ArrowDown,
+  ArrowUp,
+  Minus,
   HelpCircle,
+  CheckSquare,
 } from 'lucide-vue-next';
 
 interface Assignee {
@@ -30,6 +32,7 @@ interface Task {
   description?: string | null;
   priority?: string;
   tags?: string | null;
+  subtasks?: string | null;
   dueDate?: string | null;
   status: string;
   assignee?: Assignee | null;
@@ -45,6 +48,23 @@ const props = withDefaults(defineProps<Props>(), {
   layout: 'board',
 });
 
+const parseSubtasks = (subtasksStr: string | null | undefined) => {
+  if (!subtasksStr) return [];
+  try {
+    return JSON.parse(subtasksStr);
+  } catch (e) {
+    return [];
+  }
+};
+
+const parsedSubtasks = computed(() => parseSubtasks(props.task.subtasks));
+const hasSubtasks = computed(() => parsedSubtasks.value.length > 0);
+const subtasksProgress = computed(() => {
+  const total = parsedSubtasks.value.length;
+  const completed = parsedSubtasks.value.filter((s: any) => s.done).length;
+  return `${completed}/${total}`;
+});
+
 const emit = defineEmits<{
   (e: 'click', task: Task): void;
   (e: 'edit', task: Task): void;
@@ -55,10 +75,12 @@ const emit = defineEmits<{
 
 const getPriorityConfig = (priority?: string) => {
   switch (priority) {
+    case 'URGENT':
+      return { label: '紧急', color: 'bg-rose-500', textColor: 'text-rose-500', icon: Flame };
     case 'HIGH':
-      return { label: '高', color: 'bg-rose-500', textColor: 'text-rose-500', icon: Flame };
+      return { label: '高', color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp };
     case 'MEDIUM':
-      return { label: '中', color: 'bg-amber-500', textColor: 'text-amber-500', icon: AlertCircle };
+      return { label: '中', color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus };
     case 'LOW':
       return { label: '低', color: 'bg-blue-500', textColor: 'text-blue-500', icon: ArrowDown };
     default:
@@ -113,19 +135,20 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
   <!-- Layout 1: Board (Kanban) Mode -->
   <div
     v-if="layout === 'board'"
-    class="group p-2 sm:p-4 rounded-lg sm:rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative"
+    class="group p-1 sm:p-2.5 rounded-lg sm:rounded-xl border shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing relative"
     style="background-color: var(--bg-app); border-color: var(--border-base)"
     @click="emit('click', task)"
   >
     <!-- Priority + Title Row -->
-    <div class="flex justify-between items-start mb-1 sm:mb-2">
-      <div class="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+    <div class="flex justify-between items-start mb-1 sm:mb-1.5">
+      <div class="flex items-start gap-1 sm:gap-2 flex-1 min-w-0">
         <div
-          class="shrink-0 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full"
+          v-if="task.priority && task.priority !== 'NONE'"
+          class="shrink-0 w-1 h-1 sm:w-2 sm:h-2 rounded-full mt-1.5 sm:mt-1"
           :class="getPriorityConfig(task.priority).color"
         ></div>
         <h3
-          class="text-xs sm:text-sm font-bold leading-tight group-hover:text-accent transition-colors line-clamp-2"
+          class="text-[10px] sm:text-xs font-bold leading-snug group-hover:text-accent transition-colors line-clamp-2"
           style="color: var(--text-primary)"
         >
           {{ task.title }}
@@ -133,59 +156,72 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
       </div>
     </div>
 
-    <!-- Priority Badge -->
-    <div class="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
-      <span
-        class="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold"
-        :class="
-          getPriorityConfig(task.priority).color +
-          '/10 ' +
-          getPriorityConfig(task.priority).textColor
-        "
-      >
-        <component :is="getPriorityConfig(task.priority).icon" class="w-2.5 h-2.5" />
-        <span>{{ getPriorityConfig(task.priority).label }}</span>
-      </span>
-    </div>
-
     <!-- Description -->
     <p
       v-if="task.description"
-      class="hidden sm:block text-xs mb-3 line-clamp-2"
+      class="hidden sm:block text-[10px] mb-1.5 line-clamp-1 leading-relaxed"
       style="color: var(--text-secondary)"
     >
       {{ task.description }}
     </p>
 
     <!-- Tags (if any in board mode, parsed) -->
-    <div v-if="parseTags(task.tags).length > 0" class="flex flex-wrap gap-1 mb-3">
+    <div v-if="parseTags(task.tags).length > 0" class="hidden sm:flex flex-wrap gap-1 mb-1.5">
       <span
         v-for="tag in parseTags(task.tags)"
         :key="tag"
-        class="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-bold"
+        class="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold"
         :class="getTagClass(tag)"
       >
-        <Tag class="w-1.5 sm:w-2 h-1.5 sm:h-2" /> {{ tag }}
+        {{ tag }}
       </span>
     </div>
 
-    <!-- Footer: Date + Assignee -->
+    <!-- Footer: Date + Subtasks + Priority + Assignee -->
     <div
-      class="flex items-center justify-between pt-1.5 sm:pt-3 border-t"
+      v-if="task.dueDate || hasSubtasks || (task.priority && task.priority !== 'NONE') || task.assignee"
+      class="flex items-center justify-between pt-1 mt-1 border-t"
       style="border-color: var(--border-base)"
     >
-      <div
-        v-if="task.dueDate"
-        class="flex items-center gap-1 text-[9px] sm:text-xs font-semibold shrink-0"
-        :class="isOverdue(task.dueDate, task.status) ? 'text-rose-500' : 'text-slate-400'"
-      >
-        <Calendar class="w-3 h-3" />
-        <span>{{ formatDueDate(task.dueDate) }}</span>
+      <div class="flex flex-wrap items-center gap-0.5 sm:gap-2 min-w-0">
+        <!-- Due Date -->
+        <div
+          v-if="task.dueDate"
+          class="flex items-center gap-0.5 text-[8px] sm:text-[9px] font-semibold shrink-0"
+          :class="isOverdue(task.dueDate, task.status) ? 'text-rose-500' : 'text-slate-400'"
+        >
+          <Calendar class="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+          <span class="hidden sm:inline">{{ formatDueDate(task.dueDate) }}</span>
+          <span class="sm:hidden">{{ new Date(task.dueDate).getMonth() + 1 }}/{{ new Date(task.dueDate).getDate() }}</span>
+        </div>
+
+        <!-- Subtasks Progress -->
+        <div
+          v-if="hasSubtasks"
+          class="flex items-center gap-0.5 text-[8px] sm:text-[9px] font-semibold text-slate-400 shrink-0"
+          title="子任务进度"
+        >
+          <CheckSquare class="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+          <span>{{ subtasksProgress }}</span>
+        </div>
+
+        <!-- Priority Badge (In footer to save space) -->
+        <span
+          v-if="task.priority && task.priority !== 'NONE'"
+          class="inline-flex items-center gap-0.5 px-0.5 sm:px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-bold shrink-0"
+          :class="
+            getPriorityConfig(task.priority).color +
+            '/10 ' +
+            getPriorityConfig(task.priority).textColor
+          "
+        >
+          <component :is="getPriorityConfig(task.priority).icon" class="w-1.5 h-1.5 sm:w-2 sm:h-2" />
+          <span>{{ getPriorityConfig(task.priority).label }}</span>
+        </span>
       </div>
-      <div v-else></div>
 
       <!-- Assignee Avatar -->
-      <div v-if="task.assignee" class="shrink-0">
+      <div v-if="task.assignee" class="shrink-0 ml-0.5">
         <div
           class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
           @click.stop="emit('user-click', task.assignee.id)"
@@ -193,14 +229,14 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
           <img
             v-if="task.assignee.avatarUrl"
             :src="task.assignee.avatarUrl"
-            class="w-4 h-4 sm:w-5 sm:h-5 rounded-md object-cover"
+            class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover"
             :alt="task.assignee.name"
           />
           <div
             v-else
-            class="w-4 h-4 sm:w-5 sm:h-5 rounded-md bg-accent/10 flex items-center justify-center"
+            class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md bg-accent/10 flex items-center justify-center"
           >
-            <User class="w-2.5 h-2.5 text-accent" />
+            <User class="w-2 h-2 text-accent" />
           </div>
         </div>
       </div>
@@ -210,7 +246,7 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
   <!-- Layout 2: List Mode -->
   <div
     v-else-if="layout === 'list'"
-    class="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer"
+    class="group flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 px-3 py-2 sm:py-2.5 rounded-xl border hover:border-accent/30 hover:shadow-sm transition-all cursor-pointer"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
     @click="emit('click', task)"
   >
@@ -265,6 +301,16 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
       >
         <FolderOpen class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
         {{ task.project.title }}
+      </div>
+
+      <!-- Subtasks -->
+      <div
+        v-if="hasSubtasks"
+        class="flex items-center gap-1 text-[9px] sm:text-[10px] font-medium text-slate-400 shrink-0"
+        title="子任务进度"
+      >
+        <CheckSquare class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+        <span>{{ subtasksProgress }}</span>
       </div>
 
       <!-- Assignee -->

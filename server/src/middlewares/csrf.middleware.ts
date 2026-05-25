@@ -25,6 +25,8 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
     '/api/auth/oauth/google/callback',
     '/api/auth/oauth/github',
     '/api/auth/oauth/github/callback',
+    '/api/auth/email/send-code-public',
+    '/api/auth/email/verify-public',
   ];
 
   const requestPath = req.originalUrl.split('?')[0] || req.originalUrl;

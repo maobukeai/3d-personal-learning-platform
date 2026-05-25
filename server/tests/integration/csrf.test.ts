@@ -35,6 +35,15 @@ describe('CSRF Protection Integration', () => {
     expect(res.body.code).toBe('VALIDATION_ERROR');
   });
 
+  it('should bypass CSRF for whitelisted public verification code POST request', async () => {
+    const res = await request(app)
+      .post('/api/auth/email/send-code-public')
+      .send({ email: 'not-an-email' });
+    // Should get a 400 validation error, not a 403 CSRF error
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
   it('should reject non-whitelisted POST requests when CSRF token is missing', async () => {
     const res = await request(app)
       .post('/api/tasks')

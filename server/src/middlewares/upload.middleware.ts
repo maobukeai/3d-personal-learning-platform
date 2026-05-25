@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -114,13 +115,13 @@ const createUploadMiddleware = (config: {
         if (err instanceof multer.MulterError) {
           if (err.code === 'LIMIT_FILE_SIZE') {
             const displayLimit = isSystemImage ? '5' : settings.MAX_FILE_SIZE || '100';
-            console.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit}MB)`);
+            logger.error(`[UploadError] LIMIT_FILE_SIZE: file size exceeded (${displayLimit}MB)`);
             return res.status(400).json({ error: `文件大小超过限制 (${displayLimit}MB)` });
           }
-          console.error(`[UploadError] MulterError: ${err instanceof Error ? err.message : err}`);
+          logger.error(`[UploadError] MulterError: ${err instanceof Error ? err.message : err}`);
           return res.status(400).json({ error: err instanceof Error ? err.message : 'An error occurred' });
         } else if (err) {
-          console.error(`[UploadError] Unknown error: ${err instanceof Error ? err.message : err}`);
+          logger.error(`[UploadError] Unknown error: ${err instanceof Error ? err.message : err}`);
           return res.status(400).json({ error: err instanceof Error ? err.message : 'An error occurred' });
         }
 
@@ -192,7 +193,7 @@ const createUploadMiddleware = (config: {
               }
 
               if (!finalAllowedExtensions.includes(ext)) {
-                console.error(
+                logger.error(
                   `[UploadError] Extension not allowed: ${ext} for field ${file.fieldname}. Allowed: ${finalAllowedExtensions.join(', ')}`,
                 );
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
@@ -207,7 +208,7 @@ const createUploadMiddleware = (config: {
                   file.fieldname === 'cover'
                     ? '5'
                     : settings.MAX_FILE_SIZE;
-                console.error(
+                logger.error(
                   `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}MB`,
                 );
                 return res.status(400).json({
@@ -357,14 +358,14 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
 
     next();
   } catch (error) {
-    console.error('File validation error:', error);
+    logger.error('File validation error:', error);
     for (const file of files) {
       try {
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
       } catch (cleanupError) {
-        console.error('Cleanup error:', cleanupError);
+        logger.error('Cleanup error:', cleanupError);
       }
     }
     return res.status(500).json({ error: '文件验证失败' });

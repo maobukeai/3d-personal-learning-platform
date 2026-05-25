@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
@@ -220,7 +221,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 
     res.json({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {
-    console.error('[Auth] Refresh token error:', error);
+    logger.error('[Auth] Refresh token error:', error);
     next(error);
   }
 };
@@ -258,7 +259,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     res.clearCookie('refreshToken', cookieOptions);
     res.json({ message: 'Logged out' });
   } catch (error) {
-    console.error('[Auth] Logout error:', error);
+    logger.error('[Auth] Logout error:', error);
     next(error);
   }
 };

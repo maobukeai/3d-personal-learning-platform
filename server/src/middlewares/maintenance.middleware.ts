@@ -39,9 +39,13 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
         return next();
       }
 
+      const requestId = (req as Request & { requestId?: string }).requestId;
       return res.status(503).json({
+        status: 'error',
         error: '系统维护中',
         message: '平台正在进行例行维护，请稍后再试。管理员仍可正常登录。',
+        code: 'MAINTENANCE_MODE',
+        ...(requestId && { requestId }),
       });
     }
 

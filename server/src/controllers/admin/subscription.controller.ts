@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Response, NextFunction } from 'express';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
@@ -92,7 +93,7 @@ export const updateSubscriptionPlan = async (
     badgeColor,
   } = req.body;
   try {
-    const updateData: any = {};
+    const updateData: Prisma.SubscriptionPlanUpdateInput = {};
     if (name !== undefined) updateData.name = name;
     if (displayName !== undefined) updateData.displayName = displayName;
     if (price !== undefined) updateData.price = parseFloat(price);
@@ -109,7 +110,7 @@ export const updateSubscriptionPlan = async (
     if (badgeColor !== undefined) updateData.badgeColor = badgeColor;
 
     const plan = await prisma.subscriptionPlan.update({
-      where: { id: id as any },
+      where: { id },
       data: updateData,
     });
     res.json({ ...plan, features: JSON.parse(plan.features || '[]') });
@@ -131,7 +132,7 @@ export const deleteSubscriptionPlan = async (
     if (subscriberCount > 0) {
       return next(new AppError(`该计划仍有 ${subscriberCount} 名活跃订阅者，无法删除`, 400));
     }
-    await prisma.subscriptionPlan.delete({ where: { id: id as any } });
+    await prisma.subscriptionPlan.delete({ where: { id } });
     res.json({ message: '订阅计划已删除' });
   } catch (error) {
     next(error);
@@ -219,14 +220,14 @@ export const updateSubscription = async (req: AuthRequest, res: Response, next: 
   } = req.body;
 
   try {
-    const existing = await prisma.subscription.findUnique({ where: { id: id as any } });
+    const existing = await prisma.subscription.findUnique({ where: { id } });
     if (!existing) return next(new AppError('订阅不存在', 404));
 
-    const updateData: any = {};
+    const updateData: Prisma.SubscriptionUpdateInput = {};
     if (planId !== undefined) {
       const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
       if (!plan) return next(new AppError('订阅计划不存在', 404));
-      updateData.planId = planId;
+      updateData.plan = { connect: { id: planId } };
     }
     if (status !== undefined) updateData.status = status;
     if (interval !== undefined) updateData.interval = interval;
@@ -237,7 +238,7 @@ export const updateSubscription = async (req: AuthRequest, res: Response, next: 
     if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
 
     const subscription = await prisma.subscription.update({
-      where: { id: id as any },
+      where: { id },
       data: updateData,
       include: {
         user: { select: { id: true, name: true, email: true, avatarUrl: true } },
@@ -254,10 +255,10 @@ export const updateSubscription = async (req: AuthRequest, res: Response, next: 
 export const deleteSubscription = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const existing = await prisma.subscription.findUnique({ where: { id: id as any } });
+    const existing = await prisma.subscription.findUnique({ where: { id } });
     if (!existing) return next(new AppError('订阅不存在', 404));
 
-    await prisma.subscription.delete({ where: { id: id as any } });
+    await prisma.subscription.delete({ where: { id } });
     res.json({ message: '订阅已删除' });
   } catch (error) {
     next(error);

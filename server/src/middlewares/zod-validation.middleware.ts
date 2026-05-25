@@ -23,10 +23,13 @@ export const validateRequest = (schema: RequestValidationSchema) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const errorMessages = error.issues
-          .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
-          .join('; ');
-        return next(new AppError(errorMessages, 400));
+        const details = error.issues.map((err: z.ZodIssue) => ({
+          path: err.path.join('.') || 'root',
+          message: err.message,
+          code: err.code,
+        }));
+        const errorMessages = details.map((err) => `${err.path}: ${err.message}`).join('; ');
+        return next(new AppError(errorMessages, 400, 'VALIDATION_ERROR', details));
       }
       next(error);
     }

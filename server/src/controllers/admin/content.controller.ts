@@ -1,3 +1,5 @@
+import { logger } from '../../utils/logger';
+import { Prisma } from '@prisma/client';
 import { Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -41,7 +43,7 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    const updateData: any = {};
+    const updateData: Partial<Prisma.FeedbackUpdateInput> = {};
     if (status) updateData.status = status;
     if (adminReply !== undefined) {
       updateData.adminReply = adminReply;
@@ -50,7 +52,7 @@ export const updateFeedbackStatus = async (req: AuthRequest, res: Response, next
     }
 
     const updatedFeedback = await prisma.feedback.update({
-      where: { id: id as any },
+      where: { id },
       data: updateData,
     });
 
@@ -88,12 +90,12 @@ export const deleteFeedback = async (req: AuthRequest, res: Response, next: Next
   const id = req.params.id as string;
   try {
     // Check if feedback exists
-    const feedback = await prisma.feedback.findUnique({ where: { id: id as any } });
+    const feedback = await prisma.feedback.findUnique({ where: { id } });
     if (!feedback) {
       return next(new AppError('反馈不存在', 404));
     }
 
-    await prisma.feedback.delete({ where: { id: id as any } });
+    await prisma.feedback.delete({ where: { id } });
     res.json({ message: 'Feedback deleted successfully' });
   } catch (error) {
     next(error);
@@ -131,10 +133,10 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    const oldMaterial = await prisma.material.findUnique({ where: { id: id as any } });
+    const oldMaterial = await prisma.material.findUnique({ where: { id } });
     if (!oldMaterial) return next(new AppError('Material not found', 404));
 
-    const updateData: any = { status };
+    const updateData: Partial<Prisma.MaterialUpdateInput> = { status };
     if (status === 'REJECTED' && rejectReason) {
       updateData.rejectReason = rejectReason;
     }
@@ -143,7 +145,7 @@ export const updateMaterialStatus = async (req: AuthRequest, res: Response, next
     }
 
     const material = await prisma.material.update({
-      where: { id: id as any },
+      where: { id },
       data: updateData,
     });
 
@@ -191,7 +193,7 @@ export const batchUpdateMaterialStatus = async (
   }
 
   try {
-    const updateData: any = { status };
+    const updateData: Partial<Prisma.MaterialUpdateInput> = { status };
     if (status === 'REJECTED' && rejectReason) {
       updateData.rejectReason = rejectReason;
     }
@@ -242,11 +244,11 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response, next:
   const id = req.params.id as string;
   const { title, description, category, tags, status } = req.body;
   try {
-    const oldMaterial = await prisma.material.findUnique({ where: { id: id as any } });
+    const oldMaterial = await prisma.material.findUnique({ where: { id } });
     if (!oldMaterial) return next(new AppError('Material not found', 404));
 
     const material = await prisma.material.update({
-      where: { id: id as any },
+      where: { id },
       data: { title, description, category, tags, status },
     });
 
@@ -269,7 +271,7 @@ export const adminUpdateMaterial = async (req: AuthRequest, res: Response, next:
 export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const material = await prisma.material.findUnique({ where: { id: id as any } });
+    const material = await prisma.material.findUnique({ where: { id } });
     if (!material) return next(new AppError('Material not found', 404));
 
     // Delete files
@@ -284,7 +286,7 @@ export const adminDeleteMaterial = async (req: AuthRequest, res: Response, next:
     deleteFile(material.fileUrl);
     if (material.previewUrl) deleteFile(material.previewUrl);
 
-    await prisma.material.delete({ where: { id: id as any } });
+    await prisma.material.delete({ where: { id } });
 
     await auditService.log({
       userId: req.userId as string,
@@ -332,11 +334,11 @@ export const updateShowcaseStatus = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    const oldShowcase = await prisma.showcase.findUnique({ where: { id: id as any } });
+    const oldShowcase = await prisma.showcase.findUnique({ where: { id } });
     if (!oldShowcase) return next(new AppError('Showcase not found', 404));
 
     const showcase = await prisma.showcase.update({
-      where: { id: id as any },
+      where: { id },
       data: { status },
     });
 
@@ -426,12 +428,12 @@ export const batchUpdateShowcaseStatus = async (
 export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const showcase = await prisma.showcase.findUnique({ where: { id: id as any } });
+    const showcase = await prisma.showcase.findUnique({ where: { id } });
     if (!showcase) {
       return next(new AppError('Showcase not found', 404));
     }
 
-    await prisma.showcase.delete({ where: { id: id as any } });
+    await prisma.showcase.delete({ where: { id } });
 
     await auditService.log({
       userId: req.userId as string,
@@ -444,7 +446,7 @@ export const adminDeleteShowcase = async (req: AuthRequest, res: Response, next:
 
     res.json({ message: 'Showcase deleted successfully' });
   } catch (error) {
-    console.error('Admin delete showcase error:', error);
+    logger.error('Admin delete showcase error:', error);
     next(error);
   }
 };

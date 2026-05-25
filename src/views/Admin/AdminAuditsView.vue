@@ -715,7 +715,7 @@ type="button"
           <div
             class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center border-b border-black/5 dark:border-white/5"
           >
-            <img
+            <img alt=""
               v-if="
                 item.thumbnailUrl || item.previewUrl || item.thumbnail || item.videoUrl || item.url
               "

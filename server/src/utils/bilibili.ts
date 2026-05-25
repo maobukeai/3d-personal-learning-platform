@@ -1,3 +1,4 @@
+import { logger } from './logger';
 export interface BilibiliMetadata {
   title: string;
   description: string;
@@ -10,7 +11,7 @@ export interface BilibiliMetadata {
 }
 
 export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
-  console.log(`[Bilibili] Parsing input: ${url}`);
+  logger.info(`[Bilibili] Parsing input: ${url}`);
 
   // Extract actual URL from potential share text
   const urlMatch = url.match(/https?:\/\/[^\s]+/);
@@ -18,7 +19,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
     throw new Error('未在输入中找到有效的 B站 链接');
   }
   let targetUrl = urlMatch[0];
-  console.log(`[Bilibili] Extracted URL: ${targetUrl}`);
+  logger.info(`[Bilibili] Extracted URL: ${targetUrl}`);
 
   // Resolve short links (b23.tv)
   let parsedUrl: URL;
@@ -32,9 +33,9 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
     try {
       const response = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
       targetUrl = response.url;
-      console.log(`[Bilibili] Resolved short link to: ${targetUrl}`);
+      logger.info(`[Bilibili] Resolved short link to: ${targetUrl}`);
     } catch (e) {
-      console.error('[Bilibili] Failed to resolve short link:', e);
+      logger.error('[Bilibili] Failed to resolve short link:', e);
       // Continue with original URL, maybe it has ID anyway
     }
   }
@@ -42,7 +43,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   // 1. Check for MediaList (mlid)
   const mlidMatch = targetUrl.match(/[?&]list=ml(\d+)/) || targetUrl.match(/list\/ml(\d+)/);
   if (mlidMatch && mlidMatch[1]) {
-    console.log(`[Bilibili] Detected MediaList ID: ${mlidMatch[1]}`);
+    logger.info(`[Bilibili] Detected MediaList ID: ${mlidMatch[1]}`);
     return await fetchBilibiliMediaList(mlidMatch[1]);
   }
 
@@ -60,7 +61,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   }
 
   const videoId = bvid || `av${avid}`;
-  console.log(`[Bilibili] Detected ID: ${videoId}`);
+  logger.info(`[Bilibili] Detected ID: ${videoId}`);
 
   // Fetch video page HTML
   const fetchUrl = bvid
@@ -83,7 +84,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
     html.match(/window\.__INITIAL_STATE__=(.+?);$/m);
 
   if (!stateMatch || !stateMatch[1]) {
-    console.log('[Bilibili] HTML parse failed or INITIAL_STATE not found, falling back to API');
+    logger.info('[Bilibili] HTML parse failed or INITIAL_STATE not found, falling back to API');
     const apiUrl = bvid
       ? `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
       : `https://api.bilibili.com/x/web-interface/view?aid=${avid}`;
@@ -111,7 +112,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
 
     // Use API if state is missing basic info
     if (!bvidFromState && !aidFromState) {
-      console.log('[Bilibili] State missing ID, falling back to API');
+      logger.info('[Bilibili] State missing ID, falling back to API');
       return await fetchFromApi(bvid, avid);
     }
 
@@ -125,7 +126,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
 
     // If we have critical info missing, API is safer
     if (!title || !cid) {
-      console.log('[Bilibili] State incomplete (missing title/cid), falling back to API');
+      logger.info('[Bilibili] State incomplete (missing title/cid), falling back to API');
       return await fetchFromApi(bvid, avid);
     }
 
@@ -142,7 +143,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
     };
     return await parseFromBilibiliData(mergedData, bvid || bvidFromState);
   } catch (error) {
-    console.error('[Bilibili] Parse error, falling back to API:', (error instanceof Error ? error.message : String(error)));
+    logger.error('[Bilibili] Parse error, falling back to API:', (error instanceof Error ? error.message : String(error)));
     return await fetchFromApi(bvid, avid);
   }
 }
@@ -152,7 +153,7 @@ async function fetchFromApi(bvid: string | null, avid: string | null): Promise<B
     ? `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
     : `https://api.bilibili.com/x/web-interface/view?aid=${avid}`;
 
-  console.log(`[Bilibili] Fetching from API: ${apiUrl}`);
+  logger.info(`[Bilibili] Fetching from API: ${apiUrl}`);
   const viewResponse = await fetch(apiUrl, {
     headers: {
       'User-Agent':
@@ -169,13 +170,13 @@ async function fetchFromApi(bvid: string | null, avid: string | null): Promise<B
 
 async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliMetadata> {
   const currentBvid = bvid || data.bvid;
-  console.log(
+  logger.info(
     `[Bilibili] Parsing Data: bvid=${currentBvid}, ugc_season=${!!data.ugc_season}, archive_series=${!!data.archive_series}, pages=${data.pages?.length}`,
   );
 
   // A. Professional Collection (ugc_season)
   if (data.ugc_season && data.ugc_season.sections) {
-    console.log('[Bilibili] Handling as Professional Collection (ugc_season)');
+    logger.info('[Bilibili] Handling as Professional Collection (ugc_season)');
     const lessons: { title: string; videoUrl: string; order: number }[] = [];
     let order = 1;
     for (const section of data.ugc_season.sections) {
@@ -197,7 +198,7 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
 
   // B. Archive Series (Space Series)
   if (data.archive_series && data.archive_series.series_id) {
-    console.log(`[Bilibili] Handling as Archive Series: ${data.archive_series.series_id}`);
+    logger.info(`[Bilibili] Handling as Archive Series: ${data.archive_series.series_id}`);
     return await fetchBilibiliSeries(
       data.archive_series.series_id,
       data.owner?.mid || 0,
@@ -208,7 +209,7 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
 
   // C. Multi-part Video (Pages)
   if (data.pages && data.pages.length > 1) {
-    console.log(`[Bilibili] Handling as Multi-part Video (${data.pages.length} pages)`);
+    logger.info(`[Bilibili] Handling as Multi-part Video (${data.pages.length} pages)`);
     const lessons = data.pages.map((page: any) => ({
       title: page.part || data.title + ` (P${page.page})`,
       videoUrl: `https://player.bilibili.com/player.html?bvid=${currentBvid}&cid=${page.cid}&page=${page.page}&high_quality=1&as_wide=1&danmaku=0`,
@@ -218,10 +219,10 @@ async function parseFromBilibiliData(data: any, bvid: string): Promise<BilibiliM
   }
 
   // D. Single Video (Fallback)
-  console.log('[Bilibili] Fallback to Single Video');
+  logger.info('[Bilibili] Fallback to Single Video');
   const cid = data.cid || (data.pages && data.pages[0]?.cid);
   if (!cid) {
-    console.warn('[Bilibili] No CID found in data:', JSON.stringify(data).substring(0, 500));
+    logger.warn('[Bilibili] No CID found in data:', JSON.stringify(data).substring(0, 500));
   }
   return {
     title: data.title,

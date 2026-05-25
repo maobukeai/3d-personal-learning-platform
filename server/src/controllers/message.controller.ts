@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Request, Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -48,7 +49,7 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
 
     res.json(formatted);
   } catch (error) {
-    console.error('Get conversations error:', error);
+    logger.error('Get conversations error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -107,7 +108,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       nextCursor: hasMore ? items[0]?.createdAt : null,
     });
   } catch (error) {
-    console.error('Get messages error:', error);
+    logger.error('Get messages error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -157,7 +158,7 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(conversation);
   } catch (error) {
-    console.error('Create conversation error:', error);
+    logger.error('Create conversation error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -196,7 +197,7 @@ export const updateConversation = async (req: AuthRequest, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    console.error('Update conversation error:', error);
+    logger.error('Update conversation error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -236,7 +237,7 @@ export const addParticipant = async (req: AuthRequest, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    console.error('Add participant error:', error);
+    logger.error('Add participant error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -276,7 +277,7 @@ export const removeParticipant = async (req: AuthRequest, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    console.error('Remove participant error:', error);
+    logger.error('Remove participant error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -329,7 +330,7 @@ export const leaveConversation = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Left conversation' });
   } catch (error) {
-    console.error('Leave conversation error:', error);
+    logger.error('Leave conversation error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -422,7 +423,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(message);
   } catch (error) {
-    console.error('Send message error:', error);
+    logger.error('Send message error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -455,7 +456,7 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Message deleted' });
   } catch (error) {
-    console.error('Delete message error:', error);
+    logger.error('Delete message error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -487,7 +488,7 @@ export const deleteConversation = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Conversation deleted' });
   } catch (error) {
-    console.error('Delete conversation error:', error);
+    logger.error('Delete conversation error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -551,7 +552,7 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Marked as read' });
   } catch (error) {
-    console.error('Mark as read error:', error);
+    logger.error('Mark as read error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -600,7 +601,7 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(reaction);
   } catch (error) {
-    console.error('Add reaction error:', error);
+    logger.error('Add reaction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -643,7 +644,7 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Reaction removed' });
   } catch (error) {
-    console.error('Remove reaction error:', error);
+    logger.error('Remove reaction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -676,7 +677,7 @@ export const translateMessage = async (req: AuthRequest, res: Response) => {
 
     res.json({ translation });
   } catch (error) {
-    console.error('Translate message error:', error);
+    logger.error('Translate message error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

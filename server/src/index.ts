@@ -1,3 +1,4 @@
+import { logger } from './utils/logger';
 import http from 'http';
 import app from './app';
 import { config } from './config/env';
@@ -17,10 +18,10 @@ startCleanupJob(); // Clean up expired data hourly
 
 // Run legacy manual station migration asynchronously on startup
 runManualStationMigration().catch((err) => {
-  console.error('[Startup] Migration error:', err);
+  logger.error('[Startup] Migration error:', err);
 });
 
 server.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
-  console.log(`Environment: ${config.NODE_ENV}`);
+  logger.info(`Server is running at http://localhost:${port}`);
+  logger.info(`Environment: ${config.NODE_ENV}`);
 });

@@ -5,6 +5,7 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
 import { sanitizeInput } from '../middlewares/validation.middleware';
 import { validateRequest } from '../middlewares/zod-validation.middleware';
+import { createRateLimitHandler } from '../middlewares/rate-limit.middleware';
 import {
   registerSchema,
   sendCodePublicSchema,
@@ -104,7 +105,7 @@ const getAuthAttemptKey = (req: Request) => {
 const authIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isDev ? 1000 : readPositiveInt(process.env.AUTH_IP_RATE_LIMIT_MAX, 200),
-  message: { error: '请求过于频繁，请稍后再试' },
+  handler: createRateLimitHandler('请求过于频繁，请稍后再试', 'AUTH_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -113,7 +114,7 @@ const authIpLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isDev ? 1000 : readPositiveInt(process.env.AUTH_CREDENTIAL_RATE_LIMIT_MAX, 20),
-  message: { error: '请求过于频繁，请稍后再试' },
+  handler: createRateLimitHandler('请求过于频繁，请稍后再试', 'AUTH_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -123,7 +124,7 @@ const authLimiter = rateLimit({
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: isDev ? 1000 : 5,
-  message: { error: '密码重置请求过于频繁，请 1 小时后再试' },
+  handler: createRateLimitHandler('密码重置请求过于频繁，请 1 小时后再试', 'PASSWORD_RESET_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -131,7 +132,7 @@ const passwordResetLimiter = rateLimit({
 const emailLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: isDev ? 1000 : 10,
-  message: { error: '邮件发送请求过于频繁，请 10 分钟后再试' },
+  handler: createRateLimitHandler('邮件发送请求过于频繁，请 10 分钟后再试', 'EMAIL_RATE_LIMITED'),
   standardHeaders: true,
   legacyHeaders: false,
 });

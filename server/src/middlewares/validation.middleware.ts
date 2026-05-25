@@ -72,7 +72,7 @@ export const validate = (schema: ValidationSchema) => {
     }
 
     if (errors.length > 0) {
-      return next(new AppError(errors.join('; '), 400));
+      return next(new AppError(errors.join('; '), 400, 'VALIDATION_ERROR', errors));
     }
 
     next();

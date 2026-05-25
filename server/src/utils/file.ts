@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -23,13 +24,13 @@ export function urlToPath(url: string | null | undefined): string | null {
     const resolvedPath = path.resolve(uploadsRoot, relativePath);
     const relativeToUploads = path.relative(uploadsRoot, resolvedPath);
     if (relativeToUploads.startsWith('..') || path.isAbsolute(relativeToUploads)) {
-      console.warn('[FileUtil] Refusing to resolve path outside uploads:', url);
+      logger.warn('[FileUtil] Refusing to resolve path outside uploads:', url);
       return null;
     }
 
     return resolvedPath;
   } catch (error) {
-    console.error('[FileUtil] Error parsing URL to path:', error);
+    logger.error('[FileUtil] Error parsing URL to path:', error);
     return null;
   }
 }
@@ -46,7 +47,7 @@ export function deleteFile(filePath: string | null): boolean {
       return true;
     }
   } catch (error) {
-    console.error(`[FileUtil] Failed to delete file at ${filePath}:`, error);
+    logger.error(`[FileUtil] Failed to delete file at ${filePath}:`, error);
   }
   return false;
 }

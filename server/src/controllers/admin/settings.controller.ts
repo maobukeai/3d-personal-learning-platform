@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { Response, NextFunction } from 'express';
 import dns from 'dns';
 import nodemailer from 'nodemailer';
@@ -34,7 +35,7 @@ function resolveSmtpRealIp(hostname: string): Promise<string> {
           return;
         }
       } catch (err) {
-        console.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
+        logger.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
       }
     }
 
@@ -49,7 +50,7 @@ function resolveSmtpRealIp(hostname: string): Promise<string> {
 }
 
 const validateSettings = (
-  settingsObj: Record<string, any>,
+  settingsObj: Record<string, unknown>,
 ): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
 
@@ -62,7 +63,7 @@ const validateSettings = (
 
   for (const { key, min, max, label } of numericFields) {
     if (settingsObj[key] !== undefined) {
-      const value = parseInt(settingsObj[key], 10);
+      const value = parseInt(String(settingsObj[key]), 10);
       if (isNaN(value)) {
         errors.push(`${label}必须是数字`);
       } else if (value < min || value > max) {
@@ -92,13 +93,13 @@ const validateSettings = (
 
   if (settingsObj.SYSTEM_EMAIL_PROVIDER !== undefined) {
     const validProviders = ['SMTP', 'MICROSOFT_POOL'];
-    if (!validProviders.includes(settingsObj.SYSTEM_EMAIL_PROVIDER)) {
+    if (!validProviders.includes(settingsObj.SYSTEM_EMAIL_PROVIDER as string)) {
       errors.push('SYSTEM_EMAIL_PROVIDER必须是 SMTP 或 MICROSOFT_POOL');
     }
   }
 
   if (settingsObj.SESSION_TIMEOUT !== undefined) {
-    const timeout = settingsObj.SESSION_TIMEOUT;
+    const timeout = settingsObj.SESSION_TIMEOUT as string;
     if (!/^\d+[hdwm]$/.test(timeout)) {
       errors.push('SESSION_TIMEOUT格式不正确，应为数字加单位(如: 7d, 1h)');
     }
@@ -106,7 +107,7 @@ const validateSettings = (
 
   if (settingsObj.DEFAULT_USER_ROLE !== undefined) {
     const validRoles = ['USER', 'ADMIN', 'INSTRUCTOR'];
-    if (!validRoles.includes(settingsObj.DEFAULT_USER_ROLE)) {
+    if (!validRoles.includes(settingsObj.DEFAULT_USER_ROLE as string)) {
       errors.push('DEFAULT_USER_ROLE必须是 USER、ADMIN 或 INSTRUCTOR');
     }
   }
@@ -132,10 +133,10 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
     }
 
     const oldSettings = await settingsService.getAll();
-    let settingsObj: any = {};
+    let settingsObj: Record<string, unknown> = {};
 
     if (Array.isArray(settings)) {
-      settings.forEach((s: any) => {
+      settings.forEach((s: { key: string; value: unknown }) => {
         if (s.key && s.value !== undefined) {
           settingsObj[s.key] = s.value;
         }
@@ -215,7 +216,7 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
     const portNum = parseInt(port) || 465;
 
     const realIp = await resolveSmtpRealIp(host);
-    console.log(
+    logger.info(
       `[SMTP Test] Attempting connection: ${host}(${realIp}):${portNum}, secure: ${isSecure}`,
     );
 
@@ -239,7 +240,7 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
 
     // Detailed verification
     await transporter.verify().catch((err) => {
-      console.error('[SMTP Verify Error]:', err);
+      logger.error('[SMTP Verify Error]:', err);
       throw err;
     });
 
@@ -255,17 +256,17 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
 
     res.json({ message: 'SMTP 连接测试成功，已向您的邮箱发送测试邮件' });
   } catch (error) {
-    console.error('SMTP Test Error Detail:', error);
+    logger.error('SMTP Test Error Detail:', error);
     let errorMsg = (error instanceof Error ? error.message : String(error)) || '未知错误';
 
     // Detailed error mapping
-    if ((error as any).code === 'ECONNRESET')
+    if ((error as { code?: string }).code === 'ECONNRESET')
       errorMsg = '连接被重置。通常是因为网络防火墙拦截或 SSL/TLS 协议不匹配。';
-    else if ((error as any).code === 'ETIMEDOUT')
+    else if ((error as { code?: string }).code === 'ETIMEDOUT')
       errorMsg = '连接超时。请检查 465/587 端口是否在云服务器安全组中开放。';
-    else if ((error as any).code === 'ECONNREFUSED')
+    else if ((error as { code?: string }).code === 'ECONNREFUSED')
       errorMsg = '连接被拒绝。目标服务器可能不可达，或端口被本地 ISP 封锁。';
-    else if ((error as any).code === 'EAUTH')
+    else if ((error as { code?: string }).code === 'EAUTH')
       errorMsg = '验证失败。请确保您使用的是 Gmail 的 16 位“应用专用密码”而非主密码。';
     else if ((error instanceof Error ? error.message : String(error)).includes('secure TLS connection'))
       errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';

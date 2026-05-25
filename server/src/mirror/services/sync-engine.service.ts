@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
 import { getAdapter } from '../adapters';
 import { thumbnailLocalizer } from './thumbnail-localizer.service';
@@ -394,7 +395,7 @@ export class SyncEngine {
                 );
                 updateData.contentHtml = localizedHtml || detail.contentHtml;
               } catch (e) {
-                console.warn(
+                logger.warn(
                   `[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`,
                   (e instanceof Error ? e.message : String(e)),
                 );
@@ -411,7 +412,7 @@ export class SyncEngine {
           }
         } catch (e) {
           if ((e instanceof Error && e.name === 'AbortError')) throw e;
-          console.error(`Failed to fetch detail for ${resource.externalId}:`, e instanceof Error ? e.message : e);
+          logger.error(`Failed to fetch detail for ${resource.externalId}:`, e instanceof Error ? e.message : e);
         }
 
         progress.detailsFetched++;
@@ -790,7 +791,7 @@ export class SyncEngine {
                 );
                 updateData.contentHtml = localizedHtml || detail.contentHtml;
               } catch (e) {
-                console.warn(
+                logger.warn(
                   `[SyncEngine] Failed to localize detail page images for ${resource.externalId}:`,
                   (e instanceof Error ? e.message : String(e)),
                 );
@@ -807,7 +808,7 @@ export class SyncEngine {
           }
         } catch (e) {
           if ((e instanceof Error && e.name === 'AbortError')) throw e;
-          console.error(`Failed to fetch detail for ${resource.externalId}:`, e instanceof Error ? e.message : e);
+          logger.error(`Failed to fetch detail for ${resource.externalId}:`, e instanceof Error ? e.message : e);
         }
 
         progress.detailsFetched++;
@@ -953,7 +954,7 @@ export class SyncEngine {
       });
 
       if (syncingSources.length > 0) {
-        console.log(
+        logger.info(
           `[MirrorSync] Found ${syncingSources.length} orphaned syncing source(s), resetting to IDLE...`,
         );
         await prisma.mirrorSource.updateMany({
@@ -967,7 +968,7 @@ export class SyncEngine {
       });
 
       if (runningLogs.length > 0) {
-        console.log(
+        logger.info(
           `[MirrorSync] Found ${runningLogs.length} orphaned running sync log(s), marking as FAILED...`,
         );
         await prisma.syncLog.updateMany({
@@ -980,7 +981,7 @@ export class SyncEngine {
         });
       }
     } catch (e) {
-      console.error('[MirrorSync] Failed to cleanup orphaned sync states:', e);
+      logger.error('[MirrorSync] Failed to cleanup orphaned sync states:', e);
     }
   }
 
@@ -990,7 +991,7 @@ export class SyncEngine {
     this.cleanupOrphanedSyncs()
       .then(() => this.startAllAutoSync())
       .catch((e) => {
-        console.error('Failed to start mirror sync scheduler:', e);
+        logger.error('Failed to start mirror sync scheduler:', e);
         this.schedulerStarted = false;
       });
   }
@@ -1012,7 +1013,7 @@ export class SyncEngine {
     });
 
     if (sources.length === 0) {
-      console.log('[MirrorSync] No active mirror sources with autoSync enabled, scheduler idle');
+      logger.info('[MirrorSync] No active mirror sources with autoSync enabled, scheduler idle');
       return;
     }
 
@@ -1021,7 +1022,7 @@ export class SyncEngine {
       this.scheduleSourceSync(source.id, intervalMs);
     }
 
-    console.log(`[MirrorSync] Scheduler started for ${sources.length} source(s)`);
+    logger.info(`[MirrorSync] Scheduler started for ${sources.length} source(s)`);
   }
 
   reloadSourceScheduler(sourceId: string, status: string, syncInterval: number): void {
@@ -1032,7 +1033,7 @@ export class SyncEngine {
     }
 
     if (status !== 'ACTIVE') {
-      console.log(`[MirrorSync] Scheduler removed/skipped for inactive source ${sourceId}`);
+      logger.info(`[MirrorSync] Scheduler removed/skipped for inactive source ${sourceId}`);
       return;
     }
 
@@ -1043,19 +1044,19 @@ export class SyncEngine {
       })
       .then((source) => {
         if (!source || source.adapterType === 'MANUAL') {
-          console.log(
+          logger.info(
             `[MirrorSync] Scheduler removed/skipped for manual or non-existent source ${sourceId}`,
           );
           return;
         }
         const intervalMs = syncInterval * 1000;
         this.scheduleSourceSync(sourceId, intervalMs);
-        console.log(
+        logger.info(
           `[MirrorSync] Scheduler scheduled/reloaded for source ${sourceId} with interval ${syncInterval}s`,
         );
       })
       .catch((e) => {
-        console.error(`[MirrorSync] Failed to reload scheduler for source ${sourceId}:`, e);
+        logger.error(`[MirrorSync] Failed to reload scheduler for source ${sourceId}:`, e);
       });
   }
 
@@ -1064,7 +1065,7 @@ export class SyncEngine {
     if (existing) {
       clearInterval(existing);
       this.schedulerIntervals.delete(sourceId);
-      console.log(`[MirrorSync] Scheduler removed for source ${sourceId}`);
+      logger.info(`[MirrorSync] Scheduler removed for source ${sourceId}`);
     }
   }
 
@@ -1074,7 +1075,7 @@ export class SyncEngine {
       try {
         await this.incrementalSync(sourceId);
       } catch (e) {
-        console.error(`Auto sync failed for source ${sourceId}:`, e);
+        logger.error(`Auto sync failed for source ${sourceId}:`, e);
       }
     };
 

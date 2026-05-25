@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Response } from 'express';
 import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
@@ -54,7 +55,7 @@ export const getAllActivationCodes = async (req: AuthRequest, res: Response) => 
       pagination: createPaginationMeta(page, limit, total),
     });
   } catch (error) {
-    console.error('Get all activation codes error:', error);
+    logger.error('Get all activation codes error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -127,7 +128,7 @@ export const createActivationCode = async (req: AuthRequest, res: Response) => {
       codes: codesData.map((c) => c.code),
     });
   } catch (error) {
-    console.error('Create activation codes error:', error);
+    logger.error('Create activation codes error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -151,7 +152,7 @@ export const deleteActivationCode = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: '激活码已成功删除' });
   } catch (error) {
-    console.error('Delete activation code error:', error);
+    logger.error('Delete activation code error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

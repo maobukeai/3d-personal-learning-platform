@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Request } from 'express';
 import prisma from './prisma';
 
@@ -104,7 +105,7 @@ class AuditService {
 
       // Debug logging to help troubleshoot if IPs are still missing
       if (!ipAddress && req) {
-        console.warn(
+        logger.warn(
           `[AuditService] Could not detect IP address. Headers: ${JSON.stringify(req.headers!)}`,
         );
       }
@@ -122,7 +123,7 @@ class AuditService {
         },
       });
     } catch (error) {
-      console.error('[AuditService] Failed to create audit log:', error);
+      logger.error('[AuditService] Failed to create audit log:', error);
     }
   }
 }

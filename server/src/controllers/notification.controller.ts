@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -39,7 +40,7 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
       nextCursor,
     });
   } catch (error) {
-    console.error('[Notification] Get notifications error:', error);
+    logger.error('[Notification] Get notifications error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

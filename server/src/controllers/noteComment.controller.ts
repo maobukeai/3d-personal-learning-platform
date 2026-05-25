@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
@@ -14,7 +15,7 @@ export const getNoteComments = async (req: AuthRequest, res: Response) => {
     });
     res.json(comments);
   } catch (error) {
-    console.error('Get note comments error:', error);
+    logger.error('Get note comments error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -55,7 +56,7 @@ export const createNoteComment = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(comment);
   } catch (error) {
-    console.error('Create note comment error:', error);
+    logger.error('Create note comment error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -82,7 +83,7 @@ export const deleteNoteComment = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: '评论已删除' });
   } catch (error) {
-    console.error('Delete note comment error:', error);
+    logger.error('Delete note comment error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

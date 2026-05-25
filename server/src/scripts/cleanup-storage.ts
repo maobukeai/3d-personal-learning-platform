@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import prisma from '../services/prisma';
 import fs from 'fs';
 import path from 'path';
@@ -8,7 +9,7 @@ import { urlToPath } from '../utils/file';
  * Scans upload directories and removes files that are no longer referenced in the database.
  */
 export async function cleanupOrphanedFiles() {
-  console.log('[CleanupEngine] Starting storage cleanup...');
+  logger.info('[CleanupEngine] Starting storage cleanup...');
 
   const stats = {
     scanned: 0,
@@ -203,20 +204,20 @@ export async function cleanupOrphanedFiles() {
           try {
             fs.unlinkSync(filePath);
             stats.deleted++;
-            console.log(`[CleanupEngine] Deleted orphan: ${filePath}`);
+            logger.info(`[CleanupEngine] Deleted orphan: ${filePath}`);
           } catch (err) {
             stats.errors++;
-            console.error(`[CleanupEngine] Error deleting ${filePath}:`, err);
+            logger.error(`[CleanupEngine] Error deleting ${filePath}:`, err);
           }
         }
       }
     }
 
-    console.log(
+    logger.info(
       `[CleanupEngine] Cleanup finished. Scanned: ${stats.scanned}, Deleted: ${stats.deleted}, Errors: ${stats.errors}`,
     );
   } catch (error) {
-    console.error('[CleanupEngine] Critical error during cleanup:', error);
+    logger.error('[CleanupEngine] Critical error during cleanup:', error);
   }
 
   return stats;
@@ -226,11 +227,11 @@ export async function cleanupOrphanedFiles() {
 if (require.main === module) {
   cleanupOrphanedFiles()
     .then((stats) => {
-      console.log('[CleanupEngine] Direct execution completed successfully:', stats);
+      logger.info('[CleanupEngine] Direct execution completed successfully:', stats);
       process.exit(0);
     })
     .catch((err) => {
-      console.error('[CleanupEngine] Direct execution failed:', err);
+      logger.error('[CleanupEngine] Direct execution failed:', err);
       process.exit(1);
     });
 }

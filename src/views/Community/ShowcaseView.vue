@@ -385,7 +385,7 @@ type="button"
     <!-- Featured Banner -->
     <div class="px-4 sm:px-6 py-2.5 sm:py-3.5 shrink-0">
       <div class="relative h-28 md:h-36 rounded-xl overflow-hidden bg-slate-900 group cursor-pointer">
-        <img
+        <img alt=""
           src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=80"
           class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
         />
@@ -520,7 +520,7 @@ type="button"
                 class="relative aspect-video w-full overflow-hidden"
                 style="background-color: var(--bg-app)"
               >
-                <img :src="getDetailImages[currentImageIndex]" class="w-full h-full object-cover" />
+                <img alt="" :src="getDetailImages[currentImageIndex]" class="w-full h-full object-cover" />
                 <div
                   v-if="getDetailImages.length > 1"
                   class="absolute inset-0 flex items-center justify-between px-4"

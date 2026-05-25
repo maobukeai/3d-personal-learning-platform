@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import axios from 'axios';
 import prisma from './prisma';
 import { decryptSecret, encryptSecret } from '../utils/secret-field';
@@ -29,7 +30,7 @@ export class MicrosoftGraphService {
       }
       return config;
     } catch (e) {
-      console.error('MicrosoftGraphService: Error parsing proxy URL', e);
+      logger.error('MicrosoftGraphService: Error parsing proxy URL', e);
       return undefined;
     }
   }
@@ -98,7 +99,7 @@ export class MicrosoftGraphService {
         (error as any).response?.data?.error_description ||
         (error instanceof Error ? error.message : String(error)) ||
         'Unknown error refreshing token';
-      console.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
+      logger.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
 
       await prisma.microsoftEmailAccount.update({
         where: { id: accountId },
@@ -176,7 +177,7 @@ export class MicrosoftGraphService {
     } catch (error) {
       const errorMsg =
         (error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)) || 'Connection test failed';
-      console.error(
+      logger.error(
         `MicrosoftGraphService: Test connection failed for ${account.email}:`,
         errorMsg,
       );
@@ -207,7 +208,7 @@ export class MicrosoftGraphService {
       });
       return response.data.value || [];
     } catch (error) {
-      console.error(`MicrosoftGraphService: Fetch folders failed for ${accountId}:`, error instanceof Error ? error.message : error);
+      logger.error(`MicrosoftGraphService: Fetch folders failed for ${accountId}:`, error instanceof Error ? error.message : error);
       throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -239,7 +240,7 @@ export class MicrosoftGraphService {
       );
       return response.data.value || [];
     } catch (error) {
-      console.error(
+      logger.error(
         `MicrosoftGraphService: Fetch messages failed for folder ${folderId} inside ${accountId}:`,
         (error instanceof Error ? error.message : String(error)),
       );
@@ -272,7 +273,7 @@ export class MicrosoftGraphService {
         },
       );
     } catch (error) {
-      console.error(
+      logger.error(
         `MicrosoftGraphService: Mark message read failed for message ${messageId}:`,
         (error instanceof Error ? error.message : String(error)),
       );
@@ -330,7 +331,7 @@ export class MicrosoftGraphService {
         );
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `MicrosoftGraphService: Delete message failed for message ${messageId}:`,
         (error instanceof Error ? error.message : String(error)),
       );
@@ -425,7 +426,7 @@ export class MicrosoftGraphService {
     } catch (error) {
       const errorMsg =
         (error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)) || 'Failed to send mail';
-      console.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
+      logger.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
       throw new Error(errorMsg);
     }
   }

@@ -29,6 +29,9 @@ import adminManualRoutes from './manual/routes/admin-manual.routes';
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/error.middleware';
 import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
+import { requestContext } from './middlewares/request-context.middleware';
+import { notFoundHandler } from './middlewares/not-found.middleware';
+import { createRateLimitHandler } from './middlewares/rate-limit.middleware';
 
 const app = express();
 
@@ -47,6 +50,8 @@ const parseTrustProxy = (value: string | undefined) => {
 
 // Trust proxy - essential for getting real client IP when behind a reverse proxy (Nginx, etc.)
 app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
+app.use(requestContext);
 
 // Security Middleware
 app.use(
@@ -106,7 +111,7 @@ const globalLimiter = rateLimit({
     process.env.NODE_ENV === 'development'
       ? 10000
       : readPositiveInt(process.env.API_RATE_LIMIT_MAX, 3000),
-  message: { error: '请求过于频繁，请稍后再试' },
+  handler: createRateLimitHandler('请求过于频繁，请稍后再试'),
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
@@ -152,6 +157,8 @@ app.use('/api/admin/manual', adminManualRoutes);
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');
 });
+
+app.use(notFoundHandler);
 
 // Error handling middleware
 app.use(errorHandler);

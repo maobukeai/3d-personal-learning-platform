@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -180,7 +181,7 @@ class ThumbnailLocalizer {
       }
 
       if (!response || !response.ok) {
-        console.warn(
+        logger.warn(
           `[ThumbnailLocalizer] Failed to download ${originalUrl} after ${retries + 1} attempts: ${lastError?.message}`,
         );
         return originalUrl;
@@ -188,13 +189,13 @@ class ThumbnailLocalizer {
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.startsWith('image/') || contentType.includes('svg')) {
-        console.warn(`[ThumbnailLocalizer] Not an image: ${originalUrl} (${contentType})`);
+        logger.warn(`[ThumbnailLocalizer] Not an image: ${originalUrl} (${contentType})`);
         return originalUrl;
       }
 
       const contentLength = Number.parseInt(response.headers.get('content-length') || '0', 10);
       if (contentLength > MAX_IMAGE_BYTES) {
-        console.warn(
+        logger.warn(
           `[ThumbnailLocalizer] Image too large: ${originalUrl} (${contentLength} bytes)`,
         );
         return originalUrl;
@@ -213,7 +214,7 @@ class ThumbnailLocalizer {
       } else {
         const buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.byteLength > MAX_IMAGE_BYTES) {
-          console.warn(
+          logger.warn(
             `[ThumbnailLocalizer] Image too large: ${originalUrl} (${buffer.byteLength} bytes)`,
           );
           return originalUrl;
@@ -223,7 +224,7 @@ class ThumbnailLocalizer {
 
       return localUrl;
     } catch (e) {
-      console.warn(`[ThumbnailLocalizer] Error localizing ${originalUrl}: ${(e instanceof Error ? e.message : String(e))}`);
+      logger.warn(`[ThumbnailLocalizer] Error localizing ${originalUrl}: ${(e instanceof Error ? e.message : String(e))}`);
       return originalUrl;
     }
   }
@@ -307,7 +308,7 @@ class ThumbnailLocalizer {
 
       return $.html();
     } catch (e) {
-      console.warn(`[ThumbnailLocalizer] Error localizing HTML content images: ${(e instanceof Error ? e.message : String(e))}`);
+      logger.warn(`[ThumbnailLocalizer] Error localizing HTML content images: ${(e instanceof Error ? e.message : String(e))}`);
       return htmlContent;
     }
   }

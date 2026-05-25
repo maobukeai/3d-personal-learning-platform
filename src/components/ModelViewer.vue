@@ -1,6 +1,29 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
-import * as THREE from 'three';
+import {
+  ACESFilmicToneMapping,
+  AmbientLight,
+  AnimationMixer,
+  Box3,
+  Color,
+  DirectionalLight,
+  EquirectangularReflectionMapping,
+  LoadingManager,
+  Mesh,
+  MeshStandardMaterial,
+  PerspectiveCamera,
+  Raycaster,
+  Scene,
+  SRGBColorSpace,
+  Texture,
+  TorusKnotGeometry,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+  type AnimationAction,
+  type Material,
+  type Object3D,
+} from 'three';
 import gsap from 'gsap';
 import { Info, RefreshCw, Layers } from 'lucide-vue-next';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -49,12 +72,12 @@ const emit = defineEmits(['metadata-loaded', 'screenshot-captured', 'hotspot-add
 
 const envMaps: Record<string, string> = {
   sunset:
-    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/venice_sunset_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/venice_sunset_1k.hdr',
   studio:
-    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/royal_esplanade_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/royal_esplanade_1k.hdr',
   forest:
-    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/pedestrian_overpass_1k.hdr',
-  room: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/quarry_01_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/pedestrian_overpass_1k.hdr',
+  room: 'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/quarry_01_1k.hdr',
 };
 
 const container = ref<HTMLElement | null>(null);
@@ -74,8 +97,8 @@ const hasInitialized = ref(false);
 
 // Clay Mode State
 const isClayMode = ref(false);
-const originalMaterials = new Map<string, THREE.Material | THREE.Material[]>();
-const clayMaterial = new THREE.MeshStandardMaterial({
+const originalMaterials = new Map<string, Material | Material[]>();
+const clayMaterial = new MeshStandardMaterial({
   color: 0xdddddd,
   roughness: 0.7,
   metalness: 0.05,
@@ -88,26 +111,26 @@ const stats = ref({
   dimensions: '',
 });
 
-let scene: THREE.Scene;
-let camera: THREE.PerspectiveCamera;
-let renderer: THREE.WebGLRenderer;
+let scene: Scene;
+let camera: PerspectiveCamera;
+let renderer: WebGLRenderer;
 let controls: OrbitControls;
 let animationId: number;
-let mixer: THREE.AnimationMixer | null = null;
+let mixer: AnimationMixer | null = null;
 let lastTime = 0;
-let loadedModel: THREE.Object3D | null = null;
-let wireframeOverlay: THREE.Object3D | null = null;
-let currentActions: THREE.AnimationAction[] = [];
-let ambientLight: THREE.AmbientLight;
-let directionalLight: THREE.DirectionalLight;
-let fillLight: THREE.DirectionalLight;
+let loadedModel: Object3D | null = null;
+let wireframeOverlay: Object3D | null = null;
+let currentActions: AnimationAction[] = [];
+let ambientLight: AmbientLight;
+let directionalLight: DirectionalLight;
+let fillLight: DirectionalLight;
 let intersectionObserver: IntersectionObserver | null = null;
 let renderLoopActive = false;
 let isInitializing = false;
 let isViewerVisible = false;
 
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+const raycaster = new Raycaster();
+const mouse = new Vector2();
 const hotspotsWithScreenPos = ref<HotspotWithScreenPosition[]>([]);
 
 const getModelExtension = (url: string): string => {
@@ -120,7 +143,7 @@ const updateHotspotsPosition = () => {
   if (!props.hotspots || !camera || !container.value) return;
 
   hotspotsWithScreenPos.value = props.hotspots.map((h, i) => {
-    const vector = new THREE.Vector3(h.x, h.y, h.z);
+    const vector = new Vector3(h.x, h.y, h.z);
     vector.project(camera);
 
     const x = (vector.x * 0.5 + 0.5) * container.value!.clientWidth;
@@ -154,7 +177,7 @@ const updateSceneConfig = async () => {
   if (config.environment && envMaps[config.environment]) {
     const { HDRLoader } = await import('three/examples/jsm/loaders/HDRLoader.js');
     new HDRLoader().load(envMaps[config.environment], (texture) => {
-      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.mapping = EquirectangularReflectionMapping;
       scene.environment = texture;
     });
   }
@@ -227,36 +250,36 @@ const initScene = async () => {
   isInitializing = true;
 
   try {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f172a);
+    scene = new Scene();
+    scene.background = new Color(0x0f172a);
 
     const width = container.value.clientWidth;
     const height = container.value.clientHeight;
-    camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera = new PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(5, 5, 5);
 
-    renderer = new THREE.WebGLRenderer({
+    renderer = new WebGLRenderer({
       antialias: true,
       alpha: true,
       preserveDrawingBuffer: true,
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.outputColorSpace = SRGBColorSpace;
+    renderer.toneMapping = ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     container.value.appendChild(renderer.domElement);
 
-    ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    ambientLight = new AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
 
-    directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight = new DirectionalLight(0xffffff, 1.5);
     directionalLight.position.set(5, 10, 7.5);
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight = new DirectionalLight(0xffffff, 0.4);
     fillLight.position.set(-5, 5, -5);
     scene.add(fillLight);
 
@@ -282,25 +305,25 @@ const initScene = async () => {
 };
 
 const addPlaceholder = () => {
-  const geometry = new THREE.TorusKnotGeometry(1, 0.4, 100, 16);
-  const material = new THREE.MeshStandardMaterial({
+  const geometry = new TorusKnotGeometry(1, 0.4, 100, 16);
+  const material = new MeshStandardMaterial({
     color: 0x3b82f6,
     roughness: 0.1,
     metalness: 0.8,
   });
-  const mesh = new THREE.Mesh(geometry, material);
+  const mesh = new Mesh(geometry, material);
   scene.add(mesh);
   loadedModel = mesh;
   calculateStats(mesh);
 };
 
-const centerAndScaleModel = (object: THREE.Object3D) => {
+const centerAndScaleModel = (object: Object3D) => {
   // Explicitly update all world matrices first to avoid stale/NaN transform bounds
   object.updateWorldMatrix(true, true);
 
-  const box = new THREE.Box3().setFromObject(object);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
+  const box = new Box3().setFromObject(object);
+  const center = box.getCenter(new Vector3());
+  const size = box.getSize(new Vector3());
 
   const maxDim = Math.max(size.x, size.y, size.z);
   const scale = maxDim > 0.0001 ? 3 / maxDim : 1;
@@ -308,19 +331,19 @@ const centerAndScaleModel = (object: THREE.Object3D) => {
 
   // Re-update world matrices with the new scale and center the model
   object.updateWorldMatrix(true, true);
-  const newBox = new THREE.Box3().setFromObject(object);
+  const newBox = new Box3().setFromObject(object);
   newBox.getCenter(center);
   object.position.sub(center);
 };
 
-const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
+const optimizeTexturesForGPULimit = (object: Object3D) => {
   if (!renderer) return;
   const maxTextures = renderer.capabilities.maxTextures || 16;
   // Reserve 3 slots for environment mapping, shadow maps, etc.
   const maxAllowed = Math.max(8, maxTextures - 3);
 
   object.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
+    if (child instanceof Mesh) {
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach((material) => {
         if (!material) return;
@@ -339,7 +362,7 @@ const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
           'lightMap'
         ];
 
-        let activeSlots = textureSlots.filter(slot => material[slot] && material[slot] instanceof THREE.Texture);
+        let activeSlots = textureSlots.filter(slot => material[slot] && material[slot] instanceof Texture);
 
         if (activeSlots.length > maxAllowed) {
           console.warn(`Mesh "${child.name}" material textures (${activeSlots.length}) exceed GPU limit (${maxAllowed}). Optimizing...`);
@@ -357,7 +380,7 @@ const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
           for (const slot of slotsToPrune) {
             if (material[slot]) {
               material[slot] = null;
-              activeSlots = textureSlots.filter(s => material[s] && material[s] instanceof THREE.Texture);
+              activeSlots = textureSlots.filter(s => material[s] && material[s] instanceof Texture);
               if (activeSlots.length <= maxAllowed) break;
             }
           }
@@ -368,7 +391,7 @@ const optimizeTexturesForGPULimit = (object: THREE.Object3D) => {
   });
 };
 
-const disposeMaterial = (material: THREE.Material) => {
+const disposeMaterial = (material: Material) => {
   if (material === clayMaterial) return;
   material.dispose();
   const textureSlots = [
@@ -386,15 +409,15 @@ const disposeMaterial = (material: THREE.Material) => {
   ];
   for (const slot of textureSlots) {
     const value = (material as unknown as Record<string, unknown>)[slot];
-    if (value instanceof THREE.Texture) {
+    if (value instanceof Texture) {
       value.dispose();
     }
   }
 };
 
-const disposeHierarchy = (obj: THREE.Object3D) => {
+const disposeHierarchy = (obj: Object3D) => {
   obj.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
+    if (child instanceof Mesh) {
       if (child.geometry) {
         child.geometry.dispose();
       }
@@ -409,7 +432,7 @@ const disposeHierarchy = (obj: THREE.Object3D) => {
   });
 };
 
-const onModelLoaded = (object: THREE.Object3D, animCount: number = 0) => {
+const onModelLoaded = (object: Object3D, animCount: number = 0) => {
   loadedModel = object;
   optimizeTexturesForGPULimit(loadedModel);
   scene.add(loadedModel);
@@ -476,7 +499,7 @@ const loadModel = async (url: string) => {
     addPlaceholder();
   };
 
-  const manager = new THREE.LoadingManager();
+  const manager = new LoadingManager();
   manager.setURLModifier((url) => {
     // Detect relative texture requests that are bound to 404
     const isImage = /\.(png|jpg|jpeg|tga|dds|gif|bmp|webp|tiff)$/i.test(url);
@@ -509,7 +532,7 @@ const loadModel = async (url: string) => {
         (gltf) => {
           let animCount = 0;
           if (gltf.animations && gltf.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(gltf.scene);
+            mixer = new AnimationMixer(gltf.scene);
             animations.value = gltf.animations.map(
               (a) => a.name || `Animation ${animations.value.length + 1}`,
             );
@@ -532,7 +555,7 @@ const loadModel = async (url: string) => {
         (fbx) => {
           let animCount = 0;
           if (fbx.animations && fbx.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(fbx);
+            mixer = new AnimationMixer(fbx);
             animations.value = fbx.animations.map((a, i) => a.name || `Animation ${i + 1}`);
             currentActions = fbx.animations.map((clip) => mixer!.clipAction(clip));
             animCount = fbx.animations.length;
@@ -564,8 +587,8 @@ const loadModel = async (url: string) => {
       loader.load(
         url,
         (geometry) => {
-          const material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-          const mesh = new THREE.Mesh(geometry, material);
+          const material = new MeshStandardMaterial({ color: 0xcccccc });
+          const mesh = new Mesh(geometry, material);
           onModelLoaded(mesh);
         },
         onProgress,
@@ -588,7 +611,7 @@ const applyViewMode = () => {
   }
   if (!loadedModel) return;
   loadedModel.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
+    if (child instanceof Mesh) {
       child.material.wireframe = viewMode.value === 'wireframe';
     }
   });
@@ -602,7 +625,7 @@ const setViewMode = (mode: ViewMode) => {
 const applyClayMode = () => {
   if (!loadedModel) return;
   loadedModel.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
+    if (child instanceof Mesh) {
       if (isClayMode.value) {
         // Backup original material
         if (!originalMaterials.has(child.uuid)) {
@@ -625,11 +648,11 @@ const toggleClayMode = () => {
   applyClayMode();
 };
 
-const calculateStats = (model: THREE.Object3D, animCount: number = 0) => {
+const calculateStats = (model: Object3D, animCount: number = 0) => {
   let vCount = 0;
   let fCount = 0;
   model.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
+    if (child instanceof Mesh) {
       vCount += child.geometry.attributes.position.count;
       fCount += child.geometry.index
         ? child.geometry.index.count / 3

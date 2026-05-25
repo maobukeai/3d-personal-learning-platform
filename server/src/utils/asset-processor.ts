@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { getBounds } from '@gltf-transform/functions';
@@ -72,7 +73,7 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
       dimensions,
     };
   } catch (error) {
-    console.error('Error processing 3D asset metadata:', error);
+    logger.error('Error processing 3D asset metadata:', error);
     return null;
   }
 }

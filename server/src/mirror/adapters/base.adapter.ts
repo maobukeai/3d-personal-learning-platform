@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import * as cheerio from 'cheerio';
 import crypto from 'crypto';
 
@@ -103,7 +104,7 @@ export abstract class BaseAdapter {
 
         if (attempt < retries) {
           const delayMs = this.retryBaseDelay * Math.pow(2, attempt) + Math.random() * 500;
-          console.warn(
+          logger.warn(
             `[BaseAdapter] Attempt ${attempt + 1}/${retries + 1} failed: ${(e instanceof Error ? e.message : String(e))}. Retrying in ${Math.round(delayMs)}ms...`,
           );
           await this.delay(delayMs);

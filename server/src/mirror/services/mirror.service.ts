@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
 
 export class MirrorService {
@@ -201,7 +202,7 @@ export class MirrorService {
           return updated;
         }
       } catch (e) {
-        console.warn(
+        logger.warn(
           `[MirrorService] Failed to load detail page on-demand for ${resource.externalId}: ${(e instanceof Error ? e.message : String(e))}`,
         );
       }

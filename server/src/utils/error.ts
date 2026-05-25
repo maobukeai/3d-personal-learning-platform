@@ -1,24 +1,32 @@
 export class AppError extends Error {
   statusCode: number;
   code: string;
+  details?: unknown;
 
-  constructor(message: string, statusCode: number, code: string) {
+  constructor(message: string, statusCode = 500, code = 'APP_ERROR', details?: unknown) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
+    this.details = details;
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
 export function formatError(error: unknown) {
   if (error instanceof AppError) {
     return {
+      status: 'error',
       success: false,
+      error: error.message,
       message: error.message,
       code: error.code,
+      ...(error.details !== undefined && { details: error.details }),
     };
   }
   return {
+    status: 'error',
     success: false,
+    error: 'Internal server error',
     message: 'Internal server error',
     code: 'INTERNAL_ERROR',
   };

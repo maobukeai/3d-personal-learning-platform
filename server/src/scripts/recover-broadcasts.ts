@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -12,7 +13,7 @@ async function cleanup() {
   });
 
   if (notificationsByContent.length > 0) {
-    console.log(`Found ${notificationsByContent.length} notifications by content.`);
+    logger.info(`Found ${notificationsByContent.length} notifications by content.`);
     const first = notificationsByContent[0];
     if (first) {
       const broadcast = await prisma.broadcast.create({
@@ -29,10 +30,10 @@ async function cleanup() {
         data: { broadcastId: broadcast.id },
       });
 
-      console.log(`Associated notifications with new broadcast record: ${broadcast.id}`);
+      logger.info(`Associated notifications with new broadcast record: ${broadcast.id}`);
     }
   } else {
-    console.log('No notifications found by content.');
+    logger.info('No notifications found by content.');
   }
 
   // Handle the '1' case
@@ -55,11 +56,11 @@ async function cleanup() {
         where: { title: '1', content: '1', type: 'SYSTEM' },
         data: { broadcastId: broadcastOne.id },
       });
-      console.log('Associated "1" notifications.');
+      logger.info('Associated "1" notifications.');
     }
   }
 }
 
 cleanup()
-  .catch((e) => console.error(e))
+  .catch((e) => logger.error(e))
   .finally(async () => await prisma.$disconnect());

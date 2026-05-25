@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import {
   BaseAdapter,
   RawCategory,
@@ -57,7 +58,7 @@ export class ZyckuAdapter extends BaseAdapter {
     } catch {
       this.restApiAvailable = false;
     }
-    console.log(`[ZyckuAdapter] REST API available: ${this.restApiAvailable}`);
+    logger.info(`[ZyckuAdapter] REST API available: ${this.restApiAvailable}`);
     return this.restApiAvailable;
   }
 
@@ -68,7 +69,7 @@ export class ZyckuAdapter extends BaseAdapter {
         return await this.fetchCategoriesViaApi(signal);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') throw e;
-        console.warn(
+        logger.warn(
           `[ZyckuAdapter] REST API categories failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`,
         );
         this.restApiAvailable = false;
@@ -175,7 +176,7 @@ export class ZyckuAdapter extends BaseAdapter {
         return await this.fetchResourcesViaApi(page, categorySlug, signal);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') throw e;
-        console.warn(
+        logger.warn(
           `[ZyckuAdapter] REST API resources failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`,
         );
         this.restApiAvailable = false;
@@ -332,7 +333,7 @@ export class ZyckuAdapter extends BaseAdapter {
         return await this.fetchResourceDetailViaApi(externalId, signal);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') throw e;
-        console.warn(`[ZyckuAdapter] REST API detail failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
+        logger.warn(`[ZyckuAdapter] REST API detail failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
         this.restApiAvailable = false;
       }
     }
@@ -496,7 +497,7 @@ export class ZyckuAdapter extends BaseAdapter {
         return await this.fetchUpdatesViaApi(since, signal);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') throw e;
-        console.warn(`[ZyckuAdapter] REST API updates failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
+        logger.warn(`[ZyckuAdapter] REST API updates failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
         this.restApiAvailable = false;
       }
     }

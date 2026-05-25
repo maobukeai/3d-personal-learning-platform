@@ -1,10 +1,11 @@
+import { logger } from './utils/logger';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  logger.info('Seeding database...');
 
   // 1. Create Admin User
   const adminSeedPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin_Secure_2026!';
@@ -20,7 +21,7 @@ async function main() {
       emailVerified: true,
     },
   });
-  console.log('Created Admin User:', admin.email);
+  logger.info('Created Admin User:', admin.email);
 
   // 2. Create Regular User
   const userSeedPassword = process.env.USER_INITIAL_PASSWORD || 'User_Secure_2026!';
@@ -36,7 +37,7 @@ async function main() {
       emailVerified: true,
     },
   });
-  console.log('Created Regular User:', user.email);
+  logger.info('Created Regular User:', user.email);
 
   // 3. Create Courses
   const course1 = await prisma.course.create({
@@ -85,7 +86,7 @@ async function main() {
       },
     },
   });
-  console.log('Created Courses:', course1.title, course2.title);
+  logger.info('Created Courses:', course1.title, course2.title);
 
   // 4. Create Roadmaps
   const roadmap1 = await prisma.roadmap.create({
@@ -101,7 +102,7 @@ async function main() {
       },
     },
   });
-  console.log('Created Roadmap:', roadmap1.title);
+  logger.info('Created Roadmap:', roadmap1.title);
 
   // 5. Create Assets
   await prisma.asset.create({
@@ -131,7 +132,7 @@ async function main() {
       size: 3.2,
     },
   });
-  console.log('Created Sample Assets.');
+  logger.info('Created Sample Assets.');
 
   // 6. Create some tasks for the user
   await prisma.task.createMany({
@@ -140,14 +141,14 @@ async function main() {
       { title: '上传个人第一件作品', status: 'IN_PROGRESS', userId: user.id },
     ],
   });
-  console.log('Created Sample Tasks.');
+  logger.info('Created Sample Tasks.');
 
-  console.log('Seeding completed successfully!');
+  logger.info('Seeding completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    logger.error(e);
     process.exit(1);
   })
   .finally(async () => {

@@ -1,3 +1,4 @@
+import { logger } from './logger';
 export interface YoutubeMetadata {
   title: string;
   description: string;
@@ -63,7 +64,7 @@ export async function parseYoutubeUrl(url: string): Promise<YoutubeMetadata> {
         lessons: lessons,
       };
     } catch (e) {
-      console.error('Playlist parse error:', e);
+      logger.error('Playlist parse error:', e);
     }
   }
 

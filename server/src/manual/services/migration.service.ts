@@ -1,7 +1,8 @@
+import { logger } from '../../utils/logger';
 import prisma from '../../services/prisma';
 
 export async function runManualStationMigration() {
-  console.log('[Migration] Checking for legacy manual mirror sources to migrate...');
+  logger.info('[Migration] Checking for legacy manual mirror sources to migrate...');
 
   try {
     // 1. Find all MirrorSources with adapterType === 'MANUAL'
@@ -34,16 +35,16 @@ export async function runManualStationMigration() {
     });
 
     if (legacySources.length === 0) {
-      console.log('[Migration] No legacy manual mirror sources found. Migration skipped.');
+      logger.info('[Migration] No legacy manual mirror sources found. Migration skipped.');
       return;
     }
 
-    console.log(
+    logger.info(
       `[Migration] Found ${legacySources.length} legacy manual mirror source(s) to migrate.`,
     );
 
     for (const source of legacySources) {
-      console.log(
+      logger.info(
         `[Migration] Migrating manual source: "${source.displayName}" (${source.name})...`,
       );
 
@@ -53,7 +54,7 @@ export async function runManualStationMigration() {
       });
 
       if (existingStation) {
-        console.log(
+        logger.info(
           `[Migration] ManualStation "${source.name}" already exists in the new schema. Cleaning up legacy source...`,
         );
         await prisma.mirrorSource.delete({ where: { id: source.id } });
@@ -193,13 +194,13 @@ export async function runManualStationMigration() {
         });
       });
 
-      console.log(
+      logger.info(
         `[Migration] Successfully migrated legacy manual source "${source.displayName}" to ManualStation!`,
       );
     }
 
-    console.log('[Migration] All manual station migrations completed successfully.');
+    logger.info('[Migration] All manual station migrations completed successfully.');
   } catch (error) {
-    console.error('[Migration] Failed to run manual station database migration:', error);
+    logger.error('[Migration] Failed to run manual station database migration:', error);
   }
 }

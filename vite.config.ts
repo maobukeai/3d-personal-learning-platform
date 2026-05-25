@@ -32,6 +32,20 @@ export default defineConfig(({ mode }) => {
     ['security', ['dompurify']],
   ];
 
+  const normalizeModuleId = (id: string) => id.replace(/\\/g, '/');
+
+  const getVendorChunkName = (id: string): string | undefined => {
+    const normalizedId = normalizeModuleId(id);
+    if (!normalizedId.includes('/node_modules/')) return;
+    if (normalizedId.includes('/node_modules/three/')) return;
+
+    const matchedChunk = vendorChunks.find(([, deps]) =>
+      deps.some((dep) => normalizedId.includes(`/node_modules/${dep}/`)),
+    );
+
+    return matchedChunk?.[0];
+  };
+
   return {
     plugins: [
       vue(),
@@ -50,32 +64,57 @@ export default defineConfig(({ mode }) => {
       },
     },
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-      },
+      alias: [
+        {
+          find: /^three$/,
+          replacement: path.resolve(__dirname, './node_modules/three/src/Three.js'),
+        },
+        {
+          find: '@',
+          replacement: path.resolve(__dirname, './src'),
+        },
+      ],
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks(id) {
-            if (!id.includes('node_modules')) return;
-
-            const normalizedId = id.replace(/\\/g, '/');
-            if (normalizedId.includes('/node_modules/three/examples/jsm/loaders/')) {
-              return 'three-loaders';
-            }
-            if (normalizedId.includes('/node_modules/three/examples/jsm/controls/')) {
-              return 'three-controls';
-            }
-            if (normalizedId.includes('/node_modules/three/')) {
-              return 'three-core';
-            }
-
-            const matchedChunk = vendorChunks.find(([, deps]) =>
-              deps.some((dep) => normalizedId.includes(`/node_modules/${dep}/`)),
-            );
-
-            return matchedChunk?.[0];
+          codeSplitting: {
+            includeDependenciesRecursively: false,
+            groups: [
+              {
+                name: 'three-loaders',
+                priority: 3,
+                test(moduleId) {
+                  return normalizeModuleId(moduleId).includes(
+                    '/node_modules/three/examples/jsm/loaders/',
+                  );
+                },
+              },
+              {
+                name: 'three-controls',
+                priority: 3,
+                test(moduleId) {
+                  return normalizeModuleId(moduleId).includes(
+                    '/node_modules/three/examples/jsm/controls/',
+                  );
+                },
+              },
+              {
+                name: 'three-core',
+                priority: 2,
+                maxSize: 420 * 1024,
+                test(moduleId) {
+                  return normalizeModuleId(moduleId).includes('/node_modules/three/src/');
+                },
+              },
+              {
+                name(moduleId) {
+                  return getVendorChunkName(moduleId) ?? null;
+                },
+                priority: 1,
+                test: /node_modules/,
+              },
+            ],
           },
         },
       },

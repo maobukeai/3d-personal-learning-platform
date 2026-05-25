@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import prisma from './prisma';
 
 export const cleanupExpiredData = async () => {
@@ -25,7 +26,7 @@ export const cleanupExpiredData = async () => {
       deletedTeamInvites.count > 0 ||
       deletedProjectInvites.count > 0
     ) {
-      console.log(
+      logger.info(
         `[Cleanup] Database cleanup complete: ` +
           `Deleted ${deletedCodes.count} expired verification codes, ` +
           `Deleted ${deletedTokens.count} expired refresh tokens, ` +
@@ -34,7 +35,7 @@ export const cleanupExpiredData = async () => {
       );
     }
   } catch (error) {
-    console.error('[Cleanup Error] Failed to run database cleanup:', error);
+    logger.error('[Cleanup Error] Failed to run database cleanup:', error);
   }
 };
 
@@ -52,13 +53,13 @@ export const startCleanupJob = (intervalMs = 60 * 60 * 1000) => {
     cleanupExpiredData();
   }, intervalMs);
 
-  console.log(`[Cleanup] Background cleanup job started (interval: ${intervalMs / 1000}s).`);
+  logger.info(`[Cleanup] Background cleanup job started (interval: ${intervalMs / 1000}s).`);
 };
 
 export const stopCleanupJob = () => {
   if (cleanupInterval) {
     clearInterval(cleanupInterval);
     cleanupInterval = null;
-    console.log('[Cleanup] Background cleanup job stopped.');
+    logger.info('[Cleanup] Background cleanup job stopped.');
   }
 };

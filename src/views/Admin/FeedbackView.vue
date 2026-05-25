@@ -378,7 +378,7 @@ v-for="filter in [
                     class="relative w-32 h-20 rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in hover:opacity-90 transition-opacity"
                     @click="showImage(item.attachmentUrl)"
                   >
-                    <img :src="item.attachmentUrl" class="w-full h-full object-cover" />
+                    <img alt="" :src="item.attachmentUrl" class="w-full h-full object-cover" />
                     <div
                       class="absolute inset-0 flex items-center justify-center bg-black/5 opacity-0 hover:opacity-100 transition-opacity"
                     >
@@ -544,7 +544,7 @@ type="button"
 
     <!-- Image Preview Dialog -->
     <el-dialog v-model="previewVisible" title="图片预览" width="60%" destroy-on-close>
-      <img :src="previewImageUrl" class="w-full h-auto rounded-xl" />
+      <img alt="" :src="previewImageUrl" class="w-full h-auto rounded-xl" />
     </el-dialog>
   </div>
 </template>

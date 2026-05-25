@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../../services/prisma';
@@ -131,7 +132,7 @@ export const sendPublicVerificationCode = async (
 
     res.json({ message: '验证码已发送到您的邮箱' });
   } catch (error) {
-    console.error('Email send error:', error);
+    logger.error('Email send error:', error);
     next(new AppError('无法发送邮件，请检查后端配置', 500));
   }
 };

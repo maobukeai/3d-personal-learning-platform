@@ -188,7 +188,7 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
   const { name, email, role, status } = req.body;
 
   try {
-    const oldUser = await prisma.user.findUnique({ where: { id: id as any } });
+    const oldUser = await prisma.user.findUnique({ where: { id } });
     if (!oldUser) return next(new AppError('用户不存在', 404));
 
     // Prevent self-demotion or self-banning if you are an admin
@@ -197,7 +197,7 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: id as any },
+      where: { id },
       data: { name, email, role, status },
       select: { id: true, email: true, name: true, role: true, status: true },
     });
@@ -227,12 +227,12 @@ export const resetUserPassword = async (req: AuthRequest, res: Response, next: N
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: id as any } });
+    const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return next(new AppError('用户不存在', 404));
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
-      where: { id: id as any },
+      where: { id },
       data: { password: hashedPassword },
     });
 
@@ -260,11 +260,11 @@ export const updateUserRole = async (req: AuthRequest, res: Response, next: Next
   }
 
   try {
-    const oldUser = await prisma.user.findUnique({ where: { id: id as any } });
+    const oldUser = await prisma.user.findUnique({ where: { id } });
     if (!oldUser) return next(new AppError('用户不存在', 404));
 
     const updatedUser = await prisma.user.update({
-      where: { id: id as any },
+      where: { id },
       data: { role },
       select: { id: true, email: true, name: true, role: true },
     });
@@ -294,7 +294,7 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     // Check if user exists
-    const userToDelete = await prisma.user.findUnique({ where: { id: id as any } });
+    const userToDelete = await prisma.user.findUnique({ where: { id } });
     if (!userToDelete) {
       return next(new AppError('用户不存在', 404));
     }
@@ -307,7 +307,7 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
       }
     }
 
-    await prisma.user.delete({ where: { id: id as any } });
+    await prisma.user.delete({ where: { id } });
 
     await auditService.log({
       userId: req.userId as string,

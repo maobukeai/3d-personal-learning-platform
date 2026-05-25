@@ -1,9 +1,12 @@
+import { logger } from '../utils/logger';
+import { AuthRequest } from '../middlewares/auth.middleware';
+import type { MicrosoftEmailAccount } from '@prisma/client';
 import { Request, Response } from 'express';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
 import { encryptSecret, maskProxyUrl } from '../utils/secret-field';
 
-const toPublicEmailAccount = (account: any) => ({
+const toPublicEmailAccount = (account: MicrosoftEmailAccount) => ({
   id: account.id,
   userId: account.userId,
   email: account.email,
@@ -30,9 +33,9 @@ export class EmailController {
    * Bulk imports Microsoft accounts from a raw text payload
    * Format: email----password----client_id----refreshToken (dual-token generic)
    */
-  public static async importAccounts(req: any, res: Response): Promise<void> {
+  public static async importAccounts(req: AuthRequest, res: Response): Promise<void> {
     const { importData, proxy, minDelay, maxDelay, dailyLimit } = req.body;
-    const userId = req.userId;
+    const userId = req.userId as string;
 
     if (!importData || typeof importData !== 'string') {
       res.status(400).json({ error: '请提供有效的导入数据内容' });
@@ -43,7 +46,7 @@ export class EmailController {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
-    const parsedAccounts: any[] = [];
+    const parsedAccounts: Array<{ email: string; password?: string; clientId: string; refreshToken: string }> = [];
     const errors: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -136,7 +139,7 @@ export class EmailController {
         errors: errors.length > 0 ? errors : undefined,
       });
     } catch (e) {
-      console.error('EmailController: Import error', e);
+      logger.error('EmailController: Import error', e);
       res.status(500).json({ error: '数据库导入失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
@@ -144,8 +147,8 @@ export class EmailController {
   /**
    * Fetches all Microsoft email accounts linked to the user
    */
-  public static async getAccounts(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
+  public static async getAccounts(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
     try {
       const accounts = await prisma.microsoftEmailAccount.findMany({
         where: { userId },
@@ -160,9 +163,9 @@ export class EmailController {
   /**
    * Deletes a Microsoft email account
    */
-  public static async deleteAccount(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
-    const { id } = req.params;
+  public static async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
 
     try {
       const account = await prisma.microsoftEmailAccount.findFirst({
@@ -187,9 +190,9 @@ export class EmailController {
   /**
    * Triggers a manual connection test to Microsoft Graph API
    */
-  public static async testAccount(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
-    const { id } = req.params;
+  public static async testAccount(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
 
     try {
       const account = await prisma.microsoftEmailAccount.findFirst({
@@ -215,9 +218,9 @@ export class EmailController {
   /**
    * Fetches the email folders for a specific account
    */
-  public static async getFolders(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
-    const { id } = req.params;
+  public static async getFolders(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
 
     try {
       const account = await prisma.microsoftEmailAccount.findFirst({
@@ -239,9 +242,9 @@ export class EmailController {
   /**
    * Fetches messages within a specific folder of a Microsoft account
    */
-  public static async getMessages(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
-    const { id } = req.params;
+  public static async getMessages(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
     const { folderId, limit } = req.query;
 
     try {
@@ -269,9 +272,10 @@ export class EmailController {
   /**
    * Marks a message as read or unread
    */
-  public static async markMessageRead(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
-    const { id, messageId } = req.params;
+  public static async markMessageRead(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
+    const messageId = req.params.messageId as string;
     const { isRead } = req.body;
 
     try {
@@ -294,9 +298,10 @@ export class EmailController {
   /**
    * Deletes a message from Microsoft Mail server
    */
-  public static async deleteMessage(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
-    const { id, messageId } = req.params;
+  public static async deleteMessage(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
+    const messageId = req.params.messageId as string;
 
     try {
       const account = await prisma.microsoftEmailAccount.findFirst({
@@ -318,8 +323,8 @@ export class EmailController {
   /**
    * Sends an email from a single account, or using a round-robin strategy
    */
-  public static async sendEmail(req: any, res: Response): Promise<void> {
-    const userId = req.userId;
+  public static async sendEmail(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
     const { accountId, to, subject, content } = req.body;
 
     if (!to || !subject || !content) {
@@ -409,7 +414,7 @@ export class EmailController {
         delayAdviceSeconds: randomDelaySec,
       });
     } catch (e) {
-      console.error('EmailController: Send error', e);
+      logger.error('EmailController: Send error', e);
       res.status(500).json({ error: '邮件发送失败', details: e instanceof Error ? e.message : String(e) });
     }
   }

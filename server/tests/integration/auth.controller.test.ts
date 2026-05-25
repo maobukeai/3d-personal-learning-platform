@@ -42,9 +42,34 @@ describe('Auth Controller Integration', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('PLATFORM_NAME');
     });
+
+    it('should echo a valid request id header', async () => {
+      const res = await request(app)
+        .get('/api/auth/settings')
+        .set('X-Request-Id', 'test-request-12345');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['x-request-id']).toBe('test-request-12345');
+    });
   });
 
   describe('POST /api/auth/login', () => {
+    it('should return structured validation errors', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .set('X-Request-Id', 'validation-request-12345')
+        .send({ email: 'not-an-email', password: '' });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({
+        status: 'error',
+        code: 'VALIDATION_ERROR',
+        requestId: 'validation-request-12345',
+      });
+      expect(res.body.error).toContain('email');
+      expect(Array.isArray(res.body.details)).toBe(true);
+    });
+
     it('should fail with invalid credentials', async () => {
       const res = await request(app)
         .post('/api/auth/login')
@@ -68,6 +93,21 @@ describe('Auth Controller Integration', () => {
       expect(cookies.some((c) => c.includes('token='))).toBe(true);
       expect(cookies.some((c) => c.includes('refreshToken='))).toBe(true);
       expect(cookies.some((c) => c.includes('HttpOnly'))).toBe(true);
+    });
+  });
+
+  describe('Unknown API route', () => {
+    it('should return structured JSON instead of an HTML 404', async () => {
+      const res = await request(app)
+        .get('/api/does-not-exist')
+        .set('X-Request-Id', 'missing-route-12345');
+
+      expect(res.status).toBe(404);
+      expect(res.body).toMatchObject({
+        status: 'error',
+        code: 'ROUTE_NOT_FOUND',
+        requestId: 'missing-route-12345',
+      });
     });
   });
 });

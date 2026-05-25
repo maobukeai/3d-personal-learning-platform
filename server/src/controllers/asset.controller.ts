@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
@@ -100,11 +101,11 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
               where: { id: asset.id },
               data: { ...metadata },
             });
-            console.log(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
+            logger.info(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
           }
         })
         .catch((err) => {
-          console.error(
+          logger.error(
             `[AssetProcessor] Background processing failed for asset: ${asset.id}`,
             err,
           );

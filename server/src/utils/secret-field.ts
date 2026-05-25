@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import crypto from 'crypto';
 
 const PREFIX = 'enc:v1:';
@@ -29,7 +30,7 @@ export const encryptSecret = (value: string | null | undefined): string | null =
   }
 
   if (!secret && legacySecret) {
-    console.warn(
+    logger.warn(
       '[SecurityWarning] Encrypting credentials using legacy JWT_SECRET fallback. Please set DATABASE_ENCRYPTION_KEY in your .env file to use a dedicated database encryption key.',
     );
   }
@@ -89,7 +90,7 @@ export const decryptSecret = (value: string | null | undefined): string | null =
       const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAuthTag(tag);
       const result = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
-      console.warn(
+      logger.warn(
         '[SecurityWarning] Decrypted credentials using legacy JWT_SECRET fallback. Please re-save settings to use the dedicated database encryption key.',
       );
       return result;

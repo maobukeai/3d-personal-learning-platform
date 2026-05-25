@@ -1,3 +1,5 @@
+import { Prisma, MirrorResource } from '@prisma/client';
+import { logger } from '../../utils/logger';
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { syncEngine } from '../services/sync-engine.service';
@@ -43,7 +45,7 @@ const readSpreadsheetRows = async (filePath: string): Promise<SpreadsheetRow[]> 
       error instanceof Error &&
       error.message.includes('Unsupported "inline string" cell value structure')
     ) {
-      console.warn(
+      logger.warn(
         `[MirrorLinkMatch] Sanitizing empty inline string cells before reading ${path.basename(filePath)}`,
       );
       sheetRows = await readSheet(sanitizeXlsxEmptyInlineStrings(filePath));
@@ -127,7 +129,7 @@ export const createSource = async (req: AuthRequest, res: Response) => {
 export const updateSource = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const updateData: any = {};
+    const updateData: Record<string, any> = {};
 
     const allowedFields = [
       'name',
@@ -154,7 +156,7 @@ export const updateSource = async (req: AuthRequest, res: Response) => {
 
     const source = await prisma.mirrorSource.update({
       where: { id },
-      data: updateData,
+      data: updateData as Prisma.MirrorSourceUpdateInput,
     });
 
     // Reload the scheduler with the updated status and interval
@@ -260,7 +262,7 @@ export const triggerSync = async (req: AuthRequest, res: Response) => {
         await syncEngine.fullSync(id);
       }
     } catch (e) {
-      console.error(`Sync failed for source ${id}:`, e instanceof Error ? e.message : e);
+      logger.error(`Sync failed for source ${id}:`, e instanceof Error ? e.message : e);
     }
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
@@ -356,7 +358,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
         try {
           fs.unlinkSync(f.path);
         } catch (err) {
-          console.error(`Failed to delete temp file ${f.path}:`, err);
+          logger.error(`Failed to delete temp file ${f.path}:`, err);
         }
       }
     }
@@ -421,7 +423,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
 
         totalLinks++;
 
-        let matchedResource: any = null;
+        let matchedResource: MirrorResource | null = null;
 
         // 1. Try matching by externalId extracted from the courseNotes URL
         if (courseNotes && courseNotes.startsWith('http')) {
@@ -430,7 +432,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
             courseNotes.match(/\/([a-zA-Z0-9_-]+)(?:\.html)?$/i);
           if (match && match[1]) {
             const externalId = match[1];
-            matchedResource = resourceByExternalId.get(externalId);
+            matchedResource = resourceByExternalId.get(externalId) ?? null;
           }
         }
 
@@ -441,7 +443,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
             matchedResource = exactMatch;
           } else {
             const cleanName = cleanString(courseName);
-            matchedResource = resourceByCleanTitle.get(cleanName);
+            matchedResource = resourceByCleanTitle.get(cleanName) ?? null;
           }
         }
 
@@ -510,7 +512,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
       await prisma.$transaction(batchUpdates);
     }
 
-    console.log(
+    logger.info(
       `[MirrorLinkMatch] Source ID: ${sourceId}, Excel uploaded. Found ${totalLinks} records, successfully matched and updated ${matchedCount} resources across ${filesArray.length} files.`,
     );
 
@@ -523,7 +525,7 @@ export const matchLinks = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     cleanUpFiles(filesArray);
-    console.error('[MirrorLinkMatch] Error matching links:', error);
+    logger.error('[MirrorLinkMatch] Error matching links:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
   }
 };
@@ -536,7 +538,7 @@ export const getSourceResources = async (req: AuthRequest, res: Response) => {
     const search = req.query.search as string | undefined;
     const categoryId = req.query.categoryId as string | undefined;
 
-    const where: any = { sourceId };
+    const where: Prisma.MirrorResourceWhereInput = { sourceId };
     if (search) {
       where.title = { contains: search };
     }
@@ -660,7 +662,7 @@ export const createResource = async (req: AuthRequest, res: Response) => {
 export const updateResource = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const updateData: any = {};
+    const updateData: Record<string, any> = {};
 
     const allowedFields = [
       'title',
@@ -685,7 +687,7 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
 
     const resource = await prisma.mirrorResource.update({
       where: { id },
-      data: updateData,
+      data: updateData as Prisma.MirrorResourceUpdateInput,
     });
 
     res.json(resource);
@@ -754,7 +756,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
         name,
         slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         parentExternalId: parentExternalId || null,
-        order: parseInt(order as any) || 0,
+        order: typeof order === 'number' ? order : parseInt(String(order)) || 0,
       },
     });
 
@@ -781,11 +783,11 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
     const { name, slug, parentExternalId, order, childExternalIds } = req.body;
 
-    const updateData: any = {};
+    const updateData: Prisma.MirrorCategoryUpdateInput = {};
     if (name !== undefined) updateData.name = name;
     if (slug !== undefined) updateData.slug = slug;
     if (parentExternalId !== undefined) updateData.parentExternalId = parentExternalId;
-    if (order !== undefined) updateData.order = parseInt(order as any) || 0;
+    if (order !== undefined) updateData.order = typeof order === 'number' ? order : parseInt(String(order)) || 0;
 
     const category = await prisma.mirrorCategory.update({
       where: { id },

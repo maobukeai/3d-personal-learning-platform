@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
@@ -76,10 +77,10 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response, next
     });
 
     const settings = await prisma.systemSetting.findMany();
-    const configData = settings.reduce((acc: any, curr: any) => {
-      acc[curr.key] = curr.value;
+    const configData = settings.reduce((acc: Record<string, string>, curr) => {
+      acc[curr.key] = curr.value || '';
       return acc;
-    }, {});
+    }, {} as Record<string, string>);
 
     const subject = configData.EMAIL_VERIFY_SUBJECT || '您的邮箱验证码';
     let html =
@@ -98,7 +99,7 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response, next
 
     res.json({ message: '验证码已发送到您的邮箱' });
   } catch (error) {
-    console.error('Email send error:', error);
+    logger.error('Email send error:', error);
     next(new AppError('无法发送邮件，请检查后端配置', 500));
   }
 };
@@ -138,7 +139,7 @@ export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFun
 
     res.json({ message: '邮箱验证成功' });
   } catch (error) {
-    console.error('Verify email error:', error);
+    logger.error('Verify email error:', error);
     next(error);
   }
 };
@@ -159,10 +160,10 @@ export const sendCodeToNewEmail = async (req: AuthRequest, res: Response, next: 
     });
 
     const settings = await prisma.systemSetting.findMany();
-    const configData = settings.reduce((acc: any, curr: any) => {
-      acc[curr.key] = curr.value;
+    const configData = settings.reduce((acc: Record<string, string>, curr) => {
+      acc[curr.key] = curr.value || '';
       return acc;
-    }, {});
+    }, {} as Record<string, string>);
 
     const subject = configData.EMAIL_VERIFY_SUBJECT || '您的邮箱验证码';
     let html =
@@ -181,7 +182,7 @@ export const sendCodeToNewEmail = async (req: AuthRequest, res: Response, next: 
 
     res.json({ message: '验证码已发送到新邮箱' });
   } catch (error) {
-    console.error('Email send error:', error);
+    logger.error('Email send error:', error);
     next(new AppError('无法发送邮件，请检查后端配置', 500));
   }
 };
@@ -359,10 +360,10 @@ export const getPublicUsers = async (req: AuthRequest, res: Response, next: Next
 };
 
 export const getUserProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   try {
     const user = await prisma.user.findUnique({
-      where: { id: id as any },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -389,7 +390,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response, next: Next
 
     res.json(user);
   } catch (error) {
-    console.error('Get user profile error:', error);
+    logger.error('Get user profile error:', error);
     next(error);
   }
 };
@@ -397,7 +398,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response, next: Next
 export const getActivity = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { date } = req.query;
   try {
-    const where: any = {};
+    const where: { createdAt?: { gte?: Date; lte?: Date } } = {};
     if (date) {
       const parsedDate = new Date(date as string);
       if (isNaN(parsedDate.getTime())) {
@@ -516,7 +517,7 @@ export const getActivity = async (req: AuthRequest, res: Response, next: NextFun
 
     res.json(activities);
   } catch (error) {
-    console.error('[Auth] Get activity error:', error);
+    logger.error('[Auth] Get activity error:', error);
     next(error);
   }
 };
@@ -526,10 +527,10 @@ export const getUserSettings = async (req: AuthRequest, res: Response, next: Nex
     const settings = await prisma.userSetting.findMany({
       where: { userId: req.userId as string },
     });
-    const config = settings.reduce((acc: any, curr: any) => {
-      acc[curr.key] = curr.value;
+    const config = settings.reduce((acc: Record<string, string>, curr) => {
+      acc[curr.key] = curr.value || '';
       return acc;
-    }, {});
+    }, {} as Record<string, string>);
     res.json(config);
   } catch (error) {
     next(error);
@@ -566,16 +567,16 @@ export const getTrustedDevices = async (req: AuthRequest, res: Response, next: N
 };
 
 export const revokeTrustedDevice = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   try {
-    const device = await prisma.trustedDevice.findUnique({ where: { id: id as any } });
+    const device = await prisma.trustedDevice.findUnique({ where: { id } });
     if (!device) {
       return next(new AppError('设备不存在', 404));
     }
     if (device.userId !== req.userId) {
       return next(new AppError('无权操作此设备', 403));
     }
-    await prisma.trustedDevice.delete({ where: { id: id as any } });
+    await prisma.trustedDevice.delete({ where: { id } });
     res.json({ message: '设备已移除' });
   } catch (error) {
     next(error);
@@ -757,7 +758,7 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       },
     });
   } catch (error) {
-    console.error('[Auth] Get stats error:', error);
+    logger.error('[Auth] Get stats error:', error);
     next(error);
   }
 };

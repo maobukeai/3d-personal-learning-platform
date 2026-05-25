@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import prisma from './prisma';
 
 export interface SystemSettings {
@@ -154,7 +155,7 @@ class SettingsService {
     }
 
     const dbSettings = await prisma.systemSetting.findMany();
-    const settings: Partial<SystemSettings> = {};
+    const settings = {} as Record<string, unknown>;
 
     for (const s of dbSettings) {
       try {
@@ -166,14 +167,14 @@ class SettingsService {
           s.key.endsWith('_ENABLED') ||
           s.key.endsWith('_FAILBACK')
         ) {
-          (settings as any)[key] = s.value === 'true';
+          settings[key] = s.value === 'true';
         } else if (
           s.key.endsWith('_PORT') ||
           s.key.endsWith('_SIZE') ||
           s.key.endsWith('_LENGTH') ||
           s.key === 'MAX_UPLOAD_SIZE_MB'
         ) {
-          (settings as any)[key] = parseInt(s.value, 10);
+          settings[key] = parseInt(s.value, 10);
         } else if (
           s.key.endsWith('_CATEGORIES') ||
           s.key.endsWith('_EXTENSIONS') ||
@@ -193,46 +194,46 @@ class SettingsService {
               }
             }
             if (Array.isArray(parsed)) {
-              (settings as any)[key] = parsed;
+              settings[key] = parsed;
             } else if (typeof parsed === 'string') {
-              (settings as any)[key] = parsed
+              settings[key] = parsed
                 .split(',')
                 .map((v) => v.trim())
                 .filter(Boolean);
             }
           } catch (e) {
-            console.warn(`Recovering malformed setting ${s.key}`);
+            logger.warn(`Recovering malformed setting ${s.key}`);
             const arr = s.value
               .split(',')
               .map((v) => v.trim())
               .filter(Boolean);
-            (settings as any)[key] = arr;
+            settings[key] = arr;
           }
         } else {
-          (settings as any)[key] = s.value;
+          settings[key] = s.value;
         }
       } catch (e) {
-        console.error(`Error parsing setting ${s.key}:`, e);
+        logger.error(`Error parsing setting ${s.key}:`, e);
       }
     }
 
     // Keep ALLOWED_FILE_TYPES and ALLOWED_EXTENSIONS synchronized
-    if (settings.ALLOWED_FILE_TYPES && !settings.ALLOWED_EXTENSIONS) {
-      settings.ALLOWED_EXTENSIONS = settings.ALLOWED_FILE_TYPES;
-    } else if (settings.ALLOWED_EXTENSIONS && !settings.ALLOWED_FILE_TYPES) {
-      settings.ALLOWED_FILE_TYPES = settings.ALLOWED_EXTENSIONS;
+    if (settings['ALLOWED_FILE_TYPES'] && !settings['ALLOWED_EXTENSIONS']) {
+      settings['ALLOWED_EXTENSIONS'] = settings['ALLOWED_FILE_TYPES'];
+    } else if (settings['ALLOWED_EXTENSIONS'] && !settings['ALLOWED_FILE_TYPES']) {
+      settings['ALLOWED_FILE_TYPES'] = settings['ALLOWED_EXTENSIONS'];
     }
 
     // Keep MAX_UPLOAD_SIZE_MB and MAX_FILE_SIZE synchronized
-    if (settings.MAX_UPLOAD_SIZE_MB !== undefined && settings.MAX_FILE_SIZE === undefined) {
-      settings.MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE_MB;
-    } else if (settings.MAX_FILE_SIZE !== undefined && settings.MAX_UPLOAD_SIZE_MB === undefined) {
-      settings.MAX_UPLOAD_SIZE_MB = settings.MAX_FILE_SIZE;
+    if (settings['MAX_UPLOAD_SIZE_MB'] !== undefined && settings['MAX_FILE_SIZE'] === undefined) {
+      settings['MAX_FILE_SIZE'] = settings['MAX_UPLOAD_SIZE_MB'];
+    } else if (settings['MAX_FILE_SIZE'] !== undefined && settings['MAX_UPLOAD_SIZE_MB'] === undefined) {
+      settings['MAX_UPLOAD_SIZE_MB'] = settings['MAX_FILE_SIZE'];
     }
 
-    this.cache = settings;
+    this.cache = settings as unknown as Partial<SystemSettings>;
     this.lastFetch = Date.now();
-    return { ...DEFAULT_SETTINGS, ...settings } as SystemSettings;
+    return { ...DEFAULT_SETTINGS, ...settings } as unknown as SystemSettings;
   }
 
   async get<K extends keyof SystemSettings>(key: K): Promise<SystemSettings[K]> {
@@ -240,7 +241,7 @@ class SettingsService {
     return all[key];
   }
 
-  async update(key: string, value: any): Promise<void> {
+  async update(key: string, value: unknown): Promise<void> {
     let stringValue: string;
 
     if (Array.isArray(value)) {

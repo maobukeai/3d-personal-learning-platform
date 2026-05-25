@@ -548,7 +548,7 @@ type="button"
                 class="flex gap-3 pt-4 first:pt-0"
               >
                 <div class="w-8 h-8 rounded-full overflow-hidden bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 shrink-0">
-                  <img
+                  <img alt=""
                     v-if="comment.user?.avatarUrl"
                     :src="getAssetUrl(comment.user.avatarUrl)"
                     class="w-full h-full object-cover"

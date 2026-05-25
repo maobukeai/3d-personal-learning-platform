@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
 import prisma from '../services/prisma';
@@ -26,7 +27,7 @@ function resolveRealIp(hostname: string): Promise<string> {
           return;
         }
       } catch (err) {
-        console.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
+        logger.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
       }
     }
 
@@ -112,7 +113,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
   const fallbackSmtp = config.MICROSOFT_POOL_FAILBACK !== 'false';
 
   if (provider === 'MICROSOFT_POOL') {
-    console.log(
+    logger.info(
       `[Email Pool] Attempting to send system email to "${to}" via Microsoft account pool...`,
     );
     try {
@@ -132,7 +133,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
         eligibleAccounts.sort((a, b) => a.sentCountToday - b.sentCountToday);
         const selectedAccount = eligibleAccounts[0]!;
 
-        console.log(
+        logger.info(
           `[Email Pool] Selected account: ${selectedAccount.email} (Sent today: ${selectedAccount.sentCountToday}/${selectedAccount.dailyLimit})`,
         );
 
@@ -142,35 +143,35 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
           content: html || text,
         });
 
-        console.log(
+        logger.info(
           `[Email Pool Success] System email successfully sent from ${selectedAccount.email} to ${to}`,
         );
         return true;
       } else {
-        console.warn(
+        logger.warn(
           '[Email Pool] No eligible Microsoft accounts in pool (either none active or all hit daily limits).',
         );
         if (!fallbackSmtp) {
-          console.error(
+          logger.error(
             '[Email Pool Error] No eligible accounts in pool, and SMTP fallback is disabled.',
           );
           return false;
         }
-        console.log('[Email Pool Fallback] Falling back to standard SMTP sending...');
+        logger.info('[Email Pool Fallback] Falling back to standard SMTP sending...');
       }
     } catch (err) {
-      console.error(`[Email Pool Error] Failed to send via Microsoft Pool:`, err instanceof Error ? err.message : err);
+      logger.error(`[Email Pool Error] Failed to send via Microsoft Pool:`, err instanceof Error ? err.message : err);
       if (!fallbackSmtp) {
         return false;
       }
-      console.log(
+      logger.info(
         '[Email Pool Fallback] Falling back to standard SMTP sending due to pool failure...',
       );
     }
   }
 
   if (!transporter) {
-    console.log(`[Email Mock/Not Configured] To: ${to}, Subject: ${subject}`);
+    logger.info(`[Email Mock/Not Configured] To: ${to}, Subject: ${subject}`);
     return true;
   }
 
@@ -185,10 +186,10 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
       text,
       html,
     });
-    console.log(`[Email Success] To: ${to}`);
+    logger.info(`[Email Success] To: ${to}`);
     return true;
   } catch (error) {
-    console.error(`[Email Error] To: ${to}`, error);
+    logger.error(`[Email Error] To: ${to}`, error);
     cachedTransporter = null;
     cachedConfigHash = '';
     return false;

@@ -1,3 +1,4 @@
+import { logger } from './logger';
 export interface GithubMetadata {
   title: string;
   description: string;
@@ -12,7 +13,7 @@ export interface GithubMetadata {
 export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
   const urlMatch = url.match(/https?:\/\/[^\s]+/);
   const targetUrl = urlMatch ? urlMatch[0] : url;
-  console.log(`[GitHub] Parsing URL: ${targetUrl}`);
+  logger.info(`[GitHub] Parsing URL: ${targetUrl}`);
 
   // Extract owner and repo
   const match = targetUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
@@ -97,7 +98,7 @@ export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
       lessons,
     };
   } catch (error) {
-    console.error('[GitHub] Parse error:', error);
+    logger.error('[GitHub] Parse error:', error);
     throw new Error((error instanceof Error ? error.message : String(error)) || '解析 GitHub 仓库失败');
   }
 }

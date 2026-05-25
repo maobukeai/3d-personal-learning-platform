@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Server as SocketServer } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import jwt from 'jsonwebtoken';
@@ -36,16 +37,16 @@ export const initSocket = (server: HttpServer) => {
 
     // Check cookies if not in auth/headers
     if (!token && socket.handshake.headers.cookie) {
-      const cookies = socket.handshake.headers.cookie.split(';').reduce((acc: any, curr) => {
+      const cookies = socket.handshake.headers.cookie.split(';').reduce((acc: Record<string, string>, curr) => {
         const parts = curr.trim().split('=');
         const key = parts[0];
         const value = parts[1];
-        if (key) {
+        if (key && value) {
           acc[key] = value;
         }
         return acc;
-      }, {});
-      token = cookies.token;
+      }, {} as Record<string, string>);
+      token = cookies['token'];
     }
 
     if (!token) {
@@ -55,7 +56,7 @@ export const initSocket = (server: HttpServer) => {
     try {
       const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
       const decoded = jwt.verify(cleanToken, config.JWT_SECRET) as { id: string };
-      (socket as any).userId = decoded.id;
+      (socket as unknown as { userId: string }).userId = decoded.id;
       next();
     } catch (err) {
       next(new Error('Authentication error: Invalid token'));
@@ -63,8 +64,8 @@ export const initSocket = (server: HttpServer) => {
   });
 
   io.on('connection', (socket) => {
-    const userId = (socket as any).userId;
-    console.log(`User connected: ${userId} (${socket.id})`);
+    const userId = (socket as unknown as { userId: string }).userId;
+    logger.info(`User connected: ${userId} (${socket.id})`);
 
     // Add this socket to user's socket set
     if (!onlineUsers.has(userId)) {
@@ -85,7 +86,7 @@ export const initSocket = (server: HttpServer) => {
     // Join conversation rooms
     socket.on('join_conversation', (conversationId: string) => {
       socket.join(`conversation_${conversationId}`);
-      console.log(`User ${userId} joined conversation: ${conversationId}`);
+      logger.info(`User ${userId} joined conversation: ${conversationId}`);
     });
 
     socket.on('leave_conversation', (conversationId: string) => {
@@ -105,7 +106,7 @@ export const initSocket = (server: HttpServer) => {
     );
 
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${userId} (${socket.id})`);
+      logger.info(`User disconnected: ${userId} (${socket.id})`);
 
       // Remove this socket from user's set
       const userSockets = onlineUsers.get(userId);
@@ -131,7 +132,7 @@ export const getIo = () => {
   return io;
 };
 
-export const emitToUser = (userId: string, event: string, data: any) => {
+export const emitToUser = (userId: string, event: string, data: unknown) => {
   const userSocketIds = onlineUsers.get(userId);
   if (userSocketIds) {
     for (const socketId of userSocketIds) {
@@ -140,13 +141,13 @@ export const emitToUser = (userId: string, event: string, data: any) => {
   }
 };
 
-export const emitToAll = (event: string, data: any) => {
+export const emitToAll = (event: string, data: unknown) => {
   if (io) {
     io.emit(event, data);
   }
 };
 
-export const emitToConversation = (conversationId: string, event: string, data: any) => {
-  console.log(`Emitting ${event} to conversation_${conversationId}`);
+export const emitToConversation = (conversationId: string, event: string, data: unknown) => {
+  logger.info(`Emitting ${event} to conversation_${conversationId}`);
   io.to(`conversation_${conversationId}`).emit(event, data);
 };

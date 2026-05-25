@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
@@ -116,7 +117,7 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(fullRoadmap);
   } catch (error) {
-    console.error('Create custom roadmap error:', error);
+    logger.error('Create custom roadmap error:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
@@ -178,7 +179,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
 
     res.json(fullRoadmap);
   } catch (error) {
-    console.error('Update custom roadmap error:', error);
+    logger.error('Update custom roadmap error:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
@@ -197,7 +198,7 @@ export const deleteRoadmap = async (req: AuthRequest, res: Response) => {
     await prisma.roadmap.delete({ where: { id } });
     res.json({ message: '学习路径已成功删除' });
   } catch (error) {
-    console.error('Delete custom roadmap error:', error);
+    logger.error('Delete custom roadmap error:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };

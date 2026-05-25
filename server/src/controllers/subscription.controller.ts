@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import speakeasy from 'speakeasy';
@@ -106,8 +107,8 @@ export const getPlans = async (req: Request, res: Response) => {
   }
 };
 
-export const getMySubscription = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const getMySubscription = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -174,23 +175,23 @@ const calculateProratedRefund = (
 
 import { paymentService, PaymentMethod } from '../services/payment.service';
 
-export const createOrder = async (req: any, res: Response) => {
+export const createOrder = async (req: AuthRequest, res: Response) => {
   return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const payOrder = async (req: any, res: Response) => {
+export const payOrder = async (req: AuthRequest, res: Response) => {
   return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const verifyPayment = async (req: any, res: Response) => {
+export const verifyPayment = async (req: AuthRequest, res: Response) => {
   return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const subscribe = async (req: any, res: Response) => {
+export const subscribe = async (req: AuthRequest, res: Response) => {
   return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });
 };
 
-export const cancelSubscription = async (req: any, res: Response) => {
+export const cancelSubscription = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id || req.userId;
     if (!userId) {
@@ -284,13 +285,13 @@ export const cancelSubscription = async (req: any, res: Response) => {
       });
     }
   } catch (error) {
-    console.error('取消订阅失败:', error);
+    logger.error('取消订阅失败:', error);
     res.status(500).json({ error: '取消订阅失败' });
   }
 };
 
-export const cancelSubscriptionWith2FA = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const cancelSubscriptionWith2FA = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   const { immediate, twoFactorCode } = req.body;
 
   try {
@@ -381,8 +382,8 @@ export const cancelSubscriptionWith2FA = async (req: any, res: Response) => {
   }
 };
 
-export const checkCancelRequires2FA = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const checkCancelRequires2FA = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -398,8 +399,8 @@ export const checkCancelRequires2FA = async (req: any, res: Response) => {
   }
 };
 
-export const toggleAutoRenew = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const toggleAutoRenew = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   const { autoRenew } = req.body;
 
   try {
@@ -428,8 +429,8 @@ export const toggleAutoRenew = async (req: any, res: Response) => {
   }
 };
 
-export const getTransactions = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const getTransactions = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   try {
     const transactions = await prisma.transaction.findMany({
       where: { userId },
@@ -441,8 +442,8 @@ export const getTransactions = async (req: any, res: Response) => {
   }
 };
 
-export const getStorageUsage = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const getStorageUsage = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   try {
     const assets = await prisma.asset.findMany({
       where: { userId },
@@ -486,8 +487,8 @@ export const getStorageUsage = async (req: any, res: Response) => {
   }
 };
 
-export const getSubscriptionLimits = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const getSubscriptionLimits = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
@@ -520,8 +521,8 @@ export const getSubscriptionLimits = async (req: any, res: Response) => {
   }
 };
 
-export const checkSubscription = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const checkSubscription = async (req: AuthRequest, res: Response) => {
+  const userId = (req.user?.id || req.userId) as string;
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { userId },

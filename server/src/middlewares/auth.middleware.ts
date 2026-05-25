@@ -4,6 +4,16 @@ import { config } from '../config/env';
 import prisma from '../services/prisma';
 import type { User, Subscription, SubscriptionPlan } from '@prisma/client';
 import { AppError } from './error.middleware';
+import { redisService } from '../services/redis.service';
+
+const reviveUserDates = (user: any) => {
+  if (!user) return user;
+  if (user.createdAt) user.createdAt = new Date(user.createdAt);
+  if (user.updatedAt) user.updatedAt = new Date(user.updatedAt);
+  if (user.emailVerifiedAt) user.emailVerifiedAt = new Date(user.emailVerifiedAt);
+  if (user.twoFactorEnabledAt) user.twoFactorEnabledAt = new Date(user.twoFactorEnabledAt);
+  return user;
+};
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -38,6 +48,18 @@ const resolveWorkspaceId = async (userId: string, requestedWorkspaceId?: string)
     if (membership) {
       return requestedWorkspaceId;
     }
+
+    // Also check if they are the owner of the team (to avoid false-positives for team owners, including personal workspace owners)
+    const team = await prisma.team.findUnique({
+      where: { id: requestedWorkspaceId },
+      select: { ownerId: true },
+    });
+
+    if (team && team.ownerId === userId) {
+      return requestedWorkspaceId;
+    }
+
+    throw new AppError('无权访问该工作空间', 403, 'WORKSPACE_FORBIDDEN');
   }
 
   const personalTeam = await prisma.team.findFirst({
@@ -49,9 +71,20 @@ const resolveWorkspaceId = async (userId: string, requestedWorkspaceId?: string)
 };
 
 const attachAuthenticatedUser = async (req: AuthRequest, userId: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-  });
+  const cacheKey = `user_auth:${userId}`;
+  let user = await redisService.get<User>(cacheKey);
+
+  if (user) {
+    reviveUserDates(user);
+  } else {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (user) {
+      await redisService.set(cacheKey, user, 600); // 10 minutes cache
+    }
+  }
 
   if (!user) {
     throw new AppError('Unauthorized: User not found', 401, 'USER_NOT_FOUND');
@@ -74,7 +107,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
+    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }) as { id: string };
     await attachAuthenticatedUser(req, decoded.id);
     next();
   } catch (error) {
@@ -90,7 +123,7 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET) as { id: string };
+    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }) as { id: string };
     await attachAuthenticatedUser(req, decoded.id);
     next();
   } catch (error) {

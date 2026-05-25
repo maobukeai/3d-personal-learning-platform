@@ -39,7 +39,8 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist", "scripts", "prisma"]

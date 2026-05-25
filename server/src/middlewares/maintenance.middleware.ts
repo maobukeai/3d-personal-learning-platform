@@ -20,7 +20,7 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
 
       if (token) {
         try {
-          const decoded = jwt.verify(token, config.JWT_SECRET!) as unknown as { id: string };
+          const decoded = jwt.verify(token, config.JWT_SECRET!, { algorithms: ['HS256'] }) as unknown as { id: string };
           const user = await prisma.user.findUnique({ where: { id: decoded.id } });
           if (user && user.role === 'ADMIN') {
             return next(); // Allow admin to bypass

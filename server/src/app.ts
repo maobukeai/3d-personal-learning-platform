@@ -32,6 +32,7 @@ import { checkMaintenanceMode } from './middlewares/maintenance.middleware';
 import { requestContext } from './middlewares/request-context.middleware';
 import { notFoundHandler } from './middlewares/not-found.middleware';
 import { createRateLimitHandler } from './middlewares/rate-limit.middleware';
+import { csrfProtection } from './middlewares/csrf.middleware';
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(csrfProtection);
 
 // Serve uploads folder statically using process.cwd() to resolve correctly in both dev (src/) and prod (dist/src/)
 app.use(

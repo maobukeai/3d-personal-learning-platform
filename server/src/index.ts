@@ -6,6 +6,7 @@ import { initSocket } from './services/socket.service';
 import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
 import { startCleanupJob } from './services/cleanup.service';
+import './services/redis.service';
 
 const port = config.PORT;
 

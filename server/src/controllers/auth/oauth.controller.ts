@@ -23,6 +23,14 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
+
+  const csrfToken = crypto.randomBytes(32).toString('hex');
+  res.cookie('csrfToken', csrfToken, {
+    secure: config.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    httpOnly: false,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
 };
 
 export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {

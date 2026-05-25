@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import router from '@/router';
 import { preferences } from '@/utils/preferences';
 import { useAuthStore } from '@/stores/auth';
@@ -47,11 +47,27 @@ export const getAssetUrl = (url: string | null | undefined): string => {
   return `${NORMALIZED_API_BASE_URL}${cleanPath}`;
 };
 
-// 请求拦截器：自动注入 Workspace ID
+const getCookie = (name: string): string | undefined => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return undefined;
+};
+
+// 请求拦截器：自动注入 Workspace ID 和 CSRF Token
 api.interceptors.request.use((config) => {
   const activeWorkspaceId = preferences.getActiveWorkspaceId();
   if (activeWorkspaceId) {
     config.headers['X-Workspace-Id'] = activeWorkspaceId;
+  }
+
+  // Inject CSRF token for non-idempotent requests (POST, PUT, DELETE, PATCH)
+  const method = config.method?.toUpperCase();
+  if (method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    const csrfToken = getCookie('csrfToken');
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
   }
 
   return config;

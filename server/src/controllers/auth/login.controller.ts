@@ -23,6 +23,14 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
+
+  const csrfToken = crypto.randomBytes(32).toString('hex');
+  res.cookie('csrfToken', csrfToken, {
+    secure: config.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    httpOnly: false,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
 };
 
 export const getPublicSettings = async (req: Request, res: Response, next: NextFunction) => {
@@ -211,6 +219,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       }
       res.clearCookie('token');
       res.clearCookie('refreshToken');
+      res.clearCookie('csrfToken');
       return next(new AppError('Invalid or expired refresh token', 401));
     }
 
@@ -257,6 +266,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
 
     res.clearCookie('token', cookieOptions);
     res.clearCookie('refreshToken', cookieOptions);
+    res.clearCookie('csrfToken', { ...cookieOptions, httpOnly: false });
     res.json({ message: 'Logged out' });
   } catch (error) {
     logger.error('[Auth] Logout error:', error);

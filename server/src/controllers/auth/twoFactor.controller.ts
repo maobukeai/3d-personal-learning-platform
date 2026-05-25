@@ -6,6 +6,7 @@ import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { generateRecoveryCodes } from '../../utils/auth';
 import { AppError } from '../../middlewares/error.middleware';
+import { redisService } from '../../services/redis.service';
 
 export const setup2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -30,6 +31,8 @@ export const setup2FA = async (req: AuthRequest, res: Response, next: NextFuncti
         twoFactorRecoveryCodes: JSON.stringify(codes),
       },
     });
+
+    await redisService.invalidateUserCache(req.userId as string);
 
     res.json({ qrCodeUrl, secret: secret.base32, recoveryCodes: codes });
   } catch (error) {
@@ -65,6 +68,8 @@ export const regenerateRecoveryCodes = async (
       where: { id: req.userId as string },
       data: { twoFactorRecoveryCodes: JSON.stringify(codes) },
     });
+
+    await redisService.invalidateUserCache(req.userId as string);
     res.json({ recoveryCodes: codes });
   } catch (error) {
     next(error);
@@ -103,6 +108,8 @@ export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunct
       where: { id: user.id },
       data: { twoFactorEnabled: true },
     });
+
+    await redisService.invalidateUserCache(user.id);
 
     res.json({ message: '两步验证已启用' });
   } catch (error) {
@@ -146,6 +153,8 @@ export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunc
       where: { id: req.userId as string },
       data: { twoFactorEnabled: false, twoFactorSecret: null },
     });
+
+    await redisService.invalidateUserCache(req.userId as string);
 
     res.json({ message: '两步验证已禁用' });
   } catch (error) {

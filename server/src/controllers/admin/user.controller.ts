@@ -7,6 +7,7 @@ import { auditService, AuditModule, AuditAction } from '../../services/audit.ser
 import { sanitizeUser } from '../../utils/auth';
 import { AppError } from '../../middlewares/error.middleware';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
+import { redisService } from '../../services/redis.service';
 
 export const getUsers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -202,6 +203,8 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
       select: { id: true, email: true, name: true, role: true, status: true },
     });
 
+    await redisService.invalidateUserCache(id);
+
     await auditService.log({
       userId: req.userId as string,
       action: AuditAction.UPDATE_USER,
@@ -236,6 +239,8 @@ export const resetUserPassword = async (req: AuthRequest, res: Response, next: N
       data: { password: hashedPassword },
     });
 
+    await redisService.invalidateUserCache(id);
+
     await auditService.log({
       userId: req.userId as string,
       action: AuditAction.RESET_PASSWORD,
@@ -268,6 +273,8 @@ export const updateUserRole = async (req: AuthRequest, res: Response, next: Next
       data: { role },
       select: { id: true, email: true, name: true, role: true },
     });
+
+    await redisService.invalidateUserCache(id);
 
     await auditService.log({
       userId: req.userId as string,
@@ -308,6 +315,7 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     await prisma.user.delete({ where: { id } });
+    await redisService.invalidateUserCache(id);
 
     await auditService.log({
       userId: req.userId as string,

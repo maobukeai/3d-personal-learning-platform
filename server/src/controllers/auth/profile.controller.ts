@@ -8,6 +8,7 @@ import { sendEmail } from '../../utils/email';
 import { sanitizeUser } from '../../utils/auth';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
+import { redisService } from '../../services/redis.service';
 
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { name, bio, location, website } = req.body;
@@ -28,6 +29,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       },
     });
 
+    await redisService.invalidateUserCache(req.userId as string);
     res.json(updatedUser);
   } catch (error) {
     next(error);
@@ -50,6 +52,8 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
       where: { id: user.id },
       data: { password: hashedNewPassword },
     });
+
+    await redisService.invalidateUserCache(user.id);
 
     await auditService.log({
       userId: user.id,
@@ -125,6 +129,8 @@ export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFun
       where: { id: user.id },
       data: { emailVerified: true },
     });
+
+    await redisService.invalidateUserCache(user.id);
 
     // Clean up used code and all expired codes for this email
     await prisma.$transaction([
@@ -216,6 +222,8 @@ export const changeEmail = async (req: AuthRequest, res: Response, next: NextFun
       },
     });
 
+    await redisService.invalidateUserCache(req.userId as string);
+
     await auditService.log({
       userId: updatedUser.id,
       action: AuditAction.UPDATE_USER,
@@ -278,6 +286,8 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
       data: { password: hashedPassword },
     });
 
+    await redisService.invalidateUserCache(user.id);
+
     await auditService.log({
       userId: user.id,
       action: AuditAction.RESET_PASSWORD,
@@ -316,6 +326,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
 
+    await redisService.invalidateUserCache(req.userId as string);
     res.json(updatedUser);
   } catch (error) {
     next(error);
@@ -634,6 +645,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response, next: NextF
     });
 
     await prisma.user.delete({ where: { id: req.userId as string } });
+    await redisService.invalidateUserCache(req.userId as string);
     res.json({ message: '账户已成功删除' });
   } catch (error) {
     next(error);

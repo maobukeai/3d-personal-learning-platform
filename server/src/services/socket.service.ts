@@ -55,7 +55,7 @@ export const initSocket = (server: HttpServer) => {
 
     try {
       const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-      const decoded = jwt.verify(cleanToken, config.JWT_SECRET) as { id: string };
+      const decoded = jwt.verify(cleanToken, config.JWT_SECRET, { algorithms: ['HS256'] }) as { id: string };
       (socket as unknown as { userId: string }).userId = decoded.id;
       next();
     } catch (err) {

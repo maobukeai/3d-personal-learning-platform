@@ -37,6 +37,11 @@ export interface SystemSettings {
   EMAIL_VERIFY_BODY: string;
   SMTP_CONFIGS: string;
   SMTP_ACTIVE_CONFIG_ID: string;
+  AI_IMPORT_ENABLED: boolean;
+  AI_PROVIDER: string;
+  AI_API_KEY: string;
+  AI_API_ENDPOINT: string;
+  AI_MODEL_NAME: string;
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -142,6 +147,11 @@ const DEFAULT_SETTINGS: SystemSettings = {
 </div>`,
   SMTP_CONFIGS: '[]',
   SMTP_ACTIVE_CONFIG_ID: 'default',
+  AI_IMPORT_ENABLED: false,
+  AI_PROVIDER: 'DEEPSEEK',
+  AI_API_KEY: '',
+  AI_API_ENDPOINT: 'https://api.deepseek.com/v1',
+  AI_MODEL_NAME: 'deepseek-chat',
 };
 
 class SettingsService {

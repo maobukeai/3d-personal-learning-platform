@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia';
+import { defineStore } from 'pinia';
 import api, { getAssetUrl } from '@/utils/api';
 
 interface SystemSettings {
@@ -20,6 +20,7 @@ interface SystemSettings {
   FOOTER_TEXT: string;
   OAUTH_GOOGLE_ENABLED: boolean;
   OAUTH_GITHUB_ENABLED: boolean;
+  AI_IMPORT_ENABLED: boolean;
 }
 
 export const useSystemStore = defineStore('system', {
@@ -43,6 +44,7 @@ export const useSystemStore = defineStore('system', {
       FOOTER_TEXT: '',
       OAUTH_GOOGLE_ENABLED: false,
       OAUTH_GITHUB_ENABLED: false,
+      AI_IMPORT_ENABLED: false,
     } as SystemSettings,
     isInitialized: false,
   }),
@@ -125,6 +127,7 @@ export const useSystemStore = defineStore('system', {
           FOOTER_TEXT: data.FOOTER_TEXT || '',
           OAUTH_GOOGLE_ENABLED: data.OAUTH_GOOGLE_ENABLED === true || data.OAUTH_GOOGLE_ENABLED === 'true',
           OAUTH_GITHUB_ENABLED: data.OAUTH_GITHUB_ENABLED === true || data.OAUTH_GITHUB_ENABLED === 'true',
+          AI_IMPORT_ENABLED: data.AI_IMPORT_ENABLED === true || data.AI_IMPORT_ENABLED === 'true',
         };
       } catch (error) {
         console.error('Failed to fetch system settings:', error);

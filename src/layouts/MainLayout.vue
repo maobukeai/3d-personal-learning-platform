@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
+import AISprite from '@/components/AISprite.vue';
 
 // Async sub-dialogs/components
 import { defineAsyncComponent } from 'vue';
@@ -103,7 +104,13 @@ const handleInvitationSuccess = (data: { accept: boolean; teamId?: string }) => 
   }
 };
 
-const handleSwitchWorkspace = (ws: Workspace) => {
+const handleSwitchWorkspace = (ws: Workspace, event?: Event) => {
+  if (event) {
+    const target = event.target as HTMLElement;
+    if (target.closest('button')?.querySelector('.lucide-settings') || target.closest('.lucide-settings')) {
+      return;
+    }
+  }
   workspaceStore.setWorkspace(ws);
   if (ws.type === 'admin') {
     router.push('/admin/dashboard');
@@ -128,13 +135,13 @@ const handleQuickSettings = (ws: Workspace) => {
   if (ws.type === 'admin') {
     router.push('/admin/settings');
   } else if (ws.type === 'mirror') {
-    router.push('/mirror');
+    router.push({ path: '/admin/mirror', query: { sourceId: ws.mirrorSourceId } });
   } else if (ws.type === 'manual') {
-    router.push('/admin/manual');
+    router.push({ path: '/admin/manual', query: { stationId: ws.manualStationId } });
   } else if (ws.type === 'personal') {
     router.push({ path: '/settings', query: { tab: 'profile' } });
   } else {
-    router.push(`/settings/workspace/${ws.id}`);
+    router.push({ path: `/team/${ws.id}`, query: { tab: 'settings' } });
   }
 };
 
@@ -416,7 +423,7 @@ onUnmounted(() => {
                   :key="ws.id"
                   class="rounded-2xl my-1 p-2 group transition-all duration-200"
                   :class="workspaceStore.activeWorkspaceId === ws.id ? 'bg-accent/5' : ''"
-                  @click="handleSwitchWorkspace(ws)"
+                  @click="handleSwitchWorkspace(ws, $event)"
                 >
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center gap-3">
@@ -457,7 +464,7 @@ onUnmounted(() => {
                     </div>
                     <!-- 快捷按钮 -->
                     <div class="flex items-center gap-2">
-                      <button type="button" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0" @click.stop="handleQuickSettings(ws)">
+                      <button v-if="ws.type === 'personal' || ws.type === 'team' || (['admin', 'mirror', 'manual'].includes(ws.type) && authStore.user?.role === 'ADMIN')" type="button" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0" @click.stop="handleQuickSettings(ws)">
                         <Settings class="w-4 h-4" />
                       </button>
                       <div
@@ -662,6 +669,8 @@ onUnmounted(() => {
 
     <!-- Mobile Sidebar Drawer component -->
     <MobileSidebar v-model="isMobileSidebarOpen" :menu-groups="menuGroups" @report-bug="handleReportBug" />
+    <!-- Floating AI Sprite -->
+    <AISprite />
   </div>
 </template>
 

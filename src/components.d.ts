@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AISprite: typeof import('./components/AISprite.vue')['default']
     AssetCard: typeof import('./components/AssetCard.vue')['default']
     AssetDetailsDrawer: typeof import('./components/AssetDetailsDrawer.vue')['default']
     CourseCard: typeof import('./components/CourseCard.vue')['default']

@@ -57,6 +57,10 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       proxy: {
+        '/api': {
+          target: env.VITE_API_URL || 'http://localhost:3001',
+          changeOrigin: true,
+        },
         '/uploads': {
           target: env.VITE_API_URL || 'http://localhost:3001',
           changeOrigin: true,

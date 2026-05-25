@@ -25,6 +25,7 @@ import {
   Chrome,
   Github,
   Trash2,
+  Cpu,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -130,6 +131,11 @@ const defaultSettings = {
   OAUTH_GITHUB_ENABLED: false,
   OAUTH_GITHUB_CLIENT_ID: '',
   OAUTH_GITHUB_CLIENT_SECRET: '',
+  AI_IMPORT_ENABLED: false,
+  AI_PROVIDER: 'DEEPSEEK',
+  AI_API_KEY: '',
+  AI_API_ENDPOINT: 'https://api.deepseek.com/v1',
+  AI_MODEL_NAME: 'deepseek-chat',
 };
 
 type SettingValue = string | boolean;
@@ -311,6 +317,7 @@ const tabs = [
   { id: 'smtp', label: '邮件服务', icon: Mail },
   { id: 'social', label: '社交登录', icon: Sparkles },
   { id: 'template', label: '邮件模板', icon: Layout },
+  { id: 'ai', label: 'AI 智能辅助', icon: Cpu },
 ];
 
 const sessionTimeoutOptions = [
@@ -565,6 +572,66 @@ const testSmtp = async () => {
     isTestingSmtp.value = false;
   }
 };
+
+const isTestingAi = ref(false);
+const testAi = async () => {
+  if (!settings.value.AI_PROVIDER) {
+    return ElMessage.warning('请选择 AI 提供商');
+  }
+  if (!settings.value.AI_API_KEY && settings.value.AI_PROVIDER !== 'OLLAMA') {
+    return ElMessage.warning('请输入 API 密钥');
+  }
+
+  try {
+    isTestingAi.value = true;
+    const { data } = await api.post('/api/admin/settings/test-ai', {
+      provider: settings.value.AI_PROVIDER,
+      endpoint: settings.value.AI_API_ENDPOINT,
+      apiKey: settings.value.AI_API_KEY,
+      modelName: settings.value.AI_MODEL_NAME,
+    });
+    if (data.success) {
+      ElMessage.success(data.message || 'AI 接口测试成功！');
+    } else {
+      ElMessage.error('测试失败，接口未返回成功信号。');
+    }
+  } catch (error: any) {
+    console.error('Test AI error:', error);
+    ElMessage.error(getApiErrorMessage(error, 'AI 连接测试失败'));
+  } finally {
+    isTestingAi.value = false;
+  }
+};
+
+watch(
+  () => settings.value.AI_PROVIDER,
+  (newProvider) => {
+    const defaultsMap: Record<string, { endpoint: string; model: string }> = {
+      DEEPSEEK: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+      OPENAI: { endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+      OLLAMA: { endpoint: 'http://localhost:11434/api', model: 'llama3' },
+      QWEN: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+      GEMINI: { endpoint: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash' },
+      AZURE: { endpoint: 'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15', model: 'gpt-4o' },
+    };
+
+    if (newProvider && defaultsMap[newProvider as string]) {
+      const newDefaults = defaultsMap[newProvider as string]!;
+      const currentEndpoint = settings.value.AI_API_ENDPOINT;
+      const currentModel = settings.value.AI_MODEL_NAME;
+
+      const isEndpointDefaultOrEmpty = !currentEndpoint || Object.values(defaultsMap).some(d => d.endpoint === currentEndpoint);
+      const isModelDefaultOrEmpty = !currentModel || Object.values(defaultsMap).some(d => d.model === currentModel);
+
+      if (isEndpointDefaultOrEmpty) {
+        settings.value.AI_API_ENDPOINT = newDefaults.endpoint;
+      }
+      if (isModelDefaultOrEmpty) {
+        settings.value.AI_MODEL_NAME = newDefaults.model;
+      }
+    }
+  }
+);
 
 const handleCleanupStorage = async () => {
   try {
@@ -1985,6 +2052,133 @@ type="button"
                   </div>
                 </div>
                 <SafeHtml class="p-6 bg-white" :html="emailPreviewHtml" />
+              </div>
+            </section>
+          </div>
+
+          <!-- AI Settings Tab -->
+          <div
+            v-if="activeTab === 'ai'"
+            class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          >
+            <section
+              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
+              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            >
+              <div class="flex items-center justify-between mb-8">
+                <div class="flex items-center gap-3">
+                  <Cpu class="w-5 h-5 text-indigo-600" />
+                  <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                    AI 智能辅助系统配置
+                  </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold" style="color: var(--text-secondary)">启用 AI</span>
+                  <el-switch
+                    v-model="settings.AI_IMPORT_ENABLED"
+                    inline-prompt
+                    active-text="开"
+                    inactive-text="关"
+                    active-color="var(--accent)"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-6">
+                <!-- Warning description -->
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-dashed border-indigo-500/30 text-xs leading-relaxed space-y-1" style="color: var(--text-secondary)">
+                  <p class="font-bold text-indigo-500">🤖 关于智能解析助手：</p>
+                  <p>开启此功能后，非管理员用户在创建项目时，可以使用“AI 智能一键生成”功能。AI 将根据用户的自然语言描述，自动排版符合导入解析标准的 Markdown 文本，并一键完成项目信息填充、看板任务划分及学习路线设置。</p>
+                </div>
+
+                <div v-if="settings.AI_IMPORT_ENABLED" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">AI 提供商 (Provider)</label>
+                    <el-select
+                      v-model="settings.AI_PROVIDER"
+                      placeholder="请选择 API 提供商"
+                      class="w-full custom-select"
+                    >
+                      <el-option label="DeepSeek (深度求索)" value="DEEPSEEK" />
+                      <el-option label="OpenAI" value="OPENAI" />
+                      <el-option label="Ollama (本地私有化部署)" value="OLLAMA" />
+                      <el-option label="Qwen (通义千问兼容端)" value="QWEN" />
+                      <el-option label="Google Gemini" value="GEMINI" />
+                      <el-option label="Azure OpenAI" value="AZURE" />
+                    </el-select>
+                  </div>
+
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">模型名称 (Model Name)</label>
+                    <input
+                      v-model="settings.AI_MODEL_NAME"
+                      type="text"
+                      placeholder="例如: deepseek-chat 或 gpt-4o-mini"
+                      class="w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                      style="
+                        background-color: var(--bg-app);
+                        border-color: var(--border-base);
+                        color: var(--text-primary);
+                      "
+                    />
+                  </div>
+
+                  <div class="col-span-1 md:col-span-2 space-y-2">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">接口终端地址 (API Endpoint)</label>
+                    <input
+                      v-model="settings.AI_API_ENDPOINT"
+                      type="text"
+                      placeholder="例如: https://api.deepseek.com/v1"
+                      class="w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all font-mono"
+                      style="
+                        background-color: var(--bg-app);
+                        border-color: var(--border-base);
+                        color: var(--text-primary);
+                      "
+                    />
+                  </div>
+
+                  <div class="col-span-1 md:col-span-2 space-y-2" v-if="settings.AI_PROVIDER !== 'OLLAMA'">
+                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">API 密钥 (API Key)</label>
+                    <div class="relative">
+                      <input
+                        v-model="settings.AI_API_KEY"
+                        :type="showPassword ? 'text' : 'password'"
+                        placeholder="请输入您的 API Key 进行鉴权"
+                        class="w-full px-4 py-2.5 pr-10 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all font-mono"
+                        style="
+                          background-color: var(--bg-app);
+                          border-color: var(--border-base);
+                          color: var(--text-primary);
+                        "
+                      />
+                      <button
+                        type="button"
+                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        @click="showPassword = !showPassword"
+                      >
+                        <Eye v-if="!showPassword" class="w-4 h-4" />
+                        <EyeOff v-else class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Test Connection Row -->
+                <div v-if="settings.AI_IMPORT_ENABLED" class="pt-4 flex items-center justify-between border-t" style="border-color: var(--border-base)">
+                  <p class="text-[10px]" style="color: var(--text-muted)">
+                    ⚠️ 在点击右上方「保存全局设置」前，请务必先测试连接。
+                  </p>
+                  <button
+                    type="button"
+                    :disabled="isTestingAi"
+                    class="flex items-center gap-1.5 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-xs border border-indigo-500/20 cursor-pointer transition-all disabled:opacity-50"
+                    @click="testAi"
+                  >
+                    <RefreshCw v-if="isTestingAi" class="w-3.5 h-3.5 animate-spin" />
+                    <span>{{ isTestingAi ? '正在测试连接...' : '测试 AI 接口连接' }}</span>
+                  </button>
+                </div>
               </div>
             </section>
           </div>

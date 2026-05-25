@@ -80,6 +80,7 @@ const validateSettings = (
     'OAUTH_GOOGLE_ENABLED',
     'OAUTH_GITHUB_ENABLED',
     'MICROSOFT_POOL_FAILBACK',
+    'AI_IMPORT_ENABLED',
   ];
 
   for (const field of booleanFields) {
@@ -317,3 +318,38 @@ export const cleanupStorage = async (req: AuthRequest, res: Response, next: Next
     next(new AppError('清理存储空间失败: ' + (error instanceof Error ? error.message : String(error)), 500));
   }
 };
+
+import { callLLM } from '../../services/ai.service';
+
+export const testAi = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { provider, endpoint, apiKey, modelName } = req.body;
+
+    if (!provider) {
+      return next(new AppError('提供商不能为空', 400));
+    }
+    if (!apiKey && provider !== 'OLLAMA') {
+      return next(new AppError('API 密钥不能为空', 400));
+    }
+
+    const testPrompt = '请简短回复OK，这是一次接口连接测试。';
+    const testSystemPrompt = '你是一个连接性测试助手。请只回复OK，不要有任何其他多余字符或标点。';
+
+    const responseText = await callLLM(testPrompt, testSystemPrompt, {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: provider,
+      AI_API_KEY: apiKey,
+      AI_API_ENDPOINT: endpoint,
+      AI_MODEL_NAME: modelName,
+    });
+
+    res.json({
+      success: true,
+      message: `AI 接口测试成功！模型响应: "${responseText.trim()}"`,
+    });
+  } catch (error: any) {
+    logger.error('[AI Test Error]:', error);
+    next(new AppError(error instanceof Error ? error.message : String(error), 500));
+  }
+};
+

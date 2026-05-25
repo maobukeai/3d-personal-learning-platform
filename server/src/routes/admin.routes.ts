@@ -37,6 +37,7 @@ router.post(
   settingsController.uploadBrandingFavicon,
 );
 router.post('/settings/test-smtp', settingsController.testSmtp);
+router.post('/settings/test-ai', settingsController.testAi);
 router.post('/settings/cleanup-storage', settingsController.cleanupStorage);
 
 // Users

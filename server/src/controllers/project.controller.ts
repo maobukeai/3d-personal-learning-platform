@@ -6,6 +6,7 @@ import { createNotification, createNotificationBatch } from '../utils/notificati
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
+import { callLLM, callLLMChat, streamLLMChat } from '../services/ai.service';
 
 export const getAllProjects = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -559,6 +560,10 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
 
 export const deleteProject = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
+  const { deleteTasks, deleteRoadmap } = req.query;
+  const shouldDeleteTasks = deleteTasks === 'true';
+  const shouldDeleteRoadmap = deleteRoadmap === 'true';
+
   try {
     const project = await prisma.project.findFirst({
       where: { id, teamId: req.workspaceId || null },
@@ -574,13 +579,49 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
       return next(new AppError('Only owners can delete projects', 403));
     }
 
-    await prisma.project.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      // 1. Handle Tasks
+      if (!shouldDeleteTasks) {
+        // Disconnect tasks from the project so they are NOT cascade deleted by database
+        await tx.task.updateMany({
+          where: { projectId: id },
+          data: { projectId: null },
+        });
+      } else {
+        // Explicitly delete tasks
+        await tx.task.deleteMany({
+          where: { projectId: id },
+        });
+      }
+
+      // 2. Handle Roadmap
+      if (shouldDeleteRoadmap) {
+        // Find and delete the associated roadmap
+        const associatedRoadmap = await tx.roadmap.findFirst({
+          where: { projectId: id },
+        });
+        if (associatedRoadmap) {
+          await tx.roadmap.delete({
+            where: { id: associatedRoadmap.id },
+          });
+        }
+      } else {
+        // Keep the roadmap but disconnect it from this project so it remains a custom roadmap
+        await tx.roadmap.updateMany({
+          where: { projectId: id },
+          data: { projectId: null },
+        });
+      }
+
+      // 3. Delete Project itself
+      await tx.project.delete({ where: { id } });
+    });
 
     await auditService.log({
       userId: req.userId as string,
       action: AuditAction.DELETE_PROJECT,
       module: AuditModule.PROJECT,
-      description: `Deleted project: ${project.title}`,
+      description: `Deleted project: ${project.title} (Delete Tasks: ${shouldDeleteTasks}, Delete Roadmap: ${shouldDeleteRoadmap})`,
       oldValue: project,
       req,
     });
@@ -846,3 +887,361 @@ export const removeProjectMember = async (req: AuthRequest, res: Response, next:
     next(error);
   }
 };
+
+interface ParsedProject {
+  title: string;
+  description: string;
+  tags?: string;
+  dueDate?: Date | null;
+  color?: string;
+  tasks: ParsedTask[];
+  roadmap?: ParsedRoadmap;
+}
+
+interface ParsedTask {
+  title: string;
+  description?: string;
+  priority: string;
+  dueDate?: Date | null;
+}
+
+interface ParsedRoadmap {
+  title: string;
+  description?: string;
+  steps: ParsedRoadmapStep[];
+}
+
+interface ParsedRoadmapStep {
+  title: string;
+  description?: string;
+  subtasks: { id: string; text: string; done: boolean }[];
+  order: number;
+}
+
+export function parseProjectImportText(text: string): ParsedProject {
+  const lines = text.split(/\r?\n/);
+  
+  const parsed: ParsedProject = {
+    title: '未命名导入项目',
+    description: '',
+    tasks: [],
+  };
+
+  let currentSection: 'project' | 'tasks' | 'roadmap' | null = 'project';
+  let currentRoadmapStep: ParsedRoadmapStep | null = null;
+  const roadmapSteps: ParsedRoadmapStep[] = [];
+  let stepOrder = 1;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // Detect section headers
+    if (line.startsWith('# ')) {
+      parsed.title = line.substring(2).replace(/^(?:项目|PROJECT)\s*[:|：]\s*/i, '').trim();
+      currentSection = 'project';
+      continue;
+    } else if (line.startsWith('## ')) {
+      const secName = line.substring(3).trim();
+      if (secName.includes('任务') || secName.includes('看板') || secName.toLowerCase().includes('task') || secName.toLowerCase().includes('kanban')) {
+        currentSection = 'tasks';
+      } else if (secName.includes('学习') || secName.includes('路线') || secName.toLowerCase().includes('roadmap') || secName.toLowerCase().includes('learning')) {
+        currentSection = 'roadmap';
+        parsed.roadmap = {
+          title: `学习路线 - ${parsed.title}`,
+          description: `针对项目「${parsed.title}」的专属学习路线`,
+          steps: [],
+        };
+      } else {
+        currentSection = null;
+      }
+      continue;
+    }
+
+    if (currentSection === 'project') {
+      if (line.startsWith('描述') || line.startsWith('desc') || line.startsWith('Description')) {
+        parsed.description = line.replace(/^(?:描述|desc|Description)\s*[:|：]\s*/i, '').trim();
+      } else if (line.startsWith('标签') || line.startsWith('tags') || line.startsWith('Tags')) {
+        parsed.tags = line.replace(/^(?:标签|tags|Tags)\s*[:|：]\s*/i, '').trim();
+      } else if (line.startsWith('截止') || line.startsWith('due') || line.startsWith('Due')) {
+        const dateStr = line.replace(/^(?:截止日期|截止|due|DueDate)\s*[:|：]\s*/i, '').trim();
+        parsed.dueDate = dateStr ? new Date(dateStr) : null;
+      } else if (line.startsWith('颜色') || line.startsWith('color') || line.startsWith('Color')) {
+        parsed.color = line.replace(/^(?:颜色|color|Color)\s*[:|：]\s*/i, '').trim();
+      } else {
+        if (parsed.description) {
+          parsed.description += '\n' + line;
+        } else {
+          parsed.description = line;
+        }
+      }
+    } else if (currentSection === 'tasks') {
+      if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ')) {
+        const content = line.replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '').replace(/^-\s*/, '').trim();
+        if (!content) continue;
+
+        const parts = content.split('|');
+        const taskTitle = (parts[0] || '').trim();
+        if (!taskTitle) continue;
+        
+        let priority = 'MEDIUM';
+        let dueDate: Date | null = null;
+        let description = '';
+
+        for (const rawPart of parts.slice(1)) {
+          const part = rawPart.trim();
+          if (part.startsWith('优先级') || part.toLowerCase().startsWith('priority')) {
+            const pVal = part.replace(/^(?:优先级|priority)\s*[:|：]\s*/i, '').trim();
+            if (pVal.includes('低') || pVal.toLowerCase() === 'low') priority = 'LOW';
+            else if (pVal.includes('高') || pVal.toLowerCase() === 'high') priority = 'HIGH';
+            else if (pVal.includes('紧急') || pVal.toLowerCase() === 'urgent') priority = 'URGENT';
+            else priority = 'MEDIUM';
+          } else if (part.startsWith('截止') || part.toLowerCase().startsWith('due') || part.toLowerCase().startsWith('date')) {
+            const dVal = part.replace(/^(?:截止|due|date)\s*[:|：]\s*/i, '').trim();
+            dueDate = dVal ? new Date(dVal) : null;
+          } else if (part.startsWith('描述') || part.toLowerCase().startsWith('desc')) {
+            description = part.replace(/^(?:描述|desc)\s*[:|：]\s*/i, '').trim();
+          }
+        }
+
+        parsed.tasks.push({
+          title: taskTitle,
+          description: description || undefined,
+          priority,
+          dueDate,
+        });
+      }
+    } else if (currentSection === 'roadmap' && parsed.roadmap) {
+      if (line.startsWith('### ')) {
+        if (currentRoadmapStep) {
+          roadmapSteps.push(currentRoadmapStep);
+        }
+        
+        const stepTitle = line.substring(4).trim();
+        currentRoadmapStep = {
+          title: stepTitle,
+          description: '',
+          subtasks: [],
+          order: stepOrder++,
+        };
+      } else if (currentRoadmapStep) {
+        if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ')) {
+          const subtaskText = line.replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '').replace(/^-\s*/, '').trim();
+          if (subtaskText) {
+            currentRoadmapStep.subtasks.push({
+              id: Math.random().toString(36).substring(2, 9),
+              text: subtaskText,
+              done: false,
+            });
+          }
+        } else if (line.startsWith('描述') || line.startsWith('desc') || line.startsWith('Description')) {
+          currentRoadmapStep.description = line.replace(/^(?:描述|desc|Description)\s*[:|：]\s*/i, '').trim();
+        } else {
+          if (currentRoadmapStep.description) {
+            currentRoadmapStep.description += '\n' + line;
+          } else {
+            currentRoadmapStep.description = line;
+          }
+        }
+      }
+    }
+  }
+
+  if (currentRoadmapStep) {
+    roadmapSteps.push(currentRoadmapStep);
+  }
+
+  if (parsed.roadmap) {
+    parsed.roadmap.steps = roadmapSteps;
+  }
+
+  return parsed;
+}
+
+export const importProjectFromText = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { text } = req.body;
+  const userId = req.userId as string;
+
+  if (!text) {
+    return next(new AppError('导入内容不能为空', 400));
+  }
+
+  try {
+    const quota = await checkProjectQuota(userId);
+    if (!quota.allowed) {
+      return next(new AppError(quota.message || '项目配额已满，无法导入新项目', 403));
+    }
+
+    const parsed = parseProjectImportText(text);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const project = await tx.project.create({
+        data: {
+          title: parsed.title,
+          description: parsed.description || null,
+          dueDate: parsed.dueDate || null,
+          color: parsed.color || 'bg-accent',
+          tags: parsed.tags || null,
+          visibility: 'PRIVATE',
+          maxMembers: 10,
+          teamId: req.workspaceId || null,
+          members: {
+            create: [
+              {
+                userId,
+                role: 'OWNER',
+              },
+            ],
+          },
+        },
+      });
+
+      const createdTasks = [];
+      for (const t of parsed.tasks) {
+        const task = await tx.task.create({
+          data: {
+            title: t.title,
+            description: t.description || null,
+            status: 'TODO',
+            priority: t.priority,
+            dueDate: t.dueDate || null,
+            projectId: project.id,
+            userId,
+            teamId: req.workspaceId || null,
+          },
+        });
+        createdTasks.push(task);
+      }
+
+      let roadmap = null;
+      if (parsed.roadmap && parsed.roadmap.steps.length > 0) {
+        roadmap = await tx.roadmap.create({
+          data: {
+            title: parsed.roadmap.title,
+            description: parsed.roadmap.description || '',
+            creatorId: userId,
+            projectId: project.id,
+          },
+        });
+
+        for (const step of parsed.roadmap.steps) {
+          await tx.roadmapStep.create({
+            data: {
+              roadmapId: roadmap.id,
+              title: step.title,
+              description: step.description || '',
+              subtasks: step.subtasks.length > 0 ? JSON.stringify(step.subtasks) : null,
+              order: step.order,
+            },
+          });
+        }
+      }
+
+      return { project, tasksCount: createdTasks.length, roadmap };
+    });
+
+    await auditService.log({
+      userId,
+      action: AuditAction.CREATE_PROJECT,
+      module: AuditModule.PROJECT,
+      description: `导入解析项目: ${result.project.title} (包含看板任务数: ${result.tasksCount})`,
+      newValue: result.project,
+      req,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: '项目及关联的看板任务、学习路线已成功解析导入！',
+      project: result.project,
+      roadmap: result.roadmap,
+      tasksCount: result.tasksCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const aiGenerateProjectText = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { prompt } = req.body;
+  if (!prompt || !prompt.trim()) {
+    return next(new AppError('输入设想不能为空', 400));
+  }
+
+  try {
+    const systemPrompt = `你是一个项目规划专家。你需要将用户的项目设想或目标转化成一个标准格式的项目管理 Markdown 文本。
+必须严格遵循以下标准排版规范，不要输出任何其他的解释文字、代码块包裹（如 \`\`\`markdown ），只输出纯 Markdown 内容。
+
+规范格式如下：
+# 项目：[项目名称]
+描述：[对项目的详细描述，简明扼要]
+标签：[标签1, 标签2，用逗号隔开]
+截止日期：[根据项目复杂度，合理估算一个截止日期，格式必须为 YYYY-MM-DD，如 2026-08-31]
+颜色：[可选 bg-accent, bg-indigo, bg-emerald, bg-purple, bg-amber 之一]
+
+## 任务看板
+- [ ] [任务一标题] | 优先级:[低/中/高/紧急] | 截止:[YYYY-MM-DD] | 描述:[描述内容]
+- [ ] [任务二标题] | 优先级:[低/中/高/紧急] | 描述:[描述内容]
+
+## 学习路线
+### [阶段一标题]
+描述：[阶段一的简介与要求]
+- [ ] 子学习项 1
+- [ ] 子学习项 2
+### [阶段二标题]
+描述：[阶段二的简介与要求]
+- [ ] 子学习项 1
+
+注意点：
+1. 必须包含 "# 项目："、"## 任务看板" 和 "## 学习路线" 三个部分，并且结构完整。
+2. 任务看板下的任务格式必须是 "- [ ] 标题 | 优先级:高/中/低/紧急 | 截止:YYYY-MM-DD | 描述:内容"，各部分用 "|" 隔开。截止日期可选。
+3. 学习路线中的阶段必须以 "###" 开头，阶段描述必须以 "描述：" 开头，子任务必须是 "- [ ]" 列表。
+4. 严格禁止输出除了该 Markdown 以外的任何内容，也不要使用 \`\`\` 包裹。只输出纯文本。`;
+
+    const generatedMarkdown = await callLLM(prompt.trim(), systemPrompt);
+
+    res.json({
+      success: true,
+      data: generatedMarkdown,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const aiChat = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { messages } = req.body;
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return next(new AppError('对话内容不能为空', 400));
+  }
+
+  try {
+    const systemPrompt = `你是一个常驻于本平台的“AI 智能小精灵” (AI Sprite)。本平台是一个全栈 3D 资产管理与在线学习协作平台。
+你的职责是帮助平台用户解答疑惑，提供开发指导，协助他们制定学习计划、掌握 WebGL/Three.js/3D 建模等技术，并解答关于平台使用的问题。
+请你用友善、热心、充满活力且稍微带有俏皮可爱的语气与用户对话，可以多使用表情符号（如 🚀, 💻, 🎨, 👾, ✨）。在提供技术代码时，给出规范易懂的代码片段。
+不要回答任何与本平台或三维开发、代码学习无关的敏感或不安全的话题。如果用户问及非技术或非平台相关内容，你可以委婉可爱地拒绝并引导他们回到 3D 学习和项目协作上来。`;
+
+    await streamLLMChat(messages, systemPrompt, res);
+  } catch (error) {
+    if (res.headersSent) {
+      if (!res.writableEnded) {
+        res.end();
+      }
+    } else {
+      next(error);
+    }
+  }
+};
+
+

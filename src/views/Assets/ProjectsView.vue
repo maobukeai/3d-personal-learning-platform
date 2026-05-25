@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, h } from 'vue';
 import {
   Search,
   FolderPlus,
@@ -184,15 +184,46 @@ const handleSaveProject = async () => {
 };
 
 const deleteProject = (id: string) => {
-  ElMessageBox.confirm('确定要永久删除该项目吗？此操作不可逆。', '删除警告', {
-    type: 'warning',
+  const deleteTasks = ref(true);
+  const deleteRoadmap = ref(true);
+
+  const confirmContent = h('div', { class: 'space-y-3 py-1 animate-in fade-in duration-300' }, [
+    h('p', { class: 'text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium' }, '确定要永久删除该项目吗？此操作不可逆。'),
+    h('div', { class: 'space-y-2 border-t pt-3 border-slate-100 dark:border-white/10' }, [
+      h('label', { class: 'flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none' }, [
+        h('input', {
+          type: 'checkbox',
+          checked: deleteTasks.value,
+          onChange: (e: any) => { deleteTasks.value = e.target.checked; },
+          class: 'rounded border-slate-300 text-accent focus:ring-accent w-3.5 h-3.5 cursor-pointer'
+        }),
+        h('span', '同时删除项目名下关联的看板任务')
+      ]),
+      h('label', { class: 'flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none' }, [
+        h('input', {
+          type: 'checkbox',
+          checked: deleteRoadmap.value,
+          onChange: (e: any) => { deleteRoadmap.value = e.target.checked; },
+          class: 'rounded border-slate-300 text-accent focus:ring-accent w-3.5 h-3.5 cursor-pointer'
+        }),
+        h('span', '同时删除项目关联的系统学习路线')
+      ])
+    ])
+  ]);
+
+  ElMessageBox.confirm(confirmContent, '删除项目', {
     confirmButtonText: '确定删除',
     cancelButtonText: '取消',
     confirmButtonClass: 'el-button--danger',
   })
     .then(async () => {
       try {
-        await api.delete(`/api/projects/${id}`);
+        await api.delete(`/api/projects/${id}`, {
+          params: {
+            deleteTasks: deleteTasks.value,
+            deleteRoadmap: deleteRoadmap.value
+          }
+        });
         ElMessage.success('项目已删除');
         fetchProjects();
       } catch (_error) {

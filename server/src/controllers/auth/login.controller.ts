@@ -48,6 +48,7 @@ export const getPublicSettings = async (req: Request, res: Response, next: NextF
       FOOTER_TEXT: settings.FOOTER_TEXT,
       OAUTH_GOOGLE_ENABLED: settings.OAUTH_GOOGLE_ENABLED,
       OAUTH_GITHUB_ENABLED: settings.OAUTH_GITHUB_ENABLED,
+      AI_IMPORT_ENABLED: settings.AI_IMPORT_ENABLED,
     };
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(publicSettings);

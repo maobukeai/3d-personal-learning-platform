@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
   (e: 'report-bug'): void;
+
 }>();
 
 const route = useRoute();
@@ -25,6 +26,16 @@ const isOpen = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val),
 });
+
+const closeSidebar = (event?: Event) => {
+  if (event?.currentTarget && typeof (event.currentTarget as HTMLElement).blur === 'function') {
+    (event.currentTarget as HTMLElement).blur();
+  }
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+  isOpen.value = false;
+};
 </script>
 
 <template>
@@ -34,7 +45,7 @@ const isOpen = computed({
       <div
         v-if="isOpen"
         class="fixed inset-0 z-40 bg-black/50 lg:hidden"
-        @click="isOpen = false"
+        @click="closeSidebar"
       ></div>
     </Transition>
 
@@ -42,6 +53,7 @@ const isOpen = computed({
       class="fixed inset-y-0 left-0 w-44 max-w-[75vw] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
       :class="isOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
       :aria-hidden="!isOpen"
+      :inert="!isOpen"
     >
       <!-- Header -->
       <div
@@ -60,7 +72,7 @@ const isOpen = computed({
             systemStore.settings.PLATFORM_NAME
           }}</span>
         </div>
-        <button type="button" class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0" @click="isOpen = false">
+        <button type="button" class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0" @click="closeSidebar">
           <X class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
       </div>
@@ -99,7 +111,7 @@ const isOpen = computed({
                       : 'bg-accent-subtle dark:bg-accent/20 text-accent font-medium'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                 "
-                @click="isOpen = false"
+                @click="closeSidebar"
               >
                 <div class="flex items-center gap-2 min-w-0 flex-1">
                   <component
@@ -142,7 +154,7 @@ const isOpen = computed({
           :class="
             route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
           "
-          @click="isOpen = false"
+          @click="closeSidebar"
         >
           <Settings
             class="w-4 h-4 shrink-0"
@@ -153,7 +165,7 @@ const isOpen = computed({
         <button
 type="button" class="min-h-11 w-full flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm" @click="
             emit('report-bug');
-            isOpen = false;
+            closeSidebar();
           ">
           <HelpCircle class="w-4 h-4 shrink-0" />
           <span class="flex-1 text-xs text-left truncate">问题反馈</span>

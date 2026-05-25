@@ -38,36 +38,47 @@ const getTokenFromRequest = (req: Request) => {
   return null;
 };
 
-const resolveWorkspaceId = async (userId: string, requestedWorkspaceId?: string) => {
-  if (requestedWorkspaceId) {
-    const membership = await prisma.teamMember.findFirst({
-      where: { teamId: requestedWorkspaceId, userId },
+const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => {
+  if (!requestedWorkspaceId || requestedWorkspaceId === 'undefined' || requestedWorkspaceId === 'null') {
+    const personalTeam = await prisma.team.findFirst({
+      where: { ownerId: user.id, type: 'PERSONAL' },
       select: { id: true },
     });
+    return personalTeam?.id;
+  }
 
-    if (membership) {
-      return requestedWorkspaceId;
+  // System/virtual workspaces bypass database team check
+  if (requestedWorkspaceId === 'admin-workspace') {
+    if (user.role === 'ADMIN') {
+      return 'admin-workspace';
     }
-
-    // Also check if they are the owner of the team (to avoid false-positives for team owners, including personal workspace owners)
-    const team = await prisma.team.findUnique({
-      where: { id: requestedWorkspaceId },
-      select: { ownerId: true },
-    });
-
-    if (team && team.ownerId === userId) {
-      return requestedWorkspaceId;
-    }
-
     throw new AppError('无权访问该工作空间', 403, 'WORKSPACE_FORBIDDEN');
   }
 
-  const personalTeam = await prisma.team.findFirst({
-    where: { ownerId: userId, type: 'PERSONAL' },
+  if (requestedWorkspaceId.startsWith('mirror-') || requestedWorkspaceId.startsWith('manual-')) {
+    return requestedWorkspaceId;
+  }
+
+  const membership = await prisma.teamMember.findFirst({
+    where: { teamId: requestedWorkspaceId, userId: user.id },
     select: { id: true },
   });
 
-  return personalTeam?.id;
+  if (membership) {
+    return requestedWorkspaceId;
+  }
+
+  // Also check if they are the owner of the team (to avoid false-positives for team owners, including personal workspace owners)
+  const team = await prisma.team.findUnique({
+    where: { id: requestedWorkspaceId },
+    select: { ownerId: true },
+  });
+
+  if (team && team.ownerId === user.id) {
+    return requestedWorkspaceId;
+  }
+
+  throw new AppError('无权访问该工作空间', 403, 'WORKSPACE_FORBIDDEN');
 };
 
 const attachAuthenticatedUser = async (req: AuthRequest, userId: string) => {
@@ -96,7 +107,7 @@ const attachAuthenticatedUser = async (req: AuthRequest, userId: string) => {
 
   req.userId = user.id;
   req.user = user;
-  req.workspaceId = await resolveWorkspaceId(user.id, req.headers['x-workspace-id'] as string);
+  req.workspaceId = await resolveWorkspaceId(user, req.headers['x-workspace-id'] as string);
 };
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {

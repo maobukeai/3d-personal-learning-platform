@@ -102,10 +102,26 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
               data: { ...metadata },
             });
             logger.info(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
+          } else {
+            logger.error(`[AssetProcessor] Background processing returned null for asset: ${asset.id}`);
+            await prisma.asset.delete({ where: { id: asset.id } }).catch(() => {});
+            deleteFileByUrl(asset.url);
+            if (asset.thumbnail) {
+              deleteFileByUrl(asset.thumbnail);
+            }
           }
         })
-        .catch((err) => {
+        .catch(async (err) => {
           logger.error(`[AssetProcessor] Background processing failed for asset: ${asset.id}`, err);
+          try {
+            await prisma.asset.delete({ where: { id: asset.id } }).catch(() => {});
+            deleteFileByUrl(asset.url);
+            if (asset.thumbnail) {
+              deleteFileByUrl(asset.thumbnail);
+            }
+          } catch (e) {
+            logger.error(`[AssetProcessor] Background processing cleanup failed:`, e);
+          }
         });
     }
 
@@ -597,13 +613,10 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('Asset not found', 404));
     }
 
-    // Delete file from disk if exists
-    const fileName = asset.url.split('/').pop();
-    if (fileName) {
-      const filePath = path.join(__dirname, '../../uploads/assets', fileName);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+    // Delete files from disk if they exist
+    deleteFileByUrl(asset.url);
+    if (asset.thumbnail) {
+      deleteFileByUrl(asset.thumbnail);
     }
 
     await prisma.asset.delete({ where: { id } });

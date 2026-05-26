@@ -786,7 +786,19 @@ onUnmounted(() => {
     disposeHierarchy(wireframeOverlay);
     wireframeOverlay = null;
   }
-  if (renderer) renderer.dispose();
+  if (controls) {
+    controls.dispose();
+  }
+  if (scene) {
+    scene.clear();
+  }
+  if (renderer) {
+    if (container.value && renderer.domElement && container.value.contains(renderer.domElement)) {
+      container.value.removeChild(renderer.domElement);
+    }
+    renderer.dispose();
+    renderer.forceContextLoss();
+  }
 });
 
 watch(

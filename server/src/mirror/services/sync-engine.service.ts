@@ -4,6 +4,7 @@ import { getAdapter } from '../adapters';
 import { thumbnailLocalizer } from './thumbnail-localizer.service';
 import { emitToAll } from '../../services/socket.service';
 import crypto from 'crypto';
+import { redisService } from '../../services/redis.service';
 
 async function runWithLimit<T>(
   limit: number,
@@ -69,6 +70,20 @@ export class SyncEngine {
   async fullSync(sourceId: string): Promise<SyncResult> {
     if (this.activeSyncs.has(sourceId)) {
       throw new Error('同步已在运行中');
+    }
+
+    const lockKey = `sync_engine:lock:${sourceId}`;
+    try {
+      const isLocked = await redisService.get<string>(lockKey);
+      if (isLocked) {
+        throw new Error('同步已在运行中(分布式锁已占用)');
+      }
+      await redisService.set(lockKey, 'true', 3600); // 1 hour TTL
+    } catch (e: any) {
+      if (e.message?.includes('同步已在运行中')) {
+        throw e;
+      }
+      logger.warn(`[SyncEngine] Redis lock check failed, falling back to memory lock: ${e.message}`);
     }
 
     const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -531,6 +546,7 @@ export class SyncEngine {
         where: { id: sourceId },
         data: { syncStatus: 'IDLE' },
       });
+      await redisService.del(lockKey).catch(() => {});
       setTimeout(() => this.progressMap.delete(sourceId), 300000);
 
       emitToAll('mirror_sync_finished', {
@@ -548,6 +564,20 @@ export class SyncEngine {
   async incrementalSync(sourceId: string): Promise<SyncResult> {
     if (this.activeSyncs.has(sourceId)) {
       throw new Error('同步已在运行中');
+    }
+
+    const lockKey = `sync_engine:lock:${sourceId}`;
+    try {
+      const isLocked = await redisService.get<string>(lockKey);
+      if (isLocked) {
+        throw new Error('同步已在运行中(分布式锁已占用)');
+      }
+      await redisService.set(lockKey, 'true', 3600); // 1 hour TTL
+    } catch (e: any) {
+      if (e.message?.includes('同步已在运行中')) {
+        throw e;
+      }
+      logger.warn(`[SyncEngine] Redis lock check failed, falling back to memory lock: ${e.message}`);
     }
 
     const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -934,6 +964,7 @@ export class SyncEngine {
         where: { id: sourceId },
         data: { syncStatus: 'IDLE' },
       });
+      await redisService.del(lockKey).catch(() => {});
       setTimeout(() => this.progressMap.delete(sourceId), 300000);
 
       emitToAll('mirror_sync_finished', {

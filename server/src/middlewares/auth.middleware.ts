@@ -59,7 +59,47 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
     throw new AppError('无权访问该工作空间', 403, 'WORKSPACE_FORBIDDEN');
   }
 
-  if (requestedWorkspaceId.startsWith('mirror-') || requestedWorkspaceId.startsWith('manual-')) {
+  if (requestedWorkspaceId.startsWith('mirror-')) {
+    const sourceId = requestedWorkspaceId.replace('mirror-', '');
+    const source = await prisma.mirrorSource.findUnique({
+      where: { id: sourceId },
+      select: { status: true, minPlanPriority: true },
+    });
+    if (!source || source.status !== 'ACTIVE') {
+      throw new AppError('无权访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
+    }
+    if (source.minPlanPriority > 0) {
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId: user.id, status: 'ACTIVE' },
+        include: { plan: true },
+      });
+      const userPlanPriority = subscription?.plan?.priority ?? 0;
+      if (userPlanPriority < source.minPlanPriority) {
+        throw new AppError('权限不足，请升级订阅以访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
+      }
+    }
+    return requestedWorkspaceId;
+  }
+
+  if (requestedWorkspaceId.startsWith('manual-')) {
+    const stationId = requestedWorkspaceId.replace('manual-', '');
+    const station = await prisma.manualStation.findUnique({
+      where: { id: stationId },
+      select: { status: true, minPlanPriority: true },
+    });
+    if (!station || station.status !== 'ACTIVE') {
+      throw new AppError('无权访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
+    }
+    if (station.minPlanPriority > 0) {
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId: user.id, status: 'ACTIVE' },
+        include: { plan: true },
+      });
+      const userPlanPriority = subscription?.plan?.priority ?? 0;
+      if (userPlanPriority < station.minPlanPriority) {
+        throw new AppError('权限不足，请升级订阅以访问该资源空间', 403, 'WORKSPACE_FORBIDDEN');
+      }
+    }
     return requestedWorkspaceId;
   }
 

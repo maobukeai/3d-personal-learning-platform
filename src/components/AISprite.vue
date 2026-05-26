@@ -254,13 +254,13 @@ const scrollToBottom = async () => {
  */
 const adjustBoxSizeForViewport = () => {
   // Constrain width so it doesn't exceed window width minus padding (e.g. 20px)
-  const maxW = Math.max(300, window.innerWidth - position.value.right - 20);
+  const maxW = Math.max(260, window.innerWidth - position.value.right - 20);
   if (chatBoxWidth.value > maxW) {
     chatBoxWidth.value = maxW;
   }
   
   // Constrain height so it doesn't exceed window height minus padding (e.g. 90px)
-  const maxH = Math.max(350, window.innerHeight - position.value.bottom - 90);
+  const maxH = Math.max(300, window.innerHeight - position.value.bottom - 90);
   if (chatBoxHeight.value > maxH) {
     chatBoxHeight.value = maxH;
   }
@@ -377,15 +377,15 @@ const onResizeMove = (e: MouseEvent | TouchEvent) => {
   if (resizeType === 'left' || resizeType === 'top-left') {
     const newWidth = resizeStartWidth - deltaX;
     // Constrain width so it cannot exceed the left edge of the page
-    const maxAllowedWidth = Math.max(300, window.innerWidth - position.value.right - 20);
-    chatBoxWidth.value = Math.max(300, Math.min(maxAllowedWidth, 800, newWidth));
+    const maxAllowedWidth = Math.max(260, window.innerWidth - position.value.right - 20);
+    chatBoxWidth.value = Math.max(260, Math.min(maxAllowedWidth, 800, newWidth));
   }
 
   if (resizeType === 'top' || resizeType === 'top-left') {
     const newHeight = resizeStartHeight - deltaY;
     // Constrain height so it cannot exceed the top edge of the page
-    const maxAllowedHeight = Math.max(350, window.innerHeight - position.value.bottom - 90);
-    chatBoxHeight.value = Math.max(350, Math.min(maxAllowedHeight, 800, newHeight));
+    const maxAllowedHeight = Math.max(300, window.innerHeight - position.value.bottom - 90);
+    chatBoxHeight.value = Math.max(300, Math.min(maxAllowedHeight, 800, newHeight));
   }
 };
 
@@ -1391,5 +1391,10 @@ const formatMessage = (content: string) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+/* CSS Override to strictly prevent chatbox viewport overflow on mobile */
+.elf-chat-box {
+  max-width: calc(100vw - 32px) !important;
+  max-height: calc(100vh - 120px) !important;
 }
 </style>

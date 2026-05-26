@@ -43,7 +43,27 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
 
   const csrfTokenFromRequest = csrfHeader || csrfBody;
 
-  if (!csrfCookie || !csrfTokenFromRequest || csrfCookie !== csrfTokenFromRequest) {
+  const safeCompare = (a: string, b: string): boolean => {
+    try {
+      const bufA = Buffer.from(a);
+      const bufB = Buffer.from(b);
+      if (bufA.length !== bufB.length) {
+        return false;
+      }
+      const crypto = require('crypto');
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch (e) {
+      return false;
+    }
+  };
+
+  if (
+    !csrfCookie ||
+    !csrfTokenFromRequest ||
+    typeof csrfCookie !== 'string' ||
+    typeof csrfTokenFromRequest !== 'string' ||
+    !safeCompare(csrfCookie, csrfTokenFromRequest)
+  ) {
     return next(new AppError('CSRF 校验失败', 403, 'CSRF_VALIDATION_FAILED'));
   }
 

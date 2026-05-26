@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Response } from 'express';
 import { settingsService } from './settings.service';
 import { logger } from '../utils/logger';
+import { StringDecoder } from 'string_decoder';
 
 export interface AIServiceConfig {
   AI_IMPORT_ENABLED: boolean;
@@ -366,17 +367,56 @@ export async function streamLLMChat(
       provider === 'GEMINI' &&
       (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
     ) {
+      const decoder = new StringDecoder('utf8');
       let streamBuffer = '';
-      stream.on('data', (chunk: Buffer) => {
-        streamBuffer += chunk.toString('utf8');
-        let match;
-        const regex = /"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
-        let lastIndex = 0;
 
-        while ((match = regex.exec(streamBuffer)) !== null) {
-          if (match[1] !== undefined) {
+      stream.on('data', (chunk: Buffer) => {
+        streamBuffer += decoder.write(chunk);
+
+        while (true) {
+          const startIdx = streamBuffer.indexOf('{');
+          if (startIdx === -1) {
+            break;
+          }
+
+          let depth = 0;
+          let inString = false;
+          let escaped = false;
+          let endIdx = -1;
+
+          for (let i = startIdx; i < streamBuffer.length; i++) {
+            const char = streamBuffer[i];
+            if (escaped) {
+              escaped = false;
+              continue;
+            }
+            if (char === '\\') {
+              escaped = true;
+              continue;
+            }
+            if (char === '"') {
+              inString = !inString;
+              continue;
+            }
+            if (!inString) {
+              if (char === '{') {
+                depth++;
+              } else if (char === '}') {
+                depth--;
+                if (depth === 0) {
+                  endIdx = i;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (endIdx !== -1) {
+            const jsonStr = streamBuffer.substring(startIdx, endIdx + 1);
+            streamBuffer = streamBuffer.substring(endIdx + 1);
             try {
-              const text = JSON.parse(`"${match[1]}"`);
+              const obj = JSON.parse(jsonStr);
+              const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
               if (text) {
                 res.write(`data: ${JSON.stringify({ text })}\n\n`);
                 if (typeof (res as any).flush === 'function') {
@@ -384,15 +424,21 @@ export async function streamLLMChat(
                 }
               }
             } catch (e) {
-              // Ignore partial JSON escapes on bounds
+              // Ignore invalid JSON chunks
             }
+          } else {
+            break;
           }
-          lastIndex = regex.lastIndex;
         }
+      });
 
-        if (lastIndex > 0) {
-          streamBuffer = streamBuffer.substring(lastIndex);
+      stream.on('end', () => {
+        streamBuffer += decoder.end();
+        res.write('data: [DONE]\n\n');
+        if (typeof (res as any).flush === 'function') {
+          (res as any).flush();
         }
+        res.end();
       });
     } else {
       let buffer = '';
@@ -436,15 +482,15 @@ export async function streamLLMChat(
           }
         }
       });
-    }
 
-    stream.on('end', () => {
-      res.write('data: [DONE]\n\n');
-      if (typeof (res as any).flush === 'function') {
-        (res as any).flush();
-      }
-      res.end();
-    });
+      stream.on('end', () => {
+        res.write('data: [DONE]\n\n');
+        if (typeof (res as any).flush === 'function') {
+          (res as any).flush();
+        }
+        res.end();
+      });
+    }
 
     stream.on('error', (err: Error) => {
       logger.error('[AI Stream Source Error]:', err);
@@ -457,7 +503,7 @@ export async function streamLLMChat(
   } catch (error: any) {
     logger.error('[AI Streaming Request Error]:', error);
     let errMsg = error.message || String(error);
-    if (error.response?.data) {
+    if (error.response?.data && typeof error.response.data.read === 'function') {
       try {
         const errorData = error.response.data.read()?.toString('utf8');
         if (errorData) {

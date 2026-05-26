@@ -94,29 +94,10 @@ export default defineConfig(({ mode }) => {
             includeDependenciesRecursively: false,
             groups: [
               {
-                name: 'three-loaders',
+                name: 'three-all',
                 priority: 3,
                 test(moduleId) {
-                  return normalizeModuleId(moduleId).includes(
-                    '/node_modules/three/examples/jsm/loaders/',
-                  );
-                },
-              },
-              {
-                name: 'three-controls',
-                priority: 3,
-                test(moduleId) {
-                  return normalizeModuleId(moduleId).includes(
-                    '/node_modules/three/examples/jsm/controls/',
-                  );
-                },
-              },
-              {
-                name: 'three-core',
-                priority: 2,
-                maxSize: 420 * 1024,
-                test(moduleId) {
-                  return normalizeModuleId(moduleId).includes('/node_modules/three/src/');
+                  return normalizeModuleId(moduleId).includes('/node_modules/three/');
                 },
               },
               {

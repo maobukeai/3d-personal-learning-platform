@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { Send, X, Trash2, Copy, Check, Square } from 'lucide-vue-next';
+import { Send, X, Trash2, Copy, Check, Square, Brain, ChevronDown, ChevronUp } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -223,6 +223,9 @@ let hasMoved = false;
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  reasoning?: string;
+  isThinking?: boolean;
+  isThinkingExpanded?: boolean;
 }
 
 // Initial chat prompt message history
@@ -460,7 +463,7 @@ const saveHistory = () => {
 };
 
 // Typewriter queue: chars pending display + interval handle
-const typewriterQueue = ref<string[]>([]);
+const typewriterQueue = ref<{ type: 'text' | 'reasoning'; char: string }[]>([]);
 let typewriterTimer: ReturnType<typeof setInterval> | null = null;
 let typewriterTargetIndex = -1;
 
@@ -470,16 +473,29 @@ let typewriterTargetIndex = -1;
  */
 const startTypewriter = (targetIdx: number) => {
   if (typewriterTimer !== null) return; // already running
+  if (targetIdx < 0 || !messages.value[targetIdx]) return;
   typewriterTargetIndex = targetIdx;
 
   typewriterTimer = setInterval(() => {
-    // Drain up to 3 chars per tick for a fast-but-visible feel
-    for (let i = 0; i < 3; i++) {
-      const ch = typewriterQueue.value.shift();
-      if (ch === undefined) break;
-      messages.value[typewriterTargetIndex].content += ch;
+    // Drain up to 12 chars per tick (~720 chars/s) — fast enough to keep up with any LLM
+    // but still creates a smooth character-by-character visual effect.
+    const batch = Math.min(12, typewriterQueue.value.length);
+    if (batch === 0) return;
+    for (let i = 0; i < batch; i++) {
+      const item = typewriterQueue.value.shift();
+      if (item !== undefined && messages.value[typewriterTargetIndex]) {
+        const msg = messages.value[typewriterTargetIndex];
+        if (item.type === 'reasoning') {
+          msg.isThinking = true;
+          if (!msg.reasoning) msg.reasoning = '';
+          msg.reasoning += item.char;
+        } else {
+          msg.isThinking = false;
+          msg.content += item.char;
+        }
+      }
     }
-    // Light scroll: defer via rAF so layout is not thrashed
+    // Scroll at most once per frame to avoid layout thrashing
     requestAnimationFrame(() => {
       if (chatContainer.value) {
         chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
@@ -500,9 +516,21 @@ const stopTypewriter = () => {
  */
 const flushTypewriterQueue = (targetIdx: number) => {
   stopTypewriter();
+  if (targetIdx < 0 || !messages.value[targetIdx]) {
+    typewriterQueue.value = [];
+    return;
+  }
   while (typewriterQueue.value.length > 0) {
-    const ch = typewriterQueue.value.shift();
-    if (ch !== undefined) messages.value[targetIdx].content += ch;
+    const item = typewriterQueue.value.shift();
+    if (item !== undefined) {
+      const msg = messages.value[targetIdx];
+      if (item.type === 'reasoning') {
+        if (!msg.reasoning) msg.reasoning = '';
+        msg.reasoning += item.char;
+      } else {
+        msg.content += item.char;
+      }
+    }
   }
 };
 
@@ -550,7 +578,13 @@ const handleSend = async () => {
     isTyping.value = true;
 
     // Insert an empty assistant message block for append-streaming
-    messages.value.push({ role: 'assistant', content: '' });
+    messages.value.push({ 
+      role: 'assistant', 
+      content: '', 
+      reasoning: '', 
+      isThinking: false, 
+      isThinkingExpanded: true 
+    });
     const targetIndex = messages.value.length - 1;
 
     // Start typewriter draining the queue into the message
@@ -559,8 +593,9 @@ const handleSend = async () => {
     activeReader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let streamDone = false;
 
-    while (true) {
+    while (!streamDone) {
       const { value, done } = await activeReader.read();
       if (done) break;
 
@@ -572,6 +607,8 @@ const handleSend = async () => {
         const cleanLine = line.trim();
         if (!cleanLine) continue;
         if (cleanLine === 'data: [DONE]') {
+          // Signal outer loop to stop after this chunk
+          streamDone = true;
           break;
         }
         if (cleanLine.startsWith('data: ')) {
@@ -580,12 +617,17 @@ const handleSend = async () => {
             if (payload.error) {
               // Push error chars into queue so typewriter shows it naturally
               for (const ch of `\n[错误: ${payload.error}]`) {
-                typewriterQueue.value.push(ch);
+                typewriterQueue.value.push({ type: 'text', char: ch });
+              }
+            } else if (payload.reasoning) {
+              // Push reasoning chars
+              for (const ch of payload.reasoning) {
+                typewriterQueue.value.push({ type: 'reasoning', char: ch });
               }
             } else if (payload.text) {
               // Push each character into the typewriter queue
               for (const ch of payload.text) {
-                typewriterQueue.value.push(ch);
+                typewriterQueue.value.push({ type: 'text', char: ch });
               }
             }
           } catch (e) {
@@ -595,7 +637,7 @@ const handleSend = async () => {
       }
     }
 
-    // Stream ended — wait for typewriter to finish draining before cleanup
+    // Stream ended — wait for typewriter to fully drain the queue, then stop it cleanly.
     await new Promise<void>((resolve) => {
       const waitDrain = setInterval(() => {
         if (typewriterQueue.value.length === 0) {
@@ -604,7 +646,6 @@ const handleSend = async () => {
         }
       }, 20);
     });
-    flushTypewriterQueue(targetIndex); // ensure nothing left
   } catch (error: any) {
     console.error('AI streaming chat error:', error);
     isGenerating.value = false;
@@ -941,8 +982,36 @@ const formatMessage = (content: string) => {
                     : 'bg-slate-100 dark:bg-white/5 rounded-tl-none border border-slate-200/50 dark:border-white/5'
                 "
                 :style="msg.role === 'user' ? { background: 'var(--accent)' } : { color: 'var(--text-primary)' }"
-                v-html="formatMessage(msg.content)"
-              ></div>
+              >
+                <!-- Render thinking steps if assistant and reasoning is present -->
+                <div 
+                  v-if="msg.role === 'assistant' && msg.reasoning" 
+                  class="mb-2 pb-2 border-b border-dashed border-slate-200/60 dark:border-white/10 text-[11px] text-slate-400 dark:text-slate-500 font-sans select-none"
+                >
+                  <div 
+                    class="flex items-center gap-1.5 cursor-pointer font-bold hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    @click="msg.isThinkingExpanded = msg.isThinkingExpanded === false ? true : false"
+                  >
+                    <Brain 
+                      class="w-3.5 h-3.5 text-slate-400" 
+                      :class="msg.isThinking ? 'animate-pulse text-indigo-500' : ''" 
+                    />
+                    <span>{{ msg.isThinking ? '思考中...' : '已思考' }}</span>
+                    <component 
+                      :is="msg.isThinkingExpanded === false ? ChevronDown : ChevronUp" 
+                      class="w-3 h-3 text-slate-400 ml-auto shrink-0" 
+                    />
+                  </div>
+                  <div 
+                    v-show="msg.isThinkingExpanded !== false" 
+                    class="mt-1.5 pl-3.5 pr-2 py-1 text-slate-500/80 dark:text-slate-400/80 italic whitespace-pre-wrap leading-relaxed border-l-2 border-slate-250 dark:border-white/5"
+                  >
+                    {{ msg.reasoning }}
+                  </div>
+                </div>
+
+                <div v-html="formatMessage(msg.content)"></div>
+              </div>
               
               <!-- Message Action Bar (Copy Button) -->
               <div 

@@ -51,7 +51,7 @@ const router = createRouter({
       children: [
         {
           path: '',
-          redirect: '/mirror/source/9af3dc6f-8500-4ae9-a772-0c255cf55829',
+          redirect: '/dashboard',
         },
         {
           path: 'academy',

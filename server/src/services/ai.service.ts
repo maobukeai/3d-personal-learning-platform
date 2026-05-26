@@ -356,7 +356,7 @@ export async function streamLLMChat(
     const response = await axios.post(url, body, {
       headers,
       responseType: 'stream',
-      timeout: 60000,
+      timeout: 300000, // 5 minutes — streaming responses can take time for longer replies
       signal: controller.signal,
     });
 
@@ -416,6 +416,14 @@ export async function streamLLMChat(
               const jsonStr = cleanLine.substring(6);
               const parsed = JSON.parse(jsonStr);
               const content = parsed.choices?.[0]?.delta?.content;
+              const reasoning = parsed.choices?.[0]?.delta?.reasoning_content;
+              
+              if (reasoning) {
+                res.write(`data: ${JSON.stringify({ reasoning })}\n\n`);
+                if (typeof (res as any).flush === 'function') {
+                  (res as any).flush();
+                }
+              }
               if (content) {
                 res.write(`data: ${JSON.stringify({ text: content })}\n\n`);
                 if (typeof (res as any).flush === 'function') {

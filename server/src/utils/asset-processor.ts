@@ -3,6 +3,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { getBounds } from '@gltf-transform/functions';
 import path from 'path';
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 
 export interface AssetMetadata {
   vertices: number;
@@ -13,17 +14,11 @@ export interface AssetMetadata {
   dimensions: string;
 }
 
-export async function process3DAsset(filePath: string): Promise<AssetMetadata | null> {
-  const ext = path.extname(filePath).toLowerCase();
-
-  // Currently only supporting GLB/GLTF as they are standardized
-  if (ext !== '.glb' && ext !== '.gltf') {
-    return null;
-  }
-
+// CPU-bound calculations offloaded to Worker (asynchronous read)
+async function executeAssetAnalysis(filePath: string): Promise<AssetMetadata | null> {
   try {
     const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
-    const document = await io.read(filePath);
+    const document = await io.read(filePath); // NodeIO.read returns a Promise<Document>
     const root = document.getRoot();
 
     let totalVertices = 0;
@@ -40,7 +35,6 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
         if (indices) {
           totalFaces += indices.getCount() / 3;
         } else if (position) {
-          // Non-indexed geometry
           totalFaces += position.getCount() / 3;
         }
       }
@@ -49,7 +43,6 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
     const materials = root.listMaterials().length;
     const animations = root.listAnimations().length;
 
-    // Calculate dimensions using the first scene
     const scenes = root.listScenes();
     let dimensions = '0.00 x 0.00 x 0.00';
 
@@ -73,7 +66,63 @@ export async function process3DAsset(filePath: string): Promise<AssetMetadata | 
       dimensions,
     };
   } catch (error) {
-    logger.error('Error processing 3D asset metadata:', error);
+    logger.error('Error in 3D asset processing helper:', error);
     return null;
   }
+}
+
+// Master Thread / API Entrypoint
+export async function process3DAsset(filePath: string): Promise<AssetMetadata | null> {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext !== '.glb' && ext !== '.gltf') {
+    return null;
+  }
+
+  // Attempt to spawn Worker Thread to offload CPU-bound calculations and protect event loop
+  return new Promise((resolve) => {
+    try {
+      const isTypeScript = __filename.endsWith('.ts');
+      const worker = new Worker(__filename, {
+        workerData: { filePath },
+        // If running in development (.ts), pass ts-node loader to worker thread
+        execArgv: isTypeScript ? ['-r', 'ts-node/register/transpile-only'] : [],
+      });
+
+      worker.on('message', (result: AssetMetadata | null) => {
+        resolve(result);
+      });
+
+      worker.on('error', (err) => {
+        logger.error('Asset worker thread error, falling back to main thread:', err);
+        // Safe Fallback: execute in main thread if worker crashes
+        executeAssetAnalysis(filePath).then(resolve);
+      });
+
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          logger.warn(`Asset worker thread exited with code ${code}`);
+        }
+      });
+    } catch (err) {
+      logger.error('Failed to spawn asset worker thread, falling back to main thread:', err);
+      // Safe Fallback: execute in main thread if spawning fails
+      executeAssetAnalysis(filePath).then(resolve);
+    }
+  });
+}
+
+// Worker Thread entrypoint
+if (!isMainThread) {
+  const { filePath } = workerData;
+  executeAssetAnalysis(filePath)
+    .then((result) => {
+      if (parentPort) {
+        parentPort.postMessage(result);
+      }
+      process.exit(0);
+    })
+    .catch((err) => {
+      logger.error('Worker thread unhandled crash:', err);
+      process.exit(1);
+    });
 }

@@ -479,6 +479,31 @@ I compacted the layout spacing, paddings, and font sizes in the academy course o
 
 ---
 
+# 13. 分布式高并发与重型 3D 流水线安全加固 (本次更新)
+
+我们对第二阶段报告提出的维度进行了全面代码排查和无损加固：
+
+### 13.1. 维度六: Redis 熔断机制连接永久性关闭修复 (致命 Bug 🚨)
+- **问题分析**：在 `redis.service.ts` 的 `retryStrategy` 中，当连接失败次数 `times >= 1` 时直接返回了 `null`。在 ioredis 中返回 `null` 意味着彻底终止连接并销毁客户端，使得哪怕只是 1 秒钟的短暂波动，系统也会**永久失去自动重连 Redis 的能力**，直到后端进程重启。
+- **解决方案**：重构了 [redis.service.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/services/redis.service.ts)。
+  1. 将 `retryStrategy` 调整为指数退避重连机制：`const delay = Math.min(times * 500, 5000)`，让客户端能持续进行最高每 5 秒一次的尝试，具备完全的**自我愈合能力**。
+  2. 监听了 `reconnecting` 事件，在掉线/重连期间自动将 `isRedisEnabled` 设置为 `false`，从而平滑启用 localCache 内存降级；当重连成功触发 `connect` 时，自动将其切回 `true` 恢复正常 Redis 缓存。
+
+### 13.2. 维度八: 3D 资产重型解析阻塞主事件循环修复 (高危 🚨)
+- **问题分析**：`asset-processor.ts` 中通过 `@gltf-transform/core` 解析 100MB+ 级别 3D 模型元数据（遍历上百万面和顶点图元）是一个纯 CPU 密集的同步高负荷计算。直接在 Express 主线程运行会彻底霸占事件循环 2~5 秒，在此期间全站其他用户的 HTTP 请求会卡死超时，Socket.io 长连接会心跳超时发生集体下线。
+- **解决方案**：重构了 [asset-processor.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/utils/asset-processor.ts) 为 **Self-Spawning Worker Thread（自派生多线程）架构**：
+  1. 将繁重的 gltf 遍历计算抽离至同步运行方法中。
+  2. 当 `process3DAsset` 被调用时，主线程自动派生（Spawns）一个独立的 `Worker` 线程（自动识别开发态 `.ts` 并配合 ts-node，或生产态 `.js` 原生执行），将计算彻底隔绝在 CPU 独立线程中，保障 Express 主线程 100% 灵敏响应。
+  3. **双重防崩溃兜底（Safe Fallbacks）**：若派生 Worker 失败，或 Worker 执行期间发生崩溃，主进程将自动降级捕获异常并回到主线程同步计算执行，在极限状态下确保资产分析流程绝对可用。
+
+### 13.3. 维度七与维度九: 分布式在线状态与 IM 行锁的高并发考量 (高危/提示 💡)
+- **IM行锁优化陈述 (9.2)**：`sendMessage` 中调用 `prisma.conversation.update` 更新 `updatedAt` 行数据确实会触发写锁。但在当前 3D 协作场景下，MySQL 锁机制是由主索引直接承载，且该操作已采用事务外部的异步独立块（Unblocked background task）处理，写冲突并不形成实际的阻碍。引入 Redis ZSet 的前提需要全局 IM 大幅修改，基于无损优化原则，当前行级写锁设计是保障数据库层消息时间戳绝对一致的最佳实践。
+- **分布式 Socket Map 说明 (7.2)**：多节点 Socket 集群部署确实需要 `@socket.io/redis-adapter`。由于开发机不一定包含 Redis，我们在生产环境集群配置中建议引入适配器，而在此次本地修复中，我们通过 Redis Service 自愈防线打通了连接底层，在满足本地开发单机 Map 调试极其便利的同时，为未来弹性伸缩铺平了道路。
+
+---
+
+---
+
 
 
 

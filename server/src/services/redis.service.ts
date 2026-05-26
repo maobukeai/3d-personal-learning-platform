@@ -14,19 +14,20 @@ class RedisService {
         maxRetriesPerRequest: 1,
         connectTimeout: 2000,
         retryStrategy: (times) => {
-          // If connection fails, disable Redis client and fallback to memory cache after 1 attempt
-          if (times >= 1) {
-            logger.warn(`Redis connection failed. Falling back to in-memory cache.`);
-            this.isRedisEnabled = false;
-            return null; // Stop retrying
-          }
-          return 500;
+          // Exponential backoff capped at 5 seconds. Avoids client termination (null) so connection can recover.
+          const delay = Math.min(times * 500, 5000);
+          return delay;
         },
       });
 
       this.redisClient.on('connect', () => {
         logger.info('Connected to Redis server.');
         this.isRedisEnabled = true;
+      });
+
+      this.redisClient.on('reconnecting', () => {
+        logger.warn('Redis disconnected. Attempting to reconnect...');
+        this.isRedisEnabled = false; // Fallback to local memory cache while reconnecting
       });
 
       this.redisClient.on('error', (err) => {

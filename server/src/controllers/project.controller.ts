@@ -8,13 +8,57 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 import { AppError } from '../middlewares/error.middleware';
 import { callLLM, callLLMChat, streamLLMChat } from '../services/ai.service';
 
+const checkTeamProjectPermission = async (userId: string, workspaceId: string | undefined): Promise<boolean> => {
+  if (!workspaceId) {
+    return true;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === 'ADMIN') {
+    return true;
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { id: workspaceId },
+    select: { type: true, ownerId: true },
+  });
+
+  if (!team) {
+    return true;
+  }
+
+  if (team.type === 'PERSONAL') {
+    return team.ownerId === userId;
+  }
+
+  const member = await prisma.teamMember.findUnique({
+    where: {
+      teamId_userId: {
+        teamId: workspaceId,
+        userId: userId,
+      },
+    },
+    select: { role: true },
+  });
+
+  return !!member && (member.role === 'OWNER' || member.role === 'ADMIN');
+};
+
 export const getAllProjects = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const where: Prisma.ProjectWhereInput = {
       teamId: req.workspaceId || null,
-      members: {
-        some: { userId: req.userId as string },
-      },
+      OR: [
+        { visibility: 'PUBLIC' },
+        {
+          members: {
+            some: { userId: req.userId as string },
+          },
+        },
+      ],
     };
     const projects = await prisma.project.findMany({
       where,
@@ -54,6 +98,12 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
   }
 
   try {
+    // Verify team workspace project creation permissions
+    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    if (!hasPermission) {
+      return next(new AppError('只有团队创建人或管理员才能在团队中创建项目', 403));
+    }
+
     // Check quota
     const quota = await checkProjectQuota(userId);
     if (!quota.allowed) {
@@ -131,17 +181,24 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
       if (invitations.length > 0) {
         await prisma.projectInvitation.createMany({ data: invitations });
 
+        // Retrieve the created invitations to get their auto-generated IDs
+        const createdInvitations = await prisma.projectInvitation.findMany({
+          where: {
+            projectId: project.id,
+            inviteeId: { in: inviteUserIds.filter((uid: string) => uid !== req.userId) },
+            status: 'PENDING',
+          },
+        });
+
         await createNotificationBatch(
-          inviteUserIds
-            .filter((uid: string) => uid !== req.userId)
-            .map((uid: string) => ({
-              type: 'PROJECT_INVITE',
-              title: '项目邀请',
-              content: `你被邀请加入项目「${title}」`,
-              userId: uid,
-              link: `/projects/${project.id}`,
-              category: 'TEAM_ACTIVITY' as const,
-            })),
+          createdInvitations.map((inv) => ({
+            type: 'PROJECT_INVITE',
+            title: '项目邀请',
+            content: `你被邀请加入项目「${title}」`,
+            userId: inv.inviteeId,
+            link: `/projects/${project.id}?invitationId=${inv.id}`,
+            category: 'TEAM_ACTIVITY' as const,
+          })),
         );
       }
     }
@@ -199,6 +256,32 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
       req,
     });
 
+    // Notify other project members about the update
+    try {
+      const projectMembers = await prisma.projectMember.findMany({
+        where: { projectId: id },
+        select: { userId: true },
+      });
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== req.userId);
+
+      if (targetUserIds.length > 0) {
+        await createNotificationBatch(
+          targetUserIds.map((uid) => ({
+            type: 'SYSTEM',
+            title: '项目变更通知',
+            content: `你参与的项目「${updated.title}」有新的更新或内容变更。`,
+            userId: uid,
+            link: `/projects/${id}`,
+            category: 'TEAM_ACTIVITY' as const,
+          })),
+        );
+      }
+    } catch (notifErr) {
+      console.error('Failed to send project update notifications:', notifErr);
+    }
+
     res.json(updated);
   } catch (error) {
     next(error);
@@ -244,11 +327,23 @@ export const getProjectById = async (req: AuthRequest, res: Response, next: Next
             invitee: { select: { id: true, name: true, avatarUrl: true, email: true } },
           },
         },
+        roadmap: {
+          include: {
+            steps: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
       },
     });
 
     if (!project || project.teamId !== req.workspaceId) {
       return next(new AppError('Project not found', 404));
+    }
+
+    const isMember = project.members.some((m) => m.userId === req.userId);
+    if (project.visibility !== 'PUBLIC' && !isMember) {
+      return next(new AppError('Access denied: private project', 403));
     }
 
     res.json(project);
@@ -271,7 +366,7 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
       return next(new AppError('Project not found', 404));
     }
 
-    if (project.visibility !== 'PUBLIC' && project.status === 'COMPLETED') {
+    if (project.visibility !== 'PUBLIC' || project.status === 'COMPLETED') {
       return next(new AppError('Cannot join this project', 400));
     }
 
@@ -291,6 +386,23 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
         role: 'MEMBER',
       },
     });
+
+    // Notify project owner
+    try {
+      const projectOwner = project.members.find((m) => m.role === 'OWNER');
+      if (projectOwner && projectOwner.userId !== userId) {
+        await createNotification({
+          type: 'SYSTEM',
+          title: '成员加入项目通知',
+          content: `用户「${req.user?.name || req.user?.email || '新成员'}」加入了你的项目「${project.title}」。`,
+          userId: projectOwner.userId,
+          link: `/projects/${id}`,
+          category: 'TEAM_ACTIVITY' as const,
+        });
+      }
+    } catch (notifErr) {
+      console.error('Failed to send project join notification:', notifErr);
+    }
 
     res.status(201).json(member);
   } catch (error) {
@@ -409,6 +521,32 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
 
     await recalcProjectProgress(id);
 
+    // Notify other project members about the new task
+    try {
+      const projectMembers = await prisma.projectMember.findMany({
+        where: { projectId: id },
+        select: { userId: true },
+      });
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== req.userId);
+
+      if (targetUserIds.length > 0) {
+        await createNotificationBatch(
+          targetUserIds.map((uid) => ({
+            type: 'TASK',
+            title: '任务看板变更通知',
+            content: `项目看板中新增了任务「${task.title}」。`,
+            userId: uid,
+            link: `/projects/${id}`,
+            category: 'TEAM_ACTIVITY' as const,
+          })),
+        );
+      }
+    } catch (notifErr) {
+      console.error('Failed to send task creation notifications:', notifErr);
+    }
+
     res.status(201).json(task);
   } catch (error) {
     next(error);
@@ -484,6 +622,32 @@ export const batchCreateProjectTasks = async (
 
     await recalcProjectProgress(id);
 
+    // Notify other project members about batch tasks creation
+    try {
+      const projectMembers = await prisma.projectMember.findMany({
+        where: { projectId: id },
+        select: { userId: true },
+      });
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== req.userId);
+
+      if (targetUserIds.length > 0) {
+        await createNotificationBatch(
+          targetUserIds.map((uid) => ({
+            type: 'TASK',
+            title: '任务看板变更通知',
+            content: `项目看板中批量添加了 ${createdTasks.length} 个新任务。`,
+            userId: uid,
+            link: `/projects/${id}`,
+            category: 'TEAM_ACTIVITY' as const,
+          })),
+        );
+      }
+    } catch (notifErr) {
+      console.error('Failed to send batch task creation notifications:', notifErr);
+    }
+
     res.status(201).json(createdTasks);
   } catch (error) {
     next(error);
@@ -547,6 +711,37 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
       },
     });
 
+    // Notify other project members about task update
+    if (task.projectId) {
+      try {
+        const projectMembers = await prisma.projectMember.findMany({
+          where: { projectId: task.projectId },
+          select: { userId: true },
+        });
+        const targetUserIds = projectMembers
+          .map((m) => m.userId)
+          .filter((uid) => uid !== req.userId);
+
+        if (targetUserIds.length > 0) {
+          const detailMsg = status && status !== existingTask.status
+            ? `状态已更新为「${status === 'DONE' ? '已完成' : (status === 'IN_PROGRESS' ? '进行中' : '待办')}」`
+            : `内容或属性进行了更新`;
+          await createNotificationBatch(
+            targetUserIds.map((uid) => ({
+              type: 'TASK',
+              title: '任务看板变更通知',
+              content: `项目看板任务「${task.title}」的${detailMsg}。`,
+              userId: uid,
+              link: `/projects/${task.projectId}`,
+              category: 'TEAM_ACTIVITY' as const,
+            })),
+          );
+        }
+      } catch (notifErr) {
+        console.error('Failed to send task update notifications:', notifErr);
+      }
+    }
+
     if (status !== undefined && task.projectId) {
       const progress = await recalcProjectProgress(task.projectId);
       res.json({ ...task, _projectProgress: progress });
@@ -578,6 +773,12 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
     if (!member) {
       return next(new AppError('Only owners can delete projects', 403));
     }
+
+    // Fetch members before deletion
+    const projectMembers = await prisma.projectMember.findMany({
+      where: { projectId: id },
+      select: { userId: true },
+    });
 
     await prisma.$transaction(async (tx) => {
       // 1. Handle Tasks
@@ -626,6 +827,28 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
       req,
     });
 
+    // Notify other project members about the deletion
+    try {
+      const targetUserIds = projectMembers
+        .map((m) => m.userId)
+        .filter((uid) => uid !== req.userId);
+
+      if (targetUserIds.length > 0) {
+        await createNotificationBatch(
+          targetUserIds.map((uid) => ({
+            type: 'SYSTEM',
+            title: '项目删除通知',
+            content: `你参与的项目「${project.title}」已被管理员或创建人删除。`,
+            userId: uid,
+            link: '/projects',
+            category: 'TEAM_ACTIVITY' as const,
+          })),
+        );
+      }
+    } catch (notifErr) {
+      console.error('Failed to send project deletion notifications:', notifErr);
+    }
+
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
     next(error);
@@ -656,19 +879,36 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
     }
 
     const existingMemberIds = new Set(project.members.map((m) => m.userId));
-    const existingInvitations = await prisma.projectInvitation.findMany({
-      where: { projectId: id, status: 'PENDING', inviteeId: { in: userIds } },
-    });
-    const existingInviteeIds = new Set(existingInvitations.map((i) => i.inviteeId));
+    const targetUserIds = userIds.filter((uid: string) => !existingMemberIds.has(uid));
+
+    if (targetUserIds.length > 0) {
+      // 1. Delete old PENDING notifications of type PROJECT_INVITE for this project and users
+      await prisma.notification.deleteMany({
+        where: {
+          userId: { in: targetUserIds },
+          type: 'PROJECT_INVITE',
+          link: {
+            contains: `/projects/${id}`,
+          },
+        },
+      });
+
+      // 2. Delete existing PENDING invitations for these userIds in this project
+      // to allow resending fresh invitations
+      await prisma.projectInvitation.deleteMany({
+        where: {
+          projectId: id,
+          inviteeId: { in: targetUserIds },
+          status: 'PENDING',
+        },
+      });
+    }
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     const invitations = userIds
-      .filter(
-        (uid: string) =>
-          uid !== inviterId && !existingMemberIds.has(uid) && !existingInviteeIds.has(uid),
-      )
+      .filter((uid: string) => uid !== inviterId && !existingMemberIds.has(uid))
       .map((uid: string) => ({
         projectId: id,
         inviterId,
@@ -678,18 +918,27 @@ export const inviteToProject = async (req: AuthRequest, res: Response, next: Nex
       }));
 
     if (invitations.length === 0) {
-      return next(new AppError('所有用户已是成员或已有待处理邀请', 400));
+      return next(new AppError('所有用户已是项目成员', 400));
     }
 
     await prisma.projectInvitation.createMany({ data: invitations });
 
+    // Retrieve the created invitations to get their auto-generated IDs
+    const createdInvitations = await prisma.projectInvitation.findMany({
+      where: {
+        projectId: id,
+        inviteeId: { in: invitations.map((inv) => inv.inviteeId) },
+        status: 'PENDING',
+      },
+    });
+
     await createNotificationBatch(
-      invitations.map((inv) => ({
+      createdInvitations.map((inv) => ({
         type: 'PROJECT_INVITE',
         title: '项目邀请',
         content: `你被邀请加入项目「${project.title}」`,
         userId: inv.inviteeId,
-        link: `/projects/${id}`,
+        link: `/projects/${id}?invitationId=${inv.id}`,
         category: 'TEAM_ACTIVITY' as const,
       })),
     );
@@ -882,6 +1131,21 @@ export const removeProjectMember = async (req: AuthRequest, res: Response, next:
     }
 
     await prisma.projectMember.delete({ where: { id: target.id } });
+
+    // Notify removed user
+    try {
+      await createNotification({
+        type: 'SYSTEM',
+        title: '被移出项目通知',
+        content: `你已被管理员移出项目「${project.title}」。`,
+        userId: targetUserId,
+        link: '/projects',
+        category: 'TEAM_ACTIVITY' as const,
+      });
+    } catch (notifErr) {
+      console.error('Failed to send project removal notification:', notifErr);
+    }
+
     res.json({ message: 'Member removed' });
   } catch (error) {
     next(error);
@@ -1100,6 +1364,12 @@ export const importProjectFromText = async (
   }
 
   try {
+    // Verify team workspace project creation permissions
+    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    if (!hasPermission) {
+      return next(new AppError('只有团队创建人或管理员才能在团队中使用导入解析功能', 403));
+    }
+
     const quota = await checkProjectQuota(userId);
     if (!quota.allowed) {
       return next(new AppError(quota.message || '项目配额已满，无法导入新项目', 403));
@@ -1204,7 +1474,14 @@ export const aiGenerateProjectText = async (
     return next(new AppError('输入设想不能为空', 400));
   }
 
+  const userId = req.userId as string;
+
   try {
+    // Verify team workspace project creation permissions
+    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    if (!hasPermission) {
+      return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
+    }
     const systemPrompt = `你是一个项目规划专家。你需要将用户的项目设想或目标转化成一个标准格式的项目管理 Markdown 文本。
 必须严格遵循以下标准排版规范，不要输出任何其他的解释文字、代码块包裹（如 \`\`\`markdown ），只输出纯 Markdown 内容。
 

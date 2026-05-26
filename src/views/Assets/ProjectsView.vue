@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue';
+import { ref, computed, onMounted, h, watch } from 'vue';
 import {
   Search,
   FolderPlus,
@@ -16,6 +16,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 import ProjectCard from '@/components/ProjectCard.vue';
 import StatCard from '@/components/StatCard.vue';
@@ -49,13 +50,70 @@ interface ProjectListItem {
 }
 
 const workspaceStore = useWorkspaceStore();
+const authStore = useAuthStore();
 const searchQuery = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
 const projects = ref<ProjectListItem[]>([]);
 const isLoading = ref(true);
 
+interface TeamMemberRecord {
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  user: User;
+}
+
+const teamMemberRecords = ref<TeamMemberRecord[]>([]);
+const userTeamRole = ref<'OWNER' | 'ADMIN' | 'MEMBER' | null>(null);
+
+const fetchTeamMembers = async () => {
+  try {
+    const tid = workspaceStore.activeTeamId;
+    if (!tid) {
+      userTeamRole.value = null;
+      teamMembers.value = [];
+      teamMemberRecords.value = [];
+      return;
+    }
+    const response = await api.get(`/api/teams/${tid}/members`);
+    const records = (response.data || []) as TeamMemberRecord[];
+    teamMemberRecords.value = records;
+    teamMembers.value = records.map((m) => m.user);
+    
+    // Find active user's role
+    const activeUserId = authStore.user?.id;
+    const myRecord = records.find(m => m.userId === activeUserId);
+    userTeamRole.value = myRecord ? myRecord.role : null;
+  } catch (_error) {
+    userTeamRole.value = null;
+    teamMembers.value = [];
+    teamMemberRecords.value = [];
+  }
+};
+
+const canCreateProject = computed(() => {
+  if (authStore.user?.role === 'ADMIN') return true;
+  
+  const currentWs = workspaceStore.currentWorkspace;
+  if (!currentWs) return true;
+  
+  if (currentWs.type === 'personal') return true;
+  
+  if (currentWs.type === 'team') {
+    return userTeamRole.value === 'OWNER' || userTeamRole.value === 'ADMIN';
+  }
+  
+  return false;
+});
+
+// Watch activeWorkspaceId to reload projects and team members
+watch(() => workspaceStore.activeWorkspaceId, () => {
+  fetchProjects();
+  fetchTeamMembers();
+});
+
 onMounted(() => {
   fetchProjects();
+  fetchTeamMembers();
 });
 
 // Create/Edit Project related
@@ -114,19 +172,11 @@ const fetchProjects = async () => {
   }
 };
 
-const fetchTeamMembers = async () => {
-  try {
-    const tid = workspaceStore.activeTeamId;
-    if (!tid) return;
-    const response = await api.get(`/api/teams/${tid}/members`);
-    const members = (response.data || []) as TeamMemberResponse[];
-    teamMembers.value = members.map((m) => m.user);
-  } catch (_error) {
-    // silently fail
-  }
-};
-
 const openAddDrawer = () => {
+  if (!canCreateProject.value) {
+    ElMessage.warning('只有团队创建人或管理员才能在团队中创建项目');
+    return;
+  }
   isEditMode.value = false;
   projectForm.value = {
     id: '',
@@ -252,8 +302,6 @@ const stats = computed(() => {
   const completionRate = total ? Math.round((completed / total) * 100) : 0;
   return { total, active, completed, completionRate };
 });
-
-onMounted(fetchProjects);
 </script>
 
 <template>
@@ -281,7 +329,7 @@ onMounted(fetchProjects);
         </div>
 
         <!-- New Button (Mobile Only) -->
-        <button type="button" class="flex md:hidden items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-lg" @click="openAddDrawer">
+        <button v-if="canCreateProject" type="button" class="flex md:hidden items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-lg" @click="openAddDrawer">
           <FolderPlus class="w-3.5 h-3.5" />
           <span>新建</span>
         </button>
@@ -304,7 +352,7 @@ onMounted(fetchProjects);
         </div>
         
         <!-- New Button (Desktop Only) -->
-        <button type="button" class="hidden md:flex group relative px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold overflow-hidden shadow-xl shadow-slate-900/10 dark:shadow-white/10 hover:scale-105 active:scale-95 transition-all items-center gap-2" @click="openAddDrawer">
+        <button v-if="canCreateProject" type="button" class="hidden md:flex group relative px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold overflow-hidden shadow-xl shadow-slate-900/10 dark:shadow-white/10 hover:scale-105 active:scale-95 transition-all items-center gap-2" @click="openAddDrawer">
           <div
             class="absolute inset-0 bg-accent translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"
           ></div>
@@ -405,7 +453,7 @@ type="button" class="p-1.5 sm:p-2 rounded-lg transition-all" :class="
           <p class="text-[10px] sm:text-xs text-slate-400 max-w-xs sm:max-w-md mb-6">
             没有匹配当前搜索条件的项目，或者你还没有创建任何项目。
           </p>
-          <button type="button" class="px-5 sm:px-6 py-2 sm:py-2.5 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-sm cursor-pointer" @click="openAddDrawer">
+          <button v-if="canCreateProject" type="button" class="px-5 sm:px-6 py-2 sm:py-2.5 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-sm cursor-pointer" @click="openAddDrawer">
             创建第一个项目
           </button>
         </div>

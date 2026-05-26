@@ -12,6 +12,7 @@ import {
   Info,
   ChevronRight,
   Inbox,
+  Loader2,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -72,6 +73,47 @@ const filteredNotifications = computed(() => {
 
 const unreadCount = computed(() => notifications.value.filter((n) => !n.isRead).length);
 
+const processingInvitations = ref<Record<string, boolean>>({});
+const respondedInvitations = ref<Record<string, 'ACCEPTED' | 'REJECTED'>>({});
+
+const getInvitationIdFromLink = (link?: string | null) => {
+  if (!link) return null;
+  try {
+    const url = new URL(link, window.location.origin);
+    return url.searchParams.get('invitationId');
+  } catch (e) {
+    const match = link.match(/[?&]invitationId=([^&]+)/);
+    return match ? match[1] : null;
+  }
+};
+
+const handleProjectInvitation = async (notification: NotificationItem, accept: boolean) => {
+  const inviteId = getInvitationIdFromLink(notification.link);
+  if (!inviteId) {
+    ElMessage.warning('未能获取邀请 ID');
+    return;
+  }
+
+  processingInvitations.value[notification.id] = true;
+  try {
+    const endpoint = accept ? 'accept' : 'reject';
+    await api.post(`/api/projects/invitations/${inviteId}/${endpoint}`);
+    respondedInvitations.value[notification.id] = accept ? 'ACCEPTED' : 'REJECTED';
+    ElMessage.success(accept ? '已成功加入项目！' : '已拒绝邀请');
+    
+    // Auto mark notification as read
+    if (!notification.isRead) {
+      await api.put(`/api/notifications/${notification.id}/read`);
+      notification.isRead = true;
+    }
+  } catch (error) {
+    console.error('Handle project invitation error:', error);
+    ElMessage.error(accept ? '接受邀请失败' : '拒绝邀请失败');
+  } finally {
+    processingInvitations.value[notification.id] = false;
+  }
+};
+
 const handleMarkAsRead = async (notification: NotificationItem) => {
   if (!notification.isRead) {
     try {
@@ -82,7 +124,7 @@ const handleMarkAsRead = async (notification: NotificationItem) => {
     }
   }
 
-  if (notification.link) {
+  if (notification.link && notification.type !== 'PROJECT_INVITE') {
     router.push(notification.link);
   }
 };
@@ -340,12 +382,41 @@ v-for="cat in [
                     {{ n.content }}
                   </p>
                   <div class="flex items-center gap-4">
-                    <button v-if="n.link" type="button" class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
-                      立即处理 <ChevronRight class="w-3 h-3" />
-                    </button>
-                    <button v-if="!n.isRead" type="button" class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                      标记为已读
-                    </button>
+                    <!-- Standard Notification Actions -->
+                    <template v-if="n.type !== 'PROJECT_INVITE'">
+                      <button v-if="n.link" type="button" class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
+                        立即处理 <ChevronRight class="w-3 h-3" />
+                      </button>
+                      <button v-if="!n.isRead" type="button" class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" @click.stop="handleMarkAsRead(n)">
+                        标记为已读
+                      </button>
+                    </template>
+
+                    <!-- Project Invite Actions -->
+                    <template v-else>
+                      <div v-if="respondedInvitations[n.id]" class="text-[10px] font-bold text-slate-400">
+                        {{ respondedInvitations[n.id] === 'ACCEPTED' ? '已接受邀请' : '已拒绝邀请' }}
+                      </div>
+                      <div v-else class="flex items-center gap-2" @click.stop>
+                        <button 
+                          type="button" 
+                          :disabled="processingInvitations[n.id]" 
+                          class="px-2.5 py-1 rounded bg-accent text-white text-[10px] font-bold hover:shadow hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+                          @click="handleProjectInvitation(n, true)"
+                        >
+                          <Loader2 v-if="processingInvitations[n.id]" class="w-3 h-3 animate-spin" />
+                          接受
+                        </button>
+                        <button 
+                          type="button" 
+                          :disabled="processingInvitations[n.id]" 
+                          class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-350 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                          @click="handleProjectInvitation(n, false)"
+                        >
+                          拒绝
+                        </button>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>

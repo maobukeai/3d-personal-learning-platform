@@ -4,6 +4,7 @@ export interface AppNotification {
   id: string;
   title: string;
   content: string;
+  type: string;
   isRead: boolean;
   createdAt: string | number | Date;
   link?: string | null;

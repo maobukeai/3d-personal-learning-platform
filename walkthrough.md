@@ -359,5 +359,98 @@ I compacted the layout spacing, paddings, and font sizes in the academy course o
 - **构建与类型验证**：
   - 全量运行 `npx vue-tsc -b --noEmit` 通过，无任何 TypeScript 语法或打包错误。
 
+---
+
+# 10. 团队协作工作空间项目权限管理与安全防线 (本次更新)
+
+为了保障团队协作环境下的资源安全性，避免普通成员随意创建或篡改项目、甚至通过 AI 生成规划进行破坏，我们针对**协作团队工作空间**（TEAM 类型的 Workspace）进行了全方位、一体化（前端 + 后端）的 role-based 权限控制升级：
+
+---
+
+## 1. 核心改进与设计架构
+
+### 1.1. 后端安全防线 (API Level Enforcements)
+- **通用权限验证助手**:
+  - 在 `server/src/controllers/project.controller.ts` 中实现了一个稳健的 `checkTeamProjectPermission` 异步 helper 函数：
+    1. **系统管理员免检**: `user.role === 'ADMIN'` 自动放行。
+    2. **个人空间免检**: 自动检测 `Team` 的 `type === 'PERSONAL'` 并智能放行个人工作空间的创建和操作。
+    3. **协作团队强校验**: 对于 `type === 'TEAM'` 的多人协作团队工作区，精准关联 `TeamMember` 表，读取当前用户在团队中的 role。只有 role 为 `OWNER` (创建人) 或 `ADMIN` (管理员) 的高权角色才被放行。
+- **安全加固的 APIs**:
+  - **项目创建 API** (`createProject` / `POST /api/projects`)：首行引入 helper 校验权限，普通 `MEMBER` 强行请求直接抛出 `403 Forbidden`。
+  - **文本项目导入 API** (`importProjectFromText` / `POST /api/projects/import`)：同样注入 helper 校验，非高权角色无法导入和解析外部文本。
+  - **AI 智能项目规划生成 API** (`aiGenerateProjectText` / `POST /api/projects/ai-generate`)：非高权角色禁止调用大模型生成规划。
+
+### 1.2. 前端动态 UI 隐藏与拦截 (UI Level Enforcements & Guards)
+- **项目列表页 (`ProjectsView.vue`)**:
+  - 动态请求 `/api/teams/:tid/members` 检索成员列表，解析并提取当前用户在当前协作团队中的 `userTeamRole`。
+  - 声明 `canCreateProject` 响应式计算属性，仅当环境为系统管理员、个人空间或高权团队角色时，才为 `true`。
+  - **动态隐藏按钮**: 在页面模板中，对 mobile “新建” 按钮、desktop “新建项目” 按钮及 empty-state “创建第一个项目” 按钮，全部绑定 `v-if="canCreateProject"`。普通成员无权感知创建入口。
+  - **动作安全拦截**: `openAddDrawer` 触发点加入 `canCreateProject` 兜底强拦截，若无权则抛出 Element Plus `ElMessage.warning` 并提前截断，实现绝对的防弹窗溢出。
+- **工作区控制台 (`DashboardView.vue`)**:
+  - 与项目页同步引进 `useWorkspaceStore` 与 `canCreateProject` 响应式计算属性。
+  - **隐藏“导入解析”按钮**: 顶部“导入解析”控制按钮同样绑定 `v-if="canCreateProject"`，普通团队成员在控制台首屏无法感知此 AI 工具入口。
+  - **流程安全拦截**: `handleImportProject` 和 `handleAiGenerate` 流程首行注入 `canCreateProject` 的强阻断判断，最大化防范绕过 UI 元素的手动篡改请求。
+
+---
+
+## 2. 验证与编译结果
+
+1. **后端编译安全**:
+   - 运行全量 TypeScript 编译指令：
+     ```bash
+     cd server
+     npx tsc --noEmit
+     ```
+     **结果**：完全零报错，Prisma 联合索引与 role 接口类型安全极高。
+
+2. **前端编译与打包**:
+   - 运行前端打包验证指令：
+     ```bash
+     npx vue-tsc --noEmit
+     ```
+     **结果**：全量 vue 组件编译无任何报错，类型安全 100% 达成。
+
+---
+
+# 11. 项目关联之学习路线与任务看板变更通知机制 (本次更新)
+
+为了确保多人协作团队能够时刻同步项目内的实质性进展，我们进一步对**与项目绑定的“学习路线”**及**“任务看板（看板任务）”**的各项变更（增、删、改、状态流转）实现了全方位的实时系统消息通知与批量推送：
+
+---
+
+## 1. 核心改进与设计架构
+
+### 1.1. 学习路线变更推送 (Learning Roadmap Notifications)
+- **学习路线调整通知**：
+  - 在 `server/src/controllers/roadmap.controller.ts` 的 `updateRoadmap` 接口中，增加了项目联动推送逻辑。
+  - 当管理员或创建者修改/重新编排项目绑定的学习路线步骤（Steps）并保存时，系统会自动分析该路线关联的 `projectId`，并**向所有项目参与成员（排除操作者本人）异步批量发送“学习路线变更通知”**：
+    > 🔔 *“项目绑定的学习路线「[路线标题]」已进行调整与更新。”*（点击即可快速跳转至该项目页）
+
+### 1.2. 任务看板变更推送 (Kanban Task Board Notifications)
+我们打通了任务控制中心（`task.controller.ts`）与项目任务控制器（`project.controller.ts`），针对所有隶属于特定项目的任务板变动，进行了细致的通知注入：
+- **看板任务创建** (`createTask` / `createProjectTask` / `batchCreateProjectTasks`)：
+  - 每当在项目看板中新建或批量新建任务时，系统会**实时向所有项目成员发送“任务看板变更通知”**：
+    > 🔔 *“项目看板中新增了任务「[任务标题]」。”* 或 *“项目看板中批量添加了 [N] 个新任务。”*
+- **看板任务状态与属性流转** (`updateTask` / `updateProjectTask`)：
+  - 无论是拖拽看板卡片改变阶段状态（例如：待办 -> 进行中 -> 已完成），还是修改优先级、交付日期或负责人，系统都会**精准向项目成员分发通知**，并智能附带操作变动详情：
+    > 🔔 *“项目看板任务「[任务标题]」的状态已更新为「已完成」。”*
+- **看板任务删除** (`deleteTask`)：
+  - 从看板永久剔除某项任务时，系统会**自动向项目所有成员广播通知**，防止其他成员由于信息差去重复跟进已作废的任务：
+    > 🔔 *“项目看板任务「[任务标题]」已被删除。”*
+
+---
+
+## 2. 验证与编译结果
+
+1. **后端编译安全**:
+   - 运行全量 TypeScript 编译指令：
+     ```bash
+     cd server
+     npx tsc --noEmit
+     ```
+     **结果**：完全零报错，所有控制器中的批量通知与 Prisma 连表查询类型完全匹配，100% 编译通过。
+
+
+
 
 

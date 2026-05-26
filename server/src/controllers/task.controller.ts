@@ -1,13 +1,26 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
-import { createNotification } from '../utils/notification';
+import { createNotification, createNotificationBatch } from '../utils/notification';
 
 export const getAllTasks = async (req: AuthRequest, res: Response) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
   try {
-    const where: any = { teamId: req.workspaceId };
+    const where: Prisma.TaskWhereInput = {
+      teamId: req.workspaceId,
+      OR: [
+        { projectId: null },
+        {
+          project: {
+            members: {
+              some: { userId: req.userId as string },
+            },
+          },
+        },
+      ],
+    };
 
     if (date) {
       const startOfDay = new Date(date as string);
@@ -81,6 +94,25 @@ export const createTask = async (req: AuthRequest, res: Response) => {
   } = req.body;
   try {
     const effectiveTeamId = teamId || req.workspaceId;
+
+    if (projectId) {
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, teamId: effectiveTeamId || undefined },
+        include: {
+          members: {
+            where: { userId: req.userId },
+          },
+        },
+      });
+
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      if (!project.members || project.members.length === 0) {
+        return res.status(403).json({ error: 'Not authorized to create tasks in this project' });
+      }
+    }
 
     if (participantIds && participantIds.length > 0 && effectiveTeamId) {
       const teamMembers = await prisma.teamMember.findMany({
@@ -169,6 +201,34 @@ export const createTask = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Notify other project members about the new task
+    if (task.projectId) {
+      try {
+        const projectMembers = await prisma.projectMember.findMany({
+          where: { projectId: task.projectId },
+          select: { userId: true },
+        });
+        const targetUserIds = projectMembers
+          .map((m) => m.userId)
+          .filter((uid) => uid !== req.userId);
+
+        if (targetUserIds.length > 0) {
+          await createNotificationBatch(
+            targetUserIds.map((uid) => ({
+              type: 'TASK',
+              title: '任务看板变更通知',
+              content: `项目看板中新增了任务「${task.title}」。`,
+              userId: uid,
+              link: `/projects/${task.projectId}`,
+              category: 'TEAM_ACTIVITY' as const,
+            })),
+          );
+        }
+      } catch (notifErr) {
+        console.error('Failed to send task creation notifications:', notifErr);
+      }
+    }
+
     res.status(201).json(task);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -193,10 +253,45 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
   try {
     const existingTask = await prisma.task.findFirst({
       where: { id, teamId: req.workspaceId },
+      include: {
+        project: {
+          include: {
+            members: {
+              where: { userId: req.userId },
+            },
+          },
+        },
+      },
     });
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
+    // If task belongs to a project, the user must be a member of that project
+    if (existingTask.projectId && (!existingTask.project || existingTask.project.members.length === 0)) {
+      return res.status(403).json({ error: 'Not authorized to update tasks in this project' });
+    }
+
     const effectiveTeamId = teamId || existingTask.teamId || req.workspaceId;
+
+    // If user is trying to associate task to a new project or change project, check project membership for the target project
+    if (projectId && projectId !== existingTask.projectId) {
+      const targetProject = await prisma.project.findFirst({
+        where: { id: projectId, teamId: effectiveTeamId || undefined },
+        include: {
+          members: {
+            where: { userId: req.userId },
+          },
+        },
+      });
+
+      if (!targetProject) {
+        return res.status(404).json({ error: 'Target project not found' });
+      }
+
+      if (!targetProject.members || targetProject.members.length === 0) {
+        return res.status(403).json({ error: 'Not authorized to move tasks to this project' });
+      }
+    }
+
     if (participantIds && participantIds.length > 0 && effectiveTeamId) {
       const teamMembers = await prisma.teamMember.findMany({
         where: { teamId: effectiveTeamId },
@@ -318,6 +413,37 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Notify other project members about task update (status change, etc.)
+    if (task.projectId) {
+      try {
+        const projectMembers = await prisma.projectMember.findMany({
+          where: { projectId: task.projectId },
+          select: { userId: true },
+        });
+        const targetUserIds = projectMembers
+          .map((m) => m.userId)
+          .filter((uid) => uid !== req.userId);
+
+        if (targetUserIds.length > 0) {
+          const detailMsg = status && status !== existingTask.status
+            ? `状态已更新为「${status === 'DONE' ? '已完成' : (status === 'IN_PROGRESS' ? '进行中' : '待办')}」`
+            : `内容或属性进行了更新`;
+          await createNotificationBatch(
+            targetUserIds.map((uid) => ({
+              type: 'TASK',
+              title: '任务看板变更通知',
+              content: `项目看板任务「${task.title}」的${detailMsg}。`,
+              userId: uid,
+              link: `/projects/${task.projectId}`,
+              category: 'TEAM_ACTIVITY' as const,
+            })),
+          );
+        }
+      } catch (notifErr) {
+        console.error('Failed to send task update notifications:', notifErr);
+      }
+    }
+
     res.json(task);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -329,8 +455,22 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
   try {
     const existingTask = await prisma.task.findFirst({
       where: { id, teamId: req.workspaceId },
+      include: {
+        project: {
+          include: {
+            members: {
+              where: { userId: req.userId },
+            },
+          },
+        },
+      },
     });
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
+
+    // If task belongs to a project, the user must be a member of that project
+    if (existingTask.projectId && (!existingTask.project || existingTask.project.members.length === 0)) {
+      return res.status(403).json({ error: 'Not authorized to delete tasks in this project' });
+    }
 
     await prisma.task.delete({ where: { id } });
 
@@ -357,6 +497,34 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Notify other project members about task deletion
+    if (existingTask.projectId) {
+      try {
+        const projectMembers = await prisma.projectMember.findMany({
+          where: { projectId: existingTask.projectId },
+          select: { userId: true },
+        });
+        const targetUserIds = projectMembers
+          .map((m) => m.userId)
+          .filter((uid) => uid !== req.userId);
+
+        if (targetUserIds.length > 0) {
+          await createNotificationBatch(
+            targetUserIds.map((uid) => ({
+              type: 'TASK',
+              title: '任务看板变更通知',
+              content: `项目看板任务「${existingTask.title}」已被删除。`,
+              userId: uid,
+              link: `/projects/${existingTask.projectId}`,
+              category: 'TEAM_ACTIVITY' as const,
+            })),
+          );
+        }
+      } catch (notifErr) {
+        console.error('Failed to send task deletion notifications:', notifErr);
+      }
+    }
+
     res.json({ message: 'Task deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -365,7 +533,19 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 
 export const getTaskStats = async (req: AuthRequest, res: Response) => {
   try {
-    const where = { teamId: req.workspaceId };
+    const where: Prisma.TaskWhereInput = {
+      teamId: req.workspaceId,
+      OR: [
+        { projectId: null },
+        {
+          project: {
+            members: {
+              some: { userId: req.userId as string },
+            },
+          },
+        },
+      ],
+    };
 
     const [total, todo, inProgress, done, overdue] = await Promise.all([
       prisma.task.count({ where }),

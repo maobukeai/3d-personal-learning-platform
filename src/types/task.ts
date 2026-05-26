@@ -37,6 +37,7 @@ export interface Project extends TaskProject {
   visibility?: string;
   maxMembers?: number;
   members: ProjectMember[];
+  roadmap?: any;
 }
 
 export interface Team {

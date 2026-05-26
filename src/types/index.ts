@@ -124,6 +124,28 @@ export interface TeamMember {
   joinedAt: string;
 }
 
+export interface RoadmapStep {
+  id: string;
+  title: string;
+  description?: string | null;
+  subtasks?: string | string[] | null;
+  order: number;
+  roadmapId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Roadmap {
+  id: string;
+  title: string;
+  description?: string | null;
+  creatorId?: string | null;
+  projectId?: string | null;
+  steps: RoadmapStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -138,6 +160,7 @@ export interface Project {
   teamId?: string | null;
   members?: ProjectMember[];
   tasks?: Task[];
+  roadmap?: Roadmap | null;
   createdAt: string;
   updatedAt: string;
 }

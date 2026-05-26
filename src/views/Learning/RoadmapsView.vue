@@ -30,6 +30,7 @@ import {
   Clock,
   Sparkle,
   Loader2,
+  FolderOpen,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -154,9 +155,9 @@ const autoSelectFirstRoadmap = () => {
 
 const filteredRoadmaps = computed(() => {
   if (activeTab.value === 'system') {
-    return roadmaps.value.filter((r) => r.creatorId === null);
+    return roadmaps.value.filter((r) => r.creatorId === null && !r.projectId);
   } else {
-    return roadmaps.value.filter((r) => r.creatorId !== null);
+    return roadmaps.value.filter((r) => r.creatorId !== null || !!r.projectId);
   }
 });
 
@@ -336,10 +337,18 @@ const getSubTasksForStep = (step: RoadmapStep): StepTask[] => {
     try {
       const parsed = typeof step.subtasks === 'string' ? JSON.parse(step.subtasks) : step.subtasks;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((text: string, index: number) => ({
-          id: `${step.id}_custom_s${index}`,
-          text: text,
-        }));
+        return parsed.map((item: any, index: number) => {
+          if (item && typeof item === 'object') {
+            return {
+              id: item.id || `${step.id}_custom_s${index}`,
+              text: item.text || '',
+            };
+          }
+          return {
+            id: `${step.id}_custom_s${index}`,
+            text: String(item),
+          };
+        });
       }
     } catch (e) {
       console.error('Failed to parse step subtasks:', e);
@@ -866,7 +875,13 @@ v-if="activeTab === 'custom'"
                     {{ selectedRoadmap.title }}
                   </h2>
                   <span
-                    v-if="selectedRoadmap.creatorId === null"
+                    v-if="selectedRoadmap.projectId"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-550/10 text-amber-600 dark:text-amber-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
+                  >
+                    <FolderOpen class="w-2.5 h-2.5" /> 项目路线
+                  </span>
+                  <span
+                    v-else-if="selectedRoadmap.creatorId === null"
                     class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
                   >
                     <Sparkles class="w-2 h-2" /> 官方推荐
@@ -882,7 +897,16 @@ v-if="activeTab === 'custom'"
                 <!-- Actions inline next to Title! -->
                 <div class="flex items-center gap-1 shrink-0">
                   <button
-type="button"
+                    v-if="selectedRoadmap.projectId"
+                    type="button"
+                    class="p-1 px-1.5 sm:px-2.5 rounded bg-accent hover:opacity-90 text-[8px] sm:text-[11px] font-black text-white transition-all flex items-center gap-1 cursor-pointer shadow-md shadow-accent/10 border-none animate-in fade-in"
+                    @click="router.push({ name: 'ProjectDetail', params: { id: selectedRoadmap.projectId } })"
+                  >
+                    <FolderOpen class="w-2.5 h-2.5" />
+                    <span>进入关联项目</span>
+                  </button>
+                  <button
+                    type="button"
                     class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/5 border border-slate-200/50 dark:border-slate-800 text-[8px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-0.5 cursor-pointer shadow-sm"
                     @click="exportToMarkdown"
                   >

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell } from 'lucide-vue-next';
+import { Bell, Loader2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
+import api from '@/utils/api';
 import {
   fetchNotifications as fetchNotificationsRequest,
   markAllNotificationsAsRead,
@@ -40,7 +41,62 @@ const addNotification = (notification: AppNotification) => {
   notifications.value.unshift(notification);
 };
 
+const processingInvitations = ref<Record<string, boolean>>({});
+const respondedInvitations = ref<Record<string, 'ACCEPTED' | 'REJECTED'>>({});
+
+const getInvitationIdFromLink = (link?: string | null) => {
+  if (!link) return null;
+  try {
+    const url = new URL(link, window.location.origin);
+    return url.searchParams.get('invitationId');
+  } catch (e) {
+    const match = link.match(/[?&]invitationId=([^&]+)/);
+    return match ? match[1] : null;
+  }
+};
+
+const handleProjectInvitation = async (notification: AppNotification, accept: boolean) => {
+  const inviteId = getInvitationIdFromLink(notification.link);
+  if (!inviteId) {
+    ElMessage.warning('未能获取邀请 ID');
+    return;
+  }
+
+  processingInvitations.value[notification.id] = true;
+  try {
+    const endpoint = accept ? 'accept' : 'reject';
+    await api.post(`/api/projects/invitations/${inviteId}/${endpoint}`);
+    respondedInvitations.value[notification.id] = accept ? 'ACCEPTED' : 'REJECTED';
+    ElMessage.success(accept ? '已成功加入项目！' : '已拒绝邀请');
+    
+    // Auto mark notification as read
+    if (!notification.isRead) {
+      await markNotificationAsRead(notification.id);
+      const n = notifications.value.find((notif) => notif.id === notification.id);
+      if (n) n.isRead = true;
+    }
+  } catch (error) {
+    console.error('Handle project invitation error:', error);
+    ElMessage.error(accept ? '接受邀请失败' : '拒绝邀请失败');
+  } finally {
+    processingInvitations.value[notification.id] = false;
+  }
+};
+
 const handleMarkAsRead = async (notification: AppNotification) => {
+  if (notification.type === 'PROJECT_INVITE') {
+    if (!notification.isRead) {
+      try {
+        await markNotificationAsRead(notification.id);
+        const n = notifications.value.find((notif) => notif.id === notification.id);
+        if (n) n.isRead = true;
+      } catch (error) {
+        console.error('Mark as read error:', error);
+      }
+    }
+    return;
+  }
+
   if (!notification.isRead) {
     try {
       await markNotificationAsRead(notification.id);
@@ -97,53 +153,132 @@ defineExpose({
     </button>
     <template #dropdown>
       <div
-        class="notification-panel w-80 p-0 rounded-3xl overflow-hidden border border-white/20 dark:border-white/10 shadow-2xl"
+        class="notification-panel w-[420px] p-0 rounded-3xl overflow-hidden shadow-2xl"
       >
         <div
-          class="notification-header px-4 py-3 flex items-center justify-between border-b border-white/10"
+          class="notification-header px-5 py-4 flex items-center justify-between"
         >
           <span
-            class="text-xs font-bold uppercase tracking-wider text-slate-500/80 dark:text-slate-400/80"
+            class="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-450"
             >通知中心</span
           >
-          <div class="flex items-center gap-3">
-            <button type="button" class="text-[10px] font-bold text-accent hover:underline" @click="handleMarkAllRead">
+          <div class="flex items-center gap-4">
+            <button type="button" class="text-xs font-bold text-accent hover:underline" @click="handleMarkAllRead">
               全部忽略
             </button>
-            <button type="button" class="text-[10px] font-bold text-slate-400 hover:text-accent" @click="router.push('/notifications')">
+            <button type="button" class="text-xs font-bold text-slate-450 hover:text-accent dark:text-slate-400" @click="router.push('/notifications')">
               查看全部
             </button>
           </div>
         </div>
-        <div class="max-h-96 overflow-y-auto scrollbar-hide">
+        <div class="max-h-[420px] overflow-y-auto scrollbar-hide">
           <div
             v-for="n in notifications"
             :key="n.id"
-            class="notification-item p-4 cursor-pointer transition-colors"
+            class="notification-item p-5 cursor-pointer transition-colors border-b last:border-0 border-slate-100/50 dark:border-white/5"
             :class="!n.isRead ? 'bg-accent/[0.04] dark:bg-accent/[0.08]' : ''"
             @click="handleMarkAsRead(n)"
           >
             <p
-              class="text-xs font-bold mb-1"
-              :class="!n.isRead ? 'text-accent' : 'text-slate-700/90 dark:text-slate-300/90'"
+              class="text-sm font-bold mb-1.5"
+              :class="!n.isRead ? 'text-accent' : 'text-slate-700 dark:text-slate-300'"
             >
               {{ n.title }}
             </p>
             <p
-              class="text-[11px] text-slate-500/80 dark:text-slate-400/80 leading-relaxed mb-2"
+              class="text-xs text-slate-500 dark:text-slate-450 leading-relaxed mb-2.5"
             >
               {{ n.content }}
             </p>
-            <p class="text-[9px] text-slate-400/60 dark:text-slate-500/60">
+            
+            <!-- Project Invite Actions -->
+            <div v-if="n.type === 'PROJECT_INVITE'" class="mb-2.5 flex items-center gap-2" @click.stop>
+              <template v-if="respondedInvitations[n.id]">
+                <span class="text-[10px] font-bold text-slate-400">
+                  {{ respondedInvitations[n.id] === 'ACCEPTED' ? '已接受邀请' : '已拒绝邀请' }}
+                </span>
+              </template>
+              <template v-else>
+                <button 
+                  type="button" 
+                  :disabled="processingInvitations[n.id]" 
+                  class="px-2.5 py-1 rounded bg-accent text-white text-[10px] font-bold hover:shadow hover:shadow-accent/20 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+                  @click="handleProjectInvitation(n, true)"
+                >
+                  <Loader2 v-if="processingInvitations[n.id]" class="w-3 h-3 animate-spin" />
+                  接受
+                </button>
+                <button 
+                  type="button" 
+                  :disabled="processingInvitations[n.id]" 
+                  class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-350 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  @click="handleProjectInvitation(n, false)"
+                >
+                  拒绝
+                </button>
+              </template>
+            </div>
+
+            <p class="text-[10px] text-slate-400 dark:text-slate-500">
               {{ new Date(n.createdAt).toLocaleString() }}
             </p>
           </div>
-          <div v-if="notifications.length === 0" class="py-10 text-center text-slate-400/60">
-            <Bell class="w-8 h-8 mx-auto mb-2 opacity-10" />
-            <p class="text-xs">暂无新通知</p>
+          <div v-if="notifications.length === 0" class="py-16 text-center text-slate-400/60">
+            <Bell class="w-12 h-12 mx-auto mb-3 opacity-15" />
+            <p class="text-sm font-medium">暂无新通知</p>
           </div>
         </div>
       </div>
     </template>
   </el-dropdown>
 </template>
+
+<style scoped>
+.notification-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
+}
+
+:deep(.dark) .notification-panel {
+  background: rgba(13, 13, 15, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.5),
+    0 10px 10px -5px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.notification-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+:deep(.dark) .notification-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.notification-item {
+  transition: all 0.2s ease;
+}
+.notification-item:hover {
+  background: rgba(99, 102, 241, 0.04) !important;
+}
+:deep(.dark) .notification-item:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Glassmorphism theme integration */
+:deep(.theme-glass) .notification-panel {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+:deep(.dark.theme-glass) .notification-panel {
+  background: rgba(18, 18, 24, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+</style>

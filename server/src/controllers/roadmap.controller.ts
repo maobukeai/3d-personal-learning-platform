@@ -4,12 +4,25 @@ import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createPaginationMeta, getPaginationParams } from '../utils/pagination';
+import { createNotificationBatch } from '../utils/notification';
 
 export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query, 100, 200);
     const where: Prisma.RoadmapWhereInput = {
-      OR: [{ creatorId: null }, { creatorId: req.userId as string }],
+      OR: [
+        { creatorId: null },
+        { creatorId: req.userId as string },
+        {
+          project: {
+            members: {
+              some: {
+                userId: req.userId as string,
+              },
+            },
+          },
+        },
+      ],
     };
 
     const [total, roadmaps] = await prisma.$transaction([
@@ -178,6 +191,34 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Notify other project members about the roadmap update
+    if (existing.projectId) {
+      try {
+        const projectMembers = await prisma.projectMember.findMany({
+          where: { projectId: existing.projectId },
+          select: { userId: true },
+        });
+        const targetUserIds = projectMembers
+          .map((m) => m.userId)
+          .filter((uid) => uid !== req.userId);
+
+        if (targetUserIds.length > 0) {
+          await createNotificationBatch(
+            targetUserIds.map((uid) => ({
+              type: 'SYSTEM',
+              title: '学习路线变更通知',
+              content: `项目绑定的学习路线「${title}」已进行调整与更新。`,
+              userId: uid,
+              link: `/projects/${existing.projectId}`,
+              category: 'TEAM_ACTIVITY' as const,
+            })),
+          );
+        }
+      } catch (notifErr) {
+        console.error('Failed to send roadmap update notifications:', notifErr);
+      }
+    }
 
     res.json(fullRoadmap);
   } catch (error) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   Box,
@@ -15,6 +15,7 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
+import { useWorkspaceStore } from '@/stores/workspace';
 import { socketService } from '@/utils/socket';
 import StatCard from '@/components/StatCard.vue';
 import ActiveLearningCard from './components/ActiveLearningCard.vue';
@@ -88,7 +89,54 @@ const isImporting = ref(false);
 const aiPrompt = ref('');
 const isAiGenerating = ref(false);
 
+const workspaceStore = useWorkspaceStore();
+
+interface TeamMemberRecord {
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+}
+
+const userTeamRole = ref<'OWNER' | 'ADMIN' | 'MEMBER' | null>(null);
+
+const fetchTeamMembers = async () => {
+  try {
+    const tid = workspaceStore.activeTeamId;
+    if (!tid) {
+      userTeamRole.value = null;
+      return;
+    }
+    const response = await api.get(`/api/teams/${tid}/members`);
+    const records = (response.data || []) as TeamMemberRecord[];
+    
+    // Find active user's role
+    const activeUserId = authStore.user?.id;
+    const myRecord = records.find(m => m.userId === activeUserId);
+    userTeamRole.value = myRecord ? myRecord.role : null;
+  } catch (_error) {
+    userTeamRole.value = null;
+  }
+};
+
+const canCreateProject = computed(() => {
+  if (authStore.user?.role === 'ADMIN') return true;
+  
+  const currentWs = workspaceStore.currentWorkspace;
+  if (!currentWs) return true;
+  
+  if (currentWs.type === 'personal') return true;
+  
+  if (currentWs.type === 'team') {
+    return userTeamRole.value === 'OWNER' || userTeamRole.value === 'ADMIN';
+  }
+  
+  return false;
+});
+
 const handleAiGenerate = async () => {
+  if (!canCreateProject.value) {
+    ElMessage.warning('只有团队创建人或管理员才能在团队中生成项目规划');
+    return;
+  }
   if (!aiPrompt.value.trim()) {
     ElMessage.warning('请输入您的项目目标或需求设想。');
     return;
@@ -168,6 +216,11 @@ watch(selectedDate, () => {
   fetchDashboardData();
 });
 
+watch(() => workspaceStore.activeWorkspaceId, () => {
+  fetchDashboardData();
+  fetchTeamMembers();
+});
+
 const fillDemoData = () => {
   importText.value = `# 项目：智能机器人开发
 描述：在这个项目中，我们将学习如何基于 ROS2 平台，从零开发一个具有自主导航与建图功能的移动避障机器人。
@@ -227,6 +280,10 @@ const copyTemplate = async () => {
 };
 
 const handleImportProject = async () => {
+  if (!canCreateProject.value) {
+    ElMessage.warning('只有团队创建人或管理员才能在团队中导入和解析项目');
+    return;
+  }
   if (!importText.value.trim()) {
     ElMessage.warning('请输入或粘贴格式化文本后再进行导入解析。');
     return;
@@ -252,6 +309,7 @@ const handleImportProject = async () => {
 
 onMounted(() => {
   fetchDashboardData();
+  fetchTeamMembers();
 
   // Listen for real-time activity updates
   socketService.on('new_activity', (activity: DashboardActivity) => {
@@ -320,7 +378,7 @@ onMounted(() => {
             <Calendar class="w-4 h-4 text-slate-400" />
           </template>
         </el-date-picker>
-        <button type="button" class="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-accent to-indigo-600 text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold text-xs animate-pulse" @click="isAddDialogOpen = true">
+        <button v-if="canCreateProject" type="button" class="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-accent to-indigo-600 text-white rounded-xl shadow-lg shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold text-xs animate-pulse" @click="isAddDialogOpen = true">
           <Sparkles class="w-4 h-4" />
           <span>导入解析</span>
         </button>

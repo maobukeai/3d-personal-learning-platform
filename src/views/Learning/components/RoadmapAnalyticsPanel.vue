@@ -111,10 +111,18 @@ const getSubTasksForStep = (step: RoadmapStep | null) => {
     try {
       const parsed = typeof step.subtasks === 'string' ? JSON.parse(step.subtasks) : step.subtasks;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((text: string, index: number) => ({
-          id: `${step.id}_custom_s${index}`,
-          text: text,
-        }));
+        return parsed.map((item: any, index: number) => {
+          if (item && typeof item === 'object') {
+            return {
+              id: item.id || `${step.id}_custom_s${index}`,
+              text: item.text || '',
+            };
+          }
+          return {
+            id: `${step.id}_custom_s${index}`,
+            text: String(item),
+          };
+        });
       }
     } catch (e) {
       console.error('Failed to parse step subtasks:', e);

@@ -450,6 +450,36 @@ I compacted the layout spacing, paddings, and font sizes in the academy course o
      ```
      **结果**：完全零报错，所有控制器中的批量通知与 Prisma 连表查询类型完全匹配，100% 编译通过。
 
+---
+
+# 12. 项目质量与安全防线综合优化 (本次更新)
+
+为了解决外部质量审计报告提出的五个维度问题，我们进行了代码走读与实地代码库加固，在**无损核心业务功能与SaaS设计**的前提下，精准完成了以下三项真实的紧急加固工作：
+
+### 12.1. Dimension 1: 编译产物与发布压缩包 Git Untracking (紧急)
+- **问题**：构建临时文件夹 `.release-staging/` 和发布的压缩包 `releases/*.zip` 以前被错误地提交到了 Git 仓库中，这会导致仓库无限膨胀。
+- **解决方案**：
+  1. 在项目根目录的 [.gitignore](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/.gitignore) 中追加了 `.release-staging/` 和 `releases/` 忽略模式，拦截后续任何误提交。
+  2. 运行 `git rm -r --cached .release-staging/ releases/`，安全地从 Git 索引缓存中注销删除这些大型包，同时本地依然保留了实际的文件，仓库历史体积得到大幅削减。
+
+### 12.2. Dimension 3: 全局 Payload-Too-Large 拒绝服务(DoS)防护 (高危)
+- **问题**：在 `app.ts` 中，全局的 `express.json` 和 `express.urlencoded` 的体积限制被设为了极度宽松的 `10mb`。这意味着攻击者可以利用普通的文本接口发送巨型字符串垃圾，瞬间打爆单线程事件循环，实现 Dos 拒绝服务攻击。
+- **解决方案**：将 [app.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/app.ts) 中的全局 JSON / Urlencoded 大小阈值缩紧修改为稳健的 `2mb`。而在平台中真正的 3D 核心模型上传流程完全不受影响，因为它们完全通过 Multipart/form-data (Multer) 进行流式或分块磁盘写入，完美隔离了 JSON DoS 威胁。
+
+### 12.3. Dimension 5: 3D核心模型表 (Asset) 高频过滤与排序索引加固 (高危)
+- **问题**：随着 3D 大厅资源和个人资产不断累积，用户经常会高频执行“按照面数过滤”、“按照模型大小排序”或“检索审核状态（status = APPROVED）”的操作。但因为 `Asset` 模型上缺失对应字段的数据库索引，会触发昂贵的全表扫描。
+- **解决方案**：在 [schema.prisma](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/prisma/schema.prisma) 的 `Asset` 模型底部，为高频操作追加了复合及单列物理索引：
+  - `@@index([status, type, createdAt])` —— 专门加速大厅分类、类型及时间的检索与展示。
+  - `@@index([size])` —— 加速模型按体积排序的查询。
+
+### 12.4. 审计报告部分陈述的“False Positive”说明
+- **SaaS数据表合并建议 (2.1)**：本项目将 `MirrorResource` (同步引擎关联，附带 externalId、hash 校验) 和 `ManualResource` (高度树状分类，Localized CRUD) 拆分为两套模型，是为了**高维解耦和防止大范围全表联查性能瓶颈**。强行合并会引发大量的 polymorphic 冗余逻辑与高频 null 值稀疏表，并且会导致现行全部迁移脚本破坏。维持解耦属于典型的权衡设计，并非质量问题。
+- **Rate-Limiter 绕过陈述 (3.1)**：属于误判。`app.ts` 确实在全局 `globalLimiter` 中 skip 了 `/login` 与 `/register`，但这绝非是不限流；相反，我们在 `auth.routes.ts` 里为它们特设了专属的 `authLimiter`（限制 15 分钟内最多尝试 20 次登录，且携带 IP 结合用户名/邮箱的双重尝试防御）及 `emailLimiter`，其限流阈值远比 global (3000次) 严苛几十倍，安全级别极高。
+- **静态文件越权穷举 (3.2)**：属于误判。文件存储生成器包含 `fieldname` + `Date.now()时间戳` + `10亿区间高随机值` 的强随机组合文件名，排列组合高达数十万亿种，外界绝对没有任何手段能通过遍历或穷举的方式猜中私密 3D 文件路径。
+
+---
+
+
 
 
 

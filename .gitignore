@@ -23,6 +23,10 @@ server/.env.*
 # 用户上传的文件 - 不应纳入版本控制
 server/uploads/
 
+# 编译和发布包构建产物
+.release-staging/
+releases/
+
 # Local review artifacts and ad-hoc scratch files
 .codex-review-screens/
 scratch/

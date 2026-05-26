@@ -303,6 +303,8 @@ model Asset {
   @@index([userId])
   @@index([categoryId])
   @@index([teamId])
+  @@index([status, type, createdAt])
+  @@index([size])
 }
 
 model Category {

@@ -73,17 +73,9 @@ export class SyncEngine {
     }
 
     const lockKey = `sync_engine:lock:${sourceId}`;
-    try {
-      const isLocked = await redisService.get<string>(lockKey);
-      if (isLocked) {
-        throw new Error('同步已在运行中(分布式锁已占用)');
-      }
-      await redisService.set(lockKey, 'true', 3600); // 1 hour TTL
-    } catch (e: any) {
-      if (e.message?.includes('同步已在运行中')) {
-        throw e;
-      }
-      logger.warn(`[SyncEngine] Redis lock check failed, falling back to memory lock: ${e.message}`);
+    const acquired = await redisService.acquireLock(lockKey, 3600); // 1 hour TTL
+    if (!acquired) {
+      throw new Error('同步已在运行中(分布式锁已占用)');
     }
 
     const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -546,7 +538,7 @@ export class SyncEngine {
         where: { id: sourceId },
         data: { syncStatus: 'IDLE' },
       });
-      await redisService.del(lockKey).catch(() => {});
+      await redisService.releaseLock(lockKey).catch(() => {});
       setTimeout(() => this.progressMap.delete(sourceId), 300000);
 
       emitToAll('mirror_sync_finished', {
@@ -567,17 +559,9 @@ export class SyncEngine {
     }
 
     const lockKey = `sync_engine:lock:${sourceId}`;
-    try {
-      const isLocked = await redisService.get<string>(lockKey);
-      if (isLocked) {
-        throw new Error('同步已在运行中(分布式锁已占用)');
-      }
-      await redisService.set(lockKey, 'true', 3600); // 1 hour TTL
-    } catch (e: any) {
-      if (e.message?.includes('同步已在运行中')) {
-        throw e;
-      }
-      logger.warn(`[SyncEngine] Redis lock check failed, falling back to memory lock: ${e.message}`);
+    const acquired = await redisService.acquireLock(lockKey, 3600); // 1 hour TTL
+    if (!acquired) {
+      throw new Error('同步已在运行中(分布式锁已占用)');
     }
 
     const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
@@ -964,7 +948,7 @@ export class SyncEngine {
         where: { id: sourceId },
         data: { syncStatus: 'IDLE' },
       });
-      await redisService.del(lockKey).catch(() => {});
+      await redisService.releaseLock(lockKey).catch(() => {});
       setTimeout(() => this.progressMap.delete(sourceId), 300000);
 
       emitToAll('mirror_sync_finished', {

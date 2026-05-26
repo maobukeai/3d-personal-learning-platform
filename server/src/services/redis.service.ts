@@ -97,6 +97,30 @@ class RedisService {
     this.localCache.delete(key);
   }
 
+  async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    if (this.isRedisEnabled && this.redisClient) {
+      try {
+        const result = await this.redisClient.set(key, 'locked', 'EX', ttlSeconds, 'NX');
+        return result === 'OK';
+      } catch (err) {
+        logger.error(`Redis acquireLock error for key ${key}:`, err);
+      }
+    }
+
+    // Local fallback lock
+    const cached = this.localCache.get(key);
+    if (cached && Date.now() < cached.expiresAt) {
+      return false; // Already locked
+    }
+    const expiresAt = Date.now() + ttlSeconds * 1000;
+    this.localCache.set(key, { value: 'locked', expiresAt });
+    return true;
+  }
+
+  async releaseLock(key: string): Promise<void> {
+    await this.del(key);
+  }
+
   async invalidateUserCache(userId: string): Promise<void> {
     const key = `user_auth:${userId}`;
     await this.del(key);

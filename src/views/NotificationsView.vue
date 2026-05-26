@@ -190,7 +190,7 @@ onMounted(() => {
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
       <!-- Sidebar / Mobile Tabs -->
       <div
-        class="hidden lg:block lg:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10"
+        class="hidden lg:block lg:w-60 xl:w-72 border-b md:border-b-0 md:border-r shrink-0 backdrop-blur-sm bg-white/20 dark:bg-slate-900/20 z-10"
         style="border-color: var(--border-base)"
       >
         <div class="p-3 md:p-6 flex flex-col gap-3 md:gap-8">
@@ -281,7 +281,7 @@ v-for="cat in [
           </button>
         </div>
 
-        <div class="max-w-4xl mx-auto space-y-4">
+        <div class="max-w-5xl mx-auto space-y-4">
           <div v-if="isLoading" class="space-y-4">
             <div
               v-for="i in 5"

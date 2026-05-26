@@ -29,7 +29,7 @@ export const parseExternalLink = async (req: AuthRequest, res: Response, next: N
     res.json(metadata);
   } catch (error) {
     logger.error('Parse link error:', error);
-    next(new AppError((error instanceof Error ? error.message : '解析链接失败'), 400));
+    next(new AppError(error instanceof Error ? error.message : '解析链接失败', 400));
   }
 };
 
@@ -52,16 +52,17 @@ export const createCourseWithLessons = async (
 
       if (lessons && Array.isArray(lessons)) {
         await Promise.all(
-          lessons.map((lesson: { title: string; videoUrl: string; order: number; content?: string }) =>
-            tx.lesson.create({
-              data: {
-                title: lesson.title,
-                videoUrl: lesson.videoUrl,
-                order: lesson.order,
-                courseId: course.id,
-                content: lesson.content || '',
-              },
-            }),
+          lessons.map(
+            (lesson: { title: string; videoUrl: string; order: number; content?: string }) =>
+              tx.lesson.create({
+                data: {
+                  title: lesson.title,
+                  videoUrl: lesson.videoUrl,
+                  order: lesson.order,
+                  courseId: course.id,
+                  content: lesson.content || '',
+                },
+              }),
           ),
         );
       }
@@ -153,7 +154,8 @@ export const getAllCourses = async (req: AuthRequest, res: Response, next: NextF
       const { reviews, ...rest } = course;
       const avgRating =
         reviews.length > 0
-          ? reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviews.length
+          ? reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
+            reviews.length
           : 0;
       return { ...rest, avgRating: Math.round(avgRating * 10) / 10 };
     });
@@ -367,7 +369,9 @@ export const updateRoadmap = async (req: AuthRequest, res: Response, next: NextF
         const existingStepIds = existingSteps.map((s) => s.id);
 
         // 3. Identify steps to delete
-        const incomingStepIds = steps.filter((s: { id?: string }) => s.id).map((s: { id?: string }) => s.id as string);
+        const incomingStepIds = steps
+          .filter((s: { id?: string }) => s.id)
+          .map((s: { id?: string }) => s.id as string);
         const stepsToDelete = existingStepIds.filter((dbId) => !incomingStepIds.includes(dbId));
 
         if (stepsToDelete.length > 0) {

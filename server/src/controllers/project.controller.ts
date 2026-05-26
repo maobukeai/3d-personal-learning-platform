@@ -920,7 +920,7 @@ interface ParsedRoadmapStep {
 
 export function parseProjectImportText(text: string): ParsedProject {
   const lines = text.split(/\r?\n/);
-  
+
   const parsed: ParsedProject = {
     title: '未命名导入项目',
     description: '',
@@ -938,14 +938,27 @@ export function parseProjectImportText(text: string): ParsedProject {
 
     // Detect section headers
     if (line.startsWith('# ')) {
-      parsed.title = line.substring(2).replace(/^(?:项目|PROJECT)\s*[:|：]\s*/i, '').trim();
+      parsed.title = line
+        .substring(2)
+        .replace(/^(?:项目|PROJECT)\s*[:|：]\s*/i, '')
+        .trim();
       currentSection = 'project';
       continue;
     } else if (line.startsWith('## ')) {
       const secName = line.substring(3).trim();
-      if (secName.includes('任务') || secName.includes('看板') || secName.toLowerCase().includes('task') || secName.toLowerCase().includes('kanban')) {
+      if (
+        secName.includes('任务') ||
+        secName.includes('看板') ||
+        secName.toLowerCase().includes('task') ||
+        secName.toLowerCase().includes('kanban')
+      ) {
         currentSection = 'tasks';
-      } else if (secName.includes('学习') || secName.includes('路线') || secName.toLowerCase().includes('roadmap') || secName.toLowerCase().includes('learning')) {
+      } else if (
+        secName.includes('学习') ||
+        secName.includes('路线') ||
+        secName.toLowerCase().includes('roadmap') ||
+        secName.toLowerCase().includes('learning')
+      ) {
         currentSection = 'roadmap';
         parsed.roadmap = {
           title: `学习路线 - ${parsed.title}`,
@@ -977,13 +990,16 @@ export function parseProjectImportText(text: string): ParsedProject {
       }
     } else if (currentSection === 'tasks') {
       if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ')) {
-        const content = line.replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '').replace(/^-\s*/, '').trim();
+        const content = line
+          .replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '')
+          .replace(/^-\s*/, '')
+          .trim();
         if (!content) continue;
 
         const parts = content.split('|');
         const taskTitle = (parts[0] || '').trim();
         if (!taskTitle) continue;
-        
+
         let priority = 'MEDIUM';
         let dueDate: Date | null = null;
         let description = '';
@@ -996,7 +1012,11 @@ export function parseProjectImportText(text: string): ParsedProject {
             else if (pVal.includes('高') || pVal.toLowerCase() === 'high') priority = 'HIGH';
             else if (pVal.includes('紧急') || pVal.toLowerCase() === 'urgent') priority = 'URGENT';
             else priority = 'MEDIUM';
-          } else if (part.startsWith('截止') || part.toLowerCase().startsWith('due') || part.toLowerCase().startsWith('date')) {
+          } else if (
+            part.startsWith('截止') ||
+            part.toLowerCase().startsWith('due') ||
+            part.toLowerCase().startsWith('date')
+          ) {
             const dVal = part.replace(/^(?:截止|due|date)\s*[:|：]\s*/i, '').trim();
             dueDate = dVal ? new Date(dVal) : null;
           } else if (part.startsWith('描述') || part.toLowerCase().startsWith('desc')) {
@@ -1016,7 +1036,7 @@ export function parseProjectImportText(text: string): ParsedProject {
         if (currentRoadmapStep) {
           roadmapSteps.push(currentRoadmapStep);
         }
-        
+
         const stepTitle = line.substring(4).trim();
         currentRoadmapStep = {
           title: stepTitle,
@@ -1026,7 +1046,10 @@ export function parseProjectImportText(text: string): ParsedProject {
         };
       } else if (currentRoadmapStep) {
         if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ')) {
-          const subtaskText = line.replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '').replace(/^-\s*/, '').trim();
+          const subtaskText = line
+            .replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '')
+            .replace(/^-\s*/, '')
+            .trim();
           if (subtaskText) {
             currentRoadmapStep.subtasks.push({
               id: Math.random().toString(36).substring(2, 9),
@@ -1034,8 +1057,14 @@ export function parseProjectImportText(text: string): ParsedProject {
               done: false,
             });
           }
-        } else if (line.startsWith('描述') || line.startsWith('desc') || line.startsWith('Description')) {
-          currentRoadmapStep.description = line.replace(/^(?:描述|desc|Description)\s*[:|：]\s*/i, '').trim();
+        } else if (
+          line.startsWith('描述') ||
+          line.startsWith('desc') ||
+          line.startsWith('Description')
+        ) {
+          currentRoadmapStep.description = line
+            .replace(/^(?:描述|desc|Description)\s*[:|：]\s*/i, '')
+            .trim();
         } else {
           if (currentRoadmapStep.description) {
             currentRoadmapStep.description += '\n' + line;
@@ -1216,11 +1245,7 @@ export const aiGenerateProjectText = async (
   }
 };
 
-export const aiChat = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { messages } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return next(new AppError('对话内容不能为空', 400));
@@ -1243,5 +1268,3 @@ export const aiChat = async (
     }
   }
 };
-
-

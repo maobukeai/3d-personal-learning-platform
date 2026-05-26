@@ -467,10 +467,10 @@ v-for="tf in typeFilters"
 
     <!-- Showcase Grid -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-6 pt-0 scrollbar-hide">
-      <div class="max-w-7xl mx-auto">
+      <div class="max-w-none">
         <div
           v-if="filteredShowcases.length > 0"
-          class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4"
+          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4"
         >
           <ShowcaseCard
             v-for="item in filteredShowcases"

@@ -39,7 +39,11 @@ const getTokenFromRequest = (req: Request) => {
 };
 
 const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => {
-  if (!requestedWorkspaceId || requestedWorkspaceId === 'undefined' || requestedWorkspaceId === 'null') {
+  if (
+    !requestedWorkspaceId ||
+    requestedWorkspaceId === 'undefined' ||
+    requestedWorkspaceId === 'null'
+  ) {
     const personalTeam = await prisma.team.findFirst({
       where: { ownerId: user.id, type: 'PERSONAL' },
       select: { id: true },
@@ -118,7 +122,9 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }) as { id: string };
+    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }) as {
+      id: string;
+    };
     await attachAuthenticatedUser(req, decoded.id);
     next();
   } catch (error) {
@@ -134,7 +140,9 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }) as { id: string };
+    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }) as {
+      id: string;
+    };
     await attachAuthenticatedUser(req, decoded.id);
     next();
   } catch (error) {

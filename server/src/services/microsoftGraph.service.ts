@@ -176,11 +176,10 @@ export class MicrosoftGraphService {
       return response.data;
     } catch (error) {
       const errorMsg =
-        (error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)) || 'Connection test failed';
-      logger.error(
-        `MicrosoftGraphService: Test connection failed for ${account.email}:`,
-        errorMsg,
-      );
+        (error as any).response?.data?.error?.message ||
+        (error instanceof Error ? error.message : String(error)) ||
+        'Connection test failed';
+      logger.error(`MicrosoftGraphService: Test connection failed for ${account.email}:`, errorMsg);
 
       await prisma.microsoftEmailAccount.update({
         where: { id: accountId },
@@ -208,8 +207,14 @@ export class MicrosoftGraphService {
       });
       return response.data.value || [];
     } catch (error) {
-      logger.error(`MicrosoftGraphService: Fetch folders failed for ${accountId}:`, error instanceof Error ? error.message : error);
-      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
+      logger.error(
+        `MicrosoftGraphService: Fetch folders failed for ${accountId}:`,
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error(
+        (error as any).response?.data?.error?.message ||
+          (error instanceof Error ? error.message : String(error)),
+      );
     }
   }
 
@@ -242,9 +247,12 @@ export class MicrosoftGraphService {
     } catch (error) {
       logger.error(
         `MicrosoftGraphService: Fetch messages failed for folder ${folderId} inside ${accountId}:`,
-        (error instanceof Error ? error.message : String(error)),
+        error instanceof Error ? error.message : String(error),
       );
-      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
+      throw new Error(
+        (error as any).response?.data?.error?.message ||
+          (error instanceof Error ? error.message : String(error)),
+      );
     }
   }
 
@@ -275,9 +283,12 @@ export class MicrosoftGraphService {
     } catch (error) {
       logger.error(
         `MicrosoftGraphService: Mark message read failed for message ${messageId}:`,
-        (error instanceof Error ? error.message : String(error)),
+        error instanceof Error ? error.message : String(error),
       );
-      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
+      throw new Error(
+        (error as any).response?.data?.error?.message ||
+          (error instanceof Error ? error.message : String(error)),
+      );
     }
   }
 
@@ -333,9 +344,12 @@ export class MicrosoftGraphService {
     } catch (error) {
       logger.error(
         `MicrosoftGraphService: Delete message failed for message ${messageId}:`,
-        (error instanceof Error ? error.message : String(error)),
+        error instanceof Error ? error.message : String(error),
       );
-      throw new Error((error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)));
+      throw new Error(
+        (error as any).response?.data?.error?.message ||
+          (error instanceof Error ? error.message : String(error)),
+      );
     }
   }
 
@@ -425,7 +439,9 @@ export class MicrosoftGraphService {
       });
     } catch (error) {
       const errorMsg =
-        (error as any).response?.data?.error?.message || (error instanceof Error ? error.message : String(error)) || 'Failed to send mail';
+        (error as any).response?.data?.error?.message ||
+        (error instanceof Error ? error.message : String(error)) ||
+        'Failed to send mail';
       logger.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
       throw new Error(errorMsg);
     }

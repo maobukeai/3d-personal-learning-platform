@@ -119,10 +119,14 @@ const createUploadMiddleware = (config: {
             return res.status(400).json({ error: `文件大小超过限制 (${displayLimit}MB)` });
           }
           logger.error(`[UploadError] MulterError: ${err instanceof Error ? err.message : err}`);
-          return res.status(400).json({ error: err instanceof Error ? err.message : 'An error occurred' });
+          return res
+            .status(400)
+            .json({ error: err instanceof Error ? err.message : 'An error occurred' });
         } else if (err) {
           logger.error(`[UploadError] Unknown error: ${err instanceof Error ? err.message : err}`);
-          return res.status(400).json({ error: err instanceof Error ? err.message : 'An error occurred' });
+          return res
+            .status(400)
+            .json({ error: err instanceof Error ? err.message : 'An error occurred' });
         }
 
         // Manual extension check for dynamic settings

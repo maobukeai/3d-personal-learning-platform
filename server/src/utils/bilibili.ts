@@ -143,7 +143,10 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
     };
     return await parseFromBilibiliData(mergedData, bvid || bvidFromState);
   } catch (error) {
-    logger.error('[Bilibili] Parse error, falling back to API:', (error instanceof Error ? error.message : String(error)));
+    logger.error(
+      '[Bilibili] Parse error, falling back to API:',
+      error instanceof Error ? error.message : String(error),
+    );
     return await fetchFromApi(bvid, avid);
   }
 }

@@ -948,8 +948,9 @@ v-for="tab in tabs"
                       class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
                       style="border-color: var(--border-base); background-color: var(--bg-app)"
                     >
-                      <img alt=""
-                        v-if="settings.PLATFORM_LOGO_URL"
+                      <img
+v-if="settings.PLATFORM_LOGO_URL"
+                        alt=""
                         :src="getAssetUrl(settings.PLATFORM_LOGO_URL)"
                         class="w-full h-full object-contain p-1"
                       />
@@ -996,8 +997,9 @@ v-for="tab in tabs"
                       class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
                       style="border-color: var(--border-base); background-color: var(--bg-app)"
                     >
-                      <img alt=""
-                        v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
+                      <img
+v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
+                        alt=""
                         :src="
                           getAssetUrl(settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL)
                         "
@@ -2138,7 +2140,7 @@ type="button"
                     />
                   </div>
 
-                  <div class="col-span-1 md:col-span-2 space-y-2" v-if="settings.AI_PROVIDER !== 'OLLAMA'">
+                  <div v-if="settings.AI_PROVIDER !== 'OLLAMA'" class="col-span-1 md:col-span-2 space-y-2">
                     <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">API 密钥 (API Key)</label>
                     <div class="relative">
                       <input

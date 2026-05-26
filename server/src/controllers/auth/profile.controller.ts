@@ -81,10 +81,13 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response, next
     });
 
     const settings = await prisma.systemSetting.findMany();
-    const configData = settings.reduce((acc: Record<string, string>, curr) => {
-      acc[curr.key] = curr.value || '';
-      return acc;
-    }, {} as Record<string, string>);
+    const configData = settings.reduce(
+      (acc: Record<string, string>, curr) => {
+        acc[curr.key] = curr.value || '';
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     const subject = configData.EMAIL_VERIFY_SUBJECT || '您的邮箱验证码';
     let html =
@@ -166,10 +169,13 @@ export const sendCodeToNewEmail = async (req: AuthRequest, res: Response, next: 
     });
 
     const settings = await prisma.systemSetting.findMany();
-    const configData = settings.reduce((acc: Record<string, string>, curr) => {
-      acc[curr.key] = curr.value || '';
-      return acc;
-    }, {} as Record<string, string>);
+    const configData = settings.reduce(
+      (acc: Record<string, string>, curr) => {
+        acc[curr.key] = curr.value || '';
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     const subject = configData.EMAIL_VERIFY_SUBJECT || '您的邮箱验证码';
     let html =
@@ -538,10 +544,13 @@ export const getUserSettings = async (req: AuthRequest, res: Response, next: Nex
     const settings = await prisma.userSetting.findMany({
       where: { userId: req.userId as string },
     });
-    const config = settings.reduce((acc: Record<string, string>, curr) => {
-      acc[curr.key] = curr.value || '';
-      return acc;
-    }, {} as Record<string, string>);
+    const config = settings.reduce(
+      (acc: Record<string, string>, curr) => {
+        acc[curr.key] = curr.value || '';
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
     res.json(config);
   } catch (error) {
     next(error);

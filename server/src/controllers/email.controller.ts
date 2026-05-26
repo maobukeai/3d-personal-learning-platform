@@ -46,7 +46,12 @@ export class EmailController {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
-    const parsedAccounts: Array<{ email: string; password?: string; clientId: string; refreshToken: string }> = [];
+    const parsedAccounts: Array<{
+      email: string;
+      password?: string;
+      clientId: string;
+      refreshToken: string;
+    }> = [];
     const errors: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -140,7 +145,9 @@ export class EmailController {
       });
     } catch (e) {
       logger.error('EmailController: Import error', e);
-      res.status(500).json({ error: '数据库导入失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '数据库导入失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -156,7 +163,9 @@ export class EmailController {
       });
       res.status(200).json(accounts.map(toPublicEmailAccount));
     } catch (e) {
-      res.status(500).json({ error: '获取账号列表失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '获取账号列表失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -183,7 +192,9 @@ export class EmailController {
 
       res.status(200).json({ success: true, message: '账号已成功从系统中移除' });
     } catch (e) {
-      res.status(500).json({ error: '删除账号失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '删除账号失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -211,7 +222,9 @@ export class EmailController {
         profile,
       });
     } catch (e) {
-      res.status(500).json({ error: '连接微软服务失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '连接微软服务失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -235,7 +248,9 @@ export class EmailController {
       const folders = await MicrosoftGraphService.fetchFolders(id);
       res.status(200).json(folders);
     } catch (e) {
-      res.status(500).json({ error: '获取文件夹列表失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '获取文件夹列表失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -265,7 +280,9 @@ export class EmailController {
       );
       res.status(200).json(messages);
     } catch (e) {
-      res.status(500).json({ error: '获取邮件列表失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '获取邮件列表失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -291,7 +308,10 @@ export class EmailController {
       await MicrosoftGraphService.markMessageRead(id, messageId, isRead);
       res.status(200).json({ success: true });
     } catch (e) {
-      res.status(500).json({ error: '更新邮件阅读状态失败', details: e instanceof Error ? e.message : String(e) });
+      res.status(500).json({
+        error: '更新邮件阅读状态失败',
+        details: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -316,7 +336,9 @@ export class EmailController {
       await MicrosoftGraphService.deleteMessage(id, messageId);
       res.status(200).json({ success: true, message: '邮件已成功删除' });
     } catch (e) {
-      res.status(500).json({ error: '删除邮件失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '删除邮件失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -415,7 +437,9 @@ export class EmailController {
       });
     } catch (e) {
       logger.error('EmailController: Send error', e);
-      res.status(500).json({ error: '邮件发送失败', details: e instanceof Error ? e.message : String(e) });
+      res
+        .status(500)
+        .json({ error: '邮件发送失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
 }

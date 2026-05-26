@@ -203,7 +203,7 @@ export class MirrorService {
         }
       } catch (e) {
         logger.warn(
-          `[MirrorService] Failed to load detail page on-demand for ${resource.externalId}: ${(e instanceof Error ? e.message : String(e))}`,
+          `[MirrorService] Failed to load detail page on-demand for ${resource.externalId}: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
     }

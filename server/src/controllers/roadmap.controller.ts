@@ -118,7 +118,9 @@ export const createRoadmap = async (req: AuthRequest, res: Response) => {
     res.status(201).json(fullRoadmap);
   } catch (error) {
     logger.error('Create custom roadmap error:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
@@ -180,7 +182,9 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
     res.json(fullRoadmap);
   } catch (error) {
     logger.error('Update custom roadmap error:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
@@ -199,6 +203,8 @@ export const deleteRoadmap = async (req: AuthRequest, res: Response) => {
     res.json({ message: '学习路径已成功删除' });
   } catch (error) {
     logger.error('Delete custom roadmap error:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };

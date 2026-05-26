@@ -329,9 +329,9 @@ onMounted(() => {
 
     <!-- Main Content Scroll Area -->
     <div class="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-3.5 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-3 md:space-y-3.5 min-w-0">
+      <div class="max-w-none space-y-3 md:space-y-3.5 min-w-0">
         <!-- Stats Grid -->
-        <div class="grid grid-cols-4 gap-1.5 sm:gap-3 lg:gap-3.5">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3 lg:gap-3.5">
           <StatCard
             v-for="stat in stats"
             :key="stat.label"
@@ -343,9 +343,9 @@ onMounted(() => {
           />
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-3.5">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-3 md:gap-3.5">
           <!-- Left Column: Tasks & Assets -->
-          <div class="lg:col-span-2 space-y-3 md:space-y-3.5">
+          <div class="xl:col-span-2 space-y-3 md:space-y-3.5">
             <!-- Active Learning Card -->
             <ActiveLearningCard :active-enrollment="activeEnrollment" />
 

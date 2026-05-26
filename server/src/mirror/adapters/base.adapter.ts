@@ -105,7 +105,7 @@ export abstract class BaseAdapter {
         if (attempt < retries) {
           const delayMs = this.retryBaseDelay * Math.pow(2, attempt) + Math.random() * 500;
           logger.warn(
-            `[BaseAdapter] Attempt ${attempt + 1}/${retries + 1} failed: ${(e instanceof Error ? e.message : String(e))}. Retrying in ${Math.round(delayMs)}ms...`,
+            `[BaseAdapter] Attempt ${attempt + 1}/${retries + 1} failed: ${e instanceof Error ? e.message : String(e)}. Retrying in ${Math.round(delayMs)}ms...`,
           );
           await this.delay(delayMs);
         }

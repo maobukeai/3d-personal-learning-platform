@@ -27,7 +27,10 @@ function resolveRealIp(hostname: string): Promise<string> {
           return;
         }
       } catch (err) {
-        logger.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
+        logger.error(
+          '[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup',
+          err,
+        );
       }
     }
 
@@ -160,7 +163,10 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
         logger.info('[Email Pool Fallback] Falling back to standard SMTP sending...');
       }
     } catch (err) {
-      logger.error(`[Email Pool Error] Failed to send via Microsoft Pool:`, err instanceof Error ? err.message : err);
+      logger.error(
+        `[Email Pool Error] Failed to send via Microsoft Pool:`,
+        err instanceof Error ? err.message : err,
+      );
       if (!fallbackSmtp) {
         return false;
       }

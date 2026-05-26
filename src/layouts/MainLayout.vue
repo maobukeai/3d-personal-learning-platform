@@ -595,7 +595,7 @@ onUnmounted(() => {
 
       <!-- Main Content Area -->
       <main
-        class="flex-1 flex flex-col overflow-hidden relative pb-14 lg:pb-0"
+        class="flex-1 flex flex-col overflow-hidden relative pb-16 lg:pb-0"
         style="background-color: var(--bg-app)"
       >
         <div

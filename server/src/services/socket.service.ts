@@ -37,15 +37,18 @@ export const initSocket = (server: HttpServer) => {
 
     // Check cookies if not in auth/headers
     if (!token && socket.handshake.headers.cookie) {
-      const cookies = socket.handshake.headers.cookie.split(';').reduce((acc: Record<string, string>, curr) => {
-        const parts = curr.trim().split('=');
-        const key = parts[0];
-        const value = parts[1];
-        if (key && value) {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, string>);
+      const cookies = socket.handshake.headers.cookie.split(';').reduce(
+        (acc: Record<string, string>, curr) => {
+          const parts = curr.trim().split('=');
+          const key = parts[0];
+          const value = parts[1];
+          if (key && value) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
       token = cookies['token'];
     }
 
@@ -55,7 +58,9 @@ export const initSocket = (server: HttpServer) => {
 
     try {
       const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-      const decoded = jwt.verify(cleanToken, config.JWT_SECRET, { algorithms: ['HS256'] }) as { id: string };
+      const decoded = jwt.verify(cleanToken, config.JWT_SECRET, { algorithms: ['HS256'] }) as {
+        id: string;
+      };
       (socket as unknown as { userId: string }).userId = decoded.id;
       next();
     } catch (err) {

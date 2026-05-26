@@ -224,7 +224,9 @@ class ThumbnailLocalizer {
 
       return localUrl;
     } catch (e) {
-      logger.warn(`[ThumbnailLocalizer] Error localizing ${originalUrl}: ${(e instanceof Error ? e.message : String(e))}`);
+      logger.warn(
+        `[ThumbnailLocalizer] Error localizing ${originalUrl}: ${e instanceof Error ? e.message : String(e)}`,
+      );
       return originalUrl;
     }
   }
@@ -308,7 +310,9 @@ class ThumbnailLocalizer {
 
       return $.html();
     } catch (e) {
-      logger.warn(`[ThumbnailLocalizer] Error localizing HTML content images: ${(e instanceof Error ? e.message : String(e))}`);
+      logger.warn(
+        `[ThumbnailLocalizer] Error localizing HTML content images: ${e instanceof Error ? e.message : String(e)}`,
+      );
       return htmlContent;
     }
   }

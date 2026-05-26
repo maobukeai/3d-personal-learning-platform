@@ -75,7 +75,9 @@ export const parseBilibili = async (req: AuthRequest, res: Response, next: NextF
     const metadata = await parseBilibiliUrl(url);
     res.json(metadata);
   } catch (error) {
-    next(new AppError((error instanceof Error ? error.message : 'Failed to parse Bilibili URL'), 400));
+    next(
+      new AppError(error instanceof Error ? error.message : 'Failed to parse Bilibili URL', 400),
+    );
   }
 };
 

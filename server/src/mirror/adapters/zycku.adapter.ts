@@ -333,7 +333,9 @@ export class ZyckuAdapter extends BaseAdapter {
         return await this.fetchResourceDetailViaApi(externalId, signal);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') throw e;
-        logger.warn(`[ZyckuAdapter] REST API detail failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
+        logger.warn(
+          `[ZyckuAdapter] REST API detail failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`,
+        );
         this.restApiAvailable = false;
       }
     }
@@ -497,7 +499,9 @@ export class ZyckuAdapter extends BaseAdapter {
         return await this.fetchUpdatesViaApi(since, signal);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') throw e;
-        logger.warn(`[ZyckuAdapter] REST API updates failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`);
+        logger.warn(
+          `[ZyckuAdapter] REST API updates failed, falling back to HTML: ${e instanceof Error ? e.message : String(e)}`,
+        );
         this.restApiAvailable = false;
       }
     }

@@ -14,7 +14,7 @@ export interface AIServiceConfig {
 /**
  * Standard single-turn LLM call.
  * Useful for automated generations (e.g. project markdown outline generation).
- * 
+ *
  * @param prompt User prompt text
  * @param systemPrompt Instructions defining the AI role/format
  * @param overrides Temporary config parameters (used in connection testing)
@@ -23,10 +23,10 @@ export interface AIServiceConfig {
 export async function callLLM(
   prompt: string,
   systemPrompt: string,
-  overrides?: Partial<AIServiceConfig>
+  overrides?: Partial<AIServiceConfig>,
 ): Promise<string> {
   const settings = await settingsService.getAll();
-  
+
   const provider = overrides?.AI_PROVIDER ?? settings.AI_PROVIDER ?? 'DEEPSEEK';
   const apiKey = overrides?.AI_API_KEY ?? settings.AI_API_KEY;
   const endpoint = overrides?.AI_API_ENDPOINT ?? settings.AI_API_ENDPOINT;
@@ -43,14 +43,14 @@ export async function callLLM(
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: prompt }
+    { role: 'user', content: prompt },
   ];
 
   let url = endpoint;
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  let body: any = {};
+  let body: any;
 
   if (provider === 'AZURE') {
     headers['api-key'] = apiKey;
@@ -59,21 +59,22 @@ export async function callLLM(
       messages,
       temperature: 0.3,
     };
-  } else if (provider === 'GEMINI' && (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))) {
+  } else if (
+    provider === 'GEMINI' &&
+    (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
+  ) {
     const model = modelName || 'gemini-1.5-flash';
     url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     body = {
       contents: [
         {
           role: 'user',
-          parts: [
-            { text: `${systemPrompt}\n\n用户输入：\n${prompt}` }
-          ]
-        }
+          parts: [{ text: `${systemPrompt}\n\n用户输入：\n${prompt}` }],
+        },
       ],
       generationConfig: {
-        temperature: 0.3
-      }
+        temperature: 0.3,
+      },
     };
   } else {
     if (apiKey) {
@@ -97,7 +98,10 @@ export async function callLLM(
       timeout: 60000,
     });
 
-    if (provider === 'GEMINI' && (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))) {
+    if (
+      provider === 'GEMINI' &&
+      (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
+    ) {
       const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
         throw new Error('Gemini API 返回内容为空，请检查模型名称和密钥是否正确。');
@@ -112,13 +116,18 @@ export async function callLLM(
     }
   } catch (error: any) {
     logger.error('[AI Service Error]:', error);
-    let errMsg = error.response?.data?.error?.message || error.response?.data?.message || error.message || String(error);
+    let errMsg =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.message ||
+      String(error);
     if (error.code === 'ECONNABORTED') {
       errMsg = '请求超时，请检查您的 API Endpoint 能否从服务器正常连接。';
     } else if (error.response?.status === 401) {
       errMsg = '鉴权失败，请检查您的 API 密钥 (API Key) 是否正确。';
     } else if (error.response?.status === 404) {
-      errMsg = 'API 终端未找到 (404)。如果您使用的是自定义 API Endpoint，请确认是否拼写正确，或是否需要补全 /chat/completions。';
+      errMsg =
+        'API 终端未找到 (404)。如果您使用的是自定义 API Endpoint，请确认是否拼写正确，或是否需要补全 /chat/completions。';
     }
     throw new Error(`AI 服务调用失败: ${errMsg}`);
   }
@@ -126,7 +135,7 @@ export async function callLLM(
 
 /**
  * Standard multi-turn chat interaction helper.
- * 
+ *
  * @param messages Conversation message history array
  * @param systemPrompt Chat constraints and persona instructions
  * @param overrides Temporary configuration overrides
@@ -135,10 +144,10 @@ export async function callLLM(
 export async function callLLMChat(
   messages: { role: string; content: string }[],
   systemPrompt: string,
-  overrides?: Partial<AIServiceConfig>
+  overrides?: Partial<AIServiceConfig>,
 ): Promise<string> {
   const settings = await settingsService.getAll();
-  
+
   const provider = overrides?.AI_PROVIDER ?? settings.AI_PROVIDER ?? 'DEEPSEEK';
   const apiKey = overrides?.AI_API_KEY ?? settings.AI_API_KEY;
   const endpoint = overrides?.AI_API_ENDPOINT ?? settings.AI_API_ENDPOINT;
@@ -153,16 +162,13 @@ export async function callLLMChat(
     throw new Error(`提供商 ${provider} 需要配置 API 密钥 (API Key)。`);
   }
 
-  const fullMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages
-  ];
+  const fullMessages = [{ role: 'system', content: systemPrompt }, ...messages];
 
   let url = endpoint;
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  let body: any = {};
+  let body: any;
 
   if (provider === 'AZURE') {
     headers['api-key'] = apiKey;
@@ -171,10 +177,13 @@ export async function callLLMChat(
       messages: fullMessages,
       temperature: 0.7,
     };
-  } else if (provider === 'GEMINI' && (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))) {
-    const geminiContents = messages.map(m => ({
+  } else if (
+    provider === 'GEMINI' &&
+    (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
+  ) {
+    const geminiContents = messages.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
+      parts: [{ text: m.content }],
     }));
 
     const model = modelName || 'gemini-1.5-flash';
@@ -182,11 +191,11 @@ export async function callLLMChat(
     body = {
       contents: geminiContents,
       systemInstruction: {
-        parts: [{ text: systemPrompt }]
+        parts: [{ text: systemPrompt }],
       },
       generationConfig: {
-        temperature: 0.7
-      }
+        temperature: 0.7,
+      },
     };
   } else {
     if (apiKey) {
@@ -210,7 +219,10 @@ export async function callLLMChat(
       timeout: 60000,
     });
 
-    if (provider === 'GEMINI' && (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))) {
+    if (
+      provider === 'GEMINI' &&
+      (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
+    ) {
       const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
         throw new Error('Gemini API 返回内容为空，请检查模型名称和密钥是否正确。');
@@ -225,13 +237,18 @@ export async function callLLMChat(
     }
   } catch (error: any) {
     logger.error('[AI Chat Service Error]:', error);
-    let errMsg = error.response?.data?.error?.message || error.response?.data?.message || error.message || String(error);
+    let errMsg =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.message ||
+      String(error);
     if (error.code === 'ECONNABORTED') {
       errMsg = '请求超时，请检查您的 API Endpoint 能否从服务器正常连接。';
     } else if (error.response?.status === 401) {
       errMsg = '鉴权失败，请检查您的 API 密钥 (API Key) 是否正确。';
     } else if (error.response?.status === 404) {
-      errMsg = 'API 终端未找到 (404)。如果您使用的是自定义 API Endpoint，请确认是否拼写正确，或是否需要补全 /chat/completions。';
+      errMsg =
+        'API 终端未找到 (404)。如果您使用的是自定义 API Endpoint，请确认是否拼写正确，或是否需要补全 /chat/completions。';
     }
     throw new Error(`AI 智能对话调用失败: ${errMsg}`);
   }
@@ -240,7 +257,7 @@ export async function callLLMChat(
 /**
  * Server-Sent Events (SSE) streaming API chat interaction.
  * Streams LLM output chunks directly back to the client HTTP response.
- * 
+ *
  * @param messages Conversation message history array
  * @param systemPrompt Chat constraints and persona instructions
  * @param res Express response stream object
@@ -250,10 +267,10 @@ export async function streamLLMChat(
   messages: { role: string; content: string }[],
   systemPrompt: string,
   res: Response,
-  overrides?: Partial<AIServiceConfig>
+  overrides?: Partial<AIServiceConfig>,
 ): Promise<void> {
   const settings = await settingsService.getAll();
-  
+
   const provider = overrides?.AI_PROVIDER ?? settings.AI_PROVIDER ?? 'DEEPSEEK';
   const apiKey = overrides?.AI_API_KEY ?? settings.AI_API_KEY;
   const endpoint = overrides?.AI_API_ENDPOINT ?? settings.AI_API_ENDPOINT;
@@ -268,16 +285,13 @@ export async function streamLLMChat(
     throw new Error(`提供商 ${provider} 需要配置 API 密钥。`);
   }
 
-  const fullMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages
-  ];
+  const fullMessages = [{ role: 'system', content: systemPrompt }, ...messages];
 
   let url = endpoint;
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  let body: any = {};
+  let body: any;
 
   if (provider === 'AZURE') {
     headers['api-key'] = apiKey;
@@ -287,22 +301,25 @@ export async function streamLLMChat(
       temperature: 0.7,
       stream: true,
     };
-  } else if (provider === 'GEMINI' && (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))) {
+  } else if (
+    provider === 'GEMINI' &&
+    (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
+  ) {
     // Gemini streaming generateContent endpoint
     const model = modelName || 'gemini-1.5-flash';
     url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}`;
-    const geminiContents = messages.map(m => ({
+    const geminiContents = messages.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
+      parts: [{ text: m.content }],
     }));
     body = {
       contents: geminiContents,
       systemInstruction: {
-        parts: [{ text: systemPrompt }]
+        parts: [{ text: systemPrompt }],
       },
       generationConfig: {
-        temperature: 0.7
-      }
+        temperature: 0.7,
+      },
     };
   } else {
     if (apiKey) {
@@ -345,14 +362,17 @@ export async function streamLLMChat(
 
     const stream = response.data;
 
-    if (provider === 'GEMINI' && (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))) {
+    if (
+      provider === 'GEMINI' &&
+      (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
+    ) {
       let streamBuffer = '';
       stream.on('data', (chunk: Buffer) => {
         streamBuffer += chunk.toString('utf8');
         let match;
         const regex = /"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
         let lastIndex = 0;
-        
+
         while ((match = regex.exec(streamBuffer)) !== null) {
           if (match[1] !== undefined) {
             try {
@@ -369,7 +389,7 @@ export async function streamLLMChat(
           }
           lastIndex = regex.lastIndex;
         }
-        
+
         if (lastIndex > 0) {
           streamBuffer = streamBuffer.substring(lastIndex);
         }
@@ -426,7 +446,6 @@ export async function streamLLMChat(
       }
       res.end();
     });
-
   } catch (error: any) {
     logger.error('[AI Streaming Request Error]:', error);
     let errMsg = error.message || String(error);

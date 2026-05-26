@@ -58,7 +58,10 @@ export const getNotes = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    let orderBy: Prisma.NoteOrderByWithRelationInput[] = [{ isPinned: 'desc' as const }, { createdAt: 'desc' as const }];
+    let orderBy: Prisma.NoteOrderByWithRelationInput[] = [
+      { isPinned: 'desc' as const },
+      { createdAt: 'desc' as const },
+    ];
     if (sort === 'most_liked') {
       orderBy = [{ isPinned: 'desc' as const }, { likes: { _count: 'desc' as const } }];
     } else if (sort === 'most_viewed') {

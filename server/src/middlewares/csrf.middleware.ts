@@ -32,7 +32,7 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
   ];
 
   const requestPath = req.originalUrl.split('?')[0] || req.originalUrl;
-  if (bypassUrls.some(url => requestPath === url || requestPath.startsWith(url))) {
+  if (bypassUrls.some((url) => requestPath === url || requestPath.startsWith(url))) {
     return next();
   }
 

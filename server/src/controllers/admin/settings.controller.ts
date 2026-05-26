@@ -35,7 +35,10 @@ function resolveSmtpRealIp(hostname: string): Promise<string> {
           return;
         }
       } catch (err) {
-        logger.error('[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup', err);
+        logger.error(
+          '[SMTP DNS Resolve Warning]: Failed to use DNS_SERVERS env, falling back to dns.lookup',
+          err,
+        );
       }
     }
 
@@ -269,7 +272,9 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
       errorMsg = '连接被拒绝。目标服务器可能不可达，或端口被本地 ISP 封锁。';
     else if ((error as { code?: string }).code === 'EAUTH')
       errorMsg = '验证失败。请确保您使用的是 Gmail 的 16 位“应用专用密码”而非主密码。';
-    else if ((error instanceof Error ? error.message : String(error)).includes('secure TLS connection'))
+    else if (
+      (error instanceof Error ? error.message : String(error)).includes('secure TLS connection')
+    )
       errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';
 
     next(new AppError(`SMTP 连接失败: ${errorMsg}`, 500));
@@ -315,7 +320,12 @@ export const cleanupStorage = async (req: AuthRequest, res: Response, next: Next
       stats,
     });
   } catch (error) {
-    next(new AppError('清理存储空间失败: ' + (error instanceof Error ? error.message : String(error)), 500));
+    next(
+      new AppError(
+        '清理存储空间失败: ' + (error instanceof Error ? error.message : String(error)),
+        500,
+      ),
+    );
   }
 };
 
@@ -352,4 +362,3 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
     next(new AppError(error instanceof Error ? error.message : String(error), 500));
   }
 };
-

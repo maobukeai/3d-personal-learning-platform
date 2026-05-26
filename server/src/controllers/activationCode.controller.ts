@@ -299,6 +299,8 @@ export const redeemActivationCode = async (req: AuthRequest, res: Response) => {
       endDate: result.endDate,
     });
   } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : '兑换失败，请稍后重试' });
+    res
+      .status(400)
+      .json({ error: error instanceof Error ? error.message : '兑换失败，请稍后重试' });
   }
 };

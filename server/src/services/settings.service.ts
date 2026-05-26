@@ -237,7 +237,10 @@ class SettingsService {
     // Keep MAX_UPLOAD_SIZE_MB and MAX_FILE_SIZE synchronized
     if (settings['MAX_UPLOAD_SIZE_MB'] !== undefined && settings['MAX_FILE_SIZE'] === undefined) {
       settings['MAX_FILE_SIZE'] = settings['MAX_UPLOAD_SIZE_MB'];
-    } else if (settings['MAX_FILE_SIZE'] !== undefined && settings['MAX_UPLOAD_SIZE_MB'] === undefined) {
+    } else if (
+      settings['MAX_FILE_SIZE'] !== undefined &&
+      settings['MAX_UPLOAD_SIZE_MB'] === undefined
+    ) {
       settings['MAX_UPLOAD_SIZE_MB'] = settings['MAX_FILE_SIZE'];
     }
 

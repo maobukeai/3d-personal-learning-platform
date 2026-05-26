@@ -71,8 +71,6 @@ const difficultyFilter = ref<string | null>(null);
 const showFilters = ref(false);
 const bookmarkedCourseIds = ref<Set<string>>(new Set());
 
-
-
 const learningStats = computed(() => {
   const enrolled = myEnrollments.value;
   const totalCourses = enrolled.length;
@@ -261,17 +259,21 @@ onMounted(() => {
 
         <div class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl shrink-0" style="background-color: var(--bg-app)">
           <button
-v-for="sort in [
+            v-for="sort in [
               { key: 'newest', label: '最新' },
               { key: 'popular', label: '最热' },
               { key: 'rating', label: '好评' },
-            ]" :key="sort.key" type="button" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap" :class="
+            ]"
+            :key="sort.key"
+            type="button"
+            class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap"
+            :class="
               sortBy === sort.key
                 ? 'bg-white dark:bg-white/10 shadow-sm text-accent'
                 : 'text-slate-400 hover:text-slate-600'
-            " @click="
-              setSortBy(sort.key);
-            ">
+            "
+            @click="setSortBy(sort.key)"
+          >
             {{ sort.label }}
           </button>
         </div>
@@ -287,15 +289,22 @@ v-for="sort in [
       <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
       <div class="flex flex-wrap items-center gap-2">
         <button
-v-for="d in [
+          v-for="d in [
             { key: '', label: '全部' },
             { key: 'BEGINNER', label: '入门' },
             { key: 'INTERMEDIATE', label: '进阶' },
             { key: 'ADVANCED', label: '高级' },
-          ]" :key="d.key" type="button" class="px-3 py-1 rounded-lg text-xs font-bold transition-all" :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5'" :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''" @click="
+          ]"
+          :key="d.key"
+          type="button"
+          class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+          :class="difficultyFilter === (d.key || null) ? 'bg-accent text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5'"
+          :style="difficultyFilter !== (d.key || null) ? 'color: var(--text-secondary)' : ''"
+          @click="
             difficultyFilter = d.key || null;
             fetchData();
-          ">
+          "
+        >
           {{ d.label }}
         </button>
       </div>
@@ -307,25 +316,30 @@ v-for="d in [
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <button
-type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap" :class="
-          !activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'
-        " :style="activeCategoryId ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = null">
+        type="button"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
+        :class="!activeCategoryId ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :style="activeCategoryId ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = null"
+      >
         全部课程
       </button>
       <button
-type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5" :class="
-          activeCategoryId === 'mine'
-            ? 'bg-accent text-white shadow-md shadow-accent/20'
-            : 'hover:opacity-80'
-        " :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = 'mine'">
+        type="button"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
+        :class="activeCategoryId === 'mine' ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = 'mine'"
+      >
         <BookOpen class="w-3.5 h-3.5" /> 我的课程
       </button>
       <button
-type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5" :class="
-          activeCategoryId === 'bookmarked'
-            ? 'bg-accent text-white shadow-md shadow-accent/20'
-            : 'hover:opacity-80'
-        " :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = 'bookmarked'">
+        type="button"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center gap-1.5"
+        :class="activeCategoryId === 'bookmarked' ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = 'bookmarked'"
+      >
         <Bookmark class="w-3.5 h-3.5" /> 我的收藏
       </button>
       <div
@@ -333,11 +347,14 @@ type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium trans
         style="background-color: var(--border-base)"
       ></div>
       <button
-v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap" :class="
-          activeCategoryId === cat.id
-            ? 'bg-accent text-white shadow-md shadow-accent/20'
-            : 'hover:opacity-80'
-        " :style="activeCategoryId !== cat.id ? 'color: var(--text-secondary)' : ''" @click="activeCategoryId = cat.id">
+        v-for="cat in categories"
+        :key="cat.id"
+        type="button"
+        class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap"
+        :class="activeCategoryId === cat.id ? 'bg-accent text-white shadow-md shadow-accent/20' : 'hover:opacity-80'"
+        :style="activeCategoryId !== cat.id ? 'color: var(--text-secondary)' : ''"
+        @click="activeCategoryId = cat.id"
+      >
         {{ cat.name }}
         <span class="ml-1 text-[10px] opacity-60">{{ cat._count?.courses || 0 }}</span>
       </button>
@@ -345,7 +362,7 @@ v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded
 
     <!-- Content Area -->
     <div class="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-4.5 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-6 sm:space-y-7">
+      <div class="max-w-none space-y-6 sm:space-y-7">
         <!-- My Courses: Learning Stats & Continue Learning -->
         <template v-if="activeCategoryId === 'mine' && myEnrollments.length > 0">
           <!-- Learning Stats -->
@@ -354,49 +371,37 @@ v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded
               <TrendingUp class="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
               <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">学习概览</h2>
             </div>
-            <!-- Stats Container: Fixed 5 columns on mobile, Grid on desktop -->
+            <!-- Stats Container: Fixed 5 columns -->
             <div class="grid grid-cols-5 gap-1 sm:gap-2.5">
-              <div
-                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
-              >
+              <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">在学</span>
                   <BookOpen class="hidden sm:block w-4 h-4 text-accent" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
               </div>
-              <div
-                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
-              >
+              <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">已完成</span>
                   <Trophy class="hidden sm:block w-4 h-4 text-amber-500" />
                 </div>
-                <p class="text-xs sm:text-2xl font-black text-amber-500">
-                  {{ learningStats.completedCourses }}
-                </p>
+                <p class="text-xs sm:text-2xl font-black text-amber-500">{{ learningStats.completedCourses }}</p>
               </div>
-              <div
-                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
-              >
+              <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">课时</span>
                   <Clock class="hidden sm:block w-4 h-4 text-indigo-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
               </div>
-              <div
-                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
-              >
+              <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">平均</span>
                   <Target class="hidden sm:block w-4 h-4 text-emerald-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-emerald-500">{{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span></p>
               </div>
-              <div
-                class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center"
-              >
+              <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
                   <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">报名</span>
                   <Flame class="hidden sm:block w-4 h-4 text-rose-500" />
@@ -427,9 +432,7 @@ v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded
 
         <!-- Featured Section (only on "all" tab) -->
         <section
-          v-if="
-            !activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0
-          "
+          v-if="!activeCategoryId && !searchQuery && !difficultyFilter && featuredCourses.length > 0"
         >
           <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Sparkles class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
@@ -460,7 +463,7 @@ v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded
             <Heart class="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
             <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">猜你想学</h2>
           </div>
-          <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-1.5 sm:gap-4">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-4">
             <CourseCard
               v-for="course in recommendedCourses"
               :key="course.id"
@@ -484,7 +487,7 @@ v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded
 
           <div
             v-if="filteredCourses.length > 0"
-            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-3.5 lg:gap-4.5"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 sm:gap-3.5 lg:gap-4.5"
           >
             <CourseCard
               v-for="course in filteredCourses"
@@ -519,7 +522,12 @@ v-for="cat in categories" :key="cat.id" type="button" class="px-3 py-1.5 rounded
                     : '没有找到相关的课程'
               }}
             </p>
-            <button v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'" type="button" class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20" @click="activeCategoryId = null">
+            <button
+              v-if="activeCategoryId === 'mine' || activeCategoryId === 'bookmarked'"
+              type="button"
+              class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20"
+              @click="activeCategoryId = null"
+            >
               浏览课程
             </button>
           </div>

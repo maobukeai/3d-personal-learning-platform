@@ -30,6 +30,186 @@ let resizeStartY = 0;
 let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 const copiedIndex = ref<number | null>(null);
 
+// Holiday dressing state based on calendar
+type HolidayType =
+  | 'normal'
+  | 'new-year'
+  | 'spring-festival'
+  | 'lantern-festival'
+  | 'qingming'
+  | 'labor-day'
+  | 'dragon-boat'
+  | 'qixi'
+  | 'mid-autumn'
+  | 'double-ninth'
+  | 'national-day'
+  | 'halloween'
+  | 'christmas';
+
+const currentHoliday = ref<HolidayType>('normal');
+
+// Define holiday range type
+interface DateRange {
+  start: { month: number; date: number };
+  end: { month: number; date: number };
+}
+
+/**
+ * Lunar traditional holiday solar date maps for years 2026-2030.
+ * To maintain this in the future (e.g. 2031 onwards):
+ * 1. Look up the Gregorian dates of the Chinese Traditional Holidays for the target year:
+ *    - Spring Festival (春节 / 除夕): Lunar Dec 30 to Lunar Jan 6
+ *    - Lantern Festival (元宵节): Lunar Jan 14 to Jan 15
+ *    - Dragon Boat Festival (端午节): Lunar May 4 to May 6
+ *    - Qixi Festival (七夕节): Lunar July 6 to July 7
+ *    - Mid-Autumn Festival (中秋节): Lunar Aug 14 to Aug 16
+ *    - Double Ninth Festival (重阳节): Lunar Sept 8 to Sept 9
+ * 2. Add a new key for that year to the `lunarHolidays` record.
+ */
+const lunarHolidays: Record<number, {
+  springFestival: DateRange; // Eve (除夕) to 6th day (正月初六)
+  lanternFestival: DateRange; // 14th to 15th day of first lunar month
+  dragonBoat: DateRange; // 4th to 6th day of fifth lunar month (端午)
+  qixi: DateRange; // 6th to 7th day of seventh lunar month (七夕)
+  midAutumn: DateRange; // 14th to 16th day of eighth lunar month (中秋)
+  doubleNinth: DateRange; // 8th to 9th day of ninth lunar month (重阳)
+}> = {
+  2026: {
+    springFestival: { start: { month: 2, date: 16 }, end: { month: 2, date: 22 } },
+    lanternFestival: { start: { month: 3, date: 2 }, end: { month: 3, date: 3 } },
+    dragonBoat: { start: { month: 6, date: 18 }, end: { month: 6, date: 20 } },
+    qixi: { start: { month: 8, date: 18 }, end: { month: 8, date: 19 } },
+    midAutumn: { start: { month: 9, date: 24 }, end: { month: 9, date: 26 } },
+    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } }
+  },
+  2027: {
+    springFestival: { start: { month: 2, date: 5 }, end: { month: 2, date: 11 } },
+    lanternFestival: { start: { month: 2, date: 19 }, end: { month: 2, date: 20 } },
+    dragonBoat: { start: { month: 6, date: 8 }, end: { month: 6, date: 10 } },
+    qixi: { start: { month: 8, date: 7 }, end: { month: 8, date: 8 } },
+    midAutumn: { start: { month: 9, date: 14 }, end: { month: 9, date: 16 } },
+    doubleNinth: { start: { month: 10, date: 14 }, end: { month: 10, date: 15 } }
+  },
+  2028: {
+    springFestival: { start: { month: 1, date: 25 }, end: { month: 1, date: 31 } },
+    lanternFestival: { start: { month: 2, date: 8 }, end: { month: 2, date: 9 } },
+    dragonBoat: { start: { month: 5, date: 27 }, end: { month: 5, date: 29 } },
+    qixi: { start: { month: 8, date: 25 }, end: { month: 8, date: 26 } },
+    midAutumn: { start: { month: 10, date: 2 }, end: { month: 10, date: 4 } },
+    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } }
+  },
+  2029: {
+    springFestival: { start: { month: 2, date: 12 }, end: { month: 2, date: 18 } },
+    lanternFestival: { start: { month: 2, date: 26 }, end: { month: 2, date: 27 } },
+    dragonBoat: { start: { month: 6, date: 15 }, end: { month: 6, date: 17 } },
+    qixi: { start: { month: 8, date: 15 }, end: { month: 8, date: 16 } },
+    midAutumn: { start: { month: 9, date: 21 }, end: { month: 9, date: 23 } },
+    doubleNinth: { start: { month: 10, date: 15 }, end: { month: 10, date: 16 } }
+  },
+  2030: {
+    springFestival: { start: { month: 2, date: 2 }, end: { month: 2, date: 8 } },
+    lanternFestival: { start: { month: 2, date: 16 }, end: { month: 2, date: 17 } },
+    dragonBoat: { start: { month: 6, date: 4 }, end: { month: 6, date: 6 } },
+    qixi: { start: { month: 8, date: 4 }, end: { month: 8, date: 5 } },
+    midAutumn: { start: { month: 9, date: 11 }, end: { month: 9, date: 13 } },
+    doubleNinth: { start: { month: 10, date: 4 }, end: { month: 10, date: 5 } }
+  }
+};
+
+const checkHoliday = () => {
+  // Support manual debugging via localStorage mock
+  const mock = localStorage.getItem('mock_holiday');
+  if (mock) {
+    currentHoliday.value = mock as HolidayType;
+    return;
+  }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-12
+  const date = now.getDate();
+
+  // Helper to check range inside the same year
+  const isInRange = (startMonth: number, startDate: number, endMonth: number, endDate: number) => {
+    const start = new Date(year, startMonth - 1, startDate, 0, 0, 0);
+    const end = new Date(year, endMonth - 1, endDate, 23, 59, 59);
+    return now >= start && now <= end;
+  };
+
+  // --- 1. Solar Fixed Holidays ---
+  // New Year's Day (元旦): Dec 31 to Jan 2
+  if ((month === 12 && date === 31) || (month === 1 && (date === 1 || date === 2))) {
+    currentHoliday.value = 'new-year';
+    return;
+  }
+
+  // Tomb Sweeping Day (清明): Apr 4 to Apr 5 (always Apr 4 or 5)
+  if (month === 4 && (date === 4 || date === 5)) {
+    currentHoliday.value = 'qingming';
+    return;
+  }
+
+  // Labor Day (劳动节): May 1 to May 5
+  if (month === 5 && date >= 1 && date <= 5) {
+    currentHoliday.value = 'labor-day';
+    return;
+  }
+
+  // National Day (国庆节): Oct 1 to Oct 7
+  if (month === 10 && date >= 1 && date <= 7) {
+    currentHoliday.value = 'national-day';
+    return;
+  }
+
+  // Halloween (万圣节): Oct 29 to Nov 2
+  if ((month === 10 && date >= 29) || (month === 11 && date <= 2)) {
+    currentHoliday.value = 'halloween';
+    return;
+  }
+
+  // Christmas (圣诞节): Dec 20 to Dec 27
+  if (month === 12 && date >= 20 && date <= 27) {
+    currentHoliday.value = 'christmas';
+    return;
+  }
+
+  // --- 2. Lunar Calendar Traditional Holidays (Years 2026 to 2030) ---
+  const lunarMap = lunarHolidays[year];
+  if (lunarMap) {
+    if (isInRange(lunarMap.springFestival.start.month, lunarMap.springFestival.start.date, lunarMap.springFestival.end.month, lunarMap.springFestival.end.date)) {
+      currentHoliday.value = 'spring-festival';
+      return;
+    }
+    if (isInRange(lunarMap.lanternFestival.start.month, lunarMap.lanternFestival.start.date, lunarMap.lanternFestival.end.month, lunarMap.lanternFestival.end.date)) {
+      currentHoliday.value = 'lantern-festival';
+      return;
+    }
+    if (isInRange(lunarMap.dragonBoat.start.month, lunarMap.dragonBoat.start.date, lunarMap.dragonBoat.end.month, lunarMap.dragonBoat.end.date)) {
+      currentHoliday.value = 'dragon-boat';
+      return;
+    }
+    if (isInRange(lunarMap.qixi.start.month, lunarMap.qixi.start.date, lunarMap.qixi.end.month, lunarMap.qixi.end.date)) {
+      currentHoliday.value = 'qixi';
+      return;
+    }
+    if (isInRange(lunarMap.midAutumn.start.month, lunarMap.midAutumn.start.date, lunarMap.midAutumn.end.month, lunarMap.midAutumn.end.date)) {
+      currentHoliday.value = 'mid-autumn';
+      return;
+    }
+    if (isInRange(lunarMap.doubleNinth.start.month, lunarMap.doubleNinth.start.date, lunarMap.doubleNinth.end.month, lunarMap.doubleNinth.end.date)) {
+      currentHoliday.value = 'double-ninth';
+      return;
+    }
+  } else if (year > 2030 && import.meta.env.DEV) {
+    console.warn(
+      `[AISprite] The lunar holiday precomputed date map only covers 2026-2030. ` +
+      `Please extend lunarHolidays in AISprite.vue for the current year ${year}.`
+    );
+  }
+
+  currentHoliday.value = 'normal';
+};
+
 // Draggable Position Coordinates (relative to bottom-right)
 const position = ref({ bottom: 24, right: 24 });
 const isDragging = ref(false);
@@ -70,6 +250,10 @@ const scrollToBottom = async () => {
  * Initiates mouse or touch dragging on the AI Sprite trigger button or Chat Header.
  */
 const onDragStart = (e: MouseEvent | TouchEvent) => {
+  // Disable dragging on mobile devices
+  if (window.innerWidth <= 640) {
+    return;
+  }
   // Prevent drag if clicking on buttons or interactive icons
   const target = e.target as HTMLElement;
   if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.el-dropdown')) {
@@ -143,6 +327,10 @@ const onDragEnd = () => {
  * Initiates mouse or touch resizing on the Chat Box edges or corner.
  */
 const onResizeStart = (e: MouseEvent | TouchEvent, type: string) => {
+  // Disable resizing on mobile devices
+  if (window.innerWidth <= 640) {
+    return;
+  }
   e.preventDefault();
   e.stopPropagation();
   isResizing.value = true;
@@ -225,6 +413,9 @@ onMounted(() => {
       console.error('Failed to parse chat history:', e);
     }
   }
+
+  // Evaluate calendar holiday for mascot dressing
+  checkHoliday();
 
   const savedWidth = localStorage.getItem('ai_sprite_chat_width');
   const savedHeight = localStorage.getItem('ai_sprite_chat_height');
@@ -457,7 +648,7 @@ const formatMessage = (content: string) => {
   const codeBlocks: string[] = [];
   const codeBlockRegex = /```(\w*)\n([\s\S]*?)\n```/g;
   
-  html = html.replace(codeBlockRegex, (match, lang, code) => {
+  html = html.replace(codeBlockRegex, (_match, lang, code) => {
     const cleanLang = lang || 'code';
     const cleanCode = code.trim();
     const placeholder = `___CODE_BLOCK_PLACEHOLDER_${codeBlocks.length}___`;
@@ -514,7 +705,7 @@ const formatMessage = (content: string) => {
 <template>
   <div 
     v-if="systemStore.settings.AI_IMPORT_ENABLED" 
-    class="fixed z-[99] flex flex-col items-end"
+    class="fixed z-[99] flex flex-col items-end elf-parent-container"
     :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }"
   >
     
@@ -545,7 +736,7 @@ const formatMessage = (content: string) => {
     <Transition name="slide-fade">
       <div
         v-if="isOpen"
-        class="mb-4 rounded-3xl shadow-2xl border flex flex-col overflow-hidden relative backdrop-blur-md animate-none"
+        class="mb-4 rounded-3xl shadow-2xl border flex flex-col overflow-hidden relative backdrop-blur-md animate-none elf-chat-box"
         :class="[isResizing ? '' : 'transition-all duration-300']"
         :style="{
           width: chatBoxWidth + 'px',
@@ -574,7 +765,7 @@ const formatMessage = (content: string) => {
           @touchstart="onResizeStart($event, 'top-left')"
         ></div>
         <!-- Top-left visual corner bracket cue -->
-        <div class="absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-slate-400/40 dark:border-slate-500/40 rounded-tl pointer-events-none z-30"></div>
+        <div class="absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-slate-400/40 dark:border-slate-500/40 rounded-tl pointer-events-none z-30 elf-resize-bracket"></div>
         <!-- Chat Header (draggable handle to move dialogue window) -->
         <div 
           class="px-5 py-3 border-b flex items-center justify-between bg-gradient-to-r from-indigo-500/10 via-accent/10 to-transparent cursor-grab active:cursor-grabbing select-none" 
@@ -776,6 +967,117 @@ const formatMessage = (content: string) => {
 
       <!-- Upgraded Custom Vector Mascot -->
       <svg viewBox="0 0 64 64" class="w-12 h-12 z-20 transition-transform duration-300 pointer-events-none" :style="{ transform: isOpen ? 'scale(0.88) rotate(-3deg)' : 'scale(1)' }">
+        <!-- Holiday Dressing Accessories (rendered dynamically based on calendar dates) -->
+        <g v-if="currentHoliday === 'spring-festival'" class="holiday-accessory spring-festival">
+          <!-- Red headband banner -->
+          <rect x="18" y="13" width="28" height="4" rx="2.5" fill="#ef4444" stroke="#eab308" stroke-width="0.5" />
+          <!-- Gold central coin decoration -->
+          <circle cx="32" cy="15" r="4.5" fill="#eab308" />
+          <rect x="31" y="14" width="2" height="2" fill="#ef4444" />
+          <!-- Hanging left tassel -->
+          <line x1="18" y1="16" x2="14" y2="24" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" />
+          <!-- Hanging right tassel -->
+          <line x1="46" y1="16" x2="50" y2="24" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" />
+        </g>
+        <g v-else-if="currentHoliday === 'halloween'" class="holiday-accessory halloween">
+          <!-- Wizard Witch Hat -->
+          <path d="M 14 16 L 32 1 L 50 16 Z" fill="#1e1b4b" stroke="var(--accent)" stroke-width="1.5" />
+          <rect x="22" y="13" width="20" height="3.5" fill="#f97316" />
+          <rect x="30" y="12.5" width="4" height="4" fill="#eab308" />
+        </g>
+        <g v-else-if="currentHoliday === 'christmas'" class="holiday-accessory christmas">
+          <!-- Red Santa Hat -->
+          <path d="M 18 16 Q 32 2 46 16 Z" fill="#ef4444" />
+          <circle cx="32" cy="3" r="3.5" fill="#ffffff" />
+          <rect x="15" y="14" width="34" height="4.5" rx="2.5" fill="#ffffff" />
+        </g>
+        <g v-else-if="currentHoliday === 'new-year'" class="holiday-accessory new-year">
+          <!-- Cute colorful party hat -->
+          <path d="M 22 16 L 32 2 L 42 16 Z" fill="#6366f1" stroke="var(--accent)" stroke-width="1" />
+          <path d="M 25 12 L 30 5 L 33 5 L 28 12 Z" fill="#eab308" />
+          <path d="M 31 16 L 36 8 L 39 8 L 34 16 Z" fill="#eab308" />
+          <circle cx="32" cy="2" r="2.5" fill="#facc15" />
+          <circle cx="28" cy="13" r="1" fill="#ec4899" />
+          <circle cx="36" cy="11" r="1" fill="#10b981" />
+        </g>
+        <g v-else-if="currentHoliday === 'lantern-festival'" class="holiday-accessory lantern-festival">
+          <!-- Red lantern hanging from the right antenna -->
+          <line x1="58" y1="18" x2="58" y2="24" stroke="#ef4444" stroke-width="1.5" />
+          <circle cx="58" cy="25" r="1.5" fill="none" stroke="#eab308" stroke-width="1" />
+          <ellipse cx="58" cy="30" rx="5" ry="5" fill="#ef4444" stroke="#ca8a04" stroke-width="0.5" />
+          <rect x="55.5" y="27" width="5" height="1" rx="0.5" fill="#eab308" />
+          <rect x="55.5" y="32.5" width="5" height="1" rx="0.5" fill="#eab308" />
+          <path d="M 56 28 Q 57 30 56 32" fill="none" stroke="#eab308" stroke-width="0.75" />
+          <path d="M 60 28 Q 59 30 60 32" fill="none" stroke="#eab308" stroke-width="0.75" />
+          <line x1="58" y1="28" x2="58" y2="32" stroke="#eab308" stroke-width="0.75" />
+          <line x1="58" y1="33.5" x2="58" y2="40" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" />
+        </g>
+        <g v-else-if="currentHoliday === 'qingming'" class="holiday-accessory qingming">
+          <!-- Willow branch tucked behind left ear/antenna joint -->
+          <path d="M 16 18 Q 8 13 2 11" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M 12 15 Q 10 12 12 11 Q 14 12 12 15 Z" fill="#4ade80" />
+          <path d="M 8 13 Q 5 10 7 9 Q 9 10 8 13 Z" fill="#4ade80" />
+          <path d="M 4 11.5 Q 2 8.5 4 8 Q 6 8.5 4 11.5 Z" fill="#86efac" />
+          <path d="M 14 17 Q 16 14.5 15 14 Q 13 14.5 14 17 Z" fill="#22c55e" />
+        </g>
+        <g v-else-if="currentHoliday === 'labor-day'" class="holiday-accessory labor-day">
+          <!-- Yellow construction helmet -->
+          <path d="M 18 16 C 18 8, 46 8, 46 16 Z" fill="#facc15" stroke="#eab308" stroke-width="0.5" />
+          <path d="M 14 16.5 L 50 16.5 C 51 16.5, 51 15, 50 15 L 14 15 C 13 15, 13 16.5, 14 16.5 Z" fill="#eab308" />
+          <path d="M 30 8.5 C 30 8.5, 32 7.5, 34 8.5 L 34 15 L 30 15 Z" fill="#facc15" />
+          <path d="M 30.5 11 L 33.5 11 L 33.5 13 L 32 14.5 L 30.5 13 Z" fill="#ffffff" />
+          <path d="M 31 12.5 L 33 12.5 M 32 11.5 L 32 13.5" stroke="#22c55e" stroke-width="0.75" />
+        </g>
+        <g v-else-if="currentHoliday === 'dragon-boat'" class="holiday-accessory dragon-boat">
+          <!-- Cute little zongzi sitting on the helmet -->
+          <path d="M 23 16 C 23 16, 32 4, 32 4 C 32 4, 41 16, 41 16 Z" fill="#16a34a" stroke="#15803d" stroke-width="0.5" />
+          <path d="M 32 4 Q 28 10 23 16" fill="none" stroke="#15803d" stroke-width="0.75" />
+          <path d="M 32 4 Q 36 10 41 16" fill="none" stroke="#15803d" stroke-width="0.75" />
+          <line x1="32" y1="4" x2="32" y2="16" stroke="#15803d" stroke-width="0.75" />
+          <path d="M 27 12 Q 32 13.5 37 12" fill="none" stroke="#ef4444" stroke-width="1" />
+          <circle cx="37" cy="12" r="0.75" fill="#ef4444" />
+          <circle cx="30" cy="10" r="0.6" fill="#ffffff" />
+          <circle cx="30" cy="10" r="0.3" fill="#000000" />
+          <circle cx="34" cy="10" r="0.6" fill="#ffffff" />
+          <circle cx="34" cy="10" r="0.3" fill="#000000" />
+          <path d="M 31.5 11 Q 32 11.8 32.5 11" fill="none" stroke="#000000" stroke-width="0.4" />
+        </g>
+        <g v-else-if="currentHoliday === 'qixi'" class="holiday-accessory qixi">
+          <!-- Floating pink hearts -->
+          <path d="M 12 10 C 10 7, 7 7, 7 10 C 7 13, 12 16, 12 16 C 12 16, 17 13, 17 10 C 17 7, 14 7, 12 10 Z" fill="#ec4899" opacity="0.9" />
+          <path d="M 52 13 C 50.5 10.5, 48 10.5, 48 12.5 C 48 14.5, 52 17, 52 17 C 52 17, 56 14.5, 56 12.5 C 56 10.5, 53.5 10.5, 52 13 Z" fill="#f472b6" opacity="0.8" transform="rotate(15 52 13)" />
+          <path d="M 36 6 C 35 4, 33 4, 33 5.5 C 33 7, 36 9, 36 9 C 36 9, 39 7, 39 5.5 C 39 4, 37 4, 36 6 Z" fill="#f472b6" opacity="0.7" transform="rotate(-10 36 6)" />
+        </g>
+        <g v-else-if="currentHoliday === 'mid-autumn'" class="holiday-accessory mid-autumn">
+          <!-- Rabbit ears sticking up -->
+          <path d="M 23 16 C 20 8, 19 2, 24 2 C 27 2, 26 8, 25 16 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.5" />
+          <path d="M 23.5 13 C 21.5 8, 21 4, 24 4 C 25.5 4, 25 8, 24.5 13 Z" fill="#f472b6" opacity="0.85" />
+          <path d="M 41 16 C 44 8, 45 2, 40 2 C 37 2, 38 8, 39 16 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.5" />
+          <path d="M 40.5 13 C 42.5 8, 43 4, 40 4 C 38.5 4, 39 8, 39.5 13 Z" fill="#f472b6" opacity="0.85" />
+        </g>
+        <g v-else-if="currentHoliday === 'double-ninth'" class="holiday-accessory double-ninth">
+          <!-- Golden Chrysanthemum blossom on left ear joint -->
+          <circle cx="14" cy="18" r="2" fill="#ea580c" />
+          <ellipse cx="14" cy="13.5" rx="1.2" ry="3" fill="#facc15" />
+          <ellipse cx="14" cy="22.5" rx="1.2" ry="3" fill="#facc15" />
+          <ellipse cx="9.5" cy="18" rx="3" ry="1.2" fill="#facc15" />
+          <ellipse cx="18.5" cy="18" rx="3" ry="1.2" fill="#facc15" />
+          <ellipse cx="11" cy="15" rx="1.2" ry="3" fill="#eab308" transform="rotate(45 11 15)" />
+          <ellipse cx="17" cy="21" rx="1.2" ry="3" fill="#eab308" transform="rotate(45 17 21)" />
+          <ellipse cx="17" cy="15" rx="1.2" ry="3" fill="#eab308" transform="rotate(-45 17 15)" />
+          <ellipse cx="11" cy="21" rx="1.2" ry="3" fill="#eab308" transform="rotate(-45 11 21)" />
+        </g>
+        <g v-else-if="currentHoliday === 'national-day'" class="holiday-accessory national-day">
+          <!-- Red flag on the left antenna -->
+          <line x1="6" y1="18" x2="6" y2="5" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M 6 5 L 18 5 C 18 5, 17 8, 18 11 L 6 11 Z" fill="#ef4444" />
+          <polygon points="8.5,6.5 8.9,7.3 9.7,7.3 9,7.8 9.3,8.6 8.5,8.1 7.7,8.6 8,7.8 7.3,7.3 8.1,7.3" fill="#facc15" />
+          <circle cx="11.5" cy="6.2" r="0.4" fill="#facc15" />
+          <circle cx="12.7" cy="7.2" r="0.4" fill="#facc15" />
+          <circle cx="12.7" cy="8.5" r="0.4" fill="#facc15" />
+          <circle cx="11.5" cy="9.5" r="0.4" fill="#facc15" />
+        </g>
+
         <!-- Cyber ears/antennae -->
         <path d="M 12 24 L 6 18 M 52 24 L 58 18" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" class="animate-pulse" />
         <circle cx="6" cy="18" r="3" fill="var(--accent)" />
@@ -929,5 +1231,30 @@ const formatMessage = (content: string) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Responsive adjustments for mobile devices */
+@media (max-width: 640px) {
+  .elf-parent-container {
+    bottom: 16px !important;
+    right: 16px !important;
+    left: 16px !important;
+  }
+  .elf-chat-box {
+    width: 100% !important;
+    height: calc(100vh - 120px) !important;
+    height: calc(100dvh - 120px) !important;
+    max-height: calc(100vh - 120px) !important;
+    max-height: calc(100dvh - 120px) !important;
+  }
+  .elf-resize-bracket {
+    display: none !important;
+  }
+  /* Hide drag resize divs on mobile */
+  .cursor-w-resize,
+  .cursor-n-resize,
+  .cursor-nw-resize {
+    display: none !important;
+  }
 }
 </style>

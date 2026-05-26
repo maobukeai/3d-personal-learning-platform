@@ -787,7 +787,8 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
     if (name !== undefined) updateData.name = name;
     if (slug !== undefined) updateData.slug = slug;
     if (parentExternalId !== undefined) updateData.parentExternalId = parentExternalId;
-    if (order !== undefined) updateData.order = typeof order === 'number' ? order : parseInt(String(order)) || 0;
+    if (order !== undefined)
+      updateData.order = typeof order === 'number' ? order : parseInt(String(order)) || 0;
 
     const category = await prisma.mirrorCategory.update({
       where: { id },

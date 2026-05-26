@@ -105,10 +105,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
           }
         })
         .catch((err) => {
-          logger.error(
-            `[AssetProcessor] Background processing failed for asset: ${asset.id}`,
-            err,
-          );
+          logger.error(`[AssetProcessor] Background processing failed for asset: ${asset.id}`, err);
         });
     }
 

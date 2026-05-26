@@ -124,7 +124,10 @@ const authLimiter = rateLimit({
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: isDev ? 1000 : 5,
-  handler: createRateLimitHandler('密码重置请求过于频繁，请 1 小时后再试', 'PASSWORD_RESET_RATE_LIMITED'),
+  handler: createRateLimitHandler(
+    '密码重置请求过于频繁，请 1 小时后再试',
+    'PASSWORD_RESET_RATE_LIMITED',
+  ),
   standardHeaders: true,
   legacyHeaders: false,
 });

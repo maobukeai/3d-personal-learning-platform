@@ -99,6 +99,8 @@ export async function parseGithubUrl(url: string): Promise<GithubMetadata> {
     };
   } catch (error) {
     logger.error('[GitHub] Parse error:', error);
-    throw new Error((error instanceof Error ? error.message : String(error)) || '解析 GitHub 仓库失败');
+    throw new Error(
+      (error instanceof Error ? error.message : String(error)) || '解析 GitHub 仓库失败',
+    );
   }
 }

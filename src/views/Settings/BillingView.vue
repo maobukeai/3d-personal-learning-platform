@@ -389,7 +389,7 @@ onMounted(() => {
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
-      <div class="max-w-6xl mx-auto space-y-8 md:space-y-10">
+      <div class="max-w-none space-y-8 md:space-y-10">
         <!-- Current Status & Storage -->
         <div class="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-6">
           <div

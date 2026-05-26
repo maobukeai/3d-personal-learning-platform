@@ -394,7 +394,7 @@ onUnmounted(() => {
 
     <!-- Main Content Area -->
     <div class="flex-1 overflow-y-auto custom-scrollbar p-2.5 sm:p-4 lg:p-4.5">
-      <div class="max-w-[1600px] mx-auto">
+      <div class="max-w-none">
         <div class="mb-1.5 md:mb-2">
           <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
             <el-tab-pane label="我的" name="MY" />
@@ -581,7 +581,7 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
               />
 
               <!-- CARDS GRID for MY & POPULAR Tabs -->
-              <div v-else class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-4.5">
+              <div v-else class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-4 lg:gap-4.5">
                 <NoteCard
                   v-for="(note, index) in notes"
                   :key="note.id"

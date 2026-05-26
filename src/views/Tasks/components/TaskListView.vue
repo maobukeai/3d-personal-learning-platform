@@ -384,7 +384,7 @@ const openDetailDrawer = (task: Task) => {
 
 <template>
   <div class="flex-1 overflow-y-auto p-1 sm:p-8 scrollbar-hide">
-    <div class="w-full max-w-6xl mx-auto space-y-8">
+    <div class="w-full max-w-none space-y-8">
       <!-- Project Group Card -->
       <div
         v-for="proj in tasksByProject"

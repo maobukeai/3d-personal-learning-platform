@@ -408,7 +408,7 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
         ></div>
       </div>
 
-      <div v-else class="max-w-5xl mx-auto">
+      <div v-else class="max-w-none">
         <template v-if="filteredCategories.length > 0">
           <!-- Desktop Table View -->
           <div

@@ -595,7 +595,7 @@ onUnmounted(() => {
 
       <!-- Main Content Area -->
       <main
-        class="flex-1 flex flex-col overflow-hidden relative pb-16 lg:pb-0"
+        class="flex-1 flex flex-col overflow-hidden relative mobile-main-content lg:pb-0"
         style="background-color: var(--bg-app)"
       >
         <div
@@ -624,8 +624,8 @@ onUnmounted(() => {
 
     <!-- Mobile Bottom Tab Bar -->
     <nav
-      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 h-16 border-t bg-white/95 dark:bg-slate-900/95"
-      style="border-color: var(--border-base); padding-bottom: env(safe-area-inset-bottom)"
+      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 mobile-bottom-nav border-t bg-white/95 dark:bg-slate-900/95"
+      style="border-color: var(--border-base)"
     >
       <RouterLink
         v-for="item in mobileNavItems"
@@ -708,5 +708,15 @@ onUnmounted(() => {
 :deep(.mobile-search-dialog .el-dialog__headerbtn) {
   top: 12px !important;
   right: 12px !important;
+}
+
+@media (max-width: 1023px) {
+  .mobile-main-content {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
+  }
+  .mobile-bottom-nav {
+    height: calc(4rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
 }
 </style>

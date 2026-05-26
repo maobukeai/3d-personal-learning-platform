@@ -388,7 +388,7 @@ v-for="filter in [
         ></div>
       </div>
 
-      <div v-else class="max-w-5xl mx-auto space-y-6">
+      <div v-else class="max-w-none space-y-6">
         <!-- Courses List -->
         <template v-if="activeTab === 'courses'">
           <div

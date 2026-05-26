@@ -816,7 +816,7 @@ v-for="filter in [
 
     <!-- 主体内容区 -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-[1600px] mx-auto">
+      <div class="max-w-none">
         <!-- Loading State -->
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
           <Loader2 class="w-10 h-10 text-cyan-500 animate-spin" />

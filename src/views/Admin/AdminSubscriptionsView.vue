@@ -189,7 +189,7 @@ type="button" class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-6xl mx-auto">
+      <div class="max-w-none">
         <!-- Plans Tab -->
         <SubscriptionPlansTab
           v-if="activeTab === 'plans'"

@@ -504,7 +504,7 @@ v-for="filter in [
 
     <!-- Users List -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-[1600px] mx-auto">
+      <div class="max-w-none">
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
           <div
             class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"

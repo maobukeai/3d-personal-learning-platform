@@ -121,7 +121,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-screen overflow-hidden relative"
+    class="flex-1 flex flex-col h-full overflow-hidden relative"
     style="background-color: var(--bg-app)"
   >
     <!-- Animated Background Elements -->

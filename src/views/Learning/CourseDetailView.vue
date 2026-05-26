@@ -294,7 +294,7 @@ onMounted(fetchCourse);
 
       <template v-else-if="course">
         <!-- Hero Section -->
-        <div class="max-w-6xl mx-auto px-3 sm:px-4.5 md:px-6 pt-3 sm:pt-4">
+        <div class="max-w-none px-3 sm:px-4.5 md:px-6 pt-3 sm:pt-4">
           <div class="relative rounded-xl md:rounded-2xl overflow-hidden shadow-md border" style="border-color: var(--border-base)">
             <div class="h-40 md:h-52 overflow-hidden">
               <img
@@ -338,7 +338,7 @@ alt="" :src="
         </div>
 
         <!-- Stats Bar Card -->
-        <div class="max-w-6xl mx-auto px-3 sm:px-4.5 md:px-6 mt-3">
+        <div class="max-w-none px-3 sm:px-4.5 md:px-6 mt-3">
           <div
             class="px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border flex flex-row flex-nowrap items-center gap-2 sm:gap-5 justify-between sm:justify-start transition-colors duration-300 overflow-x-auto scrollbar-hide text-[10px] sm:text-xs"
             style="background-color: var(--bg-card); border-color: var(--border-base)"

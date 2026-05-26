@@ -22,10 +22,6 @@ import ProjectCard from '@/components/ProjectCard.vue';
 import StatCard from '@/components/StatCard.vue';
 import type { User } from '@/types';
 
-type TeamMemberResponse = {
-  user: User;
-};
-
 interface ProjectListMember {
   userId: string;
   user: {

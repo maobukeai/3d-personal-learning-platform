@@ -500,6 +500,23 @@ I compacted the layout spacing, paddings, and font sizes in the academy course o
 - **IM行锁优化陈述 (9.2)**：`sendMessage` 中调用 `prisma.conversation.update` 更新 `updatedAt` 行数据确实会触发写锁。但在当前 3D 协作场景下，MySQL 锁机制是由主索引直接承载，且该操作已采用事务外部的异步独立块（Unblocked background task）处理，写冲突并不形成实际的阻碍。引入 Redis ZSet 的前提需要全局 IM 大幅修改，基于无损优化原则，当前行级写锁设计是保障数据库层消息时间戳绝对一致的最佳实践。
 - **分布式 Socket Map 说明 (7.2)**：多节点 Socket 集群部署确实需要 `@socket.io/redis-adapter`。由于开发机不一定包含 Redis，我们在生产环境集群配置中建议引入适配器，而在此次本地修复中，我们通过 Redis Service 自愈防线打通了连接底层，在满足本地开发单机 Map 调试极其便利的同时，为未来弹性伸缩铺平了道路。
 
+### 13.4. 维度十三: 前端 Three.js 材质纹理 (Textures) 地毯式释放 (前端深水区 🚨)
+- **问题分析**：Three.js 默认释放材质 (`Material.dispose()`) 并不会同步释放其挂载在各个通道（如 `map`、`normalMap`、`roughnessMap` 等）的纹理贴图。未被显式释放的贴图会残留在 GPU 显存中，导致极度隐秘的二次泄漏，直至浏览器崩溃。
+- **解决方案**：重构 [ModelViewer.vue](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/src/components/ModelViewer.vue) 中的 `disposeMaterial` 方法，在销毁材质前，深度地毯式排查材质身上所有挂载的 Texture 对象，执行 `value.dispose()` 显式踢出 GPU 显存，之后再安全执行材质本身的 `dispose()`。
+
+### 13.5. 维度十四: 全站 Markdown / HTML 输入流绝对沙箱化 (XSS 防御) (安全防线 🚨)
+- **问题分析**：协同笔记、讨论区等富文本交流场景极易被攻击者注入精心构造的恶意 XSS 标签和事件（如 `<img src="x" onerror="...">`）。若未经严格过滤直接落盘，高权用户查阅时会静默触发，导致 LocalStorage 或 Token 等敏感凭证泄露。
+- **解决方案**：
+  1. 新增了高性能、零依赖的 HTML 净化工具 [sanitize.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/utils/sanitize.ts)，运用高安全正则强行剥离 `<script>`、`<style>`、`on\w+` 事件属性、`javascript:` 伪协议等高危脚本与危险容器（如 `iframe`、`embed`）。
+  2. 在 [note.controller.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/controllers/note.controller.ts)（新建/更新笔记）和 [discussion.controller.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/controllers/discussion.controller.ts)（新建讨论/添加评论）等协同输入流的控制器中全面挂载 `sanitizeHtml` 强过滤，彻底将恶意代码拦截在落盘之前。
+  3. 全站已对 JWT 凭证启用 `httpOnly`、`SameSite=Strict`、`Secure` 安全 Cookie 封装传输，建立物理屏障，免疫 XSS 令牌盗取。
+
+### 13.6. 维度十五: PM2 集群高可用优雅停机序列与连接限制 (后端运维与高可用 💡)
+- **问题分析**：PM2 开启集群模式（多进程启动）时，每个 Node 进程均会为 Prisma 独立开启一个数据库连接池，高并发下极易撑爆数据库连接数上限（出现 `Too many connections`）。且热部署或关闭时若不捕获退出信号，会残留僵尸连接占用行锁。
+- **解决方案**：
+  1. 在 [index.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/index.ts) 中增加物理进程优雅停机监听（`SIGINT`/`SIGTERM`）。当收到系统停机信号时，主动调用 `syncEngine.stopScheduler()` 停止定时器，关闭 HTTP 服务器，并异步执行 `prisma.$disconnect()` 平滑安全卸载数据库连接池，释放所有可能残留的行锁。
+  2. 在 [.env.example](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/.env.example) 数据库连接配置串中新增并在生产配置中引导开发者限制 `connection_limit=5` 和 `pool_timeout=20`，严控单进程的最大连接跨度，规避高并发集群下数据库池枯竭。
+
 ---
 
 ---

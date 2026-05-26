@@ -57,6 +57,18 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       proxy: {
+        // AI chat uses SSE streaming — must bypass Vite's response buffering
+        // so chunks reach the browser immediately instead of being collected first.
+        '/api/projects/ai-chat': {
+          target: env.VITE_API_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('proxyRes', (proxyRes) => {
+              // Disable any internal buffering so SSE chunks flow through immediately
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            });
+          },
+        },
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:3001',
           changeOrigin: true,
@@ -69,10 +81,6 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: [
-        {
-          find: /^three$/,
-          replacement: path.resolve(__dirname, './node_modules/three/src/Three.js'),
-        },
         {
           find: '@',
           replacement: path.resolve(__dirname, './src'),

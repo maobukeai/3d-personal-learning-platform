@@ -368,7 +368,7 @@ const calculateRoadmapProgress = (roadmap: Roadmap) => {
   return Math.round((completedCount / roadmap.steps.length) * 100);
 };
 
-const isStepLocked = (step: RoadmapStep, index: number) => {
+const isStepLocked = (_step: RoadmapStep, index: number) => {
   if (index === 0) return false;
   if (!projectDetail.value?.roadmap) return false;
   const prevStep = projectDetail.value.roadmap.steps[index - 1];

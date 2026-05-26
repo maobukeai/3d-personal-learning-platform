@@ -12,7 +12,6 @@ import {
   Lock,
   Zap,
   Sparkle,
-  Target,
   Clock,
   Gauge,
   TrendingUp,
@@ -26,7 +25,7 @@ import { getApiErrorMessage } from '@/utils/error';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
-import type { Project, ProjectMember, Task, User } from '@/types';
+import type { Project, ProjectMember, Task, User, Roadmap, RoadmapStep } from '@/types';
 
 // Subcomponents
 import ProjectSidebar from './components/ProjectSidebar.vue';
@@ -201,11 +200,11 @@ const toggleStep = async (stepId: string) => {
 
 const calculateRoadmapProgress = (roadmap: Roadmap) => {
   if (!roadmap || !roadmap.steps || roadmap.steps.length === 0) return 0;
-  const completedCount = roadmap.steps.filter((s) => isStepCompleted(s.id)).length;
+  const completedCount = roadmap.steps.filter((s: RoadmapStep) => isStepCompleted(s.id)).length;
   return Math.round((completedCount / roadmap.steps.length) * 100);
 };
 
-const isStepLocked = (step: RoadmapStep, index: number) => {
+const isStepLocked = (_step: RoadmapStep, index: number) => {
   if (index === 0) return false;
   if (!project.value?.roadmap) return false;
   const prevStep = project.value.roadmap.steps[index - 1];

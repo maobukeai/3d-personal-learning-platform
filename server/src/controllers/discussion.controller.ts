@@ -6,6 +6,7 @@ import { emitToUser, emitToAll } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
+import { sanitizeHtml } from '../utils/sanitize';
 
 export const getAllDiscussions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, tag, sort } = req.query;
@@ -180,8 +181,8 @@ export const createDiscussion = async (req: AuthRequest, res: Response, next: Ne
 
     const discussion = await prisma.discussion.create({
       data: {
-        title,
-        content,
+        title: sanitizeHtml(title.trim()),
+        content: sanitizeHtml(content.trim()),
         courseId,
         tags: tags || null,
         userId: req.userId as string,
@@ -314,7 +315,7 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
 
     const comment = await prisma.comment.create({
       data: {
-        content,
+        content: sanitizeHtml(content.trim()),
         discussionId,
         parentId: parentId || null,
         userId: req.userId as string,

@@ -121,7 +121,9 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.data;
         preferences.setUser(this.user);
       } catch (_error) {
-        this.logout();
+        if (this.user) {
+          this.logout();
+        }
       }
     },
     async updateProfile(profileData: Partial<User>) {

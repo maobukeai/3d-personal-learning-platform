@@ -215,7 +215,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', updateIsMobile);
   window.addEventListener('theme-changed', handleThemeChangeExternal);
@@ -227,10 +227,19 @@ onMounted(() => {
     systemStore.fetchSettings();
   }
 
+  // Initialize workspaces first (loads public mirror/manual sources for guests too)
+  await workspaceStore.initialize(route.path);
+
+  // Only verify session if there is a stored user (previously logged in).
+  // For anonymous guests (no stored user), skip fetchMe to avoid the race condition
+  // where fetchMe's 401 failure would trigger logout() → workspaceStore.reset(),
+  // which destroys the guest's freshly-loaded public workspace state.
+  if (authStore.user) {
+    await authStore.fetchMe();
+  }
+
   fetchNotifications();
-  workspaceStore.initialize(route.path);
   fetchUnreadMessagesCount();
-  authStore.fetchMe();
 
   if (authStore.user?.role === 'ADMIN') {
     workspaceStore.fetchAdminStats();

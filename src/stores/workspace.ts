@@ -72,79 +72,81 @@ export const useWorkspaceStore = defineStore('workspace', {
   actions: {
     async fetchWorkspaces() {
       const authStore = useAuthStore();
-      if (!authStore.isAuthenticated) return;
+      this.rawWorkspaces = [];
 
+      if (authStore.isAuthenticated) {
+        try {
+          const teams = await fetchTeams();
+          const fetchedWorkspaces = teams.map((t) => ({
+            id: t.id,
+            name: t.name,
+            type: t.type.toLowerCase() as 'personal' | 'team',
+            color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
+            description: t.type === 'PERSONAL' ? '默认个人空间' : `${t._count?.members || 1} 名成员`,
+            avatarUrl: t.avatarUrl || (t.type === 'PERSONAL' ? authStore.user?.avatarUrl : null),
+          }));
+
+          this.rawWorkspaces = fetchedWorkspaces;
+
+          if (authStore.user?.role === 'ADMIN') {
+            this.rawWorkspaces.unshift({
+              id: 'admin-workspace',
+              name: '管理中心',
+              type: 'admin',
+              color: 'bg-rose-600',
+              description: '系统管理与审核',
+            });
+            this.fetchAdminStats();
+          }
+        } catch (error) {
+          console.error('Fetch workspaces error:', error);
+        }
+      }
+
+      // Fetch Mirror Sources
       try {
-        const teams = await fetchTeams();
-        const fetchedWorkspaces = teams.map((t) => ({
-          id: t.id,
-          name: t.name,
-          type: t.type.toLowerCase() as 'personal' | 'team',
-          color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
-          description: t.type === 'PERSONAL' ? '默认个人空间' : `${t._count?.members || 1} 名成员`,
-          avatarUrl: t.avatarUrl || (t.type === 'PERSONAL' ? authStore.user?.avatarUrl : null),
-        }));
-
-        this.rawWorkspaces = fetchedWorkspaces;
-
-        if (authStore.user?.role === 'ADMIN') {
-          this.rawWorkspaces.unshift({
-            id: 'admin-workspace',
-            name: '管理中心',
-            type: 'admin',
-            color: 'bg-rose-600',
-            description: '系统管理与审核',
+        const mirrorSources = await fetchMirrorSources();
+        for (const ms of mirrorSources) {
+          this.rawWorkspaces.push({
+            id: `mirror-${ms.id}`,
+            name: ms.displayName,
+            type: 'mirror',
+            color: 'bg-violet-600',
+            description: ms.description || `${ms.totalResources} 个资源`,
+            mirrorSourceId: ms.id,
+            avatarUrl: ms.iconUrl,
           });
-          this.fetchAdminStats();
         }
+      } catch (_e) {
+        // Mirror sources not available, skip
+      }
 
-        // Fetch Mirror Sources
-        try {
-          const mirrorSources = await fetchMirrorSources();
-          for (const ms of mirrorSources) {
-            this.rawWorkspaces.push({
-              id: `mirror-${ms.id}`,
-              name: ms.displayName,
-              type: 'mirror',
-              color: 'bg-violet-600',
-              description: ms.description || `${ms.totalResources} 个资源`,
-              mirrorSourceId: ms.id,
-              avatarUrl: ms.iconUrl,
-            });
-          }
-        } catch (_e) {
-          // Mirror sources not available, skip
+      // Fetch Manual Stations
+      try {
+        const manualStations = await fetchManualStations();
+        for (const ms of manualStations) {
+          this.rawWorkspaces.push({
+            id: `manual-${ms.id}`,
+            name: ms.displayName,
+            type: 'manual',
+            color: 'bg-cyan-600',
+            description: ms.description || `手动资源站 (${ms.totalResources} 个资源)`,
+            manualStationId: ms.id,
+            avatarUrl: ms.iconUrl,
+          });
         }
+      } catch (_e) {
+        // Manual stations not available, skip
+      }
 
-        // Fetch Manual Stations
-        try {
-          const manualStations = await fetchManualStations();
-          for (const ms of manualStations) {
-            this.rawWorkspaces.push({
-              id: `manual-${ms.id}`,
-              name: ms.displayName,
-              type: 'manual',
-              color: 'bg-cyan-600',
-              description: ms.description || `手动资源站 (${ms.totalResources} 个资源)`,
-              manualStationId: ms.id,
-              avatarUrl: ms.iconUrl,
-            });
-          }
-        } catch (_e) {
-          // Manual stations not available, skip
-        }
+      // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
+      const exists = this.rawWorkspaces.some((ws) => ws.id === this.activeWorkspaceId);
+      if (!exists && this.rawWorkspaces.length > 0) {
+        this.activeWorkspaceId = this.rawWorkspaces[0].id;
+      }
 
-        // Validate activeWorkspaceId: must be null or exist in rawWorkspaces
-        const exists = this.rawWorkspaces.some((ws) => ws.id === this.activeWorkspaceId);
-        if (!exists && this.rawWorkspaces.length > 0) {
-          this.activeWorkspaceId = this.rawWorkspaces[0].id;
-        }
-
-        if (this.activeWorkspaceId) {
-          preferences.setActiveWorkspaceId(this.activeWorkspaceId);
-        }
-      } catch (error) {
-        console.error('Fetch workspaces error:', error);
+      if (this.activeWorkspaceId) {
+        preferences.setActiveWorkspaceId(this.activeWorkspaceId);
       }
     },
 
@@ -167,15 +169,6 @@ export const useWorkspaceStore = defineStore('workspace', {
     },
 
     async initialize(currentPath?: string) {
-      const authStore = useAuthStore();
-
-      // If not authenticated, we are a guest, no workspaces to fetch
-      if (!authStore.isAuthenticated) {
-        this.isInitialized = true;
-        this.isLoading = false;
-        return;
-      }
-
       // If already initialized with workspaces, skip
       if (this.isInitialized && this.rawWorkspaces.length > 0) return;
 

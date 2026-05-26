@@ -4,6 +4,7 @@ import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
+import { sanitizeHtml } from '../utils/sanitize';
 
 export const getNotes = async (req: AuthRequest, res: Response) => {
   const { visibility, search, sort, tag, category, author } = req.query;
@@ -233,9 +234,9 @@ export const createNote = async (req: AuthRequest, res: Response) => {
   try {
     const note = await prisma.note.create({
       data: {
-        title: title.trim(),
-        content: content.trim(),
-        summary: summary?.trim() || null,
+        title: sanitizeHtml(title.trim()),
+        content: sanitizeHtml(content.trim()),
+        summary: summary ? sanitizeHtml(summary.trim()) : null,
         visibility: visibility || 'PRIVATE',
         tags: tags || null,
         category: category?.trim() || null,
@@ -275,9 +276,9 @@ export const updateNote = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.note.update({
       where: { id },
       data: {
-        ...(title !== undefined && { title: title.trim() }),
-        ...(content !== undefined && { content: content.trim() }),
-        ...(summary !== undefined && { summary: summary?.trim() || null }),
+        ...(title !== undefined && { title: sanitizeHtml(title.trim()) }),
+        ...(content !== undefined && { content: sanitizeHtml(content.trim()) }),
+        ...(summary !== undefined && { summary: summary ? sanitizeHtml(summary.trim()) : null }),
         ...(visibility !== undefined && { visibility }),
         ...(tags !== undefined && { tags }),
         ...(category !== undefined && { category: category?.trim() || null }),

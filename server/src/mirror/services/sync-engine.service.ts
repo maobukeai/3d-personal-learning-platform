@@ -67,29 +67,37 @@ export class SyncEngine {
     return this.progressMap.get(sourceId) || null;
   }
 
-  async fullSync(sourceId: string): Promise<SyncResult> {
+  async fullSync(sourceId: string, hasLock = false): Promise<SyncResult> {
     if (this.activeSyncs.has(sourceId)) {
       throw new Error('同步已在运行中');
     }
 
     const lockKey = `sync_engine:lock:${sourceId}`;
-    const acquired = await redisService.acquireLock(lockKey, 3600); // 1 hour TTL
-    if (!acquired) {
-      throw new Error('同步已在运行中(分布式锁已占用)');
+    let lockAcquired = false;
+    if (!hasLock) {
+      const acquired = await redisService.acquireLock(lockKey, 3600); // 1 hour TTL
+      if (!acquired) {
+        throw new Error('同步已在运行中(分布式锁已占用)');
+      }
+      lockAcquired = true;
     }
 
-    const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
-    if (!source) throw new Error('镜像源不存在');
+    let source: any;
+    try {
+      source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+    } catch (e) {
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
+      throw e;
+    }
+
+    if (!source) {
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
+      throw new Error('镜像源不存在');
+    }
     if (source.adapterType === 'MANUAL') {
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
       throw new Error('手动上传资产站不支持自动同步任务');
     }
-
-    this.activeSyncs.add(sourceId);
-    const controller = new AbortController();
-    this.abortControllers.set(sourceId, controller);
-    const signal = controller.signal;
-
-    emitToAll('mirror_sync_started', { sourceId, sourceName: source.displayName, type: 'FULL' });
 
     const progress: SyncProgress = {
       sourceId,
@@ -110,9 +118,25 @@ export class SyncEngine {
     };
     this.progressMap.set(sourceId, progress);
 
-    const syncLog = await prisma.syncLog.create({
-      data: { sourceId, type: 'FULL', status: 'RUNNING' },
-    });
+    this.activeSyncs.add(sourceId);
+    const controller = new AbortController();
+    this.abortControllers.set(sourceId, controller);
+    const signal = controller.signal;
+
+    emitToAll('mirror_sync_started', { sourceId, sourceName: source.displayName, type: 'FULL' });
+
+    let syncLog: any;
+    try {
+      syncLog = await prisma.syncLog.create({
+        data: { sourceId, type: 'FULL', status: 'RUNNING' },
+      });
+    } catch (e) {
+      this.activeSyncs.delete(sourceId);
+      this.abortControllers.delete(sourceId);
+      this.progressMap.delete(sourceId);
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
+      throw e;
+    }
 
     const result: SyncResult = {
       resourcesFound: 0,
@@ -507,22 +531,24 @@ export class SyncEngine {
         (error instanceof Error ? error.message : String(error)) === 'AbortError';
       const duration = Math.round((Date.now() - startTime) / 1000);
 
-      await prisma.syncLog.update({
-        where: { id: syncLog.id },
-        data: {
-          status: isAborted ? 'CANCELLED' : 'FAILED',
-          finishedAt: new Date(),
-          duration,
-          error: isAborted
-            ? '用户取消同步'
-            : (error instanceof Error ? error.message : String(error)) || '未知错误',
-        },
-      });
+      if (typeof syncLog !== 'undefined') {
+        await prisma.syncLog.update({
+          where: { id: syncLog.id },
+          data: {
+            status: isAborted ? 'CANCELLED' : 'FAILED',
+            finishedAt: new Date(),
+            duration,
+            error: isAborted
+              ? '用户取消同步'
+              : (error instanceof Error ? error.message : String(error)) || '未知错误',
+          },
+        }).catch(() => {});
+      }
 
       await prisma.mirrorSource.update({
         where: { id: sourceId },
         data: { syncStatus: isAborted ? 'IDLE' : 'ERROR' },
-      });
+      }).catch(() => {});
 
       progress.status = isAborted ? 'IDLE' : 'ERROR';
 
@@ -534,16 +560,18 @@ export class SyncEngine {
       if (progress.status === 'SYNCING') {
         progress.status = 'IDLE';
       }
+      setTimeout(() => this.progressMap.delete(sourceId), 300000);
       await prisma.mirrorSource.update({
         where: { id: sourceId },
         data: { syncStatus: 'IDLE' },
-      });
-      await redisService.releaseLock(lockKey).catch(() => {});
-      setTimeout(() => this.progressMap.delete(sourceId), 300000);
+      }).catch(() => {});
+      if (lockAcquired) {
+        await redisService.releaseLock(lockKey).catch(() => {});
+      }
 
       emitToAll('mirror_sync_finished', {
         sourceId,
-        sourceName: source.displayName,
+        sourceName: source?.displayName || '',
         type: 'FULL',
         status: prevStatus === 'SYNCING' ? 'SUCCESS' : prevStatus,
         result: prevStatus === 'SYNCING' ? result : null,
@@ -553,37 +581,41 @@ export class SyncEngine {
     return result;
   }
 
-  async incrementalSync(sourceId: string): Promise<SyncResult> {
+  async incrementalSync(sourceId: string, hasLock = false): Promise<SyncResult> {
     if (this.activeSyncs.has(sourceId)) {
       throw new Error('同步已在运行中');
     }
 
     const lockKey = `sync_engine:lock:${sourceId}`;
-    const acquired = await redisService.acquireLock(lockKey, 3600); // 1 hour TTL
-    if (!acquired) {
-      throw new Error('同步已在运行中(分布式锁已占用)');
+    let lockAcquired = false;
+    if (!hasLock) {
+      const acquired = await redisService.acquireLock(lockKey, 3600); // 1 hour TTL
+      if (!acquired) {
+        throw new Error('同步已在运行中(分布式锁已占用)');
+      }
+      lockAcquired = true;
     }
 
-    const source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
-    if (!source) throw new Error('镜像源不存在');
+    let source: any;
+    try {
+      source = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+    } catch (e) {
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
+      throw e;
+    }
+
+    if (!source) {
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
+      throw new Error('镜像源不存在');
+    }
     if (source.adapterType === 'MANUAL') {
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
       throw new Error('手动上传资产站不支持自动同步任务');
     }
 
     if (!source.lastSyncAt) {
-      return this.fullSync(sourceId);
+      return await this.fullSync(sourceId, hasLock || lockAcquired);
     }
-
-    this.activeSyncs.add(sourceId);
-    const controller = new AbortController();
-    this.abortControllers.set(sourceId, controller);
-    const signal = controller.signal;
-
-    emitToAll('mirror_sync_started', {
-      sourceId,
-      sourceName: source.displayName,
-      type: 'INCREMENTAL',
-    });
 
     const progress: SyncProgress = {
       sourceId,
@@ -604,9 +636,29 @@ export class SyncEngine {
     };
     this.progressMap.set(sourceId, progress);
 
-    const syncLog = await prisma.syncLog.create({
-      data: { sourceId, type: 'INCREMENTAL', status: 'RUNNING' },
+    this.activeSyncs.add(sourceId);
+    const controller = new AbortController();
+    this.abortControllers.set(sourceId, controller);
+    const signal = controller.signal;
+
+    emitToAll('mirror_sync_started', {
+      sourceId,
+      sourceName: source.displayName,
+      type: 'INCREMENTAL',
     });
+
+    let syncLog: any;
+    try {
+      syncLog = await prisma.syncLog.create({
+        data: { sourceId, type: 'INCREMENTAL', status: 'RUNNING' },
+      });
+    } catch (e) {
+      this.activeSyncs.delete(sourceId);
+      this.abortControllers.delete(sourceId);
+      this.progressMap.delete(sourceId);
+      if (lockAcquired) await redisService.releaseLock(lockKey).catch(() => {});
+      throw e;
+    }
 
     const result: SyncResult = {
       resourcesFound: 0,
@@ -917,22 +969,24 @@ export class SyncEngine {
         (error instanceof Error ? error.message : String(error)) === 'AbortError';
       const duration = Math.round((Date.now() - startTime) / 1000);
 
-      await prisma.syncLog.update({
-        where: { id: syncLog.id },
-        data: {
-          status: isAborted ? 'CANCELLED' : 'FAILED',
-          finishedAt: new Date(),
-          duration,
-          error: isAborted
-            ? '用户取消同步'
-            : (error instanceof Error ? error.message : String(error)) || '未知错误',
-        },
-      });
+      if (typeof syncLog !== 'undefined') {
+        await prisma.syncLog.update({
+          where: { id: syncLog.id },
+          data: {
+            status: isAborted ? 'CANCELLED' : 'FAILED',
+            finishedAt: new Date(),
+            duration,
+            error: isAborted
+              ? '用户取消同步'
+              : (error instanceof Error ? error.message : String(error)) || '未知错误',
+          },
+        }).catch(() => {});
+      }
 
       await prisma.mirrorSource.update({
         where: { id: sourceId },
         data: { syncStatus: isAborted ? 'IDLE' : 'ERROR' },
-      });
+      }).catch(() => {});
 
       progress.status = isAborted ? 'IDLE' : 'ERROR';
 
@@ -944,16 +998,18 @@ export class SyncEngine {
       if (progress.status === 'SYNCING') {
         progress.status = 'IDLE';
       }
+      setTimeout(() => this.progressMap.delete(sourceId), 300000);
       await prisma.mirrorSource.update({
         where: { id: sourceId },
         data: { syncStatus: 'IDLE' },
-      });
-      await redisService.releaseLock(lockKey).catch(() => {});
-      setTimeout(() => this.progressMap.delete(sourceId), 300000);
+      }).catch(() => {});
+      if (lockAcquired) {
+        await redisService.releaseLock(lockKey).catch(() => {});
+      }
 
       emitToAll('mirror_sync_finished', {
         sourceId,
-        sourceName: source.displayName,
+        sourceName: source?.displayName || '',
         type: 'INCREMENTAL',
         status: prevStatus === 'SYNCING' ? 'SUCCESS' : prevStatus,
         result: prevStatus === 'SYNCING' ? result : null,

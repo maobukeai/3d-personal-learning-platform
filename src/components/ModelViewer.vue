@@ -393,26 +393,20 @@ const optimizeTexturesForGPULimit = (object: Object3D) => {
 
 const disposeMaterial = (material: Material) => {
   if (material === clayMaterial) return;
-  material.dispose();
-  const textureSlots = [
-    'map',
-    'normalMap',
-    'roughnessMap',
-    'metalnessMap',
-    'emissiveMap',
-    'specularMap',
-    'aoMap',
-    'bumpMap',
-    'alphaMap',
-    'displacementMap',
-    'lightMap'
-  ];
-  for (const slot of textureSlots) {
-    const value = (material as unknown as Record<string, unknown>)[slot];
-    if (value instanceof Texture) {
-      value.dispose();
+
+  // Depth地毯式排查材质身上所有挂载的 Texture
+  Object.keys(material).forEach((key) => {
+    const value = (material as any)[key];
+    if (value && typeof value === 'object' && value.isTexture) {
+      try {
+        value.dispose(); // 显式强制将纹理踢出 GPU 显存
+      } catch (err) {
+        // Safe warning
+      }
     }
-  }
+  });
+
+  material.dispose();
 };
 
 const disposeHierarchy = (obj: Object3D) => {

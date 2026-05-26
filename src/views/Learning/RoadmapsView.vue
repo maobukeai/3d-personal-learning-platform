@@ -52,6 +52,7 @@ interface Roadmap {
   title: string;
   description?: string | null;
   creatorId?: string | null;
+  projectId?: string | null;
   steps: RoadmapStep[];
 }
 

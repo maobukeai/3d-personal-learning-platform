@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import * as projectController from '../controllers/project.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
+
+// AI chat is publicly accessible (guests can use the assistant without logging in)
+router.post('/ai-chat', optionalAuthenticate, projectController.aiChat);
 
 router.use(authenticate);
 
@@ -10,7 +13,6 @@ router.get('/', projectController.getAllProjects);
 router.post('/', projectController.createProject);
 router.post('/import', projectController.importProjectFromText);
 router.post('/ai-generate', projectController.aiGenerateProjectText);
-router.post('/ai-chat', projectController.aiChat);
 router.get('/:id', projectController.getProjectById);
 router.put('/:id', projectController.updateProject);
 router.delete('/:id', projectController.deleteProject);

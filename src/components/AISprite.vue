@@ -459,9 +459,57 @@ const saveHistory = () => {
   sessionStorage.setItem('ai_sprite_chat_history', JSON.stringify(messages.value));
 };
 
+// Typewriter queue: chars pending display + interval handle
+const typewriterQueue = ref<string[]>([]);
+let typewriterTimer: ReturnType<typeof setInterval> | null = null;
+let typewriterTargetIndex = -1;
+
+/**
+ * Drain one character per tick from the typewriter queue into the message.
+ * Scroll happens via requestAnimationFrame at most once per frame.
+ */
+const startTypewriter = (targetIdx: number) => {
+  if (typewriterTimer !== null) return; // already running
+  typewriterTargetIndex = targetIdx;
+
+  typewriterTimer = setInterval(() => {
+    // Drain up to 3 chars per tick for a fast-but-visible feel
+    for (let i = 0; i < 3; i++) {
+      const ch = typewriterQueue.value.shift();
+      if (ch === undefined) break;
+      messages.value[typewriterTargetIndex].content += ch;
+    }
+    // Light scroll: defer via rAF so layout is not thrashed
+    requestAnimationFrame(() => {
+      if (chatContainer.value) {
+        chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+      }
+    });
+  }, 16); // ~60 fps
+};
+
+const stopTypewriter = () => {
+  if (typewriterTimer !== null) {
+    clearInterval(typewriterTimer);
+    typewriterTimer = null;
+  }
+};
+
+/**
+ * Flush remaining queued chars instantly (used when stream ends or user stops).
+ */
+const flushTypewriterQueue = (targetIdx: number) => {
+  stopTypewriter();
+  while (typewriterQueue.value.length > 0) {
+    const ch = typewriterQueue.value.shift();
+    if (ch !== undefined) messages.value[targetIdx].content += ch;
+  }
+};
+
 /**
  * Streams the conversation reply from the backend Server-Sent Events (SSE) API.
  * Uses the browser native fetch API to read chunks on-the-fly.
+ * Characters are fed into a typewriter queue to always show smooth char-by-char output.
  */
 const handleSend = async () => {
   if (!inputMessage.value.trim() || isGenerating.value || isTyping.value) return;
@@ -473,6 +521,7 @@ const handleSend = async () => {
   await scrollToBottom();
 
   isGenerating.value = true;
+  typewriterQueue.value = [];
   
   try {
     const chatHistory = messages.value.slice(-10);
@@ -504,6 +553,9 @@ const handleSend = async () => {
     messages.value.push({ role: 'assistant', content: '' });
     const targetIndex = messages.value.length - 1;
 
+    // Start typewriter draining the queue into the message
+    startTypewriter(targetIndex);
+
     activeReader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -526,11 +578,15 @@ const handleSend = async () => {
           try {
             const payload = JSON.parse(cleanLine.substring(6));
             if (payload.error) {
-              messages.value[targetIndex].content += `\n[错误: ${payload.error}]`;
+              // Push error chars into queue so typewriter shows it naturally
+              for (const ch of `\n[错误: ${payload.error}]`) {
+                typewriterQueue.value.push(ch);
+              }
             } else if (payload.text) {
-              // Directly stream characters into message content
-              messages.value[targetIndex].content += payload.text;
-              await scrollToBottom();
+              // Push each character into the typewriter queue
+              for (const ch of payload.text) {
+                typewriterQueue.value.push(ch);
+              }
             }
           } catch (e) {
             // Ignore JSON parse failures from split chunk boundaries
@@ -538,18 +594,32 @@ const handleSend = async () => {
         }
       }
     }
+
+    // Stream ended — wait for typewriter to finish draining before cleanup
+    await new Promise<void>((resolve) => {
+      const waitDrain = setInterval(() => {
+        if (typewriterQueue.value.length === 0) {
+          clearInterval(waitDrain);
+          resolve();
+        }
+      }, 20);
+    });
+    flushTypewriterQueue(targetIndex); // ensure nothing left
   } catch (error: any) {
     console.error('AI streaming chat error:', error);
     isGenerating.value = false;
+    flushTypewriterQueue(typewriterTargetIndex); // flush any pending chars on error
     const errMsg = error.message || '连接失败';
     messages.value.push({ role: 'assistant', content: `小精灵被阻碍了：${errMsg}` });
   } finally {
+    stopTypewriter();
     isTyping.value = false;
     activeReader = null;
     saveHistory();
     await scrollToBottom();
   }
 };
+
 
 /**
  * Resets the session message logs.
@@ -576,6 +646,9 @@ const handleStop = () => {
     }
     activeReader = null;
   }
+  // Flush remaining queued typewriter chars instantly on stop
+  flushTypewriterQueue(typewriterTargetIndex);
+  typewriterQueue.value = [];
   isGenerating.value = false;
   isTyping.value = false;
 };

@@ -51,7 +51,7 @@ const router = createRouter({
       children: [
         {
           path: '',
-          redirect: '/academy',
+          redirect: '/mirror/source/9af3dc6f-8500-4ae9-a772-0c255cf55829',
         },
         {
           path: 'academy',
@@ -62,6 +62,16 @@ const router = createRouter({
           path: 'academy/course/:id',
           name: 'CourseDetail',
           component: () => import('@/views/Learning/CourseDetailView.vue'),
+        },
+        {
+          path: 'mirror/source/:id',
+          name: 'MirrorSource',
+          component: () => import('@/views/Mirror/MirrorSourceView.vue'),
+        },
+        {
+          path: 'mirror/resource/:id',
+          name: 'MirrorResourceDetail',
+          component: () => import('@/views/Mirror/MirrorResourceDetail.vue'),
         },
         {
           path: '',
@@ -181,19 +191,6 @@ const router = createRouter({
               path: 'tools/email',
               name: 'EmailSystem',
               component: () => import('@/views/Tools/EmailSystemView.vue'),
-              meta: { requiresAuth: true },
-            },
-
-             {
-              path: 'mirror/source/:id',
-              name: 'MirrorSource',
-              component: () => import('@/views/Mirror/MirrorSourceView.vue'),
-              meta: { requiresAuth: true },
-            },
-            {
-              path: 'mirror/resource/:id',
-              name: 'MirrorResourceDetail',
-              component: () => import('@/views/Mirror/MirrorResourceDetail.vue'),
               meta: { requiresAuth: true },
             },
             {

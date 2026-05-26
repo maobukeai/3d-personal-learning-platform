@@ -841,7 +841,7 @@ v-if="activeTab === 'custom'"
         <div
           v-if="selectedRoadmap"
           :key="selectedRoadmap.id"
-          class="w-full max-w-7xl mx-auto space-y-4 sm:space-y-6"
+          class="w-full max-w-none space-y-4 sm:space-y-6"
         >
           <!-- Header card (premium extremely compact layout) -->
           <div

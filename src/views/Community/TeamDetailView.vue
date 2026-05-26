@@ -579,7 +579,7 @@ onUnmounted(() => {
         </div>
  
         <!-- Details Info Area -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 pb-3 lg:pb-4 relative">
+        <div class="max-w-none px-4 sm:px-6 pb-3 lg:pb-4 relative">
           <div class="flex flex-col lg:flex-row items-start lg:items-end gap-3 lg:gap-4 -mt-8 lg:-mt-12 relative z-20">
             <!-- Team Avatar -->
             <div class="relative group shrink-0">
@@ -671,7 +671,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Main Content Container -->
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:py-6">
+      <div class="max-w-none px-4 sm:px-6 py-4 lg:py-6">
         <!-- Modern Tabs -->
         <div class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
           <button

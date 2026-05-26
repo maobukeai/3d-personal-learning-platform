@@ -310,7 +310,7 @@ v-for="filter in [
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-4">
+      <div class="max-w-none space-y-4">
         <div
           v-if="isLoading"
           class="flex flex-col items-center justify-center py-20 text-slate-400"

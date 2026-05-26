@@ -365,10 +365,10 @@ type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" 
 
     <!-- Content Area -->
     <div class="flex-1 overflow-y-auto p-2.5 sm:p-3.5 md:p-4 scrollbar-hide">
-      <div class="max-w-7xl mx-auto">
+      <div class="max-w-none">
         <div
           v-if="filteredMaterials.length > 0"
-          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-2.5"
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 sm:gap-2.5"
         >
           <div
             v-for="mat in filteredMaterials"

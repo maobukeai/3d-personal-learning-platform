@@ -238,7 +238,7 @@ onMounted(() => {
 
     <!-- Main Content Scroll Area -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-      <div class="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+      <div class="max-w-none space-y-6 sm:space-y-8">
         <!-- Quick Actions -->
         <div
           class="p-4 sm:p-8 rounded-2xl sm:rounded-3xl border transition-colors duration-300"

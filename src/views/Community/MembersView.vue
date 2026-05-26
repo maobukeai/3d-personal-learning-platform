@@ -147,7 +147,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
     <!-- Members List Area -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div
-        class="max-w-6xl mx-auto rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300"
+        class="max-w-none rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Desktop Table -->

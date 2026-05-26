@@ -407,7 +407,7 @@ onMounted(() => {
       </div>
 
       <!-- Roadmaps Grid List -->
-      <div v-else class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div v-else class="max-w-none grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
         <div
           v-for="roadmap in filteredRoadmaps"
           :key="roadmap.id"

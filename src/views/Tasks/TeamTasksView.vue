@@ -252,10 +252,10 @@ watch(
 
       <template v-else>
         <div class="p-2 sm:p-4">
-          <div class="max-w-[1600px] mx-auto space-y-3 sm:space-y-4">
+          <div class="max-w-none space-y-3 sm:space-y-4">
             <!-- Limit metric cards block width to prevent excessive horizontal stretching -->
             <div class="max-w-4xl">
-              <div class="grid grid-cols-4 gap-2 sm:gap-3.5">
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3.5">
                 <StatCard
                   label="总项目"
                   :value="projectStats.total"
@@ -342,7 +342,7 @@ type="button" class="p-1.5 sm:p-2 rounded-lg transition-all border-none bg-trans
 
             <div
               v-else-if="viewMode === 'grid'"
-              class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-4"
+              class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-4"
             >
               <ProjectCard
                 v-for="(project, index) in filteredProjects"

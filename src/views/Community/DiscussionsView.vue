@@ -510,7 +510,7 @@ v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded
 
     <!-- Main Content -->
     <div class="flex-1 overflow-y-auto p-3 sm:p-5 scrollbar-hide">
-      <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
+      <div class="max-w-none flex flex-col lg:flex-row gap-6">
         <!-- Left: Discussions List Feed -->
         <div class="flex-1 min-w-0 space-y-3.5">
           <div v-if="filteredDiscussions.length > 0" class="space-y-3">

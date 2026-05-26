@@ -554,11 +554,11 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
 
     <!-- Works Grid/List Area -->
     <div class="flex-1 overflow-y-auto p-2 md:p-8 scrollbar-hide">
-      <div class="max-w-7xl mx-auto">
+      <div class="max-w-none">
         <!-- Grid View -->
         <div
           v-if="viewMode === 'grid' && filteredWorks.length > 0"
-          class="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-6"
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-6"
         >
           <div
             v-for="work in filteredWorks"

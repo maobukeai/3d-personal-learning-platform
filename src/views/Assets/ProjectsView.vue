@@ -315,11 +315,11 @@ onMounted(fetchProjects);
     </div>
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-10 scrollbar-hide">
-      <div class="max-w-[1600px] mx-auto space-y-6 sm:space-y-10">
+      <div class="max-w-none space-y-6 sm:space-y-10">
         <!-- Limit metric cards block width to prevent excessive horizontal stretching -->
         <div class="max-w-4xl">
           <div
-            class="grid grid-cols-4 gap-2 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
+            class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3.5 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
           >
             <StatCard
               label="总项目"
@@ -413,7 +413,7 @@ type="button" class="p-1.5 sm:p-2 rounded-lg transition-all" :class="
         <!-- Grid View -->
         <div
           v-else-if="viewMode === 'grid'"
-          class="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-8"
         >
           <ProjectCard
             v-for="(project, index) in filteredProjects"

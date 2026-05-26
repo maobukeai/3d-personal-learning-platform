@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { Send, X, Trash2, Copy, Check, Square } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
@@ -247,13 +247,26 @@ const scrollToBottom = async () => {
 };
 
 /**
+ * Keeps the chat box width and height dynamically within current viewport bounds.
+ */
+const adjustBoxSizeForViewport = () => {
+  // Constrain width so it doesn't exceed window width minus padding (e.g. 20px)
+  const maxW = Math.max(300, window.innerWidth - position.value.right - 20);
+  if (chatBoxWidth.value > maxW) {
+    chatBoxWidth.value = maxW;
+  }
+  
+  // Constrain height so it doesn't exceed window height minus padding (e.g. 90px)
+  const maxH = Math.max(350, window.innerHeight - position.value.bottom - 90);
+  if (chatBoxHeight.value > maxH) {
+    chatBoxHeight.value = maxH;
+  }
+};
+
+/**
  * Initiates mouse or touch dragging on the AI Sprite trigger button or Chat Header.
  */
 const onDragStart = (e: MouseEvent | TouchEvent) => {
-  // Disable dragging on mobile devices
-  if (window.innerWidth <= 640) {
-    return;
-  }
   // Prevent drag if clicking on buttons or interactive icons
   const target = e.target as HTMLElement;
   if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.el-dropdown')) {
@@ -327,10 +340,6 @@ const onDragEnd = () => {
  * Initiates mouse or touch resizing on the Chat Box edges or corner.
  */
 const onResizeStart = (e: MouseEvent | TouchEvent, type: string) => {
-  // Disable resizing on mobile devices
-  if (window.innerWidth <= 640) {
-    return;
-  }
   e.preventDefault();
   e.stopPropagation();
   isResizing.value = true;
@@ -399,6 +408,7 @@ const handleSpriteClick = () => {
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     showBubble.value = false;
+    adjustBoxSizeForViewport();
     scrollToBottom();
   }
 };
@@ -428,10 +438,18 @@ onMounted(() => {
     if (h >= 350 && h <= 800) chatBoxHeight.value = h;
   }
   
+  // Make sure the chatbox size fits the current viewport on mount
+  adjustBoxSizeForViewport();
+  window.addEventListener('resize', adjustBoxSizeForViewport);
+  
   // Auto fade out bubble tip after 8 seconds
   setTimeout(() => {
     showBubble.value = false;
   }, 8000);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', adjustBoxSizeForViewport);
 });
 
 /**
@@ -1231,30 +1249,5 @@ const formatMessage = (content: string) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-/* Responsive adjustments for mobile devices */
-@media (max-width: 640px) {
-  .elf-parent-container {
-    bottom: 16px !important;
-    right: 16px !important;
-    left: 16px !important;
-  }
-  .elf-chat-box {
-    width: 100% !important;
-    height: calc(100vh - 120px) !important;
-    height: calc(100dvh - 120px) !important;
-    max-height: calc(100vh - 120px) !important;
-    max-height: calc(100dvh - 120px) !important;
-  }
-  .elf-resize-bracket {
-    display: none !important;
-  }
-  /* Hide drag resize divs on mobile */
-  .cursor-w-resize,
-  .cursor-n-resize,
-  .cursor-nw-resize {
-    display: none !important;
-  }
 }
 </style>

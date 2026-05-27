@@ -34,6 +34,7 @@ const TaskListView = defineAsyncComponent(() => import('./components/TaskListVie
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
+import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 
 import type {
   UserType,
@@ -59,6 +60,13 @@ const priorityFilter = ref('all');
 const customDate = ref('');
 const hideCompleted = ref(false);
 const onlyMyTasks = ref(false);
+const sortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
+  (localStorage.getItem('task_sort_by') as any) || 'natural'
+);
+
+watch(sortBy, (newVal) => {
+  localStorage.setItem('task_sort_by', newVal);
+});
 const visibleColumns = ref({
   status: localStorage.getItem('task_visible_col_status') !== 'false',
   project: localStorage.getItem('task_visible_col_project') !== 'false',
@@ -328,6 +336,23 @@ const filteredTasks = computed(() => {
   if (selectedProjectId.value) {
     filtered = filtered.filter((t) => t.projectId === selectedProjectId.value);
   }
+
+  // Apply sorting
+  if (sortBy.value === 'natural') {
+    filtered = [...filtered].sort((a, b) => {
+      const dayA = a && a.title ? getTaskDayIndex(a.title) : Infinity;
+      const dayB = b && b.title ? getTaskDayIndex(b.title) : Infinity;
+      if (dayA !== dayB) {
+        return dayA - dayB;
+      }
+      return getTaskTime(a) - getTaskTime(b);
+    });
+  } else if (sortBy.value === 'createdAt_asc') {
+    filtered = [...filtered].sort((a, b) => getTaskTime(a) - getTaskTime(b));
+  } else if (sortBy.value === 'createdAt_desc') {
+    filtered = [...filtered].sort((a, b) => getTaskTime(b) - getTaskTime(a));
+  }
+
 
   return filtered;
 });
@@ -833,6 +858,44 @@ type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] 
                 : 'text-slate-500 hover:text-slate-700'
             " @click="groupBy = 'priority'">
             按优先级
+          </button>
+        </div>
+      </div>
+
+      <div class="hidden sm:block h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
+
+      <!-- Sort By Selector -->
+      <div class="flex items-center gap-2 shrink-0">
+        <span
+          class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+          >排序方式:</span
+        >
+        <div
+          class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
+        >
+          <button
+type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+              sortBy === 'natural'
+                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            " @click="sortBy = 'natural'">
+            按自然顺序
+          </button>
+          <button
+type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+              sortBy === 'createdAt_asc'
+                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            " @click="sortBy = 'createdAt_asc'">
+            最早创建
+          </button>
+          <button
+type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+              sortBy === 'createdAt_desc'
+                ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            " @click="sortBy = 'createdAt_desc'">
+            最新创建
           </button>
         </div>
       </div>

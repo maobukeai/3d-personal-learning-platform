@@ -6,6 +6,7 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
+import { callLLM } from '../../services/ai.service';
 
 import { config as envConfig } from '../../config/env';
 
@@ -328,8 +329,6 @@ export const cleanupStorage = async (req: AuthRequest, res: Response, next: Next
     );
   }
 };
-
-import { callLLM } from '../../services/ai.service';
 
 export const testAi = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

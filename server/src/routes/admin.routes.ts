@@ -8,6 +8,8 @@ import * as teamController from '../controllers/admin/team.controller';
 import * as subscriptionController from '../controllers/admin/subscription.controller';
 import { authenticate, isAdmin } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
+import rateLimit from 'express-rate-limit';
+import { createRateLimitHandler } from '../middlewares/rate-limit.middleware';
 
 const router = Router();
 
@@ -36,8 +38,20 @@ router.post(
   validateFileContent,
   settingsController.uploadBrandingFavicon,
 );
+const adminAiTestLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Max 10 requests per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitHandler('AI 测试接口请求过于频繁，请稍后再试。', 'ADMIN_AI_TEST_RATE_LIMITED'),
+  keyGenerator: (req) => {
+    const authReq = req as any;
+    return authReq.userId ? `admin_ai_user_${authReq.userId}` : `admin_ai_ip_${req.ip}`;
+  },
+});
+
 router.post('/settings/test-smtp', settingsController.testSmtp);
-router.post('/settings/test-ai', settingsController.testAi);
+router.post('/settings/test-ai', adminAiTestLimiter, settingsController.testAi);
 router.post('/settings/cleanup-storage', settingsController.cleanupStorage);
 
 // Users

@@ -33,6 +33,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
@@ -156,6 +157,19 @@ const parsedBatchTasks = computed(() => {
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
+});
+
+const sortedTasks = computed(() => {
+  if (!projectDetail.value?.tasks) return [];
+  
+  return [...projectDetail.value.tasks].sort((a, b) => {
+    const dayA = a && a.title ? getTaskDayIndex(a.title) : Infinity;
+    const dayB = b && b.title ? getTaskDayIndex(b.title) : Infinity;
+    if (dayA !== dayB) {
+      return dayA - dayB;
+    }
+    return getTaskTime(a) - getTaskTime(b);
+  });
 });
 
 const fetchProjectDetail = async (id: string) => {
@@ -717,7 +731,7 @@ defineExpose({
                   <h4
                     class="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
                   >
-                    <Layers class="w-4 h-4" /> 项目任务 ({{ projectDetail.tasks.length }})
+                    <Layers class="w-4 h-4" /> 项目任务 ({{ sortedTasks.length }})
                   </h4>
                   <div class="flex gap-2">
                     <button type="button" class="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:opacity-95 transition-all cursor-pointer border-none" @click="isBatchDialogOpen = true">
@@ -744,7 +758,7 @@ defineExpose({
 
                 <!-- Tasks Table -->
                 <div
-                  v-if="projectDetail.tasks.length === 0"
+                  v-if="sortedTasks.length === 0"
                   class="py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl opacity-40 animate-in fade-in"
                   style="border-color: var(--border-base)"
                 >
@@ -791,7 +805,7 @@ defineExpose({
                     </thead>
                     <tbody>
                       <tr
-                        v-for="task in projectDetail.tasks"
+                        v-for="task in sortedTasks"
                         :key="task.id"
                         class="border-b last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/20"
                         style="border-color: var(--border-base)"

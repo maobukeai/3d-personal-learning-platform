@@ -9,7 +9,7 @@ export const getAllTasks = async (req: AuthRequest, res: Response) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
   try {
     const where: Prisma.TaskWhereInput = {
-      teamId: req.workspaceId,
+      teamId: req.workspaceId || null,
       OR: [
         { projectId: null },
         {
@@ -534,7 +534,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 export const getTaskStats = async (req: AuthRequest, res: Response) => {
   try {
     const where: Prisma.TaskWhereInput = {
-      teamId: req.workspaceId,
+      teamId: req.workspaceId || null,
       OR: [
         { projectId: null },
         {

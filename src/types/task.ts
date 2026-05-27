@@ -70,6 +70,8 @@ export interface Task {
   team?: Team | null;
   assignee?: UserType | null;
   participants?: { userId: string }[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ActiveColumn {

@@ -5,6 +5,7 @@ import { Calendar, UserPlus } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
+import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 import type { Project, Task } from '@/types';
 
 const props = defineProps<{
@@ -13,6 +14,7 @@ const props = defineProps<{
   searchQuery: string;
   dateFilter: string;
   assigneeFilter: string;
+  sortBy?: 'natural' | 'createdAt_asc' | 'createdAt_desc';
 }>();
 
 const emit = defineEmits<{
@@ -109,6 +111,23 @@ const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   // Assignee Filter
   if (props.assigneeFilter === 'me' && authStore.user) {
     filtered = filtered.filter((t: Task) => t.assigneeId === authStore.user?.id);
+  }
+
+  // Apply sorting
+  const activeSort = props.sortBy || 'natural';
+  if (activeSort === 'natural') {
+    filtered = [...filtered].sort((a, b) => {
+      const dayA = a && a.title ? getTaskDayIndex(a.title) : Infinity;
+      const dayB = b && b.title ? getTaskDayIndex(b.title) : Infinity;
+      if (dayA !== dayB) {
+        return dayA - dayB;
+      }
+      return getTaskTime(a) - getTaskTime(b);
+    });
+  } else if (activeSort === 'createdAt_asc') {
+    filtered = [...filtered].sort((a, b) => getTaskTime(a) - getTaskTime(b));
+  } else if (activeSort === 'createdAt_desc') {
+    filtered = [...filtered].sort((a, b) => getTaskTime(b) - getTaskTime(a));
   }
 
   return {

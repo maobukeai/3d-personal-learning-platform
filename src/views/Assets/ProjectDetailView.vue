@@ -72,6 +72,13 @@ const handleStartChat = async (user: User) => {
 const taskSearchQuery = ref('');
 const taskDateFilter = ref('all'); // 'all', 'overdue', 'today', 'week'
 const taskAssigneeFilter = ref('all'); // 'all', 'me'
+const taskSortBy = ref<'natural' | 'createdAt_asc' | 'createdAt_desc'>(
+  (localStorage.getItem('project_task_sort_by') as any) || 'natural'
+);
+
+watch(taskSortBy, (newVal) => {
+  localStorage.setItem('project_task_sort_by', newVal);
+});
 
 const fetchProject = async () => {
   isLoading.value = true;
@@ -559,6 +566,53 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
               </button>
             </div>
           </div>
+
+          <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
+
+          <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
+            <span
+              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+              >排序方式:</span
+            >
+            <div class="flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <button
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                :class="
+                  taskSortBy === 'natural'
+                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                "
+                @click="taskSortBy = 'natural'"
+              >
+                按自然顺序
+              </button>
+              <button
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                :class="
+                  taskSortBy === 'createdAt_asc'
+                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                "
+                @click="taskSortBy = 'createdAt_asc'"
+              >
+                最早创建
+              </button>
+              <button
+                type="button"
+                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer"
+                :class="
+                  taskSortBy === 'createdAt_desc'
+                    ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                "
+                @click="taskSortBy = 'createdAt_desc'"
+              >
+                最新创建
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Dynamic Content -->
@@ -571,6 +625,7 @@ type="button" class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font
             :search-query="taskSearchQuery"
             :date-filter="taskDateFilter"
             :assignee-filter="taskAssigneeFilter"
+            :sort-by="taskSortBy"
             @edit-task="openEditTaskDialog"
             @open-profile="openUserProfile"
             @refresh="fetchProject"

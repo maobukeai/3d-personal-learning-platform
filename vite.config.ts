@@ -69,6 +69,16 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        '/api/projects/co-plan-chat': {
+          target: env.VITE_API_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('proxyRes', (proxyRes) => {
+              // Disable any internal buffering so SSE chunks flow through immediately
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            });
+          },
+        },
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:3001',
           changeOrigin: true,

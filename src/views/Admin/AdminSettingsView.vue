@@ -613,6 +613,7 @@ watch(
       QWEN: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
       GEMINI: { endpoint: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash' },
       AZURE: { endpoint: 'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15', model: 'gpt-4o' },
+      CUSTOM: { endpoint: '', model: '' },
     };
 
     if (newProvider && defaultsMap[newProvider as string]) {
@@ -2107,6 +2108,7 @@ type="button"
                       <el-option label="Qwen (通义千问兼容端)" value="QWEN" />
                       <el-option label="Google Gemini" value="GEMINI" />
                       <el-option label="Azure OpenAI" value="AZURE" />
+                      <el-option label="Custom (自定义/其他兼容接口)" value="CUSTOM" />
                     </el-select>
                   </div>
 

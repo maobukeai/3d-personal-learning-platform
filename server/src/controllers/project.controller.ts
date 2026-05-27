@@ -6,7 +6,15 @@ import { createNotification, createNotificationBatch } from '../utils/notificati
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
-import { callLLM, callLLMChat, streamLLMChat } from '../services/ai.service';
+import { callLLM, streamLLMChat } from '../services/ai.service';
+import { parseBaiduNetdiskLink } from '../utils/baiduNetdisk';
+import { hasPromptInjection } from '../utils/security';
+import {
+  PROJECT_GENERATION_PROMPT,
+  AI_SPRITE_CHAT_PROMPT,
+  BAIDU_NETDISK_ANALYSIS_PROMPT,
+  getCoPlanChatPrompt,
+} from '../config/prompts';
 
 const checkTeamProjectPermission = async (userId: string, workspaceId: string | undefined): Promise<boolean> => {
   if (!workspaceId) {
@@ -337,7 +345,7 @@ export const getProjectById = async (req: AuthRequest, res: Response, next: Next
       },
     });
 
-    if (!project || project.teamId !== req.workspaceId) {
+    if (!project || (project.teamId || null) !== (req.workspaceId || null)) {
       return next(new AppError('Project not found', 404));
     }
 
@@ -362,7 +370,7 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
       include: { members: true },
     });
 
-    if (!project || project.teamId !== req.workspaceId) {
+    if (!project || (project.teamId || null) !== (req.workspaceId || null)) {
       return next(new AppError('Project not found', 404));
     }
 
@@ -1071,7 +1079,7 @@ export const addDiscussionReaction = async (
     }
 
     // 检查讨论所在的项目是否在当前工作区
-    if (discussion.project.teamId !== req.workspaceId) {
+    if ((discussion.project.teamId || null) !== (req.workspaceId || null)) {
       return next(new AppError('Discussion not found', 404));
     }
 
@@ -1224,8 +1232,14 @@ export function parseProjectImportText(text: string): ParsedProject {
         secName.toLowerCase().includes('learning')
       ) {
         currentSection = 'roadmap';
+        const cleanTitle = secName
+          .replace(/^(?:学习路线|学习规划|学习大纲|学习路径|学习计划|Roadmap|ROADMAP|Learning\s*Roadmap|Learning\s*Plan)\s*[:|：|\-|\s]\s*/i, '')
+          .trim();
+        const finalTitle = (cleanTitle && cleanTitle !== '学习路线' && cleanTitle !== '学习规划' && cleanTitle !== 'Roadmap')
+          ? cleanTitle
+          : `学习路线 - ${parsed.title}`;
         parsed.roadmap = {
-          title: `学习路线 - ${parsed.title}`,
+          title: finalTitle,
           description: `针对项目「${parsed.title}」的专属学习路线`,
           steps: [],
         };
@@ -1296,12 +1310,27 @@ export function parseProjectImportText(text: string): ParsedProject {
         });
       }
     } else if (currentSection === 'roadmap' && parsed.roadmap) {
-      if (line.startsWith('### ')) {
+      const clean = line
+        .replace(/^[-*\s\d.\[\]xX]*\s*/, '') // Remove list bullets, numbers, spaces, and checkboxes
+        .replace(/^\*\*?/, '') // Remove leading bold/italic stars
+        .trim();
+      const isStepHeader = line.startsWith('### ') || 
+                           line.startsWith('#### ') ||
+                           /^(?:阶段|步骤|Step|Phase|Part)\s*[一二三四五六七八九十\d]/i.test(clean) ||
+                           /^第\s*[一二三四五六七八九十\d]+\s*(?:阶段|步骤|Step|Phase|Part)/i.test(clean);
+
+      if (isStepHeader) {
         if (currentRoadmapStep) {
           roadmapSteps.push(currentRoadmapStep);
         }
 
-        const stepTitle = line.substring(4).trim();
+        const stepTitle = line
+          .replace(/^(?:###|####)\s*/, '')
+          .replace(/^[-*\s\d.\[\]xX]*\s*/, '')
+          .replace(/^\*\*?/, '')
+          .replace(/\*\*?$/, '')
+          .trim();
+
         currentRoadmapStep = {
           title: stepTitle,
           description: '',
@@ -1477,41 +1506,18 @@ export const aiGenerateProjectText = async (
   const userId = req.userId as string;
 
   try {
-    // Verify team workspace project creation permissions
+    // 1. Verify team workspace project creation permissions first
     const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
     if (!hasPermission) {
       return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
     }
-    const systemPrompt = `你是一个项目规划专家。你需要将用户的项目设想或目标转化成一个标准格式的项目管理 Markdown 文本。
-必须严格遵循以下标准排版规范，不要输出任何其他的解释文字、代码块包裹（如 \`\`\`markdown ），只输出纯 Markdown 内容。
 
-规范格式如下：
-# 项目：[项目名称]
-描述：[对项目的详细描述，简明扼要]
-标签：[标签1, 标签2，用逗号隔开]
-截止日期：[根据项目复杂度，合理估算一个截止日期，格式必须为 YYYY-MM-DD，如 2026-08-31]
-颜色：[可选 bg-accent, bg-indigo, bg-emerald, bg-purple, bg-amber 之一]
+    // 2. Scan input for security threats and injections
+    if (hasPromptInjection(prompt)) {
+      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+    }
 
-## 任务看板
-- [ ] [任务一标题] | 优先级:[低/中/高/紧急] | 截止:[YYYY-MM-DD] | 描述:[描述内容]
-- [ ] [任务二标题] | 优先级:[低/中/高/紧急] | 描述:[描述内容]
-
-## 学习路线
-### [阶段一标题]
-描述：[阶段一的简介与要求]
-- [ ] 子学习项 1
-- [ ] 子学习项 2
-### [阶段二标题]
-描述：[阶段二的简介与要求]
-- [ ] 子学习项 1
-
-注意点：
-1. 必须包含 "# 项目："、"## 任务看板" 和 "## 学习路线" 三个部分，并且结构完整。
-2. 任务看板下的任务格式必须是 "- [ ] 标题 | 优先级:高/中/低/紧急 | 截止:YYYY-MM-DD | 描述:内容"，各部分用 "|" 隔开。截止日期可选。
-3. 学习路线中的阶段必须以 "###" 开头，阶段描述必须以 "描述：" 开头，子任务必须是 "- [ ]" 列表。
-4. 严格禁止输出除了该 Markdown 以外的任何内容，也不要使用 \`\`\` 包裹。只输出纯文本。`;
-
-    const generatedMarkdown = await callLLM(prompt.trim(), systemPrompt);
+    const generatedMarkdown = await callLLM(prompt.trim(), PROJECT_GENERATION_PROMPT);
 
     res.json({
       success: true,
@@ -1528,13 +1534,25 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     return next(new AppError('对话内容不能为空', 400));
   }
 
-  try {
-    const systemPrompt = `你是一个常驻于本平台的“AI 智能小精灵” (AI Sprite)。本平台是一个全栈 3D 资产管理与在线学习协作平台。
-你的职责是帮助平台用户解答疑惑，提供开发指导，协助他们制定学习计划、掌握 WebGL/Three.js/3D 建模等技术，并解答关于平台使用的问题。
-请你用友善、热心、充满活力且稍微带有俏皮可爱的语气与用户对话，可以多使用表情符号（如 🚀, 💻, 🎨, 👾, ✨）。在提供技术代码时，给出规范易懂的代码片段。
-不要回答任何与本平台或三维开发、代码学习无关的敏感或不安全的话题。如果用户问及非技术或非平台相关内容，你可以委婉可爱地拒绝并引导他们回到 3D 学习和项目协作上来。`;
+  if (messages.length > 20) {
+    return next(new AppError('对话历史记录过长，请重置对话重新开始。', 400));
+  }
 
-    await streamLLMChat(messages, systemPrompt, res);
+  for (const m of messages) {
+    if (m.role !== 'user' && m.role !== 'assistant') {
+      return next(new AppError('非法消息角色。仅允许 user 或 assistant 角色。', 400));
+    }
+    const tokenCount = Math.round((m.content?.length || 0) * 0.45);
+    if (m.role === 'user' && tokenCount > 2000) {
+      return next(new AppError('单个消息长度不能超过 2000 tokens。', 400));
+    }
+    if (m.role === 'user' && hasPromptInjection(m.content)) {
+      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+    }
+  }
+
+  try {
+    await streamLLMChat(messages, AI_SPRITE_CHAT_PROMPT, res);
   } catch (error) {
     if (res.headersSent) {
       if (!res.writableEnded) {
@@ -1543,5 +1561,301 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     } else {
       next(error);
     }
+  }
+};
+
+export const parseNetdiskLink = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { url, password } = req.body;
+  if (!url) {
+    return next(new AppError('链接不能为空', 400));
+  }
+
+  const userId = req.userId as string;
+
+  try {
+    // 1. Verify team workspace permissions first
+    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    if (!hasPermission) {
+      return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
+    }
+
+    // 2. Validate input and check for prompt injection
+    if (hasPromptInjection(url) || hasPromptInjection(password)) {
+      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+    }
+
+    // 3. Pre-validate that the URL is actually a Baidu Netdisk share link.
+    // We check BEFORE any scraping or AI fallback to prevent AI hallucination on arbitrary URLs.
+    const urlTrimmed = url.trim();
+    const isBaiduNetdiskUrl =
+      /pan\.baidu\.com/i.test(urlTrimmed) &&
+      (urlTrimmed.includes('/s/') || urlTrimmed.includes('surl='));
+    if (!isBaiduNetdiskUrl) {
+      return next(new AppError(
+        '链接格式不正确。请输入有效的百度网盘分享链接（如 https://pan.baidu.com/s/1xxxxx 或包含 surl= 参数的链接）。',
+        400
+      ));
+    }
+
+    let parsedData;
+    let isFallback = false;
+
+    try {
+      // 1. Attempt to fetch actual shared directory contents
+      parsedData = await parseBaiduNetdiskLink(url, password);
+    } catch (err: any) {
+      console.warn('Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:', err.message);
+      isFallback = true;
+
+      // 2. Fallback to AI-reconstructed outline
+      const userPrompt = `链接：${url}\n密码：${password || '无'}`;
+      const aiResponse = await callLLM(userPrompt, BAIDU_NETDISK_ANALYSIS_PROMPT);
+      
+      // Clean up AI response
+      let cleanedResponse = aiResponse.trim();
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
+      
+      try {
+        parsedData = JSON.parse(cleanedResponse);
+      } catch (parseErr) {
+        console.error('Failed to parse AI fallback response as JSON. Raw response:', aiResponse);
+        // Fallback to a default structure if parsing fails
+        parsedData = {
+          title: '百度网盘导入项目',
+          directories: [
+            {
+              name: '01-基础概念与环境搭建',
+              files: ['1.1 课程介绍与最终效果展示.mp4', '1.2 Vite与Three.js安装.mp4']
+            },
+            {
+              name: '02-三维核心要素深入',
+              files: ['2.1 渲染器与场景配置.mp4', '2.2 正交与透视相机剖析.mp4']
+            }
+          ]
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...parsedData,
+        isFallback
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const formatNetdiskInfoForPrompt = (netdiskInfo: any): string => {
+  if (!netdiskInfo) return '无网盘资源数据';
+  let result = `项目/课程名称: ${netdiskInfo.title || '未命名'}\n`;
+  if (netdiskInfo.directories && Array.isArray(netdiskInfo.directories)) {
+    netdiskInfo.directories.forEach((dir: any) => {
+      result += `- 目录: ${dir.name || '未命名'}\n`;
+      if (dir.files && Array.isArray(dir.files)) {
+        dir.files.forEach((file: string) => {
+          result += `  * ${file}\n`;
+        });
+      }
+    });
+  }
+  return result;
+};
+
+export const coPlanChatStream = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { messages, netdiskInfo, currentPlan } = req.body;
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return next(new AppError('对话内容不能为空', 400));
+  }
+
+  if (messages.length > 20) {
+    return next(new AppError('对话历史记录过长，请重置对话重新开始。', 400));
+  }
+
+  for (const m of messages) {
+    if (m.role !== 'user' && m.role !== 'assistant') {
+      return next(new AppError('非法消息角色。仅允许 user 或 assistant 角色。', 400));
+    }
+    const tokenCount = Math.round((m.content?.length || 0) * 0.45);
+    if (m.role === 'user' && tokenCount > 2000) {
+      return next(new AppError('单个消息长度不能超过 2000 tokens。', 400));
+    }
+    if (m.role === 'user' && hasPromptInjection(m.content)) {
+      return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
+    }
+  }
+
+  const userId = req.userId as string;
+
+  try {
+    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    if (!hasPermission) {
+      return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
+    }
+
+    const isNetdisk = !!netdiskInfo;
+    const netdiskText = formatNetdiskInfoForPrompt(netdiskInfo);
+    const systemPrompt = getCoPlanChatPrompt(isNetdisk);
+
+    // Prepend resource context as the first user message instead of bloating system instructions
+    const contextContent = isNetdisk 
+      ? `【百度网盘资源文件大纲】\n${netdiskText}\n\n【当前待修改的项目学习计划 JSON】\n${JSON.stringify(currentPlan)}`
+      : `【当前待修改的项目学习计划 JSON】\n${JSON.stringify(currentPlan)}`;
+    const extendedMessages = [
+      { role: 'user', content: contextContent },
+      ...messages
+    ];
+
+    await streamLLMChat(extendedMessages, systemPrompt, res);
+  } catch (error) {
+    if (res.headersSent) {
+      if (!res.writableEnded) {
+        res.end();
+      }
+    } else {
+      next(error);
+    }
+  }
+};
+
+export const importProjectFromJson = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  let { plan } = req.body;
+  const userId = req.userId as string;
+
+  // Defensive unwrapping if the AI wrapped the schema in a top-level "plan" or "project" key
+  if (plan && !plan.title) {
+    if (plan.plan && plan.plan.title) {
+      plan = plan.plan;
+    } else if (plan.project && plan.project.title) {
+      plan = plan.project;
+    }
+  }
+
+  if (!plan || !plan.title) {
+    return next(new AppError('项目规划数据无效或缺失标题', 400));
+  }
+
+  try {
+    const hasPermission = await checkTeamProjectPermission(userId, req.workspaceId);
+    if (!hasPermission) {
+      return next(new AppError('只有团队创建人或管理员才能在团队中导入项目', 403));
+    }
+
+    const quota = await checkProjectQuota(userId);
+    if (!quota.allowed) {
+      return next(new AppError(quota.message || '项目配额已满，无法导入新项目', 403));
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create project
+      const project = await tx.project.create({
+        data: {
+          title: plan.title,
+          description: plan.description || null,
+          dueDate: plan.dueDate ? new Date(plan.dueDate) : null,
+          color: plan.color || 'bg-accent',
+          tags: plan.tags || null,
+          visibility: 'PRIVATE',
+          maxMembers: 10,
+          teamId: req.workspaceId || null,
+          members: {
+            create: [
+              {
+                userId,
+                role: 'OWNER',
+              },
+            ],
+          },
+        },
+      });
+
+      // 2. Create tasks
+      const createdTasks = [];
+      if (plan.tasks && Array.isArray(plan.tasks)) {
+        for (const t of plan.tasks) {
+          const task = await tx.task.create({
+            data: {
+              title: t.title,
+              description: t.description || null,
+              status: 'TODO',
+              priority: t.priority || 'MEDIUM',
+              dueDate: t.dueDate ? new Date(t.dueDate) : null,
+              projectId: project.id,
+              userId,
+              teamId: req.workspaceId || null,
+              subtasks: t.subtasks && Array.isArray(t.subtasks) ? JSON.stringify(t.subtasks) : null,
+            },
+          });
+          createdTasks.push(task);
+        }
+      }
+
+      // 3. Create roadmap
+      let roadmap = null;
+      if (plan.roadmap && plan.roadmap.steps && Array.isArray(plan.roadmap.steps) && plan.roadmap.steps.length > 0) {
+        const defaultTitles = ['学习路线', '学习规划', '学习大纲', 'Roadmap', 'ROADMAP'];
+        const isGenericTitle = !plan.roadmap.title || defaultTitles.includes(plan.roadmap.title.trim());
+        const roadmapTitle = isGenericTitle
+          ? `学习路线 - ${plan.title}`
+          : plan.roadmap.title;
+        const roadmapDesc = plan.roadmap.description || `针对项目「${plan.title}」的专属学习路线`;
+
+        roadmap = await tx.roadmap.create({
+          data: {
+            title: roadmapTitle,
+            description: roadmapDesc,
+            creatorId: userId,
+            projectId: project.id,
+          },
+        });
+
+        for (const step of plan.roadmap.steps) {
+          await tx.roadmapStep.create({
+            data: {
+              roadmapId: roadmap.id,
+              title: step.title,
+              description: step.description || '',
+              subtasks: step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null,
+              order: step.order,
+            },
+          });
+        }
+      }
+
+      return { project, tasksCount: createdTasks.length, roadmap };
+    });
+
+    await auditService.log({
+      userId,
+      action: AuditAction.CREATE_PROJECT,
+      module: AuditModule.PROJECT,
+      description: `导入解析项目JSON: ${result.project.title} (包含看板任务数: ${result.tasksCount})`,
+      newValue: result.project,
+      req,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: '项目及关联的看板任务、学习路线已成功解析导入！',
+      project: result.project,
+      roadmap: result.roadmap,
+      tasksCount: result.tasksCount,
+    });
+  } catch (error) {
+    next(error);
   }
 };

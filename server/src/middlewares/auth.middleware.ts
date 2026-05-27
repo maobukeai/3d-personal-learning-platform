@@ -5,6 +5,7 @@ import prisma from '../services/prisma';
 import type { User, Subscription, SubscriptionPlan } from '@prisma/client';
 import { AppError } from './error.middleware';
 import { redisService } from '../services/redis.service';
+import { logger } from '../utils/logger';
 
 const reviveUserDates = (user: any) => {
   if (!user) return user;
@@ -39,16 +40,40 @@ const getTokenFromRequest = (req: Request) => {
 };
 
 const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => {
+  const getPersonalTeamId = async () => {
+    const personalTeam = await prisma.team.findFirst({
+      where: { ownerId: user.id, type: 'PERSONAL' },
+      select: { id: true },
+    });
+    if (personalTeam) {
+      return personalTeam.id;
+    }
+    // Create personal team on the fly if it doesn't exist
+    const newPersonalTeam = await prisma.team.create({
+      data: {
+        name: `${user.name || '用户'} 的个人空间`,
+        type: 'PERSONAL',
+        visibility: 'PRIVATE',
+        ownerId: user.id,
+        members: {
+          create: {
+            userId: user.id,
+            role: 'OWNER'
+          }
+        }
+      },
+      select: { id: true }
+    });
+    logger.info(`Auto-created personal team ${newPersonalTeam.id} for user ${user.id}`);
+    return newPersonalTeam.id;
+  };
+
   if (
     !requestedWorkspaceId ||
     requestedWorkspaceId === 'undefined' ||
     requestedWorkspaceId === 'null'
   ) {
-    const personalTeam = await prisma.team.findFirst({
-      where: { ownerId: user.id, type: 'PERSONAL' },
-      select: { id: true },
-    });
-    return personalTeam?.id;
+    return await getPersonalTeamId();
   }
 
   // System/virtual workspaces bypass database team check

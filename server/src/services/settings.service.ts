@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger';
 import prisma from './prisma';
+import { encryptSecret, decryptSecret } from '../utils/secret-field';
 
 export interface SystemSettings {
   PLATFORM_NAME: string;
@@ -220,7 +221,11 @@ class SettingsService {
             settings[key] = arr;
           }
         } else {
-          settings[key] = s.value;
+          if (s.key === 'AI_API_KEY' || s.key === 'SMTP_PASS') {
+            settings[key] = decryptSecret(s.value) || '';
+          } else {
+            settings[key] = s.value;
+          }
         }
       } catch (e) {
         logger.error(`Error parsing setting ${s.key}:`, e);
@@ -257,7 +262,9 @@ class SettingsService {
   async update(key: string, value: unknown): Promise<void> {
     let stringValue: string;
 
-    if (Array.isArray(value)) {
+    if (key === 'AI_API_KEY' || key === 'SMTP_PASS') {
+      stringValue = encryptSecret(value as string) || '';
+    } else if (Array.isArray(value)) {
       stringValue = JSON.stringify(value);
     } else if (typeof value === 'string') {
       // If it's already a JSON array string, don't stringify it again

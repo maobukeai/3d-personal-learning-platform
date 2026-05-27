@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { Send, X, Trash2, Copy, Check, Square, Brain, ChevronDown, ChevronUp } from 'lucide-vue-next';
+import { Send, X, Trash2, Copy, Check, Square, Brain, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { parseSSEStream } from '@/utils/aiHelpers';
+import { useDragAndResize } from '@/composables/useDragAndResize';
+import { useHolidayTheme } from '@/composables/useHolidayTheme';
 
 // State management stores
 const authStore = useAuthStore();
@@ -16,208 +19,46 @@ const isTyping = ref(false);
 const inputMessage = ref('');
 const showBubble = ref(true);
 
-// Resizing Chat Box dimensions (relative to top and left edges)
-const chatBoxWidth = ref(380);
-const chatBoxHeight = ref(480);
-const isResizing = ref(false);
-let resizeType = '';
-let resizeStartWidth = 0;
-let resizeStartHeight = 0;
-let resizeStartX = 0;
-let resizeStartY = 0;
+// DOM reference for auto-scroll
+const chatContainer = ref<HTMLDivElement | null>(null);
+
+/**
+ * Scroll conversation messages container to bottom.
+ */
+const scrollToBottom = async () => {
+  await nextTick();
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+};
+
+// Composable state helpers for drag, resize, and holiday checking
+const {
+  chatBoxWidth,
+  chatBoxHeight,
+  isResizing,
+  isMaximized,
+  position,
+  getHasMoved,
+  onDragStart,
+  onResizeStart,
+  toggleMaximize,
+  adjustBoxSizeForViewport
+} = useDragAndResize({
+  initialWidth: 380,
+  initialHeight: 480,
+  storageWidthKey: 'ai_sprite_chat_width',
+  storageHeightKey: 'ai_sprite_chat_height',
+  onPostScroll: scrollToBottom
+});
+
+const {
+  currentHoliday
+} = useHolidayTheme();
 
 // Active LLM Stream Reader & Copy States
 let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 const copiedIndex = ref<number | null>(null);
-
-// Holiday dressing state based on calendar
-type HolidayType =
-  | 'normal'
-  | 'new-year'
-  | 'spring-festival'
-  | 'lantern-festival'
-  | 'qingming'
-  | 'labor-day'
-  | 'dragon-boat'
-  | 'qixi'
-  | 'mid-autumn'
-  | 'double-ninth'
-  | 'national-day'
-  | 'halloween'
-  | 'christmas';
-
-const currentHoliday = ref<HolidayType>('normal');
-
-// Define holiday range type
-interface DateRange {
-  start: { month: number; date: number };
-  end: { month: number; date: number };
-}
-
-/**
- * Lunar traditional holiday solar date maps for years 2026-2030.
- * To maintain this in the future (e.g. 2031 onwards):
- * 1. Look up the Gregorian dates of the Chinese Traditional Holidays for the target year:
- *    - Spring Festival (春节 / 除夕): Lunar Dec 30 to Lunar Jan 6
- *    - Lantern Festival (元宵节): Lunar Jan 14 to Jan 15
- *    - Dragon Boat Festival (端午节): Lunar May 4 to May 6
- *    - Qixi Festival (七夕节): Lunar July 6 to July 7
- *    - Mid-Autumn Festival (中秋节): Lunar Aug 14 to Aug 16
- *    - Double Ninth Festival (重阳节): Lunar Sept 8 to Sept 9
- * 2. Add a new key for that year to the `lunarHolidays` record.
- */
-const lunarHolidays: Record<number, {
-  springFestival: DateRange; // Eve (除夕) to 6th day (正月初六)
-  lanternFestival: DateRange; // 14th to 15th day of first lunar month
-  dragonBoat: DateRange; // 4th to 6th day of fifth lunar month (端午)
-  qixi: DateRange; // 6th to 7th day of seventh lunar month (七夕)
-  midAutumn: DateRange; // 14th to 16th day of eighth lunar month (中秋)
-  doubleNinth: DateRange; // 8th to 9th day of ninth lunar month (重阳)
-}> = {
-  2026: {
-    springFestival: { start: { month: 2, date: 16 }, end: { month: 2, date: 22 } },
-    lanternFestival: { start: { month: 3, date: 2 }, end: { month: 3, date: 3 } },
-    dragonBoat: { start: { month: 6, date: 18 }, end: { month: 6, date: 20 } },
-    qixi: { start: { month: 8, date: 18 }, end: { month: 8, date: 19 } },
-    midAutumn: { start: { month: 9, date: 24 }, end: { month: 9, date: 26 } },
-    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } }
-  },
-  2027: {
-    springFestival: { start: { month: 2, date: 5 }, end: { month: 2, date: 11 } },
-    lanternFestival: { start: { month: 2, date: 19 }, end: { month: 2, date: 20 } },
-    dragonBoat: { start: { month: 6, date: 8 }, end: { month: 6, date: 10 } },
-    qixi: { start: { month: 8, date: 7 }, end: { month: 8, date: 8 } },
-    midAutumn: { start: { month: 9, date: 14 }, end: { month: 9, date: 16 } },
-    doubleNinth: { start: { month: 10, date: 14 }, end: { month: 10, date: 15 } }
-  },
-  2028: {
-    springFestival: { start: { month: 1, date: 25 }, end: { month: 1, date: 31 } },
-    lanternFestival: { start: { month: 2, date: 8 }, end: { month: 2, date: 9 } },
-    dragonBoat: { start: { month: 5, date: 27 }, end: { month: 5, date: 29 } },
-    qixi: { start: { month: 8, date: 25 }, end: { month: 8, date: 26 } },
-    midAutumn: { start: { month: 10, date: 2 }, end: { month: 10, date: 4 } },
-    doubleNinth: { start: { month: 10, date: 25 }, end: { month: 10, date: 26 } }
-  },
-  2029: {
-    springFestival: { start: { month: 2, date: 12 }, end: { month: 2, date: 18 } },
-    lanternFestival: { start: { month: 2, date: 26 }, end: { month: 2, date: 27 } },
-    dragonBoat: { start: { month: 6, date: 15 }, end: { month: 6, date: 17 } },
-    qixi: { start: { month: 8, date: 15 }, end: { month: 8, date: 16 } },
-    midAutumn: { start: { month: 9, date: 21 }, end: { month: 9, date: 23 } },
-    doubleNinth: { start: { month: 10, date: 15 }, end: { month: 10, date: 16 } }
-  },
-  2030: {
-    springFestival: { start: { month: 2, date: 2 }, end: { month: 2, date: 8 } },
-    lanternFestival: { start: { month: 2, date: 16 }, end: { month: 2, date: 17 } },
-    dragonBoat: { start: { month: 6, date: 4 }, end: { month: 6, date: 6 } },
-    qixi: { start: { month: 8, date: 4 }, end: { month: 8, date: 5 } },
-    midAutumn: { start: { month: 9, date: 11 }, end: { month: 9, date: 13 } },
-    doubleNinth: { start: { month: 10, date: 4 }, end: { month: 10, date: 5 } }
-  }
-};
-
-const checkHoliday = () => {
-  // Support manual debugging via localStorage mock
-  const mock = localStorage.getItem('mock_holiday');
-  if (mock) {
-    currentHoliday.value = mock as HolidayType;
-    return;
-  }
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1; // 1-12
-  const date = now.getDate();
-
-  // Helper to check range inside the same year
-  const isInRange = (startMonth: number, startDate: number, endMonth: number, endDate: number) => {
-    const start = new Date(year, startMonth - 1, startDate, 0, 0, 0);
-    const end = new Date(year, endMonth - 1, endDate, 23, 59, 59);
-    return now >= start && now <= end;
-  };
-
-  // --- 1. Solar Fixed Holidays ---
-  // New Year's Day (元旦): Dec 31 to Jan 2
-  if ((month === 12 && date === 31) || (month === 1 && (date === 1 || date === 2))) {
-    currentHoliday.value = 'new-year';
-    return;
-  }
-
-  // Tomb Sweeping Day (清明): Apr 4 to Apr 5 (always Apr 4 or 5)
-  if (month === 4 && (date === 4 || date === 5)) {
-    currentHoliday.value = 'qingming';
-    return;
-  }
-
-  // Labor Day (劳动节): May 1 to May 5
-  if (month === 5 && date >= 1 && date <= 5) {
-    currentHoliday.value = 'labor-day';
-    return;
-  }
-
-  // National Day (国庆节): Oct 1 to Oct 7
-  if (month === 10 && date >= 1 && date <= 7) {
-    currentHoliday.value = 'national-day';
-    return;
-  }
-
-  // Halloween (万圣节): Oct 29 to Nov 2
-  if ((month === 10 && date >= 29) || (month === 11 && date <= 2)) {
-    currentHoliday.value = 'halloween';
-    return;
-  }
-
-  // Christmas (圣诞节): Dec 20 to Dec 27
-  if (month === 12 && date >= 20 && date <= 27) {
-    currentHoliday.value = 'christmas';
-    return;
-  }
-
-  // --- 2. Lunar Calendar Traditional Holidays (Years 2026 to 2030) ---
-  const lunarMap = lunarHolidays[year];
-  if (lunarMap) {
-    if (isInRange(lunarMap.springFestival.start.month, lunarMap.springFestival.start.date, lunarMap.springFestival.end.month, lunarMap.springFestival.end.date)) {
-      currentHoliday.value = 'spring-festival';
-      return;
-    }
-    if (isInRange(lunarMap.lanternFestival.start.month, lunarMap.lanternFestival.start.date, lunarMap.lanternFestival.end.month, lunarMap.lanternFestival.end.date)) {
-      currentHoliday.value = 'lantern-festival';
-      return;
-    }
-    if (isInRange(lunarMap.dragonBoat.start.month, lunarMap.dragonBoat.start.date, lunarMap.dragonBoat.end.month, lunarMap.dragonBoat.end.date)) {
-      currentHoliday.value = 'dragon-boat';
-      return;
-    }
-    if (isInRange(lunarMap.qixi.start.month, lunarMap.qixi.start.date, lunarMap.qixi.end.month, lunarMap.qixi.end.date)) {
-      currentHoliday.value = 'qixi';
-      return;
-    }
-    if (isInRange(lunarMap.midAutumn.start.month, lunarMap.midAutumn.start.date, lunarMap.midAutumn.end.month, lunarMap.midAutumn.end.date)) {
-      currentHoliday.value = 'mid-autumn';
-      return;
-    }
-    if (isInRange(lunarMap.doubleNinth.start.month, lunarMap.doubleNinth.start.date, lunarMap.doubleNinth.end.month, lunarMap.doubleNinth.end.date)) {
-      currentHoliday.value = 'double-ninth';
-      return;
-    }
-  } else if (year > 2030 && import.meta.env.DEV) {
-    console.warn(
-      `[AISprite] The lunar holiday precomputed date map only covers 2026-2030. ` +
-      `Please extend lunarHolidays in AISprite.vue for the current year ${year}.`
-    );
-  }
-
-  currentHoliday.value = 'normal';
-};
-
-// Draggable Position Coordinates (relative to bottom-right)
-const position = ref({ bottom: 24, right: 24 });
-const isDragging = ref(false);
-let startX = 0;
-let startY = 0;
-let startBottom = 0;
-let startRight = 0;
-let hasMoved = false;
 
 // Chat message contract
 interface Message {
@@ -236,183 +77,18 @@ const messages = ref<Message[]>([
   },
 ]);
 
-// DOM reference for auto-scroll
-const chatContainer = ref<HTMLDivElement | null>(null);
-
-/**
- * Scroll conversation messages container to bottom.
- */
-const scrollToBottom = async () => {
-  await nextTick();
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-  }
-};
-
-/**
- * Keeps the chat box width and height dynamically within current viewport bounds.
- */
-const adjustBoxSizeForViewport = () => {
-  // Constrain width so it doesn't exceed window width minus padding (e.g. 20px)
-  const maxW = Math.max(260, window.innerWidth - position.value.right - 20);
-  if (chatBoxWidth.value > maxW) {
-    chatBoxWidth.value = maxW;
-  }
-  
-  // Constrain height so it doesn't exceed window height minus padding (e.g. 90px)
-  const maxH = Math.max(300, window.innerHeight - position.value.bottom - 90);
-  if (chatBoxHeight.value > maxH) {
-    chatBoxHeight.value = maxH;
-  }
-};
-
-/**
- * Initiates mouse or touch dragging on the AI Sprite trigger button or Chat Header.
- */
-const onDragStart = (e: MouseEvent | TouchEvent) => {
-  // Prevent drag if clicking on buttons or interactive icons
-  const target = e.target as HTMLElement;
-  if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('.el-dropdown')) {
-    return;
-  }
-
-  isDragging.value = true;
-  hasMoved = false;
-  
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-  
-  startX = clientX;
-  startY = clientY;
-  startBottom = position.value.bottom;
-  startRight = position.value.right;
-
-  document.addEventListener('mousemove', onDragMove);
-  document.addEventListener('mouseup', onDragEnd);
-  document.addEventListener('touchmove', onDragMove, { passive: false });
-  document.addEventListener('touchend', onDragEnd);
-};
-
-/**
- * Calculates new drag coordinates keeping the sprite/chatbox within viewport bounds.
- */
-const onDragMove = (e: MouseEvent | TouchEvent) => {
-  if (!isDragging.value) return;
-  if ('touches' in e) {
-    e.preventDefault(); // Stop mobile screen elastic scrolling
-  }
-  
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-  
-  const deltaX = clientX - startX;
-  const deltaY = clientY - startY;
-
-  // Set drag flag if it moves beyond a 4px noise threshold
-  if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
-    hasMoved = true;
-  }
-
-  const nextBottom = startBottom - deltaY;
-  const nextRight = startRight - deltaX;
-
-  // Restrict boundaries dynamically so the chat box stays in view when open
-  const maxBottom = isOpen.value 
-    ? Math.max(10, window.innerHeight - chatBoxHeight.value - 90) 
-    : window.innerHeight - 80;
-  const maxRight = isOpen.value 
-    ? Math.max(10, window.innerWidth - chatBoxWidth.value - 40) 
-    : window.innerWidth - 80;
-
-  position.value.bottom = Math.max(10, Math.min(maxBottom, nextBottom));
-  position.value.right = Math.max(10, Math.min(maxRight, nextRight));
-};
-
-/**
- * Cleans up global mouse & touch event listeners on drag release.
- */
-const onDragEnd = () => {
-  isDragging.value = false;
-  document.removeEventListener('mousemove', onDragMove);
-  document.removeEventListener('mouseup', onDragEnd);
-  document.removeEventListener('touchmove', onDragMove);
-  document.removeEventListener('touchend', onDragEnd);
-};
-
-/**
- * Initiates mouse or touch resizing on the Chat Box edges or corner.
- */
-const onResizeStart = (e: MouseEvent | TouchEvent, type: string) => {
-  e.preventDefault();
-  e.stopPropagation();
-  isResizing.value = true;
-  resizeType = type;
-
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-  resizeStartX = clientX;
-  resizeStartY = clientY;
-  resizeStartWidth = chatBoxWidth.value;
-  resizeStartHeight = chatBoxHeight.value;
-
-  document.addEventListener('mousemove', onResizeMove);
-  document.addEventListener('mouseup', onResizeEnd);
-  document.addEventListener('touchmove', onResizeMove, { passive: false });
-  document.addEventListener('touchend', onResizeEnd);
-};
-
-/**
- * Adjusts chatBoxWidth & chatBoxHeight based on mouse/touch drag relative movements.
- */
-const onResizeMove = (e: MouseEvent | TouchEvent) => {
-  if (!isResizing.value) return;
-
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-  const deltaX = clientX - resizeStartX;
-  const deltaY = clientY - resizeStartY;
-
-  if (resizeType === 'left' || resizeType === 'top-left') {
-    const newWidth = resizeStartWidth - deltaX;
-    // Constrain width so it cannot exceed the left edge of the page
-    const maxAllowedWidth = Math.max(260, window.innerWidth - position.value.right - 20);
-    chatBoxWidth.value = Math.max(260, Math.min(maxAllowedWidth, 800, newWidth));
-  }
-
-  if (resizeType === 'top' || resizeType === 'top-left') {
-    const newHeight = resizeStartHeight - deltaY;
-    // Constrain height so it cannot exceed the top edge of the page
-    const maxAllowedHeight = Math.max(300, window.innerHeight - position.value.bottom - 90);
-    chatBoxHeight.value = Math.max(300, Math.min(maxAllowedHeight, 800, newHeight));
-  }
-};
-
-/**
- * Cleans up global mouse & touch event listeners on resize release.
- */
-const onResizeEnd = () => {
-  isResizing.value = false;
-  document.removeEventListener('mousemove', onResizeMove);
-  document.removeEventListener('mouseup', onResizeEnd);
-  document.removeEventListener('touchmove', onResizeMove);
-  document.removeEventListener('touchend', onResizeEnd);
-
-  localStorage.setItem('ai_sprite_chat_width', chatBoxWidth.value.toString());
-  localStorage.setItem('ai_sprite_chat_height', chatBoxHeight.value.toString());
-};
-
 /**
  * Handles clicks on the mascot sprite. Ignores trigger if dragging just occurred.
  */
 const handleSpriteClick = () => {
-  if (hasMoved) return;
+  if (getHasMoved()) return;
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     showBubble.value = false;
     adjustBoxSizeForViewport();
     scrollToBottom();
+  } else {
+    isMaximized.value = false;
   }
 };
 
@@ -426,24 +102,6 @@ onMounted(() => {
       console.error('Failed to parse chat history:', e);
     }
   }
-
-  // Evaluate calendar holiday for mascot dressing
-  checkHoliday();
-
-  const savedWidth = localStorage.getItem('ai_sprite_chat_width');
-  const savedHeight = localStorage.getItem('ai_sprite_chat_height');
-  if (savedWidth) {
-    const w = parseInt(savedWidth, 10);
-    if (w >= 300 && w <= 800) chatBoxWidth.value = w;
-  }
-  if (savedHeight) {
-    const h = parseInt(savedHeight, 10);
-    if (h >= 350 && h <= 800) chatBoxHeight.value = h;
-  }
-  
-  // Make sure the chatbox size fits the current viewport on mount
-  adjustBoxSizeForViewport();
-  window.addEventListener('resize', adjustBoxSizeForViewport);
   
   // Auto fade out bubble tip after 8 seconds
   setTimeout(() => {
@@ -452,7 +110,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', adjustBoxSizeForViewport);
+  handleStop();
 });
 
 /**
@@ -591,51 +249,29 @@ const handleSend = async () => {
     startTypewriter(targetIndex);
 
     activeReader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let streamDone = false;
 
-    while (!streamDone) {
-      const { value, done } = await activeReader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // keep trailing line snippet
-
-      for (const line of lines) {
-        const cleanLine = line.trim();
-        if (!cleanLine) continue;
-        if (cleanLine === 'data: [DONE]') {
-          // Signal outer loop to stop after this chunk
-          streamDone = true;
-          break;
-        }
-        if (cleanLine.startsWith('data: ')) {
-          try {
-            const payload = JSON.parse(cleanLine.substring(6));
-            if (payload.error) {
-              // Push error chars into queue so typewriter shows it naturally
-              for (const ch of `\n[错误: ${payload.error}]`) {
-                typewriterQueue.value.push({ type: 'text', char: ch });
-              }
-            } else if (payload.reasoning) {
-              // Push reasoning chars
-              for (const ch of payload.reasoning) {
-                typewriterQueue.value.push({ type: 'reasoning', char: ch });
-              }
-            } else if (payload.text) {
-              // Push each character into the typewriter queue
-              for (const ch of payload.text) {
-                typewriterQueue.value.push({ type: 'text', char: ch });
-              }
-            }
-          } catch (e) {
-            // Ignore JSON parse failures from split chunk boundaries
+    await parseSSEStream(
+      activeReader,
+      (payload) => {
+        if (payload.error) {
+          for (const ch of `\n[错误: ${payload.error}]`) {
+            typewriterQueue.value.push({ type: 'text', char: ch });
+          }
+        } else if (payload.reasoning) {
+          for (const ch of payload.reasoning) {
+            typewriterQueue.value.push({ type: 'reasoning', char: ch });
+          }
+        } else if (payload.text) {
+          for (const ch of payload.text) {
+            typewriterQueue.value.push({ type: 'text', char: ch });
           }
         }
+      },
+      () => {},
+      (err) => {
+        throw err;
       }
-    }
+    );
 
     // Stream ended — wait for typewriter to fully drain the queue, then stop it cleanly.
     await new Promise<void>((resolve) => {
@@ -838,7 +474,8 @@ const formatMessage = (content: string) => {
   <div 
     v-if="systemStore.settings.AI_IMPORT_ENABLED" 
     class="fixed z-[99] flex flex-col items-end elf-parent-container"
-    :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }"
+    :style="isMaximized ? { top: '24px', left: '24px', right: '24px', bottom: '24px' } : { bottom: position.bottom + 'px', right: position.right + 'px' }"
+    :class="{ 'elf-parent-maximized': isMaximized }"
   >
     
     <!-- Bubble Tip -->
@@ -869,10 +506,10 @@ const formatMessage = (content: string) => {
       <div
         v-if="isOpen"
         class="mb-4 rounded-3xl shadow-2xl border flex flex-col overflow-hidden relative backdrop-blur-md animate-none elf-chat-box"
-        :class="[isResizing ? '' : 'transition-all duration-300']"
+        :class="[isResizing ? '' : 'transition-all duration-300', isMaximized ? 'is-maximized' : '']"
         :style="{
-          width: chatBoxWidth + 'px',
-          height: chatBoxHeight + 'px',
+          width: isMaximized ? '100%' : chatBoxWidth + 'px',
+          height: isMaximized ? '100%' : chatBoxHeight + 'px',
           backgroundColor: 'rgba(var(--bg-card-rgb, 255, 255, 255), 0.85)',
           borderColor: 'var(--border-base)',
         }"
@@ -880,30 +517,34 @@ const formatMessage = (content: string) => {
         <!-- Drag resize handles (resizes from top, left, and top-left edges) -->
         <!-- Left edge -->
         <div 
+          v-if="!isMaximized"
           class="absolute left-0 top-0 bottom-0 w-2 cursor-w-resize z-30 select-none" 
           @mousedown="onResizeStart($event, 'left')"
           @touchstart="onResizeStart($event, 'left')"
         ></div>
         <!-- Top edge -->
         <div 
+          v-if="!isMaximized"
           class="absolute left-0 right-0 top-0 h-2 cursor-n-resize z-30 select-none" 
           @mousedown="onResizeStart($event, 'top')"
           @touchstart="onResizeStart($event, 'top')"
         ></div>
         <!-- Top-left corner -->
         <div 
+          v-if="!isMaximized"
           class="absolute left-0 top-0 w-4 h-4 cursor-nw-resize z-40 select-none" 
           @mousedown="onResizeStart($event, 'top-left')"
           @touchstart="onResizeStart($event, 'top-left')"
         ></div>
         <!-- Top-left visual corner bracket cue -->
-        <div class="absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-slate-400/40 dark:border-slate-500/40 rounded-tl pointer-events-none z-30 elf-resize-bracket"></div>
+        <div v-if="!isMaximized" class="absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-slate-400/40 dark:border-slate-500/40 rounded-tl pointer-events-none z-30 elf-resize-bracket"></div>
         <!-- Chat Header (draggable handle to move dialogue window) -->
         <div 
-          class="px-5 py-3 border-b flex items-center justify-between bg-gradient-to-r from-indigo-500/10 via-accent/10 to-transparent cursor-grab active:cursor-grabbing select-none" 
+          class="px-5 py-3 border-b flex items-center justify-between bg-gradient-to-r from-indigo-500/10 via-accent/10 to-transparent select-none" 
+          :class="isMaximized ? '' : 'cursor-grab active:cursor-grabbing'"
           style="border-color: var(--border-base)"
-          @mousedown="onDragStart"
-          @touchstart="onDragStart"
+          @mousedown="isMaximized ? undefined : onDragStart($event, isOpen)"
+          @touchstart="isMaximized ? undefined : onDragStart($event, isOpen)"
         >
           <div class="flex items-center gap-2.5">
             <!-- Miniature Glowing Mascot inside chat header -->
@@ -926,6 +567,14 @@ const formatMessage = (content: string) => {
           <div class="flex items-center gap-2">
             <button
               type="button"
+              class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              :title="isMaximized ? '还原窗口' : '最大化窗口'"
+              @click="toggleMaximize"
+            >
+              <component :is="isMaximized ? Minimize2 : Maximize2" class="w-4 h-4" />
+            </button>
+            <button
+              type="button"
               class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
               title="清空会话历史"
               @click="clearHistory"
@@ -935,7 +584,7 @@ const formatMessage = (content: string) => {
             <button
               type="button"
               class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
-              @click="isOpen = false"
+              @click="isOpen = false; isMaximized = false;"
             >
               <X class="w-4 h-4" />
             </button>
@@ -1090,6 +739,7 @@ const formatMessage = (content: string) => {
 
     <!-- Upgraded Theme-consistent Draggable Sprite Button -->
     <div
+      v-if="!isMaximized"
       class="elf-mascot relative w-15 h-15 rounded-full flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 animate-float-sprite"
       style="
         background-color: var(--bg-card);
@@ -1098,8 +748,8 @@ const formatMessage = (content: string) => {
       :style="{
         boxShadow: `0 0 20px color-mix(in srgb, var(--accent) 35%, transparent)`
       }"
-      @mousedown="onDragStart"
-      @touchstart="onDragStart"
+      @mousedown="onDragStart($event, isOpen)"
+      @touchstart="onDragStart($event, isOpen)"
       @click="handleSpriteClick"
     >
       <!-- holographic background gradient pulse -->
@@ -1396,5 +1046,9 @@ const formatMessage = (content: string) => {
 .elf-chat-box {
   max-width: calc(100vw - 32px) !important;
   max-height: calc(100vh - 120px) !important;
+}
+.elf-chat-box.is-maximized {
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 </style>

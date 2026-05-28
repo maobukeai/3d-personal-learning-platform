@@ -385,7 +385,8 @@ type="button"
     <!-- Featured Banner -->
     <div class="px-4 sm:px-6 py-2.5 sm:py-3.5 shrink-0">
       <div class="relative h-28 md:h-36 rounded-xl overflow-hidden bg-slate-900 group cursor-pointer">
-        <img alt=""
+        <img
+alt=""
           src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=1200&auto=format&fit=crop&q=80"
           class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
         />

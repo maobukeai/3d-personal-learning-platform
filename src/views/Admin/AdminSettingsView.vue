@@ -26,6 +26,12 @@ import {
   Github,
   Trash2,
   Cpu,
+  Plus,
+  Star,
+  GripVertical,
+  Sliders,
+  Cloud,
+  Database,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -136,6 +142,7 @@ const defaultSettings = {
   AI_API_KEY: '',
   AI_API_ENDPOINT: 'https://api.deepseek.com/v1',
   AI_MODEL_NAME: 'deepseek-chat',
+  AI_MODEL_OPTIONS: '[]',
 };
 
 type SettingValue = string | boolean;
@@ -156,8 +163,162 @@ interface MicrosoftEmailAccount {
   sentCountToday?: number;
 }
 
+interface AiModelConfig {
+  id: string;
+  name: string;
+  provider: string;
+  modelName: string;
+  endpoint: string;
+  apiKey: string;
+  enabled: boolean;
+  isDefault: boolean;
+  description: string;
+  capabilities: string[];
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+  showAdvanced?: boolean;
+}
+
 const settings = ref({ ...defaultSettings });
 const originalSettings = ref({ ...defaultSettings });
+const aiModelConfigs = ref<AiModelConfig[]>([]);
+
+const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
+  DEEPSEEK: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat', name: 'DeepSeek Chat' },
+  OPENAI: { endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini', name: 'OpenAI GPT-4o mini' },
+  OLLAMA: { endpoint: 'http://localhost:11434/api', model: 'llama3', name: 'Ollama Llama3' },
+  QWEN: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', name: 'Qwen Plus' },
+  GEMINI: { endpoint: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash', name: 'Gemini Flash' },
+  AZURE: { endpoint: 'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15', model: 'gpt-4o', name: 'Azure OpenAI' },
+  CUSTOM: { endpoint: '', model: '', name: '自定义模型' },
+};
+
+const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
+  const defaults = aiProviderDefaults[provider] || aiProviderDefaults.DEEPSEEK;
+  return {
+    id: `model_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    name: defaults.name,
+    provider,
+    modelName: defaults.model,
+    endpoint: defaults.endpoint,
+    apiKey: '',
+    enabled: true,
+    isDefault: aiModelConfigs.value.length === 0,
+    description: '',
+    capabilities: ['chat'],
+    temperature: 0.7,
+    maxTokens: 2000,
+    systemPrompt: '',
+    showAdvanced: false,
+  };
+};
+
+const normalizeAiModels = (value: unknown): AiModelConfig[] => {
+  let raw = value;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return [];
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item, index): AiModelConfig | null => {
+      if (!item || typeof item !== 'object') return null;
+      const model = item as Record<string, unknown>;
+      const provider = String(model.provider || 'DEEPSEEK').toUpperCase();
+      const defaults = aiProviderDefaults[provider] || aiProviderDefaults.CUSTOM;
+      const modelName = String(model.modelName || defaults.model || '').trim();
+      if (!modelName && provider !== 'CUSTOM') return null;
+      return {
+        id: String(model.id || `model_${index + 1}`),
+        name: String(model.name || defaults.name || `${provider} ${modelName}`),
+        provider,
+        modelName,
+        endpoint: String(model.endpoint || defaults.endpoint || ''),
+        apiKey: typeof model.apiKey === 'string' ? model.apiKey : '',
+        enabled: model.enabled === true || model.enabled === 'true',
+        isDefault: model.isDefault === true || model.isDefault === 'true',
+        description: typeof model.description === 'string' ? model.description : '',
+        capabilities: Array.isArray(model.capabilities) ? model.capabilities.map(String) : ['chat'],
+        temperature: typeof model.temperature === 'number' ? model.temperature : 0.7,
+        maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : 2000,
+        systemPrompt: typeof model.systemPrompt === 'string' ? model.systemPrompt : '',
+        showAdvanced: false,
+      };
+    })
+    .filter((item): item is AiModelConfig => Boolean(item));
+};
+
+const syncAiModelsToSettings = () => {
+  if (aiModelConfigs.value.length > 0 && !aiModelConfigs.value.some((model) => model.isDefault)) {
+    aiModelConfigs.value[0].isDefault = true;
+  }
+  settings.value.AI_MODEL_OPTIONS = JSON.stringify(aiModelConfigs.value);
+
+  const defaultModel =
+    aiModelConfigs.value.find((model) => model.isDefault) || aiModelConfigs.value[0];
+  if (defaultModel) {
+    settings.value.AI_PROVIDER = defaultModel.provider;
+    settings.value.AI_API_ENDPOINT = defaultModel.endpoint;
+    settings.value.AI_MODEL_NAME = defaultModel.modelName;
+    settings.value.AI_API_KEY = defaultModel.apiKey;
+  }
+};
+
+const addAiModel = () => {
+  aiModelConfigs.value.push(createAiModelConfig());
+  syncAiModelsToSettings();
+};
+
+const removeAiModel = async (id: string) => {
+  if (aiModelConfigs.value.length <= 1) {
+    return ElMessage.warning('至少保留一个 AI 模型配置');
+  }
+  try {
+    await ElMessageBox.confirm('确定删除这个 AI 模型配置吗？', '删除模型', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    const removed = aiModelConfigs.value.find((model) => model.id === id);
+    aiModelConfigs.value = aiModelConfigs.value.filter((model) => model.id !== id);
+    if (removed?.isDefault && aiModelConfigs.value[0]) {
+      aiModelConfigs.value[0].isDefault = true;
+    }
+    syncAiModelsToSettings();
+  } catch {}
+};
+
+const setDefaultAiModel = (id: string) => {
+  aiModelConfigs.value.forEach((model) => {
+    model.isDefault = model.id === id;
+    if (model.id === id) model.enabled = true;
+  });
+  syncAiModelsToSettings();
+};
+
+const handleAiProviderChange = (model: AiModelConfig) => {
+  const defaults = aiProviderDefaults[model.provider] || aiProviderDefaults.CUSTOM;
+  model.endpoint = defaults.endpoint;
+  model.modelName = defaults.model;
+  if (!model.name || Object.values(aiProviderDefaults).some((item) => item.name === model.name)) {
+    model.name = defaults.name;
+  }
+  syncAiModelsToSettings();
+};
+
+const updateAiModelCapabilities = (model: AiModelConfig, event: Event) => {
+  const value = (event.target as HTMLInputElement).value;
+  model.capabilities = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  syncAiModelsToSettings();
+};
 
 const isKnownSettingKey = (key: string): key is keyof typeof defaultSettings => {
   return Object.prototype.hasOwnProperty.call(defaultSettings, key);
@@ -341,6 +502,14 @@ watch(
   { deep: true },
 );
 
+watch(
+  aiModelConfigs,
+  () => {
+    syncAiModelsToSettings();
+  },
+  { deep: true },
+);
+
 const emailPreviewHtml = computed(() => {
   let html = settings.value.EMAIL_VERIFY_BODY || '';
   html = html.replace(
@@ -378,6 +547,8 @@ const fetchSettings = async () => {
           } catch {
             setSettingValue(s.key, getDefaultSettingValue(s.key));
           }
+        } else if (s.key === 'AI_MODEL_OPTIONS') {
+          setSettingValue(s.key, typeof s.value === 'string' ? s.value : JSON.stringify(s.value || []));
         } else if (Object.keys(settings.value).includes(s.key)) {
           setSettingValue(s.key, typeof s.value === 'boolean' ? s.value : String(s.value ?? ''));
         }
@@ -390,9 +561,9 @@ const fetchSettings = async () => {
         } else if (typeof value === 'boolean') {
           setSettingValue(key, value);
         } else if (Array.isArray(value)) {
-          setSettingValue(key, value.join(', '));
+          setSettingValue(key, key === 'AI_MODEL_OPTIONS' ? JSON.stringify(value) : value.join(', '));
         } else if (Object.keys(settings.value).includes(key)) {
-          if (key !== 'SMTP_CONFIGS' && typeof value === 'string' && value.trim().startsWith('[')) {
+          if (key !== 'SMTP_CONFIGS' && key !== 'AI_MODEL_OPTIONS' && typeof value === 'string' && value.trim().startsWith('[')) {
             try {
               const parsed = JSON.parse(value);
               if (Array.isArray(parsed)) {
@@ -405,6 +576,25 @@ const fetchSettings = async () => {
         }
       });
     }
+
+    aiModelConfigs.value = normalizeAiModels(settings.value.AI_MODEL_OPTIONS);
+    if (aiModelConfigs.value.length === 0) {
+      aiModelConfigs.value = [
+        {
+          id: 'default',
+          name: `${settings.value.AI_PROVIDER} ${settings.value.AI_MODEL_NAME}`.trim(),
+          provider: settings.value.AI_PROVIDER,
+          modelName: settings.value.AI_MODEL_NAME,
+          endpoint: settings.value.AI_API_ENDPOINT,
+          apiKey: settings.value.AI_API_KEY,
+          enabled: true,
+          isDefault: true,
+          description: '从旧版单模型配置自动生成',
+          capabilities: ['chat'],
+        },
+      ];
+    }
+    syncAiModelsToSettings();
 
     // Parse SMTP_CONFIGS
     try {
@@ -461,6 +651,7 @@ const saveSettings = async () => {
 
   try {
     isSaving.value = true;
+    syncAiModelsToSettings();
     const settingsPayload = Object.entries(settings.value).map(([key, value]) => {
       return { key, value: typeof value === 'boolean' ? String(value) : value };
     });
@@ -480,6 +671,19 @@ const saveSettings = async () => {
       systemStore.settings.ALLOW_REGISTRATION = settings.value.ALLOW_REGISTRATION === true;
       systemStore.settings.MAINTENANCE_MODE = settings.value.MAINTENANCE_MODE === true;
       systemStore.settings.FOOTER_TEXT = settings.value.FOOTER_TEXT;
+      systemStore.settings.AI_IMPORT_ENABLED = settings.value.AI_IMPORT_ENABLED === true;
+      systemStore.settings.AI_MODEL_OPTIONS = aiModelConfigs.value
+        .filter((model) => model.enabled)
+        .map((model) => ({
+          id: model.id,
+          name: model.name,
+          provider: model.provider,
+          modelName: model.modelName,
+          enabled: model.enabled,
+          isDefault: model.isDefault,
+          description: model.description,
+          capabilities: model.capabilities,
+        }));
       systemStore.updateBrowserBranding();
     }
   } catch (error: unknown) {
@@ -534,6 +738,8 @@ const resetToDefaults = async () => {
       },
     ];
     activeConfigId.value = 'default';
+    aiModelConfigs.value = [createAiModelConfig()];
+    syncAiModelsToSettings();
     ElMessage.info('已恢复默认值，请点击保存以生效');
   } catch {}
 };
@@ -574,21 +780,74 @@ const testSmtp = async () => {
 };
 
 const isTestingAi = ref(false);
-const testAi = async () => {
-  if (!settings.value.AI_PROVIDER) {
+const testingAiModelId = ref('');
+const expandedModelId = ref<string | null>(null);
+
+const toggleModelExpand = (id: string) => {
+  expandedModelId.value = expandedModelId.value === id ? null : id;
+};
+
+const dragIndex = ref<number | null>(null);
+const isDraggable = ref(false);
+
+const handleDragStart = (event: DragEvent, index: number) => {
+  dragIndex.value = index;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+  }
+};
+
+const handleDrop = (_event: DragEvent, toIndex: number) => {
+  if (dragIndex.value !== null && dragIndex.value !== toIndex) {
+    const list = [...aiModelConfigs.value];
+    const draggedItem = list.splice(dragIndex.value, 1)[0];
+    list.splice(toIndex, 0, draggedItem);
+    aiModelConfigs.value = list;
+    syncAiModelsToSettings();
+    ElMessage.success('已更新模型优先排序');
+  }
+};
+
+const handleDragEnd = () => {
+  dragIndex.value = null;
+  isDraggable.value = false;
+};
+
+const providerMeta: Record<string, { color: string; bg: string; border: string; label: string; lucideIcon: any }> = {
+  DEEPSEEK: { color: '#2563eb', bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.25)', label: 'DeepSeek', lucideIcon: Cpu },
+  OPENAI: { color: '#10a37f', bg: 'rgba(16,163,127,0.08)', border: 'rgba(16,163,127,0.25)', label: 'OpenAI', lucideIcon: Sparkles },
+  OLLAMA: { color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', label: 'Ollama', lucideIcon: Database },
+  QWEN: { color: '#ea580c', bg: 'rgba(234,88,12,0.08)', border: 'rgba(234,88,12,0.25)', label: 'Qwen', lucideIcon: Globe },
+  GEMINI: { color: '#db2777', bg: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.25)', label: 'Gemini', lucideIcon: Sparkles },
+  AZURE: { color: '#0284c7', bg: 'rgba(2,132,199,0.08)', border: 'rgba(2,132,199,0.25)', label: 'Azure', lucideIcon: Cloud },
+  CUSTOM: { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.25)', label: 'Custom', lucideIcon: Settings },
+};
+
+const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
+const testAi = async (model?: AiModelConfig) => {
+  const provider = model?.provider || settings.value.AI_PROVIDER;
+  const apiKey = model?.apiKey || settings.value.AI_API_KEY;
+  const endpoint = model?.endpoint || settings.value.AI_API_ENDPOINT;
+  const modelName = model?.modelName || settings.value.AI_MODEL_NAME;
+
+  if (!provider) {
     return ElMessage.warning('请选择 AI 提供商');
   }
-  if (!settings.value.AI_API_KEY && settings.value.AI_PROVIDER !== 'OLLAMA') {
+  if (!apiKey && provider !== 'OLLAMA') {
     return ElMessage.warning('请输入 API 密钥');
+  }
+  if (!modelName) {
+    return ElMessage.warning('请输入模型名称');
   }
 
   try {
     isTestingAi.value = true;
+    testingAiModelId.value = model?.id || '__legacy__';
     const { data } = await api.post('/api/admin/settings/test-ai', {
-      provider: settings.value.AI_PROVIDER,
-      endpoint: settings.value.AI_API_ENDPOINT,
-      apiKey: settings.value.AI_API_KEY,
-      modelName: settings.value.AI_MODEL_NAME,
+      provider,
+      endpoint,
+      apiKey,
+      modelName,
     });
     if (data.success) {
       ElMessage.success(data.message || 'AI 接口测试成功！');
@@ -600,12 +859,14 @@ const testAi = async () => {
     ElMessage.error(getApiErrorMessage(error, 'AI 连接测试失败'));
   } finally {
     isTestingAi.value = false;
+    testingAiModelId.value = '';
   }
 };
 
 watch(
   () => settings.value.AI_PROVIDER,
   (newProvider) => {
+    if (aiModelConfigs.value.length > 0) return;
     const defaultsMap: Record<string, { endpoint: string; model: string }> = {
       DEEPSEEK: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
       OPENAI: { endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
@@ -831,7 +1092,7 @@ v-for="tab in tabs"
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-        <div class="max-w-3xl mx-auto space-y-8 pb-12">
+        <div class="max-w-6xl mx-auto space-y-8 pb-12">
           <!-- General Settings -->
           <div
             v-if="activeTab === 'general'"
@@ -2062,129 +2323,423 @@ type="button"
           <!-- AI Settings Tab -->
           <div
             v-if="activeTab === 'ai'"
-            class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+            class="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
-            <section
-              class="p-4 sm:p-8 rounded-3xl border transition-colors duration-300"
-              style="background-color: var(--bg-card); border-color: var(--border-base)"
+            <!-- Header Card -->
+            <div
+              class="relative overflow-hidden rounded-3xl border p-6"
+              style="background: linear-gradient(135deg, var(--bg-card) 0%, rgba(99,102,241,0.04) 100%); border-color: var(--border-base);"
             >
-              <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-3">
-                  <Cpu class="w-5 h-5 text-indigo-600" />
-                  <h2 class="text-lg font-bold" style="color: var(--text-primary)">
-                    AI 智能辅助系统配置
-                  </h2>
+              <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-[0.06]" style="background: radial-gradient(circle, #6366f1 0%, transparent 70%)"></div>
+              <div class="absolute -right-2 top-10 w-20 h-20 rounded-full opacity-[0.04]" style="background: radial-gradient(circle, #8b5cf6 0%, transparent 70%)"></div>
+
+              <div class="relative flex items-start justify-between gap-4">
+                <div class="flex items-start gap-4">
+                  <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 4px 15px rgba(99,102,241,0.3);">
+                    <Cpu class="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">AI 智能辅助系统</h2>
+                    <p class="text-xs leading-relaxed max-w-lg" style="color: var(--text-secondary)">
+                      启用后，用户可以使用 AI 一键生成项目、AI 写作助手等智能功能。API Key 仅保存在服务端，不会暴露给前台用户。
+                    </p>
+                  </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold" style="color: var(--text-secondary)">启用 AI</span>
-                  <el-switch
-                    v-model="settings.AI_IMPORT_ENABLED"
-                    inline-prompt
-                    active-text="开"
-                    inactive-text="关"
-                    active-color="var(--accent)"
-                  />
+                <div class="flex-shrink-0">
+                  <div class="flex flex-col items-center gap-1.5">
+                    <el-switch
+                      v-model="settings.AI_IMPORT_ENABLED"
+                      inline-prompt
+                      active-text="已开启"
+                      inactive-text="已关闭"
+                      style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8;"
+                    />
+                    <span
+                      class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      :style="settings.AI_IMPORT_ENABLED
+                        ? 'background: rgba(99,102,241,0.12); color: #6366f1;'
+                        : 'background: var(--bg-app); color: var(--text-muted);'"
+                    >{{ settings.AI_IMPORT_ENABLED ? '✓ 功能已激活' : '功能未启用' }}</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="space-y-6">
-                <!-- Warning description -->
-                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-dashed border-indigo-500/30 text-xs leading-relaxed space-y-1" style="color: var(--text-secondary)">
-                  <p class="font-bold text-indigo-500">🤖 关于智能解析助手：</p>
-                  <p>开启此功能后，非管理员用户在创建项目时，可以使用“AI 智能一键生成”功能。AI 将根据用户的自然语言描述，自动排版符合导入解析标准的 Markdown 文本，并一键完成项目信息填充、看板任务划分及学习路线设置。</p>
+              <div v-if="settings.AI_IMPORT_ENABLED" class="mt-4 pt-4 border-t flex flex-wrap gap-2" style="border-color: var(--border-base)">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">🎯 AI 项目一键生成</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">✍️ AI 写作助手</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">🧠 模型思考流显示</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">🔄 实时流式输出</span>
+              </div>
+            </div>
+
+            <!-- Models Panel -->
+            <div v-if="settings.AI_IMPORT_ENABLED" class="space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-black" style="color: var(--text-primary)">模型池配置</h3>
+                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">{{ aiModelConfigs.length }} 个模型 &middot; {{ aiModelConfigs.filter(m => m.enabled).length }} 个已启用</p>
                 </div>
+                <button
+                  type="button"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200"
+                  style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; box-shadow: 0 2px 12px rgba(99,102,241,0.35);"
+                  @click="addAiModel"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>添加模型</span>
+                </button>
+              </div>
 
-                <div v-if="settings.AI_IMPORT_ENABLED" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                  <div class="space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">AI 提供商 (Provider)</label>
-                    <el-select
-                      v-model="settings.AI_PROVIDER"
-                      placeholder="请选择 API 提供商"
-                      class="w-full custom-select"
+              <!-- Model Cards -->
+              <div class="space-y-3">
+                <div
+                  v-for="(model, index) in aiModelConfigs"
+                  :key="model.id"
+                  :draggable="isDraggable"
+                  @dragstart="handleDragStart($event, index)"
+                  @dragover.prevent
+                  @drop="handleDrop($event, index)"
+                  @dragend="handleDragEnd"
+                  class="rounded-2xl border overflow-hidden transition-all duration-300"
+                  :class="{ 'opacity-50 border-indigo-400 scale-[0.99]': dragIndex === index }"
+                  :style="model.isDefault
+                    ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
+                    : 'border-color: var(--border-base); background-color: var(--bg-card);'"
+                >
+                  <!-- Card Header -->
+                  <div
+                    class="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none transition-colors duration-200"
+                    :style="expandedModelId === model.id ? 'background: var(--bg-app);' : ''"
+                    @click="toggleModelExpand(model.id)"
+                  >
+                    <!-- Drag handle -->
+                    <div
+                      class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0"
+                      title="拖拽调整优先级排序"
+                      @mouseenter="isDraggable = true"
+                      @mouseleave="isDraggable = false"
+                      @click.stop
                     >
-                      <el-option label="DeepSeek (深度求索)" value="DEEPSEEK" />
-                      <el-option label="OpenAI" value="OPENAI" />
-                      <el-option label="Ollama (本地私有化部署)" value="OLLAMA" />
-                      <el-option label="Qwen (通义千问兼容端)" value="QWEN" />
-                      <el-option label="Google Gemini" value="GEMINI" />
-                      <el-option label="Azure OpenAI" value="AZURE" />
-                      <el-option label="Custom (自定义/其他兼容接口)" value="CUSTOM" />
-                    </el-select>
-                  </div>
+                      <GripVertical class="w-3.5 h-3.5 text-slate-400" />
+                    </div>
 
-                  <div class="space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">模型名称 (Model Name)</label>
-                    <input
-                      v-model="settings.AI_MODEL_NAME"
-                      type="text"
-                      placeholder="例如: deepseek-chat 或 gpt-4o-mini"
-                      class="w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                    />
-                  </div>
-
-                  <div class="col-span-1 md:col-span-2 space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">接口终端地址 (API Endpoint)</label>
-                    <input
-                      v-model="settings.AI_API_ENDPOINT"
-                      type="text"
-                      placeholder="例如: https://api.deepseek.com/v1"
-                      class="w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all font-mono"
-                      style="
-                        background-color: var(--bg-app);
-                        border-color: var(--border-base);
-                        color: var(--text-primary);
-                      "
-                    />
-                  </div>
-
-                  <div v-if="settings.AI_PROVIDER !== 'OLLAMA'" class="col-span-1 md:col-span-2 space-y-2">
-                    <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">API 密钥 (API Key)</label>
-                    <div class="relative">
-                      <input
-                        v-model="settings.AI_API_KEY"
-                        :type="showPassword ? 'text' : 'password'"
-                        placeholder="请输入您的 API Key 进行鉴权"
-                        class="w-full px-4 py-2.5 pr-10 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all font-mono"
-                        style="
-                          background-color: var(--bg-app);
-                          border-color: var(--border-base);
-                          color: var(--text-primary);
-                        "
+                    <div
+                      class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                      :style="`background: ${getProviderMeta(model.provider).bg}; border: 1px solid ${getProviderMeta(model.provider).border};`"
+                    >
+                      <component
+                        :is="getProviderMeta(model.provider).lucideIcon"
+                        class="w-4.5 h-4.5"
+                        :style="`color: ${getProviderMeta(model.provider).color};`"
                       />
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ model.name || model.modelName || '未命名模型' }}</span>
+                        <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">⭐ 默认</span>
+                        <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">已禁用</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          :style="`background: ${getProviderMeta(model.provider).bg}; color: ${getProviderMeta(model.provider).color};`"
+                        >{{ getProviderMeta(model.provider).label }}</span>
+                        <span class="text-[10px] font-mono" style="color: var(--text-muted);">{{ model.modelName }}</span>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-shrink-0" @click.stop>
+                      <el-switch v-model="model.enabled" size="small" style="--el-switch-on-color: #6366f1;" />
+
                       <button
                         type="button"
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                        @click="showPassword = !showPassword"
+                        class="w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200"
+                        :style="model.isDefault
+                          ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
+                          : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'"
+                        :title="model.isDefault ? '当前默认模型' : '设为默认模型'"
+                        @click="setDefaultAiModel(model.id)"
                       >
-                        <Eye v-if="!showPassword" class="w-4 h-4" />
-                        <EyeOff v-else class="w-4 h-4" />
+                        <Star class="w-3.5 h-3.5" :class="model.isDefault ? 'fill-current' : ''" />
                       </button>
+
+                      <button
+                        type="button"
+                        :disabled="isTestingAi && testingAiModelId === model.id"
+                        class="h-7 px-2.5 rounded-lg flex items-center gap-1 text-[10px] font-bold border transition-all duration-200 disabled:opacity-50"
+                        style="border-color: rgba(99,102,241,0.25); color: #6366f1; background: rgba(99,102,241,0.05);"
+                        @click="testAi(model)"
+                      >
+                        <RefreshCw
+                          class="w-3 h-3"
+                          :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
+                        />
+                        <span>{{ isTestingAi && testingAiModelId === model.id ? '测试中' : '测试' }}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500"
+                        style="color: var(--text-muted);"
+                        title="删除模型"
+                        @click="removeAiModel(model.id)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+
+                      <div
+                        class="w-5 h-5 flex items-center justify-center transition-transform duration-300"
+                        :class="expandedModelId === model.id ? 'rotate-180' : ''"
+                        style="color: var(--text-muted);"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-4 h-4"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Expandable Body -->
+                  <div v-show="expandedModelId === model.id">
+                    <div class="px-4 pb-5 pt-4 space-y-4" style="border-top: 1px solid var(--border-base);">
+                      <!-- Provider chips -->
+                      <div class="space-y-2">
+                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">AI 提供商</label>
+                        <div class="flex flex-wrap gap-2">
+                          <button
+                            v-for="(meta, key) in providerMeta"
+                            :key="key"
+                            type="button"
+                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all duration-200"
+                            :style="model.provider === key
+                              ? `background: ${meta.bg}; border-color: ${meta.border}; color: ${meta.color};`
+                              : 'background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary);'"
+                            @click="model.provider = key; handleAiProviderChange(model)"
+                          >
+                            <component
+                              :is="meta.lucideIcon"
+                              class="w-3.5 h-3.5"
+                              :style="model.provider === key ? `color: ${meta.color};` : 'color: var(--text-muted);'"
+                            />
+                            <span>{{ meta.label }}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="space-y-1.5">
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">显示名称</label>
+                          <input
+                            v-model="model.name"
+                            type="text"
+                            placeholder="例如：DeepSeek Chat"
+                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          />
+                        </div>
+                        <div class="space-y-1.5">
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">模型 ID</label>
+                          <input
+                            v-model="model.modelName"
+                            type="text"
+                            placeholder="例如: deepseek-chat"
+                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          />
+                        </div>
+                      </div>
+
+                      <div class="space-y-1.5">
+                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Endpoint</label>
+                        <div class="relative">
+                          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black select-none" style="color: var(--text-muted);">URL</span>
+                          <input
+                            v-model="model.endpoint"
+                            type="text"
+                            placeholder="例如: https://api.deepseek.com/v1"
+                            class="w-full pl-10 pr-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          />
+                        </div>
+                      </div>
+
+                      <div v-if="model.provider !== 'OLLAMA'" class="space-y-1.5">
+                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Key <span class="ml-1 text-[10px] font-normal normal-case" style="color: var(--text-muted);">&mdash; 仅存于服务端</span></label>
+                        <div class="relative">
+                          <input
+                            v-model="model.apiKey"
+                            :type="showPassword ? 'text' : 'password'"
+                            placeholder="sk-..."
+                            class="w-full px-3 py-2.5 pr-10 rounded-xl border text-xs outline-none font-mono transition-colors"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          />
+                          <button
+                            type="button"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-indigo-500"
+                            style="color: var(--text-muted);"
+                            @click="showPassword = !showPassword"
+                          >
+                            <Eye v-if="!showPassword" class="w-4 h-4" />
+                            <EyeOff v-else class="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="space-y-1.5">
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">能力标签 <span class="font-normal normal-case">逗号分隔</span></label>
+                          <input
+                            :value="model.capabilities.join(', ')"
+                            type="text"
+                            placeholder="chat, vision, code"
+                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                            @input="updateAiModelCapabilities(model, $event)"
+                          />
+                        </div>
+                        <div class="space-y-1.5">
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">说明描述</label>
+                          <input
+                            v-model="model.description"
+                            type="text"
+                            placeholder="例如：适合日常问答 / 支持长上下文"
+                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          />
+                        </div>
+                      </div>
+
+                      <div v-if="model.provider === 'OLLAMA'" class="flex items-start gap-2 p-3 rounded-xl" style="background: rgba(124,58,237,0.06); border: 1px dashed rgba(124,58,237,0.25);">
+                        <span class="text-sm mt-0.5">🦙</span>
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">Ollama 本地模型无需 API Key。请确保 Ollama 已在服务器本地运行，并且目标模型已通过 <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code> 下载。</p>
+                      </div>
+
+                      <!-- Advanced settings toggle button -->
+                      <div class="pt-2 border-t" style="border-color: var(--border-base);">
+                        <button
+                          type="button"
+                          class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-indigo-500 hover:text-indigo-600 transition-colors"
+                          @click="model.showAdvanced = !model.showAdvanced"
+                        >
+                          <Sliders class="w-3.5 h-3.5" />
+                          <span>{{ model.showAdvanced ? '隐藏高级参数' : '展开高级参数设置' }}</span>
+                        </button>
+                      </div>
+
+                      <!-- Advanced parameters configuration panel -->
+                      <div
+                        v-show="model.showAdvanced"
+                        class="p-4 rounded-xl border border-dashed space-y-4 transition-all duration-300"
+                        style="border-color: var(--border-base); background: rgba(99,102,241,0.02);"
+                      >
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <!-- Temperature Slider -->
+                          <div class="space-y-1.5">
+                            <label class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between" style="color: var(--text-muted);">
+                              <span>温度值 (Temperature)</span>
+                              <span class="text-[10px] font-mono text-indigo-500">当前: {{ model.temperature?.toFixed(1) ?? '0.7' }}</span>
+                            </label>
+                            <div class="flex items-center gap-3">
+                              <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.1"
+                                v-model.number="model.temperature"
+                                class="flex-1 accent-indigo-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                              />
+                              <span
+                                class="text-xs font-mono font-bold px-2 py-0.5 rounded border select-none"
+                                style="border-color: var(--border-base); color: var(--text-primary); background-color: var(--bg-app);"
+                              >
+                                {{ model.temperature?.toFixed(1) ?? '0.7' }}
+                              </span>
+                            </div>
+                          </div>
+
+                          <!-- Max Tokens -->
+                          <div class="space-y-1.5">
+                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">单次最大生成 (Max Tokens)</label>
+                            <input
+                              v-model.number="model.maxTokens"
+                              type="number"
+                              min="1"
+                              max="128000"
+                              placeholder="默认 2000"
+                              class="w-full px-3 py-2 rounded-xl border text-xs outline-none font-mono transition-colors"
+                              style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- System Prompt -->
+                        <div class="space-y-1.5">
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">系统提示词预设 (System Prompt)</label>
+                          <textarea
+                            v-model="model.systemPrompt"
+                            rows="3"
+                            placeholder="例如：你是一个专业的技术写作助手，请使用简洁的中文回答问题..."
+                            class="w-full px-3 py-2 rounded-xl border text-xs outline-none transition-colors resize-none font-sans"
+                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                          ></textarea>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <!-- Test Connection Row -->
-                <div v-if="settings.AI_IMPORT_ENABLED" class="pt-4 flex items-center justify-between border-t" style="border-color: var(--border-base)">
-                  <p class="text-[10px]" style="color: var(--text-muted)">
-                    ⚠️ 在点击右上方「保存全局设置」前，请务必先测试连接。
-                  </p>
+              <!-- Empty state -->
+              <div v-if="aiModelConfigs.length === 0" class="flex flex-col items-center justify-center py-12 rounded-2xl border-2 border-dashed" style="border-color: var(--border-base);">
+                <div class="text-4xl mb-3">🤖</div>
+                <p class="text-sm font-bold" style="color: var(--text-primary);">还没有配置任何模型</p>
+                <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">点击「添加模型」来配置你的第一个 AI 服务</p>
+                <button
+                  type="button"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
+                  style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;"
+                  @click="addAiModel"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>添加模型</span>
+                </button>
+              </div>
+
+              <!-- Stats + Test row -->
+              <div v-if="aiModelConfigs.length > 0" class="flex items-center justify-between p-4 rounded-2xl" style="background-color: var(--bg-app); border: 1px solid var(--border-base);">
+                <div class="flex items-center gap-4">
+                  <div class="text-center">
+                    <p class="text-lg font-black" style="color: var(--text-primary);">{{ aiModelConfigs.length }}</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">总模型数</p>
+                  </div>
+                  <div class="w-px h-8" style="background: var(--border-base);"></div>
+                  <div class="text-center">
+                    <p class="text-lg font-black" style="color: #6366f1;">{{ aiModelConfigs.filter(m => m.enabled).length }}</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">已启用</p>
+                  </div>
+                  <div class="w-px h-8" style="background: var(--border-base);"></div>
+                  <div class="text-center">
+                    <p class="text-lg font-black" style="color: #d97706;">{{ aiModelConfigs.filter(m => m.isDefault).length }}</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">默认模型</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <p class="text-[10px] hidden sm:block" style="color: var(--text-muted);">⚠️ 保存前请先测试连通性</p>
                   <button
                     type="button"
                     :disabled="isTestingAi"
-                    class="flex items-center gap-1.5 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-xs border border-indigo-500/20 cursor-pointer transition-all disabled:opacity-50"
-                    @click="testAi"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200 disabled:opacity-50"
+                    style="border-color: rgba(99,102,241,0.3); color: #6366f1; background: rgba(99,102,241,0.06);"
+                    @click="testAi(aiModelConfigs.find(model => model.isDefault) || aiModelConfigs[0])"
                   >
-                    <RefreshCw v-if="isTestingAi" class="w-3.5 h-3.5 animate-spin" />
-                    <span>{{ isTestingAi ? '正在测试连接...' : '测试 AI 接口连接' }}</span>
+                    <RefreshCw
+                      class="w-3.5 h-3.5"
+                      :class="isTestingAi && testingAiModelId ? 'animate-spin' : ''"
+                    />
+                    <span>{{ isTestingAi ? '正在测试...' : '测试默认模型连接' }}</span>
                   </button>
                 </div>
               </div>
-            </section>
+            </div>
           </div>
         </div>
       </div>

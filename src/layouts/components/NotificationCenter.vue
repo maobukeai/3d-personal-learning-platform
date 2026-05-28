@@ -49,7 +49,7 @@ const getInvitationIdFromLink = (link?: string | null) => {
   try {
     const url = new URL(link, window.location.origin);
     return url.searchParams.get('invitationId');
-  } catch (e) {
+  } catch {
     const match = link.match(/[?&]invitationId=([^&]+)/);
     return match ? match[1] : null;
   }
@@ -144,7 +144,7 @@ defineExpose({
 
 <template>
   <el-dropdown trigger="click" placement="bottom-end" popper-class="notification-glass">
-    <button type="button" class="topbar-icon-btn w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative">
+    <button type="button" class="topbar-icon-btn w-9 h-9 rounded-lg flex items-center justify-center transition-colors relative">
       <Bell class="w-4.5 h-4.5" style="color: var(--text-muted)" />
       <div
         v-if="unreadCount > 0"
@@ -153,20 +153,20 @@ defineExpose({
     </button>
     <template #dropdown>
       <div
-        class="notification-panel w-[420px] p-0 rounded-3xl overflow-hidden shadow-2xl"
+        class="notification-panel w-[420px] p-0 rounded-xl overflow-hidden shadow-lg"
       >
         <div
           class="notification-header px-5 py-4 flex items-center justify-between"
         >
           <span
-            class="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-450"
+            class="text-sm font-bold text-slate-600 dark:text-slate-300"
             >通知中心</span
           >
           <div class="flex items-center gap-4">
-            <button type="button" class="text-xs font-bold text-accent hover:underline" @click="handleMarkAllRead">
+            <button type="button" class="text-xs font-bold text-accent hover:bg-accent-subtle rounded-md px-2 py-1 transition-colors" @click="handleMarkAllRead">
               全部忽略
             </button>
-            <button type="button" class="text-xs font-bold text-slate-450 hover:text-accent dark:text-slate-400" @click="router.push('/notifications')">
+            <button type="button" class="text-xs font-bold text-slate-500 hover:text-accent dark:text-slate-400 rounded-md px-2 py-1 transition-colors" @click="router.push('/notifications')">
               查看全部
             </button>
           </div>
@@ -175,7 +175,7 @@ defineExpose({
           <div
             v-for="n in notifications"
             :key="n.id"
-            class="notification-item p-5 cursor-pointer transition-colors border-b last:border-0 border-slate-100/50 dark:border-white/5"
+            class="notification-item p-4 cursor-pointer transition-colors border-b last:border-0 border-slate-100/50 dark:border-white/5"
             :class="!n.isRead ? 'bg-accent/[0.04] dark:bg-accent/[0.08]' : ''"
             @click="handleMarkAsRead(n)"
           >
@@ -235,50 +235,48 @@ defineExpose({
 
 <style scoped>
 .notification-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 
-    0 10px 30px rgba(0, 0, 0, 0.04),
-    0 1px 3px rgba(0, 0, 0, 0.02),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  transition: all 0.3s ease;
+  background: var(--bg-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--border-base);
+  box-shadow: var(--shadow-enterprise-hover);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 :deep(.dark) .notification-panel {
-  background: rgba(13, 13, 15, 0.85) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 
-    0 20px 25px -5px rgba(0, 0, 0, 0.5),
-    0 10px 10px -5px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-base) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.48) !important;
 }
 
 .notification-header {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--border-base);
 }
 :deep(.dark) .notification-header {
-  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  border-bottom-color: var(--border-base) !important;
 }
 
 .notification-item {
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 .notification-item:hover {
-  background: rgba(99, 102, 241, 0.04) !important;
+  background: var(--bg-subtle) !important;
 }
 :deep(.dark) .notification-item:hover {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: var(--bg-subtle) !important;
+}
+
+.topbar-icon-btn:hover {
+  background-color: var(--bg-subtle);
 }
 
 /* Glassmorphism theme integration */
 :deep(.theme-glass) .notification-panel {
-  background: rgba(255, 255, 255, 0.65) !important;
-  border-color: rgba(255, 255, 255, 0.4) !important;
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border-color) !important;
 }
 :deep(.dark.theme-glass) .notification-panel {
-  background: rgba(18, 18, 24, 0.7) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border-color) !important;
 }
 </style>

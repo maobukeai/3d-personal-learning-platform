@@ -3,9 +3,26 @@ import { Server as SocketServer } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
+import prisma from './prisma';
 
 let io: SocketServer;
 const onlineUsers = new Map<string, Set<string>>(); // userId -> Set of socketIds
+
+const canAccessConversation = async (userId: string, conversationId: string) => {
+  if (!conversationId || typeof conversationId !== 'string') return false;
+
+  const conversation = await prisma.conversation.findFirst({
+    where: {
+      id: conversationId,
+      participants: {
+        some: { id: userId },
+      },
+    },
+    select: { id: true },
+  });
+
+  return Boolean(conversation);
+};
 
 export const initSocket = (server: HttpServer) => {
   io = new SocketServer(server, {
@@ -89,9 +106,22 @@ export const initSocket = (server: HttpServer) => {
     socket.emit('online_users_list', Array.from(onlineUsers.keys()));
 
     // Join conversation rooms
-    socket.on('join_conversation', (conversationId: string) => {
-      socket.join(`conversation_${conversationId}`);
-      logger.info(`User ${userId} joined conversation: ${conversationId}`);
+    socket.on('join_conversation', async (conversationId: string) => {
+      try {
+        if (!(await canAccessConversation(userId, conversationId))) {
+          logger.warn(
+            `Blocked unauthorized conversation join: user=${userId} conversation=${conversationId}`,
+          );
+          socket.emit('conversation_access_denied', { conversationId });
+          return;
+        }
+
+        socket.join(`conversation_${conversationId}`);
+        logger.info(`User ${userId} joined conversation: ${conversationId}`);
+      } catch (error) {
+        logger.error('Failed to authorize conversation join:', error);
+        socket.emit('conversation_access_denied', { conversationId });
+      }
     });
 
     socket.on('leave_conversation', (conversationId: string) => {
@@ -101,7 +131,19 @@ export const initSocket = (server: HttpServer) => {
     // Handle typing status
     socket.on(
       'typing',
-      ({ conversationId, isTyping }: { conversationId: string; isTyping: boolean }) => {
+      async ({ conversationId, isTyping }: { conversationId: string; isTyping: boolean }) => {
+        try {
+          if (!(await canAccessConversation(userId, conversationId))) {
+            logger.warn(
+              `Blocked unauthorized typing event: user=${userId} conversation=${conversationId}`,
+            );
+            return;
+          }
+        } catch (error) {
+          logger.error('Failed to authorize typing event:', error);
+          return;
+        }
+
         socket.to(`conversation_${conversationId}`).emit('user_typing', {
           userId,
           conversationId,

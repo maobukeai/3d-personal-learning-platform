@@ -220,35 +220,35 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
+    class="enterprise-page flex-1 flex flex-col h-full overflow-hidden transition-colors duration-300"
     style="background-color: var(--bg-app)"
   >
     <!-- Dashboard Header -->
     <div
-      class="flex flex-col sm:flex-row gap-2 py-2.5 sm:py-0 sm:h-13 border-b px-3 sm:px-4 md:px-6 sm:items-center justify-between shrink-0 transition-colors duration-300"
+      class="dashboard-header enterprise-toolbar flex flex-col sm:flex-row gap-3 px-4 py-3 md:px-6 sm:items-center justify-between shrink-0 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-3">
         <div
-          class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-accent to-indigo-600 flex items-center justify-center shadow-lg shadow-accent/20"
+          class="w-9 h-9 rounded-lg bg-accent-subtle flex items-center justify-center border border-accent/10"
         >
-          <LayoutDashboard class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-white" />
+          <LayoutDashboard class="w-4.5 h-4.5 text-accent" />
         </div>
         <div>
           <h1
-            class="text-md sm:text-lg font-black tracking-tight"
+            class="text-base sm:text-xl font-bold tracking-tight"
             style="color: var(--text-primary)"
           >
             {{ t('dashboard.title') }}
           </h1>
           <p
-            class="hidden sm:block text-[9px] font-bold uppercase tracking-widest text-slate-400"
+            class="hidden sm:block text-xs font-medium text-slate-500"
           >
             {{ t('dashboard.welcome') }}
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
         <el-date-picker
           v-model="selectedDate"
           type="date"
@@ -266,7 +266,7 @@ onMounted(() => {
         <button
           v-if="canCreateProject"
           type="button"
-          class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-accent to-indigo-600 hover:from-accent hover:to-indigo-500 text-white rounded-xl shadow-lg shadow-accent/20 hover:shadow-accent/35 hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold text-xs"
+          class="dashboard-primary-action flex items-center gap-1.5 px-3.5 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg shadow-sm transition-colors cursor-pointer font-bold text-xs"
           @click="() => { importDialogMode = 'ai_assistant'; isAddDialogOpen = true; }"
         >
           <Brain class="w-4 h-4" />
@@ -276,7 +276,7 @@ onMounted(() => {
         <button
           v-if="canCreateProject"
           type="button"
-          class="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 rounded-xl transition-all cursor-pointer font-bold text-xs border border-transparent dark:border-white/5 shadow-sm"
+          class="dashboard-secondary-action flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-colors cursor-pointer font-bold text-xs border shadow-sm"
           @click="() => { importDialogMode = 'traditional'; isAddDialogOpen = true; }"
         >
           <FileText class="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -286,10 +286,10 @@ onMounted(() => {
     </div>
 
     <!-- Main Content Scroll Area -->
-    <div class="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-3.5 scrollbar-hide">
-      <div class="max-w-none space-y-3 md:space-y-3.5 min-w-0">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 scrollbar-hide">
+      <div class="mx-auto w-full max-w-[1480px] space-y-4 md:space-y-5 min-w-0">
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-3 lg:gap-3.5">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           <StatCard
             v-for="stat in stats"
             :key="stat.label"
@@ -301,9 +301,9 @@ onMounted(() => {
           />
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-3 md:gap-3.5">
+        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.85fr)] gap-4 md:gap-5">
           <!-- Left Column: Tasks & Assets -->
-          <div class="xl:col-span-2 space-y-3 md:space-y-3.5">
+          <div class="space-y-4 md:space-y-5">
             <!-- Active Learning Card -->
             <ActiveLearningCard :active-enrollment="activeEnrollment" />
 
@@ -315,7 +315,7 @@ onMounted(() => {
           </div>
 
           <!-- Right Column: Community & Feed -->
-          <div class="space-y-3 md:space-y-3.5">
+          <div class="space-y-4 md:space-y-5">
             <!-- Activity Feed -->
             <TeamActivityCard :activity-log="activityLog" />
 
@@ -353,10 +353,25 @@ onMounted(() => {
   opacity: 0;
 }
 
+.dashboard-header {
+  min-height: 64px;
+}
+
+.dashboard-secondary-action {
+  background-color: var(--bg-card);
+  border-color: var(--border-base);
+  color: var(--text-secondary);
+}
+
+.dashboard-secondary-action:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
 .custom-date-picker :deep(.el-input__wrapper) {
-  border-radius: 0.75rem !important;
-  padding: 0.5rem 1rem !important;
-  background-color: var(--bg-app) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 0.45rem 0.8rem !important;
+  background-color: var(--bg-subtle) !important;
   box-shadow: none !important;
   border: 1px solid var(--border-base) !important;
 }
@@ -397,7 +412,7 @@ onMounted(() => {
 <style>
 /* Global styles for the date picker popper */
 .custom-date-popper {
-  border-radius: 1.5rem !important;
+  border-radius: 10px !important;
   overflow: hidden !important;
   box-shadow:
     0 20px 25px -5px rgb(0 0 0 / 0.1),
@@ -405,7 +420,7 @@ onMounted(() => {
   border: 1px solid var(--border-base) !important;
 }
 .custom-date-popper .el-picker-panel {
-  border-radius: 1.5rem !important;
+  border-radius: 10px !important;
   border: none !important;
 }
 </style>

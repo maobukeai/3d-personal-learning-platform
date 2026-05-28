@@ -17,7 +17,9 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--bg-app);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 220px),
+    var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -26,6 +28,23 @@ body {
     background-color 0.3s ease,
     color 0.3s ease;
   line-height: 1.6;
+}
+
+.dark body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 220px),
+    var(--bg-app);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  letter-spacing: 0;
 }
 
 @media (max-width: 767px) {
@@ -85,7 +104,7 @@ body {
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #3b82f6, #6366f1, #ec4899);
+  background: linear-gradient(135deg, var(--accent), var(--info));
   z-index: -1;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -99,7 +118,7 @@ body {
 
 /* Premium Gradient Text */
 .text-gradient-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #ec4899 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--info) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -107,18 +126,19 @@ body {
 
 /* Premium Primary Buttons */
 .btn-premium {
-  background: linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%);
+  background: var(--accent);
   color: #ffffff;
   border: none;
   font-weight: 600;
-  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.35);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.1);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 .btn-premium:hover {
-  transform: translateY(-1.5px);
-  box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.45);
-  filter: brightness(1.1);
+  transform: translateY(-1px);
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-enterprise-hover);
+  filter: none;
 }
 .btn-premium:active {
   transform: translateY(0.5px);
@@ -198,4 +218,62 @@ body {
 .fade-blur-leave-to {
   opacity: 0;
   filter: blur(4px);
+}
+
+.enterprise-page {
+  min-height: 100%;
+  background-color: var(--bg-app);
+}
+
+.enterprise-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-enterprise);
+}
+
+.enterprise-toolbar {
+  min-height: 56px;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border-bottom: 1px solid var(--border-base);
+}
+
+.enterprise-muted {
+  color: var(--text-muted);
+}
+
+.enterprise-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.auth-shell {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 70%, transparent), transparent 260px),
+    linear-gradient(var(--border-base) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-base) 1px, transparent 1px),
+    var(--bg-app);
+  background-size:
+    auto,
+    36px 36px,
+    36px 36px,
+    auto;
+  background-position:
+    center top,
+    center top,
+    center top,
+    center;
+}
+
+.auth-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  box-shadow: 0 24px 56px rgba(16, 24, 40, 0.1);
+}
+
+.dark .auth-panel {
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
 }

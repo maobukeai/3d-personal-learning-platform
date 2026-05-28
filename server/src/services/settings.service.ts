@@ -43,6 +43,34 @@ export interface SystemSettings {
   AI_API_KEY: string;
   AI_API_ENDPOINT: string;
   AI_MODEL_NAME: string;
+  AI_MODEL_OPTIONS: string;
+}
+
+export interface AIModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  modelName: string;
+  endpoint: string;
+  apiKey?: string;
+  enabled: boolean;
+  isDefault?: boolean;
+  description?: string;
+  capabilities?: string[];
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+}
+
+export interface PublicAIModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  modelName: string;
+  enabled: boolean;
+  isDefault: boolean;
+  description?: string;
+  capabilities: string[];
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -153,6 +181,142 @@ const DEFAULT_SETTINGS: SystemSettings = {
   AI_API_KEY: '',
   AI_API_ENDPOINT: 'https://api.deepseek.com/v1',
   AI_MODEL_NAME: 'deepseek-chat',
+  AI_MODEL_OPTIONS: '[]',
+};
+
+const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {
+  let raw = value;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return [];
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const normalized: AIModelOption[] = [];
+  raw.forEach((item, index) => {
+    if (!item || typeof item !== 'object') return;
+    const model = item as Record<string, unknown>;
+    const provider = String(model.provider || '')
+      .trim()
+      .toUpperCase();
+    const modelName = String(model.modelName || model.model || '').trim();
+    const endpoint = String(model.endpoint || model.apiEndpoint || '').trim();
+    const id = String(model.id || `${provider || 'MODEL'}_${index + 1}`).trim();
+
+    if (!id || !provider || !modelName) return;
+
+    const capabilities = Array.isArray(model.capabilities)
+      ? model.capabilities.map((v) => String(v).trim()).filter(Boolean)
+      : typeof model.capabilities === 'string'
+        ? model.capabilities
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : [];
+
+    normalized.push({
+      id,
+      name: String(model.name || `${provider} ${modelName}`).trim(),
+      provider,
+      modelName,
+      endpoint,
+      apiKey: typeof model.apiKey === 'string' ? model.apiKey : '',
+      enabled: model.enabled === true || model.enabled === 'true',
+      isDefault: model.isDefault === true || model.isDefault === 'true',
+      description: typeof model.description === 'string' ? model.description.trim() : '',
+      capabilities,
+      temperature: typeof model.temperature === 'number' ? model.temperature : undefined,
+      maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : undefined,
+      systemPrompt: typeof model.systemPrompt === 'string' ? model.systemPrompt.trim() : undefined,
+    });
+  });
+  return normalized;
+};
+
+const decryptAIModelOptions = (value: string): string => {
+  const models = normalizeAIModelOptions(value).map((model) => ({
+    ...model,
+    apiKey: model.apiKey ? decryptSecret(model.apiKey) || model.apiKey : '',
+  }));
+  return JSON.stringify(models);
+};
+
+const encryptAIModelOptions = (value: unknown): string => {
+  const models = normalizeAIModelOptions(value).map((model, index, arr) => ({
+    ...model,
+    isDefault: model.isDefault || (!arr.some((item) => item.isDefault) && index === 0),
+    apiKey: model.apiKey ? encryptSecret(model.apiKey) || '' : '',
+  }));
+  return JSON.stringify(models);
+};
+
+export const getPublicAIModels = (settings: SystemSettings): PublicAIModelOption[] => {
+  const configuredModels = normalizeAIModelOptions(settings.AI_MODEL_OPTIONS);
+  const fallbackModel: AIModelOption = {
+    id: 'default',
+    name: `${settings.AI_PROVIDER || 'AI'} ${settings.AI_MODEL_NAME || 'Default'}`.trim(),
+    provider: settings.AI_PROVIDER,
+    modelName: settings.AI_MODEL_NAME,
+    endpoint: settings.AI_API_ENDPOINT,
+    enabled: settings.AI_IMPORT_ENABLED,
+    isDefault: true,
+    description: '系统默认模型',
+    capabilities: ['chat'],
+  };
+
+  const enabledModels = configuredModels.length > 0 ? configuredModels : [fallbackModel];
+  const hasDefault = enabledModels.some((model) => model.enabled && model.isDefault);
+
+  return enabledModels
+    .filter((model) => model.enabled)
+    .map((model, index) => ({
+      id: model.id,
+      name: model.name,
+      provider: model.provider,
+      modelName: model.modelName,
+      enabled: model.enabled,
+      isDefault: model.isDefault || (!hasDefault && index === 0),
+      description: model.description || '',
+      capabilities: model.capabilities?.length ? model.capabilities : ['chat'],
+    }));
+};
+
+export const getAIModelById = (
+  settings: SystemSettings,
+  modelId?: string,
+): AIModelOption | null => {
+  const configuredModels = normalizeAIModelOptions(settings.AI_MODEL_OPTIONS);
+  if (configuredModels.length === 0) {
+    return {
+      id: 'default',
+      name: `${settings.AI_PROVIDER || 'AI'} ${settings.AI_MODEL_NAME || 'Default'}`.trim(),
+      provider: settings.AI_PROVIDER,
+      modelName: settings.AI_MODEL_NAME,
+      endpoint: settings.AI_API_ENDPOINT,
+      apiKey: settings.AI_API_KEY,
+      enabled: settings.AI_IMPORT_ENABLED,
+      isDefault: true,
+      description: '系统默认模型',
+      capabilities: ['chat'],
+    };
+  }
+
+  const enabledModels = configuredModels.filter((model) => model.enabled);
+  if (enabledModels.length === 0) return null;
+
+  if (modelId && !enabledModels.some((model) => model.id === modelId)) {
+    return null;
+  }
+
+  const selected =
+    enabledModels.find((model) => model.id === modelId) ||
+    enabledModels.find((model) => model.isDefault) ||
+    enabledModels[0];
+  return selected || null;
 };
 
 class SettingsService {
@@ -221,7 +385,9 @@ class SettingsService {
             settings[key] = arr;
           }
         } else {
-          if (s.key === 'AI_API_KEY' || s.key === 'SMTP_PASS') {
+          if (s.key === 'AI_MODEL_OPTIONS') {
+            settings[key] = decryptAIModelOptions(s.value);
+          } else if (s.key === 'AI_API_KEY' || s.key === 'SMTP_PASS') {
             settings[key] = decryptSecret(s.value) || '';
           } else {
             settings[key] = s.value;
@@ -262,7 +428,9 @@ class SettingsService {
   async update(key: string, value: unknown): Promise<void> {
     let stringValue: string;
 
-    if (key === 'AI_API_KEY' || key === 'SMTP_PASS') {
+    if (key === 'AI_MODEL_OPTIONS') {
+      stringValue = encryptAIModelOptions(value);
+    } else if (key === 'AI_API_KEY' || key === 'SMTP_PASS') {
       stringValue = encryptSecret(value as string) || '';
     } else if (Array.isArray(value)) {
       stringValue = JSON.stringify(value);

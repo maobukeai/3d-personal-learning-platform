@@ -21,10 +21,7 @@ const injectionPatterns = [
 ];
 
 // Precompile into a single global regex to optimize performance
-const INJECTION_RE = new RegExp(
-  injectionPatterns.map((p) => p.source).join('|'),
-  'i'
-);
+const INJECTION_RE = new RegExp(injectionPatterns.map((p) => p.source).join('|'), 'i');
 
 /**
  * Simple yet effective Prompt Injection detection.
@@ -34,4 +31,3 @@ export function hasPromptInjection(text: string | null | undefined): boolean {
   if (!text) return false;
   return INJECTION_RE.test(text);
 }
-

@@ -6,7 +6,12 @@ import { createNotification, createNotificationBatch } from '../utils/notificati
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
-import { callLLM, streamLLMChat } from '../services/ai.service';
+import {
+  AIChatMessage as ServiceAIChatMessage,
+  callLLM,
+  streamLLMChat,
+} from '../services/ai.service';
+import { getAIModelById, settingsService } from '../services/settings.service';
 import { parseBaiduNetdiskLink } from '../utils/baiduNetdisk';
 import { hasPromptInjection } from '../utils/security';
 import {
@@ -16,7 +21,111 @@ import {
   getCoPlanChatPrompt,
 } from '../config/prompts';
 
-const checkTeamProjectPermission = async (userId: string, workspaceId: string | undefined): Promise<boolean> => {
+type AiChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+const MAX_AI_CHAT_MESSAGES = 12;
+const MAX_AI_CHAT_MESSAGE_CHARS = 12000;
+const MAX_AI_CHAT_TOTAL_CHARS = 36000;
+const MAX_AI_HISTORY_ITEMS = 80;
+
+const redactSensitiveContent = (content: string): string =>
+  content
+    .replace(
+      /\b(?:api[_-]?key|token|secret|password|passwd|access[_-]?token|refresh[_-]?token)\s*[:=]\s*([^\s,;]+)/gi,
+      (match) => match.replace(/([:=]\s*)([^\s,;]+)/, '$1[已脱敏]'),
+    )
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer [已脱敏]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[邮箱已脱敏]')
+    .replace(/\b1[3-9]\d{9}\b/g, '[手机号已脱敏]');
+
+const normalizeAiChatMessages = (messages: unknown): AiChatMessage[] => {
+  if (!Array.isArray(messages)) return [];
+
+  return messages
+    .slice(-MAX_AI_CHAT_MESSAGES)
+    .map((message) => {
+      if (!message || typeof message !== 'object') return null;
+      const raw = message as Record<string, unknown>;
+      const role = raw.role === 'assistant' ? 'assistant' : raw.role === 'user' ? 'user' : null;
+      const content = typeof raw.content === 'string' ? raw.content.trim() : '';
+
+      if (!role || !content) return null;
+
+      return {
+        role,
+        content:
+          content.length > MAX_AI_CHAT_MESSAGE_CHARS
+            ? content.slice(0, MAX_AI_CHAT_MESSAGE_CHARS)
+            : content,
+      };
+    })
+    .filter((message): message is AiChatMessage => Boolean(message));
+};
+
+const cleanPromptContextValue = (value: unknown, maxLength = 120): string => {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/[\r\n\t]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+};
+
+const buildAiChatContextPrompt = (context: unknown, req: AuthRequest): string => {
+  if (!context || typeof context !== 'object') return '';
+
+  const requestContext = context as Record<string, unknown>;
+  const path = cleanPromptContextValue(requestContext.path, 240);
+  const title = cleanPromptContextValue(requestContext.title);
+  if (!path) return '';
+
+  const lines = [
+    '【当前可信页面上下文】',
+    `页面路径: ${path}`,
+    `页面标题: ${title || '未提供'}`,
+    `用户角色: ${req.user?.role || 'GUEST'}`,
+    `工作空间: ${req.workspaceId || '未认证访客'}`,
+  ];
+
+  if (path.includes('/assets/') || path.includes('/models') || path.includes('/my-works')) {
+    lines.push(
+      '场景: 3D 资产查看/管理。',
+      '回答重点: WebGL/Three.js 渲染、材质贴图、光照、相机控制、格式兼容、性能优化和资产质量检查。',
+    );
+  } else if (
+    path.includes('/work') ||
+    path.includes('/tasks') ||
+    path.includes('/team-tasks') ||
+    path.includes('/project/')
+  ) {
+    lines.push(
+      '场景: 项目协作或任务看板。',
+      '回答重点: 任务拆解、优先级、依赖关系、风险控制、验收标准、团队协作节奏。',
+    );
+  } else if (path.includes('/academy') || path.includes('/course') || path.includes('/lesson')) {
+    lines.push('场景: 课程学习。', '回答重点: 知识点解释、练习设计、阶段复盘、学习效果验证。');
+  } else if (path.includes('/notes') || path.includes('/roadmaps')) {
+    lines.push(
+      '场景: 知识沉淀或学习路线。',
+      '回答重点: 笔记结构、复习策略、路线里程碑、可衡量学习成果。',
+    );
+  } else if (path.includes('/admin')) {
+    lines.push(
+      '场景: 管理后台。',
+      '回答重点: 配置安全、权限边界、审计、运营治理。不要暴露或要求用户提供密钥明文。',
+    );
+  }
+
+  return lines.join('\n');
+};
+
+const checkTeamProjectPermission = async (
+  userId: string,
+  workspaceId: string | undefined,
+): Promise<boolean> => {
   if (!workspaceId) {
     return true;
   }
@@ -270,9 +379,7 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
         where: { projectId: id },
         select: { userId: true },
       });
-      const targetUserIds = projectMembers
-        .map((m) => m.userId)
-        .filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -535,9 +642,7 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
         where: { projectId: id },
         select: { userId: true },
       });
-      const targetUserIds = projectMembers
-        .map((m) => m.userId)
-        .filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -636,9 +741,7 @@ export const batchCreateProjectTasks = async (
         where: { projectId: id },
         select: { userId: true },
       });
-      const targetUserIds = projectMembers
-        .map((m) => m.userId)
-        .filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -731,9 +834,10 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
           .filter((uid) => uid !== req.userId);
 
         if (targetUserIds.length > 0) {
-          const detailMsg = status && status !== existingTask.status
-            ? `状态已更新为「${status === 'DONE' ? '已完成' : (status === 'IN_PROGRESS' ? '进行中' : '待办')}」`
-            : `内容或属性进行了更新`;
+          const detailMsg =
+            status && status !== existingTask.status
+              ? `状态已更新为「${status === 'DONE' ? '已完成' : status === 'IN_PROGRESS' ? '进行中' : '待办'}」`
+              : `内容或属性进行了更新`;
           await createNotificationBatch(
             targetUserIds.map((uid) => ({
               type: 'TASK',
@@ -837,9 +941,7 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
 
     // Notify other project members about the deletion
     try {
-      const targetUserIds = projectMembers
-        .map((m) => m.userId)
-        .filter((uid) => uid !== req.userId);
+      const targetUserIds = projectMembers.map((m) => m.userId).filter((uid) => uid !== req.userId);
 
       if (targetUserIds.length > 0) {
         await createNotificationBatch(
@@ -1175,6 +1277,7 @@ interface ParsedTask {
   description?: string;
   priority: string;
   dueDate?: Date | null;
+  subtasks?: { id: string; text: string; done: boolean }[];
 }
 
 interface ParsedRoadmap {
@@ -1201,6 +1304,7 @@ export function parseProjectImportText(text: string): ParsedProject {
 
   let currentSection: 'project' | 'tasks' | 'roadmap' | null = 'project';
   let currentRoadmapStep: ParsedRoadmapStep | null = null;
+  let currentTask: ParsedTask | null = null;
   const roadmapSteps: ParsedRoadmapStep[] = [];
   let stepOrder = 1;
 
@@ -1233,11 +1337,18 @@ export function parseProjectImportText(text: string): ParsedProject {
       ) {
         currentSection = 'roadmap';
         const cleanTitle = secName
-          .replace(/^(?:学习路线|学习规划|学习大纲|学习路径|学习计划|Roadmap|ROADMAP|Learning\s*Roadmap|Learning\s*Plan)\s*[:|：|\-|\s]\s*/i, '')
+          .replace(
+            /^(?:学习路线|学习规划|学习大纲|学习路径|学习计划|Roadmap|ROADMAP|Learning\s*Roadmap|Learning\s*Plan)\s*[:|：|\-|\s]\s*/i,
+            '',
+          )
           .trim();
-        const finalTitle = (cleanTitle && cleanTitle !== '学习路线' && cleanTitle !== '学习规划' && cleanTitle !== 'Roadmap')
-          ? cleanTitle
-          : `学习路线 - ${parsed.title}`;
+        const finalTitle =
+          cleanTitle &&
+          cleanTitle !== '学习路线' &&
+          cleanTitle !== '学习规划' &&
+          cleanTitle !== 'Roadmap'
+            ? cleanTitle
+            : `学习路线 - ${parsed.title}`;
         parsed.roadmap = {
           title: finalTitle,
           description: `针对项目「${parsed.title}」的专属学习路线`,
@@ -1268,11 +1379,22 @@ export function parseProjectImportText(text: string): ParsedProject {
       }
     } else if (currentSection === 'tasks') {
       if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- ')) {
+        const leadingSpaces = rawLine.match(/^\s*/)?.[0].length || 0;
         const content = line
           .replace(/^-\s*\[\s*[ x]?\s*\]\s*/, '')
           .replace(/^-\s*/, '')
           .trim();
         if (!content) continue;
+
+        if (leadingSpaces >= 2 && currentTask) {
+          currentTask.subtasks = currentTask.subtasks || [];
+          currentTask.subtasks.push({
+            id: Math.random().toString(36).substring(2, 9),
+            text: content,
+            done: false,
+          });
+          continue;
+        }
 
         const parts = content.split('|');
         const taskTitle = (parts[0] || '').trim();
@@ -1302,22 +1424,25 @@ export function parseProjectImportText(text: string): ParsedProject {
           }
         }
 
-        parsed.tasks.push({
+        currentTask = {
           title: taskTitle,
           description: description || undefined,
           priority,
           dueDate,
-        });
+          subtasks: [],
+        };
+        parsed.tasks.push(currentTask);
       }
     } else if (currentSection === 'roadmap' && parsed.roadmap) {
       const clean = line
         .replace(/^[-*\s\d.\[\]xX]*\s*/, '') // Remove list bullets, numbers, spaces, and checkboxes
         .replace(/^\*\*?/, '') // Remove leading bold/italic stars
         .trim();
-      const isStepHeader = line.startsWith('### ') || 
-                           line.startsWith('#### ') ||
-                           /^(?:阶段|步骤|Step|Phase|Part)\s*[一二三四五六七八九十\d]/i.test(clean) ||
-                           /^第\s*[一二三四五六七八九十\d]+\s*(?:阶段|步骤|Step|Phase|Part)/i.test(clean);
+      const isStepHeader =
+        line.startsWith('### ') ||
+        line.startsWith('#### ') ||
+        /^(?:阶段|步骤|Step|Phase|Part)\s*[一二三四五六七八九十\d]/i.test(clean) ||
+        /^第\s*[一二三四五六七八九十\d]+\s*(?:阶段|步骤|Step|Phase|Part)/i.test(clean);
 
       if (isStepHeader) {
         if (currentRoadmapStep) {
@@ -1440,6 +1565,7 @@ export const importProjectFromText = async (
             projectId: project.id,
             userId,
             teamId: req.workspaceId || null,
+            subtasks: t.subtasks && t.subtasks.length > 0 ? JSON.stringify(t.subtasks) : undefined,
           },
         });
         createdTasks.push(task);
@@ -1529,30 +1655,76 @@ export const aiGenerateProjectText = async (
 };
 
 export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { messages } = req.body;
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+  const { messages, context, modelId } = req.body;
+  const normalizedMessages = normalizeAiChatMessages(messages);
+
+  if (normalizedMessages.length === 0) {
     return next(new AppError('对话内容不能为空', 400));
   }
 
-  if (messages.length > 20) {
-    return next(new AppError('对话历史记录过长，请重置对话重新开始。', 400));
+  const lastMessage = normalizedMessages[normalizedMessages.length - 1];
+  if (!lastMessage || lastMessage.role !== 'user') {
+    return next(new AppError('最后一条对话内容必须来自用户', 400));
   }
 
-  for (const m of messages) {
-    if (m.role !== 'user' && m.role !== 'assistant') {
-      return next(new AppError('非法消息角色。仅允许 user 或 assistant 角色。', 400));
-    }
+  for (const m of normalizedMessages) {
     const tokenCount = Math.round((m.content?.length || 0) * 0.45);
-    if (m.role === 'user' && tokenCount > 2000) {
-      return next(new AppError('单个消息长度不能超过 2000 tokens。', 400));
+    if (m.role === 'user' && tokenCount > 5400) {
+      return next(new AppError('单个消息长度过长，请精简后再发送。', 400));
     }
     if (m.role === 'user' && hasPromptInjection(m.content)) {
       return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
     }
   }
 
+  const totalChars = normalizedMessages.reduce((sum, m) => sum + m.content.length, 0);
+  if (totalChars > MAX_AI_CHAT_TOTAL_CHARS) {
+    return next(new AppError('对话上下文过长，请清空历史或精简后再发送。', 400));
+  }
+
+  const contextPrompt = buildAiChatContextPrompt(context, req);
+  const systemPrompt = contextPrompt
+    ? `${AI_SPRITE_CHAT_PROMPT}\n\n${contextPrompt}`
+    : AI_SPRITE_CHAT_PROMPT;
+
+  const settings = await settingsService.getAll();
+  const selectedModel = getAIModelById(
+    settings,
+    typeof modelId === 'string' ? modelId.trim() : undefined,
+  );
+  if (!selectedModel || !selectedModel.enabled) {
+    return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+  }
+
+  // Save a privacy-preserving version of the user message to database if authenticated.
+  if (req.userId) {
+    try {
+      await prisma.aiMessage.create({
+        data: {
+          userId: req.userId,
+          role: 'user',
+          content: redactSensitiveContent(lastMessage.content),
+        },
+      });
+    } catch (dbErr) {
+      console.error('[AI Chat] Failed to save user message to DB:', dbErr);
+    }
+  }
+
   try {
-    await streamLLMChat(messages, AI_SPRITE_CHAT_PROMPT, res);
+    await streamLLMChat(
+      normalizedMessages,
+      systemPrompt,
+      res,
+      {
+        AI_IMPORT_ENABLED: true,
+        AI_PROVIDER: selectedModel.provider,
+        AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+        AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+        AI_MODEL_NAME: selectedModel.modelName,
+      },
+      req.userId,
+    );
   } catch (error) {
     if (res.headersSent) {
       if (!res.writableEnded) {
@@ -1564,11 +1736,60 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
-export const parseNetdiskLink = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const getAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const userId = req.userId as string;
+  try {
+    const history = await prisma.aiMessage.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: MAX_AI_HISTORY_ITEMS,
+    });
+    const orderedHistory = history.reverse();
+    res.json({
+      success: true,
+      data: orderedHistory.map((h) => ({
+        role: h.role,
+        content: h.content,
+        createdAt: h.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const userId = req.userId as string;
+  try {
+    await prisma.aiMessage.deleteMany({
+      where: { userId },
+    });
+    res.json({
+      success: true,
+      message: '聊天历史记录已清除',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadAiChatImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.file) {
+    return next(new AppError('请选择要上传的图片', 400));
+  }
+  try {
+    const fileUrl = `/uploads/ai/${req.file.filename}`;
+    res.json({
+      success: true,
+      url: fileUrl,
+      name: req.file.originalname,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const parseNetdiskLink = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { url, password } = req.body;
   if (!url) {
     return next(new AppError('链接不能为空', 400));
@@ -1595,10 +1816,12 @@ export const parseNetdiskLink = async (
       /pan\.baidu\.com/i.test(urlTrimmed) &&
       (urlTrimmed.includes('/s/') || urlTrimmed.includes('surl='));
     if (!isBaiduNetdiskUrl) {
-      return next(new AppError(
-        '链接格式不正确。请输入有效的百度网盘分享链接（如 https://pan.baidu.com/s/1xxxxx 或包含 surl= 参数的链接）。',
-        400
-      ));
+      return next(
+        new AppError(
+          '链接格式不正确。请输入有效的百度网盘分享链接（如 https://pan.baidu.com/s/1xxxxx 或包含 surl= 参数的链接）。',
+          400,
+        ),
+      );
     }
 
     let parsedData;
@@ -1608,17 +1831,23 @@ export const parseNetdiskLink = async (
       // 1. Attempt to fetch actual shared directory contents
       parsedData = await parseBaiduNetdiskLink(url, password);
     } catch (err: any) {
-      console.warn('Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:', err.message);
+      console.warn(
+        'Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:',
+        err.message,
+      );
       isFallback = true;
 
       // 2. Fallback to AI-reconstructed outline
       const userPrompt = `链接：${url}\n密码：${password || '无'}`;
       const aiResponse = await callLLM(userPrompt, BAIDU_NETDISK_ANALYSIS_PROMPT);
-      
+
       // Clean up AI response
       let cleanedResponse = aiResponse.trim();
-      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-      
+      cleanedResponse = cleanedResponse
+        .replace(/^```json\s*/, '')
+        .replace(/\s*```$/, '')
+        .trim();
+
       try {
         parsedData = JSON.parse(cleanedResponse);
       } catch (parseErr) {
@@ -1629,13 +1858,13 @@ export const parseNetdiskLink = async (
           directories: [
             {
               name: '01-基础概念与环境搭建',
-              files: ['1.1 课程介绍与最终效果展示.mp4', '1.2 Vite与Three.js安装.mp4']
+              files: ['1.1 课程介绍与最终效果展示.mp4', '1.2 Vite与Three.js安装.mp4'],
             },
             {
               name: '02-三维核心要素深入',
-              files: ['2.1 渲染器与场景配置.mp4', '2.2 正交与透视相机剖析.mp4']
-            }
-          ]
+              files: ['2.1 渲染器与场景配置.mp4', '2.2 正交与透视相机剖析.mp4'],
+            },
+          ],
         };
       }
     }
@@ -1644,8 +1873,8 @@ export const parseNetdiskLink = async (
       success: true,
       data: {
         ...parsedData,
-        isFallback
-      }
+        isFallback,
+      },
     });
   } catch (error) {
     next(error);
@@ -1656,36 +1885,31 @@ const formatNetdiskInfoForPrompt = (netdiskInfo: any): string => {
   if (!netdiskInfo) return '无网盘资源数据';
   let result = `项目/课程名称: ${netdiskInfo.title || '未命名'}\n`;
   if (netdiskInfo.directories && Array.isArray(netdiskInfo.directories)) {
-    netdiskInfo.directories.forEach((dir: any) => {
+    netdiskInfo.directories.slice(0, 30).forEach((dir: any) => {
       result += `- 目录: ${dir.name || '未命名'}\n`;
       if (dir.files && Array.isArray(dir.files)) {
-        dir.files.forEach((file: string) => {
+        dir.files.slice(0, 80).forEach((file: string) => {
           result += `  * ${file}\n`;
         });
       }
     });
   }
-  return result;
+  return result.slice(0, 30000);
 };
 
-export const coPlanChatStream = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
+export const coPlanChatStream = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { messages, netdiskInfo, currentPlan } = req.body;
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+  const normalizedMessages = normalizeAiChatMessages(messages);
+
+  if (normalizedMessages.length === 0) {
     return next(new AppError('对话内容不能为空', 400));
   }
 
-  if (messages.length > 20) {
+  if (Array.isArray(messages) && messages.length > 20) {
     return next(new AppError('对话历史记录过长，请重置对话重新开始。', 400));
   }
 
-  for (const m of messages) {
-    if (m.role !== 'user' && m.role !== 'assistant') {
-      return next(new AppError('非法消息角色。仅允许 user 或 assistant 角色。', 400));
-    }
+  for (const m of normalizedMessages) {
     const tokenCount = Math.round((m.content?.length || 0) * 0.45);
     if (m.role === 'user' && tokenCount > 2000) {
       return next(new AppError('单个消息长度不能超过 2000 tokens。', 400));
@@ -1708,12 +1932,12 @@ export const coPlanChatStream = async (
     const systemPrompt = getCoPlanChatPrompt(isNetdisk);
 
     // Prepend resource context as the first user message instead of bloating system instructions
-    const contextContent = isNetdisk 
+    const contextContent = isNetdisk
       ? `【百度网盘资源文件大纲】\n${netdiskText}\n\n【当前待修改的项目学习计划 JSON】\n${JSON.stringify(currentPlan)}`
       : `【当前待修改的项目学习计划 JSON】\n${JSON.stringify(currentPlan)}`;
-    const extendedMessages = [
-      { role: 'user', content: contextContent },
-      ...messages
+    const extendedMessages: ServiceAIChatMessage[] = [
+      { role: 'user', content: contextContent.slice(0, 32000) },
+      ...normalizedMessages,
     ];
 
     await streamLLMChat(extendedMessages, systemPrompt, res);
@@ -1806,12 +2030,16 @@ export const importProjectFromJson = async (
 
       // 3. Create roadmap
       let roadmap = null;
-      if (plan.roadmap && plan.roadmap.steps && Array.isArray(plan.roadmap.steps) && plan.roadmap.steps.length > 0) {
+      if (
+        plan.roadmap &&
+        plan.roadmap.steps &&
+        Array.isArray(plan.roadmap.steps) &&
+        plan.roadmap.steps.length > 0
+      ) {
         const defaultTitles = ['学习路线', '学习规划', '学习大纲', 'Roadmap', 'ROADMAP'];
-        const isGenericTitle = !plan.roadmap.title || defaultTitles.includes(plan.roadmap.title.trim());
-        const roadmapTitle = isGenericTitle
-          ? `学习路线 - ${plan.title}`
-          : plan.roadmap.title;
+        const isGenericTitle =
+          !plan.roadmap.title || defaultTitles.includes(plan.roadmap.title.trim());
+        const roadmapTitle = isGenericTitle ? `学习路线 - ${plan.title}` : plan.roadmap.title;
         const roadmapDesc = plan.roadmap.description || `针对项目「${plan.title}」的专属学习路线`;
 
         roadmap = await tx.roadmap.create({
@@ -1829,7 +2057,10 @@ export const importProjectFromJson = async (
               roadmapId: roadmap.id,
               title: step.title,
               description: step.description || '',
-              subtasks: step.subtasks && Array.isArray(step.subtasks) ? JSON.stringify(step.subtasks) : null,
+              subtasks:
+                step.subtasks && Array.isArray(step.subtasks)
+                  ? JSON.stringify(step.subtasks)
+                  : null,
               order: step.order,
             },
           });

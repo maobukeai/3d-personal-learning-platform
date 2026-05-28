@@ -200,7 +200,7 @@ export const parseMarkdownToPlanJson = (text: string): any => {
       }
     } else if (currentSection === 'roadmap') {
       const clean = line
-        .replace(/^[-*\s\d.\[\]xX]*\s*/, '') // Remove list bullets, numbers, spaces, and checkboxes
+        .replace(/^[-*\s\d.[\]xX]*\s*/, '') // Remove list bullets, numbers, spaces, and checkboxes
         .replace(/^\*\*?/, '') // Remove leading bold/italic stars
         .trim();
       const isStepHeader = line.startsWith('### ') || 
@@ -215,7 +215,7 @@ export const parseMarkdownToPlanJson = (text: string): any => {
 
         const stepTitle = line
           .replace(/^(?:###|####)\s*/, '')
-          .replace(/^[-*\s\d.\[\]xX]*\s*/, '')
+          .replace(/^[-*\s\d.[\]xX]*\s*/, '')
           .replace(/^\*\*?/, '')
           .replace(/\*\*?$/, '')
           .trim();

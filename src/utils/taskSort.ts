@@ -47,8 +47,10 @@ export const getTaskDayIndex = (title: string | null | undefined): number => {
 /**
  * Gets the creation timestamp of a task as a number for ordering comparison.
  */
-export const getTaskTime = (t: any): number => {
-  if (!t || !t.createdAt) return 0;
-  const time = new Date(t.createdAt).getTime();
+export const getTaskTime = (t: unknown): number => {
+  if (!t || typeof t !== 'object' || !('createdAt' in t)) return 0;
+  const createdAt = (t as { createdAt?: string | Date | null }).createdAt;
+  if (!createdAt) return 0;
+  const time = new Date(createdAt).getTime();
   return isNaN(time) ? 0 : time;
 };

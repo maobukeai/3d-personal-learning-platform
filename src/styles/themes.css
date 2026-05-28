@@ -7,8 +7,8 @@ html.theme-glass {
 
   /* Layout backgrounds – transparent/translucent frosted white */
   --bg-app: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.45);
-  --bg-sidebar: rgba(255, 255, 255, 0.5);
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-sidebar: rgba(248, 250, 252, 0.92);
 
   /* Text */
   --text-primary: #0f172a;
@@ -23,10 +23,10 @@ html.theme-glass {
   --accent-subtle: color-mix(in srgb, var(--accent) 15%, rgba(255, 255, 255, 0.45));
 
   /* Glass specifics */
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.3) 100%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.45);
-  --glass-border-color: rgba(255, 255, 255, 0.45);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.45);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: 1px solid rgba(223, 227, 232, 0.9);
+  --glass-border-color: rgba(223, 227, 232, 0.9);
+  --glass-shadow: var(--shadow-enterprise);
 }
 
 /* Dark Glassmorphism Override Definition */
@@ -35,8 +35,8 @@ html.dark.theme-glass {
 
   /* Layout backgrounds – transparent/translucent frosted dark */
   --bg-app: #070709;
-  --bg-card: rgba(18, 18, 24, 0.45);
-  --bg-sidebar: rgba(10, 10, 15, 0.5);
+  --bg-card: rgba(24, 26, 31, 0.92);
+  --bg-sidebar: rgba(21, 23, 28, 0.94);
 
   /* Text */
   --text-primary: #ffffff;
@@ -51,23 +51,23 @@ html.dark.theme-glass {
   --accent-subtle: color-mix(in srgb, var(--accent) 15%, rgba(18, 18, 24, 0.45));
 
   /* Glass specifics */
-  --glass-bg: linear-gradient(135deg, rgba(20, 20, 28, 0.65) 0%, rgba(10, 10, 15, 0.45) 100%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.28);
-  --glass-border-color: rgba(255, 255, 255, 0.28);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  --glass-bg: rgba(24, 26, 31, 0.92);
+  --glass-border: 1px solid rgba(63, 70, 82, 0.82);
+  --glass-border-color: rgba(63, 70, 82, 0.82);
+  --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
 }
 
 /* Glass performance budget values */
 html.theme-glass {
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.56) 100%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.52);
-  --glass-border-color: rgba(255, 255, 255, 0.52);
-  --glass-shadow: 0 2px 10px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: 1px solid rgba(223, 227, 232, 0.9);
+  --glass-border-color: rgba(223, 227, 232, 0.9);
+  --glass-shadow: var(--shadow-enterprise);
 }
 
 html.dark.theme-glass {
-  --glass-bg: linear-gradient(135deg, rgba(18, 18, 24, 0.82) 0%, rgba(10, 10, 15, 0.72) 100%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.12);
-  --glass-border-color: rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 2px 12px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(24, 26, 31, 0.92);
+  --glass-border: 1px solid rgba(63, 70, 82, 0.82);
+  --glass-border-color: rgba(63, 70, 82, 0.82);
+  --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
 }

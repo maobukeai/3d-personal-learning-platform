@@ -3,8 +3,12 @@ import * as projectController from '../controllers/project.controller';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 import rateLimit from 'express-rate-limit';
 import { createRateLimitHandler } from '../middlewares/rate-limit.middleware';
+import { upload, validateFileContent } from '../middlewares/upload.middleware';
+import { createAiRateLimitKeyGenerator } from '../utils/ai-rate-limit';
 
 const router = Router();
+const publicAiMiddleware =
+  process.env.NODE_ENV === 'production' ? authenticate : optionalAuthenticate;
 
 // Rate limiter for resource-heavy AI endpoints to prevent abuse and API cost exploitation
 const aiRateLimiter = rateLimit({
@@ -13,18 +17,33 @@ const aiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: createRateLimitHandler('AI 接口请求过于频繁，请稍后再试。', 'AI_RATE_LIMITED'),
-  keyGenerator: (req) => {
-    const authReq = req as any;
-    return authReq.userId ? `ai_user_${authReq.userId}` : `ai_ip_${req.ip}`;
-  },
+  keyGenerator: createAiRateLimitKeyGenerator('ai_user', 'ai_ip'),
 });
 
-// AI chat is publicly accessible (guests can use the assistant without logging in)
-router.post('/ai-chat', optionalAuthenticate, aiRateLimiter, projectController.aiChat);
+const aiUploadRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: createRateLimitHandler('AI 图片上传过于频繁，请稍后再试。', 'AI_UPLOAD_RATE_LIMITED'),
+  keyGenerator: createAiRateLimitKeyGenerator('ai_upload_user', 'ai_upload_ip'),
+});
+
+// AI chat can be used by guests in development, but production requires auth to prevent API cost abuse.
+router.post('/ai-chat', publicAiMiddleware, aiRateLimiter, projectController.aiChat);
+router.post(
+  '/ai-chat/upload',
+  publicAiMiddleware,
+  aiUploadRateLimiter,
+  upload.single('image'),
+  validateFileContent,
+  projectController.uploadAiChatImage,
+);
 
 router.use(authenticate);
 
-
+router.get('/ai-chat/history', projectController.getAiChatHistory);
+router.delete('/ai-chat/history', projectController.clearAiChatHistory);
 
 router.get('/', projectController.getAllProjects);
 router.post('/', projectController.createProject);

@@ -22,11 +22,11 @@ const fetchTeams = async () => {
 
 const getRandomGradient = (name: string) => {
   const gradients = [
-    'bg-gradient-to-tr from-pink-500 to-rose-400',
-    'bg-gradient-to-tr from-amber-500 to-orange-400',
-    'bg-gradient-to-tr from-emerald-500 to-teal-400',
-    'bg-gradient-to-tr from-blue-500 to-indigo-400',
-    'bg-gradient-to-tr from-purple-500 to-violet-400',
+    'bg-rose-600',
+    'bg-amber-600',
+    'bg-emerald-600',
+    'bg-blue-600',
+    'bg-slate-600',
   ];
   let sum = 0;
   for (let i = 0; i < name.length; i++) {
@@ -41,24 +41,24 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-3.5 sm:p-4 glass-card bg-gradient-to-br from-indigo-500/5 to-purple-500/5">
-    <div class="flex items-center gap-2.5 mb-2">
-      <div class="p-1.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-        <Users class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
+  <div class="p-4 sm:p-5 glass-card">
+    <div class="flex items-center gap-2.5 mb-3">
+      <div class="p-2 bg-accent-subtle rounded-lg border border-accent/10">
+        <Users class="w-4 h-4 text-accent" />
       </div>
       <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
         团队协作
       </h3>
     </div>
-    <p class="text-xs sm:text-sm leading-relaxed mb-2 sm:mb-3" style="color: var(--text-secondary)">
+    <p class="text-xs sm:text-sm leading-relaxed mb-4" style="color: var(--text-secondary)">
       加入一个兴趣小组，与志同道合的伙伴一起完成大型渲染项目。
     </p>
-    <div class="flex -space-x-1.5 mb-3 sm:mb-3.5">
+    <div class="flex -space-x-1.5 mb-4">
       <template v-if="teams.length > 0">
         <div
           v-for="team in teams"
           :key="team.id"
-          class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-[9px] sm:text-[10px] font-black text-white shadow-md select-none overflow-hidden shrink-0"
+          class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white select-none overflow-hidden shrink-0"
           style="border-color: var(--bg-card)"
           :title="team.name"
         >
@@ -73,7 +73,7 @@ onMounted(() => {
         </div>
         <div
           v-if="totalTeamsCount > 4"
-          class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-[9px] sm:text-[10px] font-bold shrink-0"
+          class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold shrink-0"
           style="
             background-color: var(--bg-app);
             border-color: var(--border-base);
@@ -87,19 +87,19 @@ onMounted(() => {
         <div
           v-for="(letter, idx) in ['K', 'J', 'Y', 'H']"
           :key="idx"
-          class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-[9px] sm:text-[10px] font-black text-white shadow-md select-none shrink-0"
+          class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white select-none shrink-0"
           style="border-color: var(--bg-card)"
           :class="[
-            idx === 0 ? 'bg-gradient-to-tr from-pink-500 to-rose-400' : '',
-            idx === 1 ? 'bg-gradient-to-tr from-amber-500 to-orange-400' : '',
-            idx === 2 ? 'bg-gradient-to-tr from-emerald-500 to-teal-400' : '',
-            idx === 3 ? 'bg-gradient-to-tr from-blue-500 to-indigo-400' : '',
+            idx === 0 ? 'bg-rose-600' : '',
+            idx === 1 ? 'bg-amber-600' : '',
+            idx === 2 ? 'bg-emerald-600' : '',
+            idx === 3 ? 'bg-blue-600' : '',
           ]"
         >
           {{ letter }}
         </div>
         <div
-          class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center text-[9px] sm:text-[10px] font-bold shrink-0"
+          class="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold shrink-0"
           style="
             background-color: var(--bg-app);
             border-color: var(--border-base);
@@ -110,7 +110,7 @@ onMounted(() => {
         </div>
       </template>
     </div>
-    <button type="button" class="w-full py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-xs sm:text-sm font-bold transition-transform hover:scale-[1.02] cursor-pointer" @click="router.push('/explore-teams')">
+    <button type="button" class="w-full py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-xs sm:text-sm font-bold transition-opacity hover:opacity-90 cursor-pointer" @click="router.push('/explore-teams')">
       寻找团队伙伴
     </button>
   </div>

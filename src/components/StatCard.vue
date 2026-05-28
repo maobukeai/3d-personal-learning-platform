@@ -52,10 +52,10 @@ function handleClick() {
     :class="[
       isClickable ? 'glass-card-hover cursor-pointer group' : 'glass-card-hover',
       horizontal
-        ? 'p-2 sm:p-3 rounded-xl border shadow-sm hover:shadow-md flex items-center gap-2 sm:gap-3.5'
+        ? 'p-3 rounded-lg border flex items-center gap-3'
         : compact
-          ? 'p-2 sm:p-6 rounded-xl sm:rounded-3xl border shadow-sm hover:shadow-md'
-          : 'p-1.5 sm:p-2.5 md:p-3 rounded-lg md:rounded-xl'
+          ? 'p-3 sm:p-5 rounded-lg border'
+          : 'p-3 md:p-4 rounded-lg'
     ]"
     @click="handleClick"
   >
@@ -66,7 +66,7 @@ function handleClick() {
         :class="[
           color,
           isClickable ? 'group-hover:scale-110' : '',
-          'p-1 sm:p-2 rounded-md sm:rounded-lg'
+          'p-2 rounded-lg'
         ]"
       >
         <component
@@ -76,7 +76,7 @@ function handleClick() {
       </div>
       <div class="min-w-0 flex-1">
         <p
-          class="font-black uppercase tracking-wider mb-0.5 truncate text-[7.5px] sm:text-[9.5px]"
+          class="font-bold uppercase mb-1 truncate text-[10px]"
           style="color: var(--text-muted)"
           :title="label"
         >
@@ -84,14 +84,14 @@ function handleClick() {
         </p>
         <div class="flex items-baseline gap-1">
           <h2
-            class="font-black truncate text-xs sm:text-lg leading-tight"
+            class="font-bold truncate text-lg leading-tight"
             style="color: var(--text-primary)"
           >
             {{ value }}
           </h2>
           <span
             v-if="hasTrend"
-            class="text-[8px] font-black px-1.5 py-0.5 rounded-full shrink-0"
+            class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
             :class="trendClass"
           >
             {{ trend }}
@@ -102,13 +102,13 @@ function handleClick() {
 
     <!-- Layout Option 2: Default Vertical Card Layout -->
     <template v-else>
-      <div class="flex items-start justify-between mb-1 sm:mb-1.5">
+      <div class="flex items-start justify-between mb-3">
         <div
           class="bg-slate-50 dark:bg-white/5 transition-transform"
           :class="[
             color,
             isClickable ? 'group-hover:scale-110' : '',
-            compact ? 'p-1.5 sm:p-3 rounded-lg sm:rounded-2xl' : 'p-1 sm:p-2 rounded-md sm:rounded-lg'
+            compact ? 'p-2.5 rounded-lg' : 'p-2 rounded-lg'
           ]"
         >
           <component
@@ -119,7 +119,7 @@ function handleClick() {
         <template v-if="!compact">
           <span
             v-if="hasTrend"
-            class="hidden sm:inline-block text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0"
+            class="hidden sm:inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
             :class="trendClass"
           >
             {{ trend }}
@@ -135,16 +135,16 @@ function handleClick() {
         </template>
       </div>
       <p
-        class="font-black uppercase tracking-wider mb-0.5 truncate"
-        :class="compact ? 'text-[9px] sm:text-[10px]' : 'text-[8px] xs:text-[9px] sm:text-[10px]'"
+        class="font-bold uppercase mb-1 truncate"
+        :class="compact ? 'text-[10px]' : 'text-[10px]'"
         style="color: var(--text-muted)"
         :title="label"
       >
         {{ label }}
       </p>
       <h2
-        class="font-black truncate"
-        :class="compact ? 'text-base sm:text-2xl' : 'text-sm xs:text-base sm:text-lg md:text-2xl'"
+        class="font-bold truncate"
+        :class="compact ? 'text-xl sm:text-2xl' : 'text-xl md:text-2xl'"
         style="color: var(--text-primary)"
       >
         {{ value }}

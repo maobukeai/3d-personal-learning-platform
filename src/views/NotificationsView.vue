@@ -81,7 +81,7 @@ const getInvitationIdFromLink = (link?: string | null) => {
   try {
     const url = new URL(link, window.location.origin);
     return url.searchParams.get('invitationId');
-  } catch (e) {
+  } catch {
     const match = link.match(/[?&]invitationId=([^&]+)/);
     return match ? match[1] : null;
   }

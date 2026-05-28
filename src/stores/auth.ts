@@ -51,7 +51,7 @@ interface ChangePasswordPayload {
 
 interface ResetPasswordWith2FAPayload {
   email: string;
-  code?: string;
+  resetCode?: string;
   newPassword: string;
   twoFactorCode?: string;
   resetToken?: string;

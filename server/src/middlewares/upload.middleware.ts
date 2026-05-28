@@ -38,6 +38,8 @@ const storage = multer.diskStorage({
       dir = './uploads/manual';
     } else if (file.fieldname === 'mirror_image') {
       dir = './uploads/mirror';
+    } else if (file.fieldname === 'image') {
+      dir = './uploads/ai';
     }
 
     if (!fs.existsSync(dir)) {
@@ -85,9 +87,18 @@ const createUploadMiddleware = (config: {
         config.fieldname === 'cover' ||
         config.fieldname === 'manual_image' ||
         config.fieldname === 'mirror_image' ||
+        config.fieldname === 'image' ||
         (config.fields &&
           config.fields.some((f) =>
-            ['logo', 'favicon', 'avatar', 'cover', 'manual_image', 'mirror_image'].includes(f.name),
+            [
+              'logo',
+              'favicon',
+              'avatar',
+              'cover',
+              'manual_image',
+              'mirror_image',
+              'image',
+            ].includes(f.name),
           ));
 
       if (isSystemImage) {
@@ -147,13 +158,16 @@ const createUploadMiddleware = (config: {
               let finalAllowedExtensions = allowedExtensions;
               let finalMaxFileSize = maxFileSize;
 
-              if (
+              if (file.fieldname === 'image') {
+                finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+              } else if (
                 file.fieldname === 'logo' ||
                 file.fieldname === 'favicon' ||
                 file.fieldname === 'avatar' ||
                 file.fieldname === 'cover' ||
                 file.fieldname === 'manual_image' ||
-                file.fieldname === 'mirror_image'
+                file.fieldname === 'mirror_image' ||
+                file.fieldname === 'image'
               ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
               } else if (
@@ -209,7 +223,8 @@ const createUploadMiddleware = (config: {
                   file.fieldname === 'logo' ||
                   file.fieldname === 'favicon' ||
                   file.fieldname === 'avatar' ||
-                  file.fieldname === 'cover'
+                  file.fieldname === 'cover' ||
+                  file.fieldname === 'image'
                     ? '5'
                     : settings.MAX_FILE_SIZE;
                 logger.error(
@@ -257,6 +272,7 @@ const imageUploadFields = new Set([
   'images',
   'manual_image',
   'mirror_image',
+  'image',
 ]);
 
 const detectImageMime = (buffer: Buffer): string | null => {

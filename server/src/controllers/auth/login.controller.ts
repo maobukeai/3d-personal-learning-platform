@@ -6,8 +6,13 @@ import crypto from 'crypto';
 import prisma from '../../services/prisma';
 import { config } from '../../config/env';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { generateAccessToken, generateRefreshToken, sanitizeUser } from '../../utils/auth';
-import { settingsService } from '../../services/settings.service';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  sanitizeUser,
+  verifyRecoveryCode,
+} from '../../utils/auth';
+import { getPublicAIModels, settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
 
@@ -49,6 +54,7 @@ export const getPublicSettings = async (req: Request, res: Response, next: NextF
       OAUTH_GOOGLE_ENABLED: settings.OAUTH_GOOGLE_ENABLED,
       OAUTH_GITHUB_ENABLED: settings.OAUTH_GITHUB_ENABLED,
       AI_IMPORT_ENABLED: settings.AI_IMPORT_ENABLED,
+      AI_MODEL_OPTIONS: getPublicAIModels(settings),
     };
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(publicSettings);
@@ -156,15 +162,12 @@ export const login2FA = async (req: Request, res: Response, next: NextFunction) 
 
     // If not valid TOTP, check recovery codes
     if (!isValid && user.twoFactorRecoveryCodes) {
-      const codes = JSON.parse(user.twoFactorRecoveryCodes) as string[];
-      const codeIndex = codes.indexOf(code.toUpperCase());
-      if (codeIndex !== -1) {
+      const recoveryCodeResult = await verifyRecoveryCode(user.twoFactorRecoveryCodes, code);
+      if (recoveryCodeResult.valid) {
         isValid = true;
-        // Remove used recovery code
-        codes.splice(codeIndex, 1);
         await prisma.user.update({
           where: { id: user.id },
-          data: { twoFactorRecoveryCodes: JSON.stringify(codes) },
+          data: { twoFactorRecoveryCodes: JSON.stringify(recoveryCodeResult.remainingCodes) },
         });
       }
     }

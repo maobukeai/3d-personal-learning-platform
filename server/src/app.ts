@@ -25,6 +25,7 @@ import mirrorRoutes from './mirror/routes/mirror.routes';
 import adminMirrorRoutes from './mirror/routes/admin-mirror.routes';
 import manualRoutes from './manual/routes/manual.routes';
 import adminManualRoutes from './manual/routes/admin-manual.routes';
+import aiRoutes from './routes/ai.routes';
 
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/error.middleware';
@@ -155,6 +156,7 @@ app.use('/api/mirror', mirrorRoutes);
 app.use('/api/admin/mirror', adminMirrorRoutes);
 app.use('/api/manual', manualRoutes);
 app.use('/api/admin/manual', adminManualRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

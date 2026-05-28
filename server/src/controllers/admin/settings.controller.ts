@@ -117,6 +117,35 @@ const validateSettings = (
     }
   }
 
+  if (settingsObj.AI_MODEL_OPTIONS !== undefined) {
+    try {
+      const raw =
+        typeof settingsObj.AI_MODEL_OPTIONS === 'string'
+          ? JSON.parse(settingsObj.AI_MODEL_OPTIONS)
+          : settingsObj.AI_MODEL_OPTIONS;
+      if (!Array.isArray(raw)) {
+        errors.push('AI_MODEL_OPTIONS必须是模型配置数组');
+      } else {
+        const enabledModels = raw.filter(
+          (item) => item?.enabled === true || item?.enabled === 'true',
+        );
+        if (
+          (settingsObj.AI_IMPORT_ENABLED === true || settingsObj.AI_IMPORT_ENABLED === 'true') &&
+          enabledModels.length === 0
+        ) {
+          errors.push('启用 AI 时至少需要启用一个模型');
+        }
+        raw.forEach((item, index) => {
+          if (!item?.provider || !item?.modelName) {
+            errors.push(`第 ${index + 1} 个 AI 模型缺少 provider 或 modelName`);
+          }
+        });
+      }
+    } catch {
+      errors.push('AI_MODEL_OPTIONS不是有效的 JSON');
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 };
 

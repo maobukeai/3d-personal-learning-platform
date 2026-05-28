@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { X, ShieldCheck, Settings, HelpCircle, Box } from 'lucide-vue-next';
 import { useSystemStore } from '@/stores/system';
@@ -15,12 +15,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
   (e: 'report-bug'): void;
-
 }>();
 
 const route = useRoute();
 const systemStore = useSystemStore();
 const workspaceStore = useWorkspaceStore();
+const logoLoadFailed = ref(false);
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -35,6 +35,17 @@ const closeSidebar = (event?: Event) => {
     document.activeElement.blur();
   }
   isOpen.value = false;
+};
+
+watch(
+  () => systemStore.settings.PLATFORM_LOGO_URL,
+  () => {
+    logoLoadFailed.value = false;
+  },
+);
+
+const handleLogoError = () => {
+  logoLoadFailed.value = true;
 };
 </script>
 
@@ -63,16 +74,30 @@ const closeSidebar = (event?: Event) => {
         <div class="flex items-center gap-2 min-w-0">
           <div
             class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
-            :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
+            :class="
+              systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
+                ? 'bg-transparent'
+                : 'bg-accent'
+            "
           >
-            <img v-if="systemStore.settings.PLATFORM_LOGO_URL" alt="" :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)" class="w-full h-full object-contain" />
+            <img
+              v-if="systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed"
+              alt=""
+              :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+              class="w-full h-full object-contain"
+              @error="handleLogoError"
+            />
             <Box v-else class="w-4 h-4 text-white" />
           </div>
           <span class="text-xs font-bold truncate" style="color: var(--text-primary)">{{
             systemStore.settings.PLATFORM_NAME
           }}</span>
         </div>
-        <button type="button" class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0" @click="closeSidebar">
+        <button
+          type="button"
+          class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+          @click="closeSidebar"
+        >
           <X class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
       </div>
@@ -163,10 +188,13 @@ const closeSidebar = (event?: Event) => {
           <span class="flex-1 text-xs truncate">设置选项</span>
         </RouterLink>
         <button
-type="button" class="min-h-11 w-full flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm" @click="
+          type="button"
+          class="min-h-11 w-full flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
+          @click="
             emit('report-bug');
             closeSidebar();
-          ">
+          "
+        >
           <HelpCircle class="w-4 h-4 shrink-0" />
           <span class="flex-1 text-xs text-left truncate">问题反馈</span>
         </button>

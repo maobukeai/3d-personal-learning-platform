@@ -14,6 +14,7 @@ export default [
       ".release-staging/**",
       "node_modules/**",
       "public/**",
+      "scratch/**",
       "server/**",
       "ecosystem.config.cjs",
     ],

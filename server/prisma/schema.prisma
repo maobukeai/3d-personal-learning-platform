@@ -84,6 +84,7 @@ model User {
   googleId   String? @unique
   githubId   String? @unique
   microsoftEmailAccounts MicrosoftEmailAccount[]
+  aiMessages AiMessage[]
 }
 
 model Conversation {
@@ -1126,4 +1127,16 @@ model MicrosoftEmailAccount {
   updatedAt        DateTime @updatedAt
 
   @@index([userId])
+}
+
+model AiMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // 'user' or 'assistant'
+  content   String   @db.Text
+  reasoning String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

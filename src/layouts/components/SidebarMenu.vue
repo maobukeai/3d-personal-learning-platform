@@ -40,7 +40,7 @@ const workspaceStore = useWorkspaceStore();
           <ShieldCheck v-if="workspaceStore.isAdminWorkspace" class="w-3.5 h-3.5" />
           {{ group.title }}
         </h3>
-        <ul class="space-y-1">
+        <ul class="space-y-0.5">
           <li v-for="item in group.items" :key="item.name">
             <RouterLink
               :to="item.path"
@@ -53,7 +53,7 @@ const workspaceStore = useWorkspaceStore();
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
               "
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 min-w-0">
                 <component
                   :is="item.icon"
                   v-if="item.icon"
@@ -66,7 +66,7 @@ const workspaceStore = useWorkspaceStore();
                       : 'text-slate-400'
                   "
                 />
-                <span class="flex-1">{{ item.name }}</span>
+                <span class="flex-1 truncate">{{ item.name }}</span>
 
                 <!-- High-Visibility Badge -->
                 <div

@@ -2,12 +2,12 @@ import { ref } from 'vue';
 import { preferences, type LocalePreference, type ThemePreference } from '@/utils/preferences';
 
 export const accentColors = [
-  { name: 'Blue', value: '#3b82f6' },
-  { name: 'Purple', value: '#8b5cf6' },
-  { name: 'Pink', value: '#ec4899' },
-  { name: 'Emerald', value: '#10b981' },
-  { name: 'Amber', value: '#f59e0b' },
-  { name: 'Indigo', value: '#6366f1' },
+  { name: 'Blue', value: '#2563eb' },
+  { name: 'Teal', value: '#0f766e' },
+  { name: 'Emerald', value: '#059669' },
+  { name: 'Amber', value: '#d97706' },
+  { name: 'Rose', value: '#e11d48' },
+  { name: 'Slate', value: '#475569' },
 ] as const;
 
 export const languageOptions: Array<{ label: string; value: LocalePreference }> = [
@@ -40,7 +40,14 @@ export const applyThemeToDocument = (theme: ThemePreference) => {
 
 export const applyAccentColorToDocument = (color: string) => {
   const root = document.documentElement;
+  const hex = color.replace('#', '');
+  const bigint = Number.parseInt(hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex, 16);
+  const rgb = Number.isFinite(bigint)
+    ? `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`
+    : '37, 99, 235';
+
   root.style.setProperty('--accent', color);
+  root.style.setProperty('--accent-rgb', rgb);
   root.style.setProperty('--el-color-primary', color);
   root.style.setProperty('--el-color-primary-light-3', `${color}b3`);
   root.style.setProperty('--el-color-primary-light-5', `${color}80`);

@@ -103,7 +103,9 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
             });
             logger.info(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
           } else {
-            logger.error(`[AssetProcessor] Background processing returned null for asset: ${asset.id}`);
+            logger.error(
+              `[AssetProcessor] Background processing returned null for asset: ${asset.id}`,
+            );
             await prisma.asset.delete({ where: { id: asset.id } }).catch(() => {});
             deleteFileByUrl(asset.url);
             if (asset.thumbnail) {

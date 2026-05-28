@@ -14,8 +14,8 @@
   --font-sans: 'Inter', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
 
   /* Shadows */
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
-  --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.08);
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-card-hover: 0 8px 18px rgb(16 24 40 / 0.08);
 
   /* Colors mapped to CSS variables for dynamic themes */
   --color-accent: var(--accent);
@@ -30,23 +30,40 @@
   color-scheme: light;
 
   /* Layout backgrounds */
-  --bg-app: #f8fafc;
+  --bg-app: #f4f6f8;
   --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
   --bg-sidebar: #f8fafc;
+  --bg-subtle: #f9fafb;
 
   /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
 
   /* Borders */
-  --border-base: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border-base: #dfe3e8;
+  --border-strong: #c4ccd6;
 
   /* Accent */
-  --accent: #3b82f6;
+  --accent: #2563eb;
+  --accent-rgb: 37, 99, 235;
   --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
   --accent-subtle: color-mix(in srgb, var(--accent) 8%, white);
+
+  /* Enterprise semantic colors */
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #0f766e;
+
+  /* Shape and elevation */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --shadow-enterprise: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 1px rgb(16 24 40 / 0.04);
+  --shadow-enterprise-hover: 0 10px 24px rgb(16 24 40 / 0.08);
 }
 
 /* ============================================================
@@ -56,21 +73,23 @@
   color-scheme: dark;
 
   /* Layout backgrounds */
-  --bg-app: #000000;
-  --bg-card: #09090b;
-  --bg-sidebar: #000000;
+  --bg-app: #101114;
+  --bg-card: #181a1f;
+  --bg-elevated: #1f2228;
+  --bg-sidebar: #15171c;
+  --bg-subtle: #20232a;
 
   /* Text */
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
+  --text-primary: #f4f4f5;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
 
   /* Borders */
-  --border-base: #18181b;
-  --border-strong: #27272a;
+  --border-base: #2b2f36;
+  --border-strong: #3f4652;
 
   /* Accent */
-  --accent-subtle: color-mix(in srgb, var(--accent) 12%, #09090b);
+  --accent-subtle: color-mix(in srgb, var(--accent) 16%, #181a1f);
 }
 
 /* ============================================================

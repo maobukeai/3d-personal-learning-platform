@@ -89,15 +89,14 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     dueDate,
     assigneeId,
     projectId,
-    teamId,
     participantIds,
   } = req.body;
   try {
-    const effectiveTeamId = teamId || req.workspaceId;
+    const effectiveTeamId = req.workspaceId || null;
 
     if (projectId) {
       const project = await prisma.project.findFirst({
-        where: { id: projectId, teamId: effectiveTeamId || undefined },
+        where: { id: projectId, teamId: effectiveTeamId },
         include: {
           members: {
             where: { userId: req.userId },
@@ -247,7 +246,6 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     dueDate,
     assigneeId,
     projectId,
-    teamId,
     participantIds,
   } = req.body;
   try {
@@ -266,16 +264,19 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
     // If task belongs to a project, the user must be a member of that project
-    if (existingTask.projectId && (!existingTask.project || existingTask.project.members.length === 0)) {
+    if (
+      existingTask.projectId &&
+      (!existingTask.project || existingTask.project.members.length === 0)
+    ) {
       return res.status(403).json({ error: 'Not authorized to update tasks in this project' });
     }
 
-    const effectiveTeamId = teamId || existingTask.teamId || req.workspaceId;
+    const effectiveTeamId = req.workspaceId || null;
 
     // If user is trying to associate task to a new project or change project, check project membership for the target project
     if (projectId && projectId !== existingTask.projectId) {
       const targetProject = await prisma.project.findFirst({
-        where: { id: projectId, teamId: effectiveTeamId || undefined },
+        where: { id: projectId, teamId: effectiveTeamId },
         include: {
           members: {
             where: { userId: req.userId },
@@ -316,7 +317,6 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
         assigneeId: assigneeId !== undefined ? assigneeId || null : undefined,
         projectId: projectId !== undefined ? projectId || null : undefined,
-        teamId: teamId !== undefined ? teamId : undefined,
         participants: participantIds
           ? {
               deleteMany: {},
@@ -425,9 +425,10 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
           .filter((uid) => uid !== req.userId);
 
         if (targetUserIds.length > 0) {
-          const detailMsg = status && status !== existingTask.status
-            ? `状态已更新为「${status === 'DONE' ? '已完成' : (status === 'IN_PROGRESS' ? '进行中' : '待办')}」`
-            : `内容或属性进行了更新`;
+          const detailMsg =
+            status && status !== existingTask.status
+              ? `状态已更新为「${status === 'DONE' ? '已完成' : status === 'IN_PROGRESS' ? '进行中' : '待办'}」`
+              : `内容或属性进行了更新`;
           await createNotificationBatch(
             targetUserIds.map((uid) => ({
               type: 'TASK',
@@ -468,7 +469,10 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     if (!existingTask) return res.status(404).json({ error: 'Task not found' });
 
     // If task belongs to a project, the user must be a member of that project
-    if (existingTask.projectId && (!existingTask.project || existingTask.project.members.length === 0)) {
+    if (
+      existingTask.projectId &&
+      (!existingTask.project || existingTask.project.members.length === 0)
+    ) {
       return res.status(403).json({ error: 'Not authorized to delete tasks in this project' });
     }
 

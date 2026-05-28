@@ -1,8 +1,44 @@
 export interface SSEPayload {
+  event?: 'meta' | 'heartbeat' | 'done';
+  requestId?: string;
+  provider?: string;
+  model?: string;
+  usage?: {
+    outputChars?: number;
+    reasoningChars?: number;
+  };
   text?: string;
   reasoning?: string;
   error?: string;
 }
+
+export const getCsrfToken = (): string => {
+  return document.cookie.match(/csrfToken=([^;]+)/)?.[1] ?? '';
+};
+
+export const createJsonHeaders = (extraHeaders: Record<string, string> = {}): Record<string, string> => {
+  const csrfToken = getCsrfToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+    ...extraHeaders,
+  };
+};
+
+export const readFetchErrorMessage = async (
+  response: Response,
+  fallback = `HTTP ${response.status}`,
+): Promise<string> => {
+  const raw = await response.text();
+  if (!raw) return fallback;
+
+  try {
+    const parsed = JSON.parse(raw) as { error?: string; message?: string };
+    return parsed.error || parsed.message || raw || fallback;
+  } catch {
+    return raw || fallback;
+  }
+};
 
 /**
  * Common SSE Stream reader helper.
@@ -16,6 +52,26 @@ export async function parseSSEStream(
 ): Promise<void> {
   const decoder = new TextDecoder('utf-8');
   let sseBuffer = '';
+  const consumeLine = (line: string): boolean => {
+    const cleanLine = line.trim();
+    if (!cleanLine) return false;
+    if (cleanLine === 'data: [DONE]') {
+      onDone();
+      return true;
+    }
+    if (cleanLine.startsWith('data: ')) {
+      let parsed: SSEPayload;
+      try {
+        parsed = JSON.parse(cleanLine.substring(6));
+      } catch {
+        // Ignore JSON parse failures from incomplete or non-JSON SSE events.
+        return false;
+      }
+      onChunk(parsed);
+    }
+    return false;
+  };
+
   try {
     while (true) {
       const { value, done } = await reader.read();
@@ -26,25 +82,14 @@ export async function parseSSEStream(
       sseBuffer = lines.pop() || '';
 
       for (const line of lines) {
-        const cleanLine = line.trim();
-        if (!cleanLine) continue;
-        if (cleanLine === 'data: [DONE]') {
-          onDone();
-          return;
-        }
-        if (cleanLine.startsWith('data: ')) {
-          try {
-            const parsed = JSON.parse(cleanLine.substring(6));
-            onChunk(parsed);
-          } catch (e) {
-            // Ignore JSON parse failures from split chunk boundaries
-          }
-        }
+        if (consumeLine(line)) return;
       }
     }
+    sseBuffer += decoder.decode();
+    if (sseBuffer && consumeLine(sseBuffer)) return;
     onDone();
-  } catch (error: any) {
-    onError(error);
+  } catch (error: unknown) {
+    onError(error instanceof Error ? error : new Error(String(error)));
   }
 }
 
@@ -68,4 +113,3 @@ export function renderMarkdown(text: string): string {
     .replace(/\n/g, '<br/>');
   return html;
 }
-

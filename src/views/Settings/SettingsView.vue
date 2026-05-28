@@ -90,7 +90,7 @@ v-for="section in sections" :key="section.id" type="button" class="flex-none w-a
 
       <!-- Main Section Content -->
       <div class="flex-1 overflow-y-auto px-4 py-6 lg:p-12 scrollbar-hide">
-        <div class="max-w-2xl mx-auto">
+        <div class="max-w-6xl mx-auto">
           <ProfileSection v-if="activeSection === 'profile'" />
           <NotificationSection v-else-if="activeSection === 'notifications'" />
           <SecuritySection v-else-if="activeSection === 'security'" />

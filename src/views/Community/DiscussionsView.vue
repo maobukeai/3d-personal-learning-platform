@@ -927,7 +927,7 @@ v-if="
           @click="showCreateModal = false"
         ></div>
         <div
-          class="relative w-full max-w-2xl sm:max-w-3xl max-h-[90vh] p-4 sm:p-6 rounded-2xl shadow-2xl space-y-4 overflow-y-auto scrollbar-hide"
+          class="relative w-full max-w-2xl lg:max-w-5xl max-h-[90vh] p-4 sm:p-6 rounded-2xl shadow-2xl space-y-4 overflow-y-auto scrollbar-hide"
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between pb-1">
@@ -965,8 +965,8 @@ v-if="
               >
               <MarkdownEditor
                 v-model="postForm.content"
-                height="320px"
-                class="h-[180px] sm:h-[320px]"
+                height="400px"
+                class="h-[200px] sm:h-[400px]"
                 placeholder="你想说点什么？支持 Markdown 格式..."
               />
             </div>

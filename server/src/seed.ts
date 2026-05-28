@@ -8,6 +8,10 @@ async function main() {
   logger.info('Seeding database...');
 
   // 1. Create Admin User
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_INITIAL_PASSWORD) {
+    throw new Error('ADMIN_INITIAL_PASSWORD must be set when seeding production.');
+  }
+
   const adminSeedPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin_Secure_2026!';
   const hashedPassword = await bcrypt.hash(adminSeedPassword, 10);
   const admin = await prisma.user.upsert({
@@ -24,6 +28,10 @@ async function main() {
   logger.info('Created Admin User:', admin.email);
 
   // 2. Create Regular User
+  if (process.env.NODE_ENV === 'production' && !process.env.USER_INITIAL_PASSWORD) {
+    throw new Error('USER_INITIAL_PASSWORD must be set when seeding production.');
+  }
+
   const userSeedPassword = process.env.USER_INITIAL_PASSWORD || 'User_Secure_2026!';
   const userPassword = await bcrypt.hash(userSeedPassword, 10);
   const user = await prisma.user.upsert({

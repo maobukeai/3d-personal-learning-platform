@@ -33,21 +33,21 @@ const handleActivityClick = (log: DashboardActivity) => {
 <template>
   <div class="glass-card overflow-hidden">
     <div
-      class="p-3 sm:p-3.5 border-b flex items-center justify-between"
+      class="p-4 sm:p-5 border-b flex items-center justify-between"
       style="border-color: var(--border-base)"
     >
       <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
         团队动态
       </h3>
-      <span class="text-[10px] sm:text-xs font-black uppercase text-emerald-500 animate-pulse">
+      <span class="text-[10px] sm:text-xs font-bold uppercase text-emerald-600">
         实时
       </span>
     </div>
-    <div class="p-3 sm:p-3.5 space-y-2">
+    <div class="p-4 sm:p-5 space-y-3">
       <div
         v-for="log in activityLog"
         :key="log.id"
-        class="flex gap-2 group cursor-pointer"
+        class="flex gap-3 group cursor-pointer rounded-lg transition-colors hover:bg-[var(--bg-subtle)] -mx-2 px-2 py-1.5"
         @click="handleActivityClick(log)"
       >
         <UserAvatar :user="log.user" size="sm" class="shrink-0" />
@@ -67,11 +67,11 @@ const handleActivityClick = (log: DashboardActivity) => {
           </p>
         </div>
       </div>
-      <div v-if="activityLog.length === 0" class="py-4 sm:py-6 text-center text-slate-400">
+      <div v-if="activityLog.length === 0" class="py-6 text-center text-slate-400">
         <p class="text-xs sm:text-sm font-bold">暂无动态</p>
       </div>
     </div>
-    <button type="button" class="w-full py-2 sm:py-2.5 text-xs sm:text-sm font-bold border-t transition-colors hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer" style="color: var(--text-secondary); border-color: var(--border-base)" @click="router.push('/discussions')">
+    <button type="button" class="w-full py-3 text-xs sm:text-sm font-bold border-t transition-colors hover:bg-[var(--bg-subtle)] cursor-pointer" style="color: var(--text-secondary); border-color: var(--border-base)" @click="router.push('/discussions')">
       进入社区交流
     </button>
   </div>

@@ -258,27 +258,59 @@ export const forgotPasswordCheck = async (req: AuthRequest, res: Response, next:
   const { email } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return next(new AppError('该邮箱未注册', 404));
+    if (user && user.twoFactorEnabled) {
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await prisma.verificationCode.create({
+        data: { email, code: resetCode, expiresAt },
+      });
+
+      await sendEmail(
+        email,
+        'Password reset verification code',
+        `Your password reset code is ${resetCode}. It expires in 10 minutes.`,
+        `<p>Your password reset code is <strong>${resetCode}</strong>.</p><p>It expires in 10 minutes.</p>`,
+      );
     }
-    res.json({ twoFactorEnabled: user.twoFactorEnabled });
+
+    res.json({
+      message:
+        'If the account exists and supports password reset, a verification code has been sent.',
+      twoFactorEnabled: true,
+      requiresEmailCode: true,
+    });
   } catch (error) {
+    logger.error('Forgot password check error:', error);
     next(error);
   }
 };
 
 export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { email, code, newPassword } = req.body;
+  const { email, resetCode, twoFactorCode, newPassword } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.twoFactorSecret || !user.twoFactorEnabled) {
       return next(new AppError('无效请求，该账户未启用两步验证', 400));
     }
 
+    const resetRecord = await prisma.verificationCode.findFirst({
+      where: {
+        email,
+        code: resetCode,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!resetRecord) {
+      return next(new AppError('邮箱验证码错误或已过期', 400));
+    }
+
     const isValid = speakeasy.totp.verify({
       secret: user.twoFactorSecret,
       encoding: 'base32',
-      token: code,
+      token: twoFactorCode,
       window: 1,
     });
 
@@ -292,13 +324,14 @@ export const resetPasswordWith2FA = async (req: AuthRequest, res: Response, next
       data: { password: hashedPassword },
     });
 
+    await prisma.verificationCode.delete({ where: { id: resetRecord.id } });
     await redisService.invalidateUserCache(user.id);
 
     await auditService.log({
       userId: user.id,
       action: AuditAction.RESET_PASSWORD,
       module: AuditModule.AUTH,
-      description: `用户重置了登录密码 (2FA 验证): ${user.email}`,
+      description: `用户通过邮箱验证码和 2FA 重置了登录密码: ${user.email}`,
       req,
     });
 

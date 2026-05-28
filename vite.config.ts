@@ -62,6 +62,8 @@ export default defineConfig(({ mode }) => {
         '/api/projects/ai-chat': {
           target: env.VITE_API_URL || 'http://localhost:3001',
           changeOrigin: true,
+          timeout: 300000,
+          proxyTimeout: 300000,
           configure: (proxy) => {
             proxy.on('proxyRes', (proxyRes) => {
               // Disable any internal buffering so SSE chunks flow through immediately
@@ -72,9 +74,22 @@ export default defineConfig(({ mode }) => {
         '/api/projects/co-plan-chat': {
           target: env.VITE_API_URL || 'http://localhost:3001',
           changeOrigin: true,
+          timeout: 300000,
+          proxyTimeout: 300000,
           configure: (proxy) => {
             proxy.on('proxyRes', (proxyRes) => {
               // Disable any internal buffering so SSE chunks flow through immediately
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            });
+          },
+        },
+        '/api/ai/write-assist': {
+          target: env.VITE_API_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          timeout: 300000,
+          proxyTimeout: 300000,
+          configure: (proxy) => {
+            proxy.on('proxyRes', (proxyRes) => {
               proxyRes.headers['x-accel-buffering'] = 'no';
             });
           },

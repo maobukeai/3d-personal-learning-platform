@@ -9,6 +9,34 @@ import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
 
+const getWorkspaceMaterial = async (
+  id: string,
+  req: AuthRequest,
+  options: { requireApproved?: boolean } = {},
+) => {
+  const material = await prisma.material.findFirst({
+    where: {
+      id,
+      teamId: req.workspaceId,
+      ...(options.requireApproved ? { status: 'APPROVED' } : {}),
+    },
+    include: {
+      user: {
+        select: { name: true, email: true, avatarUrl: true },
+      },
+      _count: {
+        select: { favorites: true },
+      },
+    },
+  });
+
+  if (!material) {
+    throw new AppError('Material not found', 404);
+  }
+
+  return material;
+};
+
 export const getAllMaterials = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { category, sort, search } = req.query;
   try {
@@ -64,18 +92,7 @@ export const getAllMaterials = async (req: AuthRequest, res: Response, next: Nex
 export const getMaterialById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const material = await prisma.material.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: { name: true, email: true, avatarUrl: true },
-        },
-        _count: {
-          select: { favorites: true },
-        },
-      },
-    });
-    if (!material) return next(new AppError('Material not found', 404));
+    const material = await getWorkspaceMaterial(id, req, { requireApproved: true });
 
     const isFavorited = await prisma.materialFavorite.findFirst({
       where: { userId: req.userId as string, materialId: id },
@@ -190,8 +207,7 @@ export const deleteMaterial = async (req: AuthRequest, res: Response, next: Next
 export const downloadMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
-    const material = await prisma.material.findUnique({ where: { id } });
-    if (!material) return next(new AppError('Material not found', 404));
+    const material = await getWorkspaceMaterial(id, req, { requireApproved: true });
 
     const fileName = material.fileUrl.split('/').pop();
     if (!fileName) return next(new AppError('Invalid file URL', 400));
@@ -219,6 +235,8 @@ export const downloadMaterial = async (req: AuthRequest, res: Response, next: Ne
 export const recordDownload = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
+    await getWorkspaceMaterial(id, req, { requireApproved: true });
+
     const material = await prisma.material.update({
       where: { id },
       data: {
@@ -236,6 +254,8 @@ export const recordDownload = async (req: AuthRequest, res: Response, next: Next
 export const toggleFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const materialId = req.params.id as string;
   try {
+    await getWorkspaceMaterial(materialId, req, { requireApproved: true });
+
     const existing = await prisma.materialFavorite.findFirst({
       where: { userId: req.userId as string, materialId },
     });
@@ -257,7 +277,13 @@ export const toggleFavorite = async (req: AuthRequest, res: Response, next: Next
 export const getMyFavorites = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const favorites = await prisma.materialFavorite.findMany({
-      where: { userId: req.userId as string },
+      where: {
+        userId: req.userId as string,
+        material: {
+          teamId: req.workspaceId,
+          status: 'APPROVED',
+        },
+      },
       include: {
         material: {
           include: {

@@ -23,9 +23,13 @@ import AISprite from '@/components/AISprite.vue';
 // Async sub-dialogs/components
 import { defineAsyncComponent } from 'vue';
 const CreateTeamDialog = defineAsyncComponent(() => import('@/components/CreateTeamDialog.vue'));
-const ExploreGroupsDialog = defineAsyncComponent(() => import('@/components/ExploreGroupsDialog.vue'));
+const ExploreGroupsDialog = defineAsyncComponent(
+  () => import('@/components/ExploreGroupsDialog.vue'),
+);
 const InvitationDialog = defineAsyncComponent(() => import('@/components/InvitationDialog.vue'));
-const AssetDetailsDrawer = defineAsyncComponent(() => import('@/components/AssetDetailsDrawer.vue'));
+const AssetDetailsDrawer = defineAsyncComponent(
+  () => import('@/components/AssetDetailsDrawer.vue'),
+);
 
 // Extracted Sub-components
 import GlobalSearchDialog from './components/GlobalSearchDialog.vue';
@@ -63,6 +67,7 @@ const activeInvitationId = ref<string | null>(null);
 const isSearchVisible = ref(false);
 const isMobileSidebarOpen = ref(false);
 const isMobile = ref(window.innerWidth < 768);
+const logoLoadFailed = ref(false);
 
 interface NotificationCenterExpose {
   fetchNotifications: () => Promise<void> | void;
@@ -77,6 +82,17 @@ const updateIsMobile = () => {
 
 const handleSearch = () => {
   isSearchVisible.value = true;
+};
+
+watch(
+  () => systemStore.settings.PLATFORM_LOGO_URL,
+  () => {
+    logoLoadFailed.value = false;
+  },
+);
+
+const handleLogoError = () => {
+  logoLoadFailed.value = true;
 };
 
 const handleShare = async () => {
@@ -107,7 +123,10 @@ const handleInvitationSuccess = (data: { accept: boolean; teamId?: string }) => 
 const handleSwitchWorkspace = (ws: Workspace, event?: Event) => {
   if (event) {
     const target = event.target as HTMLElement;
-    if (target.closest('button')?.querySelector('.lucide-settings') || target.closest('.lucide-settings')) {
+    if (
+      target.closest('button')?.querySelector('.lucide-settings') ||
+      target.closest('.lucide-settings')
+    ) {
       return;
     }
   }
@@ -295,57 +314,27 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex flex-col h-screen h-dvh w-full overflow-hidden text-sm relative"
+    class="app-shell flex flex-col h-screen h-dvh w-full overflow-hidden text-sm relative"
     style="background-color: var(--bg-app); color: var(--text-primary)"
   >
-    <!-- Global Glass Theme Animated Background Glowing Blobs -->
+    <!-- Subtle enterprise canvas for glass mode -->
     <div
       v-show="currentTheme === 'glass' && !isMobile"
-      class="absolute inset-0 overflow-hidden pointer-events-none z-0"
+      class="enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0"
       style="contain: strict"
-    >
-      <div
-        class="absolute w-[45vw] h-[45vw] rounded-full top-[-15%] left-[-15%] animate-float-blob"
-        style="
-          will-change: transform;
-          background: radial-gradient(
-            circle at center,
-            color-mix(in srgb, var(--accent) 15%, transparent) 0%,
-            transparent 70%
-          );
-        "
-      ></div>
-      <div
-        class="absolute w-[50vw] h-[50vw] rounded-full bottom-[-20%] right-[-15%] animate-float-blob-reverse"
-        style="
-          will-change: transform;
-          background: radial-gradient(
-            circle at center,
-            rgba(99, 102, 241, 0.12) 0%,
-            transparent 70%
-          );
-        "
-      ></div>
-      <div
-        class="absolute w-[35vw] h-[35vw] rounded-full top-[30%] right-[15%] animate-pulse-slow"
-        style="
-          will-change: transform, opacity;
-          background: radial-gradient(
-            circle at center,
-            rgba(236, 72, 153, 0.1) 0%,
-            transparent 70%
-          );
-        "
-      ></div>
-    </div>
+    ></div>
 
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-14 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 glass-header"
+      class="topbar h-[60px] flex items-center justify-between px-3 md:px-5 shrink-0 z-30 glass-header"
     >
       <!-- Left: Hamburger + Workspace Switcher / Logo -->
       <div class="flex items-center gap-1 md:gap-3">
-        <button type="button" class="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors lg:hidden shrink-0 -ml-1" @click="isMobileSidebarOpen = true">
+        <button
+          type="button"
+          class="topbar-icon-btn w-9 h-9 flex items-center justify-center lg:hidden shrink-0 -ml-1"
+          @click="isMobileSidebarOpen = true"
+        >
           <Menu class="w-5 h-5" style="color: var(--text-muted)" />
         </button>
 
@@ -362,34 +351,26 @@ onUnmounted(() => {
             placement="bottom-start"
           >
             <div
-              class="min-h-10 px-1 rounded-lg flex items-center gap-2 md:gap-2.5 cursor-pointer hover:opacity-80 ml-1 md:ml-4 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-              :style="{
-                transform: `translateX(${
-                  workspaceStore.currentWorkspace?.type === 'personal'
-                    ? 0
-                    : workspaceStore.currentWorkspace?.type === 'team'
-                      ? isMobile
-                        ? 4
-                        : 12
-                      : isMobile
-                        ? 8
-                        : 24
-                }px)`,
-              }"
+              class="workspace-switcher min-h-10 px-2.5 rounded-lg flex items-center gap-2 md:gap-2.5 cursor-pointer transition-colors"
             >
               <div class="relative">
-                <img v-if="workspaceStore.currentWorkspace?.avatarUrl" alt="" :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)" class="w-7 h-7 rounded-xl object-cover shrink-0 shadow-sm border border-white/25 dark:border-white/10" />
+                <img
+                  v-if="workspaceStore.currentWorkspace?.avatarUrl"
+                  alt=""
+                  :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)"
+                  class="w-7 h-7 rounded-lg object-cover shrink-0 border"
+                  style="border-color: var(--border-base)"
+                />
                 <div
                   v-else
-                  class="w-7 h-7 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
+                  class="w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-xs shrink-0 transition-colors border border-white/20"
                   :class="
                     workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
                   "
                   :style="
                     workspaceStore.isAdminWorkspace
                       ? {
-                          background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)',
-                          boxShadow: '0 4px 12px rgba(225, 29, 72, 0.3)',
+                          background: '#e11d48',
                         }
                       : {}
                   "
@@ -421,7 +402,7 @@ onUnmounted(() => {
               />
             </div>
             <template #dropdown>
-              <el-dropdown-menu class="w-72 p-2 rounded-2xl border-none shadow-2xl">
+              <el-dropdown-menu class="w-72 p-2 rounded-xl border shadow-lg">
                 <div
                   class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"
                 >
@@ -430,7 +411,7 @@ onUnmounted(() => {
                 <el-dropdown-item
                   v-for="ws in workspaceStore.workspaces"
                   :key="ws.id"
-                  class="rounded-2xl my-1 p-2 group transition-all duration-200"
+                  class="rounded-lg my-1 p-2 group transition-all duration-200"
                   :class="workspaceStore.activeWorkspaceId === ws.id ? 'bg-accent/5' : ''"
                   @click="handleSwitchWorkspace(ws, $event)"
                 >
@@ -438,10 +419,15 @@ onUnmounted(() => {
                     <div class="flex items-center gap-3">
                       <!-- 玻璃质感头像 / 团队头像 -->
                       <div class="relative">
-                        <img v-if="ws.avatarUrl" alt="" :src="getAssetUrl(ws.avatarUrl)" class="w-8 h-8 rounded-xl object-cover shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 border border-slate-200/50 dark:border-white/10" />
+                        <img
+                          v-if="ws.avatarUrl"
+                          alt=""
+                          :src="getAssetUrl(ws.avatarUrl)"
+                          class="w-8 h-8 rounded-lg object-cover shrink-0 transition-transform duration-200 group-hover:scale-105 border border-slate-200/50 dark:border-white/10"
+                        />
                         <div
                           v-else
-                          class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_rgba(255,255,255,0.4)]"
+                          class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-xs shrink-0 transition-transform duration-200 group-hover:scale-105 border border-white/20"
                           :class="ws.color"
                         >
                           {{ ws.name.charAt(0) }}
@@ -473,7 +459,17 @@ onUnmounted(() => {
                     </div>
                     <!-- 快捷按钮 -->
                     <div class="flex items-center gap-2">
-                      <button v-if="ws.type === 'personal' || ws.type === 'team' || (['admin', 'mirror', 'manual'].includes(ws.type) && authStore.user?.role === 'ADMIN')" type="button" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-all duration-200 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0" @click.stop="handleQuickSettings(ws)">
+                      <button
+                        v-if="
+                          ws.type === 'personal' ||
+                          ws.type === 'team' ||
+                          (['admin', 'mirror', 'manual'].includes(ws.type) &&
+                            authStore.user?.role === 'ADMIN')
+                        "
+                        type="button"
+                        class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
+                        @click.stop="handleQuickSettings(ws)"
+                      >
                         <Settings class="w-4 h-4" />
                       </button>
                       <div
@@ -484,7 +480,7 @@ onUnmounted(() => {
                   </div>
                 </el-dropdown-item>
                 <div class="border-t border-slate-100 dark:border-slate-800 my-2"></div>
-                <el-dropdown-item class="rounded-xl my-0.5" @click="router.push('/explore-teams')">
+                <el-dropdown-item class="rounded-lg my-0.5" @click="router.push('/explore-teams')">
                   <div class="flex items-center gap-3 py-1 text-slate-500">
                     <Plus class="w-4 h-4" />
                     <span class="font-medium">创建或加入团队</span>
@@ -496,9 +492,19 @@ onUnmounted(() => {
           <div v-else class="flex items-center gap-2">
             <div
               class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
-              :class="systemStore.settings.PLATFORM_LOGO_URL ? 'bg-transparent' : 'bg-accent'"
+              :class="
+                systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
+                  ? 'bg-transparent'
+                  : 'bg-accent'
+              "
             >
-              <img v-if="systemStore.settings.PLATFORM_LOGO_URL" alt="" :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)" class="w-full h-full object-contain" />
+              <img
+                v-if="systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed"
+                alt=""
+                :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+                class="w-full h-full object-contain"
+                @error="handleLogoError"
+              />
               <Box v-else class="w-4 h-4 text-white" />
             </div>
             <span class="text-sm font-bold" style="color: var(--text-primary)">{{
@@ -510,8 +516,8 @@ onUnmounted(() => {
 
       <!-- Center: Search Bar -->
       <div
-        class="topbar-search hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer hover:border-[var(--border-strong)] transition-colors"
-        style="background-color: var(--bg-card); border-color: var(--border-base); min-width: 240px; lg:min-width: 320px"
+        class="topbar-search hidden md:flex items-center gap-2 w-[300px] xl:w-[420px] h-9 px-3 rounded-lg border cursor-pointer transition-colors"
+        style="background-color: var(--bg-subtle); border-color: var(--border-base)"
         @click="handleSearch"
       >
         <Search class="w-4 h-4 text-slate-400" />
@@ -526,29 +532,52 @@ onUnmounted(() => {
       <!-- Right: Actions + Avatar -->
       <div class="flex items-center gap-2 md:gap-3">
         <!-- Mobile Search Button -->
-        <button type="button" class="md:hidden w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" @click="handleSearch">
+        <button
+          type="button"
+          class="topbar-icon-btn md:hidden w-9 h-9 flex items-center justify-center"
+          @click="handleSearch"
+        >
           <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- Share -->
-        <button type="button" class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" @click="handleShare">
+        <button
+          type="button"
+          class="topbar-icon-btn hidden sm:flex w-9 h-9 items-center justify-center"
+          @click="handleShare"
+        >
           <Share2 class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
         <!-- External Link -->
-        <button type="button" class="topbar-icon-btn hidden sm:flex w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" @click="handleExternalLink">
+        <button
+          type="button"
+          class="topbar-icon-btn hidden sm:flex w-9 h-9 items-center justify-center"
+          @click="handleExternalLink"
+        >
           <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
 
         <!-- Notification Bell Center Dropdown -->
-        <NotificationCenter ref="notificationCenterRef" @show-invitation="(id) => { activeInvitationId = id; isInvitationVisible = true; }" />
+        <NotificationCenter
+          ref="notificationCenterRef"
+          @show-invitation="
+            (id) => {
+              activeInvitationId = id;
+              isInvitationVisible = true;
+            }
+          "
+        />
 
         <!-- User Avatar or Login Button -->
         <template v-if="authStore.isAuthenticated">
           <el-dropdown trigger="click" placement="bottom-end" @command="handleProfileClick">
-            <button type="button" class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none">
+            <button
+              type="button"
+              class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none"
+            >
               <UserAvatar :user="authStore.user ?? undefined" size="md" />
             </button>
             <template #dropdown>
-              <el-dropdown-menu class="w-56 p-2 rounded-2xl border-none shadow-2xl">
+              <el-dropdown-menu class="w-56 p-2 rounded-xl border shadow-lg">
                 <div class="px-3 py-2 border-b mb-1" style="border-color: var(--border-base)">
                   <p class="text-sm font-bold" style="color: var(--text-primary)">
                     {{ authStore.user?.name || '未命名用户' }}
@@ -557,7 +586,7 @@ onUnmounted(() => {
                     {{ authStore.user?.email }}
                   </p>
                 </div>
-                <el-dropdown-item command="profile" class="rounded-xl my-0.5">
+                <el-dropdown-item command="profile" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
                     <UserIcon class="w-4 h-4 text-slate-400" /><span
                       class="font-medium text-slate-600"
@@ -565,14 +594,14 @@ onUnmounted(() => {
                     >
                   </div>
                 </el-dropdown-item>
-                <el-dropdown-item command="notifications" class="rounded-xl my-0.5">
+                <el-dropdown-item command="notifications" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
                     <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium text-slate-600"
                       >消息通知</span
                     >
                   </div>
                 </el-dropdown-item>
-                <el-dropdown-item command="billing" class="rounded-xl my-0.5">
+                <el-dropdown-item command="billing" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
                     <CreditCard class="w-4 h-4 text-slate-400" /><span
                       class="font-medium text-slate-600"
@@ -581,7 +610,7 @@ onUnmounted(() => {
                   </div>
                 </el-dropdown-item>
                 <div class="border-t border-slate-100 my-2"></div>
-                <el-dropdown-item command="logout" class="rounded-xl my-0.5 text-rose-600">
+                <el-dropdown-item command="logout" class="rounded-lg my-0.5 text-rose-600">
                   <div class="flex items-center gap-3 py-1">
                     <LogOut class="w-4 h-4" /><span class="font-bold">退出登录</span>
                   </div>
@@ -591,7 +620,11 @@ onUnmounted(() => {
           </el-dropdown>
         </template>
         <template v-else>
-          <button type="button" class="px-4 py-1.5 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20 hover:shadow-xl transition-all" @click="router.push({ path: '/login', query: { redirect: route.fullPath } })">
+          <button
+            type="button"
+            class="px-4 py-2 bg-accent text-white text-xs font-bold rounded-lg shadow-sm hover:bg-accent-hover transition-colors"
+            @click="router.push({ path: '/login', query: { redirect: route.fullPath } })"
+          >
             登录
           </button>
         </template>
@@ -604,7 +637,7 @@ onUnmounted(() => {
 
       <!-- Main Content Area -->
       <main
-        class="flex-1 flex flex-col overflow-hidden relative mobile-main-content lg:pb-0"
+        class="content-surface flex-1 flex flex-col overflow-hidden relative mobile-main-content lg:pb-0"
         style="background-color: var(--bg-app)"
       >
         <div
@@ -633,7 +666,7 @@ onUnmounted(() => {
 
     <!-- Mobile Bottom Tab Bar -->
     <nav
-      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 mobile-bottom-nav border-t bg-white/95 dark:bg-slate-900/95"
+      class="lg:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 mobile-bottom-nav border-t"
       style="border-color: var(--border-base)"
     >
       <RouterLink
@@ -677,7 +710,11 @@ onUnmounted(() => {
     <AssetDetailsDrawer />
 
     <!-- Mobile Sidebar Drawer component -->
-    <MobileSidebar v-model="isMobileSidebarOpen" :menu-groups="menuGroups" @report-bug="handleReportBug" />
+    <MobileSidebar
+      v-model="isMobileSidebarOpen"
+      :menu-groups="menuGroups"
+      @report-bug="handleReportBug"
+    />
     <!-- Floating AI Sprite -->
     <AISprite />
   </div>
@@ -692,6 +729,56 @@ onUnmounted(() => {
   scrollbar-width: none;
 }
 
+.app-shell {
+  isolation: isolate;
+}
+
+.enterprise-canvas {
+  background-image:
+    linear-gradient(var(--border-base) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-base) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.2;
+}
+
+.topbar {
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.04);
+}
+
+.workspace-switcher:hover,
+.topbar-icon-btn:hover,
+.topbar-search:hover {
+  background-color: var(--bg-subtle);
+}
+
+.topbar-icon-btn {
+  border-radius: var(--radius-md);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.topbar-search {
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+.content-surface {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-app) 75%, white) 0, var(--bg-app) 180px),
+    var(--bg-app);
+}
+
+.dark .content-surface {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-app) 78%, white) 0, var(--bg-app) 180px),
+    var(--bg-app);
+}
+
+.mobile-bottom-nav {
+  background-color: color-mix(in srgb, var(--bg-card) 96%, transparent);
+  box-shadow: 0 -8px 22px rgb(16 24 40 / 0.08);
+}
+
 /* Fade Transition */
 .fade-enter-active,
 .fade-leave-active {
@@ -704,7 +791,7 @@ onUnmounted(() => {
 
 :deep(.mobile-search-dialog) {
   margin-bottom: 0 !important;
-  border-radius: 16px !important;
+  border-radius: 10px !important;
 }
 :deep(.mobile-search-dialog .el-dialog__header) {
   padding: 12px 16px !important;

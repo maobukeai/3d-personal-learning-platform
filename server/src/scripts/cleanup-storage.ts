@@ -36,6 +36,7 @@ export async function cleanupOrphanedFiles() {
       feedbacks,
       messages,
       projectDiscussions,
+      aiMessages,
       settings,
     ] = await Promise.all([
       prisma.asset.findMany({ select: { url: true, thumbnail: true } }),
@@ -54,6 +55,7 @@ export async function cleanupOrphanedFiles() {
       prisma.feedback.findMany({ select: { attachmentUrl: true } }),
       prisma.message.findMany({ select: { content: true } }),
       prisma.projectDiscussion.findMany({ select: { fileUrl: true, images: true, content: true } }),
+      prisma.aiMessage.findMany({ select: { content: true } }),
       prisma.systemSetting.findMany({
         where: { key: { in: ['PLATFORM_LOGO_URL', 'PLATFORM_FAVICON_URL'] } },
       }),
@@ -63,7 +65,7 @@ export async function cleanupOrphanedFiles() {
 
     const addPath = (url: string | null | undefined) => {
       const p = urlToPath(url);
-      if (p) validPaths.add(path.normalize(p));
+      if (p) validPaths.add(path.resolve(p).toLowerCase());
     };
 
     // Helper to extract relative upload URLs from Markdown/HTML text
@@ -167,6 +169,11 @@ export async function cleanupOrphanedFiles() {
       extractUploadUrls(pd.content).forEach(addPath);
     });
 
+    // Add AI chat images embedded as Markdown image URLs.
+    aiMessages.forEach((msg) => {
+      extractUploadUrls(msg.content).forEach(addPath);
+    });
+
     // Add settings
     settings.forEach((s) => {
       addPath(s.value);
@@ -184,6 +191,7 @@ export async function cleanupOrphanedFiles() {
       'discussions',
       'feedback',
       'messages',
+      'ai',
     ];
     const baseDir = path.join(__dirname, '../../uploads');
 
@@ -193,14 +201,14 @@ export async function cleanupOrphanedFiles() {
 
       const files = fs.readdirSync(fullDir);
       for (const file of files) {
-        const filePath = path.normalize(path.join(fullDir, file));
+        const filePath = path.resolve(path.join(fullDir, file));
 
         // Skip directories
         if (fs.statSync(filePath).isDirectory()) continue;
 
         stats.scanned++;
 
-        if (!validPaths.has(filePath)) {
+        if (!validPaths.has(filePath.toLowerCase())) {
           try {
             fs.unlinkSync(filePath);
             stats.deleted++;

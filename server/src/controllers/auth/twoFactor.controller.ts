@@ -4,7 +4,7 @@ import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import prisma from '../../services/prisma';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { generateRecoveryCodes } from '../../utils/auth';
+import { generateRecoveryCodes, hashRecoveryCodes } from '../../utils/auth';
 import { AppError } from '../../middlewares/error.middleware';
 import { redisService } from '../../services/redis.service';
 
@@ -21,14 +21,14 @@ export const setup2FA = async (req: AuthRequest, res: Response, next: NextFuncti
     const otpauth = secret.otpauth_url!;
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
-    // Generate initial recovery codes
     const codes = generateRecoveryCodes();
+    const hashedCodes = await hashRecoveryCodes(codes);
 
     await prisma.user.update({
       where: { id: req.userId as string },
       data: {
         twoFactorSecret: secret.base32,
-        twoFactorRecoveryCodes: JSON.stringify(codes),
+        twoFactorRecoveryCodes: JSON.stringify(hashedCodes),
       },
     });
 
@@ -51,7 +51,8 @@ export const getRecoveryCodes = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('Recovery codes not found', 404));
     }
 
-    res.json({ recoveryCodes: JSON.parse(user.twoFactorRecoveryCodes) });
+    const recoveryCodes = JSON.parse(user.twoFactorRecoveryCodes) as string[];
+    res.json({ count: recoveryCodes.length });
   } catch (error) {
     next(error);
   }
@@ -62,11 +63,35 @@ export const regenerateRecoveryCodes = async (
   res: Response,
   next: NextFunction,
 ) => {
+  const { password, code } = req.body;
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
+    if (!user) return next(new AppError('User not found', 404));
+
+    if (password) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return next(new AppError('密码错误', 400));
+      }
+    } else if (code && user.twoFactorSecret) {
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+      });
+      if (!isValid) {
+        return next(new AppError('验证码错误', 400));
+      }
+    } else {
+      return next(new AppError('重生恢复代码需要验证密码或 2FA 验证码', 400));
+    }
+
     const codes = generateRecoveryCodes();
+    const hashedCodes = await hashRecoveryCodes(codes);
     await prisma.user.update({
       where: { id: req.userId as string },
-      data: { twoFactorRecoveryCodes: JSON.stringify(codes) },
+      data: { twoFactorRecoveryCodes: JSON.stringify(hashedCodes) },
     });
 
     await redisService.invalidateUserCache(req.userId as string);
@@ -151,7 +176,7 @@ export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunc
 
     await prisma.user.update({
       where: { id: req.userId as string },
-      data: { twoFactorEnabled: false, twoFactorSecret: null },
+      data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecoveryCodes: null },
     });
 
     await redisService.invalidateUserCache(req.userId as string);

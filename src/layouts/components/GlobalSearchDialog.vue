@@ -41,6 +41,7 @@ const searchResults = ref<GlobalSearchResults>(emptyGlobalSearchResults());
 const isSearching = ref(false);
 const selectedResultIndex = ref(-1);
 const searchHistory = ref<string[]>(preferences.getSearchHistory());
+let activeSearchId = 0;
 
 const addToHistory = (query: string) => {
   if (!query.trim()) return;
@@ -76,14 +77,19 @@ const performSearch = async (query: string) => {
     return;
   }
 
+  const searchId = ++activeSearchId;
   isSearching.value = true;
   try {
-    searchResults.value = await searchGlobal(query);
+    const results = await searchGlobal(query);
+    if (searchId !== activeSearchId) return;
+    searchResults.value = results;
     selectedResultIndex.value = -1;
   } catch (error) {
     console.error('Search error:', error);
   } finally {
-    isSearching.value = false;
+    if (searchId === activeSearchId) {
+      isSearching.value = false;
+    }
   }
 };
 
@@ -101,7 +107,7 @@ const navigateToResult = (type: string, id: string) => {
   searchResults.value = emptyGlobalSearchResults();
 
   if (type === 'asset') {
-    router.push(`/assets?id=${id}`);
+    router.push(`/assets/${id}`);
   } else if (type === 'course') {
     router.push(`/academy/course/${id}`);
   } else if (type === 'team') {
@@ -114,15 +120,18 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
   if (e.key === 'ArrowDown') {
     e.preventDefault();
+    if (flattenedResults.value.length === 0) return;
     selectedResultIndex.value = (selectedResultIndex.value + 1) % flattenedResults.value.length;
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
+    if (flattenedResults.value.length === 0) return;
     selectedResultIndex.value =
       (selectedResultIndex.value - 1 + flattenedResults.value.length) %
       flattenedResults.value.length;
   } else if (e.key === 'Enter') {
-    if (selectedResultIndex.value >= 0 && flattenedResults.value[selectedResultIndex.value]) {
-      const item = flattenedResults.value[selectedResultIndex.value];
+    const targetIndex = selectedResultIndex.value >= 0 ? selectedResultIndex.value : 0;
+    if (flattenedResults.value[targetIndex]) {
+      const item = flattenedResults.value[targetIndex];
       if (item.searchType) {
         navigateToResult(item.searchType, item.id);
       }

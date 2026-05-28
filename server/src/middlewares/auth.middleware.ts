@@ -58,11 +58,11 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
         members: {
           create: {
             userId: user.id,
-            role: 'OWNER'
-          }
-        }
+            role: 'OWNER',
+          },
+        },
       },
-      select: { id: true }
+      select: { id: true },
     });
     logger.info(`Auto-created personal team ${newPersonalTeam.id} for user ${user.id}`);
     return newPersonalTeam.id;

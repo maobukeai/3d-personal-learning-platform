@@ -20,6 +20,8 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
     '/api/auth/register',
     '/api/auth/register-admin',
     '/api/auth/forgot-password',
+    '/api/auth/forgot-password/check',
+    '/api/auth/forgot-password/reset-2fa',
     '/api/auth/reset-password',
     '/api/auth/oauth/google',
     '/api/auth/oauth/google/callback',
@@ -29,10 +31,13 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
     '/api/auth/email/verify-public',
     '/api/auth/refresh',
     '/api/auth/logout',
+    // Public AI assistant endpoints are protected by route-level rate limits.
+    '/api/projects/ai-chat',
+    '/api/projects/ai-chat/upload',
   ];
 
   const requestPath = req.originalUrl.split('?')[0] || req.originalUrl;
-  if (bypassUrls.some((url) => requestPath === url || requestPath.startsWith(url))) {
+  if (bypassUrls.includes(requestPath)) {
     return next();
   }
 

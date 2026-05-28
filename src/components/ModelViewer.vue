@@ -400,7 +400,7 @@ const disposeMaterial = (material: Material) => {
     if (value && typeof value === 'object' && value.isTexture) {
       try {
         value.dispose(); // 显式强制将纹理踢出 GPU 显存
-      } catch (err) {
+      } catch {
         // Safe warning
       }
     }

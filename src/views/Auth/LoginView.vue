@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -17,6 +17,7 @@ const is2FARequired = ref(false);
 const tempUserId = ref('');
 const twoFactorCode = ref('');
 const rememberDevice = ref(true);
+const logoLoadFailed = ref(false);
 
 const loginForm = ref({
   email: '',
@@ -57,6 +58,17 @@ onMounted(async () => {
 
 const handleSocialLogin = (provider: 'google' | 'github') => {
   window.location.href = `${api.defaults.baseURL}/api/auth/${provider}`;
+};
+
+watch(
+  () => systemStore.settings.PLATFORM_LOGO_URL,
+  () => {
+    logoLoadFailed.value = false;
+  },
+);
+
+const handleLogoError = () => {
+  logoLoadFailed.value = true;
 };
 
 const handleLogin = async () => {
@@ -117,38 +129,31 @@ const handle2FAVerify = async () => {
 
 <template>
   <div
-    class="min-h-screen flex items-center justify-center font-sans overflow-hidden relative"
+    class="auth-shell min-h-screen flex items-center justify-center font-sans overflow-hidden relative p-6"
     style="background-color: var(--bg-app)"
   >
-    <!-- Background Abstract Shapes -->
-    <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden hidden md:block">
-      <div
-        class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-accent/15 glass-glow-xl rounded-full animate-float-blob"
-      ></div>
-      <div
-        class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/15 glass-glow-lg rounded-full animate-float-blob-reverse"
-      ></div>
-      <div
-        class="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-pink-500/5 glass-glow-md rounded-full animate-pulse-slow"
-      ></div>
-    </div>
-
     <!-- Center Section: Login Form -->
     <div
-      class="w-full max-w-md relative z-10 p-8 md:p-10 mx-4 glass-card border border-white/20 dark:border-white/5"
+      class="auth-panel w-full max-w-[440px] relative z-10 p-6 md:p-8"
     >
       <div class="w-full">
         <!-- Logo -->
         <div class="mb-8 flex items-center justify-center gap-3">
           <div
-            class="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
+            class="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden"
             :class="
-              systemStore.settings.PLATFORM_LOGO_URL
+              systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
                 ? 'bg-transparent'
-                : 'bg-accent shadow-lg shadow-accent/30'
+                : 'bg-accent shadow-sm'
             "
           >
-            <img v-if="systemStore.settings.PLATFORM_LOGO_URL" alt="" :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)" class="w-full h-full object-contain" />
+            <img
+              v-if="systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed"
+              alt=""
+              :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+              class="w-full h-full object-contain"
+              @error="handleLogoError"
+            />
             <span v-else class="text-white font-bold text-xl">{{
               systemStore.settings.PLATFORM_NAME.substring(0, 2).toUpperCase()
             }}</span>
@@ -180,19 +185,29 @@ const handle2FAVerify = async () => {
             class="grid grid-cols-2 gap-4"
           >
             <button
-v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED" type="button" class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95" style="
+              v-if="systemStore.settings.OAUTH_GOOGLE_ENABLED"
+              type="button"
+              class="flex items-center justify-center gap-2 py-2.5 border rounded-lg text-sm font-bold transition-colors hover:bg-[var(--bg-subtle)]"
+              style="
                 border-color: var(--border-base);
                 background-color: var(--bg-app);
                 color: var(--text-primary);
-              " @click="handleSocialLogin('google')">
+              "
+              @click="handleSocialLogin('google')"
+            >
               <Chrome class="w-4 h-4" /> Google
             </button>
             <button
-v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items-center justify-center gap-2 py-2.5 border rounded-xl text-sm font-bold transition-all hover:bg-slate-50 dark:hover:bg-white/5 active:scale-95" style="
+              v-if="systemStore.settings.OAUTH_GITHUB_ENABLED"
+              type="button"
+              class="flex items-center justify-center gap-2 py-2.5 border rounded-lg text-sm font-bold transition-colors hover:bg-[var(--bg-subtle)]"
+              style="
                 border-color: var(--border-base);
                 background-color: var(--bg-app);
                 color: var(--text-primary);
-              " @click="handleSocialLogin('github')">
+              "
+              @click="handleSocialLogin('github')"
+            >
               <Github class="w-4 h-4" /> GitHub
             </button>
           </div>
@@ -229,7 +244,7 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
                   v-model="loginForm.email"
                   type="email"
                   placeholder="name@company.com"
-                  class="w-full pl-11 pr-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  class="w-full pl-11 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                   style="
                     background-color: var(--bg-app);
                     border-color: var(--border-base);
@@ -261,7 +276,7 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
                   v-model="loginForm.password"
                   :type="showPassword ? 'text' : 'password'"
                   placeholder="请输入你的密码"
-                  class="w-full pl-11 pr-12 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                   style="
                     background-color: var(--bg-app);
                     border-color: var(--border-base);
@@ -269,7 +284,12 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
                   "
                   @keydown.enter="handleLogin"
                 />
-                <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 hover:text-accent transition-colors" style="color: var(--text-secondary)" @click="showPassword = !showPassword">
+                <button
+                  type="button"
+                  class="absolute right-4 top-1/2 -translate-y-1/2 hover:text-accent transition-colors"
+                  style="color: var(--text-secondary)"
+                  @click="showPassword = !showPassword"
+                >
                   <Eye v-if="!showPassword" class="w-4 h-4" />
                   <EyeOff v-else class="w-4 h-4" />
                 </button>
@@ -281,7 +301,12 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
             <el-checkbox v-model="loginForm.remember" label="记住我的登录状态" />
           </div>
 
-          <button type="button" :disabled="isLoading" class="w-full btn-premium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group disabled:opacity-50" @click="handleLogin">
+          <button
+            type="button"
+            :disabled="isLoading"
+            class="w-full btn-premium py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+            @click="handleLogin"
+          >
             <span v-if="!isLoading">进入平台</span>
             <span
               v-else
@@ -306,7 +331,7 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
         <!-- 2FA Input State -->
         <div v-else class="space-y-6">
           <div class="flex justify-center mb-8">
-            <div class="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center">
+            <div class="w-16 h-16 bg-accent/10 rounded-lg flex items-center justify-center">
               <Lock class="w-10 h-10 text-accent" />
             </div>
           </div>
@@ -323,7 +348,7 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
               maxlength="6"
               placeholder="000000"
               autocomplete="one-time-code"
-              class="w-full text-center text-2xl tracking-[0.5em] font-bold py-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+              class="w-full text-center text-2xl tracking-[0.5em] font-bold py-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);
@@ -337,7 +362,12 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
             <el-checkbox v-model="rememberDevice" label="记住此浏览器 (下次登录免验证)" />
           </div>
 
-          <button type="button" :disabled="isLoading || twoFactorCode.length < 6" class="w-full bg-accent text-white py-3.5 rounded-xl font-bold shadow-lg shadow-accent/30 hover:bg-accent transition-all flex items-center justify-center gap-2" @click="handle2FAVerify">
+          <button
+            type="button"
+            :disabled="isLoading || twoFactorCode.length < 6"
+            class="w-full bg-accent text-white py-3.5 rounded-lg font-bold shadow-sm hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
+            @click="handle2FAVerify"
+          >
             <span v-if="!isLoading">确认验证</span>
             <span
               v-else
@@ -345,7 +375,12 @@ v-if="systemStore.settings.OAUTH_GITHUB_ENABLED" type="button" class="flex items
             ></span>
           </button>
 
-          <button type="button" class="w-full text-sm font-bold hover:text-accent transition-colors mt-4" style="color: var(--text-secondary)" @click="is2FARequired = false">
+          <button
+            type="button"
+            class="w-full text-sm font-bold hover:text-accent transition-colors mt-4"
+            style="color: var(--text-secondary)"
+            @click="is2FARequired = false"
+          >
             返回登录
           </button>
         </div>

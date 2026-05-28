@@ -21,6 +21,18 @@ interface SystemSettings {
   OAUTH_GOOGLE_ENABLED: boolean;
   OAUTH_GITHUB_ENABLED: boolean;
   AI_IMPORT_ENABLED: boolean;
+  AI_MODEL_OPTIONS: PublicAIModelOption[];
+}
+
+export interface PublicAIModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  modelName: string;
+  enabled: boolean;
+  isDefault: boolean;
+  description?: string;
+  capabilities: string[];
 }
 
 export const useSystemStore = defineStore('system', {
@@ -45,6 +57,7 @@ export const useSystemStore = defineStore('system', {
       OAUTH_GOOGLE_ENABLED: false,
       OAUTH_GITHUB_ENABLED: false,
       AI_IMPORT_ENABLED: false,
+      AI_MODEL_OPTIONS: [],
     } as SystemSettings,
     isInitialized: false,
   }),
@@ -104,6 +117,38 @@ export const useSystemStore = defineStore('system', {
             return fallback;
           }
         };
+        const safeParseModels = (val: unknown): PublicAIModelOption[] => {
+          const raw = typeof val === 'string' ? (() => {
+            try {
+              return JSON.parse(val);
+            } catch {
+              return [];
+            }
+          })() : val;
+          if (!Array.isArray(raw)) return [];
+          return raw
+            .map((item): PublicAIModelOption | null => {
+              if (!item || typeof item !== 'object') return null;
+              const model = item as Record<string, unknown>;
+              const id = String(model.id || '').trim();
+              const provider = String(model.provider || '').trim();
+              const modelName = String(model.modelName || '').trim();
+              if (!id || !provider || !modelName) return null;
+              return {
+                id,
+                name: String(model.name || `${provider} ${modelName}`).trim(),
+                provider,
+                modelName,
+                enabled: model.enabled === true || model.enabled === 'true',
+                isDefault: model.isDefault === true || model.isDefault === 'true',
+                description: typeof model.description === 'string' ? model.description : '',
+                capabilities: Array.isArray(model.capabilities)
+                  ? model.capabilities.map(String)
+                  : ['chat'],
+              };
+            })
+            .filter((item): item is PublicAIModelOption => Boolean(item));
+        };
 
         this.settings = {
           PLATFORM_NAME: data.PLATFORM_NAME || '3D Personal Learning Hub',
@@ -128,6 +173,7 @@ export const useSystemStore = defineStore('system', {
           OAUTH_GOOGLE_ENABLED: data.OAUTH_GOOGLE_ENABLED === true || data.OAUTH_GOOGLE_ENABLED === 'true',
           OAUTH_GITHUB_ENABLED: data.OAUTH_GITHUB_ENABLED === true || data.OAUTH_GITHUB_ENABLED === 'true',
           AI_IMPORT_ENABLED: data.AI_IMPORT_ENABLED === true || data.AI_IMPORT_ENABLED === 'true',
+          AI_MODEL_OPTIONS: safeParseModels(data.AI_MODEL_OPTIONS),
         };
       } catch (error) {
         console.error('Failed to fetch system settings:', error);

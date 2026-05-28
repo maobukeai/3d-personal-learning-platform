@@ -32,7 +32,7 @@ const gracefulShutdown = async (signal: string) => {
   logger.info(`[Shutdown] Received system signal: ${signal}. Initiating graceful shutdown...`);
   try {
     syncEngine.stopScheduler();
-    
+
     server.close(() => {
       logger.info('[Shutdown] HTTP server closed.');
     });

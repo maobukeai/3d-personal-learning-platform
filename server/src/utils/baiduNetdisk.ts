@@ -23,7 +23,7 @@ class CookieJar {
     for (const header of setCookieHeaders) {
       const firstPart = header.split(';')[0];
       if (!firstPart) continue;
-      
+
       const parts = firstPart.split('=');
       if (parts.length >= 2) {
         const key = parts[0]?.trim();
@@ -58,9 +58,10 @@ function compareBaiduFiles(a: string, b: string): number {
  */
 export async function parseBaiduNetdiskLink(
   url: string,
-  password?: string
+  password?: string,
 ): Promise<BaiduNetdiskParsedData> {
-  const surlMatch = url.match(/surl=([^&]+)/) || url.match(/\/s\/1([^?&]+)/) || url.match(/\/s\/([^?&]+)/);
+  const surlMatch =
+    url.match(/surl=([^&]+)/) || url.match(/\/s\/1([^?&]+)/) || url.match(/\/s\/([^?&]+)/);
   if (!surlMatch || !surlMatch[1]) {
     throw new Error('未能在链接中识别到正确的分享码（surl）');
   }
@@ -81,7 +82,8 @@ export async function parseBaiduNetdiskLink(
   const initRes = await axios.get(initUrl, {
     headers: {
       'User-Agent': userAgent,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     },
     timeout: 10000,
@@ -91,12 +93,15 @@ export async function parseBaiduNetdiskLink(
   const html = initRes.data;
 
   // Extract shareid & uk (prefer share_uk, then uk)
-  const shareidMatch = html.match(/shareid\s*[:=]\s*["']?(\d+)["']?/) || html.match(/"shareid"\s*:\s*(\d+)/);
-  const shareUkMatch = html.match(/share_uk\s*[:=]\s*["']?(\d+)["']?/) || html.match(/"share_uk"\s*:\s*["']?(\d+)["']?/);
+  const shareidMatch =
+    html.match(/shareid\s*[:=]\s*["']?(\d+)["']?/) || html.match(/"shareid"\s*:\s*(\d+)/);
+  const shareUkMatch =
+    html.match(/share_uk\s*[:=]\s*["']?(\d+)["']?/) ||
+    html.match(/"share_uk"\s*:\s*["']?(\d+)["']?/);
   const ukMatch = html.match(/uk\s*[:=]\s*["']?(\d+)["']?/) || html.match(/"uk"\s*:\s*(\d+)/);
 
   const shareid = shareidMatch ? shareidMatch[1] : null;
-  const uk = shareUkMatch ? shareUkMatch[1] : (ukMatch ? ukMatch[1] : null);
+  const uk = shareUkMatch ? shareUkMatch[1] : ukMatch ? ukMatch[1] : null;
 
   if (!shareid || !uk) {
     throw new Error('未能在网盘页面中提取到分享人特征码 (uk/shareid)，该链接可能失效');
@@ -110,9 +115,9 @@ export async function parseBaiduNetdiskLink(
     const verifyRes = await axios.post(verifyUrl, requestBody, {
       headers: {
         'User-Agent': userAgent,
-        'Referer': initUrl,
+        Referer: initUrl,
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Cookie': jar.getCookieHeader(),
+        Cookie: jar.getCookieHeader(),
       },
       timeout: 10000,
     });
@@ -141,14 +146,14 @@ export async function parseBaiduNetdiskLink(
 
     const rootParam = isRoot ? 1 : 0;
     const listUrl = `https://pan.baidu.com/share/list?shareid=${shareid}&uk=${uk}&dir=${encodeURIComponent(
-      dirPath
+      dirPath,
     )}&order=name&desc=0&num=100&page=1&root=${rootParam}&t=${Date.now()}&channel=chunlei&web=1&app_id=250528&clienttype=0`;
 
     const res = await axios.get(listUrl, {
       headers: {
         'User-Agent': userAgent,
-        'Referer': initUrl,
-        'Cookie': jar.getCookieHeader(),
+        Referer: initUrl,
+        Cookie: jar.getCookieHeader(),
       },
       timeout: 10000,
     });
@@ -179,7 +184,7 @@ export async function parseBaiduNetdiskLink(
       // Add to directories if it has files
       if (files.length > 0) {
         // Clean the directory name for presentation
-        let displayName = dirPath;
+        let displayName: string;
         if (dirPath === '/' || dirPath === '%2F') {
           displayName = shareTitle || '根目录';
         } else {

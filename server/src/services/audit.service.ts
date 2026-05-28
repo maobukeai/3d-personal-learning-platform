@@ -67,6 +67,28 @@ interface AuditParams {
   tx?: any; // Add optional transaction client
 }
 
+const SENSITIVE_KEY_PATTERN =
+  /(password|pass|secret|token|api[_-]?key|private[_-]?key|authorization|cookie|smtp_configs)/i;
+
+const redactAuditValue = (value: any): any => {
+  if (value === null || value === undefined) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactAuditValue(item));
+  }
+
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [
+        key,
+        SENSITIVE_KEY_PATTERN.test(key) ? '[REDACTED]' : redactAuditValue(entryValue),
+      ]),
+    );
+  }
+
+  return value;
+};
+
 class AuditService {
   async log({ userId, action, module, description, oldValue, newValue, req, tx }: AuditParams) {
     const client = tx || prisma; // Use transaction client if provided
@@ -116,8 +138,8 @@ class AuditService {
           action,
           module,
           description,
-          oldValue: oldValue ? JSON.stringify(oldValue) : null,
-          newValue: newValue ? JSON.stringify(newValue) : null,
+          oldValue: oldValue ? JSON.stringify(redactAuditValue(oldValue)) : null,
+          newValue: newValue ? JSON.stringify(redactAuditValue(newValue)) : null,
           ipAddress: ipAddress!,
           userAgent: (req?.headers['user-agent'] as string) || null,
         },

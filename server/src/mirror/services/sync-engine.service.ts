@@ -532,23 +532,27 @@ export class SyncEngine {
       const duration = Math.round((Date.now() - startTime) / 1000);
 
       if (typeof syncLog !== 'undefined') {
-        await prisma.syncLog.update({
-          where: { id: syncLog.id },
-          data: {
-            status: isAborted ? 'CANCELLED' : 'FAILED',
-            finishedAt: new Date(),
-            duration,
-            error: isAborted
-              ? '用户取消同步'
-              : (error instanceof Error ? error.message : String(error)) || '未知错误',
-          },
-        }).catch(() => {});
+        await prisma.syncLog
+          .update({
+            where: { id: syncLog.id },
+            data: {
+              status: isAborted ? 'CANCELLED' : 'FAILED',
+              finishedAt: new Date(),
+              duration,
+              error: isAborted
+                ? '用户取消同步'
+                : (error instanceof Error ? error.message : String(error)) || '未知错误',
+            },
+          })
+          .catch(() => {});
       }
 
-      await prisma.mirrorSource.update({
-        where: { id: sourceId },
-        data: { syncStatus: isAborted ? 'IDLE' : 'ERROR' },
-      }).catch(() => {});
+      await prisma.mirrorSource
+        .update({
+          where: { id: sourceId },
+          data: { syncStatus: isAborted ? 'IDLE' : 'ERROR' },
+        })
+        .catch(() => {});
 
       progress.status = isAborted ? 'IDLE' : 'ERROR';
 
@@ -561,10 +565,12 @@ export class SyncEngine {
         progress.status = 'IDLE';
       }
       setTimeout(() => this.progressMap.delete(sourceId), 300000);
-      await prisma.mirrorSource.update({
-        where: { id: sourceId },
-        data: { syncStatus: 'IDLE' },
-      }).catch(() => {});
+      await prisma.mirrorSource
+        .update({
+          where: { id: sourceId },
+          data: { syncStatus: 'IDLE' },
+        })
+        .catch(() => {});
       if (lockAcquired) {
         await redisService.releaseLock(lockKey).catch(() => {});
       }
@@ -970,23 +976,27 @@ export class SyncEngine {
       const duration = Math.round((Date.now() - startTime) / 1000);
 
       if (typeof syncLog !== 'undefined') {
-        await prisma.syncLog.update({
-          where: { id: syncLog.id },
-          data: {
-            status: isAborted ? 'CANCELLED' : 'FAILED',
-            finishedAt: new Date(),
-            duration,
-            error: isAborted
-              ? '用户取消同步'
-              : (error instanceof Error ? error.message : String(error)) || '未知错误',
-          },
-        }).catch(() => {});
+        await prisma.syncLog
+          .update({
+            where: { id: syncLog.id },
+            data: {
+              status: isAborted ? 'CANCELLED' : 'FAILED',
+              finishedAt: new Date(),
+              duration,
+              error: isAborted
+                ? '用户取消同步'
+                : (error instanceof Error ? error.message : String(error)) || '未知错误',
+            },
+          })
+          .catch(() => {});
       }
 
-      await prisma.mirrorSource.update({
-        where: { id: sourceId },
-        data: { syncStatus: isAborted ? 'IDLE' : 'ERROR' },
-      }).catch(() => {});
+      await prisma.mirrorSource
+        .update({
+          where: { id: sourceId },
+          data: { syncStatus: isAborted ? 'IDLE' : 'ERROR' },
+        })
+        .catch(() => {});
 
       progress.status = isAborted ? 'IDLE' : 'ERROR';
 
@@ -999,10 +1009,12 @@ export class SyncEngine {
         progress.status = 'IDLE';
       }
       setTimeout(() => this.progressMap.delete(sourceId), 300000);
-      await prisma.mirrorSource.update({
-        where: { id: sourceId },
-        data: { syncStatus: 'IDLE' },
-      }).catch(() => {});
+      await prisma.mirrorSource
+        .update({
+          where: { id: sourceId },
+          data: { syncStatus: 'IDLE' },
+        })
+        .catch(() => {});
       if (lockAcquired) {
         await redisService.releaseLock(lockKey).catch(() => {});
       }

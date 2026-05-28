@@ -18,7 +18,8 @@ import api from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import { preferences } from '@/utils/preferences';
 import { parseMarkdownToPlanJson, getStableId } from '@/utils/planParser';
-import { parseSSEStream, renderMarkdown } from '@/utils/aiHelpers';
+import { createJsonHeaders, parseSSEStream, readFetchErrorMessage, renderMarkdown } from '@/utils/aiHelpers';
+import SafeHtml from '@/components/SafeHtml.vue';
 
 // Props and Emits definition
 const props = defineProps<{
@@ -86,16 +87,6 @@ const isImporting = ref(false);
 
 const aiPrompt = ref('');
 const isAiGenerating = ref(false);
-
-// Local helpers
-const getCookie = (name: string): string | undefined => {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(';').shift();
-  return undefined;
-};
-
-
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -210,7 +201,7 @@ const copyTemplate = async () => {
   try {
     await navigator.clipboard.writeText(template);
     ElMessage.success('标准格式模板已复制到剪贴板！');
-  } catch (err) {
+  } catch {
     ElMessage.error('复制失败，请手动选择复制。');
   }
 };
@@ -350,15 +341,9 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
   isChatSending.value = true;
   try {
     const activeWorkspaceId = preferences.getActiveWorkspaceId();
-    const csrfToken = getCookie('csrfToken');
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers = createJsonHeaders();
     if (activeWorkspaceId) {
       headers['X-Workspace-Id'] = activeWorkspaceId;
-    }
-    if (csrfToken) {
-      headers['X-CSRF-Token'] = csrfToken;
     }
 
     const sanitizedMessages = planMessages.value.slice(0, -1).slice(-10).map(m => {
@@ -381,8 +366,7 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(errText || '呼叫 AI 规划助手失败');
+      throw new Error(await readFetchErrorMessage(response, '呼叫 AI 规划助手失败'));
     }
 
     if (!response.body) {
@@ -422,7 +406,7 @@ const triggerCoPlanStream = async (activeMessageIndex: number) => {
                 ((parsed.tasks?.length ?? 0) > 0 || (parsed.roadmap?.steps?.length ?? 0) > 0)) {
                 currentPlanJson.value = parsed as PlanJson;
               }
-            } catch (e) {}
+            } catch {}
           }
           scrollToBottom();
         }
@@ -778,8 +762,8 @@ onUnmounted(() => {
                 <div ref="chatScrollContainer" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin custom-scrollbar">
                   <div
                     v-for="(msg, index) in planMessages"
-                    :key="index"
                     v-show="msg.role === 'user' || msg.content || msg.reasoning"
+                    :key="index"
                     class="flex gap-2.5"
                     :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
                   >
@@ -819,11 +803,11 @@ onUnmounted(() => {
                         <!-- User: plain text -->
                         <div v-if="msg.role === 'user'" class="whitespace-pre-line leading-relaxed">{{ msg.content }}</div>
                         <!-- AI: rendered markdown -->
-                        <div
+                        <SafeHtml
                           v-else
                           class="ai-markdown leading-relaxed"
-                          v-html="renderMarkdown(msg.content || '...')"
-                        ></div>
+                          :html="renderMarkdown(msg.content || '...')"
+                        />
                       </div>
 
                       <!-- Suggestion chips for the first greeting message -->
@@ -989,8 +973,8 @@ onUnmounted(() => {
                         <div class="flex flex-wrap gap-1.5 mt-0.5">
                           <span
                             v-for="tag in (currentPlanJson?.tags || '').split(',')"
-                            :key="tag"
                             v-show="tag.trim()"
+                            :key="tag"
                             class="px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-[10px] font-bold"
                           >
                             {{ tag.trim() }}
@@ -1087,8 +1071,8 @@ onUnmounted(() => {
                     v-if="importStep === 2"
                     type="button"
                     class="px-6 py-2.5 rounded-xl font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-xs cursor-pointer flex items-center gap-1.5"
-                    @click="importStep = 1"
                     :disabled="isChatSending"
+                    @click="importStep = 1"
                   >
                     <ArrowLeft class="w-4 h-4" />
                     <span>{{ parsedNetdisk ? '修改网盘资源' : '修改规划目标' }}</span>

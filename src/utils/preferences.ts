@@ -82,7 +82,7 @@ export const preferences = {
   },
   setLastBaseTheme: (theme: 'light' | 'dark') => setItem(storageKeys.lastBaseTheme, theme),
 
-  getAccentColor: () => getItem(storageKeys.accentColor) || '#3b82f6',
+  getAccentColor: () => getItem(storageKeys.accentColor) || '#2563eb',
   setAccentColor: (color: string) => setItem(storageKeys.accentColor, color),
 
   getLanguage: (): LocalePreference => {

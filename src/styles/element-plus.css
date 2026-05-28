@@ -12,13 +12,13 @@
 
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
-  --el-bg-color-page: #f8fafc;
+  --el-bg-color-page: var(--bg-app);
 
-  --el-text-color-primary: #0f172a;
-  --el-text-color-regular: #334155;
-  --el-text-color-secondary: #64748b;
-  --el-text-color-placeholder: #94a3b8;
-  --el-text-color-disabled: #cbd5e1;
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+  --el-text-color-secondary: var(--text-muted);
+  --el-text-color-placeholder: #9ca3af;
+  --el-text-color-disabled: #c4ccd6;
 
   --el-border-color: #e2e8f0;
   --el-border-color-light: #f1f5f9;
@@ -35,11 +35,11 @@
   --el-fill-color-dark: #e2e8f0;
   --el-fill-color-darker: #cbd5e1;
 
-  --el-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --el-box-shadow-light: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --el-box-shadow: var(--shadow-enterprise);
+  --el-box-shadow-light: 0 1px 2px rgba(16, 24, 40, 0.06);
   --el-border-radius-base: 8px;
-  --el-border-radius-small: 4px;
-  --el-border-radius-round: 20px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 999px;
   --el-border-radius-circle: 50%;
 }
 
@@ -54,7 +54,7 @@
 
   --el-bg-color: #09090b;
   --el-bg-color-overlay: #0d0d0f;
-  --el-bg-color-page: #000000;
+  --el-bg-color-page: var(--bg-app);
 
   --el-text-color-primary: #f8fafc;
   --el-text-color-regular: #e2e8f0;
@@ -77,8 +77,8 @@
   --el-fill-color-dark: #27272a;
   --el-fill-color-darker: #3f3f46;
 
-  --el-box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.85);
-  --el-box-shadow-light: 0 4px 12px -5px rgba(0, 0, 0, 0.6);
+  --el-box-shadow: 0 12px 28px -18px rgba(0, 0, 0, 0.8);
+  --el-box-shadow-light: 0 6px 18px -14px rgba(0, 0, 0, 0.72);
 }
 
 /* Glassmorphism theme Element Plus overrides */
@@ -142,6 +142,7 @@ html.dark.theme-glass {
   border-color: var(--el-border-color) !important;
   box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
   transition: box-shadow 0.2s ease !important;
+  border-radius: var(--radius-md) !important;
 }
 .el-input__wrapper:hover {
   box-shadow: 0 0 0 1px var(--el-border-color-dark) inset !important;
@@ -157,6 +158,7 @@ html.dark.theme-glass {
   background-color: var(--el-fill-color-blank) !important;
   color: var(--el-text-color-primary) !important;
   border-color: var(--el-border-color) !important;
+  border-radius: var(--radius-md) !important;
 }
 
 /* Select */
@@ -201,16 +203,16 @@ html.dark.theme-glass {
   background-color: rgba(0, 0, 0, 0.45) !important;
 }
 .el-dialog {
-  background-color: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  border-radius: 24px !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+  background-color: var(--bg-card) !important;
+  backdrop-filter: none;
+  border: 1px solid var(--border-base) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 24px 56px rgba(16, 24, 40, 0.16) !important;
 }
 .dark .el-dialog {
-  background-color: rgba(9, 9, 11, 0.82) !important;
-  border: 1px solid rgba(63, 63, 70, 0.45) !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7) !important;
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-base) !important;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.62) !important;
 }
 .el-dialog__header {
   color: var(--el-text-color-primary) !important;
@@ -231,15 +233,15 @@ html.dark.theme-glass {
 
 /* Message / Notification */
 .el-message {
-  border-radius: 16px !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--border-base) !important;
   box-shadow: var(--shadow-card-hover) !important;
-  background-color: rgba(255, 255, 255, 0.8) !important;
+  background-color: var(--bg-card) !important;
 }
 .dark .el-message {
-  background-color: rgba(9, 9, 11, 0.85) !important;
-  border: 1px solid rgba(63, 63, 70, 0.4) !important;
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-base) !important;
 }
 
 /* DatePicker Popover */
@@ -275,7 +277,7 @@ html.dark.theme-glass {
 
 /* Rounded Dialogs */
 .custom-rounded-dialog.el-dialog {
-  border-radius: 24px !important;
+  border-radius: 12px !important;
   overflow: hidden;
   border: none !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
@@ -325,7 +327,7 @@ html.dark.theme-glass {
     width: 88% !important;
     max-width: 480px !important;
     margin: 30px auto !important;
-    border-radius: 16px !important;
+    border-radius: 10px !important;
   }
   .el-dialog__header {
     padding: 12px 16px !important;

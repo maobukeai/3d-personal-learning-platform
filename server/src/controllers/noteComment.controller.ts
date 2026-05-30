@@ -6,6 +6,29 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 export const getNoteComments = async (req: AuthRequest, res: Response) => {
   const noteId = req.params.id as string;
   try {
+    // Verify note exists and check access permissions
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      select: { visibility: true, userId: true },
+    });
+
+    if (!note) {
+      return res.status(404).json({ error: '笔记不存在' });
+    }
+
+    if (note.visibility === 'PRIVATE' && note.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      // Check if note is currently shared via a valid active share
+      const isShared = await prisma.noteShare.findFirst({
+        where: {
+          noteId,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      });
+      if (!isShared) {
+        return res.status(403).json({ error: '无权查看此私有笔记的评论' });
+      }
+    }
+
     const comments = await prisma.noteComment.findMany({
       where: { noteId },
       include: {
@@ -40,7 +63,16 @@ export const createNoteComment = async (req: AuthRequest, res: Response) => {
     }
 
     if (note.visibility === 'PRIVATE' && note.userId !== req.userId && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: '无权评论此私有笔记' });
+      // Check if note is currently shared via a valid active share
+      const isShared = await prisma.noteShare.findFirst({
+        where: {
+          noteId,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      });
+      if (!isShared) {
+        return res.status(403).json({ error: '无权评论此私有笔记' });
+      }
     }
 
     const comment = await prisma.noteComment.create({

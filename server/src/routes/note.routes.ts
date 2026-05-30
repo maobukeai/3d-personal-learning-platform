@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as noteController from '../controllers/note.controller';
 import * as noteCommentController from '../controllers/noteComment.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -16,8 +16,14 @@ router.delete('/:id', authenticate, noteController.deleteNote);
 router.post('/:id/like', authenticate, noteController.toggleLikeNote);
 router.post('/:id/popular', authenticate, noteController.togglePopularNote);
 
+// Note sharing routes
+router.get('/share/:shareId', noteController.getPublicSharedNote); // Public endpoint
+router.get('/:id/share', authenticate, noteController.getNoteShare);
+router.post('/:id/share', authenticate, noteController.createOrUpdateNoteShare);
+router.delete('/:id/share', authenticate, noteController.cancelNoteShare);
+
 // Comment routes
-router.get('/:id/comments', authenticate, noteCommentController.getNoteComments);
+router.get('/:id/comments', optionalAuthenticate, noteCommentController.getNoteComments);
 router.post('/:id/comment', authenticate, noteCommentController.createNoteComment);
 router.delete('/comment/:commentId', authenticate, noteCommentController.deleteNoteComment);
 

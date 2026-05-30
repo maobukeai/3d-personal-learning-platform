@@ -173,12 +173,11 @@ const fallbackBgColor = computed(() => {
 </script>
 
 <template>
-  <div class="relative inline-flex shrink-0 group/avatar">
+  <div :class="[size.container, 'relative inline-flex shrink-0 items-center justify-center group/avatar']">
     <!-- Outer Glow & Neon Frame -->
     <div
       :class="[
-        size.container,
-        'relative rounded-[1.25rem] transition-all duration-500 flex items-center justify-center',
+        'w-full h-full relative rounded-[1.25rem] transition-all duration-500 flex items-center justify-center',
         frameConfig.animation !== 'none' ? 'animate-frame-glow' : '',
       ]"
       :style="{

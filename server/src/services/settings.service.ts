@@ -364,7 +364,7 @@ class SettingsService {
                 const next = JSON.parse(parsed);
                 if (typeof next === 'string' && next === parsed) break; // Prevent infinite loop
                 parsed = next;
-              } catch (e) {
+              } catch (_e) {
                 break;
               }
             }
@@ -376,7 +376,7 @@ class SettingsService {
                 .map((v) => v.trim())
                 .filter(Boolean);
             }
-          } catch (e) {
+          } catch (_e) {
             logger.warn(`Recovering malformed setting ${s.key}`);
             const arr = s.value
               .split(',')
@@ -441,7 +441,7 @@ class SettingsService {
         try {
           JSON.parse(trimmed);
           stringValue = trimmed;
-        } catch (e) {
+        } catch (_e) {
           stringValue = value;
         }
       } else {

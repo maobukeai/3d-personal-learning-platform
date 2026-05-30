@@ -348,7 +348,7 @@ async function prepareRequestConfig(
           (m: any) =>
             m.enabled &&
             String(m.provider).toUpperCase() === String(provider).toUpperCase() &&
-            m.modelName === modelName
+            m.modelName === modelName,
         );
         if (!matchingModel) {
           matchingModel = models.find((m: any) => m.enabled && m.isDefault);
@@ -359,7 +359,8 @@ async function prepareRequestConfig(
     }
   }
 
-  const temperature = overrides?.temperature ?? matchingModel?.temperature ?? options.temperature ?? 0.3;
+  const temperature =
+    overrides?.temperature ?? matchingModel?.temperature ?? options.temperature ?? 0.3;
   const maxTokens = overrides?.maxTokens ?? matchingModel?.maxTokens;
   const systemPromptPreset = overrides?.systemPrompt ?? matchingModel?.systemPrompt;
 

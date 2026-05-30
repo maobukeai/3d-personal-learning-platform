@@ -5,15 +5,22 @@ dotenv.config();
 
 export const config = {
   PORT: process.env.PORT || 3001,
-  JWT_SECRET:
-    process.env.JWT_SECRET ||
-    (() => {
+  JWT_SECRET: (() => {
+    const secret = process.env.JWT_SECRET;
+    if (
+      !secret ||
+      secret === 'dev-secret-key-do-not-use-in-production-1234567890' ||
+      secret === 'dev-secret-key-change-in-production'
+    ) {
       if (process.env.NODE_ENV === 'production') {
-        console.error('FATAL: JWT_SECRET environment variable must be set in production!');
+        console.error('FATAL: A secure JWT_SECRET environment variable must be set in production!');
         process.exit(1);
       }
-      return crypto.randomBytes(64).toString('hex');
-    })(),
+      // In development, generate a cryptographically secure key at startup
+      return crypto.randomBytes(32).toString('hex');
+    }
+    return secret;
+  })(),
   DATABASE_URL: process.env.DATABASE_URL,
   NODE_ENV: process.env.NODE_ENV || 'development',
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',

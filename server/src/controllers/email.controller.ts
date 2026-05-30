@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import type { MicrosoftEmailAccount } from '@prisma/client';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
 import { encryptSecret, maskProxyUrl } from '../utils/secret-field';

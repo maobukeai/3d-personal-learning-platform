@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { emitToUser, emitToAll } from '../services/socket.service';
+import { emitToAll } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';

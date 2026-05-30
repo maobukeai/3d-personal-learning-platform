@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { auditService, AuditAction, AuditModule } from '../services/audit.service';
+import { auditService } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
 
 // In-memory categories cache

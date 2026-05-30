@@ -80,7 +80,7 @@ export const initSocket = (server: HttpServer) => {
       };
       (socket as unknown as { userId: string }).userId = decoded.id;
       next();
-    } catch (err) {
+    } catch (_err) {
       next(new Error('Authentication error: Invalid token'));
     }
   });

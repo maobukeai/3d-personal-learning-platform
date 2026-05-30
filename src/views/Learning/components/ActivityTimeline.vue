@@ -59,6 +59,7 @@ const emit = defineEmits<{
   (e: 'delete', note: Note): void;
   (e: 'filter-tag', tag: string): void;
   (e: 'filter-category', category: string): void;
+  (e: 'click-avatar', userId: string): void;
 }>();
 
 const authStore = useAuthStore();
@@ -189,10 +190,18 @@ const parseTags = (note: Note): string[] => {
         <!-- Top Author & Info (Inline single row Twitter-style) -->
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2">
-            <UserAvatar :user="note.user" size="xs" class="shrink-0" />
-            <div class="flex items-center gap-1.5 text-xs font-black text-[var(--text-primary)]">
-              <span>{{ note.user.name }}</span>
-              <span class="text-[9px] text-[var(--text-muted)] font-normal">• {{ formatDate(note.createdAt) }}</span>
+            <UserAvatar 
+              :user="note.user" 
+              size="xs" 
+              class="shrink-0 cursor-pointer hover:ring-1 hover:ring-accent transition-all" 
+              @click.stop="emit('click-avatar', note.user.id)"
+            />
+            <div 
+              class="flex items-center gap-1.5 text-xs font-black text-[var(--text-primary)] cursor-pointer"
+              @click.stop="emit('click-avatar', note.user.id)"
+            >
+              <span class="hover:text-accent transition-colors">{{ note.user.name }}</span>
+              <span class="text-[9px] text-[var(--text-muted)] font-normal pointer-events-none">• {{ formatDate(note.createdAt) }}</span>
             </div>
           </div>
           <!-- Right Tag -->
@@ -274,10 +283,20 @@ const parseTags = (note: Note): string[] => {
             <!-- Comments List -->
             <div v-else class="flex flex-col gap-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
               <div v-for="c in noteCommentsMap[note.id] || []" :key="c.id" class="flex gap-2 items-start">
-                <UserAvatar :user="c.user" size="xs" class="shrink-0 mt-0.5" />
+                <UserAvatar 
+                  :user="c.user" 
+                  size="xs" 
+                  class="shrink-0 mt-0.5 cursor-pointer hover:ring-1 hover:ring-accent transition-all" 
+                  @click.stop="emit('click-avatar', c.user.id)"
+                />
                 <div class="flex-1 bg-slate-50 dark:bg-white/[0.02] border border-[var(--border-base)] rounded-xl p-2 relative group/comment">
                   <div class="flex items-center justify-between gap-2 leading-none">
-                    <span class="text-[9px] font-black text-[var(--text-primary)]">{{ c.user?.name || '用户' }}</span>
+                    <span 
+                      class="text-[9px] font-black text-[var(--text-primary)] cursor-pointer hover:text-accent transition-colors"
+                      @click.stop="emit('click-avatar', c.user.id)"
+                    >
+                      {{ c.user?.name || '用户' }}
+                    </span>
                     <span class="text-[8px] text-[var(--text-muted)]">{{ formatDate(c.createdAt) }}</span>
                   </div>
                   <p class="text-[10px] md:text-[11px] text-[var(--text-secondary)] mt-1 whitespace-pre-line leading-relaxed">
@@ -353,13 +372,18 @@ const parseTags = (note: Note): string[] => {
         <div class="flex flex-col gap-1.5">
           <div v-for="(item, idx) in topContributors" :key="item.user.id" class="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
             <div class="flex items-center gap-2 min-w-0">
-              <div class="relative shrink-0">
-                <UserAvatar :user="item.user" size="xs" />
+              <div class="relative shrink-0 cursor-pointer" @click.stop="emit('click-avatar', item.user.id)">
+                <UserAvatar :user="item.user" size="xs" class="hover:ring-1 hover:ring-accent transition-all" />
                 <span class="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-accent/80 text-white flex items-center justify-center font-bold text-[8px] border border-white dark:border-slate-800 scale-90">
                   {{ idx + 1 }}
                 </span>
               </div>
-              <span class="text-[10px] font-bold text-[var(--text-primary)] truncate">{{ item.user.name }}</span>
+              <span 
+                class="text-[10px] font-bold text-[var(--text-primary)] truncate cursor-pointer hover:text-accent transition-colors"
+                @click.stop="emit('click-avatar', item.user.id)"
+              >
+                {{ item.user.name }}
+              </span>
             </div>
             <span class="text-[8px] font-black text-accent bg-accent/5 px-2 py-0.5 rounded-full shrink-0 border border-accent/10">
               {{ item.count }} 动态

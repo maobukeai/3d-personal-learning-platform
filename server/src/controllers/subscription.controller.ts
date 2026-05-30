@@ -1,6 +1,5 @@
 import { logger } from '../utils/logger';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import speakeasy from 'speakeasy';
 import bcrypt from 'bcryptjs';
 import prisma from '../services/prisma';
@@ -158,22 +157,6 @@ export const getMySubscription = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: '获取订阅信息失败' });
   }
 };
-
-const calculateProratedRefund = (
-  currentPlanPrice: number,
-  currentPlanInterval: string,
-  startDate: Date,
-  endDate: Date | null,
-): number => {
-  if (!endDate) return 0;
-  const totalDays = currentPlanInterval === 'YEARLY' ? 365 : 30;
-  const remainingMs = new Date(endDate).getTime() - Date.now();
-  const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
-  const dailyPrice = currentPlanPrice / totalDays;
-  return Math.round(dailyPrice * remainingDays * 100) / 100;
-};
-
-import { paymentService, PaymentMethod } from '../services/payment.service';
 
 export const createOrder = async (req: AuthRequest, res: Response) => {
   return res.status(400).json({ error: '在线支付功能已禁用，请使用激活码激活订阅' });

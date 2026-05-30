@@ -354,7 +354,7 @@ export const updateRoadmap = async (req: AuthRequest, res: Response, next: NextF
   const id = req.params.id as string;
   const { title, description, steps } = req.body;
   try {
-    const roadmap = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       // 1. Update the roadmap metadata
       const rm = await tx.roadmap.update({
         where: { id },

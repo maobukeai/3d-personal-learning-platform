@@ -42,6 +42,11 @@ const router = createRouter({
       component: () => import('@/views/Support/NotFoundView.vue'),
     },
     {
+      path: '/share/note/:shareId',
+      name: 'NoteShare',
+      component: () => import('@/views/Learning/NoteShareView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/404',
     },

@@ -6,7 +6,6 @@ import {
   RawResourcePage,
   AdapterConfig,
 } from './base.adapter';
-import * as cheerio from 'cheerio';
 import type { CheerioAPI } from 'cheerio';
 
 interface WpApiPost {

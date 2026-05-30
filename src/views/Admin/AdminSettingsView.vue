@@ -1589,11 +1589,19 @@ type="button"
             </section>
           </div>
 
-          <!-- SMTP Settings -->
           <div
             v-if="activeTab === 'smtp'"
             class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
           >
+            <!-- Unsaved changes warning banner for email provider -->
+            <div
+              v-if="settings.SYSTEM_EMAIL_PROVIDER !== originalSettings.SYSTEM_EMAIL_PROVIDER"
+              class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-2.5 text-xs font-bold animate-pulse shadow-sm"
+            >
+              <AlertTriangle class="w-4 h-4 text-amber-500 shrink-0" />
+              <span>⚠️ 您已将发信模式切换为「{{ settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL' ? '微软账号池' : '标准 SMTP' }}」，此更改尚未生效。请务必点击页面右上角的「保存全局设置」按钮！</span>
+            </div>
+
             <!-- Mode selection -->
             <!-- Mode selection -->
             <section
@@ -2396,15 +2404,15 @@ type="button"
                   v-for="(model, index) in aiModelConfigs"
                   :key="model.id"
                   :draggable="isDraggable"
-                  @dragstart="handleDragStart($event, index)"
-                  @dragover.prevent
-                  @drop="handleDrop($event, index)"
-                  @dragend="handleDragEnd"
                   class="rounded-2xl border overflow-hidden transition-all duration-300"
                   :class="{ 'opacity-50 border-indigo-400 scale-[0.99]': dragIndex === index }"
                   :style="model.isDefault
                     ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
                     : 'border-color: var(--border-base); background-color: var(--bg-card);'"
+                  @dragstart="handleDragStart($event, index)"
+                  @dragover.prevent
+                  @drop="handleDrop($event, index)"
+                  @dragend="handleDragEnd"
                 >
                   <!-- Card Header -->
                   <div
@@ -2640,11 +2648,11 @@ type="button"
                             </label>
                             <div class="flex items-center gap-3">
                               <input
+                                v-model.number="model.temperature"
                                 type="range"
                                 min="0"
                                 max="2"
                                 step="0.1"
-                                v-model.number="model.temperature"
                                 class="flex-1 accent-indigo-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                               />
                               <span

@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger';
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
+import { randomUUID } from 'crypto';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
@@ -333,11 +334,11 @@ export const toggleLikeNote = async (req: AuthRequest, res: Response) => {
   try {
     const note = await prisma.note.findUnique({
       where: { id: noteId },
-      select: { id: true, visibility: true },
+      select: { id: true, visibility: true, userId: true },
     });
     if (!note) return res.status(404).json({ error: '笔记不存在' });
-    if (note.visibility === 'PRIVATE') {
-      return res.status(400).json({ error: '私有笔记不能被点赞' });
+    if (note.visibility === 'PRIVATE' && note.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: '无权操作此私有笔记' });
     }
 
     const existing = await prisma.noteLike.findUnique({
@@ -404,6 +405,147 @@ export const getNoteCategories = async (req: AuthRequest, res: Response) => {
     res.json({ categories: categories.map((c) => c.category).filter(Boolean) });
   } catch (error) {
     logger.error('Get note categories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getNoteShare = async (req: AuthRequest, res: Response) => {
+  const noteId = req.params.id as string;
+  try {
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      select: { userId: true },
+    });
+    if (!note) return res.status(404).json({ error: '笔记不存在' });
+    if (note.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: '无权查看此笔记的分享配置' });
+    }
+
+    const share = await prisma.noteShare.findUnique({
+      where: { noteId },
+    });
+
+    res.json(share);
+  } catch (error) {
+    logger.error('Get note share error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const createOrUpdateNoteShare = async (req: AuthRequest, res: Response) => {
+  const noteId = req.params.id as string;
+  const { expireHours, customText } = req.body;
+
+  try {
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      select: { userId: true },
+    });
+    if (!note) return res.status(404).json({ error: '笔记不存在' });
+    if (note.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: '无权修改此笔记的分享配置' });
+    }
+
+    let expiresAt: Date | null = null;
+    if (expireHours && typeof expireHours === 'number' && expireHours > 0) {
+      expiresAt = new Date(Date.now() + expireHours * 60 * 60 * 1000);
+    } else if (req.body.expiresAt) {
+      expiresAt = new Date(req.body.expiresAt);
+    }
+
+    const existing = await prisma.noteShare.findUnique({
+      where: { noteId },
+    });
+
+    let share;
+    if (existing) {
+      share = await prisma.noteShare.update({
+        where: { noteId },
+        data: {
+          expiresAt,
+          customText: customText !== undefined ? customText || null : undefined,
+        },
+      });
+    } else {
+      share = await prisma.noteShare.create({
+        data: {
+          id: randomUUID(),
+          noteId,
+          userId: req.userId!,
+          expiresAt,
+          customText: customText || null,
+        },
+      });
+    }
+
+    res.json(share);
+  } catch (error) {
+    logger.error('Create/update note share error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const cancelNoteShare = async (req: AuthRequest, res: Response) => {
+  const noteId = req.params.id as string;
+  try {
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+      select: { userId: true },
+    });
+    if (!note) return res.status(404).json({ error: '笔记不存在' });
+    if (note.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: '无权取消此笔记的分享' });
+    }
+
+    await prisma.noteShare.deleteMany({
+      where: { noteId },
+    });
+
+    res.json({ message: '分享已取消' });
+  } catch (error) {
+    logger.error('Cancel note share error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getPublicSharedNote = async (req: AuthRequest, res: Response) => {
+  const shareId = req.params.shareId as string;
+  try {
+    const share = await prisma.noteShare.findUnique({
+      where: { id: shareId },
+      include: {
+        note: {
+          include: {
+            user: {
+              select: { id: true, name: true, avatarUrl: true, bio: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!share) {
+      return res.status(404).json({ error: '分享链接不存在或已失效' });
+    }
+
+    if (share.expiresAt && new Date() > share.expiresAt) {
+      return res.status(410).json({ error: '分享链接已过期且失效' });
+    }
+
+    await prisma.note.update({
+      where: { id: share.noteId },
+      data: { views: { increment: 1 } },
+    });
+
+    res.json({
+      shareId: share.id,
+      expiresAt: share.expiresAt,
+      createdAt: share.createdAt,
+      customText: share.customText,
+      note: share.note,
+    });
+  } catch (error) {
+    logger.error('Get public shared note error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

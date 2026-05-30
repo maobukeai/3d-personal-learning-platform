@@ -1,10 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import fs from 'fs';
 import speakeasy from 'speakeasy';
 
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { emitToUser } from '../services/socket.service';
 import { createNotification } from '../utils/notification';
 import { checkTeamQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';

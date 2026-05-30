@@ -57,6 +57,7 @@ model User {
   courseNotes    CourseNote[]
   noteLikes      NoteLike[]
   notes          Note[]
+  noteShares     NoteShare[]
   noteComments   NoteComment[]
 
   // Messaging & Teams
@@ -863,6 +864,7 @@ model Note {
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes      NoteLike[]
   comments   NoteComment[]
+  noteShare  NoteShare?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -876,7 +878,7 @@ model NoteLike {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  @@unique([noteId, userId])
+  @@id([noteId, userId])
 }
 
 model NoteComment {
@@ -1139,4 +1141,19 @@ model AiMessage {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+model NoteShare {
+  id         String    @id @default(uuid())
+  noteId     String    @unique
+  userId     String
+  expiresAt  DateTime?
+  customText String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  note       Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@index([userId])
 }

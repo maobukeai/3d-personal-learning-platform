@@ -13,16 +13,20 @@ import {
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import PageHeader from '@/components/PageHeader.vue';
+import UserProfileDialog from '@/components/UserProfileDialog.vue';
+import { useRouter } from 'vue-router';
 
 // Subcomponents
 import NotebookCreateDialog from './components/NotebookCreateDialog.vue';
 import NoteCloneDialog from './components/NoteCloneDialog.vue';
 import NoteEditorDialog from './components/NoteEditorDialog.vue';
 import NoteDetailDialog from './components/NoteDetailDialog.vue';
+import NoteShareDialog from './components/NoteShareDialog.vue';
 import NoteCard from './components/NoteCard.vue';
 import ActivityTimeline from './components/ActivityTimeline.vue';
 
 const authStore = useAuthStore();
+const router = useRouter();
 
 interface Note {
   id: string;
@@ -64,6 +68,27 @@ const createNotebookDialogRef = ref<InstanceType<typeof NotebookCreateDialog> | 
 const cloneDialogRef = ref<InstanceType<typeof NoteCloneDialog> | null>(null);
 const editorDialogRef = ref<InstanceType<typeof NoteEditorDialog> | null>(null);
 const detailDialogRef = ref<InstanceType<typeof NoteDetailDialog> | null>(null);
+const shareDialogRef = ref<InstanceType<typeof NoteShareDialog> | null>(null);
+
+const isProfileDialogOpen = ref(false);
+const selectedUserId = ref<string | null>(null);
+
+const handleShowUserProfile = (userId: string) => {
+  selectedUserId.value = userId;
+  isProfileDialogOpen.value = true;
+};
+
+const handleChatWithMember = async (member: any) => {
+  try {
+    await api.post('/api/messages/conversations', {
+      participantIds: [member.id],
+      isGroup: false,
+    });
+    router.push('/messages');
+  } catch (_error) {
+    ElMessage.error('无法发起对话');
+  }
+};
 
 const loadLocalNotebooks = () => {
   const userId = authStore.user?.id;
@@ -275,6 +300,10 @@ const handleNoteCloned = async (category: string) => {
 
 const viewDetail = (note: Note) => {
   detailDialogRef.value?.open(note);
+};
+
+const openShareDialog = (note: Note) => {
+  shareDialogRef.value?.open(note);
 };
 
 const handleDetailLikeUpdated = (data: { id: string; isLiked: boolean; likesCount: number }) => {
@@ -578,10 +607,11 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
                 @delete="handleDelete"
                 @filter-tag="(t) => { filterTag = t; loadNotes() }"
                 @filter-category="(c) => { filterCategory = c; loadNotes() }"
+                @click-avatar="handleShowUserProfile"
               />
 
               <!-- CARDS GRID for MY & POPULAR Tabs -->
-              <div v-else class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-4 lg:gap-4.5">
+              <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 <NoteCard
                   v-for="(note, index) in notes"
                   :key="note.id"
@@ -595,6 +625,8 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
                   @delete="handleDelete"
                   @popular-toggle="handleTogglePopular"
                   @like="handleLike"
+                  @share="openShareDialog"
+                  @click-avatar="handleShowUserProfile"
                 />
               </div>
             </div>
@@ -643,6 +675,17 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
       @like-updated="handleDetailLikeUpdated"
       @popular-updated="handleDetailPopularUpdated"
       @views-updated="handleDetailViewsUpdated"
+      @share="openShareDialog"
+    />
+
+    <NoteShareDialog
+      ref="shareDialogRef"
+    />
+
+    <UserProfileDialog
+      v-model="isProfileDialogOpen"
+      :user-id="selectedUserId"
+      @chat="handleChatWithMember"
     />
   </div>
 </template>

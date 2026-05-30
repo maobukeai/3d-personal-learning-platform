@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToConversation, emitToUser } from '../services/socket.service';

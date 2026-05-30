@@ -810,8 +810,8 @@ onUnmounted(() => {
     <!-- Editor -->
     <MdEditor
       v-else
-      ref="editorRef"
       :id="editorId"
+      ref="editorRef"
       :key="String(props.preview)"
       v-model="text"
       :placeholder="placeholder"
@@ -824,11 +824,11 @@ onUnmounted(() => {
       :auto-height="autoHeight"
       :toolbars="toolbars"
       :transform-img-url="getAssetUrl"
-      @on-upload-img="handleUploadImg"
       class="mdw__editor"
+      @on-upload-img="handleUploadImg"
     >
       <template #defToolbars>
-        <NormalToolbar title="AI 协同写作" @onClick="togglePanel">
+        <NormalToolbar title="AI 协同写作" @on-click="togglePanel">
           <template #trigger>
             <Sparkles
               class="w-4 h-4 cursor-pointer transition-colors duration-200"

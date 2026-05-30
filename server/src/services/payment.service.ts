@@ -1,6 +1,3 @@
-import prisma from './prisma';
-import crypto from 'crypto';
-
 export enum PaymentStatus {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
@@ -24,20 +21,23 @@ interface CreateOrderParams {
   paymentMethod: PaymentMethod | string;
 }
 
+/**
+ * @deprecated Paid subscriptions are no longer supported. Please use an activation code instead.
+ */
 class PaymentService {
   async createOrder({
-    userId,
-    amount,
-    description,
-    planId,
-    planName,
-    interval,
-    paymentMethod,
+    userId: _userId,
+    amount: _amount,
+    description: _description,
+    planId: _planId,
+    planName: _planName,
+    interval: _interval,
+    paymentMethod: _paymentMethod,
   }: CreateOrderParams) {
     throw new Error('Paid subscriptions are no longer supported. Please use an activation code.');
   }
 
-  async verifyPayment(transactionId: string, paymentId: string) {
+  async verifyPayment(_transactionId: string, _paymentId: string) {
     throw new Error('Paid subscriptions are no longer supported. Please use an activation code.');
   }
 }

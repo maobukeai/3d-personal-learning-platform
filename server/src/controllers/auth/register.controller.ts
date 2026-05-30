@@ -39,7 +39,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 使用事务同时创建用户、个人团队和加入公共团队
-    const result = await prisma.$transaction(
+    await prisma.$transaction(
       async (tx) => {
         const user = await tx.user.create({
           data: {

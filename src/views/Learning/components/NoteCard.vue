@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Eye, ThumbsUp, MessageSquare, Edit3, Trash2, Star, Flame } from 'lucide-vue-next';
+import {
+  Eye,
+  ThumbsUp,
+  MessageSquare,
+  Edit3,
+  Trash2,
+  Star,
+  Flame,
+  Share2,
+  Calendar,
+  Folder,
+  Pin,
+  FileText
+} from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 
@@ -37,6 +50,8 @@ const emit = defineEmits<{
   (e: 'delete', note: Note): void;
   (e: 'popular-toggle', note: Note): void;
   (e: 'like', note: Note): void;
+  (e: 'share', note: Note): void;
+  (e: 'click-avatar', userId: string): void;
 }>();
 
 const authStore = useAuthStore();
@@ -58,7 +73,6 @@ const formatDate = (date: string) => {
 };
 
 const getVisibilityLabel = (v: string) => (v === 'PUBLIC' ? '公开' : '私有');
-const getVisibilityTag = (v: string) => (v === 'PUBLIC' ? 'success' : 'info');
 
 const parseTags = (note: Note): string[] => {
   if (!note.tags) return [];
@@ -72,16 +86,38 @@ const parseTags = (note: Note): string[] => {
       .filter(Boolean);
   }
 };
+
+const cleanSummary = computed(() => {
+  if (props.note.summary) return props.note.summary;
+  // Clean markdown notations to yield an elegant text preview
+  return props.note.content
+    .replace(/[#*`>_\-[\]()+]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+});
 </script>
 
 <template>
   <div
-    class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl p-2.5 sm:p-3.5 lg:p-4 hover:shadow-xl hover:-translate-y-0.5 transition-all group flex flex-col h-full relative"
+    class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative overflow-hidden"
     :class="[isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer']"
     :draggable="isDraggable"
     @click="emit('click-detail', props.note)"
     @dragstart="onDragStart"
   >
+    <!-- Left Hover Glow Accent Line -->
+    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-8 bg-accent rounded-r-md opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"></div>
+
+    <!-- Pinned Note Corner Indicator -->
+    <div 
+      v-if="props.note.isPinned" 
+      class="absolute top-0 right-0 w-8 h-8 flex items-center justify-center bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-bl-xl transition-all"
+      title="置顶笔记"
+    >
+      <Pin class="w-3.5 h-3.5 fill-current" />
+    </div>
+
     <!-- Beautiful Glowing Rank Index on POPULAR leaderboard -->
     <div v-if="props.activeTab === 'POPULAR'" class="absolute -top-2 -left-2 z-10 flex items-center gap-1">
       <span
@@ -116,119 +152,175 @@ const parseTags = (note: Note): string[] => {
       </span>
     </div>
 
-    <div class="flex items-start justify-between mb-1.5 md:mb-2.5 gap-1 min-w-0">
-      <div class="flex items-center gap-1.5 md:gap-2.5 min-w-0">
-        <UserAvatar :user="props.note.user" size="xs" class="md:hidden shrink-0" />
-        <UserAvatar :user="props.note.user" size="sm" class="hidden md:inline-flex shrink-0" />
+    <!-- Header Meta Row -->
+    <div class="flex items-start justify-between mb-3.5 gap-1.5 min-w-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <UserAvatar 
+          :user="props.note.user" 
+          size="xs" 
+          class="md:hidden shrink-0 ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+          @click.stop="emit('click-avatar', props.note.user.id)"
+        />
+        <UserAvatar 
+          :user="props.note.user" 
+          size="sm" 
+          class="hidden md:inline-flex shrink-0 ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+          @click.stop="emit('click-avatar', props.note.user.id)"
+        />
         <div class="min-w-0">
-          <p class="text-xs md:text-sm font-bold text-[var(--text-primary)] leading-none truncate">
+          <p 
+            class="text-xs md:text-sm font-bold text-[var(--text-primary)] leading-none truncate hover:text-accent transition-colors duration-300 cursor-pointer"
+            @click.stop="emit('click-avatar', props.note.user.id)"
+          >
             {{ props.note.user.name }}
           </p>
-          <p class="hidden sm:block text-[9px] md:text-[10px] text-[var(--text-muted)] mt-1">
-            {{ formatDate(props.note.createdAt) }}
-          </p>
+          <div class="flex items-center gap-1 text-[9px] md:text-[10px] text-[var(--text-muted)] mt-1.5 flex-wrap">
+            <Calendar class="w-2.5 h-2.5 shrink-0" />
+            <span>{{ formatDate(props.note.createdAt) }}</span>
+            <span v-if="props.note.category" class="text-slate-300 dark:text-slate-700 shrink-0">|</span>
+            <span v-if="props.note.category" class="flex items-center gap-0.5 text-accent font-bold shrink-0 truncate max-w-[60px] sm:max-w-[80px]">
+              <Folder class="w-2.5 h-2.5 text-accent shrink-0" />
+              {{ props.note.category }}
+            </span>
+          </div>
         </div>
       </div>
       <div
         class="flex items-center gap-1 shrink-0 transition-all duration-300"
-        :class="{ 'group-hover:opacity-0 group-hover:scale-90 group-hover:pointer-events-none': props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN' }"
+        :class="{ 'group-hover:opacity-0 group-hover:scale-90 group-hover:pointer-events-none': (props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN') }"
       >
         <el-tag v-if="props.note.isPopular && props.activeTab !== 'POPULAR'" type="warning" size="small" round effect="dark" class="px-1 md:px-2">热</el-tag>
-        <el-tag :type="getVisibilityTag(props.note.visibility)" size="small" round class="px-1 md:px-2">
-          <span class="hidden sm:inline">{{ getVisibilityLabel(props.note.visibility) }}</span>
-          <span class="sm:hidden">{{ props.note.visibility === 'PUBLIC' ? '公' : '私' }}</span>
-        </el-tag>
+        
+        <!-- Custom Visibility Badge -->
+        <span
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold border transition-colors duration-300"
+          :class="props.note.visibility === 'PUBLIC'
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+            : 'bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400'"
+        >
+          <span
+            class="w-1 h-1 rounded-full shrink-0"
+            :class="props.note.visibility === 'PUBLIC' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'"
+          ></span>
+          {{ getVisibilityLabel(props.note.visibility) }}
+        </span>
       </div>
     </div>
 
+    <!-- Title -->
     <h3
-      class="text-xs sm:text-sm md:text-base font-bold mb-1 md:mb-1.5 line-clamp-1 group-hover:text-accent transition-colors"
+      class="text-xs sm:text-sm md:text-base font-extrabold mb-1.5 md:mb-2 line-clamp-1 group-hover:text-accent transition-colors duration-300 flex items-center gap-1.5"
     >
+      <FileText class="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-accent transition-colors shrink-0" />
       {{ props.note.title }}
     </h3>
+
+    <!-- Summary Snippet -->
     <p
-      class="text-[11px] sm:text-xs md:text-sm text-[var(--text-secondary)] line-clamp-2 md:line-clamp-3 mb-1.5 md:mb-2.5 flex-1 leading-relaxed"
+      class="text-[11px] sm:text-xs md:text-sm text-[var(--text-secondary)]/90 line-clamp-2 md:line-clamp-3 mb-3 md:mb-4 flex-1 leading-relaxed"
     >
-      {{ props.note.summary || props.note.content.replace(/[#*`>]/g, '').slice(0, 150) }}
+      {{ cleanSummary }}
     </p>
 
-    <div v-if="parseTags(props.note).length" class="flex flex-wrap gap-1 mb-2 md:mb-3">
+    <!-- Tags Row -->
+    <div v-if="parseTags(props.note).length" class="flex flex-wrap gap-1 mb-2.5 md:mb-3.5">
       <span
         v-for="tag in parseTags(props.note).slice(0, props.isMobile ? 1 : 3)"
         :key="tag"
-        class="px-1.5 py-0.5 rounded bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[9px] md:text-[10px] font-bold border border-[var(--border-base)] whitespace-nowrap truncate max-w-[80px]"
+        class="px-2 py-0.5 rounded bg-purple-500/5 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] md:text-[10px] font-bold border border-purple-500/15 whitespace-nowrap truncate max-w-[80px] hover:bg-purple-500/10 transition-all duration-200"
       >
         #{{ tag }}
       </span>
     </div>
 
-    <div
-      class="flex items-center justify-between mt-auto pt-1.5 md:pt-3 border-t border-[var(--border-base)] gap-1"
-    >
-      <div
-        class="flex items-center gap-2 md:gap-4 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0"
-      >
-        <span class="flex items-center gap-1">
-          <Eye class="w-3 md:w-3.5 h-3 md:h-3.5" /> {{ props.note.views }}
+    <!-- Fading Gradient Divider Line -->
+    <div class="h-[1px] bg-gradient-to-r from-transparent via-[var(--border-base)] to-transparent my-1.5 md:my-2"></div>
+
+    <!-- Footer Stats Row -->
+    <div class="flex items-center justify-between mt-auto gap-1">
+      <div class="flex items-center gap-2 md:gap-3.5 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0">
+        <span class="flex items-center gap-1 hover:text-purple-500 transition-colors duration-200" title="阅读量">
+          <Eye class="w-3.5 h-3.5" /> {{ props.note.views }}
         </span>
         <span
-          class="flex items-center gap-1 cursor-pointer hover:text-red-500 transition-colors"
+          class="flex items-center gap-1 cursor-pointer hover:text-red-500 hover:scale-105 active:scale-95 transition-all duration-200"
           :class="{ 'text-red-500': props.note.isLiked }"
+          title="点赞"
           @click.stop="emit('like', props.note)"
         >
-          <ThumbsUp class="w-3 md:w-3.5 h-3 md:h-3.5" :class="{ 'fill-current': props.note.isLiked }" />
+          <ThumbsUp class="w-3.5 h-3.5 transition-transform duration-200" :class="{ 'fill-current': props.note.isLiked }" />
           {{ props.note._count.likes }}
         </span>
-        <span class="flex items-center gap-1">
-          <MessageSquare class="w-3 md:w-3.5 h-3 md:h-3.5" /> {{ props.note._count.comments || 0 }}
+        <span class="flex items-center gap-1 hover:text-blue-500 transition-colors duration-200" title="评论">
+          <MessageSquare class="w-3.5 h-3.5" /> {{ props.note._count.comments || 0 }}
         </span>
       </div>
+      
       <span
         v-if="props.note.category"
-        class="text-[8px] md:text-[10px] font-black text-accent bg-accent/10 px-1.5 py-0.5 rounded uppercase truncate max-w-[50px] sm:max-w-[80px]"
+        class="text-[8px] md:text-[9px] font-black text-accent bg-accent/5 border border-accent/15 px-2 py-0.5 rounded uppercase truncate max-w-[50px] sm:max-w-[80px]"
       >
         {{ props.note.category }}
       </span>
     </div>
 
-    <!-- Hover Actions -->
+    <!-- Hover Glass Action Menu (Pill Bar) -->
     <div
-      class="absolute top-1.5 md:top-2.5 right-1.5 md:right-2.5 flex gap-1 md:gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0"
+      class="absolute top-2 right-2 flex gap-1 items-center bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-[var(--border-base)] shadow-lg rounded-full px-2 py-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 z-20"
+      :class="{ '!right-8': props.note.isPinned }"
+      @click.stop
     >
-      <!-- Edit for Owner -->
-      <el-button
+      <!-- Share for Owner -->
+      <button
         v-if="props.note.userId === authStore.user?.id"
-        circle
-        size="small"
-        class="!p-1"
-        @click.stop="emit('edit', props.note)"
+        type="button"
+        class="p-1 hover:text-purple-500 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+        title="分享笔记"
+        @click="emit('share', props.note)"
       >
-        <Edit3 class="w-3 h-3 md:w-3.5 md:h-3.5" />
-      </el-button>
+        <Share2 class="w-3.5 h-3.5" />
+      </button>
 
-      <!-- Popular toggle for Admin (on public notes) -->
-      <el-button
-        v-if="authStore.user?.role === 'ADMIN' && props.note.visibility === 'PUBLIC'"
-        circle
-        size="small"
-        :type="props.note.isPopular ? 'warning' : ''"
-        class="!p-1"
-        @click.stop="emit('popular-toggle', props.note)"
+      <!-- Edit for Owner -->
+      <button
+        v-if="props.note.userId === authStore.user?.id"
+        type="button"
+        class="p-1 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+        title="编辑笔记"
+        @click="emit('edit', props.note)"
       >
-        <Star class="w-3 h-3 md:w-3.5 md:h-3.5" :class="{ 'fill-current': props.note.isPopular }" />
-      </el-button>
+        <Edit3 class="w-3.5 h-3.5" />
+      </button>
+
+      <!-- Popular toggle for Admin -->
+      <button
+        v-if="authStore.user?.role === 'ADMIN' && props.note.visibility === 'PUBLIC'"
+        type="button"
+        class="p-1 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+        :class="{ 'text-amber-500': props.note.isPopular }"
+        title="置顶/精选"
+        @click="emit('popular-toggle', props.note)"
+      >
+        <Star class="w-3.5 h-3.5" :class="{ 'fill-current': props.note.isPopular }" />
+      </button>
 
       <!-- Delete for Owner or Admin -->
-      <el-button
+      <button
         v-if="props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'"
-        circle
-        size="small"
-        type="danger"
-        class="!p-1"
-        @click.stop="emit('delete', props.note)"
+        type="button"
+        class="p-1 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer hover:scale-110 active:scale-90"
+        title="删除笔记"
+        @click="emit('delete', props.note)"
       >
-        <Trash2 class="w-3 h-3 md:w-3.5 md:h-3.5" />
-      </el-button>
+        <Trash2 class="w-3.5 h-3.5" />
+      </button>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Smooth micro-interaction transitions */
+.group:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-base));
+}
+</style>

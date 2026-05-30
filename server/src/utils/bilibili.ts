@@ -25,7 +25,7 @@ export async function parseBilibiliUrl(url: string): Promise<BilibiliMetadata> {
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(targetUrl);
-  } catch (e) {
+  } catch (_e) {
     throw new Error('未在输入中找到有效的链接格式');
   }
 

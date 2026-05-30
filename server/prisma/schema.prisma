@@ -658,7 +658,7 @@ model Material {
   userId       String
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   teamId       String?
-  team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull, map: "Material_teamId_fk")
   favorites    MaterialFavorite[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt

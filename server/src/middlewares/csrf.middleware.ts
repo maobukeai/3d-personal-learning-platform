@@ -38,7 +38,9 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
   ];
 
   const requestPath = req.originalUrl.split('?')[0] || req.originalUrl;
-  if (bypassUrls.includes(requestPath)) {
+  const isSharedNoteAiSummarize = /^\/api\/notes\/share\/[^/]+\/ai-summarize$/.test(requestPath);
+
+  if (bypassUrls.includes(requestPath) || isSharedNoteAiSummarize) {
     return next();
   }
 

@@ -66,4 +66,15 @@ describe('CSRF Protection Integration', () => {
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('TOKEN_REQUIRED');
   });
+
+  it('should bypass CSRF for shared note AI summarization POST requests', async () => {
+    const res = await request(app)
+      .post('/api/notes/share/nonexistent-share-id/ai-summarize')
+      .send();
+
+    // Since CSRF is bypassed, it should proceed to the controller
+    // and return 404 for nonexistent-share-id, not 403 CSRF_VALIDATION_FAILED
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('分享链接不存在或已失效');
+  });
 });

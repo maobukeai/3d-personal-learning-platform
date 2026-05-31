@@ -155,18 +155,22 @@ const cleanSummary = computed(() => {
     <!-- Header Meta Row -->
     <div class="flex items-start justify-between mb-3.5 gap-1.5 min-w-0">
       <div class="flex items-center gap-2 min-w-0">
-        <UserAvatar 
-          :user="props.note.user" 
-          size="xs" 
-          class="md:hidden shrink-0 ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
-          @click.stop="emit('click-avatar', props.note.user.id)"
-        />
-        <UserAvatar 
-          :user="props.note.user" 
-          size="sm" 
-          class="hidden md:inline-flex shrink-0 ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
-          @click.stop="emit('click-avatar', props.note.user.id)"
-        />
+        <span class="md:hidden shrink-0">
+          <UserAvatar 
+            :user="props.note.user" 
+            size="xs" 
+            class="ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+            @click.stop="emit('click-avatar', props.note.user.id)"
+          />
+        </span>
+        <span class="hidden md:inline-flex shrink-0">
+          <UserAvatar 
+            :user="props.note.user" 
+            size="sm" 
+            class="ring-1 ring-[var(--border-base)] cursor-pointer hover:ring-2 hover:ring-accent transition-all" 
+            @click.stop="emit('click-avatar', props.note.user.id)"
+          />
+        </span>
         <div class="min-w-0">
           <p 
             class="text-xs md:text-sm font-bold text-[var(--text-primary)] leading-none truncate hover:text-accent transition-colors duration-300 cursor-pointer"

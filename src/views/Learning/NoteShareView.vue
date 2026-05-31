@@ -19,16 +19,27 @@ import {
   Quote
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useSystemStore } from '@/stores/system';
+import { watch } from 'vue';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const systemStore = useSystemStore();
+const logoLoadFailed = ref(false);
+
+watch(
+  () => systemStore.settings.PLATFORM_LOGO_URL,
+  () => {
+    logoLoadFailed.value = false;
+  },
+);
 
 interface NoteUser {
   id: string;
@@ -59,7 +70,7 @@ const errorMsg = ref('');
 const isExpired = ref(false);
 
 // Reading Toolbox States
-const fontSize = ref(16);
+const fontSize = ref(12);
 const readProgress = ref(0);
 const isCopying = ref(false);
 const isCloning = ref(false);
@@ -149,14 +160,20 @@ const loadSharedNote = async () => {
     note.value = res.data.note;
     expiresAt.value = res.data.expiresAt;
     shareMessage.value = res.data.customText;
+    
+    // Set dynamic browser tab title
+    document.title = `${res.data.note.title} | ${systemStore.settings.PLATFORM_NAME}`;
+    
     fetchComments(res.data.note.id);
   } catch (error) {
     const err = error as { response?: { status?: number; data?: { error?: string } } };
     if (err.response?.status === 410) {
       isExpired.value = true;
       errorMsg.value = '该分享链接已过期失效';
+      document.title = `分享链接已过期 | ${systemStore.settings.PLATFORM_NAME}`;
     } else {
       errorMsg.value = err.response?.data?.error || '无法加载分享的笔记，链接可能不存在或已被取消';
+      document.title = `无法找到分享笔记 | ${systemStore.settings.PLATFORM_NAME}`;
     }
   } finally {
     loading.value = false;
@@ -223,13 +240,17 @@ const onWindowScroll = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  if (!systemStore.isInitialized) {
+    await systemStore.fetchSettings();
+  }
   loadSharedNote();
   window.addEventListener('scroll', onWindowScroll);
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onWindowScroll);
+  systemStore.updateBrowserBranding();
 });
 </script>
 
@@ -250,10 +271,26 @@ onUnmounted(() => {
       class="sticky top-0 z-50 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between border-b shadow-xs transition-colors bg-[var(--bg-card)]/80 border-[var(--border-base)]"
     >
       <div class="flex items-center gap-2 cursor-pointer select-none" @click="goHome">
-        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-sm">
-          <Sparkles class="w-4 h-4" />
+        <div
+          class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
+          :class="
+            systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
+              ? 'bg-transparent'
+              : 'bg-gradient-to-tr from-purple-500 to-indigo-600 shadow-sm'
+          "
+        >
+          <img
+            v-if="systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed"
+            alt=""
+            :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+            class="w-full h-full object-contain"
+            @error="logoLoadFailed = true"
+          />
+          <Sparkles v-else class="w-4 h-4 text-white" />
         </div>
-        <span class="text-xs font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">3D学习平台</span>
+        <span class="text-xs font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400">
+          {{ systemStore.settings.PLATFORM_NAME }}
+        </span>
       </div>
 
       <div class="flex items-center gap-2">
@@ -294,7 +331,7 @@ onUnmounted(() => {
       <!-- Left Column: Compact Reader Body -->
       <article 
         v-else-if="note" 
-        class="flex-1 min-w-0 w-full rounded-3xl p-5 sm:p-8 lg:p-10 border shadow-md bg-[var(--bg-card)] border-[var(--border-base)]"
+        class="flex-1 min-w-0 w-full rounded-3xl p-4 sm:p-8 lg:p-10 border shadow-md bg-[var(--bg-card)] border-[var(--border-base)]"
       >
         <!-- Floating status info for expiresAt -->
         <div 
@@ -559,7 +596,7 @@ onUnmounted(() => {
     <footer 
       class="mt-auto py-6 text-center text-[10px] text-[var(--text-muted)] border-t bg-[var(--bg-card)]/50 select-none border-[var(--border-base)]"
     >
-      <p class="mb-1">© {{ new Date().getFullYear() }} 3D Personal Learning Platform. All rights reserved.</p>
+      <p class="mb-1">© {{ new Date().getFullYear() }} {{ systemStore.settings.PLATFORM_NAME }}. All rights reserved.</p>
       <p>由公共分享密钥浏览 • 支持免登直接访问</p>
     </footer>
   </div>
@@ -583,6 +620,19 @@ onUnmounted(() => {
   font-size: inherit !important;
   line-height: 1.85 !important;
   background-color: transparent !important;
+  padding: 4px 8px !important;
+}
+@media (min-width: 768px) {
+  .modern-markdown-content :deep(.md-editor-preview),
+  .modern-markdown-content :deep(.md-preview),
+  .modern-markdown-content :deep(.mdw__preview-only) {
+    padding: 20px !important;
+  }
+}
+.modern-markdown-content :deep(.md-editor-preview p),
+.modern-markdown-content :deep(.md-preview p),
+.modern-markdown-content :deep(.mdw__preview-only p) {
+  margin-bottom: 0.8em !important;
 }
 
 .modern-markdown-content :deep(.md-editor-preview p),

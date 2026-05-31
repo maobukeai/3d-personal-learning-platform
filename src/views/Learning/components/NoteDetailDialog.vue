@@ -79,7 +79,7 @@ const handleChatWithMember = async (member: any) => {
 };
 
 // Reading Panel States
-const fontSize = ref(15);
+const fontSize = ref(12);
 const readProgress = ref(0);
 const scrollContainer = ref<HTMLElement | null>(null);
 
@@ -260,12 +260,12 @@ defineExpose({ open });
     destroy-on-close
     :show-close="false"
   >
-    <div v-if="detailNote" class="flex flex-col md:flex-row h-[88vh] overflow-hidden relative rounded-3xl bg-[var(--bg-card)]">
+    <div v-if="detailNote" class="flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative rounded-none md:rounded-3xl bg-[var(--bg-card)]">
       
       <!-- Global Close Button (Top Right of the entire Dialog Container) -->
       <button 
         type="button" 
-        class="absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
+        class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
         title="关闭阅读"
         @click="visible = false"
       >
@@ -385,7 +385,7 @@ defineExpose({ open });
       <!-- Right Main Reading Canvas -->
       <div 
         ref="scrollContainer"
-        class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col pr-12 md:pr-4 bg-[var(--bg-card)] text-[var(--text-primary)]"
+        class="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col bg-[var(--bg-card)] text-[var(--text-primary)]"
         @scroll="handleScroll"
       >
         <!-- Floating Reading Progress Indicator -->
@@ -396,11 +396,11 @@ defineExpose({ open });
           />
         </div>
 
-        <div class="max-w-[760px] w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 flex-1 flex flex-col justify-between">
+        <div class="dialog-content-wrapper max-w-[760px] w-full mx-auto px-3 sm:px-8 pt-14 pb-6 sm:py-10 flex-1 flex flex-col justify-between">
           <!-- Article Body -->
           <div>
             <!-- Mobile Author Info Header (Visible only on mobile) -->
-            <div class="md:hidden flex items-center justify-between border-b pb-4 mb-5 border-[var(--border-base)]">
+            <div class="md:hidden flex items-center justify-between border-b pb-3 mb-4 border-[var(--border-base)]">
               <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" @click="handleShowUserProfile(detailNote.user.id)">
                 <UserAvatar :user="detailNote.user" size="sm" class="shrink-0 ring-2 ring-accent/10" />
                 <div class="min-w-0">
@@ -419,7 +419,7 @@ defineExpose({ open });
               </div>
             </div>
 
-            <header class="border-b border-dashed pb-5 mb-6 border-[var(--border-base)]">
+            <header class="border-b border-dashed pb-4 mb-4 sm:pb-5 sm:mb-6 border-[var(--border-base)]">
               <h1 class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-4">
                 {{ detailNote.title }}
               </h1>
@@ -446,7 +446,7 @@ defineExpose({ open });
             </div>
 
             <!-- Mobile Toolbox & Actions (Visible only on mobile) -->
-            <div class="md:hidden mt-6 p-4 rounded-2xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-4">
+            <div class="md:hidden mt-4 p-3 rounded-xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
               <!-- Personalized typography font size -->
               <div class="flex items-center justify-between text-xs pb-3 border-b border-[var(--border-base)]">
                 <span class="font-bold text-[var(--text-secondary)]">字号调整</span>
@@ -511,7 +511,7 @@ defineExpose({ open });
           </div>
 
           <!-- Note Comments Section -->
-          <div class="mt-12 pt-8 border-t border-[var(--border-base)] space-y-6">
+          <div class="mt-8 pt-6 sm:mt-12 sm:pt-8 border-t border-[var(--border-base)] space-y-4 sm:space-y-6">
             <div class="flex items-center justify-between">
               <h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text-primary)">
                 <MessageSquare class="w-4 h-4 text-accent" />
@@ -520,7 +520,7 @@ defineExpose({ open });
             </div>
 
             <!-- Comment Input -->
-            <div v-if="authStore.isAuthenticated" class="flex items-start gap-3">
+            <div v-if="authStore.isAuthenticated" class="flex items-start gap-2.5">
               <UserAvatar :user="authStore.user" size="sm" class="shrink-0 w-6 h-6" />
               <div class="flex-1 space-y-2">
                 <el-input
@@ -558,7 +558,7 @@ defineExpose({ open });
               <div
                 v-for="item in comments"
                 :key="item.id"
-                class="flex items-start gap-3 p-3 rounded-2xl border border-[var(--border-base)] bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100/50 dark:hover:bg-white/[0.04] transition-all duration-200"
+                class="flex items-start gap-2.5 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100/50 dark:hover:bg-white/[0.04] transition-all duration-200"
               >
                 <UserAvatar :user="item.user" size="sm" class="shrink-0 w-6 h-6 cursor-pointer hover:opacity-85 transition-opacity" @click="handleShowUserProfile(item.user.id)" />
                 <div class="flex-1 min-w-0">
@@ -608,25 +608,48 @@ defineExpose({ open });
 
 <style scoped>
 :deep(.modern-note-dialog) {
-  border-radius: 1.5rem;
+  border-radius: 0 !important;
   overflow: hidden;
   border: none !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
-  width: 95% !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  top: 0 !important;
 }
 @media (min-width: 768px) {
   :deep(.modern-note-dialog) {
+    border-radius: 1.5rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45) !important;
     width: 85% !important;
+    max-width: 85% !important;
+    height: auto !important;
+    margin: 3vh auto !important;
   }
 }
 @media (min-width: 1024px) {
   :deep(.modern-note-dialog) {
     width: 75% !important;
+    max-width: 75% !important;
   }
 }
 @media (min-width: 1280px) {
   :deep(.modern-note-dialog) {
     width: 65% !important;
+    max-width: 65% !important;
+  }
+}
+.dialog-close-btn {
+  transition: all 0.2s ease-in-out;
+}
+@media (max-width: 767px) {
+  .dialog-close-btn {
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    right: 12px !important;
+  }
+  .dialog-content-wrapper {
+    padding-top: calc(56px + env(safe-area-inset-top, 0px)) !important;
   }
 }
 :deep(.modern-note-dialog .el-dialog__header) {
@@ -657,6 +680,19 @@ defineExpose({ open });
   font-size: inherit !important;
   line-height: 1.8 !important;
   background-color: transparent !important;
+  padding: 4px 8px !important;
+}
+@media (min-width: 768px) {
+  .modern-markdown-content :deep(.md-editor-preview),
+  .modern-markdown-content :deep(.md-preview),
+  .modern-markdown-content :deep(.mdw__preview-only) {
+    padding: 20px !important;
+  }
+}
+.modern-markdown-content :deep(.md-editor-preview p),
+.modern-markdown-content :deep(.md-preview p),
+.modern-markdown-content :deep(.mdw__preview-only p) {
+  margin-bottom: 0.8em !important;
 }
 
 .modern-markdown-content :deep(.md-editor-preview p),

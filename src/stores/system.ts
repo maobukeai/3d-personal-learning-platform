@@ -63,10 +63,12 @@ export const useSystemStore = defineStore('system', {
   }),
   actions: {
     updateBrowserBranding() {
-      if (this.settings.BROWSER_TITLE) {
-        document.title = this.settings.BROWSER_TITLE;
-      } else if (this.settings.PLATFORM_NAME) {
-        document.title = this.settings.PLATFORM_NAME;
+      if (!window.location.pathname.includes('/share/note/')) {
+        if (this.settings.BROWSER_TITLE) {
+          document.title = this.settings.BROWSER_TITLE;
+        } else if (this.settings.PLATFORM_NAME) {
+          document.title = this.settings.PLATFORM_NAME;
+        }
       }
 
       // Update favicon dynamically
@@ -152,7 +154,9 @@ export const useSystemStore = defineStore('system', {
 
         this.settings = {
           PLATFORM_NAME: data.PLATFORM_NAME || '3D Personal Learning Hub',
-          BROWSER_TITLE: data.BROWSER_TITLE || data.PLATFORM_NAME || '3D Personal Learning Hub',
+          BROWSER_TITLE: (data.BROWSER_TITLE && data.BROWSER_TITLE !== '3D Personal Learning Hub')
+            ? data.BROWSER_TITLE
+            : (data.PLATFORM_NAME || '3D Personal Learning Hub'),
           PLATFORM_LOGO_URL: data.PLATFORM_LOGO_URL || '',
           PLATFORM_FAVICON_URL: data.PLATFORM_FAVICON_URL || '',
           PLATFORM_DESCRIPTION: data.PLATFORM_DESCRIPTION || '',

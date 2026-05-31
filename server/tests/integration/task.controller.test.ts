@@ -25,7 +25,7 @@ describe('Task Controller Integration', () => {
     await prisma.user.deleteMany({ where: { email: testUser.email } });
 
     const hashedPassword = await bcrypt.hash(testUser.password, 10);
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         email: testUser.email,
         password: hashedPassword,

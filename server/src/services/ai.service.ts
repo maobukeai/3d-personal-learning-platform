@@ -518,6 +518,10 @@ async function executeLLMRequest(
     } else {
       const text = response.data?.choices?.[0]?.message?.content;
       if (!text) {
+        console.error(
+          'DEBUG: response.data from custom LLM is:',
+          JSON.stringify(response.data, null, 2),
+        );
         throw new Error('API 返回内容为空，请确认模型名称与接口是否兼容。');
       }
       return text;
@@ -780,7 +784,9 @@ export async function streamLLMChat(
           const parsed = JSON.parse(errorData);
           errMsg = parsed.error?.message || errMsg;
         }
-      } catch {}
+      } catch (_err) {
+        // Ignore JSON parsing errors of stream error payloads
+      }
     }
     if (res.headersSent) {
       sendSSE(res, { error: errMsg });

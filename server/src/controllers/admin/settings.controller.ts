@@ -204,7 +204,7 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
                   .map((s: string) => s.trim())
                   .filter(Boolean);
               }
-            } catch (e) {
+            } catch (_e) {
               settingsObj[field] = valStr
                 .split(',')
                 .map((s: string) => s.trim())

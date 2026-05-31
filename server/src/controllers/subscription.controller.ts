@@ -101,7 +101,7 @@ export const getPlans = async (req: Request, res: Response) => {
           p.yearlyPrice && p.price > 0 ? Math.round((1 - p.yearlyPrice / (p.price * 12)) * 100) : 0,
       })),
     );
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '获取订阅计划失败' });
   }
 };
@@ -153,7 +153,7 @@ export const getMySubscription = async (req: AuthRequest, res: Response) => {
         features: JSON.parse(subscription.plan.features || '[]'),
       },
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '获取订阅信息失败' });
   }
 };
@@ -360,7 +360,7 @@ export const cancelSubscriptionWith2FA = async (req: AuthRequest, res: Response)
         endDate: subscription.endDate,
       });
     }
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '取消订阅失败' });
   }
 };
@@ -377,7 +377,7 @@ export const checkCancelRequires2FA = async (req: AuthRequest, res: Response) =>
       requires2FA: user.twoFactorEnabled || false,
       twoFactorEnabled: user.twoFactorEnabled || false,
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '检查失败' });
   }
 };
@@ -407,7 +407,7 @@ export const toggleAutoRenew = async (req: AuthRequest, res: Response) => {
       message: autoRenew ? '已开启自动续费' : '已关闭自动续费',
       autoRenew,
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '操作失败' });
   }
 };
@@ -420,7 +420,7 @@ export const getTransactions = async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
     res.json(transactions);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '获取交易记录失败' });
   }
 };
@@ -465,7 +465,7 @@ export const getStorageUsage = async (req: AuthRequest, res: Response) => {
       materialCount: materials.length,
       showcaseCount: showcases.length,
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '获取存储用量失败' });
   }
 };
@@ -499,7 +499,7 @@ export const getSubscriptionLimits = async (req: AuthRequest, res: Response) => 
       currentAssets: assetCount,
       planName: plan.name,
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '获取订阅限制失败' });
   }
 };
@@ -540,7 +540,7 @@ export const checkSubscription = async (req: AuthRequest, res: Response) => {
       endDate: subscription.endDate,
       needsUpgrade: false,
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '检查订阅状态失败' });
   }
 };

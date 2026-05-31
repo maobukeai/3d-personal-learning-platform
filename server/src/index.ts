@@ -7,6 +7,7 @@ import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
 import { startCleanupJob } from './services/cleanup.service';
 import './services/redis.service';
+import prisma from './services/prisma';
 
 const port = config.PORT;
 
@@ -21,7 +22,6 @@ startCleanupJob(); // Clean up expired data hourly
 runManualStationMigration().catch((err) => {
   logger.error('[Startup] Migration error:', err);
 });
-import prisma from './services/prisma';
 
 server.listen(port, () => {
   logger.info(`Server is running at http://localhost:${port}`);
@@ -48,3 +48,4 @@ const gracefulShutdown = async (signal: string) => {
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+// Hot reload trigger: updated with stable keys and encryption fallback

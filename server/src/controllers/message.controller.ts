@@ -501,7 +501,7 @@ export const uploadFile = async (req: AuthRequest, res: Response) => {
   try {
     const fileUrl = `/uploads/messages/${req.file.filename}`;
     res.json({ url: fileUrl, type: req.file.mimetype.startsWith('image/') ? 'IMAGE' : 'FILE' });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };

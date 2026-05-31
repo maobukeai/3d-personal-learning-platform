@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { logger } from '../utils/logger';
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();

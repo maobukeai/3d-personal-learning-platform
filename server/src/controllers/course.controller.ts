@@ -343,7 +343,7 @@ export const getMyEnrollments = async (req: AuthRequest, res: Response, next: Ne
           ? e.course.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
             e.course.reviews.length
           : 0;
-      const { reviews, ...courseRest } = e.course;
+      const { reviews: _reviews, ...courseRest } = e.course;
       return { ...e, course: { ...courseRest, avgRating: Math.round(avgRating * 10) / 10 } };
     });
 

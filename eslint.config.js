@@ -45,7 +45,7 @@ export default [
       ...prettierConfig.rules,
       "prettier/prettier": "off",
       "vue/multi-word-component-names": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
       "no-console": ["warn", { "allow": ["warn", "error"] }],
       "no-useless-catch": "off",

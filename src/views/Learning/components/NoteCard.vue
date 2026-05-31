@@ -12,7 +12,8 @@ import {
   Calendar,
   Folder,
   Pin,
-  FileText
+  FileText,
+  Check
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -36,12 +37,20 @@ interface Note {
   updatedAt: string;
 }
 
-const props = defineProps<{
-  note: Note;
-  index: number;
-  activeTab: string;
-  isMobile: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    note: Note;
+    index: number;
+    activeTab: string;
+    isMobile: boolean;
+    isSelectionMode?: boolean;
+    isSelected?: boolean;
+  }>(),
+  {
+    isSelectionMode: false,
+    isSelected: false,
+  }
+);
 
 const emit = defineEmits<{
   (e: 'click-detail', note: Note): void;
@@ -52,12 +61,13 @@ const emit = defineEmits<{
   (e: 'like', note: Note): void;
   (e: 'share', note: Note): void;
   (e: 'click-avatar', userId: string): void;
+  (e: 'toggle-select', note: Note): void;
 }>();
 
 const authStore = useAuthStore();
 
 const isDraggable = computed(() => {
-  return props.activeTab === 'MY' && (props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN');
+  return props.activeTab === 'MY' && !props.isSelectionMode && (props.note.userId === authStore.user?.id || authStore.user?.role === 'ADMIN');
 });
 
 const onDragStart = (event: DragEvent) => {
@@ -100,14 +110,31 @@ const cleanSummary = computed(() => {
 
 <template>
   <div
-    class="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative overflow-hidden"
-    :class="[isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer']"
+    class="bg-[var(--bg-card)] border rounded-xl p-3 sm:p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative overflow-hidden"
+    :class="[
+      isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+      props.isSelected ? 'border-accent ring-1 ring-accent' : 'border-[var(--border-base)]'
+    ]"
     :draggable="isDraggable"
-    @click="emit('click-detail', props.note)"
+    @click="props.isSelectionMode ? emit('toggle-select', props.note) : emit('click-detail', props.note)"
     @dragstart="onDragStart"
   >
+    <!-- Batch Selection Checkbox overlay -->
+    <div 
+      v-if="props.isSelectionMode" 
+      class="absolute top-3 left-3 z-30 w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer shadow-xs"
+      :class="[
+        props.isSelected ? 
+        'bg-accent border-accent text-white' : 
+        'bg-[var(--bg-card)] border-[var(--border-base)] text-transparent hover:border-accent'
+      ]"
+      @click.stop="emit('toggle-select', props.note)"
+    >
+      <Check class="w-3.5 h-3.5" />
+    </div>
+
     <!-- Left Hover Glow Accent Line -->
-    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-8 bg-accent rounded-r-md opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"></div>
+    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-8 bg-accent rounded-r-md opacity-0 group-hover:opacity-100 transition-all duration-300 z-10" :class="{ 'hidden': props.isSelectionMode }"></div>
 
     <!-- Pinned Note Corner Indicator -->
     <div 

@@ -35,7 +35,7 @@ const validateField = (value: any, rule: ValidationRule, field: string): string 
         return rule.message || `${field} 长度不能超过 ${rule.maxLength}`;
       if (rule.pattern && !rule.pattern.test(value)) return rule.message || `${field} 格式不正确`;
       break;
-    case 'number':
+    case 'number': {
       if (typeof value !== 'number' && isNaN(Number(value)))
         return rule.message || `${field} 必须为数字`;
       const num = Number(value);
@@ -44,6 +44,7 @@ const validateField = (value: any, rule: ValidationRule, field: string): string 
       if (rule.max !== undefined && num > rule.max)
         return rule.message || `${field} 不能大于 ${rule.max}`;
       break;
+    }
     case 'email':
       if (typeof value !== 'string' || !EMAIL_REGEX.test(value))
         return rule.message || `${field} 邮箱格式不正确`;

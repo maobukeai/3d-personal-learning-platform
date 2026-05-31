@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as projectController from '../controllers/project.controller';
+import * as projectAiController from '../controllers/project-ai.controller';
 import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 import rateLimit from 'express-rate-limit';
 import { createRateLimitHandler } from '../middlewares/rate-limit.middleware';
@@ -30,28 +31,28 @@ const aiUploadRateLimiter = rateLimit({
 });
 
 // AI chat can be used by guests in development, but production requires auth to prevent API cost abuse.
-router.post('/ai-chat', publicAiMiddleware, aiRateLimiter, projectController.aiChat);
+router.post('/ai-chat', publicAiMiddleware, aiRateLimiter, projectAiController.aiChat);
 router.post(
   '/ai-chat/upload',
   publicAiMiddleware,
   aiUploadRateLimiter,
   upload.single('image'),
   validateFileContent,
-  projectController.uploadAiChatImage,
+  projectAiController.uploadAiChatImage,
 );
 
 router.use(authenticate);
 
-router.get('/ai-chat/history', projectController.getAiChatHistory);
-router.delete('/ai-chat/history', projectController.clearAiChatHistory);
+router.get('/ai-chat/history', projectAiController.getAiChatHistory);
+router.delete('/ai-chat/history', projectAiController.clearAiChatHistory);
 
 router.get('/', projectController.getAllProjects);
 router.post('/', projectController.createProject);
 router.post('/import', projectController.importProjectFromText);
-router.post('/ai-generate', aiRateLimiter, projectController.aiGenerateProjectText);
-router.post('/parse-netdisk', aiRateLimiter, projectController.parseNetdiskLink);
-router.post('/co-plan-chat', aiRateLimiter, projectController.coPlanChatStream);
-router.post('/import-json', projectController.importProjectFromJson);
+router.post('/ai-generate', aiRateLimiter, projectAiController.aiGenerateProjectText);
+router.post('/parse-netdisk', aiRateLimiter, projectAiController.parseNetdiskLink);
+router.post('/co-plan-chat', aiRateLimiter, projectAiController.coPlanChatStream);
+router.post('/import-json', projectAiController.importProjectFromJson);
 router.get('/:id', projectController.getProjectById);
 router.put('/:id', projectController.updateProject);
 router.delete('/:id', projectController.deleteProject);

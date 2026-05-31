@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from 'vue';
+import { ref, computed, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { 
@@ -15,7 +15,8 @@ import {
   Sparkles,
   MessageSquare,
   Trash2,
-  Share2
+  Share2,
+  Loader2
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -153,9 +154,16 @@ const handleScroll = (e: Event) => {
 };
 
 const open = async (note: Note) => {
+  sessionSummary.value = '';
+  isSummarizing.value = false;
   try {
     const res = await api.get(`/api/notes/${note.id}`);
     detailNote.value = res.data;
+    if (res.data.summary && !isFallbackExcerpt(res.data.summary, res.data.content)) {
+      sessionSummary.value = res.data.summary;
+    } else {
+      sessionSummary.value = '';
+    }
     visible.value = true;
     readProgress.value = 0;
     // reset scroll to top after modal renders
@@ -246,6 +254,84 @@ const parseTags = (note: Note): string[] => {
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
+  }
+};
+
+const isFallbackExcerpt = (summary: string, content: string): boolean => {
+  if (!summary || !content) return false;
+  const cleanStr = (str: string) => str.replace(/[#*`>_\-[\]()+:\s\r\n.,，。！!？?、]/g, '');
+  const cleanSummary = cleanStr(summary);
+  const cleanContent = cleanStr(content);
+  return cleanContent.includes(cleanSummary) && cleanContent.indexOf(cleanSummary) < 150;
+};
+
+const isSummarizing = ref(false);
+const sessionSummary = ref('');
+const summaryProgress = ref(0);
+
+const currentThinkingStep = computed(() => {
+  const percent = summaryProgress.value;
+  if (percent < 12) return "分析段落结构";
+  if (percent < 25) return "梳理核心要点";
+  if (percent < 38) return "提取关键概念";
+  if (percent < 50) return "生成摘要大纲";
+  if (percent < 65) return "提炼要点内容";
+  if (percent < 80) return "过滤冗余词句";
+  if (percent < 92) return "润色语言表达";
+  return "完成核心排版";
+});
+
+const generateAiSummary = async () => {
+  if (!detailNote.value || isSummarizing.value) return;
+  isSummarizing.value = true;
+  summaryProgress.value = 0;
+  sessionSummary.value = '';
+  
+  const progressInterval = setInterval(() => {
+    if (summaryProgress.value < 40) {
+      summaryProgress.value += Math.floor(Math.random() * 3) + 2; // 2-4%
+    } else if (summaryProgress.value < 70) {
+      summaryProgress.value += Math.floor(Math.random() * 2) + 1; // 1-2%
+    } else if (summaryProgress.value < 90) {
+      if (Math.random() > 0.4) {
+        summaryProgress.value += 1;
+      }
+    } else if (summaryProgress.value < 99) {
+      if (Math.random() > 0.7) {
+        summaryProgress.value += 1;
+      }
+    }
+  }, 150);
+
+  try {
+    const res = await api.post(`/api/notes/${detailNote.value.id}/ai-summarize`);
+    if (res.data && res.data.summary) {
+      clearInterval(progressInterval);
+      // Smoothly accelerate to 100%
+      const fillProgress = () => {
+        return new Promise<void>((resolve) => {
+          const fillInterval = setInterval(() => {
+            if (summaryProgress.value < 100) {
+              summaryProgress.value += Math.min(5, 100 - summaryProgress.value);
+            } else {
+              clearInterval(fillInterval);
+              resolve();
+            }
+          }, 30);
+        });
+      };
+      await fillProgress();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      sessionSummary.value = res.data.summary;
+    } else {
+      clearInterval(progressInterval);
+      ElMessage.error('未能获取生成摘要');
+    }
+  } catch (err: any) {
+    clearInterval(progressInterval);
+    ElMessage.error(getApiErrorMessage(err, '生成摘要失败，请重试'));
+  } finally {
+    isSummarizing.value = false;
   }
 };
 
@@ -419,21 +505,52 @@ defineExpose({ open });
               </div>
             </div>
 
-            <header class="border-b border-dashed pb-4 mb-4 sm:pb-5 sm:mb-6 border-[var(--border-base)]">
-              <h1 class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-4">
+            <header class="border-b border-dashed pb-2 mb-3 sm:pb-3 sm:mb-3 border-[var(--border-base)]">
+              <h1 class="text-xl sm:text-2xl md:text-3xl font-black leading-tight tracking-tight mb-2.5">
                 {{ detailNote.title }}
               </h1>
               
-              <!-- Compact summary -->
+              <!-- Dynamic AI summary -->
               <div 
-                v-if="detailNote.summary" 
-                class="rounded-2xl p-3 sm:p-4 text-xs sm:text-sm leading-relaxed border bg-slate-50 dark:bg-white/[0.02] border-[var(--border-base)] text-[var(--text-secondary)]"
+                class="rounded-xl p-2.5 text-xs leading-relaxed border bg-slate-50/40 dark:bg-zinc-900/10 border-[var(--border-base)] text-[var(--text-secondary)]"
               >
-                <div class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-accent mb-1">
-                  <Sparkles class="w-3.5 h-3.5" />
-                  <span>核心摘要</span>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]">
+                    <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <span>核心摘要</span>
+                  </div>
+                  <button 
+                    type="button"
+                    :disabled="isSummarizing"
+                    class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                    @click="generateAiSummary"
+                  >
+                    <Sparkles class="w-3 h-3 text-[var(--text-muted)]" :class="{ 'animate-pulse': isSummarizing }" />
+                    <span>{{ isSummarizing ? '提炼中...' : (sessionSummary ? '重新生成' : '生成 AI 摘要') }}</span>
+                  </button>
                 </div>
-                {{ detailNote.summary }}
+                
+                <div v-if="sessionSummary" class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal">
+                  {{ sessionSummary }}
+                </div>
+                <div v-else-if="isSummarizing" class="mt-2.5 space-y-1.5">
+                  <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+                    <span class="flex items-center gap-1.5 font-bold text-[var(--text-secondary)]">
+                      <Loader2 class="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
+                      AI 正在思考: {{ currentThinkingStep }}...
+                    </span>
+                    <span class="font-bold text-[var(--accent)]">{{ summaryProgress }}%</span>
+                  </div>
+                  <div class="h-1 w-full bg-slate-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <div 
+                      class="h-full bg-[var(--accent)] rounded-full transition-all duration-300 ease-out"
+                      :style="{ width: `${summaryProgress}%` }"
+                    ></div>
+                  </div>
+                </div>
+                <div v-else class="text-[var(--text-muted)] text-[10.5px] mt-1.5 py-0.5">
+                  待摘要
+                </div>
               </div>
             </header>
 
@@ -446,65 +563,65 @@ defineExpose({ open });
             </div>
 
             <!-- Mobile Toolbox & Actions (Visible only on mobile) -->
-            <div class="md:hidden mt-4 p-3 rounded-xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
+            <div class="md:hidden mt-3 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-2">
               <!-- Personalized typography font size -->
-              <div class="flex items-center justify-between text-xs pb-3 border-b border-[var(--border-base)]">
+              <div class="flex items-center justify-between text-[11px] pb-1.5 border-b border-[var(--border-base)]">
                 <span class="font-bold text-[var(--text-secondary)]">字号调整</span>
-                <div class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
-                  <button type="button" class="w-6 h-6 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(-1)"><Minus class="w-3 h-3" /></button>
-                  <span class="text-[10px] font-black px-2 text-[var(--text-primary)]">{{ fontSize }}px</span>
-                  <button type="button" class="w-6 h-6 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(1)"><Plus class="w-3 h-3" /></button>
+                <div class="flex items-center gap-0.5 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
+                  <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(-1)"><Minus class="w-2.5 h-2.5" /></button>
+                  <span class="text-[10px] font-black px-1.5 text-[var(--text-primary)]">{{ fontSize }}px</span>
+                  <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(1)"><Plus class="w-2.5 h-2.5" /></button>
                 </div>
               </div>
 
               <!-- Action buttons -->
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div class="flex flex-wrap gap-1.5">
                 <button
                   v-if="authStore.user?.role === 'ADMIN' && detailNote.visibility === 'PUBLIC'"
                   type="button"
-                  class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer bg-[var(--bg-card)]"
+                  class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer bg-[var(--bg-card)]"
                   :class="detailNote.isPopular ? 'bg-amber-500/10 border-amber-500/25 text-amber-500' : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)]'"
                   @click="handleTogglePopular"
                 >
-                  <Star class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isPopular }" />
+                  <Star class="w-3 h-3" :class="{ 'fill-current': detailNote.isPopular }" />
                   <span>{{ detailNote.isPopular ? '已热' : '推荐热门' }}</span>
                 </button>
 
                 <button 
                   type="button"
-                  class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border transition-all active:scale-95 cursor-pointer bg-[var(--bg-card)]"
+                  class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer bg-[var(--bg-card)]"
                   :class="detailNote.isLiked ? 'bg-rose-500/10 border-rose-500/25 text-rose-500' : 'bg-transparent border-[var(--border-base)] text-[var(--text-secondary)]'"
                   @click="handleLike"
                 >
-                  <Heart class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isLiked }" />
+                  <Heart class="w-3 h-3" :class="{ 'fill-current': detailNote.isLiked }" />
                   <span>{{ detailNote.isLiked ? '已赞' : '点赞' }}</span>
                 </button>
 
                 <button 
                   v-if="detailNote.userId === authStore.user?.id"
                   type="button"
-                  class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] transition-all active:scale-95 cursor-pointer shadow-xs"
+                  class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] transition-all active:scale-95 cursor-pointer shadow-2xs"
                   @click="emit('share', detailNote)"
                 >
-                  <Share2 class="w-3.5 h-3.5" />
+                  <Share2 class="w-3 h-3" />
                   <span>分享</span>
                 </button>
                 
                 <button 
                   type="button"
-                  class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] transition-all active:scale-95 cursor-pointer shadow-xs"
+                  class="flex-1 min-w-[70px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[10px] font-bold border border-[var(--border-base)] text-[var(--text-secondary)] bg-[var(--bg-card)] transition-all active:scale-95 cursor-pointer shadow-2xs"
                   @click="handleCopy"
                 >
-                  <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5" />
+                  <component :is="isCopying ? Check : Copy" class="w-3 h-3" />
                   <span>{{ isCopying ? '已复制' : '复制全文' }}</span>
                 </button>
               </div>
 
               <!-- Tags list on mobile -->
-              <div v-if="parseTags(detailNote).length || detailNote.category" class="pt-3 border-t border-[var(--border-base)]">
+              <div v-if="parseTags(detailNote).length || detailNote.category" class="pt-2 border-t border-[var(--border-base)]">
                 <div class="flex flex-wrap gap-1">
-                  <span v-if="detailNote.category" class="px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/15 text-accent text-[9px] font-black">{{ detailNote.category }}</span>
-                  <span v-for="tag in parseTags(detailNote)" :key="tag" class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]">#{{ tag }}</span>
+                  <span v-if="detailNote.category" class="px-1.5 py-0.2 rounded-md bg-accent/10 border border-accent/15 text-accent text-[9px] font-black">{{ detailNote.category }}</span>
+                  <span v-for="tag in parseTags(detailNote)" :key="tag" class="px-1.5 py-0.2 rounded-md bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]">#{{ tag }}</span>
                 </div>
               </div>
             </div>
@@ -686,7 +803,7 @@ defineExpose({ open });
   .modern-markdown-content :deep(.md-editor-preview),
   .modern-markdown-content :deep(.md-preview),
   .modern-markdown-content :deep(.mdw__preview-only) {
-    padding: 20px !important;
+    padding: 0 20px 20px 20px !important;
   }
 }
 .modern-markdown-content :deep(.md-editor-preview p),
@@ -718,6 +835,40 @@ defineExpose({ open });
 .modern-markdown-content :deep(h2) { font-size: 1.55em !important; font-weight: 800 !important; border-bottom: 1px dashed var(--border-base) !important; padding-bottom: 0.3em; }
 .modern-markdown-content :deep(h3) { font-size: 1.3em !important; font-weight: 700 !important; }
 .modern-markdown-content :deep(h4) { font-size: 1.15em !important; font-weight: 700 !important; }
+
+/* Responsive scrollable tables with premium styling on mobile */
+.modern-markdown-content :deep(table) {
+  display: block !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  border-collapse: collapse !important;
+  margin: 1.5rem 0 !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modern-markdown-content :deep(table th),
+.modern-markdown-content :deep(table td) {
+  padding: 8px 14px !important;
+  border: 1px solid var(--border-base) !important;
+  font-size: 0.95em !important;
+  line-height: 1.6 !important;
+}
+
+.modern-markdown-content :deep(table th) {
+  background-color: var(--bg-subtle) !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 767px) {
+  .modern-markdown-content :deep(table th),
+  .modern-markdown-content :deep(table td) {
+    min-width: 85px;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+  }
+}
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

@@ -110,7 +110,7 @@ export const googleCallback = async (req: Request, res: Response) => {
     const refreshToken = await generateRefreshToken(user.id);
     setAuthCookies(res, accessToken, refreshToken);
     res.redirect(frontendLoginUrl('oauth=success'));
-  } catch (error) {
+  } catch (_error) {
     res.redirect(frontendLoginUrl('error=oauth_failed'));
   }
 };
@@ -189,7 +189,7 @@ export const githubCallback = async (req: Request, res: Response) => {
     const refreshToken = await generateRefreshToken(user.id);
     setAuthCookies(res, accessToken, refreshToken);
     res.redirect(frontendLoginUrl('oauth=success'));
-  } catch (error) {
+  } catch (_error) {
     res.redirect(frontendLoginUrl('error=oauth_failed'));
   }
 };

@@ -656,7 +656,7 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
     }
     const relativePath = `/uploads/manual/${req.file.filename}`;
     res.json({ url: relativePath });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: '图片上传失败' });
   }
 };

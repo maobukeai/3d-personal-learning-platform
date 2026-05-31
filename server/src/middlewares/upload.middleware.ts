@@ -352,7 +352,7 @@ export const validateFileContent = async (req: Request, res: Response, next: Nex
             return res.status(400).json({ error: '无效的SVG图片内容' });
           }
           continue;
-        } catch (readErr) {
+        } catch (_readErr) {
           if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
           return res.status(400).json({ error: '文件读取失败' });
         }

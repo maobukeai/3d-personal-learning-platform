@@ -9,11 +9,12 @@ export { AppError };
 
 const handlePrismaError = (err: Prisma.PrismaClientKnownRequestError): AppError => {
   switch (err.code) {
-    case 'P2002':
+    case 'P2002': {
       const target = (err.meta?.target as string[])?.join(', ') || 'field';
       return new AppError(`数据冲突：${target} 已存在`, 409, 'DATABASE_CONFLICT', {
         target,
       });
+    }
     case 'P2025':
       return new AppError('请求的资源不存在', 404, 'RESOURCE_NOT_FOUND');
     case 'P2003':
@@ -61,7 +62,7 @@ const handleMulterError = (err: any): AppError => {
   }
 };
 
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+export const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
   let error = err;
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {

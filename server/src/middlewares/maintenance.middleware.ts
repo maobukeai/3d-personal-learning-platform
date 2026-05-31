@@ -27,7 +27,7 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
           if (user && user.role === 'ADMIN') {
             return next(); // Allow admin to bypass
           }
-        } catch (e) {
+        } catch (_e) {
           // Token invalid or other error
         }
       }
@@ -52,7 +52,7 @@ export const checkMaintenanceMode = async (req: Request, res: Response, next: Ne
     }
 
     next();
-  } catch (error) {
+  } catch (_error) {
     next(); // If service fails, don't block the site
   }
 };

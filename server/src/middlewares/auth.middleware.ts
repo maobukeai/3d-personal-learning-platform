@@ -11,8 +11,6 @@ const reviveUserDates = (user: any) => {
   if (!user) return user;
   if (user.createdAt) user.createdAt = new Date(user.createdAt);
   if (user.updatedAt) user.updatedAt = new Date(user.updatedAt);
-  if (user.emailVerifiedAt) user.emailVerifiedAt = new Date(user.emailVerifiedAt);
-  if (user.twoFactorEnabledAt) user.twoFactorEnabledAt = new Date(user.twoFactorEnabledAt);
   return user;
 };
 
@@ -210,7 +208,7 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
     };
     await attachAuthenticatedUser(req, decoded.id);
     next();
-  } catch (error) {
+  } catch (_error) {
     // If token is invalid, just proceed as guest
     next();
   }

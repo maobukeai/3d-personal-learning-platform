@@ -53,7 +53,7 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
       data: { isRead: true },
     });
     res.json({ message: 'Notification marked as read' });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -65,7 +65,7 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
       data: { isRead: true },
     });
     res.json({ message: 'All notifications marked as read' });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -77,7 +77,7 @@ export const deleteNotification = async (req: AuthRequest, res: Response) => {
       where: { id, userId: req.userId as string },
     });
     res.json({ message: 'Notification deleted' });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -93,7 +93,7 @@ export const getNotificationPreferences = async (req: AuthRequest, res: Response
       });
     }
     res.json(prefs);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -126,7 +126,7 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
       },
     });
     res.json(prefs);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };

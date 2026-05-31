@@ -99,7 +99,9 @@ export async function cleanupOrphanedFiles() {
         try {
           const imgs = JSON.parse(s.images);
           if (Array.isArray(imgs)) imgs.forEach(addPath);
-        } catch {}
+        } catch (_err) {
+          if (typeof s.images === 'string') addPath(s.images);
+        }
       }
     });
     users.forEach((u) => addPath(u.avatarUrl));
@@ -138,7 +140,9 @@ export async function cleanupOrphanedFiles() {
         try {
           const imgs = JSON.parse(d.images);
           if (Array.isArray(imgs)) imgs.forEach(addPath);
-        } catch {}
+        } catch (_err) {
+          if (typeof d.images === 'string') addPath(d.images);
+        }
       }
       extractUploadUrls(d.content).forEach(addPath);
     });
@@ -164,7 +168,9 @@ export async function cleanupOrphanedFiles() {
         try {
           const imgs = JSON.parse(pd.images);
           if (Array.isArray(imgs)) imgs.forEach(addPath);
-        } catch {}
+        } catch (_err) {
+          if (typeof pd.images === 'string') addPath(pd.images);
+        }
       }
       extractUploadUrls(pd.content).forEach(addPath);
     });

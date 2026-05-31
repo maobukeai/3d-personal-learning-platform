@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from './error.middleware';
+import crypto from 'crypto';
 
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === 'test') {
@@ -55,9 +56,8 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
       if (bufA.length !== bufB.length) {
         return false;
       }
-      const crypto = require('crypto');
       return crypto.timingSafeEqual(bufA, bufB);
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   };

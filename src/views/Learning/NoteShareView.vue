@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, defineAsyncComponent, onUnmounted } from 'vue';
+import { ref, computed, onMounted, defineAsyncComponent, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   Eye, 
@@ -16,7 +16,8 @@ import {
   BookMarked,
   MessageSquare,
   Trash2,
-  Quote
+  Quote,
+  Loader2
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -155,11 +156,18 @@ const loadSharedNote = async () => {
   loading.value = true;
   errorMsg.value = '';
   isExpired.value = false;
+  sessionSummary.value = '';
+  isSummarizing.value = false;
   try {
     const res = await api.get(`/api/notes/share/${shareId}`);
     note.value = res.data.note;
     expiresAt.value = res.data.expiresAt;
     shareMessage.value = res.data.customText;
+    if (res.data.note.summary && !isFallbackExcerpt(res.data.note.summary, res.data.note.content)) {
+      sessionSummary.value = res.data.note.summary;
+    } else {
+      sessionSummary.value = '';
+    }
     
     // Set dynamic browser tab title
     document.title = `${res.data.note.title} | ${systemStore.settings.PLATFORM_NAME}`;
@@ -224,6 +232,84 @@ const handleSaveToMyNotes = async () => {
     ElMessage.error('保存失败，请稍后重试');
   } finally {
     isCloning.value = false;
+  }
+};
+
+const isFallbackExcerpt = (summary: string, content: string): boolean => {
+  if (!summary || !content) return false;
+  const cleanStr = (str: string) => str.replace(/[#*`>_\-[\]()+:\s\r\n.,，。！!？?、]/g, '');
+  const cleanSummary = cleanStr(summary);
+  const cleanContent = cleanStr(content);
+  return cleanContent.includes(cleanSummary) && cleanContent.indexOf(cleanSummary) < 150;
+};
+
+const isSummarizing = ref(false);
+const sessionSummary = ref('');
+const summaryProgress = ref(0);
+
+const currentThinkingStep = computed(() => {
+  const percent = summaryProgress.value;
+  if (percent < 12) return "分析段落结构";
+  if (percent < 25) return "梳理核心要点";
+  if (percent < 38) return "提取关键概念";
+  if (percent < 50) return "生成摘要大纲";
+  if (percent < 65) return "提炼要点内容";
+  if (percent < 80) return "过滤冗余词句";
+  if (percent < 92) return "润色语言表达";
+  return "完成核心排版";
+});
+
+const generateAiSummary = async () => {
+  if (isSummarizing.value) return;
+  isSummarizing.value = true;
+  summaryProgress.value = 0;
+  sessionSummary.value = '';
+
+  const progressInterval = setInterval(() => {
+    if (summaryProgress.value < 40) {
+      summaryProgress.value += Math.floor(Math.random() * 3) + 2; // 2-4%
+    } else if (summaryProgress.value < 70) {
+      summaryProgress.value += Math.floor(Math.random() * 2) + 1; // 1-2%
+    } else if (summaryProgress.value < 90) {
+      if (Math.random() > 0.4) {
+        summaryProgress.value += 1;
+      }
+    } else if (summaryProgress.value < 99) {
+      if (Math.random() > 0.7) {
+        summaryProgress.value += 1;
+      }
+    }
+  }, 150);
+
+  try {
+    const res = await api.post(`/api/notes/share/${shareId}/ai-summarize`);
+    if (res.data && res.data.summary) {
+      clearInterval(progressInterval);
+      // Smoothly accelerate to 100%
+      const fillProgress = () => {
+        return new Promise<void>((resolve) => {
+          const fillInterval = setInterval(() => {
+            if (summaryProgress.value < 100) {
+              summaryProgress.value += Math.min(5, 100 - summaryProgress.value);
+            } else {
+              clearInterval(fillInterval);
+              resolve();
+            }
+          }, 30);
+        });
+      };
+      await fillProgress();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      sessionSummary.value = res.data.summary;
+    } else {
+      clearInterval(progressInterval);
+      ElMessage.error('未能获取生成摘要');
+    }
+  } catch (err: any) {
+    clearInterval(progressInterval);
+    ElMessage.error(getApiErrorMessage(err, '生成摘要失败，请重试'));
+  } finally {
+    isSummarizing.value = false;
   }
 };
 
@@ -388,13 +474,13 @@ onUnmounted(() => {
         </div>
 
         <!-- Title -->
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-black leading-tight tracking-tight mb-5">
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-black leading-tight tracking-tight mb-3">
           {{ note.title }}
         </h1>
 
         <!-- Author Information Info card -->
         <div 
-          class="flex items-center justify-between border-b pb-5 mb-6 border-[var(--border-base)]"
+          class="flex items-center justify-between border-b pb-2.5 mb-3.5 border-[var(--border-base)]"
         >
           <div class="flex items-center gap-2.5 min-w-0">
             <UserAvatar :user="note.user" size="md" class="shrink-0 border-2 border-accent/10" />
@@ -415,14 +501,45 @@ onUnmounted(() => {
 
         <!-- Abstract/Summary Card -->
         <div 
-          v-if="note.summary" 
-          class="mb-6 rounded-2xl p-4 text-xs sm:text-sm leading-relaxed border bg-slate-50 dark:bg-white/[0.02] border-[var(--border-base)] text-[var(--text-secondary)]"
+          class="mb-3 rounded-xl p-2.5 text-xs leading-relaxed border bg-slate-50/40 dark:bg-zinc-900/10 border-[var(--border-base)] text-[var(--text-secondary)]"
         >
-          <div class="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-accent mb-1.5">
-            <Sparkles class="w-3.5 h-3.5" />
-            <span>核心摘要</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]">
+              <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+              <span>核心摘要</span>
+            </div>
+            <button 
+              type="button"
+              :disabled="isSummarizing"
+              class="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-[var(--border-base)] active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+              @click="generateAiSummary"
+            >
+              <Sparkles class="w-3 h-3 text-[var(--text-muted)]" :class="{ 'animate-pulse': isSummarizing }" />
+              <span>{{ isSummarizing ? '提炼中...' : (sessionSummary ? '重新生成' : '生成 AI 摘要') }}</span>
+            </button>
           </div>
-          {{ note.summary }}
+          
+          <div v-if="sessionSummary" class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal animate-fade-in">
+            {{ sessionSummary }}
+          </div>
+          <div v-else-if="isSummarizing" class="mt-2.5 space-y-1.5">
+            <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+              <span class="flex items-center gap-1.5 font-bold text-[var(--text-secondary)]">
+                <Loader2 class="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
+                AI 正在思考: {{ currentThinkingStep }}...
+              </span>
+              <span class="font-bold text-[var(--accent)]">{{ summaryProgress }}%</span>
+            </div>
+            <div class="h-1 w-full bg-slate-200/50 dark:bg-zinc-800 rounded-full overflow-hidden">
+              <div 
+                class="h-full bg-[var(--accent)] rounded-full transition-all duration-300 ease-out"
+                :style="{ width: `${summaryProgress}%` }"
+              ></div>
+            </div>
+          </div>
+          <div v-else class="text-[var(--text-muted)] text-[10.5px] mt-1.5 py-0.5">
+            待摘要
+          </div>
         </div>
 
         <!-- Core Markdown Canvas -->
@@ -626,7 +743,7 @@ onUnmounted(() => {
   .modern-markdown-content :deep(.md-editor-preview),
   .modern-markdown-content :deep(.md-preview),
   .modern-markdown-content :deep(.mdw__preview-only) {
-    padding: 20px !important;
+    padding: 0 20px 20px 20px !important;
   }
 }
 .modern-markdown-content :deep(.md-editor-preview p),
@@ -658,4 +775,38 @@ onUnmounted(() => {
 .modern-markdown-content :deep(h2) { font-size: 1.55em !important; font-weight: 800 !important; border-bottom: 1px dashed var(--border-base) !important; padding-bottom: 0.3em; }
 .modern-markdown-content :deep(h3) { font-size: 1.3em !important; font-weight: 700 !important; }
 .modern-markdown-content :deep(h4) { font-size: 1.15em !important; font-weight: 700 !important; }
+
+/* Responsive scrollable tables with premium styling on mobile */
+.modern-markdown-content :deep(table) {
+  display: block !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  border-collapse: collapse !important;
+  margin: 1.5rem 0 !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modern-markdown-content :deep(table th),
+.modern-markdown-content :deep(table td) {
+  padding: 8px 14px !important;
+  border: 1px solid var(--border-base) !important;
+  font-size: 0.95em !important;
+  line-height: 1.6 !important;
+}
+
+.modern-markdown-content :deep(table th) {
+  background-color: var(--bg-subtle) !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 767px) {
+  .modern-markdown-content :deep(table th),
+  .modern-markdown-content :deep(table td) {
+    min-width: 85px;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+  }
+}
 </style>

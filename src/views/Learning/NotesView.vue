@@ -8,7 +8,12 @@ import {
   Search,
   Notebook,
   FolderPlus,
-  Folder
+  Folder,
+  Github,
+  Edit3,
+  Trash2,
+  CheckSquare,
+  Square
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -22,6 +27,7 @@ import NoteCloneDialog from './components/NoteCloneDialog.vue';
 import NoteEditorDialog from './components/NoteEditorDialog.vue';
 import NoteDetailDialog from './components/NoteDetailDialog.vue';
 import NoteShareDialog from './components/NoteShareDialog.vue';
+import NoteImportGithubDialog from './components/NoteImportGithubDialog.vue';
 import NoteCard from './components/NoteCard.vue';
 import ActivityTimeline from './components/ActivityTimeline.vue';
 
@@ -69,6 +75,7 @@ const cloneDialogRef = ref<InstanceType<typeof NoteCloneDialog> | null>(null);
 const editorDialogRef = ref<InstanceType<typeof NoteEditorDialog> | null>(null);
 const detailDialogRef = ref<InstanceType<typeof NoteDetailDialog> | null>(null);
 const shareDialogRef = ref<InstanceType<typeof NoteShareDialog> | null>(null);
+const githubImportDialogRef = ref<InstanceType<typeof NoteImportGithubDialog> | null>(null);
 
 const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
@@ -274,6 +281,15 @@ const openEditDialog = (note: Note) => {
   editorDialogRef.value?.open(note);
 };
 
+const openImportDialog = () => {
+  githubImportDialogRef.value?.open();
+};
+
+const handleImportedSuccess = async () => {
+  await loadNotes();
+  await loadTagsAndCategories();
+};
+
 const handleEditorSaved = async (category: string) => {
   if (category) {
     if (!localNotebooks.value.includes(category) && !categories.value.includes(category)) {
@@ -380,6 +396,219 @@ const handleLike = async (note: Note) => {
   }
 };
 
+// ── Batch selection of notes state & logic ────────────────
+const isSelectionMode = ref(false);
+const selectedNoteIds = ref<string[]>([]);
+const isMoveDialogOpen = ref(false);
+const targetMoveCategory = ref('');
+
+const toggleSelectionMode = () => {
+  isSelectionMode.value = !isSelectionMode.value;
+  selectedNoteIds.value = [];
+};
+
+const toggleNoteSelection = (note: Note) => {
+  const idx = selectedNoteIds.value.indexOf(note.id);
+  if (idx !== -1) {
+    selectedNoteIds.value.splice(idx, 1);
+  } else {
+    selectedNoteIds.value.push(note.id);
+  }
+};
+
+const handleSelectAll = (checked: any) => {
+  if (checked) {
+    selectedNoteIds.value = notes.value
+      .filter(n => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN')
+      .map(n => n.id);
+  } else {
+    selectedNoteIds.value = [];
+  }
+};
+
+const handleBatchDelete = async () => {
+  if (selectedNoteIds.value.length === 0) {
+    ElMessage.warning('请先选择需要删除的笔记');
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定要永久删除这 ${selectedNoteIds.value.length} 篇笔记吗？删除后将无法恢复。`,
+      '批量删除笔记',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+
+    loading.value = true;
+    try {
+      await Promise.all(
+        selectedNoteIds.value.map(id =>
+          api.delete(`/api/notes/${id}`)
+        )
+      );
+      ElMessage.success(`已成功批量删除 ${selectedNoteIds.value.length} 篇笔记！`);
+      selectedNoteIds.value = [];
+      isSelectionMode.value = false;
+      
+      await loadTagsAndCategories();
+      await loadNotes();
+    } catch (err) {
+      console.error(err);
+      ElMessage.error('批量删除部分笔记失败，请重试');
+    } finally {
+      loading.value = false;
+    }
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error(err);
+    }
+  }
+};
+
+const handleBatchMove = () => {
+  if (selectedNoteIds.value.length === 0) {
+    ElMessage.warning('请先选择需要移动的笔记');
+    return;
+  }
+  targetMoveCategory.value = '';
+  isMoveDialogOpen.value = true;
+};
+
+const confirmBatchMove = async () => {
+  isMoveDialogOpen.value = false;
+  loading.value = true;
+  try {
+    const categoryValue = targetMoveCategory.value || null;
+    await Promise.all(
+      selectedNoteIds.value.map(id =>
+        api.put(`/api/notes/${id}`, { category: categoryValue })
+      )
+    );
+    ElMessage.success(`已成功批量移动 ${selectedNoteIds.value.length} 篇笔记！`);
+    selectedNoteIds.value = [];
+    isSelectionMode.value = false;
+    
+    await loadTagsAndCategories();
+    await loadNotes();
+  } catch (err) {
+    console.error(err);
+    ElMessage.error('批量移动笔记失败，请重试');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// ── Custom Notebooks/Folders rename & delete logic ─────────
+const handleRenameNotebook = async (oldName: string) => {
+  try {
+    const { value: newName } = await ElMessageBox.prompt(
+      `请输入笔记本「${oldName}」的新名称：`,
+      '修改笔记本名称',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputValue: oldName,
+        inputPattern: /\S+/,
+        inputErrorMessage: '名称不能为空',
+      }
+    );
+
+    const trimmedName = newName.trim();
+    if (!trimmedName || trimmedName === oldName) return;
+
+    if (localNotebooks.value.includes(trimmedName)) {
+      ElMessage.warning('已经存在同名笔记本');
+      return;
+    }
+
+    // 1. Rename locally
+    const idx = localNotebooks.value.indexOf(oldName);
+    if (idx !== -1) {
+      localNotebooks.value[idx] = trimmedName;
+      saveLocalNotebooks();
+    }
+
+    // 2. Rename notes on server
+    const notesToUpdate = notes.value.filter(n => n.category === oldName && n.userId === authStore.user?.id);
+    if (notesToUpdate.length > 0) {
+      loading.value = true;
+      try {
+        await Promise.all(
+          notesToUpdate.map(note =>
+            api.put(`/api/notes/${note.id}`, { category: trimmedName })
+          )
+        );
+      } catch (err) {
+        console.error(err);
+        ElMessage.error('部分笔记移动至新笔记本失败');
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    if (filterCategory.value === oldName) {
+      filterCategory.value = trimmedName;
+    }
+
+    ElMessage.success(`笔记本已成功重命名为「${trimmedName}」！`);
+    await loadTagsAndCategories();
+    await loadNotes();
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error(err);
+    }
+  }
+};
+
+const handleDeleteNotebook = async (name: string) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除笔记本「${name}」吗？删除后其中的笔记将被移动到「未分类」中。`,
+      '删除笔记本',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+
+    localNotebooks.value = localNotebooks.value.filter(n => n !== name);
+    saveLocalNotebooks();
+
+    const notesToUpdate = notes.value.filter(n => n.category === name && n.userId === authStore.user?.id);
+    if (notesToUpdate.length > 0) {
+      loading.value = true;
+      try {
+        await Promise.all(
+          notesToUpdate.map(note =>
+            api.put(`/api/notes/${note.id}`, { category: null })
+          )
+        );
+      } catch (err) {
+        console.error(err);
+        ElMessage.error('移动部分笔记至未分类失败');
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    if (filterCategory.value === name) {
+      filterCategory.value = '';
+    }
+
+    ElMessage.success(`已删除笔记本「${name}」！`);
+    await loadTagsAndCategories();
+    await loadNotes();
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error(err);
+    }
+  }
+};
+
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   loadNotes();
@@ -415,16 +644,22 @@ onUnmounted(() => {
       subtitle="记录学习心得，分享知识见解"
       :icon="Notebook"
     >
-      <button type="button" class="bg-accent hover:bg-accent-dark text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 shadow-lg shadow-accent/20 shrink-0 w-full sm:w-auto cursor-pointer" @click="openCreateDialog">
-        <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        <span>发布笔记</span>
-      </button>
+      <div class="flex items-center gap-2.5 w-full sm:w-auto">
+        <button type="button" class="bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 border border-[var(--border-base)] shrink-0 w-full sm:w-auto cursor-pointer shadow-xs" @click="openImportDialog">
+          <Github class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-secondary)]" />
+          <span>导入 GitHub 笔记</span>
+        </button>
+        <button type="button" class="bg-accent hover:bg-accent-dark text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 shadow-lg shadow-accent/20 shrink-0 w-full sm:w-auto cursor-pointer" @click="openCreateDialog">
+          <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span>发布笔记</span>
+        </button>
+      </div>
     </PageHeader>
 
     <!-- Main Content Area -->
-    <div class="flex-1 overflow-y-auto custom-scrollbar p-2.5 sm:p-4 lg:p-4.5">
+    <div class="flex-1 overflow-y-auto custom-scrollbar pt-0 pb-2.5 px-2.5 sm:pt-0 sm:pb-4 sm:px-4 lg:pt-0 lg:pb-4.5 lg:px-4.5">
       <div class="max-w-none">
-        <div class="mb-1.5 md:mb-2">
+        <div class="mb-1 md:mb-1.5">
           <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
             <el-tab-pane label="我的" name="MY" />
             <el-tab-pane label="动态" name="ACTIVITY" />
@@ -471,22 +706,55 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
               </button>
               
               <!-- Dynamic Categories / Notebooks -->
-              <button
-v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
+              <div
+                v-for="cat in myNotebooksList" 
+                :key="cat" 
+                class="group/notebook flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 w-full border border-transparent" 
+                :class="[
                   filterCategory === cat ? 'bg-accent/10 text-accent font-black border-accent/10' : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
                   draggedNotebook === cat ? 'bg-accent/20 text-accent border-accent/30 shadow-sm' : ''
-                ]" @click="selectNotebook(cat)" @dragover.prevent @dragenter.prevent="draggedNotebook = cat" @dragleave="draggedNotebook = null" @drop="handleDrop($event, cat)">
-                <span class="flex items-center gap-2 truncate">
-                  <Folder class="w-3.5 h-3.5" :class="[filterCategory === cat ? 'text-accent' : 'text-[var(--text-muted)]']" /> {{ cat }}
-                </span>
-              </button>
+                ]"
+              >
+                <button 
+                  type="button" 
+                  class="flex items-center gap-2 truncate text-left flex-1 cursor-pointer bg-transparent border-0 font-bold text-inherit p-0"
+                  @click="selectNotebook(cat)" 
+                  @dragover.prevent 
+                  @dragenter.prevent="draggedNotebook = cat" 
+                  @dragleave="draggedNotebook = null" 
+                  @drop="handleDrop($event, cat)"
+                >
+                  <Folder class="w-3.5 h-3.5 shrink-0" :class="[filterCategory === cat ? 'text-accent' : 'text-[var(--text-muted)]']" />
+                  <span class="truncate">{{ cat }}</span>
+                </button>
+                
+                <!-- Rename & Delete actions visible on hover -->
+                <div class="hidden group-hover/notebook:flex items-center gap-1 shrink-0 pl-1">
+                  <button 
+                    type="button"
+                    class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-accent border-0 bg-transparent"
+                    title="修改名称"
+                    @click.stop="handleRenameNotebook(cat)"
+                  >
+                    <Edit3 class="w-3 h-3" />
+                  </button>
+                  <button 
+                    type="button"
+                    class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-red-500 border-0 bg-transparent"
+                    title="删除笔记本"
+                    @click.stop="handleDeleteNotebook(cat)"
+                  >
+                    <Trash2 class="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
             </div>
           </aside>
 
           <!-- Right side: Note content list -->
-          <div class="flex-1 min-w-0 w-full flex flex-col gap-3 md:gap-4.5">
+          <div class="flex-1 min-w-0 w-full flex flex-col gap-2 md:gap-3">
             <!-- Search & Filters -->
-            <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 md:gap-2.5 mb-1 sm:mb-2">
+            <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 md:gap-2">
               <!-- Search Input & Sort Select Side-by-Side on Mobile -->
               <div class="flex items-center gap-1.5 flex-1 min-w-0">
                 <el-input
@@ -494,75 +762,113 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
                   placeholder="搜索笔记..."
                   :prefix-icon="Search"
                   clearable
-                  class="flex-1 sm:!w-64"
+                  class="flex-1 !w-full min-w-[120px] sm:min-w-[200px] note-search-input"
                   @keyup.enter="loadNotes"
                   @clear="loadNotes"
                 />
 
-                <div
-                  class="flex items-center gap-1 p-0.5 sm:p-1 rounded-lg sm:rounded-xl shrink-0 w-24 sm:w-32"
-                  style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+                <el-select
+                  v-model="sortBy"
+                  placeholder="排序"
+                  class="shrink-0 !w-24 sm:!w-32 note-filter-select"
+                  @change="loadNotes"
                 >
-                  <el-select v-model="sortBy" placeholder="排序" class="!w-full" @change="loadNotes">
-                    <el-option label="最新" value="latest" />
-                    <el-option label="浏览" value="most_viewed" />
-                    <el-option label="点赞" value="most_liked" />
-                  </el-select>
-                </div>
+                  <el-option label="最新" value="latest" />
+                  <el-option label="浏览" value="most_viewed" />
+                  <el-option label="点赞" value="most_liked" />
+                </el-select>
               </div>
 
               <!-- Tags and Categories Selects -->
               <div v-if="tags.length || categories.length || (activeTab === 'MY' && myNotebooksList.length)" class="flex items-center gap-1.5 w-full sm:w-auto">
                 <!-- Mobile Notebook Dropdown Selector -->
-                <div
+                <el-select
                   v-if="activeTab === 'MY'"
-                  class="md:hidden flex-1 flex items-center gap-1 p-0.5 rounded-lg"
-                  style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+                  :model-value="filterCategory === '__uncategorized__' ? 'UNCATEGORIZED' : (filterCategory || 'ALL')"
+                  placeholder="笔记本"
+                  class="md:hidden flex-1 !w-full note-filter-select"
+                  @change="selectNotebook"
                 >
-                  <el-select
-                    :model-value="filterCategory === '__uncategorized__' ? 'UNCATEGORIZED' : (filterCategory || 'ALL')"
-                    placeholder="笔记本"
-                    class="!w-full"
-                    @change="selectNotebook"
-                  >
-                    <el-option label="全部笔记" value="ALL" />
-                    <el-option label="未分类" value="UNCATEGORIZED" />
-                    <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
-                  </el-select>
-                </div>
+                  <el-option label="全部笔记" value="ALL" />
+                  <el-option label="未分类" value="UNCATEGORIZED" />
+                  <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
+                </el-select>
 
-                <div
+                <el-select
                   v-if="tags.length"
-                  class="flex-1 sm:flex-none flex items-center gap-1 p-0.5 sm:p-1 rounded-lg sm:rounded-xl"
-                  style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+                  v-model="filterTag"
+                  placeholder="标签"
+                  class="flex-1 sm:flex-none !w-full sm:!w-32 note-filter-select"
+                  clearable
+                  @change="loadNotes"
                 >
-                  <el-select
-                    v-model="filterTag"
-                    placeholder="标签"
-                    class="!w-full sm:!w-32"
-                    clearable
-                    @change="loadNotes"
-                  >
-                    <el-option v-for="t in tags" :key="t" :label="t" :value="t" />
-                  </el-select>
-                </div>
+                  <el-option v-for="t in tags" :key="t" :label="t" :value="t" />
+                </el-select>
 
                 <!-- Only show Category dropdown if not in MY tab -->
-                <div
+                <el-select
                   v-if="activeTab !== 'MY' && categories.length"
-                  class="flex-1 sm:flex-none flex items-center gap-1 p-0.5 sm:p-1 rounded-lg sm:rounded-xl"
-                  style="background-color: var(--bg-card); border: 1px solid var(--border-base)"
+                  v-model="filterCategory"
+                  placeholder="分类"
+                  class="flex-1 sm:flex-none !w-full sm:!w-32 note-filter-select"
+                  clearable
+                  @change="loadNotes"
                 >
-                  <el-select
-                    v-model="filterCategory"
-                    placeholder="分类"
-                    class="!w-full sm:!w-32"
-                    clearable
-                    @change="loadNotes"
-                  >
-                    <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-                  </el-select>
-                </div>
+                  <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+                </el-select>
+              </div>
+
+              <!-- Batch Management Toggle Button -->
+              <button
+                v-if="activeTab === 'MY' && notes.length > 0"
+                type="button"
+                class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 h-8 rounded-lg text-xs font-black border transition-all active:scale-95 cursor-pointer shadow-2xs"
+                :class="[
+                  isSelectionMode ? 
+                  'bg-purple-500/10 border-purple-500/25 text-purple-500 dark:text-purple-400' : 
+                  'bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-zinc-800'
+                ]"
+                @click="toggleSelectionMode"
+              >
+                <CheckSquare v-if="isSelectionMode" class="w-3.5 h-3.5" />
+                <Square v-else class="w-3.5 h-3.5" />
+                <span>{{ isSelectionMode ? '取消批量' : '批量管理' }}</span>
+              </button>
+            </div>
+
+            <!-- Batch Management Action Bar -->
+            <div 
+              v-if="isSelectionMode && activeTab === 'MY'" 
+              class="flex items-center justify-between p-3 rounded-2xl border border-accent/20 bg-accent/5 backdrop-blur-xs text-xs font-bold mb-3"
+            >
+              <div class="flex items-center gap-3">
+                <el-checkbox
+                  :model-value="notes.length > 0 && selectedNoteIds.length === notes.filter(n => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN').length"
+                  @change="handleSelectAll"
+                >
+                  <span class="text-xs font-bold text-[var(--text-primary)]">全选</span>
+                </el-checkbox>
+                <span class="text-[var(--text-secondary)]">已选择 <span class="text-accent font-black">{{ selectedNoteIds.length }}</span> 篇笔记</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  round
+                  :disabled="selectedNoteIds.length === 0"
+                  @click="handleBatchMove"
+                >
+                  批量移动
+                </el-button>
+                <el-button 
+                  type="danger" 
+                  size="small" 
+                  round
+                  :disabled="selectedNoteIds.length === 0"
+                  @click="handleBatchDelete"
+                >
+                  批量删除
+                </el-button>
               </div>
             </div>
 
@@ -619,6 +925,8 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
                   :index="index"
                   :active-tab="activeTab"
                   :is-mobile="isMobile"
+                  :is-selection-mode="isSelectionMode && activeTab === 'MY'"
+                  :is-selected="selectedNoteIds.includes(note.id)"
                   @click-detail="viewDetail"
                   @dragstart="handleDragStart"
                   @edit="openEditDialog"
@@ -627,6 +935,7 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
                   @like="handleLike"
                   @share="openShareDialog"
                   @click-avatar="handleShowUserProfile"
+                  @toggle-select="toggleNoteSelection"
                 />
               </div>
             </div>
@@ -682,11 +991,34 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
       ref="shareDialogRef"
     />
 
+    <NoteImportGithubDialog
+      ref="githubImportDialogRef"
+      :my-notebooks-list="myNotebooksList"
+      @imported="handleImportedSuccess"
+    />
+
     <UserProfileDialog
       v-model="isProfileDialogOpen"
       :user-id="selectedUserId"
       @chat="handleChatWithMember"
     />
+
+    <!-- Batch Move Dialog -->
+    <el-dialog v-model="isMoveDialogOpen" title="批量移动至笔记本" width="min(400px, 95%)" destroy-on-close>
+      <div class="py-2">
+        <p class="text-xs text-[var(--text-secondary)] mb-3">选择目标笔记本：</p>
+        <el-select v-model="targetMoveCategory" placeholder="请选择笔记本" class="w-full">
+          <el-option label="未分类" value="" />
+          <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
+        </el-select>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="isMoveDialogOpen = false">取消</el-button>
+          <el-button type="primary" @click="confirmBatchMove">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -723,5 +1055,41 @@ v-for="cat in myNotebooksList" :key="cat" type="button" class="flex items-center
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border-base);
   border-radius: 10px;
+}
+
+/* Custom styling to make input and select compact and premium */
+:deep(.note-search-input .el-input__wrapper) {
+  border-radius: 8px !important;
+  background-color: var(--bg-card) !important;
+  box-shadow: 0 0 0 1px var(--border-base) inset !important;
+  height: 32px !important;
+  transition: all 0.2s ease !important;
+}
+:deep(.note-search-input .el-input__wrapper:hover),
+:deep(.note-search-input .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--accent) inset !important;
+}
+
+:deep(.note-filter-select .el-select__wrapper) {
+  border-radius: 8px !important;
+  background-color: var(--bg-card) !important;
+  box-shadow: 0 0 0 1px var(--border-base) inset !important;
+  transition: all 0.2s ease !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 10px !important;
+}
+:deep(.note-filter-select .el-select__wrapper:hover),
+:deep(.note-filter-select .el-select__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--accent) inset !important;
+}
+:deep(.note-filter-select .el-select__placeholder) {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+}
+:deep(.note-filter-select .el-select__text) {
+  font-size: 12px !important;
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
 }
 </style>

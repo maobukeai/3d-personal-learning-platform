@@ -427,7 +427,13 @@ export const getDiscussionTags = async (req: AuthRequest, res: Response, next: N
           if (Array.isArray(tags)) {
             tags.forEach((t: string) => tagSet.add(t));
           }
-        } catch {}
+        } catch (_err) {
+          d.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
+            .forEach((t: string) => tagSet.add(t));
+        }
       }
     });
 

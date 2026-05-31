@@ -65,7 +65,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
     if (typeof formats === 'string') {
       try {
         parsedFormats = JSON.parse(formats);
-      } catch (e) {
+      } catch (_e) {
         // fallback
       }
     }
@@ -171,7 +171,7 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
       if (typeof formats === 'string') {
         try {
           parsedFormats = JSON.parse(formats);
-        } catch (e) {
+        } catch (_e) {
           // fallback
         }
       }

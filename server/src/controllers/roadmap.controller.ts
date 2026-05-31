@@ -44,7 +44,7 @@ export const getAllRoadmaps = async (req: AuthRequest, res: Response) => {
       data: roadmaps,
       pagination: createPaginationMeta(page, limit, total),
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -55,7 +55,7 @@ export const getMyRoadmapProgress = async (req: AuthRequest, res: Response) => {
       where: { userId: req.userId as string },
     });
     res.json(progress);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -78,7 +78,7 @@ export const updateStepProgress = async (req: AuthRequest, res: Response) => {
       },
     });
     res.json(progress);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };

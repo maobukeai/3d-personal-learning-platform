@@ -73,7 +73,7 @@ export const getAllTasks = async (req: AuthRequest, res: Response) => {
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
     });
     res.json(tasks);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -229,7 +229,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     }
 
     res.status(201).json(task);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -446,7 +446,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(task);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -530,7 +530,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     }
 
     res.json({ message: 'Task deleted successfully' });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -588,7 +588,7 @@ export const getTaskStats = async (req: AuthRequest, res: Response) => {
         {} as Record<string, number>,
       ),
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };

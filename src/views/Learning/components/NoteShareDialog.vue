@@ -144,11 +144,15 @@ const handleCancelShare = async () => {
 };
 
 const copyLink = async () => {
-  if (!shareUrl.value) return;
+  if (!shareUrl.value || !note.value) return;
   try {
-    await navigator.clipboard.writeText(shareUrl.value);
+    let copyText = `我分享了笔记《${note.value.title}》，点击链接查看：${shareUrl.value}`;
+    if (enableCustomText.value && customText.value.trim()) {
+      copyText = `我分享了笔记《${note.value.title}》：“${customText.value.trim()}”，点击链接查看：${shareUrl.value}`;
+    }
+    await navigator.clipboard.writeText(copyText);
     isCopied.value = true;
-    ElMessage.success('分享链接已复制到剪贴板！');
+    ElMessage.success('已生成分享寄语并复制到剪贴板！');
     setTimeout(() => {
       isCopied.value = false;
     }, 2000);
@@ -163,48 +167,48 @@ defineExpose({ open });
 <template>
   <el-dialog
     v-model="visible"
-    width="480px"
+    width="440px"
     destroy-on-close
     class="share-note-dialog"
   >
     <template #header>
-      <div class="flex items-center gap-3">
-        <div class="p-2.5 bg-gradient-to-br from-purple-500/10 to-indigo-500/10 dark:from-purple-500/20 dark:to-indigo-500/20 text-purple-600 dark:text-purple-400 rounded-xl shadow-sm">
-          <Share2 class="w-5 h-5 animate-pulse" />
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg">
+          <Share2 class="w-4.5 h-4.5" />
         </div>
         <div>
-          <h3 class="text-sm sm:text-base font-bold tracking-wide" style="color: var(--text-primary)">
+          <h3 class="text-sm font-bold tracking-wide" style="color: var(--text-primary)">
             分享笔记
           </h3>
-          <p class="text-[10px] text-[var(--text-muted)] mt-0.5">生成免登录分享的链接，支持设置有效期限与说明文案</p>
+          <p class="text-[10px] text-[var(--text-muted)] mt-0.5">生成免登录分享链接，可设置有效时长与说明文案</p>
         </div>
       </div>
     </template>
 
-    <div v-loading="loading" class="space-y-5 py-1">
-      <!-- Note Summary Box (Premium card) -->
-      <div v-if="note" class="p-4 bg-gradient-to-r from-purple-500/5 to-indigo-500/5 hover:from-purple-500/10 hover:to-indigo-500/10 dark:from-purple-500/10 dark:to-indigo-500/10 rounded-2xl border border-purple-500/10 dark:border-purple-500/20 flex items-start gap-3.5 transition-all duration-300">
-        <div class="p-2.5 bg-gradient-to-br from-purple-500/15 to-indigo-500/15 text-purple-600 dark:text-purple-400 rounded-xl shrink-0 shadow-inner flex items-center justify-center">
-          <Share2 class="w-4.5 h-4.5" />
+    <div v-loading="loading" class="space-y-4 py-0.5">
+      <!-- Note Summary Box -->
+      <div v-if="note" class="p-3 bg-slate-50/40 dark:bg-zinc-900/10 rounded-xl border border-[var(--border-base)] flex items-start gap-3 transition-all duration-300">
+        <div class="p-2 bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-base)] rounded-lg shrink-0 flex items-center justify-center">
+          <Share2 class="w-4 h-4" />
         </div>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5 mb-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
-            <span class="text-[9px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-widest block">公开分享</span>
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse"></span>
+            <span class="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">公开分享</span>
           </div>
           <h4 class="text-xs font-bold text-[var(--text-primary)] truncate">{{ note.title }}</h4>
-          <p class="text-[10px] text-[var(--text-muted)] mt-1">创建于: {{ new Date(note.createdAt).toLocaleString('zh-CN') }}</p>
+          <p class="text-[9px] text-[var(--text-muted)] mt-0.5">创建于: {{ new Date(note.createdAt).toLocaleString('zh-CN') }}</p>
         </div>
       </div>
 
       <!-- Share Settings Form -->
-      <div class="space-y-4">
+      <div class="space-y-3.5">
         <!-- Set Duration -->
-        <div class="space-y-2">
+        <div class="space-y-1.5">
           <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1">
-            <Clock class="w-3.5 h-3.5 text-accent" /> 设置链接有效时长
+            <Clock class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 设置链接有效时长
           </label>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-3 gap-1.5">
             <button
               v-for="opt in [
                 { val: 'permanent', label: '永久有效' },
@@ -216,10 +220,10 @@ defineExpose({ open });
               ]"
               :key="opt.val"
               type="button"
-              class="px-2 py-2.5 text-xs font-bold rounded-xl border text-center transition-all cursor-pointer whitespace-nowrap hover:scale-[1.02] active:scale-95 duration-200"
+              class="px-2 py-2 text-xs font-bold rounded-lg border text-center transition-all cursor-pointer whitespace-nowrap active:scale-95 duration-200"
               :class="[
                 durationType === opt.val
-                  ? 'bg-gradient-to-r from-accent to-indigo-500 text-white font-bold border-transparent shadow-md shadow-accent/25'
+                  ? 'bg-accent text-white font-bold border-transparent'
                   : 'bg-white dark:bg-white/5 border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20'
               ]"
               @click="durationType = (opt.val as any)"
@@ -231,9 +235,9 @@ defineExpose({ open });
 
         <!-- Custom Expiration Picker -->
         <Transition name="fade">
-          <div v-if="durationType === 'custom'" class="pt-1 space-y-2">
+          <div v-if="durationType === 'custom'" class="pt-1 space-y-1.5">
             <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1">
-              <Calendar class="w-3.5 h-3.5 text-accent" /> 选择过期时间
+              <Calendar class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 选择过期时间
             </label>
             <el-date-picker
               v-model="customExpiresAt"
@@ -246,11 +250,11 @@ defineExpose({ open });
           </div>
         </Transition>
 
-        <!-- Custom Share Text (Optional) Toggle & Field -->
-        <div class="space-y-2.5 pt-3 border-t border-[var(--border-base)]">
+        <!-- Custom Share Text Toggle & Field -->
+        <div class="space-y-2 pt-2.5 border-t border-[var(--border-base)]">
           <div class="flex items-center justify-between">
             <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider block flex items-center gap-1.5 ml-1">
-              <MessageSquare class="w-3.5 h-3.5 text-accent" /> 附带分享留言 / 寄语
+              <MessageSquare class="w-3.5 h-3.5 text-[var(--text-secondary)]" /> 附带分享留言 / 寄语
             </label>
             <el-switch
               v-model="enableCustomText"
@@ -264,28 +268,28 @@ defineExpose({ open });
               <el-input
                 v-model="customText"
                 type="textarea"
-                :rows="2.5"
-                placeholder="写下几句分享留言或背景说明，将渲染在分享页面的顶部..."
+                :rows="2"
+                placeholder="写下几句分享留言，将渲染在分享页面的顶部..."
                 maxlength="200"
                 show-word-limit
                 class="custom-textarea"
               />
               
-              <!-- Shortcut copywriting templates -->
-              <div class="flex flex-wrap gap-1.5 pt-0.5 items-center">
-                <span class="text-[9px] text-[var(--text-muted)] select-none">快捷留言:</span>
+              <!-- Shortcut templates -->
+              <div class="flex items-center gap-1 pt-0.5 overflow-x-auto whitespace-nowrap shortcut-list">
+                <span class="text-[8.5px] text-[var(--text-muted)] select-none flex-shrink-0">快捷留言:</span>
                 <button
-                  v-for="tpl in [
-                    '💡 强烈推荐收藏，满满的干货分享！',
-                    '📚 精选学习心得，希望能帮到大家。',
-                    '🎯 今日学习成果复盘，欢迎交流！'
+                  v-for="opt in [
+                    { tpl: '💡 强烈推荐收藏，满满的干货分享！', label: '💡 强烈推荐' },
+                    { tpl: '📚 精选学习心得，希望能帮到大家。', label: '📚 精选心得' },
+                    { tpl: '🎯 今日学习成果复盘，欢迎交流！', label: '🎯 成果复盘' }
                   ]"
-                  :key="tpl"
+                  :key="opt.tpl"
                   type="button"
-                  class="px-2 py-1 text-[9px] bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] hover:border-accent hover:text-accent rounded-lg transition-all cursor-pointer text-[var(--text-secondary)] hover:scale-[1.02]"
-                  @click="customText = tpl"
+                  class="px-1.5 py-0.5 text-[8.5px] bg-slate-50 dark:bg-white/5 border border-[var(--border-base)] hover:border-accent hover:text-accent rounded-md transition-all cursor-pointer text-[var(--text-secondary)] flex-shrink-0"
+                  @click="customText = opt.tpl"
                 >
-                  {{ tpl.split('，')[0] }}
+                  {{ opt.label }}
                 </button>
               </div>
             </div>
@@ -293,26 +297,26 @@ defineExpose({ open });
         </div>
 
         <!-- Current Share Status & URL -->
-        <div v-if="shareConfig" class="pt-4 border-t border-[var(--border-base)] space-y-4">
+        <div v-if="shareConfig" class="pt-3 border-t border-[var(--border-base)] space-y-3">
           <!-- Status Banner -->
           <div 
-            class="p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-colors duration-300"
+            class="p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-colors duration-300"
             :class="[
               isExpired
                 ? 'bg-red-500/5 dark:bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400'
                 : 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
             ]"
           >
-            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
               <div 
-                class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-inner"
+                class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
                 :class="isExpired ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'"
               >
-                <Link class="w-4 h-4" />
+                <Link class="w-3.5 h-3.5" />
               </div>
               <div class="min-w-0 flex-1">
                 <span class="text-[9px] font-black uppercase tracking-wider block opacity-70">当前分享状态</span>
-                <span class="text-xs font-mono font-medium truncate block mt-0.5">
+                <span class="text-[11px] font-mono font-medium truncate block mt-0.5">
                   {{ getExpiryText(shareConfig.expiresAt) }}
                 </span>
               </div>
@@ -329,34 +333,34 @@ defineExpose({ open });
           </div>
 
           <!-- Share Link Box -->
-          <div class="space-y-2">
+          <div class="space-y-1.5">
             <label class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest block ml-1">分享链接</label>
             <div class="relative flex items-center">
               <input
                 :value="shareUrl"
                 readonly
                 type="text"
-                class="w-full pl-10 pr-28 py-3 rounded-2xl border text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all select-all shadow-sm"
+                class="w-full pl-9 pr-24 py-2 rounded-lg border text-xs font-mono focus:outline-none focus:ring-1 focus:ring-accent/25 transition-all select-all"
                 style="
                   background-color: var(--bg-subtle);
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
               />
-              <Link class="w-4 h-4 text-slate-400 absolute left-3.5" />
+              <Link class="w-4 h-4 text-slate-400 absolute left-3" />
               
               <button
                 type="button"
-                class="absolute right-1.5 top-1.5 bottom-1.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                class="absolute right-1 top-1 bottom-1 px-3 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
                 :class="[
                   isCopied 
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/20' 
-                    : 'bg-gradient-to-r from-accent to-indigo-500 text-white shadow-accent/20 hover:scale-[1.03] active:scale-95'
+                    ? 'bg-emerald-500 text-white' 
+                    : 'bg-accent hover:bg-accent/90 text-white active:scale-95'
                 ]"
                 @click="copyLink"
               >
                 <component :is="isCopied ? Check : Copy" class="w-3.5 h-3.5" />
-                <span>{{ isCopied ? '已复制' : '复制链接' }}</span>
+                <span>{{ isCopied ? '已复制' : '复制' }}</span>
               </button>
             </div>
           </div>
@@ -366,12 +370,12 @@ defineExpose({ open });
 
     <!-- Footer buttons -->
     <template #footer>
-      <div class="flex justify-between items-center gap-2 w-full pt-1">
+      <div class="flex justify-between items-center gap-2 w-full">
         <div>
           <button
             v-if="shareConfig"
             type="button"
-            class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-red-500 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 flex items-center gap-1.5 disabled:opacity-50"
+            class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-red-500 hover:bg-red-500/5 border border-red-500/10 hover:border-red-500/20 flex items-center gap-1 disabled:opacity-50"
             :disabled="saving"
             @click="handleCancelShare"
           >
@@ -381,19 +385,19 @@ defineExpose({ open });
         <div class="flex gap-2">
           <button 
             type="button" 
-            class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-[var(--text-secondary)] border border-transparent hover:border-[var(--border-base)]"
+            class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-[var(--text-secondary)] border border-[var(--border-base)]"
             @click="visible = false"
           >
             关闭
           </button>
           <button
             type="button"
-            class="px-5 py-2.5 bg-gradient-to-r from-accent to-indigo-500 hover:from-accent-dark hover:to-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-accent/25 hover:shadow-accent/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            class="px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
             :disabled="saving"
             @click="handleCreateOrUpdate"
           >
             <span v-if="saving" class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            <span>{{ shareConfig ? '更新设置' : '生成分享链接' }}</span>
+            <span>{{ shareConfig ? '保存设置' : '生成链接' }}</span>
           </button>
         </div>
       </div>
@@ -413,22 +417,22 @@ defineExpose({ open });
 :deep(.share-note-dialog) {
   background: var(--bg-card) !important;
   border: 1px solid var(--border-base) !important;
-  border-radius: 24px !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08) !important;
 }
 
 :deep(.share-note-dialog .el-dialog__header) {
-  padding: 24px 24px 16px !important;
+  padding: 16px 20px 12px !important;
   margin-right: 0 !important;
   border-bottom: 1px solid var(--border-base) !important;
 }
 
 :deep(.share-note-dialog .el-dialog__header .el-dialog__headerbtn) {
-  top: 24px !important;
-  right: 24px !important;
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 10px !important;
+  top: 16px !important;
+  right: 20px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
   background-color: var(--bg-subtle) !important;
   border: 1px solid var(--border-base) !important;
   display: flex !important;
@@ -439,24 +443,23 @@ defineExpose({ open });
 
 :deep(.share-note-dialog .el-dialog__header .el-dialog__headerbtn:hover) {
   background-color: var(--bg-card-hover) !important;
-  transform: scale(1.05) !important;
 }
 
 :deep(.share-note-dialog .el-dialog__body) {
-  padding: 20px 24px !important;
+  padding: 16px 20px !important;
 }
 
 :deep(.share-note-dialog .el-dialog__footer) {
-  padding: 16px 24px 24px !important;
+  padding: 12px 20px 16px !important;
   border-top: 1px solid var(--border-base) !important;
 }
 
 :deep(.custom-datepicker .el-input__wrapper) {
   background-color: var(--bg-subtle) !important;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
   box-shadow: none !important;
   border: 1px solid var(--border-base) !important;
-  padding: 8px 12px !important;
+  padding: 6px 10px !important;
 }
 
 :deep(.custom-datepicker .el-input__wrapper.is-focus) {
@@ -466,14 +469,14 @@ defineExpose({ open });
 
 :deep(.custom-textarea .el-textarea__inner) {
   background-color: var(--bg-subtle) !important;
-  border-radius: 12px !important;
+  border-radius: 8px !important;
   box-shadow: none !important;
   border: 1px solid var(--border-base) !important;
-  padding: 10px 14px !important;
+  padding: 8px 12px !important;
   font-family: inherit !important;
   color: var(--text-primary) !important;
   transition: all 0.25s ease !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
 }
 
 :deep(.custom-textarea .el-textarea__inner:focus) {
@@ -484,13 +487,20 @@ defineExpose({ open });
 
 :deep(.custom-textarea .el-input__count) {
   background: transparent !important;
-  bottom: 8px !important;
-  right: 12px !important;
-  font-size: 10px !important;
+  bottom: 6px !important;
+  right: 10px !important;
+  font-size: 9px !important;
   color: var(--text-muted) !important;
 }
 
 .dark :deep(.share-note-dialog) {
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+}
+.shortcut-list::-webkit-scrollbar {
+  display: none;
+}
+.shortcut-list {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

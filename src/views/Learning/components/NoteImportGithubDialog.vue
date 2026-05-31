@@ -352,7 +352,7 @@ defineExpose({ open });
 }
 
 /* Customizing inputs to look modern & minimalist */
-.github-import-dialog :deep(.el-input__wrapper) {
+.github-import-dialog .el-input__wrapper {
   background-color: var(--bg-app) !important;
   box-shadow: none !important;
   border: 1px solid var(--border-base) !important;
@@ -360,27 +360,27 @@ defineExpose({ open });
   padding: 6px 10px !important;
   transition: all 0.2s ease-in-out !important;
 }
-.github-import-dialog :deep(.el-input__wrapper.is-focus),
-.github-import-dialog :deep(.el-input__wrapper:hover) {
+.github-import-dialog .el-input__wrapper.is-focus,
+.github-import-dialog .el-input__wrapper:hover {
   border-color: var(--accent) !important;
   background-color: var(--bg-card) !important;
   box-shadow: 0 0 0 1px var(--accent) !important;
 }
-.github-import-dialog :deep(.el-input__inner) {
+.github-import-dialog .el-input__inner {
   font-size: 13px !important;
   color: var(--text-primary) !important;
   font-weight: 500 !important;
 }
-.github-import-dialog :deep(.el-input__inner::placeholder) {
+.github-import-dialog .el-input__inner::placeholder {
   color: var(--text-muted) !important;
   font-size: 11px !important;
 }
-.github-import-dialog :deep(.el-input__prefix) {
+.github-import-dialog .el-input__prefix {
   margin-right: 4px !important;
 }
 
 /* Customizing Select wrapper */
-.github-import-dialog :deep(.el-select .el-select__wrapper) {
+.github-import-dialog .el-select .el-select__wrapper {
   background-color: var(--bg-app) !important;
   box-shadow: none !important;
   border: 1px solid var(--border-base) !important;
@@ -389,24 +389,24 @@ defineExpose({ open });
   padding: 4px 10px !important;
   transition: all 0.2s ease-in-out !important;
 }
-.github-import-dialog :deep(.el-select .el-select__wrapper:hover),
-.github-import-dialog :deep(.el-select .el-select__wrapper.is-focus) {
+.github-import-dialog .el-select .el-select__wrapper:hover,
+.github-import-dialog .el-select .el-select__wrapper.is-focus {
   border-color: var(--accent) !important;
   background-color: var(--bg-card) !important;
   box-shadow: 0 0 0 1px var(--accent) !important;
 }
-.github-import-dialog :deep(.el-select__placeholder) {
+.github-import-dialog .el-select__placeholder {
   font-size: 12px !important;
   color: var(--text-muted) !important;
 }
-.github-import-dialog :deep(.el-select__text) {
+.github-import-dialog .el-select__text {
   font-size: 13px !important;
   color: var(--text-primary) !important;
   font-weight: 500 !important;
 }
 
 /* Customizing Radio group */
-.github-import-dialog :deep(.el-radio-button__inner) {
+.github-import-dialog .el-radio-button__inner {
   background-color: var(--bg-app) !important;
   border: 1px solid var(--border-base) !important;
   color: var(--text-secondary) !important;
@@ -420,15 +420,15 @@ defineExpose({ open });
   font-weight: bold !important;
   width: 100% !important;
 }
-.github-import-dialog :deep(.el-radio-button:first-child .el-radio-button__inner) {
+.github-import-dialog .el-radio-button:first-child .el-radio-button__inner {
   border-radius: 0.75rem 0 0 0.75rem !important;
   border-right: none !important;
 }
-.github-import-dialog :deep(.el-radio-button:last-child .el-radio-button__inner) {
+.github-import-dialog .el-radio-button:last-child .el-radio-button__inner {
   border-radius: 0 0.75rem 0.75rem 0 !important;
   border-left: none !important;
 }
-.github-import-dialog :deep(.el-radio-button.is-active .el-radio-button__inner) {
+.github-import-dialog .el-radio-button.is-active .el-radio-button__inner {
   background-color: var(--accent) !important;
   border-color: var(--accent) !important;
   color: #ffffff !important;

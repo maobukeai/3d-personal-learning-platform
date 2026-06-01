@@ -517,9 +517,21 @@ I compacted the layout spacing, paddings, and font sizes in the academy course o
   1. 在 [index.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/index.ts) 中增加物理进程优雅停机监听（`SIGINT`/`SIGTERM`）。当收到系统停机信号时，主动调用 `syncEngine.stopScheduler()` 停止定时器，关闭 HTTP 服务器，并异步执行 `prisma.$disconnect()` 平滑安全卸载数据库连接池，释放所有可能残留的行锁。
   2. 在 [.env.example](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/.env.example) 数据库连接配置串中新增并在生产配置中引导开发者限制 `connection_limit=5` 和 `pool_timeout=20`，严控单进程的最大连接跨度，规避高并发集群下数据库池枯竭。
 
----
+# 14. 部署环境邮箱账号导入 500 报错排查与安全加固 (本次更新)
 
----
+- **问题分析**：
+  1. 线上部署环境进行邮箱账号导入 (`POST /api/email/accounts/import`) 时，服务端的 `encryptSecret` 工具函数在对密码、Token 等敏感字段进行 AES-256-GCM 加密时，若在 `.env` 中未配置 `DATABASE_ENCRYPTION_KEY` 环境变量，会直接抛出致命错误，并被 controller 捕获返回 `500 (Internal Server Error) 数据库导入失败`。
+  2. 与之相反，`decryptSecret` 函数在解密时，已具备优雅的 `JWT_SECRET` / `SECRET_KEY` 降级读取逻辑（Legacy Fallback）。这使得如果线上环境只配置了 `JWT_SECRET` 而未配置 `DATABASE_ENCRYPTION_KEY`，解密功能能正常工作，而加密导入功能却会抛出异常，从而导致了“本地正常，部署报错”的诡异现象。
+  3. 前端在捕获到接口返回的 500 错误时，`getApiErrorMessage` 仅返回了固定的 `error` 标题（"数据库导入失败"），未对外展示具体出错的 `details`，使得错误隐蔽、难以排查。
+
+- **解决方案**：
+  1. **加密回刷与降级逻辑对齐**：修改了 [secret-field.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/server/src/utils/secret-field.ts)，在 `encryptSecret` 中，当 `DATABASE_ENCRYPTION_KEY` 不存在时，同样向下寻找 `JWT_SECRET` / `SECRET_KEY` 作为临时加密密钥，并输出对应的 Security Warning。这样使得只要配置了 JWT_SECRET，在没有配置独立数据库密钥的线上环境，账号导入和加解密均能无缝工作，彻底消除了 500 阻断。
+  2. **前端错误明细透传**：修改了 [error.ts](file:///c:/Users/20269/Desktop/3d-personal-learning-platform/src/utils/error.ts) 中的 `getApiErrorMessage`。如果后端接口在 500 时返回了具体的 `details`（例如异常堆栈或配置缺失提示），前端会将 details 用括号包装在主消息后（形如：`数据库导入失败 (Missing encryption key configuration...)`），极大地提升了系统的排障与容错能力。
+
+- **构建与测试验证**：
+  - 后端：运行 `npm run build` 和 `npm test`，所有 TypeScript 编译及 28 项 Jest 集成测试用例 100% 顺利通过。
+  - 前端：运行 `npm run build`，Vite 编译与打包完全通过，无任何 Warning。
+
 
 
 

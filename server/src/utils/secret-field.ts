@@ -19,7 +19,16 @@ export const encryptSecret = (value: string | null | undefined): string | null =
   if (!value) return null;
   if (isEncryptedSecret(value)) return value;
 
-  const secret = getPrimarySecret();
+  let secret = getPrimarySecret();
+
+  if (!secret) {
+    secret = process.env.JWT_SECRET || process.env.SECRET_KEY || null;
+    if (secret) {
+      logger.warn(
+        '[SecurityWarning] DATABASE_ENCRYPTION_KEY is missing. Using JWT_SECRET as fallback for encryption. Please configure DATABASE_ENCRYPTION_KEY in your .env.',
+      );
+    }
+  }
 
   if (!secret) {
     throw new Error(

@@ -44,3 +44,7 @@ server/scratch/
 *.sw?
 .gstack/
 .superpowers/
+
+# AI agent artifacts
+walkthrough.md
+code_review_report.md

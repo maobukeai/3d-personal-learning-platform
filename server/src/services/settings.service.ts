@@ -4,6 +4,7 @@ import { encryptSecret, decryptSecret } from '../utils/secret-field';
 
 export interface SystemSettings {
   PLATFORM_NAME: string;
+  PLATFORM_SUBTITLE: string;
   BROWSER_TITLE: string;
   PLATFORM_LOGO_URL: string;
   PLATFORM_FAVICON_URL: string;
@@ -76,6 +77,7 @@ export interface PublicAIModelOption {
 
 const DEFAULT_SETTINGS: SystemSettings = {
   PLATFORM_NAME: '3D Personal Learning Platform',
+  PLATFORM_SUBTITLE: '一起学 Blender，创造无限可能',
   BROWSER_TITLE: '3D Personal Learning Hub',
   PLATFORM_LOGO_URL: '',
   PLATFORM_FAVICON_URL: '',

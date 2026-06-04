@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
@@ -13,10 +13,14 @@ import {
   Bell,
   Settings,
   Search,
-  Share2,
-  ExternalLink,
   Box,
   ShieldCheck,
+  LayoutDashboard,
+  GraduationCap,
+  MessageSquare,
+  Briefcase,
+  MonitorPlay,
+  Lock,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import AISprite from '@/components/AISprite.vue';
@@ -61,6 +65,60 @@ const { t } = useI18n();
 
 const { menuGroups, mobileNavItems } = useSidebarMenus();
 
+// Top navigation tabs (Blender-club style center nav)
+const topNavTabs = computed(() => [
+  {
+    key: 'dashboard',
+    label: t('sidebar.dashboard'),
+    icon: LayoutDashboard,
+    path: '/dashboard',
+    active: route.path === '/dashboard' || route.path.startsWith('/work') || route.path.startsWith('/notes'),
+  },
+  {
+    key: 'learning',
+    label: t('sidebar.academy'),
+    icon: GraduationCap,
+    path: '/academy',
+    active: route.path.startsWith('/academy') || route.path.startsWith('/roadmaps'),
+  },
+  {
+    key: 'team',
+    label: t('sidebar.teamTasks'),
+    icon: Briefcase,
+    path: '/team-tasks',
+    active: route.path.startsWith('/team-tasks') || route.path.startsWith('/team/'),
+  },
+  {
+    key: 'community',
+    label: t('sidebar.discussions'),
+    icon: MessageSquare,
+    path: '/discussions',
+    active: route.path.startsWith('/discussions') || route.path.startsWith('/messages'),
+  },
+  {
+    key: 'showcase',
+    label: t('sidebar.showcase'),
+    icon: MonitorPlay,
+    path: '/showcase',
+    active: route.path.startsWith('/showcase') || route.path.startsWith('/my-works') || route.path.startsWith('/assets'),
+  },
+]);
+
+const showTopTabs = computed(() => {
+  // Show top tabs only in normal workspace (not admin/mirror/manual)
+  return !route.path.startsWith('/admin') &&
+         !route.path.startsWith('/mirror') &&
+         !route.path.startsWith('/manual');
+});
+
+const normalWorkspaces = computed(() => {
+  return workspaceStore.workspaces.filter((ws) => ws.type !== 'admin');
+});
+
+const adminWorkspace = computed(() => {
+  return workspaceStore.workspaces.find((ws) => ws.type === 'admin');
+});
+
 const isCreateTeamVisible = ref(false);
 const isExploreGroupsVisible = ref(false);
 const isInvitationVisible = ref(false);
@@ -95,19 +153,6 @@ watch(
 
 const handleLogoError = () => {
   logoLoadFailed.value = true;
-};
-
-const handleShare = async () => {
-  try {
-    await navigator.clipboard.writeText(window.location.href);
-    ElMessage.success(t('layout.copiedLink'));
-  } catch (_err) {
-    ElMessage.error(t('layout.copyFailed'));
-  }
-};
-
-const handleExternalLink = () => {
-  window.open(window.location.href, '_blank', 'noopener,noreferrer');
 };
 
 const handleTeamCreated = (team: { id: string }) => {
@@ -241,8 +286,10 @@ onMounted(async () => {
   window.addEventListener('resize', updateIsMobile);
   window.addEventListener('theme-changed', handleThemeChangeExternal);
 
-  applyTheme(preferences.getTheme());
-  applyAccentColor(preferences.getAccentColor());
+  // Apply stored theme (defaults to 'glass-dark') and accent color
+  const storedTheme = preferences.getTheme();
+  applyTheme(storedTheme);
+  applyAccentColor('#F5792A');
 
   if (!systemStore.isInitialized) {
     systemStore.fetchSettings();
@@ -321,17 +368,17 @@ onUnmounted(() => {
   >
     <!-- Subtle enterprise canvas for glass mode -->
     <div
-      v-show="currentTheme === 'glass' && !isMobile"
+      v-show="(currentTheme === 'glass-light' || currentTheme === 'glass-dark') && !isMobile"
       class="enterprise-canvas absolute inset-0 overflow-hidden pointer-events-none z-0"
       style="contain: strict"
     ></div>
 
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-[60px] flex items-center justify-between px-3 md:px-5 shrink-0 z-30 glass-header"
+      class="topbar h-14 flex items-center justify-between px-3 md:px-4 shrink-0 z-30 glass-header"
     >
-      <!-- Left: Hamburger + Workspace Switcher / Logo -->
-      <div class="flex items-center gap-1 md:gap-3">
+      <!-- Left: Brand Logo + Brand Name & Workspace Switcher -->
+      <div class="flex items-center gap-2.5 min-w-0 lg:w-[300px] shrink-0">
         <button
           type="button"
           class="topbar-icon-btn w-9 h-9 flex items-center justify-center lg:hidden shrink-0 -ml-1"
@@ -340,68 +387,71 @@ onUnmounted(() => {
           <Menu class="w-5 h-5" style="color: var(--text-muted)" />
         </button>
 
-        <template v-if="!workspaceStore.isInitialized && authStore.isAuthenticated">
-          <div class="flex items-center gap-2.5 ml-2 md:ml-4 animate-pulse">
-            <div class="w-7 h-7 rounded-xl bg-slate-200/50 dark:bg-white/10"></div>
-            <div class="w-24 h-4 rounded-md bg-slate-200/50 dark:bg-white/10"></div>
+        <!-- Brand Logo & Name (Always visible) -->
+        <RouterLink to="/" class="flex items-center gap-2 mr-2 shrink-0">
+          <div
+            class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden shrink-0"
+            :class="
+              systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
+                ? 'bg-transparent'
+                : 'bg-accent'
+            "
+          >
+            <img
+              v-if="systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed"
+              alt="Logo"
+              :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
+              class="w-full h-full object-contain"
+              @error="handleLogoError"
+            />
+            <Box v-else class="w-4 h-4 text-white" />
           </div>
-        </template>
-        <template v-else>
+          <div class="hidden sm:flex flex-col justify-center leading-none">
+            <span class="text-sm font-black whitespace-nowrap leading-tight" style="color: var(--text-primary)">
+              {{ systemStore.settings.PLATFORM_NAME || 'Platform' }}
+            </span>
+            <span v-if="systemStore.settings.PLATFORM_SUBTITLE" class="text-[9px] font-medium whitespace-nowrap leading-none mt-0.5" style="color: var(--text-muted)">
+              {{ systemStore.settings.PLATFORM_SUBTITLE }}
+            </span>
+          </div>
+        </RouterLink>
+
+        <!-- Workspace Switcher next to logo -->
+        <template v-if="authStore.isAuthenticated">
+          <div v-if="!workspaceStore.isInitialized" class="flex items-center gap-2.5 animate-pulse">
+            <div class="w-7 h-7 rounded bg-slate-200/50 dark:bg-white/10"></div>
+          </div>
           <el-dropdown
-            v-if="workspaceStore.currentWorkspace"
+            v-else-if="workspaceStore.currentWorkspace"
             trigger="click"
             placement="bottom-start"
           >
             <div
-              class="workspace-switcher min-h-10 px-2.5 rounded-lg flex items-center gap-2 md:gap-2.5 cursor-pointer transition-colors"
+              class="workspace-switcher-badge min-h-8 h-8 px-2.5 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 flex items-center gap-2 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-white/8 transition-colors animate-in fade-in duration-300"
             >
-              <div class="relative">
+              <div class="relative shrink-0">
                 <img
                   v-if="workspaceStore.currentWorkspace?.avatarUrl"
                   alt=""
                   :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)"
-                  class="w-7 h-7 rounded-lg object-cover shrink-0 border"
-                  style="border-color: var(--border-base)"
+                  class="w-5.5 h-5.5 rounded object-cover border border-slate-200/50 dark:border-white/10"
                 />
                 <div
                   v-else
-                  class="w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-xs shrink-0 transition-colors border border-white/20"
-                  :class="
-                    workspaceStore.isAdminWorkspace ? '' : workspaceStore.currentWorkspace.color
-                  "
-                  :style="
-                    workspaceStore.isAdminWorkspace
-                      ? {
-                          background: '#e11d48',
-                        }
-                      : {}
-                  "
+                  class="w-5.5 h-5.5 rounded-full text-white flex items-center justify-center font-bold text-[10px] shrink-0"
+                  :class="workspaceStore.currentWorkspace.type === 'personal' ? 'bg-slate-900 border border-white/5' : workspaceStore.currentWorkspace.color"
                 >
-                  {{ workspaceStore.currentWorkspace.name.charAt(0) }}
-                </div>
-                <!-- Active Workspace Badge -->
-                <div
-                  v-if="workspaceStore.currentWorkspace?.badgeCount"
-                  class="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--bg-sidebar)] px-1 animate-in zoom-in duration-300"
-                >
-                  {{
-                    workspaceStore.currentWorkspace.badgeCount > 99
-                      ? '99+'
-                      : workspaceStore.currentWorkspace.badgeCount
-                  }}
+                  <svg v-if="workspaceStore.currentWorkspace.type === 'personal'" class="w-4.5 h-4.5" viewBox="0 0 128 128" fill="none">
+                    <path d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0" fill="#235785"/>
+                    <path d="M39.245 79.002c.028 1.66.564 4.89 1.36 7.404 1.682 5.336 4.537 10.273 8.49 14.599 4.062 4.465 9.074 8.055 14.85 10.61 6.073 2.67 12.665 4.037 19.505 4.037 6.84-.009 13.432-1.4 19.504-4.102 5.776-2.582 10.79-6.168 14.85-10.657 3.974-4.374 6.82-9.307 8.491-14.647a37 37 0 001.595-8.163c.208-2.69.12-5.405-.263-8.12a37.535 37.535 0 00-5.417-14.714c-2.574-4.15-5.916-7.76-9.89-10.813l.012-.004-39.955-30.506c-.036-.028-.068-.056-.104-.08-2.619-2.002-7.044-1.994-9.91.008-2.914 2.031-3.25 5.385-.656 7.496l-.012.008 16.682 13.484-50.789.051h-.068c-4.197.004-8.239 2.739-9.03 6.213-.82 3.521 2.035 6.46 6.412 6.46l-.008.016 25.736-.048L4.58 82.524c-.056.044-.12.088-.176.132C.069 85.95-1.33 91.446 1.4 94.9c2.778 3.522 8.666 3.546 13.047.02L39.505 74.51s-.368 2.758-.336 4.397zm64.56 9.219c-5.168 5.228-12.416 8.21-20.227 8.21-7.831.012-15.079-2.918-20.248-8.142-2.526-2.559-4.377-5.473-5.528-8.591a22.202 22.202 0 01-1.271-9.602 22.446 22.446 0 012.778-9.039c1.507-2.714 3.59-5.18 6.14-7.267 5.033-4.058 11.42-6.28 18.1-6.28 6.709-.008 13.097 2.174 18.13 6.236 2.55 2.075 4.625 4.529 6.14 7.243a22.302 22.302 0 012.774 9.043 22.313 22.313 0 01-1.271 9.598c-1.147 3.142-3.002 6.056-5.533 8.615zm0 0" fill="#F5792A"/>
+                  </svg>
+                  <span v-else>{{ workspaceStore.currentWorkspace.name.charAt(0) }}</span>
                 </div>
               </div>
-              <span
-                class="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px] md:max-w-[200px] transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-                :class="{ 'tracking-wide': workspaceStore.isAdminWorkspace }"
-                style="color: var(--text-primary)"
-              >
+              <span class="text-xs font-bold text-slate-600 dark:text-slate-200 truncate max-w-[120px] hidden md:block">
                 {{ workspaceStore.currentWorkspace.name }}
               </span>
-              <ChevronDown
-                class="w-4 h-4 text-slate-400 shrink-0 transition-all duration-500 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)]"
-                :class="{ 'text-rose-400': workspaceStore.isAdminWorkspace }"
-              />
+              <ChevronDown class="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </div>
             <template #dropdown>
               <el-dropdown-menu class="w-72 p-2 rounded-xl border shadow-lg">
@@ -410,42 +460,68 @@ onUnmounted(() => {
                 >
                   {{ $t('layout.switchWorkspace') }}
                 </div>
+                
+                <!-- Normal workspaces loop -->
                 <el-dropdown-item
-                  v-for="ws in workspaceStore.workspaces"
+                  v-for="ws in normalWorkspaces"
                   :key="ws.id"
-                  class="rounded-lg my-1 p-2 group transition-all duration-200"
+                  class="rounded-lg my-1 p-2 group transition-all duration-200 relative overflow-hidden pl-3"
                   :class="workspaceStore.activeWorkspaceId === ws.id ? 'bg-accent/5' : ''"
                   @click="handleSwitchWorkspace(ws, $event)"
                 >
+                  <!-- Active vertical indicator pill on the left of item -->
+                  <div 
+                    v-if="workspaceStore.activeWorkspaceId === ws.id" 
+                    class="absolute left-0 top-1 bottom-1 w-[3px] bg-accent rounded-r"
+                  ></div>
+                  
                   <div class="flex items-center justify-between w-full">
                     <div class="flex items-center gap-3">
-                      <!-- 玻璃质感头像 / 团队头像 -->
-                      <div class="relative">
+                      <div class="relative shrink-0">
                         <img
-                          v-if="ws.avatarUrl"
+                          v-if="ws.avatarUrl && ws.type !== 'personal'"
                           alt=""
                           :src="getAssetUrl(ws.avatarUrl)"
-                          class="w-8 h-8 rounded-lg object-cover shrink-0 transition-transform duration-200 group-hover:scale-105 border border-slate-200/50 dark:border-white/10"
+                          class="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-200/50 dark:border-white/10"
                         />
-                        <div
-                          v-else
-                          class="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-xs shrink-0 transition-transform duration-200 group-hover:scale-105 border border-white/20"
-                          :class="ws.color"
+                        <!-- Custom styled icons per type -->
+                        <div 
+                          v-else-if="ws.type === 'personal'" 
+                          class="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 shrink-0 border border-white/5 shadow-inner"
                         >
-                          {{ ws.name.charAt(0) }}
+                          <svg class="w-6 h-6" viewBox="0 0 128 128" fill="none">
+                            <path d="M66.332 70.032c.24-4.242 2.327-7.987 5.485-10.634 3.094-2.602 7.248-4.193 11.809-4.193 4.537 0 8.69 1.59 11.78 4.193 3.163 2.647 5.237 6.392 5.485 10.634.24 4.35-1.523 8.41-4.605 11.417-3.158 3.05-7.627 4.977-12.66 4.977-5.037 0-9.526-1.915-12.664-4.977-3.094-3.006-4.853-7.044-4.606-11.397zm0 0" fill="#235785"/>
+                            <path d="M39.245 79.002c.028 1.66.564 4.89 1.36 7.404 1.682 5.336 4.537 10.273 8.49 14.599 4.062 4.465 9.074 8.055 14.85 10.61 6.073 2.67 12.665 4.037 19.505 4.037 6.84-.009 13.432-1.4 19.504-4.102 5.776-2.582 10.79-6.168 14.85-10.657 3.974-4.374 6.82-9.307 8.491-14.647a37 37 0 001.595-8.163c.208-2.69.12-5.405-.263-8.12a37.535 37.535 0 00-5.417-14.714c-2.574-4.15-5.916-7.76-9.89-10.813l.012-.004-39.955-30.506c-.036-.028-.068-.056-.104-.08-2.619-2.002-7.044-1.994-9.91.008-2.914 2.031-3.25 5.385-.656 7.496l-.012.008 16.682 13.484-50.789.051h-.068c-4.197.004-8.239 2.739-9.03 6.213-.82 3.521 2.035 6.46 6.412 6.46l-.008.016 25.736-.048L4.58 82.524c-.056.044-.12.088-.176.132C.069 85.95-1.33 91.446 1.4 94.9c2.778 3.522 8.666 3.546 13.047.02L39.505 74.51s-.368 2.758-.336 4.397zm64.56 9.219c-5.168 5.228-12.416 8.21-20.227 8.21-7.831.012-15.079-2.918-20.248-8.142-2.526-2.559-4.377-5.473-5.528-8.591a22.202 22.202 0 01-1.271-9.602 22.446 22.446 0 012.778-9.039c1.507-2.714 3.59-5.18 6.14-7.267 5.033-4.058 11.42-6.28 18.1-6.28 6.709-.008 13.097 2.174 18.13 6.236 2.55 2.075 4.625 4.529 6.14 7.243a22.302 22.302 0 012.774 9.043 22.313 22.313 0 01-1.271 9.598c-1.147 3.142-3.002 6.056-5.533 8.615zm0 0" fill="#F5792A"/>
+                          </svg>
                         </div>
-                        <!-- 徽标 -->
+                        <div 
+                          v-else-if="ws.type === 'mirror'" 
+                          class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#EAB308] shrink-0 border border-yellow-400/20 shadow-inner"
+                        >
+                          <GraduationCap class="w-4.5 h-4.5 text-white" />
+                        </div>
+                        <div 
+                          v-else-if="ws.type === 'manual'" 
+                          class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#3B82F6] shrink-0 border border-blue-400/20 shadow-inner"
+                        >
+                          <Box class="w-4.5 h-4.5 text-white" />
+                        </div>
+                        <div 
+                          v-else-if="ws.type === 'team'" 
+                          class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#A855F7] shrink-0 border border-purple-400/20 shadow-inner"
+                        >
+                          <Briefcase class="w-4.5 h-4.5 text-white" />
+                        </div>
                         <div
                           v-if="ws.badgeCount"
-                          class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 px-1"
+                          class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-slate-900 px-1"
                         >
                           {{ ws.badgeCount > 99 ? '99+' : ws.badgeCount }}
                         </div>
                       </div>
-                      <!-- 文字信息 -->
                       <div class="flex flex-col text-left">
                         <span
-                          class="font-semibold text-sm"
+                          class="font-semibold text-xs"
                           :class="
                             workspaceStore.activeWorkspaceId === ws.id
                               ? 'text-accent'
@@ -454,34 +530,85 @@ onUnmounted(() => {
                         >
                           {{ ws.name }}
                         </span>
-                        <span class="text-[10px] text-slate-400">
+                        <span class="text-[9px] text-slate-500 font-medium">
                           {{ ws.description }}
                         </span>
                       </div>
                     </div>
-                    <!-- 快捷按钮 -->
                     <div class="flex items-center gap-2">
                       <button
-                        v-if="
-                          ws.type === 'personal' ||
-                          ws.type === 'team' ||
-                          (['admin', 'mirror', 'manual'].includes(ws.type) &&
-                            authStore.user?.role === 'ADMIN')
-                        "
+                        v-if="ws.type === 'personal' || ws.type === 'team'"
                         type="button"
-                        class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
+                        class="p-1.5 rounded-md hover:bg-white/8 text-slate-400 hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
                         @click.stop="handleQuickSettings(ws)"
                       >
-                        <Settings class="w-4 h-4" />
+                        <Settings class="w-3.5 h-3.5" />
                       </button>
                       <div
                         v-if="workspaceStore.activeWorkspaceId === ws.id"
-                        class="w-1.5 h-1.5 rounded-full bg-accent"
+                        class="w-1 h-1 rounded-full bg-accent"
                       ></div>
                     </div>
                   </div>
                 </el-dropdown-item>
-                <div class="border-t border-slate-100 dark:border-slate-800 my-2"></div>
+                
+                <!-- Divider and Admin Workspace (if exists) -->
+                <template v-if="adminWorkspace">
+                  <div class="border-t border-slate-100 dark:border-white/6 my-2"></div>
+                  
+                  <el-dropdown-item
+                    :key="adminWorkspace.id"
+                    class="rounded-lg my-1 p-2 group transition-all duration-200 relative overflow-hidden pl-3"
+                    :class="workspaceStore.activeWorkspaceId === adminWorkspace.id ? 'bg-accent/5' : ''"
+                    @click="handleSwitchWorkspace(adminWorkspace, $event)"
+                  >
+                    <!-- Active vertical indicator pill for admin -->
+                    <div 
+                      v-if="workspaceStore.activeWorkspaceId === adminWorkspace.id" 
+                      class="absolute left-0 top-1 bottom-1 w-[3px] bg-accent rounded-r"
+                    ></div>
+                    
+                    <div class="flex items-center justify-between w-full">
+                      <div class="flex items-center gap-3">
+                        <div class="relative shrink-0">
+                          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#10B981] shrink-0 border border-emerald-400/20 shadow-inner">
+                            <UserIcon class="w-4.5 h-4.5 text-white" />
+                          </div>
+                          <div
+                            v-if="adminWorkspace.badgeCount"
+                            class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-slate-900 px-1"
+                          >
+                            {{ adminWorkspace.badgeCount > 99 ? '99+' : adminWorkspace.badgeCount }}
+                          </div>
+                        </div>
+                        <div class="flex flex-col text-left">
+                          <span
+                            class="font-semibold text-xs"
+                            :class="
+                              workspaceStore.activeWorkspaceId === adminWorkspace.id
+                                ? 'text-accent'
+                                : 'text-slate-700 dark:text-slate-200'
+                            "
+                          >
+                            管理工作区 (仅管理员)
+                          </span>
+                          <span class="text-[9px] text-slate-500 font-medium">
+                            {{ adminWorkspace.description }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Lock class="w-3.5 h-3.5 text-slate-500" />
+                        <div
+                          v-if="workspaceStore.activeWorkspaceId === adminWorkspace.id"
+                          class="w-1 h-1 rounded-full bg-accent"
+                        ></div>
+                      </div>
+                    </div>
+                  </el-dropdown-item>
+                </template>
+                
+                <div class="border-t border-slate-100 dark:border-white/6 my-2"></div>
                 <el-dropdown-item class="rounded-lg my-0.5" @click="router.push('/explore-teams')">
                   <div class="flex items-center gap-3 py-1 text-slate-500">
                     <Plus class="w-4 h-4" />
@@ -491,71 +618,67 @@ onUnmounted(() => {
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <div v-else class="flex items-center gap-2">
-            <div
-              class="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden"
-              :class="
-                systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed
-                  ? 'bg-transparent'
-                  : 'bg-accent'
-              "
-            >
-              <img
-                v-if="systemStore.settings.PLATFORM_LOGO_URL && !logoLoadFailed"
-                alt=""
-                :src="getAssetUrl(systemStore.settings.PLATFORM_LOGO_URL)"
-                class="w-full h-full object-contain"
-                @error="handleLogoError"
-              />
-              <Box v-else class="w-4 h-4 text-white" />
-            </div>
-            <span class="text-sm font-bold" style="color: var(--text-primary)">{{
-              systemStore.settings.PLATFORM_NAME
-            }}</span>
-          </div>
         </template>
       </div>
 
-      <!-- Center: Search Bar -->
-      <div
-        class="topbar-search hidden md:flex items-center gap-2 w-[300px] xl:w-[420px] h-9 px-3 rounded-lg border cursor-pointer transition-colors"
-        style="background-color: var(--bg-subtle); border-color: var(--border-base)"
-        @click="handleSearch"
-      >
-        <Search class="w-4 h-4 text-slate-400" />
-        <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
-        <kbd
-          class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
-          style="border-color: var(--border-base); color: var(--text-muted)"
-          >Ctrl+K</kbd
+      <!-- Center: Main Nav Tabs (Blender-club style) on desktop, Search on narrow screens -->
+      <div class="flex-1 flex items-center justify-center px-2">
+        <!-- Top Navigation Tabs — desktop only, normal workspace -->
+        <nav
+          v-if="showTopTabs && !isMobile"
+          class="hidden lg:flex items-center gap-4"
         >
+          <RouterLink
+            v-for="tab in topNavTabs"
+            :key="tab.key"
+            :to="tab.path"
+            class="topbar-tab flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors"
+            :class="
+              tab.active
+                ? 'active text-accent'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/5'
+            "
+          >
+            <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ tab.label }}</span>
+          </RouterLink>
+        </nav>
+        <!-- Search bar on medium screens (no tabs visible) -->
+        <div
+          v-else
+          class="topbar-search hidden md:flex items-center gap-2 w-[260px] xl:w-[380px] h-9 px-3 rounded-lg border cursor-pointer transition-colors"
+          style="background-color: var(--bg-subtle); border-color: var(--border-base)"
+          @click="handleSearch"
+        >
+          <Search class="w-4 h-4 text-slate-400" />
+          <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
+          <kbd
+            class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
+            style="border-color: var(--border-base); color: var(--text-muted)"
+            >Ctrl+K</kbd
+          >
+        </div>
       </div>
 
       <!-- Right: Actions + Avatar -->
-      <div class="flex items-center gap-2 md:gap-3">
-        <!-- Mobile Search Button -->
+      <div class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[300px] shrink-0">
+        <!-- Search icon (when tabs are visible, search moves here) -->
         <button
           type="button"
-          class="topbar-icon-btn md:hidden w-9 h-9 flex items-center justify-center"
+          class="topbar-icon-btn w-9 h-9 flex items-center justify-center"
+          :class="showTopTabs && !isMobile ? 'hidden lg:flex' : 'flex md:hidden'"
           @click="handleSearch"
         >
           <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
-        <!-- Share -->
+        <!-- Search button for top-tab mode (desktop) -->
         <button
+          v-if="showTopTabs && !isMobile"
           type="button"
-          class="topbar-icon-btn hidden sm:flex w-9 h-9 items-center justify-center"
-          @click="handleShare"
+          class="hidden lg:flex topbar-icon-btn w-9 h-9 items-center justify-center"
+          @click="handleSearch"
         >
-          <Share2 class="w-4.5 h-4.5" style="color: var(--text-muted)" />
-        </button>
-        <!-- External Link -->
-        <button
-          type="button"
-          class="topbar-icon-btn hidden sm:flex w-9 h-9 items-center justify-center"
-          @click="handleExternalLink"
-        >
-          <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
+          <Search class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
 
         <!-- Notification Bell Center Dropdown -->
@@ -591,14 +714,15 @@ onUnmounted(() => {
                 <el-dropdown-item command="profile" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
                     <UserIcon class="w-4 h-4 text-slate-400" /><span
-                      class="font-medium text-slate-600"
+                      class="font-medium"
+                      style="color: var(--text-secondary)"
                       >{{ $t('layout.profile') }}</span
                     >
                   </div>
                 </el-dropdown-item>
                 <el-dropdown-item command="notifications" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
-                    <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium text-slate-600"
+                    <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium" style="color: var(--text-secondary)"
                       >{{ $t('layout.notifications') }}</span
                     >
                   </div>
@@ -606,13 +730,14 @@ onUnmounted(() => {
                 <el-dropdown-item command="billing" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
                     <CreditCard class="w-4 h-4 text-slate-400" /><span
-                      class="font-medium text-slate-600"
+                      class="font-medium"
+                      style="color: var(--text-secondary)"
                       >{{ $t('layout.billing') }}</span
                     >
                   </div>
                 </el-dropdown-item>
-                <div class="border-t border-slate-100 my-2"></div>
-                <el-dropdown-item command="logout" class="rounded-lg my-0.5 text-rose-600">
+                <div class="border-t border-white/8 my-2"></div>
+                <el-dropdown-item command="logout" class="rounded-lg my-0.5 text-rose-500">
                   <div class="flex items-center gap-3 py-1">
                     <LogOut class="w-4 h-4" /><span class="font-bold">{{ $t('layout.logout') }}</span>
                   </div>
@@ -771,9 +896,7 @@ onUnmounted(() => {
 }
 
 .dark .content-surface {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-app) 78%, white) 0, var(--bg-app) 180px),
-    var(--bg-app);
+  background: var(--bg-app);
 }
 
 .mobile-bottom-nav {

@@ -43,6 +43,7 @@ export const getPublicSettings = async (req: Request, res: Response, next: NextF
     const settings = await settingsService.getAll();
     const publicSettings = {
       PLATFORM_NAME: settings.PLATFORM_NAME,
+      PLATFORM_SUBTITLE: settings.PLATFORM_SUBTITLE,
       BROWSER_TITLE: settings.BROWSER_TITLE,
       PLATFORM_LOGO_URL: settings.PLATFORM_LOGO_URL,
       PLATFORM_FAVICON_URL: settings.PLATFORM_FAVICON_URL,

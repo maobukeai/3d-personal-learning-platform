@@ -119,6 +119,7 @@ const defaultSettings = {
   EMAIL_VERIFY_SUBJECT: t('admin.your_email_verification_code'),
   EMAIL_VERIFY_BODY: t('admin.hello_your_verification_code'),
   PLATFORM_NAME: '3D Personal Learning Hub',
+  PLATFORM_SUBTITLE: '一起学 Blender，创造无限可能',
   BROWSER_TITLE: '',
   PLATFORM_LOGO_URL: '',
   PLATFORM_FAVICON_URL: '',
@@ -666,6 +667,7 @@ const saveSettings = async () => {
 
     if (systemStore.settings) {
       systemStore.settings.PLATFORM_NAME = settings.value.PLATFORM_NAME;
+      systemStore.settings.PLATFORM_SUBTITLE = settings.value.PLATFORM_SUBTITLE;
       systemStore.settings.BROWSER_TITLE = settings.value.BROWSER_TITLE;
       systemStore.settings.PLATFORM_LOGO_URL = settings.value.PLATFORM_LOGO_URL;
       systemStore.settings.PLATFORM_FAVICON_URL = settings.value.PLATFORM_FAVICON_URL;
@@ -1116,6 +1118,22 @@ v-for="tab in tabs"
                   >
                   <input
                     v-model="settings.PLATFORM_NAME"
+                    type="text"
+                    class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+                    style="
+                      background-color: var(--bg-app);
+                      border-color: var(--border-base);
+                      color: var(--text-primary);
+                    "
+                  />
+                </div>
+
+                <div class="space-y-2">
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
+                    >{{ $t('admin.platform_subtitle') }}</label
+                  >
+                  <input
+                    v-model="settings.PLATFORM_SUBTITLE"
                     type="text"
                     class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                     style="

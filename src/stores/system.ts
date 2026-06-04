@@ -3,6 +3,7 @@ import api, { getAssetUrl } from '@/utils/api';
 
 interface SystemSettings {
   PLATFORM_NAME: string;
+  PLATFORM_SUBTITLE: string;
   BROWSER_TITLE: string;
   PLATFORM_LOGO_URL: string;
   PLATFORM_FAVICON_URL: string;
@@ -39,6 +40,7 @@ export const useSystemStore = defineStore('system', {
   state: () => ({
     settings: {
       PLATFORM_NAME: '3D Personal Learning Hub',
+      PLATFORM_SUBTITLE: '一起学 Blender，创造无限可能',
       BROWSER_TITLE: '3D Personal Learning Hub',
       PLATFORM_LOGO_URL: '',
       PLATFORM_FAVICON_URL: '',
@@ -154,6 +156,7 @@ export const useSystemStore = defineStore('system', {
 
         this.settings = {
           PLATFORM_NAME: data.PLATFORM_NAME || '3D Personal Learning Hub',
+          PLATFORM_SUBTITLE: data.PLATFORM_SUBTITLE || '一起学 Blender，创造无限可能',
           BROWSER_TITLE: (data.BROWSER_TITLE && data.BROWSER_TITLE !== '3D Personal Learning Hub')
             ? data.BROWSER_TITLE
             : (data.PLATFORM_NAME || '3D Personal Learning Hub'),

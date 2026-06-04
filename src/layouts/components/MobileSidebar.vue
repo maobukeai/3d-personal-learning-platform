@@ -89,9 +89,14 @@ const handleLogoError = () => {
             />
             <Box v-else class="w-4 h-4 text-white" />
           </div>
-          <span class="text-xs font-bold truncate" style="color: var(--text-primary)">{{
-            systemStore.settings.PLATFORM_NAME
-          }}</span>
+          <div class="flex flex-col min-w-0 leading-none">
+            <span class="text-xs font-bold truncate leading-tight" style="color: var(--text-primary)">
+              {{ systemStore.settings.PLATFORM_NAME }}
+            </span>
+            <span v-if="systemStore.settings.PLATFORM_SUBTITLE" class="text-[8px] font-medium truncate mt-0.5" style="color: var(--text-muted)">
+              {{ systemStore.settings.PLATFORM_SUBTITLE }}
+            </span>
+          </div>
         </div>
         <button
           type="button"

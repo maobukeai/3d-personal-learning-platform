@@ -3,6 +3,7 @@ export interface DashboardEnrollment {
   progress: number;
   course: {
     title: string;
+    thumbnail?: string | null;
     _count: {
       lessons: number;
     };

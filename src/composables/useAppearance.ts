@@ -21,18 +21,11 @@ export const applyThemeToDocument = (theme: ThemePreference) => {
   classes.delete('dark');
   classes.delete('theme-glass');
 
-  if (theme === 'light') {
-    preferences.setLastBaseTheme('light');
-  } else if (theme === 'dark') {
-    preferences.setLastBaseTheme('dark');
-    classes.add('dark');
-  } else if (theme === 'system') {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    preferences.setLastBaseTheme(isDark ? 'dark' : 'light');
-    if (isDark) classes.add('dark');
-  } else if (theme === 'glass') {
+  if (theme === 'glass-light') {
     classes.add('theme-glass');
-    if (preferences.getLastBaseTheme() === 'dark') classes.add('dark');
+  } else if (theme === 'glass-dark') {
+    classes.add('theme-glass');
+    classes.add('dark');
   }
 
   root.className = Array.from(classes).join(' ');

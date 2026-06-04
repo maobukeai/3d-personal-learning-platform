@@ -186,6 +186,7 @@ export function useSidebarMenus() {
     {
       title: '运营管理',
       items: [
+        { name: '轮播管理', icon: ImageIcon, path: '/admin/banners' },
         { name: '订阅管理', icon: CreditCard, path: '/admin/subscriptions' },
         { name: '镜像源管理', icon: Globe, path: '/admin/mirror' },
         { name: '资源站管理', icon: Database, path: '/admin/manual' },

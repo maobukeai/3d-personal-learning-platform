@@ -1,4 +1,4 @@
-export type ThemePreference = 'light' | 'dark' | 'system' | 'glass';
+export type ThemePreference = 'glass-light' | 'glass-dark';
 export type LocalePreference = 'zh-CN' | 'en-US';
 
 const storageKeys = {
@@ -58,7 +58,7 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
 };
 
 const isThemePreference = (value: string | null): value is ThemePreference =>
-  value === 'light' || value === 'dark' || value === 'system' || value === 'glass';
+  value === 'glass-light' || value === 'glass-dark';
 
 const isLocalePreference = (value: string | null): value is LocalePreference =>
   value === 'zh-CN' || value === 'en-US';
@@ -72,7 +72,7 @@ export const preferences = {
 
   getTheme: (): ThemePreference => {
     const theme = getItem(storageKeys.theme);
-    return isThemePreference(theme) ? theme : 'light';
+    return isThemePreference(theme) ? theme : 'glass-dark';
   },
   setTheme: (theme: ThemePreference) => setItem(storageKeys.theme, theme),
 

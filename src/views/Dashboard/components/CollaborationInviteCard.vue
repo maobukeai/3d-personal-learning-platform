@@ -41,7 +41,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 sm:p-5 glass-card">
+  <div class="p-4 sm:p-5 blender-card">
     <div class="flex items-center gap-2.5 mb-3">
       <div class="p-2 bg-accent-subtle rounded-lg border border-accent/10">
         <Users class="w-4 h-4 text-accent" />

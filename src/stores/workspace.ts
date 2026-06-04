@@ -79,10 +79,10 @@ export const useWorkspaceStore = defineStore('workspace', {
           const teams = await fetchTeams();
           const fetchedWorkspaces = teams.map((t) => ({
             id: t.id,
-            name: t.name,
+            name: t.type === 'PERSONAL' ? '创作个人工作区' : t.name,
             type: t.type.toLowerCase() as 'personal' | 'team',
-            color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-orange-500',
-            description: t.type === 'PERSONAL' ? '默认个人空间' : `${t._count?.members || 1} 名成员`,
+            color: t.type === 'PERSONAL' ? 'bg-accent' : 'bg-purple-500',
+            description: t.type === 'PERSONAL' ? '专注于 3D 创作与资源管理' : '项目协作与团队管理',
             avatarUrl: t.avatarUrl || (t.type === 'PERSONAL' ? authStore.user?.avatarUrl : null),
           }));
 
@@ -91,10 +91,10 @@ export const useWorkspaceStore = defineStore('workspace', {
           if (authStore.user?.role === 'ADMIN') {
             this.rawWorkspaces.unshift({
               id: 'admin-workspace',
-              name: '管理中心',
+              name: '管理工作区',
               type: 'admin',
-              color: 'bg-rose-600',
-              description: '系统管理与审核',
+              color: 'bg-emerald-500',
+              description: '系统管理与后台配置',
             });
             this.fetchAdminStats();
           }
@@ -111,8 +111,8 @@ export const useWorkspaceStore = defineStore('workspace', {
             id: `mirror-${ms.id}`,
             name: ms.displayName,
             type: 'mirror',
-            color: 'bg-violet-600',
-            description: ms.description || `${ms.totalResources} 个资源`,
+            color: 'bg-amber-500',
+            description: '课程学习与技能提升',
             mirrorSourceId: ms.id,
             avatarUrl: ms.iconUrl,
           });
@@ -129,8 +129,8 @@ export const useWorkspaceStore = defineStore('workspace', {
             id: `manual-${ms.id}`,
             name: ms.displayName,
             type: 'manual',
-            color: 'bg-cyan-600',
-            description: ms.description || `手动资源站 (${ms.totalResources} 个资源)`,
+            color: 'bg-blue-500',
+            description: '交流分享与社区互动',
             manualStationId: ms.id,
             avatarUrl: ms.iconUrl,
           });

@@ -33,27 +33,35 @@ html.theme-glass {
 html.dark.theme-glass {
   color-scheme: dark;
 
-  /* Layout backgrounds – transparent/translucent frosted dark */
-  --bg-app: #070709;
-  --bg-card: rgba(24, 26, 31, 0.92);
-  --bg-sidebar: rgba(21, 23, 28, 0.94);
+  /* Layout backgrounds – transparent/translucent frosted dark (Blender-inspired #0F1319 / #1C2129 / #12161E) */
+  --bg-app: #0F1319;
+  --bg-card: rgba(28, 33, 41, 0.82);
+  --bg-sidebar: rgba(18, 22, 30, 0.88);
+  --bg-elevated: rgba(36, 42, 53, 0.85);
+  --bg-subtle: #0F1319;
+  --bg-hover: rgba(36, 42, 53, 0.7);
 
-  /* Text */
-  --text-primary: #ffffff;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
+  /* Text — neutral light grays */
+  --text-primary: #f3f3f3;
+  --text-secondary: #c5c6c9;
+  --text-muted: #7d7e82;
 
-  /* Borders – very subtle semi-transparent white/zinc */
-  --border-base: rgba(255, 255, 255, 0.08);
+  /* Borders – very subtle semi-transparent white/zinc (#2A3342 base) */
+  --border-base: rgba(42, 51, 66, 0.4);
   --border-strong: rgba(255, 255, 255, 0.15);
+  --border-card: rgba(42, 51, 66, 0.4);
 
   /* Accent subtle - dark */
-  --accent-subtle: color-mix(in srgb, var(--accent) 15%, rgba(18, 18, 24, 0.45));
+  --accent: #F5792A;
+  --accent-rgb: 245, 121, 42;
+  --accent-subtle: rgba(245, 121, 42, 0.15);
 
   /* Glass specifics */
-  --glass-bg: rgba(24, 26, 31, 0.92);
-  --glass-border: 1px solid rgba(63, 70, 82, 0.82);
-  --glass-border-color: rgba(63, 70, 82, 0.82);
+  --glass-bg: rgba(28, 33, 41, 0.82);
+  --glass-header-bg: rgba(12, 15, 22, 0.9);
+  --glass-sidebar-bg: rgba(18, 22, 30, 0.88);
+  --glass-border: 1px solid rgba(42, 51, 66, 0.5);
+  --glass-border-color: rgba(42, 51, 66, 0.5);
   --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
 }
 
@@ -66,8 +74,8 @@ html.theme-glass {
 }
 
 html.dark.theme-glass {
-  --glass-bg: rgba(24, 26, 31, 0.92);
-  --glass-border: 1px solid rgba(63, 70, 82, 0.82);
-  --glass-border-color: rgba(63, 70, 82, 0.82);
+  --glass-bg: rgba(28, 33, 41, 0.82);
+  --glass-border: 1px solid rgba(42, 51, 66, 0.5);
+  --glass-border-color: rgba(42, 51, 66, 0.5);
   --glass-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
 }

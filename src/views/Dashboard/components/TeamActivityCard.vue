@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { Activity, ChevronRight } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import type { DashboardActivity } from '../types';
 
@@ -31,48 +32,73 @@ const handleActivityClick = (log: DashboardActivity) => {
 </script>
 
 <template>
-  <div class="glass-card overflow-hidden">
-    <div
-      class="p-4 sm:p-5 border-b flex items-center justify-between"
-      style="border-color: var(--border-base)"
-    >
-      <h3 class="font-bold text-sm sm:text-base" style="color: var(--text-primary)">
-        团队动态
-      </h3>
-      <span class="text-[10px] sm:text-xs font-bold uppercase text-emerald-600">
-        实时
-      </span>
+  <div class="blender-card overflow-hidden">
+    <div class="p-4 sm:p-5 border-b flex items-center justify-between" style="border-color: var(--border-base)">
+      <div class="flex items-center gap-2">
+        <Activity class="w-4 h-4 text-emerald-500" />
+        <h3 class="font-bold text-sm" style="color: var(--text-primary)">社区动态</h3>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="live-dot"></span>
+        <span class="text-[10px] font-bold text-emerald-500 uppercase">实时</span>
+      </div>
     </div>
-    <div class="p-4 sm:p-5 space-y-3">
+
+    <div class="divide-y" style="border-color: var(--border-base)">
       <div
-        v-for="log in activityLog"
+        v-for="log in activityLog.slice(0, 5)"
         :key="log.id"
-        class="flex gap-3 group cursor-pointer rounded-lg transition-colors hover:bg-[var(--bg-subtle)] -mx-2 px-2 py-1.5"
+        class="activity-item flex gap-3 px-4 sm:px-5 py-3 cursor-pointer transition-colors"
         @click="handleActivityClick(log)"
       >
-        <UserAvatar :user="log.user" size="sm" class="shrink-0" />
+        <UserAvatar :user="log.user" size="sm" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
-          <p class="text-xs sm:text-sm leading-relaxed" style="color: var(--text-secondary)">
-            <span
-              class="font-bold group-hover:text-accent transition-colors"
-              style="color: var(--text-primary)"
-            >
-              {{ log.user.name }}
-            </span>
+          <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
+            <span class="font-bold" style="color: var(--text-primary)">{{ log.user.name }}</span>
             {{ log.action }}
             <span class="text-accent font-bold">#{{ log.target }}</span>
           </p>
-          <p class="text-[10px] sm:text-xs mt-1" style="color: var(--text-muted)">
+          <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
             {{ formatTime(log.createdAt) }}
           </p>
         </div>
       </div>
-      <div v-if="activityLog.length === 0" class="py-6 text-center text-slate-400">
-        <p class="text-xs sm:text-sm font-bold">暂无动态</p>
+
+      <div v-if="activityLog.length === 0" class="px-4 sm:px-5 py-8 text-center">
+        <Activity class="w-8 h-8 mx-auto mb-2 opacity-20" style="color: var(--text-muted)" />
+        <p class="text-xs font-bold" style="color: var(--text-muted)">暂无动态</p>
       </div>
     </div>
-    <button type="button" class="w-full py-3 text-xs sm:text-sm font-bold border-t transition-colors hover:bg-[var(--bg-subtle)] cursor-pointer" style="color: var(--text-secondary); border-color: var(--border-base)" @click="router.push('/discussions')">
-      进入社区交流
+
+    <button
+      type="button"
+      class="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-bold border-t transition-colors hover:bg-[var(--bg-subtle)] cursor-pointer"
+      style="color: var(--text-secondary); border-color: var(--border-base)"
+      @click="router.push('/discussions')"
+    >
+      进入社区交流 <ChevronRight class="w-3.5 h-3.5" />
     </button>
   </div>
 </template>
+
+<style scoped>
+.activity-item:hover {
+  background-color: var(--bg-subtle);
+}
+
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+</style>

@@ -31,9 +31,7 @@ body {
 }
 
 .dark body {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 220px),
-    var(--bg-app);
+  background: var(--bg-app);
 }
 
 button,

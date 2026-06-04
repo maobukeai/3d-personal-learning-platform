@@ -48,9 +48,9 @@ function handleClick() {
 
 <template>
   <div
-    class="glass-card transition-all"
+    class="blender-stat-card transition-all"
     :class="[
-      isClickable ? 'glass-card-hover cursor-pointer group' : 'glass-card-hover',
+      isClickable ? 'cursor-pointer group' : '',
       horizontal
         ? 'p-3 rounded-lg border flex items-center gap-3'
         : compact

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Sun, Moon, Monitor, Sparkles, Languages } from 'lucide-vue-next';
+import { Sun, Moon, Languages } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { preferences, type LocalePreference, type ThemePreference } from '@/utils/preferences';
-import { applyAccentColorToDocument } from '@/composables/useAppearance';
+import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
 
 const { t, locale } = useI18n();
 
@@ -28,39 +28,15 @@ const languageOptions: Array<{ label: string; value: LocalePreference }> = [
 
 const themeOptions = computed<Array<{ id: ThemePreference; label: string; icon: Component }>>(
   () => [
-    { id: 'light', label: t('settings.themeLight'), icon: Sun },
-    { id: 'dark', label: t('settings.themeDark'), icon: Moon },
-    { id: 'glass', label: t('settings.themeGlass'), icon: Sparkles },
-    { id: 'system', label: t('settings.themeSystem'), icon: Monitor },
+    { id: 'glass-light', label: t('settings.themeGlassLight'), icon: Sun },
+    { id: 'glass-dark', label: t('settings.themeGlassDark'), icon: Moon },
   ]
 );
 
 const applyTheme = (theme: ThemePreference) => {
   currentTheme.value = theme;
   preferences.setTheme(theme);
-  const root = document.documentElement;
-
-  const classes = new Set(root.classList);
-  classes.delete('dark');
-  classes.delete('theme-glass');
-
-  if (theme === 'light') {
-    preferences.setLastBaseTheme('light');
-  } else if (theme === 'dark') {
-    preferences.setLastBaseTheme('dark');
-    classes.add('dark');
-  } else if (theme === 'system') {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    preferences.setLastBaseTheme(isDark ? 'dark' : 'light');
-    if (isDark) classes.add('dark');
-  } else if (theme === 'glass') {
-    const lastBase = preferences.getLastBaseTheme();
-    classes.add('theme-glass');
-    if (lastBase === 'dark') classes.add('dark');
-  }
-
-  root.className = Array.from(classes).join(' ');
-
+  applyThemeToDocument(theme);
   window.dispatchEvent(new CustomEvent('theme-changed', { detail: theme }));
 };
 

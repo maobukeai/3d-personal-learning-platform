@@ -35,6 +35,8 @@
   --bg-elevated: #ffffff;
   --bg-sidebar: #f8fafc;
   --bg-subtle: #f9fafb;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(37, 99, 235, 0.08);
 
   /* Text */
   --text-primary: #111827;
@@ -44,6 +46,7 @@
   /* Borders */
   --border-base: #dfe3e8;
   --border-strong: #c4ccd6;
+  --border-card: #e5e7eb;
 
   /* Accent */
   --accent: #2563eb;
@@ -62,34 +65,63 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
+  --radius-xl: 14px;
   --shadow-enterprise: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 1px rgb(16 24 40 / 0.04);
   --shadow-enterprise-hover: 0 10px 24px rgb(16 24 40 / 0.08);
+
+  /* Blender/3D platform specific */
+  --blender-orange: #F5792A;
+  --blender-orange-hover: #d16421;
+  --blender-orange-subtle: rgba(245, 121, 42, 0.1);
+  --glow-orange: 0 0 16px rgba(245, 121, 42, 0.2);
+  --glow-orange-strong: 0 0 24px rgba(245, 121, 42, 0.35);
+  --topbar-height: 56px;
+  --card-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  --card-shadow-hover: 0 8px 24px rgba(16, 24, 40, 0.1);
 }
 
 /* ============================================================
-   Dark mode overrides
+   Dark mode overrides — Deep Blender-style dark theme
    ============================================================ */
 .dark {
   color-scheme: dark;
 
-  /* Layout backgrounds */
-  --bg-app: #101114;
-  --bg-card: #181a1f;
-  --bg-elevated: #1f2228;
-  --bg-sidebar: #15171c;
-  --bg-subtle: #20232a;
+  /* Layout backgrounds — authentic warm carbon/charcoal grays from Blender */
+  --bg-app: #0F1319;
+  --bg-card: #1C2129;
+  --bg-elevated: #242A35;
+  --bg-sidebar: #12161E;
+  --bg-subtle: #0F1319;
+  --bg-hover: #242A35;
+  --bg-active: rgba(245, 121, 42, 0.1);
 
-  /* Text */
-  --text-primary: #f4f4f5;
-  --text-secondary: #d4d4d8;
-  --text-muted: #a1a1aa;
+  /* Text — neutral light grays */
+  --text-primary: #f3f3f3;
+  --text-secondary: #c5c6c9;
+  --text-muted: #7d7e82;
 
-  /* Borders */
-  --border-base: #2b2f36;
-  --border-strong: #3f4652;
+  /* Borders — subtle warm dark */
+  --border-base: #2A3342;
+  --border-strong: rgba(255, 255, 255, 0.11);
+  --border-card: #2A3342;
 
-  /* Accent */
-  --accent-subtle: color-mix(in srgb, var(--accent) 16%, #181a1f);
+  /* Accent — Orange for dark mode (Blender-inspired) */
+  --accent: #F5792A;
+  --accent-rgb: 245, 121, 42;
+  --accent-hover: #d16421;
+  --accent-subtle: rgba(245, 121, 42, 0.15);
+
+  /* Enterprise semantic colors */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #22d3ee;
+
+  /* Glow effects */
+  --glow-orange: 0 0 16px rgba(224, 125, 46, 0.3);
+  --glow-orange-strong: 0 0 24px rgba(224, 125, 46, 0.5);
+  --card-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.4);
+  --card-shadow-hover: 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(224, 125, 46, 0.2);
 }
 
 /* ============================================================

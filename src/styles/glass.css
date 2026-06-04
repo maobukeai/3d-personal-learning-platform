@@ -67,34 +67,137 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid var(--border-base);
-  box-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--card-shadow);
 }
 
 /* Hover Lift Effect */
 .glass-card-hover:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-enterprise-hover);
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border-base));
 }
 
 .dark .glass-card-hover:hover {
-  box-shadow: 0 16px 38px -28px rgba(0, 0, 0, 0.96);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-base));
+  box-shadow: var(--card-shadow-hover);
+  border-color: rgba(245, 121, 42, 0.25);
+}
+
+/* ============================================================
+   Blender Platform — Dark Deep Card Styles
+   ============================================================ */
+
+/* Premium dark content card with Blender aesthetic */
+.blender-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.blender-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  background: linear-gradient(135deg, rgba(245, 121, 42, 0.04) 0%, transparent 60%);
+}
+
+.blender-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-hover);
+  border-color: rgba(245, 121, 42, 0.2);
+}
+
+.blender-card:hover::before {
+  opacity: 1;
+}
+
+/* Stat cards with icon glow */
+.blender-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.dark .blender-stat-card {
+  background: linear-gradient(145deg, #16181e 0%, #12141a 100%);
+}
+
+/* Top-left accent line */
+.blender-stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 2px 0;
+  opacity: 0.7;
+}
+
+/* Sidebar active indicator */
+.sidebar-item-active {
+  background: var(--bg-active) !important;
+  color: var(--accent) !important;
+  position: relative;
+}
+
+
+/* Top nav tab active */
+.topbar-tab {
+  position: relative;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.topbar-tab.active {
+  color: var(--accent);
+}
+
+.dark .topbar-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  box-shadow: var(--glow-orange);
 }
 
 /* Glassmorphism Layout utilities */
 .glass-header {
-  background-color: color-mix(in srgb, var(--bg-card) 96%, transparent) !important;
+  background-color: var(--bg-card) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--border-base) !important;
   transform: translateZ(0);
 }
 .dark .glass-header {
-  background-color: color-mix(in srgb, var(--bg-card) 96%, transparent) !important;
+  background-color: var(--bg-sidebar) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--border-base) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4) !important;
 }
 
 .glass-sidebar {
@@ -160,8 +263,6 @@
 }
 
 /* Glass element styles - Tier 1: Frosted Layout & Teleported Overlays */
-html.theme-glass .glass-header,
-html.theme-glass .glass-sidebar,
 html.theme-glass .notification-panel,
 html.theme-glass .el-popper,
 html.theme-glass .el-dropdown__popper,
@@ -169,6 +270,26 @@ html.theme-glass .el-select__popper,
 html.theme-glass .el-cascader__dropdown,
 html.theme-glass .el-popover {
   background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transform: translateZ(0);
+  will-change: auto !important;
+}
+
+html.theme-glass .glass-header {
+  background: var(--glass-header-bg, var(--glass-bg)) !important;
+  backdrop-filter: blur(10px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
+  border: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transform: translateZ(0);
+  will-change: auto !important;
+}
+
+html.theme-glass .glass-sidebar {
+  background: var(--glass-sidebar-bg, var(--glass-bg)) !important;
   backdrop-filter: blur(10px) saturate(145%) !important;
   -webkit-backdrop-filter: blur(10px) saturate(145%) !important;
   border: var(--glass-border) !important;

@@ -576,7 +576,7 @@ onUnmounted(() => {
           <div class="blender-card p-3.5 flex-1 flex flex-col justify-between h-full min-h-[220px]">
             <div>
               <div class="flex items-center justify-between mb-3 px-1">
-                <span class="text-xs font-bold text-slate-300">快捷入口</span>
+                <span class="text-xs font-bold" style="color: var(--text-secondary)">快捷入口</span>
                 <Zap class="w-3.5 h-3.5 text-accent" />
               </div>
               <div class="grid grid-cols-3 gap-1.5">
@@ -590,7 +590,7 @@ onUnmounted(() => {
                   <div class="qa-icon p-2 rounded-lg transition-transform group-hover:scale-110" :class="qa.color">
                     <component :is="qa.icon" class="w-3.5 h-3.5" />
                   </div>
-                  <span class="text-[9px] font-bold leading-tight text-center text-slate-400 group-hover:text-white transition-colors">{{ qa.label }}</span>
+                  <span class="text-[9px] font-bold leading-tight text-center transition-colors qa-btn-label">{{ qa.label }}</span>
                 </button>
               </div>
             </div>
@@ -618,16 +618,16 @@ onUnmounted(() => {
                   <BookOpen class="w-3.5 h-3.5 text-blue-400" />
                   <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">最近进度</span>
                 </div>
-                <h2 class="text-xs md:text-sm font-black text-white truncate leading-snug">
+                <h2 class="text-xs md:text-sm font-black truncate leading-snug" style="color: var(--text-primary)">
                   {{ activeEnrollment.course.title }}
                 </h2>
-                <p class="text-[10px] text-slate-400 leading-relaxed font-medium line-clamp-2">
+                <p class="text-[10px] leading-relaxed font-medium line-clamp-2" style="color: var(--text-secondary)">
                   新手必学的 3D 创作课程，开启您的 3D 梦幻设计之旅，掌握业界顶尖材质节点及建模流程。
                 </p>
               </div>
 
               <div class="space-y-2 pt-2">
-                <div class="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                <div class="flex justify-between items-center text-[9px] font-bold" style="color: var(--text-muted)">
                   <span class="text-accent">{{ activeEnrollment.progress }}% 完成</span>
                   <span>剩余 {{ activeEnrollment.course._count.lessons }} 节</span>
                 </div>
@@ -661,9 +661,9 @@ onUnmounted(() => {
             </div>
             <div class="p-3.5 flex flex-col justify-between flex-1">
               <div class="space-y-1.5">
-                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">精品推荐</span>
-                <h2 class="text-xs md:text-sm font-black text-white leading-snug">探索 Blender 3D 精品课程</h2>
-                <p class="text-[10px] text-slate-400 leading-relaxed font-medium">
+                <span class="text-[9px] font-bold uppercase tracking-widest" style="color: var(--text-muted)">精品推荐</span>
+                <h2 class="text-xs md:text-sm font-black leading-snug" style="color: var(--text-primary)">探索 Blender 3D 精品课程</h2>
+                <p class="text-[10px] leading-relaxed font-medium" style="color: var(--text-secondary)">
                   从几何节点到复杂流体动力学计算，由浅入深获取业界前沿 3D 资产建模与动画制作技巧。
                 </p>
               </div>
@@ -682,10 +682,10 @@ onUnmounted(() => {
         <!-- Right: Discord style Unified Live Feed (col-span-3) -->
         <div class="col-span-12 lg:col-span-3 flex flex-col">
           <div class="blender-card flex flex-col h-full min-h-[220px]">
-            <div class="flex items-center justify-between px-3 pt-3.5 pb-2 border-b shrink-0 border-white/10">
+            <div class="flex items-center justify-between px-3 pt-3.5 pb-2 border-b shrink-0" style="border-color: var(--border-base)">
               <div class="flex items-center gap-1.5">
                 <Activity class="w-3.5 h-3.5 text-accent" />
-                <span class="text-xs font-bold text-slate-200">最近动态</span>
+                <span class="text-xs font-bold" style="color: var(--text-primary)">最近动态</span>
               </div>
               <div class="flex items-center gap-1.5">
                 <span class="live-dot"></span>
@@ -693,7 +693,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hide divide-y divide-white/5">
+            <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hide divide-y">
               <div
                 v-for="feed in unifiedFeed.slice(0, 5)"
                 :key="feed.id"
@@ -701,19 +701,19 @@ onUnmounted(() => {
               >
                 <div class="relative shrink-0 mt-0.5">
                   <UserAvatar v-if="feed.user" :user="feed.user" size="xs" />
-                  <div v-else class="w-6 h-6 rounded-lg flex items-center justify-center bg-white/5 text-slate-400 border border-white/5">
+                  <div v-else class="w-6 h-6 rounded-lg flex items-center justify-center bg-white/5 border text-slate-400" style="border-color: var(--border-base)">
                     <component :is="feed.icon" class="w-3.5 h-3.5 text-slate-300" />
                   </div>
                 </div>
 
                 <div class="flex-1 min-w-0">
                   <div class="flex justify-between items-baseline gap-1">
-                    <span class="text-[10px] font-bold text-slate-200 truncate">
+                    <span class="text-[10px] font-bold truncate" style="color: var(--text-primary)">
                       {{ feed.user ? feed.user.name : feed.title }}
                     </span>
-                    <span class="text-[8px] text-slate-500 shrink-0 font-medium">{{ feed.time }}</span>
+                    <span class="text-[8px] shrink-0 font-medium" style="color: var(--text-muted)">{{ feed.time }}</span>
                   </div>
-                  <p class="text-[10px] text-slate-400 leading-snug font-medium break-all mt-0.5">
+                  <p class="text-[10px] leading-snug font-medium break-all mt-0.5" style="color: var(--text-secondary)">
                     {{ feed.user ? feed.description : feed.title }}
                   </p>
                   <div v-if="feed.statusText" class="mt-1">
@@ -726,14 +726,13 @@ onUnmounted(() => {
 
               <div v-if="unifiedFeed.length === 0" class="flex flex-col items-center justify-center py-8">
                 <Activity class="w-6 h-6 mb-1 opacity-20 text-slate-400" />
-                <p class="text-[10px] text-slate-500 font-bold">暂无实时动态</p>
+                <p class="text-[10px] font-bold" style="color: var(--text-muted)">暂无实时动态</p>
               </div>
             </div>
 
             <button
               type="button"
-              class="flex items-center justify-center gap-1 py-2 text-[10px] font-bold border-t border-white/10 transition-colors hover:bg-white/5 cursor-pointer shrink-0"
-              style="color: var(--text-secondary)"
+              class="flex items-center justify-center gap-1 py-2 text-[10px] font-bold border-t transition-colors cursor-pointer shrink-0 enter-community-btn"
               @click="router.push('/discussions')"
             >
               进入社区交流 <ChevronRight class="w-3 h-3" />
@@ -746,10 +745,10 @@ onUnmounted(() => {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0">
         <!-- 待办任务 Card -->
         <div class="blender-card flex flex-col min-h-[250px]">
-          <div class="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b border-white/10 shrink-0">
+          <div class="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b shrink-0" style="border-color: var(--border-base)">
             <div class="flex items-center gap-1.5">
               <CheckSquare class="w-3.5 h-3.5 text-amber-500" />
-              <span class="text-xs font-bold text-slate-200">待办任务</span>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">待办任务</span>
             </div>
             <button
               type="button"
@@ -760,7 +759,7 @@ onUnmounted(() => {
             </button>
           </div>
           
-          <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hide divide-y divide-white/5">
+          <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hide divide-y">
             <div
               v-for="task in recentTasks"
               :key="task.id"
@@ -771,10 +770,10 @@ onUnmounted(() => {
                 :class="task.status === 'DONE' ? 'bg-emerald-500' : task.status === 'IN_PROGRESS' ? 'bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.6)]' : 'bg-slate-500'"
               ></div>
               <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold truncate text-slate-200">{{ task.title }}</p>
+                <p class="text-xs font-semibold truncate" style="color: var(--text-primary)">{{ task.title }}</p>
                 <div class="flex items-center gap-1 mt-0.5">
                   <Clock class="w-2.5 h-2.5 shrink-0 text-slate-500" />
-                  <span class="text-[9px] text-slate-500">
+                  <span class="text-[9px]" style="color: var(--text-muted)">
                     {{ task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '无截止' }}
                     <span v-if="isOverdue(task)" class="ml-1 font-bold text-rose-500">逾期</span>
                   </span>
@@ -786,17 +785,17 @@ onUnmounted(() => {
             </div>
             <div v-if="recentTasks.length === 0" class="flex flex-col items-center justify-center py-8">
               <CheckSquare class="w-6 h-6 mb-1 opacity-20 text-slate-400" />
-              <p class="text-[10px] text-slate-500 font-bold">暂无待办任务</p>
+              <p class="text-[10px] font-bold" style="color: var(--text-muted)">暂无待办任务</p>
             </div>
           </div>
         </div>
 
         <!-- 最近项目 Card -->
         <div class="blender-card flex flex-col min-h-[250px]">
-          <div class="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b border-white/10 shrink-0">
+          <div class="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b shrink-0" style="border-color: var(--border-base)">
             <div class="flex items-center gap-1.5">
               <Layers class="w-3.5 h-3.5 text-blue-500" />
-              <span class="text-xs font-bold text-slate-200">最近项目</span>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">最近项目</span>
             </div>
             <button
               type="button"
@@ -808,7 +807,7 @@ onUnmounted(() => {
           </div>
 
           <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col justify-between">
-            <div class="divide-y divide-white/5">
+            <div class="divide-y">
               <div
                 v-for="project in recentProjects"
                 :key="project.id"
@@ -816,17 +815,17 @@ onUnmounted(() => {
                 @click="router.push('/workspace')"
               >
                 <!-- Thumbnail -->
-                <div class="w-9 h-9 rounded-lg overflow-hidden border border-white/10 flex items-center justify-center shrink-0" :class="project.color">
+                <div class="w-9 h-9 rounded-lg overflow-hidden border flex items-center justify-center shrink-0" style="border-color: var(--border-base)" :class="project.color">
                   <span class="text-xs font-black text-white">{{ project.title.charAt(0) }}</span>
                 </div>
                 <!-- Title & Progress -->
                 <div class="flex-1 min-w-0 space-y-1">
-                  <p class="text-xs font-semibold truncate text-slate-200">{{ project.title }}</p>
+                  <p class="text-xs font-semibold truncate" style="color: var(--text-primary)">{{ project.title }}</p>
                   <div class="flex items-center gap-2">
                     <div class="progress-track h-1 rounded-full overflow-hidden flex-1">
                       <div class="h-full rounded-full progress-fill" :style="{ width: `${project.progress}%` }"></div>
                     </div>
-                    <span class="text-[9px] font-black text-slate-400 shrink-0">进度 {{ project.progress }}%</span>
+                    <span class="text-[9px] font-black shrink-0" style="color: var(--text-muted)">进度 {{ project.progress }}%</span>
                   </div>
                 </div>
               </div>
@@ -835,11 +834,12 @@ onUnmounted(() => {
             <!-- Create Project Shortcut -->
             <div
               v-if="canCreateProject"
-              class="p-2 border-t border-white/5 shrink-0 bg-white/[0.02]"
+              class="p-2 border-t shrink-0"
+              style="border-color: var(--border-base)"
             >
               <button
                 type="button"
-                class="w-full flex items-center justify-center gap-1.5 py-2 hover:bg-white/5 rounded-xl border border-dashed border-white/10 text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer"
+                class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed text-xs font-bold transition-all cursor-pointer create-project-btn"
                 @click="() => { importDialogMode = 'traditional'; isAddDialogOpen = true; }"
               >
                 <span>新建项目 +</span>
@@ -851,11 +851,11 @@ onUnmounted(() => {
 
       <!-- ── SECTION 5: Quote Footer ── -->
       <div class="pt-2 pb-1 shrink-0">
-        <div class="blender-card p-3 flex flex-col items-center justify-center space-y-0.5 bg-gradient-to-r from-slate-900/40 via-slate-800/20 to-slate-900/40 border border-white/5">
-          <p class="text-xs font-bold italic text-slate-300 text-center">
+        <div class="blender-card p-3 flex flex-col items-center justify-center space-y-0.5 border" style="background-color: var(--bg-card); border-color: var(--border-base)">
+          <p class="text-xs font-bold italic text-center" style="color: var(--text-primary)">
             “创意没有边界，热爱永不止步。”
           </p>
-          <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest text-center">
+          <p class="text-[9px] font-bold uppercase tracking-widest text-center" style="color: var(--text-muted)">
             — Blender 社区
           </p>
         </div>
@@ -899,6 +899,8 @@ onUnmounted(() => {
 /* Quick actions */
 .qa-btn { background: transparent; border: 1px solid transparent; }
 .qa-btn:hover { background: var(--bg-subtle); border-color: var(--border-base); }
+.qa-btn-label { color: var(--text-muted); }
+.qa-btn:hover .qa-btn-label { color: var(--text-primary); }
 
 .qa-icon { display: flex; align-items: center; justify-content: center; }
 .qa-blue   { background: rgba(59,130,246,0.12); color: #3b82f6; }
@@ -939,6 +941,30 @@ onUnmounted(() => {
   background-color: var(--bg-subtle) !important;
   box-shadow: none !important;
   border: 1px solid var(--border-base) !important;
+}
+
+/* Custom theme compatibility overrides */
+.divide-y > * + * {
+  border-color: var(--border-base) !important;
+}
+
+.enter-community-btn {
+  border-color: var(--border-base) !important;
+  color: var(--text-secondary);
+}
+.enter-community-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.create-project-btn {
+  border-color: var(--border-base) !important;
+  color: var(--text-muted);
+}
+.create-project-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong) !important;
 }
 </style>
 

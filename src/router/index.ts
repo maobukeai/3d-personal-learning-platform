@@ -286,6 +286,12 @@ const router = createRouter({
               meta: { requiresAdmin: true },
             },
             {
+              path: 'admin/banners',
+              name: 'AdminBanners',
+              component: () => import('@/views/Admin/AdminBannersView.vue'),
+              meta: { requiresAdmin: true },
+            },
+            {
               path: 'admin/mirror',
               name: 'AdminMirror',
               component: () => import('@/views/Admin/AdminMirrorView.vue'),

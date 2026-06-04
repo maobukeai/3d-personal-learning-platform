@@ -1157,3 +1157,21 @@ model NoteShare {
   @@index([noteId])
   @@index([userId])
 }
+
+model Banner {
+  id         String   @id @default(uuid())
+  title      String
+  subtitle   String?  @db.Text
+  imageUrl   String
+  route      String   @default("/discussions")
+  tag        String?
+  tagColor   String?  @default("bg-accent/15 text-accent border-accent/30")
+  buttonText String   @default("立即参与")
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive, order])
+}
+

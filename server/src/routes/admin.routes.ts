@@ -6,6 +6,7 @@ import * as courseController from '../controllers/admin/course.controller';
 import * as contentController from '../controllers/admin/content.controller';
 import * as teamController from '../controllers/admin/team.controller';
 import * as subscriptionController from '../controllers/admin/subscription.controller';
+import * as bannerController from '../controllers/admin/banner.controller';
 import { authenticate, isAdmin } from '../middlewares/auth.middleware';
 import { upload, validateFileContent } from '../middlewares/upload.middleware';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
@@ -149,5 +150,17 @@ import * as activationCodeController from '../controllers/activationCode.control
 router.get('/activation-codes', activationCodeController.getAllActivationCodes);
 router.post('/activation-codes', activationCodeController.createActivationCode);
 router.delete('/activation-codes/:id', activationCodeController.deleteActivationCode);
+
+// Banner/Carousel management
+router.get('/banners', bannerController.getAllBanners);
+router.post('/banners', bannerController.createBanner);
+router.put('/banners/:id', bannerController.updateBanner);
+router.delete('/banners/:id', bannerController.deleteBanner);
+router.post(
+  '/banners/upload',
+  upload.single('banner_image'),
+  validateFileContent,
+  bannerController.uploadBannerImage,
+);
 
 export default router;

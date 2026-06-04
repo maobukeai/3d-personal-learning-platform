@@ -8,6 +8,7 @@ import { thumbnailLocalizer } from '../services/thumbnail-localizer.service';
 import prisma from '../../services/prisma';
 import { readSheet } from 'read-excel-file/node';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import archiver from 'archiver';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -849,5 +850,523 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
     res.json({ url: relativePath });
   } catch (_error) {
     res.status(500).json({ error: '图片上传失败' });
+  }
+};
+
+// --- MIRROR IMPORT / EXPORT IMPLEMENTATION ---
+
+interface ImportTask {
+  id: string;
+  progress: number;
+  status: 'extracting' | 'importing_metadata' | 'copying_files' | 'completed' | 'failed';
+  totalSteps: number;
+  currentStep: number;
+  message: string;
+  error?: string;
+}
+
+const importTasks = new Map<string, ImportTask>();
+
+// Cleanup old import tasks every 30 minutes to prevent memory leaks
+setInterval(() => {
+  // Clear all tasks (for simple in-memory cache, keeping the active or recent ones is enough)
+  if (importTasks.size > 100) {
+    importTasks.clear();
+  }
+}, 30 * 60 * 1000);
+
+export const exportSource = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  const exportFull = req.query.full === 'true';
+
+  let headersSent = false;
+
+  try {
+    const source = await prisma.mirrorSource.findUnique({
+      where: { id },
+    });
+
+    if (!source) {
+      return res.status(404).json({ error: '镜像源不存在' });
+    }
+
+    const categories = await prisma.mirrorCategory.findMany({
+      where: { sourceId: id },
+    });
+
+    const resources = await prisma.mirrorResource.findMany({
+      where: { sourceId: id },
+    });
+
+    const categoryMap = new Map(categories.map((c) => [c.id, c.externalId]));
+
+    const metadata = {
+      version: '1.0',
+      source: {
+        id: source.id,
+        name: source.name,
+        displayName: source.displayName,
+        baseUrl: source.baseUrl,
+        adapterType: source.adapterType,
+        status: source.status,
+        syncStatus: 'IDLE',
+        syncInterval: source.syncInterval,
+        syncConfig: source.syncConfig,
+        minPlanPriority: source.minPlanPriority,
+        iconUrl: source.iconUrl,
+        description: source.description,
+      },
+      categories: categories.map((c) => ({
+        externalId: c.externalId,
+        name: c.name,
+        slug: c.slug,
+        parentExternalId: c.parentExternalId,
+        order: c.order,
+        resourceCount: c.resourceCount,
+      })),
+      resources: resources.map((r) => ({
+        externalId: r.externalId,
+        categoryExternalId: r.categoryId ? categoryMap.get(r.categoryId) : null,
+        title: r.title,
+        description: r.description,
+        thumbnailUrl: r.thumbnailUrl,
+        contentUrl: r.contentUrl,
+        tags: r.tags,
+        externalData: r.externalData,
+        contentHtml: r.contentHtml,
+        resourceType: r.resourceType,
+        viewCount: r.viewCount,
+        publishedAt: r.publishedAt && !isNaN(r.publishedAt.getTime()) ? r.publishedAt.toISOString() : null,
+        contentHash: r.contentHash,
+      })),
+    };
+
+    // Collect all referenced local image files
+    const referencedFiles = new Set<string>();
+    for (const r of resources) {
+      if (r.thumbnailUrl && r.thumbnailUrl.startsWith(`/uploads/mirror/${id}/`)) {
+        referencedFiles.add(path.basename(r.thumbnailUrl));
+      }
+      if (exportFull && r.contentHtml && r.contentHtml.includes(`/uploads/mirror/${id}/`)) {
+        const regex = new RegExp(`/uploads/mirror/${id}/([^"'\\s>)]+)`, 'g');
+        let match;
+        while ((match = regex.exec(r.contentHtml)) !== null) {
+          if (match[1]) {
+            const part = match[1].split(/[?#]/)[0];
+            if (part) referencedFiles.add(path.basename(part));
+          }
+        }
+      }
+    }
+
+    // --- Streaming ZIP response using archiver ---
+    const safeFilename = encodeURIComponent(`${source.name}-mirror-export.zip`);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`,
+    );
+    // Disable Express response buffering so bytes flow immediately
+    res.setHeader('Transfer-Encoding', 'chunked');
+    headersSent = true;
+
+    const archive = archiver('zip', {
+      // Store mode: no CPU-intensive compression for binary images
+      zlib: { level: 0 },
+    });
+
+    // Pipe archive data directly to the response stream
+    archive.pipe(res);
+
+    // Handle archiver errors
+    archive.on('error', (err) => {
+      logger.error('[ExportMirror] Archiver error:', err);
+      // Can't send error JSON once headers are sent; just destroy the response
+      res.destroy(err);
+    });
+
+    // 1. Append metadata.json as a buffer
+    archive.append(Buffer.from(JSON.stringify(metadata, null, 2), 'utf8'), {
+      name: 'metadata.json',
+    });
+
+    // 2. Append source icon if stored locally
+    if (source.iconUrl && source.iconUrl.startsWith('/uploads/mirror/')) {
+      const iconFilename = path.basename(source.iconUrl);
+      const iconPath = path.join(process.cwd(), 'uploads', 'mirror', iconFilename);
+      if (fs.existsSync(iconPath)) {
+        archive.file(iconPath, { name: `icon/${iconFilename}` });
+      }
+    }
+
+    // 3. Stream each referenced image file (no full read into RAM)
+    const sourceDir = path.join(process.cwd(), 'uploads', 'mirror', id);
+    if (fs.existsSync(sourceDir)) {
+      for (const filename of referencedFiles) {
+        const filePath = path.join(sourceDir, filename);
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+          archive.file(filePath, { name: `files/${filename}` });
+        }
+      }
+    }
+
+    // Finalize: flushes all pending entries and ends the stream
+    await archive.finalize();
+
+    logger.info(
+      `[ExportMirror] Streamed export for source ${id} (${exportFull ? 'full' : 'lite'}) ` +
+      `- ${referencedFiles.size} image(s), ${resources.length} resource(s)`,
+    );
+  } catch (error) {
+    logger.error('[ExportMirror] Failed to export mirror source:', error);
+    if (!headersSent) {
+      res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+    } else {
+      res.destroy(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+};
+
+export const importSource = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '请选择要导入的 ZIP 压缩包文件' });
+    }
+
+    const zipFilePath = req.file.path;
+    const taskId = crypto.randomUUID();
+
+    // Initialize task state
+    importTasks.set(taskId, {
+      id: taskId,
+      progress: 0,
+      status: 'extracting',
+      totalSteps: 100,
+      currentStep: 0,
+      message: '正在解压缩文件...',
+    });
+
+    res.json({ taskId });
+
+    // Execute in background
+    runImportInBackground(taskId, zipFilePath).catch((err) => {
+      logger.error(`[ImportMirror] Background import failed:`, err);
+    });
+  } catch (error) {
+    logger.error('[ImportMirror] Failed to start import:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+  }
+};
+
+export const getImportStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const taskId = req.params.taskId as string;
+    const task = importTasks.get(taskId);
+    if (!task) {
+      return res.status(404).json({ error: '找不到该导入任务' });
+    }
+    res.json(task);
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+  }
+};
+
+export const cleanupSourceImages = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const source = await prisma.mirrorSource.findUnique({
+      where: { id },
+    });
+
+    if (!source) {
+      return res.status(404).json({ error: '镜像源不存在' });
+    }
+
+    const { deletedCount, savedBytes } = await thumbnailLocalizer.cleanupOrphanedImages(id);
+    res.json({
+      success: true,
+      deletedCount,
+      savedBytes,
+      savedMegabytes: Number((savedBytes / 1024 / 1024).toFixed(2)),
+    });
+  } catch (error) {
+    logger.error('[CleanupMirror] Failed to cleanup mirror source images:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'An error occurred' });
+  }
+};
+
+const runImportInBackground = async (taskId: string, zipFilePath: string) => {
+  const task = importTasks.get(taskId);
+  if (!task) return;
+
+  try {
+    const archive = unzipSync(new Uint8Array(fs.readFileSync(zipFilePath)));
+    const metadataU8 = archive['metadata.json'];
+    if (!metadataU8) {
+      throw new Error('ZIP 归档中找不到 metadata.json，文件格式无效');
+    }
+
+    task.status = 'importing_metadata';
+    task.message = '正在解析元数据...';
+    task.progress = 5;
+
+    const metadata = JSON.parse(strFromU8(metadataU8!));
+    const { source, categories = [], resources = [] } = metadata;
+
+    if (!source || !source.name || !source.displayName || !source.baseUrl) {
+      throw new Error('metadata.json 缺失必要镜像源字段名称 (name)、显示名称 (displayName) 或 baseUrl');
+    }
+
+    const sourceName = source.name;
+
+    // Check if duplicate source name exists
+    const existingSource = await prisma.mirrorSource.findUnique({
+      where: { name: sourceName },
+    });
+
+    let targetSourceId = '';
+    const filesToExtract = Object.keys(archive).filter(
+      (k) => k.startsWith('files/') && k !== 'files/',
+    );
+    const totalCategories = categories.length;
+    const totalResources = resources.length;
+    
+    // Total steps calculation
+    const totalSteps = 1 + totalCategories + Math.ceil(totalResources / 100) + filesToExtract.length;
+    task.totalSteps = totalSteps;
+    task.currentStep = 0;
+
+    // If source exists, we overwrite it in database
+    if (existingSource) {
+      targetSourceId = existingSource.id;
+      task.message = `正在覆盖已存在的镜像源「${sourceName}」...`;
+      
+      // Stop and cancel scheduler
+      syncEngine.cancelSync(targetSourceId);
+
+      await prisma.$transaction([
+        prisma.mirrorResourceComment.deleteMany({
+          where: { resource: { sourceId: targetSourceId } },
+        }),
+        prisma.mirrorResourceLike.deleteMany({
+          where: { resource: { sourceId: targetSourceId } },
+        }),
+        prisma.syncLog.deleteMany({ where: { sourceId: targetSourceId } }),
+        prisma.mirrorResource.deleteMany({ where: { sourceId: targetSourceId } }),
+        prisma.mirrorCategory.deleteMany({ where: { sourceId: targetSourceId } }),
+        prisma.mirrorSource.update({
+          where: { id: targetSourceId },
+          data: {
+            displayName: source.displayName,
+            baseUrl: source.baseUrl,
+            adapterType: source.adapterType,
+            status: source.status,
+            syncStatus: 'IDLE',
+            syncInterval: source.syncInterval,
+            syncConfig: source.syncConfig,
+            minPlanPriority: source.minPlanPriority,
+            iconUrl: source.iconUrl,
+            description: source.description,
+          },
+        }),
+      ]);
+    } else {
+      task.message = `正在创建新镜像源「${sourceName}」...`;
+      const newSource = await prisma.mirrorSource.create({
+        data: {
+          name: source.name,
+          displayName: source.displayName,
+          baseUrl: source.baseUrl,
+          adapterType: source.adapterType,
+          status: source.status,
+          syncStatus: 'IDLE',
+          syncInterval: source.syncInterval,
+          syncConfig: source.syncConfig,
+          minPlanPriority: source.minPlanPriority,
+          iconUrl: source.iconUrl,
+          description: source.description,
+        },
+      });
+      targetSourceId = newSource.id;
+    }
+
+    task.currentStep++;
+    task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
+
+    // Re-extract local custom icon if bundled
+    let importedIconUrl = source.iconUrl;
+    const iconEntry = Object.keys(archive).find((k) => k.startsWith('icon/') && k !== 'icon/');
+    if (iconEntry) {
+      const iconFilename = path.basename(iconEntry);
+      const iconDestDir = path.join(process.cwd(), 'uploads', 'mirror');
+      if (!fs.existsSync(iconDestDir)) {
+        fs.mkdirSync(iconDestDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(iconDestDir, iconFilename), Buffer.from(archive[iconEntry]!));
+      importedIconUrl = `/uploads/mirror/${iconFilename}`;
+      
+      await prisma.mirrorSource.update({
+        where: { id: targetSourceId },
+        data: { iconUrl: importedIconUrl },
+      });
+    }
+
+    // Extract localized files
+    task.status = 'copying_files';
+    task.message = '正在复制本地附件图片...';
+    const filesDestDir = path.join(process.cwd(), 'uploads', 'mirror', targetSourceId);
+    if (!fs.existsSync(filesDestDir)) {
+      fs.mkdirSync(filesDestDir, { recursive: true });
+    }
+
+    for (const fileEntry of filesToExtract) {
+      const filename = path.basename(fileEntry);
+      fs.writeFileSync(path.join(filesDestDir, filename), Buffer.from(archive[fileEntry]!));
+      task.currentStep++;
+      task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
+    }
+
+    // Import MirrorCategory structure
+    task.status = 'importing_metadata';
+    const categoryMap = new Map<string, string>();
+    const pendingCats = [...categories];
+    let insertedInLoop = true;
+
+    // First pass to resolve parent categories properly
+    while (pendingCats.length > 0 && insertedInLoop) {
+      insertedInLoop = false;
+      for (let i = 0; i < pendingCats.length; i++) {
+        const cat = pendingCats[i];
+        if (!cat.parentExternalId || categoryMap.has(cat.parentExternalId)) {
+          task.message = `正在导入分类: ${cat.name}...`;
+          const createdCat = await prisma.mirrorCategory.create({
+            data: {
+              sourceId: targetSourceId,
+              externalId: cat.externalId,
+              name: cat.name,
+              slug: cat.slug,
+              parentExternalId: cat.parentExternalId,
+              order: cat.order ?? 0,
+              resourceCount: cat.resourceCount ?? 0,
+            },
+          });
+          categoryMap.set(cat.externalId, createdCat.id);
+          pendingCats.splice(i, 1);
+          i--;
+          insertedInLoop = true;
+
+          task.currentStep++;
+          task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
+        }
+      }
+    }
+
+    // Secondary pass for fallback categories
+    for (const cat of pendingCats) {
+      task.message = `正在导入分类: ${cat.name}...`;
+      const createdCat = await prisma.mirrorCategory.create({
+        data: {
+          sourceId: targetSourceId,
+          externalId: cat.externalId,
+          name: cat.name,
+          slug: cat.slug,
+          parentExternalId: null,
+          order: cat.order ?? 0,
+          resourceCount: cat.resourceCount ?? 0,
+        },
+      });
+      categoryMap.set(cat.externalId, createdCat.id);
+
+      task.currentStep++;
+      task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
+    }
+
+    // Import MirrorResource in batches
+    let oldSourceId = source.id;
+    if (!oldSourceId) {
+      // Fallback: Extract oldSourceId from the first resource with a localized URL
+      const sampleLocalizedRes = resources.find(
+        (r: any) => r.thumbnailUrl && r.thumbnailUrl.startsWith('/uploads/mirror/'),
+      );
+      if (sampleLocalizedRes) {
+        const parts = sampleLocalizedRes.thumbnailUrl.split('/');
+        if (parts[3]) {
+          oldSourceId = parts[3];
+        }
+      }
+    }
+    const batchSize = 100;
+    for (let i = 0; i < resources.length; i += batchSize) {
+      const batch = resources.slice(i, i + batchSize);
+      task.message = `正在导入镜像资源 (${i + 1} - ${Math.min(i + batchSize, resources.length)} / ${resources.length})...`;
+
+      const insertData = batch.map((r: any) => {
+        let thumbnailUrl = r.thumbnailUrl;
+        if (thumbnailUrl && oldSourceId && thumbnailUrl.includes(`/uploads/mirror/${oldSourceId}/`)) {
+          thumbnailUrl = thumbnailUrl.replace(
+            `/uploads/mirror/${oldSourceId}/`,
+            `/uploads/mirror/${targetSourceId}/`,
+          );
+        }
+
+        let contentHtml = r.contentHtml;
+        if (contentHtml && oldSourceId && contentHtml.includes(`/uploads/mirror/${oldSourceId}/`)) {
+          const regex = new RegExp(`/uploads/mirror/${oldSourceId}/`, 'g');
+          contentHtml = contentHtml.replace(regex, `/uploads/mirror/${targetSourceId}/`);
+        }
+
+        return {
+          sourceId: targetSourceId,
+          externalId: r.externalId,
+          categoryId: r.categoryExternalId ? (categoryMap.get(r.categoryExternalId) || null) : null,
+          title: r.title,
+          description: r.description,
+          thumbnailUrl,
+          contentUrl: r.contentUrl,
+          tags: r.tags,
+          externalData: r.externalData,
+          contentHtml,
+          resourceType: r.resourceType ?? 'COURSE',
+          viewCount: r.viewCount ?? 0,
+          publishedAt: r.publishedAt ? new Date(r.publishedAt) : null,
+          contentHash: r.contentHash,
+        };
+      });
+
+      await prisma.mirrorResource.createMany({
+        data: insertData,
+      });
+
+      task.currentStep++;
+      task.progress = Math.round((task.currentStep / task.totalSteps) * 95);
+    }
+
+    // Refresh synchronization source in sync scheduler
+    const finalSource = await prisma.mirrorSource.findUnique({ where: { id: targetSourceId } });
+    if (finalSource) {
+      syncEngine.reloadSourceScheduler(finalSource.id, finalSource.status, finalSource.syncInterval);
+    }
+
+    task.progress = 100;
+    task.status = 'completed';
+    task.message = '导入成功！';
+
+    // Delete temp ZIP
+    if (fs.existsSync(zipFilePath)) {
+      fs.unlinkSync(zipFilePath);
+    }
+  } catch (err) {
+    logger.error('[ImportMirrorBackground] Error importing mirror archive:', err);
+    task.status = 'failed';
+    task.error = err instanceof Error ? err.message : '未知导入错误';
+    task.message = '导入失败，请检查压缩包内容是否完整。';
+    
+    if (fs.existsSync(zipFilePath)) {
+      try {
+        fs.unlinkSync(zipFilePath);
+      } catch (unlinkErr) {
+        logger.error('Failed to unlink uploaded ZIP:', unlinkErr);
+      }
+    }
   }
 };

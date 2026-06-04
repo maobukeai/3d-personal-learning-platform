@@ -78,7 +78,14 @@ interface DetailedTeam {
   applications?: DetailedApplication[];
 }
 
-const { t, locale } = useI18n();
+const { t: i18nT, locale } = useI18n();
+const t = (key: string, ...args: any[]) => {
+  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
+  if (prefixes.some((p) => key.startsWith(p))) {
+    return (i18nT as any)(`community.${key}`, ...args);
+  }
+  return (i18nT as any)(key, ...args);
+};
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();

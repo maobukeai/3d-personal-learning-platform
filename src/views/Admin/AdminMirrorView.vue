@@ -24,6 +24,8 @@ import {
   FileText,
   Check,
   Upload,
+  Download,
+  Eraser,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
@@ -814,8 +816,174 @@ onMounted(() => {
   });
 });
 
+const importFileInput = ref<HTMLInputElement | null>(null);
+const showImportProgressDialog = ref(false);
+const importProgress = ref(0);
+const importStatusText = ref('正在准备上传...');
+const importError = ref<string | null>(null);
+const importTaskStatus = ref<string>('idle');
+let importPollInterval: any = null;
+
+const triggerImportFile = () => {
+  importFileInput.value?.click();
+};
+
+const handleImportFile = async (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  // Reset file input value so same file can be selected again
+  target.value = '';
+
+  showImportProgressDialog.value = true;
+  importProgress.value = 0;
+  importStatusText.value = '正在上传压缩包...';
+  importError.value = null;
+  importTaskStatus.value = 'uploading';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await api.post('/api/admin/mirror/sources/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const { taskId } = response.data;
+    if (!taskId) {
+      throw new Error('未返回导入任务 ID');
+    }
+
+    importTaskStatus.value = 'processing';
+    startImportPolling(taskId);
+  } catch (error: any) {
+    importTaskStatus.value = 'failed';
+    importError.value = getApiErrorMessage(error, '上传文件失败');
+    importStatusText.value = '导入失败';
+  }
+};
+
+const startImportPolling = (taskId: string) => {
+  if (importPollInterval) clearInterval(importPollInterval);
+
+  importPollInterval = setInterval(async () => {
+    try {
+      const response = await api.get(`/api/admin/mirror/import/status/${taskId}`);
+      const task = response.data;
+
+      importProgress.value = task.progress;
+      importStatusText.value = task.message;
+      importTaskStatus.value = task.status;
+
+      if (task.status === 'completed') {
+        clearInterval(importPollInterval);
+        ElMessage.success('镜像源导入成功！');
+        fetchSources(); // Refresh sources list
+      } else if (task.status === 'failed') {
+        clearInterval(importPollInterval);
+        importError.value = task.error || '导入失败';
+      }
+    } catch (error: any) {
+      clearInterval(importPollInterval);
+      importTaskStatus.value = 'failed';
+      importError.value = getApiErrorMessage(error, '获取导入状态失败');
+    }
+  }, 1000);
+};
+
+const closeImportDialog = () => {
+  showImportProgressDialog.value = false;
+  if (importPollInterval) {
+    clearInterval(importPollInterval);
+    importPollInterval = null;
+  }
+};
+
+const triggerExportDownload = (source: any, full: boolean) => {
+  ElMessage.info(full ? '正在生成完整备份 (2.4GB)，文件将通过流式传输下载，请耐心等待浏览器弹出下载进度...' : '正在生成轻量备份，请稍候...');
+  
+  // Use a relative /api URL (same-origin through Vite proxy) so that:
+  // 1. Cookies are sent automatically (backend uses cookie-based auth)
+  // 2. link.download attribute works (only works for same-origin URLs in Chrome)
+  // The Vite proxy has a 30-min timeout configured for this path, so large downloads won't be cut off.
+  const exportUrl = `/api/admin/mirror/sources/${source.id}/export?full=${full}`;
+  
+  const link = document.createElement('a');
+  link.href = exportUrl;
+  // download attribute forces browser file-save instead of navigation (only works for same-origin)
+  link.download = `${source.name}-mirror-export.zip`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+const exportSource = (source: any) => {
+  ElMessageBox.confirm(
+    `<div class="text-slate-600 dark:text-slate-300">
+      <p class="mb-3">请选择镜像源 <b>${source.displayName}</b> 的导出模式：</p>
+      <ul class="list-disc pl-5 space-y-1.5 text-xs">
+        <li><b>仅导出封面 (轻量模式)</b>：体积小 (约 90MB)，生成与下载极快。</li>
+        <li><b>包含全部正文插图 (完整模式)</b>：体积大 (约 2.4GB)，包含文章内嵌的所有本地图片。</li>
+      </ul>
+      <p class="mt-3 text-xs text-red-500 font-semibold">注意：如果选择完整模式，由于文件较多可能会有几秒的网络响应延迟，请耐心等待。</p>
+     </div>`,
+    '选择导出模式',
+    {
+      confirmButtonText: '完整导出 (包含插图)',
+      cancelButtonText: '仅导出封面',
+      distinguishCancelAndClose: true,
+      type: 'info',
+      dangerouslyUseHTMLString: true,
+    }
+  )
+    .then(() => {
+      triggerExportDownload(source, true);
+    })
+    .catch((action) => {
+      if (action === 'cancel') {
+        triggerExportDownload(source, false);
+      }
+    });
+};
+
+const cleanupSource = (source: any) => {
+  ElMessageBox.confirm(
+    `确定要清理镜像源「${source.displayName}」的本地缓存目录吗？这会分析数据库并删除所有未使用的缓存文件，释放磁盘空间。`,
+    '系统提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      ElMessage.info('正在深度分析并清理存储空间，请稍候...');
+      try {
+        const response = await api.post(`/api/admin/mirror/sources/${source.id}/cleanup`);
+        const { deletedCount, savedMegabytes } = response.data;
+        ElMessageBox.alert(
+          `清理完成！共删除 ${deletedCount} 个无用缓存文件，成功释放了 ${savedMegabytes} MB 磁盘空间。`,
+          '清理结果',
+          {
+            confirmButtonText: '好的',
+            type: 'success',
+          }
+        );
+      } catch (error: any) {
+        ElMessage.error(getApiErrorMessage(error, '清理存储空间失败'));
+      }
+    })
+    .catch(() => {});
+};
+
 onUnmounted(() => {
   stopPolling();
+  if (importPollInterval) {
+    clearInterval(importPollInterval);
+  }
 });
 </script>
 
@@ -854,6 +1022,10 @@ onUnmounted(() => {
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreate">
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">添加镜像源</span>
+          </button>
+          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="triggerImportFile">
+            <Upload class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">导入镜像源</span>
           </button>
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchSources">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
@@ -1121,6 +1293,12 @@ type="button" class="p-2 rounded-lg transition-colors" :class="
                         : 'text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10'
                     " title="管理资源" @click="toggleResourcePanel(source)">
                     <Database class="w-4 h-4" />
+                  </button>
+                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors" title="清理空间" @click="cleanupSource(source)">
+                    <Eraser class="w-4 h-4" />
+                  </button>
+                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" title="导出" @click="exportSource(source)">
+                    <Download class="w-4 h-4" />
                   </button>
                   <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEdit(source)">
                     <Edit3 class="w-4 h-4" />
@@ -1463,6 +1641,63 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
         </div>
 
         <Teleport to="body">
+          <!-- Hidden Input for Zip Import -->
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".zip"
+            class="hidden"
+            @change="handleImportFile"
+          />
+
+          <!-- Import Progress Dialog -->
+          <div
+            v-if="showImportProgressDialog"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <div
+              class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden p-6 text-center"
+            >
+              <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">
+                导入镜像源
+              </h3>
+
+              <!-- Progress Circle or Bar -->
+              <div class="mb-4">
+                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3.5 overflow-hidden relative">
+                  <div
+                    class="bg-blue-600 h-full rounded-full transition-all duration-300"
+                    :style="{ width: `${importProgress}%` }"
+                  ></div>
+                </div>
+                <div class="flex justify-between text-[11px] text-slate-400 mt-2 font-bold">
+                  <span>{{ importStatusText }}</span>
+                  <span class="text-blue-600 dark:text-blue-400 font-extrabold">{{ importProgress }}%</span>
+                </div>
+              </div>
+
+              <!-- Details or errors -->
+              <div v-if="importError" class="p-3 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-lg text-xs text-left mb-4 break-all border border-red-200 dark:border-red-900/50">
+                <strong>导入失败:</strong> {{ importError }}
+              </div>
+              
+              <div v-else class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                请勿关闭当前窗口，系统正在将数据及文件导入本地镜像站...
+              </div>
+
+              <div class="flex justify-center gap-3">
+                <button
+                  v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
+                  type="button"
+                  class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-lg text-xs transition-colors cursor-pointer"
+                  @click="closeImportDialog"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div
             v-if="showCreateDialog || showEditDialog"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"

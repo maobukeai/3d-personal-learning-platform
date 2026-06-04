@@ -33,6 +33,7 @@ const customText = ref('');
 const enableCustomText = ref(false);
 const isCopied = ref(false);
 const qrCodeDataUrl = ref('');
+const renderingCard = ref(false);
 
 const shareUrl = computed(() => {
   if (!shareConfig.value) return '';
@@ -121,13 +122,17 @@ const wrapText = (
 };
 
 const downloadQrCode = () => {
-  if (!qrCodeDataUrl.value || !note.value) return;
+  if (!qrCodeDataUrl.value || !note.value || renderingCard.value) return;
+  renderingCard.value = true;
 
   const canvas = document.createElement('canvas');
   canvas.width = 400;
   canvas.height = 540;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) {
+    renderingCard.value = false;
+    return;
+  }
 
   // Enable anti-aliasing
   ctx.imageSmoothingEnabled = true;
@@ -192,25 +197,36 @@ const downloadQrCode = () => {
   const img = new Image();
   img.src = qrCodeDataUrl.value;
   img.onload = () => {
-    ctx.drawImage(img, 88, 204, 224, 224);
+    try {
+      ctx.drawImage(img, 88, 204, 224, 224);
 
-    // 5. Draw Footer
-    ctx.textAlign = 'center';
-    ctx.font = '11px sans-serif';
-    ctx.fillStyle = '#64748b';
-    ctx.fillText('微信/手机浏览器扫码阅读', 200, 470);
+      // 5. Draw Footer
+      ctx.textAlign = 'center';
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('微信/手机浏览器扫码阅读', 200, 470);
 
-    // Watermark
-    ctx.font = 'bold 11px sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText('3D 个人学习平台', 200, 502);
+      // Watermark
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('3D 个人学习平台', 200, 502);
 
-    // Trigger download
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = `${note.value!.title}_分享卡片.png`;
-    link.click();
-    ElMessage.success('分享二维码卡片已成功保存到本地！');
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `${note.value!.title}_分享卡片.png`;
+      link.click();
+      ElMessage.success('分享二维码卡片已成功保存到本地！');
+    } catch (err) {
+      console.error(err);
+      ElMessage.error('保存二维码卡片失败');
+    } finally {
+      renderingCard.value = false;
+    }
+  };
+  img.onerror = () => {
+    ElMessage.error('加载二维码图片失败');
+    renderingCard.value = false;
   };
 };
 
@@ -268,7 +284,7 @@ const handleCreateOrUpdate = async () => {
         saving.value = false;
         return;
       }
-      if (customExpiresAt.value <= new Date()) {
+      if (new Date(customExpiresAt.value) <= new Date()) {
         ElMessage.warning('过期时间不能早于当前时间');
         saving.value = false;
         return;
@@ -281,9 +297,13 @@ const handleCreateOrUpdate = async () => {
     payload.customText = enableCustomText.value ? (customText.value.trim() || null) : null;
 
     const res = await api.post(`/api/notes/${note.value.id}/share`, payload);
-    shareConfig.value = res.data;
-    await generateQrCode();
-    ElMessage.success(shareConfig.value ? '分享链接已更新/创建！' : '创建失败');
+    if (res.data) {
+      shareConfig.value = res.data;
+      await generateQrCode();
+      ElMessage.success('分享链接已更新/创建！');
+    } else {
+      ElMessage.error('创建失败');
+    }
   } catch (_e) {
     ElMessage.error('更新分享链接失败');
   } finally {
@@ -555,12 +575,13 @@ defineExpose({ open });
         <div class="pt-2">
           <button
             type="button"
-            :disabled="!qrCodeDataUrl || isExpired"
+            :disabled="!qrCodeDataUrl || isExpired || renderingCard"
             class="w-full py-2 bg-white dark:bg-zinc-900 border border-[var(--border-base)] hover:border-accent hover:text-accent rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:pointer-events-none active:scale-98 shadow-2xs"
             @click="downloadQrCode"
           >
-            <Download class="w-4 h-4" />
-            <span>保存二维码卡片</span>
+            <span v-if="renderingCard" class="w-3.5 h-3.5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin"></span>
+            <Download v-else class="w-4 h-4" />
+            <span>{{ renderingCard ? '正在生成卡片...' : '保存二维码卡片' }}</span>
           </button>
         </div>
       </div>

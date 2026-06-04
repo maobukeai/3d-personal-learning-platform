@@ -1,4 +1,5 @@
 import { logger } from '../../utils/logger';
+import prisma from '../../services/prisma';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -38,7 +39,6 @@ const isBlockedIp = (ip: string): boolean => {
       (a === 169 && b === 254) ||
       (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19)) ||
       a >= 224
     );
   }
@@ -321,6 +321,72 @@ class ThumbnailLocalizer {
     const sourceDir = path.join(this.baseDir, sourceId);
     if (fs.existsSync(sourceDir)) {
       fs.rmSync(sourceDir, { recursive: true, force: true });
+    }
+  }
+
+  async cleanupOrphanedImages(sourceId: string): Promise<{ deletedCount: number; savedBytes: number }> {
+    try {
+      const sourceDir = path.join(this.baseDir, sourceId);
+      if (!fs.existsSync(sourceDir)) {
+        return { deletedCount: 0, savedBytes: 0 };
+      }
+
+      // 1. Get all resources belonging to this source from the database
+      const resources = await prisma.mirrorResource.findMany({
+        where: { sourceId },
+        select: { thumbnailUrl: true, contentHtml: true }
+      });
+
+      // 2. Extract referenced filenames
+      const referencedFiles = new Set<string>();
+      for (const r of resources) {
+        if (r.thumbnailUrl && r.thumbnailUrl.startsWith(`/uploads/mirror/${sourceId}/`)) {
+          referencedFiles.add(path.basename(r.thumbnailUrl));
+        }
+        if (r.contentHtml && r.contentHtml.includes(`/uploads/mirror/${sourceId}/`)) {
+          const regex = new RegExp(`/uploads/mirror/${sourceId}/([^"'\\s>)]+)`, 'g');
+          let match;
+          while ((match = regex.exec(r.contentHtml)) !== null) {
+            if (match[1]) {
+              const part = match[1].split(/[?#]/)[0];
+              if (part) {
+                referencedFiles.add(path.basename(part));
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Scan directory and delete orphaned files
+      const filenames = fs.readdirSync(sourceDir);
+      let deletedCount = 0;
+      let savedBytes = 0;
+
+      for (const filename of filenames) {
+        const filePath = path.join(sourceDir, filename);
+        if (fs.statSync(filePath).isFile()) {
+          if (!referencedFiles.has(filename)) {
+            const size = fs.statSync(filePath).size;
+            fs.unlinkSync(filePath);
+            deletedCount++;
+            savedBytes += size;
+          }
+        }
+      }
+
+      if (deletedCount > 0) {
+        logger.info(
+          `[ThumbnailLocalizer] Cleaned up ${deletedCount} orphaned files for source ${sourceId}, saved ${(savedBytes / 1024 / 1024).toFixed(2)} MB.`
+        );
+      }
+
+      return { deletedCount, savedBytes };
+    } catch (e) {
+      logger.error(
+        `[ThumbnailLocalizer] Failed to cleanup orphaned images for source ${sourceId}:`,
+        e instanceof Error ? e.message : String(e)
+      );
+      return { deletedCount: 0, savedBytes: 0 };
     }
   }
 

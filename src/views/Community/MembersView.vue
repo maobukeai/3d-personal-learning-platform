@@ -22,7 +22,14 @@ import type { User } from '@/types';
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
 const router = useRouter();
-const { t } = useI18n();
+const { t: i18nT } = useI18n();
+const t = (key: string, ...args: any[]) => {
+  const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
+  if (prefixes.some((p) => key.startsWith(p))) {
+    return (i18nT as any)(`community.${key}`, ...args);
+  }
+  return (i18nT as any)(key, ...args);
+};
 
 const searchQuery = ref('');
 const activeFilter = ref('all');

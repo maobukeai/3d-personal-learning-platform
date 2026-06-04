@@ -175,7 +175,7 @@ const createUploadMiddleware = (config: {
                 file.fieldname === 'excel' ||
                 file.fieldname === 'files'
               ) {
-                finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls'];
+                finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls', '.zip'];
               } else if (file.fieldname === 'message_file') {
                 finalAllowedExtensions = [
                   '.png',

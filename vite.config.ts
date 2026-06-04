@@ -94,9 +94,24 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        // Mirror export can be several GB — give it a very long timeout
+        '/api/admin/mirror/sources': {
+          target: env.VITE_API_URL || 'http://localhost:3001',
+          changeOrigin: true,
+          timeout: 1800000,      // 30 minutes
+          proxyTimeout: 1800000, // 30 minutes
+          configure: (proxy) => {
+            proxy.on('proxyRes', (proxyRes) => {
+              // Disable buffering so ZIP chunks flow through immediately
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            });
+          },
+        },
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:3001',
           changeOrigin: true,
+          timeout: 120000,      // 2 minutes for regular API calls
+          proxyTimeout: 120000,
         },
         '/uploads': {
           target: env.VITE_API_URL || 'http://localhost:3001',

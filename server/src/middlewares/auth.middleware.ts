@@ -34,6 +34,10 @@ const getTokenFromRequest = (req: Request) => {
     return req.cookies.token;
   }
 
+  if (req.query?.token) {
+    return req.query.token as string;
+  }
+
   return null;
 };
 

@@ -498,6 +498,9 @@ export class SyncEngine {
           await prisma.$transaction(updates);
         }
       }
+
+      // Cleanup unreferenced images after successful sync
+      await thumbnailLocalizer.cleanupOrphanedImages(sourceId);
       progress.estimatedProgress = 100;
 
       await prisma.mirrorSource.update({
@@ -942,6 +945,9 @@ export class SyncEngine {
           await prisma.$transaction(updates);
         }
       }
+
+      // Cleanup unreferenced images after successful incremental sync
+      await thumbnailLocalizer.cleanupOrphanedImages(sourceId);
 
       const totalResources = await prisma.mirrorResource.count({ where: { sourceId } });
 

@@ -107,7 +107,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
   const { transporter, config } = await getTransporter();
 
   const provider = config.SYSTEM_EMAIL_PROVIDER || 'SMTP';
-  const fallbackSmtp = config.MICROSOFT_POOL_FAILBACK !== 'false' && config.MICROSOFT_POOL_FAILBACK !== false;
+  const fallbackSmtp = config.MICROSOFT_POOL_FAILBACK !== false;
 
   if (provider === 'MICROSOFT_POOL') {
     logger.info(

@@ -17,6 +17,13 @@ router.post(
 );
 
 router.get('/sources', adminMirrorController.getAllSources);
+router.get('/sources/:id/export', adminMirrorController.exportSource);
+router.post(
+  '/sources/import',
+  upload.single('file'),
+  adminMirrorController.importSource,
+);
+router.get('/import/status/:taskId', adminMirrorController.getImportStatus);
 router.post('/sources', adminMirrorController.createSource);
 router.get('/sources/:id', adminMirrorController.getSourceDetail);
 router.put('/sources/:id', adminMirrorController.updateSource);
@@ -26,6 +33,7 @@ router.post('/sources/:id/sync', adminMirrorController.triggerSync);
 router.post('/sources/:id/sync/cancel', adminMirrorController.cancelSync);
 router.get('/sources/:id/sync-status', adminMirrorController.getSyncStatus);
 router.get('/sources/:id/sync-logs', adminMirrorController.getSyncLogs);
+router.post('/sources/:id/cleanup', adminMirrorController.cleanupSourceImages);
 router.post(
   '/sources/:id/match-links',
   upload.fields([

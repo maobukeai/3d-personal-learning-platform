@@ -134,11 +134,11 @@ const openEdit = (resource: ManualResource) => {
   showDialog.value = true;
 };
 
-// const charCount = computed(() => resourceForm.value.contentHtml?.length || 0);
-// const lineCount = computed(() => {
-//   const content = resourceForm.value.contentHtml || '';
-//   return content ? content.split('\n').length : 0;
-// });
+const charCount = computed(() => resourceForm.value.contentHtml?.length || 0);
+const lineCount = computed(() => {
+  const content = resourceForm.value.contentHtml || '';
+  return content ? content.split('\n').length : 0;
+});
 
 const parsedNetdisk = computed(() => {
   const url = resourceForm.value.contentUrl || '';
@@ -446,8 +446,8 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
           </span>
         </div>
         <div class="flex items-center gap-4 text-[10px] font-medium text-[var(--text-muted)]">
-          <span>{{ $t('admin.charcount_characters') }}</span>
-          <span class="hidden sm:inline">{{ $t('admin.linecount_lines') }}</span>
+          <span>{{ $t('admin.charcount_characters', { count: charCount }) }}</span>
+          <span class="hidden sm:inline">{{ $t('admin.linecount_lines', { count: lineCount }) }}</span>
         </div>
       </footer>
     </div>

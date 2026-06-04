@@ -484,7 +484,7 @@ v-for="filter in [
             <span
               class="font-bold text-[var(--text-secondary)] flex flex-wrap items-center gap-0.5"
             >
-              <span>{{ $t('admin.sub_interval_yearly_annual') }}</span>
+              <span>{{ sub.interval === 'YEARLY' ? $t('admin.annual_payment') : $t('admin.monthly_payment') }}</span>
               <span class="text-[var(--text-muted)] hidden xs:inline">|</span>
               <span :class="sub.autoRenew ? 'text-emerald-500' : 'text-slate-400'">
                 {{ sub.autoRenew ? [t('admin.automatic_renewal')]: $t('admin.manual') }}
@@ -641,7 +641,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                     plan.displayName || plan.name
                   }}</span>
                 </div>
-                <p class="text-[10px] text-[var(--text-muted)]">{{ $t('admin.plan_price_month_1') }}</p>
+                <p class="text-[10px] text-[var(--text-muted)]">{{ $t('admin.plan_price_month_1', { price: plan.price }) }}</p>
               </button>
             </div>
           </div>
@@ -749,13 +749,13 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                 >{{ $t('admin.automatic_renewal_1') }}</label
               >
               <button
-type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
+                type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
                   subForm.autoRenew
                     ? 'border-emerald-500 bg-emerald-500/5 text-emerald-500'
                     : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                " style="border-color: subForm.autoRenew ? undefined : 'var(--border-base)'" @click="subForm.autoRenew = !subForm.autoRenew">
+                " @click="subForm.autoRenew = !subForm.autoRenew">
                 <component :is="subForm.autoRenew ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{ $t('admin.subform_autorenew_opened_close') }}</span>
+                <span class="text-xs font-bold">{{ subForm.autoRenew ? $t('admin.opened') : $t('admin.closed') }}</span>
               </button>
             </div>
             <div class="space-y-2">

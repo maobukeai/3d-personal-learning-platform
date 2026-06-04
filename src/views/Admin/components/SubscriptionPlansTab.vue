@@ -229,7 +229,7 @@ const getPlanIcon = (name: string) => {
             class="flex items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-0 border-[var(--border-base)] shrink-0"
           >
             <span class="text-xs text-[var(--text-muted)]"
-              >{{ $t('admin.plan_subscribercount_0_subscribers') }}</span
+              >{{ $t('admin.plan_subscribers_count', { count: plan.subscriberCount || 0 }) }}</span
             >
             <div class="flex items-center gap-1">
               <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all" @click="openEditPlan(plan)">
@@ -441,13 +441,18 @@ const getPlanIcon = (name: string) => {
                 >{{ $t('admin.recommended_tag') }}</label
               >
               <button
-type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
+                type="button"
+                class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all"
+                :class="
                   planForm.isPopular
                     ? 'border-amber-500 bg-amber-500/5 text-amber-500'
                     : 'border-[var(--border-base)] text-[var(--text-muted)]'
-                " style="border-color: planForm.isPopular ? undefined : 'var(--border-base)'" @click="planForm.isPopular = !planForm.isPopular">
+                "
+                style="border-color: planForm.isPopular ? undefined : 'var(--border-base)'"
+                @click="planForm.isPopular = !planForm.isPopular"
+              >
                 <component :is="planForm.isPopular ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{ $t('admin.planform_ispopular_recommended_normal') }}</span>
+                <span class="text-xs font-bold">{{ planForm.isPopular ? $t('admin.recommended') : $t('admin.normal_plan') }}</span>
               </button>
             </div>
           </div>

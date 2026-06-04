@@ -546,7 +546,7 @@ v-for="tab in moderationTabs"
               @click="activeTab = tab.id"
             >
               <component :is="tab.icon" class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>{{ $t('admin.tab_name_replace_audit') }}</span>
+              <span>{{ tab.name }}</span>
               <span
                 v-if="tab.badge > 0"
                 class="px-1 py-0.2 sm:px-1.5 sm:py-0.5 text-[8px] font-extrabold rounded-full bg-rose-500 text-white leading-none min-w-[13px] text-center"
@@ -634,7 +634,7 @@ type="button"
           >
             <div class="flex items-center gap-4">
               <span class="text-xs font-black tracking-wider px-2.5 py-1 bg-white/10 rounded-lg"
-                >{{ $t('admin.selectedids_length_records_have') }}</span
+                >{{ $t('admin.selectedids_length_records_have', { count: selectedIds.length }) }}</span
               >
               <button
 type="button"
@@ -894,7 +894,7 @@ v-if="item.status !== 'REJECTED'"
     <!-- 绝美高级编辑弹窗 -->
     <el-dialog
       v-model="isEditOpen"
-      ::title="$t('admin.super_editor_management_pageconfig')"
+      :title="$t('admin.super_editor_management_pageconfig', { title: pageConfig.title.replace('中心', '').replace('Center', '') })"
       width="560px"
       class="custom-rounded-dialog"
     >

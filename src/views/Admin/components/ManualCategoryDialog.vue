@@ -169,7 +169,7 @@ defineExpose({
   <!-- DIALOG: MANAGE CATEGORY -->
   <el-dialog
     v-model="showDialog"
-    ::title="$t('admin.isedit_edit_category_name')"
+    :title="isEdit ? $t('admin.edit_category_name') : $t('admin.add_resource_category')"
     width="400px"
     custom-class="premium-dialog"
   >

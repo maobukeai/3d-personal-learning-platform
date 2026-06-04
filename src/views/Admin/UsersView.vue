@@ -663,11 +663,16 @@ v-for="filter in [
                       </el-dropdown>
 
                       <button
-type="button" class="p-2 rounded-xl transition-all shadow-sm" ::title="$t('admin.user_status_banned_unblock')" :class="
+                        type="button"
+                        class="p-2 rounded-xl transition-all shadow-sm"
+                        :title="user.status === 'BANNED' ? $t('admin.unban') : $t('admin.ban')"
+                        :class="
                           user.status === 'BANNED'
                             ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
                             : 'bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white'
-                        " @click="handleToggleStatus(user)">
+                        "
+                        @click="handleToggleStatus(user)"
+                      >
                         <UserCheck v-if="user.status === 'BANNED'" class="w-3.5 h-3.5" />
                         <UserX v-else class="w-3.5 h-3.5" />
                       </button>
@@ -810,7 +815,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
           <button type="button" class="px-3 py-1.5 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed" style="border-color: var(--border-base)" :disabled="pagination.page <= 1" @click="handlePageChange(pagination.page - 1)">
             上一页
           </button>
-          <span>{{ $t('admin.page_pagination_page_pagination') }}</span>
+          <span>{{ $t('admin.page_pagination_page_pagination', { page: pagination.page, total: pagination.totalPages }) }}</span>
           <button type="button" class="px-3 py-1.5 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed" style="border-color: var(--border-base)" :disabled="pagination.page >= pagination.totalPages" @click="handlePageChange(pagination.page + 1)">
             下一页
           </button>
@@ -969,7 +974,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
     <!-- Subscription Management Dialog -->
     <el-dialog
       v-model="subDialogVisible"
-      ::title="$t('admin.subscription_management_selecteduser_name')"
+      :title="$t('admin.subscription_management_selecteduser_name_1', [selectedUser?.name || selectedUser?.email])"
       width="450px"
       class="rounded-3xl overflow-hidden"
       destroy-on-close
@@ -1044,7 +1049,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
                 </div>
                 <div>
                   <p class="text-xs font-black">{{ plan.displayName || plan.name }}</p>
-                  <p class="text-[10px] text-slate-400">{{ $t('admin.plan_price_month') }}</p>
+                  <p class="text-[10px] text-slate-400">{{ $t('admin.plan_price_month', { price: plan.price }) }}</p>
                 </div>
               </div>
               <div

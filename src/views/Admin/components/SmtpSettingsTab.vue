@@ -427,7 +427,7 @@ onMounted(async () => {
             >{{ $t('admin.total_account_in_the') }}</span
           >
           <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
-            >{{ $t('admin.microsoftpoolstats_total') }}</span
+            >{{ $t('admin.microsoftpoolstats_total', { count: microsoftPoolStats.total }) }}</span
           >
         </div>
         <div
@@ -438,7 +438,7 @@ onMounted(async () => {
             >{{ $t('admin.running_healthily') }}</span
           >
           <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
-            >{{ $t('admin.microsoftpoolstats_active') }}</span
+            >{{ $t('admin.microsoftpoolstats_active', { count: microsoftPoolStats.active }) }}</span
           >
         </div>
         <div
@@ -461,7 +461,7 @@ onMounted(async () => {
             >{{ $t('admin.proxy_server_protection') }}</span
           >
           <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
-            >{{ $t('admin.microsoftpoolstats_activewithproxy') }}</span
+            >{{ $t('admin.microsoftpoolstats_activewithproxy', { count: microsoftPoolStats.activeWithProxy }) }}</span
           >
         </div>
       </div>
@@ -529,7 +529,7 @@ onMounted(async () => {
             </div>
             <div class="flex items-center gap-4 text-slate-400 text-[10px]">
               <span v-if="account.proxy"
-                >{{ $t('admin.proxy_account_proxy_split') }}</span
+                >{{ $t('admin.proxy_account_proxy_split', { host: account.proxy.split('@').pop() }) }}</span
               >
               <span
                 >今日发信:

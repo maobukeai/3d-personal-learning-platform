@@ -572,7 +572,7 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
                 v-if="broadcast.link"
                 class="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10"
                 style="color: var(--text-secondary)"
-                >{{ $t('admin.link_broadcast_link') }}</span
+                >{{ $t('admin.link_broadcast_link', { link: broadcast.link }) }}</span
               >
             </div>
           </div>

@@ -342,11 +342,11 @@ function openEditResource(resource: ManualResource) {
 const isSaving = ref(false);
 const showSettingsSidebar = ref(true);
 
-// const charCount = computed(() => resourceForm.value.contentHtml?.length || 0);
-// const lineCount = computed(() => {
-//   const content = resourceForm.value.contentHtml || '';
-//   return content ? content.split('\n').length : 0;
-// });
+const charCount = computed(() => resourceForm.value.contentHtml?.length || 0);
+const lineCount = computed(() => {
+  const content = resourceForm.value.contentHtml || '';
+  return content ? content.split('\n').length : 0;
+});
 
 async function saveResource() {
   if (!expandedStationId.value) return;
@@ -1007,7 +1007,7 @@ v-for="filter in [
 
               <!-- Pagination Footer -->
               <div v-if="resourceTotalPages > 1" class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2">
-                <span class="text-[10px] text-slate-400">{{ $t('admin.showing_resourcepage_1_resourcepagesize') }}</span>
+                <span class="text-[10px] text-slate-400">{{ $t('admin.showing_resourcepage_1_resourcepagesize', { start: (resourcePage - 1) * resourcePageSize + 1, end: Math.min(resourcePage * resourcePageSize, resourceTotal), total: resourceTotal }) }}</span>
                 <div class="flex items-center gap-2">
                   <button type="button" :disabled="resourcePage === 1" class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40" @click="handlePageChange(resourcePage - 1)">
                     <ChevronLeft class="w-4 h-4" />
@@ -1047,7 +1047,7 @@ v-for="filter in [
                       子分类 (父: {{ getParentCategoryName(cat) }})
                     </span>
                   </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">{{ $t('admin.sorting_weight_cat_order') }}</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">{{ $t('admin.sorting_weight_cat_order', { order: cat.order || 0 }) }}</div>
                 </div>
 
                 <div class="flex items-center gap-1.5">
@@ -1494,8 +1494,8 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
             </span>
           </div>
           <div class="flex items-center gap-4 text-[10px] font-medium text-[var(--text-muted)]">
-            <span>{{ $t('admin.charcount_characters') }}</span>
-            <span class="hidden sm:inline">{{ $t('admin.linecount_lines') }}</span>
+            <span>{{ $t('admin.charcount_characters', { count: charCount }) }}</span>
+            <span class="hidden sm:inline">{{ $t('admin.linecount_lines', { count: lineCount }) }}</span>
           </div>
         </footer>
       </div>
@@ -1504,7 +1504,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
     <!-- DIALOG: MANAGE CATEGORY -->
     <el-dialog
       v-model="showCategoryDialog"
-      ::title="$t('admin.iseditingcategory_editing_category_name')"
+      :title="isEditingCategory ? $t('admin.edit_category_name') : $t('admin.add_resource_category')"
       width="400px"
       custom-class="premium-dialog"
     >

@@ -126,7 +126,7 @@ defineExpose({
   <!-- DIALOG: CREATE OR EDIT MANUAL STATION -->
   <el-dialog
     v-model="showDialog"
-    ::title="$t('admin.isedit_edit_manual_resource')"
+    :title="isEdit ? $t('admin.edit_manual_resource') : $t('admin.create_manual_resource')"
     width="500px"
     custom-class="premium-dialog"
   >

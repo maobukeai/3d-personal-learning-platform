@@ -513,7 +513,7 @@ onMounted(() => {
                     v-if="roadmap.steps.length > 3"
                     class="pt-1 text-[10px] text-indigo-500/90 font-black flex items-center gap-1 pl-1"
                   >
-                    <span>{{ $t('admin.there_are_also_roadmap') }}</span>
+                    <span>{{ $t('admin.there_are_also_roadmap', { count: roadmap.steps.length - 3 }) }}</span>
                     <ArrowRight class="w-3 h-3" />
                   </div>
                 </div>
@@ -536,7 +536,7 @@ onMounted(() => {
             >
               <div class="flex items-center gap-1">
                 <Calendar class="w-3 h-3 opacity-60" />
-                <span>{{ $t('admin.update_time_roadmap_createdat') }}</span>
+                <span>{{ $t('admin.update_time_value', { time: roadmap.createdAt ? new Date(roadmap.createdAt).toLocaleDateString() : '-' }) }}</span>
               </div>
               <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5" @click="openEditModal(roadmap)">
                 <span>{{ $t('admin.enter_the_editor') }}</span>

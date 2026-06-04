@@ -183,7 +183,7 @@ const handleCleanupStorage = async () => {
           <button type="button" :disabled="isCleaning" class="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-600/50 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer" @click="handleCleanupStorage">
             <Trash2 v-if="!isCleaning" class="w-3.5 h-3.5" />
             <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-            <span>{{ $t('admin.iscleaning_cleaning_clean_now') }}</span>
+            <span>{{ isCleaning ? $t('admin.cleaning_up') : $t('admin.clean_up_now') }}</span>
           </button>
         </div>
       </div>

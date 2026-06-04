@@ -451,7 +451,7 @@ v-for="filter in [
                     <p class="text-xs text-slate-400 line-clamp-2">{{ course.description }}</p>
                   </div>
                   <div class="flex items-center gap-2 shrink-0" @click.stop>
-                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" ::title="$t('admin.course_status_published_convert')" @click="toggleCourseStatus(course)">
+                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" :title="course.status === 'PUBLISHED' ? $t('admin.convert_to_draft') : $t('admin.publish_course')" @click="toggleCourseStatus(course)">
                       <Eye v-if="course.status === 'PUBLISHED'" class="w-4 h-4 text-emerald-500" />
                       <EyeOff v-else class="w-4 h-4 text-slate-400" />
                     </button>
@@ -466,16 +466,16 @@ v-for="filter in [
 
                 <div class="flex items-center gap-4 text-[10px] font-bold text-slate-400">
                   <span class="flex items-center gap-1.5"
-                    ><Video class="w-3.5 h-3.5" /> {{ $t('admin.course_lessons_length_0') }}</span
+                    ><Video class="w-3.5 h-3.5" /> {{ $t('admin.lessons_count', { count: course.lessons?.length || 0 }) }}</span
                   >
                   <span>•</span>
-                  <span>{{ $t('admin.course_count_enrollments_0') }}</span>
+                  <span>{{ $t('admin.enrollments_count', { count: course._count?.enrollments || 0 }) }}</span>
                   <span>•</span>
                   <span class="flex items-center gap-1"
                     ><Star class="w-3 h-3 text-amber-400" /> {{ course.avgRating || '-' }}</span
                   >
                   <span v-if="course._count?.reviews">•</span>
-                  <span v-if="course._count?.reviews">{{ $t('admin.course_count_reviews_reviews') }}</span>
+                  <span v-if="course._count?.reviews">{{ $t('admin.reviews_count', { count: course._count?.reviews || 0 }) }}</span>
                 </div>
               </div>
             </div>

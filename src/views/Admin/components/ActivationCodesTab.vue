@@ -426,14 +426,14 @@ v-for="filter in [
           <div class="min-w-0">
             <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.days') }}</span>
             <span class="font-bold text-[var(--text-secondary)] truncate block"
-              >{{ $t('admin.c_durationdays_days') }}</span
+              >{{ $t('admin.duration_days_count', { days: c.durationDays }) }}</span
             >
           </div>
           <div class="min-w-0">
             <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.bind_email') }}</span>
             <span
               class="font-bold text-[var(--text-secondary)] truncate block"
-              ::title="$t('admin.c_bindemail_unlimited')"
+              :title="c.bindEmail || $t('admin.unlimited_1')"
             >
               {{ c.bindEmail || $t('admin.unlimited_1') }}
             </span>

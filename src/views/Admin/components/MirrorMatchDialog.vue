@@ -175,7 +175,7 @@ async function uploadAndMatch() {
           <div
             class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1"
           >
-            <span>{{ $t('admin.selected_files_excelfiles_length') }}</span>
+            <span>{{ $t('admin.selected_files_excelfiles_length', { count: excelFiles.length }) }}</span>
             <button type="button" class="text-indigo-500 hover:text-indigo-600 transition-colors cursor-pointer" @click="excelFiles = []">
               清空全部
             </button>

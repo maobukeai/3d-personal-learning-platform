@@ -208,6 +208,7 @@ const handleRegister = async () => {
                   v-model="registerForm.name"
                   type="text"
                   placeholder="设计师小王"
+                  autocomplete="off"
                   class="w-full pl-11 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                   style="
                     background-color: var(--bg-app);
@@ -234,6 +235,7 @@ const handleRegister = async () => {
                     v-model="registerForm.email"
                     type="email"
                     placeholder="name@company.com"
+                    autocomplete="off"
                     class="w-full pl-11 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
                       background-color: var(--bg-app);
@@ -290,6 +292,7 @@ const handleRegister = async () => {
                     v-model="registerForm.password"
                     :type="showPassword ? 'text' : 'password'"
                     placeholder="请输入密码"
+                    autocomplete="new-password"
                     class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
                       background-color: var(--bg-app);
@@ -323,6 +326,7 @@ const handleRegister = async () => {
                     v-model="registerForm.confirmPassword"
                     :type="showPassword ? 'text' : 'password'"
                     placeholder="请再次输入"
+                    autocomplete="new-password"
                     class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
                       background-color: var(--bg-app);

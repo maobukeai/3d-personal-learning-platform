@@ -443,7 +443,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           >
             <FileText class="w-4 h-4 text-cyan-500" />
             资源管理
-            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_resourcetotal') }}</span>
+            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_resourcetotal', { count: resourceTotal }) }}</span>
           </h4>
           <div class="flex items-center gap-2">
             <div class="relative">
@@ -600,7 +600,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           >
             <Layers class="w-4 h-4 text-cyan-500" />
             分类管理
-            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_sourcecategories_length_categories') }}</span>
+            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_sourcecategories_length_categories', { count: sourceCategories.length }) }}</span>
           </h4>
           <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer" @click="openCreateCategory">
             <Plus class="w-3.5 h-3.5" />

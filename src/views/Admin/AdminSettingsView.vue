@@ -1050,15 +1050,15 @@ type="button"
             <span class="hidden sm:inline">{{ $t('admin.restore_default') }}</span>
           </button>
           <button
-type="button"
+            type="button"
             :disabled="isSaving"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 text-white rounded-xl font-bold text-[11px] hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0 whitespace-nowrap shadow-sm cursor-pointer"
-            ::title="$t('admin.issaving_saving_saving_global')"
+            :title="isSaving ? $t('admin.saving_1') : $t('admin.save_global_settings')"
             @click="saveSettings"
           >
             <Save v-if="!isSaving" class="w-3.5 h-3.5" />
             <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-            <span class="hidden sm:inline">{{ $t('admin.issaving_saving_saving_global_1') }}</span>
+            <span class="hidden sm:inline">{{ isSaving ? $t('admin.saving_1') : $t('admin.save_global_settings') }}</span>
           </button>
         </div>
       </div>
@@ -1584,7 +1584,7 @@ type="button"
                   >
                     <Trash2 v-if="!isCleaning" class="w-3.5 h-3.5" />
                     <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-                    <span>{{ $t('admin.iscleaning_cleaning_clean_now') }}</span>
+                    <span>{{ isCleaning ? $t('admin.cleaning_up') : $t('admin.clean_up_now') }}</span>
                   </button>
                 </div>
               </div>
@@ -1601,7 +1601,7 @@ type="button"
               class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-2.5 text-xs font-bold animate-pulse shadow-sm"
             >
               <AlertTriangle class="w-4 h-4 text-amber-500 shrink-0" />
-              <span>{{ $t('admin.you_have_switched_the') }}</span>
+              <span>{{ $t('admin.you_have_switched_the', { mode: settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL' ? $t('admin.microsoft_account_pool') : $t('admin.standard_smtp') }) }}</span>
             </div>
 
             <!-- Mode selection -->
@@ -1734,7 +1734,7 @@ type="button"
                     >{{ $t('admin.total_account_in_the') }}</span
                   >
                   <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
-                    >{{ $t('admin.microsoftpoolstats_total') }}</span
+                    >{{ $t('admin.microsoftpoolstats_total', { count: microsoftPoolStats.total }) }}</span
                   >
                 </div>
                 <div
@@ -1745,7 +1745,7 @@ type="button"
                     >{{ $t('admin.running_healthily') }}</span
                   >
                   <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
-                    >{{ $t('admin.microsoftpoolstats_active') }}</span
+                    >{{ $t('admin.microsoftpoolstats_active', { count: microsoftPoolStats.active }) }}</span
                   >
                 </div>
                 <div
@@ -1768,7 +1768,7 @@ type="button"
                     >{{ $t('admin.proxy_server_protection') }}</span
                   >
                   <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
-                    >{{ $t('admin.microsoftpoolstats_activewithproxy') }}</span
+                    >{{ $t('admin.microsoftpoolstats_activewithproxy', { count: microsoftPoolStats.activeWithProxy }) }}</span
                   >
                 </div>
               </div>
@@ -1836,7 +1836,7 @@ type="button"
                     </div>
                     <div class="flex items-center gap-4 text-slate-400 text-[10px]">
                       <span v-if="account.proxy"
-                        >{{ $t('admin.proxy_account_proxy_split') }}</span
+                        >{{ $t('admin.proxy_account_proxy_split', { host: account.proxy.split('@').pop() }) }}</span
                       >
                       <span
                         >今日发信:
@@ -2367,7 +2367,7 @@ type="button"
                       :style="settings.AI_IMPORT_ENABLED
                         ? 'background: rgba(99,102,241,0.12); color: #6366f1;'
                         : 'background: var(--bg-app); color: var(--text-muted);'"
-                    >{{ $t('admin.settings_ai_import_enabled') }}</span>
+                    >{{ settings.AI_IMPORT_ENABLED ? $t('admin.function_activated') : $t('admin.feature_not_enabled') }}</span>
                   </div>
                 </div>
               </div>
@@ -2385,7 +2385,7 @@ type="button"
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-sm font-black" style="color: var(--text-primary)">{{ $t('admin.model_pool_configuration') }}</h3>
-                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">{{ $t('admin.aimodelconfigs_length_models_aimodelconfigs') }}</p>
+                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">{{ $t('admin.ai_models_status_count', { total: aiModelConfigs.length, enabled: aiModelConfigs.filter(m => m.enabled).length }) }}</p>
                 </div>
                 <button
                   type="button"
@@ -2444,7 +2444,7 @@ type="button"
 
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ $t('admin.model_name_model_modelname') }}</span>
+                        <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ model.name || model.modelName || $t('admin.unnamed_model') }}</span>
                         <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">{{ $t('admin.default') }}</span>
                         <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.disabled') }}</span>
                       </div>
@@ -2466,7 +2466,7 @@ type="button"
                         :style="model.isDefault
                           ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
                           : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'"
-                        ::title="$t('admin.model_isdefault_current_default')"
+                        :title="model.isDefault ? $t('admin.current_default_model') : $t('admin.set_as_default_model')"
                         @click="setDefaultAiModel(model.id)"
                       >
                         <Star class="w-3.5 h-3.5" :class="model.isDefault ? 'fill-current' : ''" />
@@ -2483,7 +2483,7 @@ type="button"
                           class="w-3 h-3"
                           :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
                         />
-                        <span>{{ $t('admin.istestingai_testingaimodelid_model_id') }}</span>
+                        <span>{{ (isTestingAi && testingAiModelId === model.id) ? $t('admin.testing') : $t('admin.test_connection') }}</span>
                       </button>
 
                       <button
@@ -2629,7 +2629,7 @@ type="button"
                           @click="model.showAdvanced = !model.showAdvanced"
                         >
                           <Sliders class="w-3.5 h-3.5" />
-                          <span>{{ $t('admin.model_showadvanced_hide_advanced') }}</span>
+                          <span>{{ model.showAdvanced ? $t('admin.hide_advanced_parameters') : $t('admin.expand_advanced_parameter_settings') }}</span>
                         </button>
                       </div>
 
@@ -2644,7 +2644,7 @@ type="button"
                           <div class="space-y-1.5">
                             <label class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between" style="color: var(--text-muted);">
                               <span>{{ $t('admin.temperature') }}</span>
-                              <span class="text-[10px] font-mono text-indigo-500">{{ $t('admin.current_model_temperature_tofixed') }}</span>
+                              <span class="text-[10px] font-mono text-indigo-500">{{ $t('admin.current_model_temperature_tofixed', { temp: model.temperature?.toFixed(1) ?? '0.7' }) }}</span>
                             </label>
                             <div class="flex items-center gap-3">
                               <input
@@ -2743,7 +2743,7 @@ type="button"
                       class="w-3.5 h-3.5"
                       :class="isTestingAi && testingAiModelId ? 'animate-spin' : ''"
                     />
-                    <span>{{ $t('admin.istestingai_testing_testing_the') }}</span>
+                    <span>{{ isTestingAi ? $t('admin.testing') : $t('admin.test_default_model_connections') }}</span>
                   </button>
                 </div>
               </div>

@@ -40,6 +40,8 @@ const storage = multer.diskStorage({
       dir = './uploads/mirror';
     } else if (file.fieldname === 'image') {
       dir = './uploads/ai';
+    } else if (file.fieldname === 'banner' || file.fieldname === 'banner_image') {
+      dir = './uploads/banners';
     }
 
     if (!fs.existsSync(dir)) {
@@ -167,7 +169,9 @@ const createUploadMiddleware = (config: {
                 file.fieldname === 'cover' ||
                 file.fieldname === 'manual_image' ||
                 file.fieldname === 'mirror_image' ||
-                file.fieldname === 'image'
+                file.fieldname === 'image' ||
+                file.fieldname === 'banner' ||
+                file.fieldname === 'banner_image'
               ) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
               } else if (
@@ -273,6 +277,8 @@ const imageUploadFields = new Set([
   'manual_image',
   'mirror_image',
   'image',
+  'banner',
+  'banner_image',
 ]);
 
 const detectImageMime = (buffer: Buffer): string | null => {

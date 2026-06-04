@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, computed, watch } from 'vue';
 import {
@@ -74,14 +76,14 @@ const pagination = ref({
 });
 
 const roleMap: Record<string, string> = {
-  ADMIN: '管理员',
-  INSTRUCTOR: '导师',
-  USER: '普通用户',
+  ADMIN: t('admin.administrator'),
+  INSTRUCTOR: t('admin.mentor'),
+  USER: t('admin.ordinary_user'),
 };
 
 const statusMap: Record<string, string> = {
-  ACTIVE: '活跃',
-  BANNED: '已封禁',
+  ACTIVE: t('admin.active_1'),
+  BANNED: t('admin.banned'),
 };
 
 // Create Dialog
@@ -138,7 +140,7 @@ const fetchUsers = async (page: number | Event = pagination.value.page) => {
       totalPages: 1,
     };
   } catch {
-    ElMessage.error('无法加载用户列表');
+    ElMessage.error(t('admin.unable_to_load_user'));
   } finally {
     isLoading.value = false;
   }
@@ -180,16 +182,16 @@ const openCreateDialog = () => {
 
 const handleCreateUser = async () => {
   if (!createForm.value.email || !createForm.value.password) {
-    return ElMessage.warning('请填写邮箱和密码');
+    return ElMessage.warning(t('admin.please_fill_in_your'));
   }
   isSubmitting.value = true;
   try {
     await api.post('/api/admin/users', createForm.value);
-    ElMessage.success('用户创建成功');
+    ElMessage.success(t('admin.user_created_successfully'));
     createDialogVisible.value = false;
     fetchUsers();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '创建失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.creation_failed')));
   } finally {
     isSubmitting.value = false;
   }
@@ -212,10 +214,10 @@ const handleUpdateUser = async () => {
       users.value[index] = { ...users.value[index], name, email, role, status };
     }
 
-    ElMessage.success('用户信息已更新');
+    ElMessage.success(t('admin.user_information_has_been'));
     editDialogVisible.value = false;
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '更新失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.update_failed')));
   } finally {
     isSubmitting.value = false;
   }
@@ -253,19 +255,19 @@ const handleManageSub = async () => {
         `/api/admin/subscriptions/${selectedUser.value.subscription.id}`,
         subForm.value,
       );
-      ElMessage.success('订阅更新成功');
+      ElMessage.success(t('admin.subscription_updated_successfully'));
     } else {
       // Create
       await api.post('/api/admin/subscriptions', {
         ...subForm.value,
         userId: selectedUser.value.id,
       });
-      ElMessage.success('订阅创建成功');
+      ElMessage.success(t('admin.subscription_created_successfully'));
     }
     subDialogVisible.value = false;
     fetchUsers();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '操作失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.operation_failed')));
   } finally {
     isSubLoading.value = false;
   }
@@ -275,62 +277,62 @@ const handleCancelSub = async () => {
   if (!selectedUser.value?.subscription) return;
 
   try {
-    await ElMessageBox.confirm('确定要取消该用户的订阅吗？', '确认操作', {
-      confirmButtonText: '确定取消',
-      cancelButtonText: '保留',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_19'), t('admin.confirm_action'), {
+      confirmButtonText: t('admin.confirm_cancellation'),
+      cancelButtonText: t('admin.reserve'),
       type: 'warning',
     });
 
     await api.delete(`/api/admin/subscriptions/${selectedUser.value.subscription.id}`);
-    ElMessage.success('订阅已取消');
+    ElMessage.success(t('admin.subscription_canceled'));
     subDialogVisible.value = false;
     fetchUsers();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('取消失败');
+      ElMessage.error(t('admin.cancellation_failed'));
     }
   }
 };
 
 const handleToggleStatus = async (user: AdminUser) => {
   const newStatus = user.status === 'BANNED' ? 'ACTIVE' : 'BANNED';
-  const actionText = newStatus === 'BANNED' ? '封禁' : '解封';
+  const actionText = newStatus === 'BANNED' ? t('admin.ban') : t('admin.unblock');
 
   try {
     await api.put(`/api/admin/users/${user.id}`, {
       status: newStatus,
     });
     user.status = newStatus;
-    ElMessage.success(`用户 ${user.name || user.email} 已${actionText}`);
+    ElMessage.success(t('admin.user_user_name_user', { usernameuseremail: user.name || user.email, actionText: actionText }));
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, `${actionText}失败`));
+    ElMessage.error(getApiErrorMessage(error, t('admin.actiontext_failed', { actionText: actionText })));
   }
 };
 
 const handleResetPassword = (user: AdminUser) => {
-  ElMessageBox.prompt('请输入该用户的新密码（至少6位）', '重置用户密码', {
-    confirmButtonText: '确定重置',
-    cancelButtonText: '取消',
+  ElMessageBox.prompt(t('admin.please_enter_the_user'), t('admin.reset_user_password'), {
+    confirmButtonText: t('admin.confirm_reset'),
+    cancelButtonText: t('admin.cancel'),
     inputType: 'password',
     inputPattern: /^.{6,}$/,
-    inputErrorMessage: '密码长度至少为 6 位',
+    inputErrorMessage: t('admin.password_must_be_at'),
   }).then(async ({ value }) => {
     try {
       await api.post(`/api/admin/users/${user.id}/reset-password`, { password: value });
-      ElMessage.success(`用户 ${user.name || user.email} 的密码已重置`);
+      ElMessage.success(t('admin.password_reset_for_user', { usernameuseremail: user.name || user.email }));
     } catch (error) {
-      ElMessage.error(getApiErrorMessage(error, '密码重置失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.password_reset_failed')));
     }
   });
 };
 
 const handleDeleteUser = (user: AdminUser) => {
   ElMessageBox.confirm(
-    `确定要删除用户 ${user.name || user.email} 吗？此操作不可逆，将删除其所有相关数据。`,
-    '极端危险操作',
+    t('admin.are_you_sure_you_8', { usernameuseremail: user.name || user.email }),
+    t('admin.extremely_dangerous_operation'),
     {
-      confirmButtonText: '确定永久删除',
-      cancelButtonText: '取消',
+      confirmButtonText: t('admin.confirm_permanent_deletion'),
+      cancelButtonText: t('admin.cancel'),
       type: 'error',
       confirmButtonClass: 'el-button--danger',
     },
@@ -338,9 +340,9 @@ const handleDeleteUser = (user: AdminUser) => {
     try {
       await api.delete(`/api/admin/users/${user.id}`);
       users.value = users.value.filter((u) => u.id !== user.id);
-      ElMessage.success('用户及其数据已从系统移除');
+      ElMessage.success(t('admin.the_user_and_their'));
     } catch {
-      ElMessage.error('删除失败');
+      ElMessage.error(t('admin.delete_failed'));
     }
   });
 };
@@ -411,11 +413,11 @@ onMounted(() => {
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreateDialog">
             <Plus class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">创建新用户</span>
+            <span class="hidden sm:inline">{{ $t('admin.create_new_user') }}</span>
           </button>
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchUsers">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
         </div>
       </div>
@@ -430,15 +432,15 @@ onMounted(() => {
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
 v-for="filter in [
-                { key: 'ALL', label: '所有状态', count: stats.total, color: 'indigo', icon: Users },
+                { key: 'ALL', label: $t('admin.all_status'), count: stats.total, color: 'indigo', icon: Users },
                 {
                   key: 'ACTIVE',
-                  label: '活跃',
+                  label: $t('admin.active_1'),
                   count: stats.active,
                   color: 'emerald',
                   icon: UserCheck,
                 },
-                { key: 'BANNED', label: '已封禁', count: stats.banned, color: 'rose', icon: UserX },
+                { key: 'BANNED', label: $t('admin.banned'), count: stats.banned, color: 'rose', icon: UserX },
               ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 statusFilter === filter.key
                   ? filter.key === 'ACTIVE'
@@ -460,10 +462,10 @@ v-for="filter in [
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
 v-for="filter in [
-                { key: 'ALL', label: '所有角色', count: stats.total, icon: Users },
-                { key: 'ADMIN', label: '管理员', count: stats.admin, icon: Crown },
-                { key: 'INSTRUCTOR', label: '导师', count: stats.instructor, icon: Zap },
-                { key: 'USER', label: '普通用户', count: stats.normal, icon: Users },
+                { key: 'ALL', label: $t('admin.all_roles'), count: stats.total, icon: Users },
+                { key: 'ADMIN', label: $t('admin.administrator'), count: stats.admin, icon: Crown },
+                { key: 'INSTRUCTOR', label: $t('admin.mentor'), count: stats.instructor, icon: Zap },
+                { key: 'USER', label: $t('admin.ordinary_user'), count: stats.normal, icon: Users },
               ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 roleFilter === filter.key
                   ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30 ring-1 ring-indigo-500/20 font-extrabold shadow-sm'
@@ -485,7 +487,7 @@ v-for="filter in [
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="按姓名或邮箱搜索用户..."
+              :placeholder="$t('admin.search_for_users_by')"
               class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -509,7 +511,7 @@ v-for="filter in [
           <div
             class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"
           ></div>
-          <p class="text-sm font-bold text-slate-400">正在同步用户数据...</p>
+          <p class="text-sm font-bold text-slate-400">{{ $t('admin.synchronizing_user_data') }}</p>
         </div>
 
         <template v-else>
@@ -568,7 +570,7 @@ v-for="filter in [
                       <UserAvatar :user="user" size="md" shadow />
                       <div class="min-w-0">
                         <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
-                          {{ user.name || '未命名用户' }}
+                          {{ user.name || $t('admin.unnamed_user') }}
                         </p>
                         <p class="text-xs text-slate-400 truncate">{{ user.email }}</p>
                       </div>
@@ -623,7 +625,7 @@ v-for="filter in [
                         {{
                           user.subscription.endDate
                             ? new Date(user.subscription.endDate).toLocaleDateString()
-                            : '永久'
+                            : $t('admin.permanent')
                         }}
                       </span>
                     </div>
@@ -661,7 +663,7 @@ v-for="filter in [
                       </el-dropdown>
 
                       <button
-type="button" class="p-2 rounded-xl transition-all shadow-sm" :title="user.status === 'BANNED' ? '解封' : '封禁'" :class="
+type="button" class="p-2 rounded-xl transition-all shadow-sm" ::title="$t('admin.user_status_banned_unblock')" :class="
                           user.status === 'BANNED'
                             ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white'
                             : 'bg-slate-50 text-slate-600 hover:bg-slate-900 hover:text-white'
@@ -670,7 +672,7 @@ type="button" class="p-2 rounded-xl transition-all shadow-sm" :title="user.statu
                         <UserX v-else class="w-3.5 h-3.5" />
                       </button>
 
-                      <button type="button" title="永久删除" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm" @click="handleDeleteUser(user)">
+                      <button type="button" :title="$t('admin.delete_permanently')" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm" @click="handleDeleteUser(user)">
                         <Trash2 class="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -697,7 +699,7 @@ type="button" class="p-2 rounded-xl transition-all shadow-sm" :title="user.statu
                   <UserAvatar :user="user" size="md" shadow />
                   <div class="min-w-0">
                     <p class="font-bold text-sm truncate" style="color: var(--text-primary)">
-                      {{ user.name || '未命名用户' }}
+                      {{ user.name || $t('admin.unnamed_user') }}
                     </p>
                     <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
                   </div>
@@ -755,7 +757,7 @@ type="button" class="p-2 rounded-xl transition-all shadow-sm" :title="user.statu
                       user.subscription.plan.name
                     }}</span>
                   </div>
-                  <p v-else class="text-[10px] font-bold text-slate-400">无活跃订阅</p>
+                  <p v-else class="text-[10px] font-bold text-slate-400">{{ $t('admin.no_active_subscriptions') }}</p>
                 </div>
               </div>
 
@@ -796,8 +798,8 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
           >
             <Search class="w-10 h-10 text-slate-300" />
           </div>
-          <h3 class="text-xl font-bold mb-2" style="color: var(--text-primary)">未找到匹配用户</h3>
-          <p class="text-sm text-slate-400 max-w-sm">尝试更换关键词或筛选条件再次搜索。</p>
+          <h3 class="text-xl font-bold mb-2" style="color: var(--text-primary)">{{ $t('admin.no_matching_user_found') }}</h3>
+          <p class="text-sm text-slate-400 max-w-sm">{{ $t('admin.try_changing_keywords_or') }}</p>
         </div>
 
         <div
@@ -808,7 +810,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
           <button type="button" class="px-3 py-1.5 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed" style="border-color: var(--border-base)" :disabled="pagination.page <= 1" @click="handlePageChange(pagination.page - 1)">
             上一页
           </button>
-          <span>第 {{ pagination.page }} / {{ pagination.totalPages }} 页</span>
+          <span>{{ $t('admin.page_pagination_page_pagination') }}</span>
           <button type="button" class="px-3 py-1.5 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed" style="border-color: var(--border-base)" :disabled="pagination.page >= pagination.totalPages" @click="handlePageChange(pagination.page + 1)">
             下一页
           </button>
@@ -819,7 +821,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
     <!-- Create User Dialog -->
     <el-dialog
       v-model="createDialogVisible"
-      title="创建新用户"
+      :title="$t('admin.create_new_user')"
       width="400px"
       class="rounded-3xl overflow-hidden"
       destroy-on-close
@@ -828,19 +830,19 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >用户姓名 (可选)</label
+            >{{ $t('admin.username_optional') }}</label
           >
           <input
             v-model="createForm.name"
             type="text"
-            placeholder="例如: 张三"
+            :placeholder="$t('admin.for_example_zhang_san')"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >电子邮箱 *</label
+            >{{ $t('admin.email_1') }}</label
           >
           <input
             v-model="createForm.email"
@@ -852,27 +854,27 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >初始密码 *</label
+            >{{ $t('admin.initial_password') }}</label
           >
           <input
             v-model="createForm.password"
             type="password"
-            placeholder="至少 6 位"
+            :placeholder="$t('admin.at_least_6_people')"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >用户角色</label
+            >{{ $t('admin.user_role') }}</label
           >
           <select
             v-model="createForm.role"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none"
           >
-            <option value="USER">普通用户</option>
-            <option value="INSTRUCTOR">导师</option>
-            <option value="ADMIN">管理员</option>
+            <option value="USER">{{ $t('admin.ordinary_user') }}</option>
+            <option value="INSTRUCTOR">{{ $t('admin.mentor') }}</option>
+            <option value="ADMIN">{{ $t('admin.administrator') }}</option>
           </select>
         </div>
       </div>
@@ -893,7 +895,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
     <!-- Edit User Dialog -->
     <el-dialog
       v-model="editDialogVisible"
-      title="编辑用户信息"
+      :title="$t('admin.edit_user_information')"
       width="400px"
       class="rounded-3xl overflow-hidden"
       destroy-on-close
@@ -902,7 +904,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >用户姓名</label
+            >{{ $t('admin.user_name') }}</label
           >
           <input
             v-model="editingUser.name"
@@ -913,7 +915,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >电子邮箱</label
+            >{{ $t('admin.email') }}</label
           >
           <input
             v-model="editingUser.email"
@@ -925,28 +927,28 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
           <div>
             <label
               class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-              >用户角色</label
+              >{{ $t('admin.user_role') }}</label
             >
             <select
               v-model="editingUser.role"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none"
             >
-              <option value="USER">普通用户</option>
-              <option value="INSTRUCTOR">导师</option>
-              <option value="ADMIN">管理员</option>
+              <option value="USER">{{ $t('admin.ordinary_user') }}</option>
+              <option value="INSTRUCTOR">{{ $t('admin.mentor') }}</option>
+              <option value="ADMIN">{{ $t('admin.administrator') }}</option>
             </select>
           </div>
           <div>
             <label
               class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-              >账户状态</label
+              >{{ $t('admin.account_status') }}</label
             >
             <select
               v-model="editingUser.status"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none"
             >
-              <option value="ACTIVE">活跃</option>
-              <option value="BANNED">封禁</option>
+              <option value="ACTIVE">{{ $t('admin.active_1') }}</option>
+              <option value="BANNED">{{ $t('admin.ban') }}</option>
             </select>
           </div>
         </div>
@@ -967,7 +969,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
     <!-- Subscription Management Dialog -->
     <el-dialog
       v-model="subDialogVisible"
-      :title="`订阅管理 - ${selectedUser?.name || selectedUser?.email}`"
+      ::title="$t('admin.subscription_management_selecteduser_name')"
       width="450px"
       class="rounded-3xl overflow-hidden"
       destroy-on-close
@@ -978,7 +980,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
           class="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/40"
         >
           <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-bold text-indigo-600">当前方案</span>
+            <span class="text-xs font-bold text-indigo-600">{{ $t('admin.current_plan') }}</span>
             <span
               class="px-2 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-black uppercase"
               >{{ selectedUser.subscription.plan.name }}</span
@@ -990,7 +992,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
                 支付周期
               </p>
               <p class="text-xs font-bold">
-                {{ selectedUser.subscription.interval === 'MONTHLY' ? '按月' : '按年' }}
+                {{ selectedUser.subscription.interval === 'MONTHLY' ? t('admin.by_month') : $t('admin.by_year') }}
               </p>
             </div>
             <div>
@@ -1001,7 +1003,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
                 {{
                   selectedUser.subscription.endDate
                     ? new Date(selectedUser.subscription.endDate).toLocaleDateString()
-                    : '永久'
+                    : $t('admin.permanent')
                 }}
               </p>
             </div>
@@ -1011,7 +1013,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >选择订阅方案</label
+            >{{ $t('admin.choose_a_subscription_plan') }}</label
           >
           <div class="grid grid-cols-1 gap-2">
             <div
@@ -1042,7 +1044,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
                 </div>
                 <div>
                   <p class="text-xs font-black">{{ plan.displayName || plan.name }}</p>
-                  <p class="text-[10px] text-slate-400">¥{{ plan.price }}/月</p>
+                  <p class="text-[10px] text-slate-400">{{ $t('admin.plan_price_month') }}</p>
                 </div>
               </div>
               <div
@@ -1059,28 +1061,28 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
           <div>
             <label
               class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-              >支付周期</label
+              >{{ $t('admin.payment_cycle') }}</label
             >
             <select
               v-model="subForm.interval"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none"
             >
-              <option value="MONTHLY">按月续费</option>
-              <option value="YEARLY">按年续费</option>
+              <option value="MONTHLY">{{ $t('admin.renew_monthly') }}</option>
+              <option value="YEARLY">{{ $t('admin.renew_annually') }}</option>
             </select>
           </div>
           <div>
             <label
               class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-              >订阅状态</label
+              >{{ $t('admin.subscription_status') }}</label
             >
             <select
               v-model="subForm.status"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 outline-none"
             >
-              <option value="ACTIVE">有效 (ACTIVE)</option>
-              <option value="EXPIRED">过期 (EXPIRED)</option>
-              <option value="CANCELLED">已取消 (CANCELLED)</option>
+              <option value="ACTIVE">{{ $t('admin.active') }}</option>
+              <option value="EXPIRED">{{ $t('admin.expired_2') }}</option>
+              <option value="CANCELLED">{{ $t('admin.cancelled') }}</option>
             </select>
           </div>
         </div>
@@ -1088,7 +1090,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
         <div>
           <label
             class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block"
-            >手动设置到期时间 (可选)</label
+            >{{ $t('admin.manually_set_expiration_time') }}</label
           >
           <input
             v-model="subForm.endDate"
@@ -1108,7 +1110,7 @@ type="button" class="p-2 rounded-xl border transition-all" style="border-color: 
             </button>
             <button type="button" :disabled="isSubLoading" class="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2" @click="handleManageSub">
               <RefreshCw v-if="isSubLoading" class="w-4 h-4 animate-spin" />
-              {{ selectedUser?.subscription ? '更新并保存订阅' : '确认开通订阅' }}
+              {{ selectedUser?.subscription ? t('admin.update_and_save_subscription') : $t('admin.confirm_subscription_activation') }}
             </button>
           </div>
           <button v-if="selectedUser?.subscription" type="button" class="w-full py-2.5 text-[11px] font-black text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-all" @click="handleCancelSub">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, reactive, watch, computed } from 'vue';
 import { Layout, Eye } from 'lucide-vue-next';
 import SafeHtml from '@/components/SafeHtml.vue';
@@ -58,14 +60,14 @@ const emailPreviewHtml = computed(() => {
           </h2>
         </div>
         <button type="button" class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors bg-transparent cursor-pointer" @click="showEmailPreview = !showEmailPreview">
-          {{ showEmailPreview ? '关闭预览' : '预览邮件' }}
+          {{ showEmailPreview ? t('admin.close_preview') : $t('admin.preview_message') }}
         </button>
       </div>
 
       <div class="space-y-6">
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >邮件主题 (Subject)</label
+            >{{ $t('admin.email_subject_subject') }}</label
           >
           <input
             v-model="localSettings.EMAIL_VERIFY_SUBJECT"
@@ -83,8 +85,8 @@ const emailPreviewHtml = computed(() => {
             class="text-xs font-bold px-1 flex justify-between items-center"
             style="color: var(--text-secondary)"
           >
-            <span>正文内容 (支持 HTML)</span>
-            <span v-pre class="text-[10px] opacity-60">可用占位符: {{ code }}</span>
+            <span>{{ $t('admin.text_content_html_supported') }}</span>
+            <span v-pre class="text-[10px] opacity-60">{{ $t('admin.available_placeholders_code') }}</span>
           </label>
           <textarea
             v-model="localSettings.EMAIL_VERIFY_BODY"
@@ -107,7 +109,7 @@ const emailPreviewHtml = computed(() => {
     >
       <div class="flex items-center gap-3 mb-6">
         <Eye class="w-5 h-5 text-accent" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">邮件预览</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.email_preview') }}</h2>
       </div>
 
       <div
@@ -119,7 +121,7 @@ const emailPreviewHtml = computed(() => {
           style="background-color: var(--bg-app); border-color: var(--border-base)"
         >
           <div class="space-y-1">
-            <p class="text-[10px] font-bold" style="color: var(--text-muted)">主题</p>
+            <p class="text-[10px] font-bold" style="color: var(--text-muted)">{{ $t('admin.topic') }}</p>
             <p class="text-xs font-medium" style="color: var(--text-primary)">
               {{ localSettings.EMAIL_VERIFY_SUBJECT }}
             </p>

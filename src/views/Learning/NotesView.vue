@@ -20,6 +20,7 @@ import { useAuthStore } from '@/stores/auth';
 import PageHeader from '@/components/PageHeader.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 
 // Subcomponents
 import NotebookCreateDialog from './components/NotebookCreateDialog.vue';
@@ -33,6 +34,7 @@ import ActivityTimeline from './components/ActivityTimeline.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
 
 interface Note {
   id: string;
@@ -93,7 +95,7 @@ const handleChatWithMember = async (member: any) => {
     });
     router.push('/messages');
   } catch (_error) {
-    ElMessage.error('无法发起对话');
+    ElMessage.error(t('notes.startChatFailed'));
   }
 };
 
@@ -125,7 +127,7 @@ const saveLocalNotebooks = () => {
 const handleNotebookCreated = (name: string) => {
   localNotebooks.value.push(name);
   saveLocalNotebooks();
-  ElMessage.success(`笔记本「${name}」创建成功！`);
+  ElMessage.success(t('notes.notebookCreateSuccess', { name }));
 };
 
 // Compute dynamic list of my notebooks
@@ -187,7 +189,7 @@ const handleDrop = async (event: DragEvent, targetNotebookName: string) => {
       category: categoryToSend || null,
     };
     await api.put(`/api/notes/${noteId}`, payload);
-    ElMessage.success(`已成功移动笔记至「${targetNotebookName === 'UNCATEGORIZED' ? '未分类' : targetNotebookName}」！`);
+    ElMessage.success(t('notes.moveSuccess', { name: targetNotebookName === 'UNCATEGORIZED' ? t('notes.uncategorized') : targetNotebookName }));
 
     // Optimistic local update
     const idx = notes.value.findIndex((n) => n.id === noteId);
@@ -199,7 +201,7 @@ const handleDrop = async (event: DragEvent, targetNotebookName: string) => {
     await loadTagsAndCategories();
     await loadNotes();
   } catch {
-    ElMessage.error('移动笔记本失败');
+    ElMessage.error(t('notes.moveNotebookFailed'));
   } finally {
     draggedNote.value = null;
   }
@@ -249,7 +251,7 @@ const loadNotes = async () => {
       totalNotes.value = res.data.pagination.total;
     }
   } catch {
-    ElMessage.error('加载笔记失败');
+    ElMessage.error(t('notes.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -349,13 +351,13 @@ const handleDetailViewsUpdated = (data: { id: string; views: number }) => {
 
 const handleDelete = async (note: Note) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条笔记吗？', '确认删除', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('notes.deleteConfirm'), t('common.confirmDelete') || t('common.delete'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     });
     await api.delete(`/api/notes/${note.id}`);
-    ElMessage.success('笔记已删除');
+    ElMessage.success(t('notes.deleteSuccess'));
     await loadNotes();
   } catch {
     // Ignore error
@@ -366,7 +368,7 @@ const handleTogglePopular = async (note: Note) => {
   try {
     const res = await api.post(`/api/notes/${note.id}/popular`);
     note.isPopular = res.data.isPopular;
-    ElMessage.success(note.isPopular ? '已推荐该笔记为热门！' : '已取消该热门推荐');
+    ElMessage.success(note.isPopular ? t('notes.popularRecommended') : t('notes.popularCancelled'));
     
     // Synced reactive list update
     const idx = notes.value.findIndex((n) => n.id === note.id);
@@ -378,7 +380,7 @@ const handleTogglePopular = async (note: Note) => {
       loadNotes();
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '操作失败'));
+    ElMessage.error(getApiErrorMessage(error, t('notes.operationFailed')));
   }
 };
 
@@ -392,7 +394,7 @@ const handleLike = async (note: Note) => {
       note._count.likes--;
     }
   } catch {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('notes.operationFailed'));
   }
 };
 
@@ -428,16 +430,16 @@ const handleSelectAll = (checked: any) => {
 
 const handleBatchDelete = async () => {
   if (selectedNoteIds.value.length === 0) {
-    ElMessage.warning('请先选择需要删除的笔记');
+    ElMessage.warning(t('notes.selectToDelete'));
     return;
   }
   try {
     await ElMessageBox.confirm(
-      `确定要永久删除这 ${selectedNoteIds.value.length} 篇笔记吗？删除后将无法恢复。`,
-      '批量删除笔记',
+      t('notes.batchDeleteConfirm', { n: selectedNoteIds.value.length }),
+      t('notes.batchDeleteTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       }
     );
@@ -449,7 +451,7 @@ const handleBatchDelete = async () => {
           api.delete(`/api/notes/${id}`)
         )
       );
-      ElMessage.success(`已成功批量删除 ${selectedNoteIds.value.length} 篇笔记！`);
+      ElMessage.success(t('notes.batchDeleteSuccess', { n: selectedNoteIds.value.length }));
       selectedNoteIds.value = [];
       isSelectionMode.value = false;
       
@@ -457,7 +459,7 @@ const handleBatchDelete = async () => {
       await loadNotes();
     } catch (err) {
       console.error(err);
-      ElMessage.error('批量删除部分笔记失败，请重试');
+      ElMessage.error(t('notes.batchDeleteFailed'));
     } finally {
       loading.value = false;
     }
@@ -470,7 +472,7 @@ const handleBatchDelete = async () => {
 
 const handleBatchMove = () => {
   if (selectedNoteIds.value.length === 0) {
-    ElMessage.warning('请先选择需要移动的笔记');
+    ElMessage.warning(t('notes.selectToMove'));
     return;
   }
   targetMoveCategory.value = '';
@@ -487,7 +489,7 @@ const confirmBatchMove = async () => {
         api.put(`/api/notes/${id}`, { category: categoryValue })
       )
     );
-    ElMessage.success(`已成功批量移动 ${selectedNoteIds.value.length} 篇笔记！`);
+    ElMessage.success(t('notes.batchMoveSuccess', { n: selectedNoteIds.value.length }));
     selectedNoteIds.value = [];
     isSelectionMode.value = false;
     
@@ -495,7 +497,7 @@ const confirmBatchMove = async () => {
     await loadNotes();
   } catch (err) {
     console.error(err);
-    ElMessage.error('批量移动笔记失败，请重试');
+    ElMessage.error(t('notes.batchMoveFailed'));
   } finally {
     loading.value = false;
   }
@@ -505,14 +507,14 @@ const confirmBatchMove = async () => {
 const handleRenameNotebook = async (oldName: string) => {
   try {
     const { value: newName } = await ElMessageBox.prompt(
-      `请输入笔记本「${oldName}」的新名称：`,
-      '修改笔记本名称',
+      t('notes.renamePrompt', { name: oldName }),
+      t('notes.renameTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         inputValue: oldName,
         inputPattern: /\S+/,
-        inputErrorMessage: '名称不能为空',
+        inputErrorMessage: t('notes.nameNotEmpty'),
       }
     );
 
@@ -520,7 +522,7 @@ const handleRenameNotebook = async (oldName: string) => {
     if (!trimmedName || trimmedName === oldName) return;
 
     if (localNotebooks.value.includes(trimmedName)) {
-      ElMessage.warning('已经存在同名笔记本');
+      ElMessage.warning(t('notes.notebookExists'));
       return;
     }
 
@@ -543,7 +545,7 @@ const handleRenameNotebook = async (oldName: string) => {
         );
       } catch (err) {
         console.error(err);
-        ElMessage.error('部分笔记移动至新笔记本失败');
+        ElMessage.error(t('notes.moveSomeNotesFailed'));
       } finally {
         loading.value = false;
       }
@@ -553,7 +555,7 @@ const handleRenameNotebook = async (oldName: string) => {
       filterCategory.value = trimmedName;
     }
 
-    ElMessage.success(`笔记本已成功重命名为「${trimmedName}」！`);
+    ElMessage.success(t('notes.notebookRenameSuccess', { name: trimmedName }));
     await loadTagsAndCategories();
     await loadNotes();
   } catch (err) {
@@ -566,11 +568,11 @@ const handleRenameNotebook = async (oldName: string) => {
 const handleDeleteNotebook = async (name: string) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除笔记本「${name}」吗？删除后其中的笔记将被移动到「未分类」中。`,
-      '删除笔记本',
+      t('notes.deleteNotebookConfirm', { name }),
+      t('notes.deleteNotebookTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       }
     );
@@ -589,7 +591,7 @@ const handleDeleteNotebook = async (name: string) => {
         );
       } catch (err) {
         console.error(err);
-        ElMessage.error('移动部分笔记至未分类失败');
+        ElMessage.error(t('notes.moveToUncategorizedFailed'));
       } finally {
         loading.value = false;
       }
@@ -599,7 +601,7 @@ const handleDeleteNotebook = async (name: string) => {
       filterCategory.value = '';
     }
 
-    ElMessage.success(`已删除笔记本「${name}」！`);
+    ElMessage.success(t('notes.notebookDeleteSuccess', { name }));
     await loadTagsAndCategories();
     await loadNotes();
   } catch (err) {
@@ -640,18 +642,18 @@ onUnmounted(() => {
   >
     <!-- Header Section -->
     <PageHeader
-      title="学习笔记"
-      subtitle="记录学习心得，分享知识见解"
+      :title="t('notes.title')"
+      :subtitle="t('notes.subtitle')"
       :icon="Notebook"
     >
       <div class="flex items-center gap-2.5 w-full sm:w-auto">
         <button type="button" class="bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 border border-[var(--border-base)] shrink-0 w-full sm:w-auto cursor-pointer shadow-xs" @click="openImportDialog">
           <Github class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-secondary)]" />
-          <span>导入 GitHub 笔记</span>
+          <span>{{ t('notes.importGithub') }}</span>
         </button>
         <button type="button" class="bg-accent hover:bg-accent-dark text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 shadow-lg shadow-accent/20 shrink-0 w-full sm:w-auto cursor-pointer" @click="openCreateDialog">
           <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>发布笔记</span>
+          <span>{{ t('notes.publish') }}</span>
         </button>
       </div>
     </PageHeader>
@@ -661,9 +663,9 @@ onUnmounted(() => {
       <div class="max-w-none">
         <div class="mb-1 md:mb-1.5">
           <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
-            <el-tab-pane label="我的" name="MY" />
-            <el-tab-pane label="动态" name="ACTIVITY" />
-            <el-tab-pane label="热门" name="POPULAR" />
+            <el-tab-pane :label="t('notes.tabMy')" name="MY" />
+            <el-tab-pane :label="t('notes.tabActivity')" name="ACTIVITY" />
+            <el-tab-pane :label="t('notes.tabPopular')" name="POPULAR" />
           </el-tabs>
         </div>
 
@@ -675,9 +677,9 @@ onUnmounted(() => {
           >
             <div class="flex items-center justify-between">
               <span class="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                <Notebook class="w-4 h-4 text-accent" /> 笔记本管理
+                <Notebook class="w-4 h-4 text-accent" /> {{ t('notes.notebookManagement') }}
               </span>
-              <button type="button" class="text-accent hover:text-accent-dark hover:bg-accent/5 p-1 rounded-lg transition-all cursor-pointer" title="新建笔记本" @click="createNotebookDialogRef?.open()">
+              <button type="button" class="text-accent hover:text-accent-dark hover:bg-accent/5 p-1 rounded-lg transition-all cursor-pointer" :title="t('notes.newNotebook')" @click="createNotebookDialogRef?.open()">
                 <FolderPlus class="w-4 h-4" />
               </button>
             </div>
@@ -685,23 +687,23 @@ onUnmounted(() => {
             <div class="flex flex-col gap-1 max-h-[500px] overflow-y-auto custom-scrollbar">
               <!-- All Notes -->
               <button
-type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
+                type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
                   !filterCategory ? 'bg-accent/10 text-accent font-black border-accent/10' : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
                   draggedNotebook === 'ALL' ? 'bg-accent/20 text-accent border-accent/30 shadow-sm' : ''
                 ]" @click="selectNotebook('ALL')" @dragover.prevent @dragenter.prevent="draggedNotebook = 'ALL'" @dragleave="draggedNotebook = null" @drop="handleDrop($event, 'ALL')">
                 <span class="flex items-center gap-2 truncate">
-                  <Folder class="w-3.5 h-3.5" :class="[!filterCategory ? 'text-accent' : 'text-[var(--text-muted)]']" /> 全部笔记
+                  <Folder class="w-3.5 h-3.5" :class="[!filterCategory ? 'text-accent' : 'text-[var(--text-muted)]']" /> {{ t('notes.allNotes') }}
                 </span>
               </button>
               
               <!-- Uncategorized -->
               <button
-type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
+                type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
                   filterCategory === '__uncategorized__' ? 'bg-accent/10 text-accent font-black border-accent/10' : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
                   draggedNotebook === 'UNCATEGORIZED' ? 'bg-accent/20 text-accent border-accent/30 shadow-sm' : ''
                 ]" @click="selectNotebook('UNCATEGORIZED')" @dragover.prevent @dragenter.prevent="draggedNotebook = 'UNCATEGORIZED'" @dragleave="draggedNotebook = null" @drop="handleDrop($event, 'UNCATEGORIZED')">
                 <span class="flex items-center gap-2 truncate">
-                  <Folder class="w-3.5 h-3.5" :class="[filterCategory === '__uncategorized__' ? 'text-accent' : 'text-[var(--text-muted)]']" /> 未分类
+                  <Folder class="w-3.5 h-3.5" :class="[filterCategory === '__uncategorized__' ? 'text-accent' : 'text-[var(--text-muted)]']" /> {{ t('notes.uncategorized') }}
                 </span>
               </button>
               
@@ -733,7 +735,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                   <button 
                     type="button"
                     class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-accent border-0 bg-transparent"
-                    title="修改名称"
+                    :title="t('notes.renameNotebook')"
                     @click.stop="handleRenameNotebook(cat)"
                   >
                     <Edit3 class="w-3 h-3" />
@@ -741,7 +743,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                   <button 
                     type="button"
                     class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-red-500 border-0 bg-transparent"
-                    title="删除笔记本"
+                    :title="t('notes.deleteNotebook')"
                     @click.stop="handleDeleteNotebook(cat)"
                   >
                     <Trash2 class="w-3 h-3" />
@@ -759,7 +761,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
               <div class="flex items-center gap-1.5 flex-1 min-w-0">
                 <el-input
                   v-model="searchQuery"
-                  placeholder="搜索笔记..."
+                  :placeholder="t('notes.searchPlaceholder')"
                   :prefix-icon="Search"
                   clearable
                   class="flex-1 !w-full min-w-[120px] sm:min-w-[200px] note-search-input"
@@ -769,13 +771,13 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
 
                 <el-select
                   v-model="sortBy"
-                  placeholder="排序"
+                  :placeholder="t('notes.sortLabel')"
                   class="shrink-0 !w-24 sm:!w-32 note-filter-select"
                   @change="loadNotes"
                 >
-                  <el-option label="最新" value="latest" />
-                  <el-option label="浏览" value="most_viewed" />
-                  <el-option label="点赞" value="most_liked" />
+                  <el-option :label="t('notes.sortLatest')" value="latest" />
+                  <el-option :label="t('notes.sortMostViewed')" value="most_viewed" />
+                  <el-option :label="t('notes.sortMostLiked')" value="most_liked" />
                 </el-select>
               </div>
 
@@ -785,19 +787,19 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                 <el-select
                   v-if="activeTab === 'MY'"
                   :model-value="filterCategory === '__uncategorized__' ? 'UNCATEGORIZED' : (filterCategory || 'ALL')"
-                  placeholder="笔记本"
+                  :placeholder="t('notes.notebookLabel')"
                   class="md:hidden flex-1 !w-full note-filter-select"
                   @change="selectNotebook"
                 >
-                  <el-option label="全部笔记" value="ALL" />
-                  <el-option label="未分类" value="UNCATEGORIZED" />
+                  <el-option :label="t('notes.allNotes')" value="ALL" />
+                  <el-option :label="t('notes.uncategorized')" value="UNCATEGORIZED" />
                   <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
                 </el-select>
 
                 <el-select
                   v-if="tags.length"
                   v-model="filterTag"
-                  placeholder="标签"
+                  :placeholder="t('notes.tagLabel')"
                   class="flex-1 sm:flex-none !w-full sm:!w-32 note-filter-select"
                   clearable
                   @change="loadNotes"
@@ -809,7 +811,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                 <el-select
                   v-if="activeTab !== 'MY' && categories.length"
                   v-model="filterCategory"
-                  placeholder="分类"
+                  :placeholder="t('notes.categoryLabel')"
                   class="flex-1 sm:flex-none !w-full sm:!w-32 note-filter-select"
                   clearable
                   @change="loadNotes"
@@ -832,7 +834,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
               >
                 <CheckSquare v-if="isSelectionMode" class="w-3.5 h-3.5" />
                 <Square v-else class="w-3.5 h-3.5" />
-                <span>{{ isSelectionMode ? '取消批量' : '批量管理' }}</span>
+                <span>{{ isSelectionMode ? t('notes.cancelBatch') : t('notes.batchManage') }}</span>
               </button>
             </div>
 
@@ -846,9 +848,9 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                   :model-value="notes.length > 0 && selectedNoteIds.length === notes.filter(n => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN').length"
                   @change="handleSelectAll"
                 >
-                  <span class="text-xs font-bold text-[var(--text-primary)]">全选</span>
+                  <span class="text-xs font-bold text-[var(--text-primary)]">{{ t('notes.selectAll') }}</span>
                 </el-checkbox>
-                <span class="text-[var(--text-secondary)]">已选择 <span class="text-accent font-black">{{ selectedNoteIds.length }}</span> 篇笔记</span>
+                <span class="text-[var(--text-secondary)]">{{ t('notes.selectedCount', { n: selectedNoteIds.length }) }}</span>
               </div>
               <div class="flex items-center gap-2">
                 <el-button 
@@ -858,7 +860,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                   :disabled="selectedNoteIds.length === 0"
                   @click="handleBatchMove"
                 >
-                  批量移动
+                  {{ t('notes.batchMove') }}
                 </el-button>
                 <el-button 
                   type="danger" 
@@ -867,7 +869,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
                   :disabled="selectedNoteIds.length === 0"
                   @click="handleBatchDelete"
                 >
-                  批量删除
+                  {{ t('notes.batchDelete') }}
                 </el-button>
               </div>
             </div>
@@ -878,7 +880,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
               class="flex flex-col items-center justify-center py-32 text-[var(--text-muted)] w-full"
             >
               <el-icon class="is-loading" :size="40"><Loading /></el-icon>
-              <p class="mt-4 font-medium">正在为您加载笔记...</p>
+              <p class="mt-4 font-medium">{{ t('notes.loadingNotes') }}</p>
             </div>
 
             <!-- Empty State -->
@@ -891,7 +893,7 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
               >
                 <Notebook class="w-12 h-12 text-[var(--text-muted)] opacity-40" />
               </div>
-              <p class="text-[var(--text-secondary)] font-medium">暂无相关笔记内容</p>
+              <p class="text-[var(--text-secondary)] font-medium">{{ t('notes.noNotesContent') }}</p>
             </div>
 
             <!-- Content list -->
@@ -1004,18 +1006,18 @@ type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text
     />
 
     <!-- Batch Move Dialog -->
-    <el-dialog v-model="isMoveDialogOpen" title="批量移动至笔记本" width="min(400px, 95%)" destroy-on-close>
+    <el-dialog v-model="isMoveDialogOpen" :title="t('notes.batchMoveTitle')" width="min(400px, 95%)" destroy-on-close>
       <div class="py-2">
-        <p class="text-xs text-[var(--text-secondary)] mb-3">选择目标笔记本：</p>
-        <el-select v-model="targetMoveCategory" placeholder="请选择笔记本" class="w-full">
-          <el-option label="未分类" value="" />
+        <p class="text-xs text-[var(--text-secondary)] mb-3">{{ t('notes.selectTargetNotebook') }}</p>
+        <el-select v-model="targetMoveCategory" :placeholder="t('notes.selectNotebookPlaceholder')" class="w-full">
+          <el-option :label="t('notes.uncategorized')" value="" />
           <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
         </el-select>
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="isMoveDialogOpen = false">取消</el-button>
-          <el-button type="primary" @click="confirmBatchMove">确定</el-button>
+          <el-button @click="isMoveDialogOpen = false">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" @click="confirmBatchMove">{{ t('common.confirm') }}</el-button>
         </span>
       </template>
     </el-dialog>

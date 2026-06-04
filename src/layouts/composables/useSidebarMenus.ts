@@ -374,17 +374,17 @@ export function useSidebarMenus() {
 
     return [
       {
-        title: '我的学习',
+        title: t('sidebar.groups.learning'),
         items: [
           { name: t('sidebar.dashboard'), icon: LayoutDashboard, path: '/dashboard' },
           { name: t('sidebar.work'), icon: Briefcase, path: '/work' },
           { name: t('sidebar.roadmaps'), icon: MapPin, path: '/roadmaps' },
           { name: t('sidebar.academy'), icon: GraduationCap, path: '/academy' },
-          { name: '我的笔记', icon: Notebook, path: '/notes' },
+          { name: t('sidebar.notes'), icon: Notebook, path: '/notes' },
         ],
       },
       {
-        title: '团队协作',
+        title: t('sidebar.groups.collaboration'),
         items: [
           { name: t('sidebar.teamTasks'), icon: Briefcase, path: '/team-tasks' },
           {
@@ -395,7 +395,7 @@ export function useSidebarMenus() {
         ],
       },
       {
-        title: '资源中心',
+        title: t('sidebar.groups.resources'),
         items: [
           { name: t('sidebar.myWorks'), icon: Box, path: '/my-works' },
           { name: t('sidebar.assets'), icon: ImageIcon, path: '/assets' },
@@ -403,7 +403,7 @@ export function useSidebarMenus() {
         ],
       },
       {
-        title: '交流社区',
+        title: t('sidebar.groups.community'),
         items: [
           { name: t('sidebar.discussions'), icon: MessageSquare, path: '/discussions' },
           {
@@ -416,8 +416,8 @@ export function useSidebarMenus() {
         ],
       },
       {
-        title: '工具服务',
-        items: [{ name: '邮箱系统', icon: Mail, path: '/tools/email' }],
+        title: t('sidebar.groups.tools'),
+        items: [{ name: t('sidebar.emailSystem'), icon: Mail, path: '/tools/email' }],
       },
     ];
   });
@@ -470,32 +470,32 @@ export function useSidebarMenus() {
 
     return [
       {
-        name: '首页',
+        name: t('sidebar.dashboard'),
         icon: LayoutDashboard,
         path: '/dashboard',
         active: (path) => path === '/dashboard' || path.startsWith('/dashboard'),
       },
       {
-        name: '学习',
+        name: t('sidebar.academy'),
         icon: GraduationCap,
         path: '/academy',
         active: (path) => path.startsWith('/academy') || path.startsWith('/roadmaps'),
       },
       {
-        name: '作品',
+        name: t('sidebar.showcase'),
         icon: MonitorPlay,
         path: '/showcase',
         active: (path) =>
           path.startsWith('/showcase') || path.startsWith('/assets') || path.startsWith('/my-works'),
       },
       {
-        name: '社区',
+        name: t('sidebar.discussions'),
         icon: MessageSquare,
         path: '/discussions',
         active: (path) => path.startsWith('/discussions') || path.startsWith('/members'),
       },
       {
-        name: '消息',
+        name: t('sidebar.messages'),
         icon: MessageCircle,
         path: '/messages',
         badge: authStore.unreadMessagesCount,

@@ -60,7 +60,7 @@ const showGithubPassword = ref(false);
           <div class="flex items-center gap-3">
             <Chrome class="w-4 h-4 text-accent" />
             <div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">开启 Google 登录</span>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">{{ $t('admin.turn_on_google_sign') }}</span>
               <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                 允许用户使用 Google 账号直接登录平台
               </p>
@@ -135,7 +135,7 @@ const showGithubPassword = ref(false);
           <div class="flex items-center gap-3">
             <Github class="w-4 h-4 text-slate-800 dark:text-white" />
             <div>
-              <span class="text-xs font-bold" style="color: var(--text-primary)">开启 GitHub 登录</span>
+              <span class="text-xs font-bold" style="color: var(--text-primary)">{{ $t('admin.enable_github_login') }}</span>
               <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                 允许用户使用 GitHub 账号直接登录平台
               </p>

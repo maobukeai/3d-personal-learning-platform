@@ -2,6 +2,7 @@
 import { getApiErrorMessage, getApiErrorStatus } from '@/utils/error';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Users,
   Settings,
@@ -77,6 +78,7 @@ interface DetailedTeam {
   applications?: DetailedApplication[];
 }
 
+const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -104,7 +106,7 @@ const handleStartChat = async (user: TeamUser) => {
     });
     router.push('/messages');
   } catch {
-    ElMessage.error('创建对话失败');
+    ElMessage.error(t('members.chatInitFailed'));
   }
 };
 
@@ -116,9 +118,9 @@ const fetchTeamDetail = async () => {
   } catch (error) {
     console.error('Fetch team detail error:', error);
     if (getApiErrorStatus(error) === 403) {
-      ElMessage.error('你没有权限查看该团队');
+      ElMessage.error(t('teamDetail.noPermission'));
     } else {
-      ElMessage.error('获取团队详情失败');
+      ElMessage.error(t('teamDetail.fetchFailed'));
     }
     router.push('/dashboard');
   } finally {
@@ -212,38 +214,38 @@ const teamStats = computed(() => {
 // Member Management
 const handleRemoveMember = async (userId: string, name: string) => {
   try {
-    await ElMessageBox.confirm(`确定要将 ${name} 移出团队吗？`, '移除成员', {
-      confirmButtonText: '确定移除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('teamDetail.removeConfirm', { name }), t('teamDetail.removeTitle'), {
+      confirmButtonText: t('teamDetail.removeBtn'),
+      cancelButtonText: t('teamDetail.cancelBtn'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger',
     });
 
     await api.delete(`/api/teams/${teamId.value}/members/${userId}`);
-    ElMessage.success('成员已移除');
+    ElMessage.success(t('members.removeSuccess') || '成员已移除');
     fetchTeamDetail();
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error('操作失败');
+    if (error !== 'cancel') ElMessage.error(t('teamDetail.operationFailed'));
   }
 };
 
 const handleUpdateRole = async (userId: string, newRole: string) => {
   try {
     await api.patch(`/api/teams/${teamId.value}/members/${userId}/role`, { role: newRole });
-    ElMessage.success('角色权限已更新');
+    ElMessage.success(t('teamDetail.roleUpdated'));
     fetchTeamDetail();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '更新失败'));
+    ElMessage.error(getApiErrorMessage(error, t('teamDetail.operationFailed')));
   }
 };
 
 const handleCancelInvitation = async (invitationId: string) => {
   try {
     await api.delete(`/api/teams/invitations/${invitationId}`);
-    ElMessage.success('邀请已撤回');
+    ElMessage.success(t('teamDetail.invitationCancelled'));
     fetchTeamDetail();
   } catch {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('teamDetail.operationFailed'));
   }
 };
 
@@ -255,11 +257,11 @@ const handleRespondApplication = async (
   try {
     await api.post('/api/teams/applications/respond', { applicationId, accept: approve });
     ElMessage.success(
-      approve ? `已批准 ${applicantName} 加入团队` : `已拒绝 ${applicantName} 的申请`,
+      approve ? t('teamDetail.joinedSuccess', { name: applicantName }) : t('teamDetail.rejectedSuccess', { name: applicantName }),
     );
     fetchTeamDetail();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '操作失败'));
+    ElMessage.error(getApiErrorMessage(error, t('teamDetail.operationFailed')));
   }
 };
 
@@ -298,11 +300,11 @@ const handleAddUser = async (user: TeamUser) => {
       teamId: teamId.value,
       inviteeEmail: user.email,
     });
-    ElMessage.success(`已向 ${user.name} 发送团队邀请`);
+    ElMessage.success(t('teamDetail.inviteSent', { name: user.name }));
     isAddModalOpen.value = false;
     fetchTeamDetail();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '发送邀请失败'));
+    ElMessage.error(getApiErrorMessage(error, t('teamDetail.inviteFailed')));
   }
 };
 
@@ -313,12 +315,12 @@ const handleSendInvite = async () => {
       teamId: teamId.value,
       inviteeEmail: inviteEmailInput.value,
     });
-    ElMessage.success('邀请已发送');
+    ElMessage.success(t('teamDetail.inviteSent', { name: inviteEmailInput.value }));
     inviteEmailInput.value = '';
     isAddModalOpen.value = false;
     fetchTeamDetail();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '发送失败'));
+    ElMessage.error(getApiErrorMessage(error, t('teamDetail.inviteFailed')));
   }
 };
 
@@ -337,11 +339,11 @@ const handleUpdateTeam = async () => {
   isSaving.value = true;
   try {
     await api.patch(`/api/teams/${teamId.value}`, editForm.value);
-    ElMessage.success('团队资料已更新');
+    ElMessage.success(t('teamDetail.updatedSuccess'));
     await workspaceStore.fetchWorkspaces();
     fetchTeamDetail();
   } catch {
-    ElMessage.error('更新失败');
+    ElMessage.error(t('teamDetail.updateFailed'));
   } finally {
     isSaving.value = false;
   }
@@ -349,38 +351,38 @@ const handleUpdateTeam = async () => {
 
 const handleLeaveTeam = async () => {
   try {
-    await ElMessageBox.confirm('确定要退出该团队吗？退出后将无法访问团队数据。', '退出团队', {
-      confirmButtonText: '退出',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('teamDetail.leaveConfirm'), t('teamDetail.leaveTitle'), {
+      confirmButtonText: t('teamDetail.leaveBtn'),
+      cancelButtonText: t('teamDetail.cancelBtn'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger',
     });
 
     await api.delete(`/api/teams/${teamId.value}/members/${authStore.user?.id}`);
-    ElMessage.success('您已退出该团队');
+    ElMessage.success(t('teamDetail.leftTeamSuccess'));
     await workspaceStore.fetchWorkspaces();
     router.push('/dashboard');
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error('退出团队失败');
+    if (error !== 'cancel') ElMessage.error(t('teamDetail.leaveTeamFailed'));
   }
 };
 
 const handleApplyFromDetail = async () => {
   try {
     await ElMessageBox.confirm(
-      `你正在申请加入 "${team.value?.name}"，申请信息将发送给团队管理员。`,
-      '申请加入团队',
+      t('teamDetail.applyConfirm', { name: team.value?.name || '' }),
+      t('teamDetail.applyTitle'),
       {
-        confirmButtonText: '提交申请',
-        cancelButtonText: '取消',
+        confirmButtonText: t('teamDetail.applySubmit'),
+        cancelButtonText: t('teamDetail.cancelBtn'),
         type: 'info',
       },
     );
     await api.post('/api/teams/apply', { teamId: teamId.value });
-    ElMessage.success('申请已提交！等待管理员审批');
+    ElMessage.success(t('teamDetail.applySuccess'));
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '申请失败'));
+      ElMessage.error(getApiErrorMessage(error, t('teamDetail.applyFailed')));
     }
   }
 };
@@ -409,10 +411,10 @@ const handleAvatarChange = async (event: Event) => {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (team.value) team.value.avatarUrl = data.avatarUrl;
-    ElMessage.success('团队头像已更新');
+    ElMessage.success(t('teamDetail.avatarUpdateSuccess'));
     await workspaceStore.fetchWorkspaces();
   } catch {
-    ElMessage.error('头像更新失败');
+    ElMessage.error(t('teamDetail.avatarUpdateFailed'));
   }
 };
 
@@ -429,9 +431,9 @@ const handleCoverChange = async (event: Event) => {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (team.value) team.value.coverUrl = data.coverUrl;
-    ElMessage.success('团队封面已更新');
+    ElMessage.success(t('teamDetail.coverUpdateSuccess'));
   } catch {
-    ElMessage.error('封面更新失败');
+    ElMessage.error(t('teamDetail.coverUpdateFailed'));
   }
 };
 
@@ -456,10 +458,10 @@ const sendDissolveCode = async () => {
   if (dissolveCountdown.value > 0) return;
   try {
     await api.post('/api/auth/email/send-code');
-    ElMessage.success('验证码已发送到您的邮箱');
+    ElMessage.success(t('teamDetail.verifyCodeSent'));
     startDissolveCountdown();
   } catch {
-    ElMessage.error('发送验证码失败');
+    ElMessage.error(t('teamDetail.inviteFailed'));
   }
 };
 
@@ -478,19 +480,19 @@ watch(isDissolveModalOpen, (isOpen) => {
 
 const confirmDeleteTeam = async () => {
   if (!dissolveCode.value) {
-    return ElMessage.warning('请输入验证码');
+    return ElMessage.warning(t('teamDetail.enterCodeWarning'));
   }
   try {
     isDissolving.value = true;
     await api.delete(`/api/teams/${teamId.value}`, {
       data: { code: dissolveCode.value },
     });
-    ElMessage.success('团队已解散');
+    ElMessage.success(t('teamDetail.dissolveSuccess'));
     isDissolveModalOpen.value = false;
     await workspaceStore.fetchWorkspaces();
     router.push('/dashboard');
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '解散团队失败'));
+    ElMessage.error(getApiErrorMessage(error, t('teamDetail.dissolveFailed')));
   } finally {
     isDissolving.value = false;
   }
@@ -574,7 +576,7 @@ onUnmounted(() => {
           />
           <button v-if="isOwnerOrAdmin" type="button" class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10" @click="triggerCoverUpload">
             <Camera class="w-4 h-4" />
-            <span>更换封面</span>
+            <span>{{ t('teamDetail.changeCover') }}</span>
           </button>
         </div>
  
@@ -601,7 +603,7 @@ onUnmounted(() => {
                   {{ team.name.charAt(0).toUpperCase() }}
                 </div>
               </div>
-              <button v-if="isOwnerOrAdmin" type="button" class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10" title="更换头像" @click="triggerAvatarUpload">
+              <button v-if="isOwnerOrAdmin" type="button" class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10" :title="t('teamDetail.changeAvatar')" @click="triggerAvatarUpload">
                 <Camera class="w-4 h-4" />
               </button>
             </div>
@@ -615,24 +617,24 @@ onUnmounted(() => {
                 <div
                   class="px-2.5 py-1 bg-accent/10 text-accent text-[10px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
                 >
-                  协作空间
+                  {{ t('teamDetail.spaceLabel') }}
                 </div>
               </div>
               <p class="text-slate-500 dark:text-slate-400 max-w-xl text-xs sm:text-sm leading-relaxed mb-2.5">
-                {{ team.description || '这支团队还没有添加描述，协作从清晰的定义开始。' }}
+                {{ team.description || t('teamDetail.noDescription') }}
               </p>
 
               <div class="flex flex-wrap items-center gap-3">
                 <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md">
                   <Users class="w-3.5 h-3.5 text-slate-400" />
                   <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ team.members.length }} 成员</span
+                    >{{ team.members.length }} {{ t('teams.members') }}</span
                   >
                 </div>
                 <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md">
                   <Clock class="w-3.5 h-3.5 text-slate-400" />
                   <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ team.invitations?.length || 0 }} 待处理</span
+                    >{{ team.invitations?.length || 0 }} {{ t('teamDetail.pendingBadge') }}</span
                   >
                 </div>
               </div>
@@ -643,7 +645,7 @@ onUnmounted(() => {
               <template v-if="canManageTeam">
                 <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer" @click="isAddModalOpen = true">
                   <UserPlus class="w-4 h-4" />
-                  管理成员
+                  {{ t('teamDetail.manageMembers') }}
                 </button>
                 <button type="button" class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer" style="border-color: var(--border-base)" @click="activeTab = 'settings'">
                   <Settings class="w-4 h-4 text-slate-400" />
@@ -652,18 +654,18 @@ onUnmounted(() => {
               <template v-else-if="isMember && isPersonalSpace">
                 <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer" style="border-color: var(--border-base); color: var(--text-primary)" @click="activeTab = 'settings'">
                   <Settings class="w-4 h-4 text-slate-400" />
-                  空间设置
+                  {{ t('teamDetail.spaceSettings') }}
                 </button>
               </template>
               <template v-if="!isMember && team?.visibility === 'PUBLIC'">
                 <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer" @click="handleApplyFromDetail">
                   <UserPlus class="w-4 h-4" />
-                  申请加入
+                  {{ t('teams.applyJoin') }}
                 </button>
               </template>
               <button v-if="canLeaveTeam" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer" @click="handleLeaveTeam">
                 <LogOut class="w-4 h-4" />
-                退出团队
+                {{ t('teamDetail.leaveBtn') }}
               </button>
             </div>
           </div>
@@ -675,31 +677,31 @@ onUnmounted(() => {
         <!-- Modern Tabs -->
         <div class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
           <button
-v-for="t in [
-              { id: 'people', label: '成员与协作', icon: Users },
+            v-for="tab in [
+              { id: 'people', label: t('teamDetail.peopleTab'), icon: Users },
               {
                 id: 'applications',
-                label: '入团申请',
+                label: t('teamDetail.applicationsTab'),
                 icon: ClipboardList,
                 hidden: !isMember || !isOwnerOrAdmin,
                 badge: pendingApplications.length,
               },
               {
                 id: 'settings',
-                label: '团队设置',
+                label: t('teamDetail.settingsTab'),
                 icon: Settings,
                 hidden: !isMember || !isOwnerOrAdmin,
               },
-            ]" v-show="!t.hidden" :key="t.id" type="button" class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer" :class="activeTab === t.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'" @click="activeTab = t.id">
-            <component :is="t.icon" class="w-3.5 h-3.5" />
-            {{ t.label }}
+            ]" v-show="!tab.hidden" :key="tab.id" type="button" class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer" :class="activeTab === tab.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'" @click="activeTab = tab.id">
+            <component :is="tab.icon" class="w-3.5 h-3.5" />
+            {{ tab.label }}
             <span
-              v-if="t.badge"
+              v-if="tab.badge"
               class="ml-1 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full"
-              >{{ t.badge }}</span
+              >{{ tab.badge }}</span
             >
             <div
-              v-if="activeTab === t.id"
+              v-if="activeTab === tab.id"
               class="absolute bottom-0 left-0 right-0 h-1 bg-accent rounded-full translate-y-1/2"
             ></div>
           </button>
@@ -719,7 +721,7 @@ v-for="t in [
               </div>
               <div class="flex items-baseline gap-1">
                 <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.total }}</span>
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">正式成员</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('teamDetail.activeMembers') }}</span>
               </div>
             </div>
 
@@ -730,7 +732,7 @@ v-for="t in [
               </div>
               <div class="flex items-baseline gap-1">
                 <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.admins }}</span>
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">管理人员</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('teamDetail.admins') }}</span>
               </div>
             </div>
 
@@ -741,7 +743,7 @@ v-for="t in [
               </div>
               <div class="flex items-baseline gap-1">
                 <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.pending }}</span>
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">待接受邀请</span>
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('teamDetail.pending') }}</span>
               </div>
             </div>
           </div>
@@ -749,9 +751,9 @@ v-for="t in [
           <!-- Header & Actions -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5" style="borderColor: var(--border-base)">
             <div>
-              <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">全员看板</h2>
+              <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">{{ t('teamDetail.boardTitle') }}</h2>
               <p class="text-xs text-slate-400 font-medium">
-                查看并管理团队内的所有成员及其访问权限
+                {{ t('teamDetail.boardSubtitle') }}
               </p>
             </div>
             <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
@@ -760,14 +762,14 @@ v-for="t in [
                 <input
                   v-model="memberSearchQuery"
                   type="text"
-                  placeholder="搜索成员姓名或邮箱..."
+                  :placeholder="t('teamDetail.searchPlaceholder')"
                   class="w-full pl-9 pr-4 py-2 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-lg text-xs focus:ring-4 focus:ring-accent/10 outline-none transition-all placeholder-slate-400"
                   style="color: var(--text-primary)"
                 />
               </div>
               <button v-if="canManageTeam" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap" @click="isAddModalOpen = true">
                 <Plus class="w-3.5 h-3.5" />
-                邀请新成员
+                {{ t('teamDetail.inviteNewMember') }}
               </button>
             </div>
           </div>
@@ -784,7 +786,7 @@ v-for="t in [
                 v-if="!person.isMember"
                 class="absolute -top-2 left-3 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] sm:text-[10px] font-black rounded uppercase tracking-wider shadow-sm z-10"
               >
-                邀请中
+                {{ t('teamDetail.pendingBadge') }}
               </div>
 
               <div>
@@ -820,8 +822,8 @@ v-for="t in [
                 <div class="flex items-center gap-1.5 mt-2.5 text-xs text-slate-400 dark:text-slate-500 font-medium">
                   <Calendar class="w-3.5 h-3.5 shrink-0" />
                   <span>
-                    {{ person.isMember ? '加入于' : '邀请于' }}
-                    {{ new Date(person.joinedAt || person.createdAt).toLocaleDateString('zh-CN', { year: '2-digit', month: '2-digit', day: '2-digit' }) }}
+                    {{ person.isMember ? t('teamDetail.joinedAt') : t('teamDetail.invitedAt') }}
+                    {{ new Date(person.joinedAt || person.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', { year: '2-digit', month: '2-digit', day: '2-digit' }) }}
                   </span>
                 </div>
               </div>
@@ -844,12 +846,12 @@ v-for="t in [
                   >
                     {{
                       person.role === 'OWNER'
-                        ? '创建者'
+                        ? t('teamDetail.roleOwner')
                         : person.role === 'ADMIN'
-                          ? '管理员'
+                          ? t('teamDetail.roleAdmin')
                           : person.role === 'PENDING'
-                            ? '邀请中'
-                            : '成员'
+                            ? t('teamDetail.rolePending')
+                            : t('teamDetail.roleMember')
                     }}
                   </span>
                 </div>
@@ -857,7 +859,7 @@ v-for="t in [
                 <!-- Action Button Group -->
                 <div class="flex items-center gap-1">
                   <!-- Private Message -->
-                  <button v-if="person.isMember && person.user.id !== authStore.user?.id" type="button" class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" title="发送私信" @click="handleStartChat(person.user)">
+                  <button v-if="person.isMember && person.user.id !== authStore.user?.id" type="button" class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" :title="t('teamDetail.sendPrivateMessage')" @click="handleStartChat(person.user)">
                     <MessageSquare class="w-4 h-4" />
                   </button>
 
@@ -865,7 +867,7 @@ v-for="t in [
                   <template v-if="canManageTeam && person.userId !== authStore.user?.id">
                     <template v-if="person.isMember">
                       <el-dropdown trigger="click" placement="bottom-end">
-                        <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" title="管理角色">
+                        <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" :title="t('teamDetail.manageRoles')">
                           <Shield class="w-4 h-4" />
                         </button>
                         <template #dropdown>
@@ -877,7 +879,7 @@ v-for="t in [
                                 @click="handleUpdateRole(person.user.id, 'ADMIN')"
                               >
                                 <div class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs">
-                                  <ShieldCheck class="w-4 h-4" /> 晋升为管理员
+                                  <ShieldCheck class="w-4 h-4" /> {{ t('teamDetail.promoteAdmin') }}
                                 </div>
                               </el-dropdown-item>
                               <el-dropdown-item
@@ -886,7 +888,7 @@ v-for="t in [
                                 @click="handleUpdateRole(person.user.id, 'MEMBER')"
                               >
                                 <div class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs">
-                                  <Users class="w-4 h-4" /> 降为普通成员
+                                  <Users class="w-4 h-4" /> {{ t('teamDetail.demoteMember') }}
                                 </div>
                               </el-dropdown-item>
                             </template>
@@ -895,14 +897,14 @@ v-for="t in [
                               @click="handleRemoveMember(person.user.id, person.user.name)"
                             >
                               <div class="flex items-center gap-3 py-1 text-rose-500 font-bold text-xs">
-                                <Trash2 class="w-4 h-4" /> 移出团队
+                                <Trash2 class="w-4 h-4" /> {{ t('teamDetail.removeMember') }}
                               </div>
                             </el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
                       </el-dropdown>
                     </template>
-                    <button v-else type="button" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer" title="撤回邀请" @click="handleCancelInvitation(person.id)">
+                    <button v-else type="button" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer" :title="t('teamDetail.cancelInvitation')" @click="handleCancelInvitation(person.id)">
                       <X class="w-4 h-4" />
                     </button>
                   </template>
@@ -915,7 +917,7 @@ v-for="t in [
               <div class="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all duration-300 shadow-md shadow-accent/5">
                 <Plus class="w-5 h-5" />
               </div>
-              <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-accent">邀请新成员</span>
+              <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-accent">{{ t('teamDetail.inviteNewMember') }}</span>
             </button>
           </div>
         </div>
@@ -927,10 +929,10 @@ v-for="t in [
         >
           <div>
             <h2 class="text-2xl font-black mb-1" style="color: var(--text-primary)">
-              入团申请审核
+              {{ t('teamDetail.applicationsReview') }}
             </h2>
             <p class="text-xs text-slate-400 font-medium">
-              审核用户的加入申请，批准后对方将立即成为团队成员
+              {{ t('teamDetail.applicationsReviewDesc') }}
             </p>
           </div>
 
@@ -940,7 +942,7 @@ v-for="t in [
             style="border-color: var(--border-base)"
           >
             <ClipboardList class="w-12 h-12 mb-4 opacity-10" style="color: var(--text-muted)" />
-            <p class="text-slate-400 font-bold">暂无待审核的入团申请</p>
+            <p class="text-slate-400 font-bold">{{ t('teamDetail.noApplications') }}</p>
           </div>
 
           <div v-else class="space-y-4">
@@ -960,15 +962,15 @@ v-for="t in [
                   "{{ app.message }}"
                 </p>
                 <p class="text-[10px] text-slate-300 mt-1">
-                  申请于 {{ new Date(app.createdAt).toLocaleString() }}
+                  {{ t('teamDetail.appliedAt', { date: new Date(app.createdAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US') }) }}
                 </p>
               </div>
               <div class="flex items-center gap-3 shrink-0">
                 <button type="button" class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all" @click="handleRespondApplication(app.id, false, app.user.name)">
-                  <XCircle class="w-4 h-4" /> 拒绝
+                  <XCircle class="w-4 h-4" /> {{ t('teamDetail.reject') }}
                 </button>
                 <button type="button" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20" @click="handleRespondApplication(app.id, true, app.user.name)">
-                  <CheckCheck class="w-4 h-4" /> 批准
+                  <CheckCheck class="w-4 h-4" /> {{ t('teamDetail.approve') }}
                 </button>
               </div>
             </div>
@@ -983,10 +985,10 @@ v-for="t in [
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
             <div class="lg:col-span-1">
               <h3 class="text-xl font-black mb-3" style="color: var(--text-primary)">
-                基本资料管理
+                {{ t('teamDetail.basicProfile') }}
               </h3>
               <p class="text-sm text-slate-500 leading-relaxed">
-                公开的团队名称与描述，帮助成员更好地理解团队目标。
+                {{ t('teamDetail.basicProfileDesc') }}
               </p>
             </div>
             <div
@@ -995,7 +997,7 @@ v-for="t in [
             >
               <div class="space-y-3">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                  >团队官方名称</label
+                  >{{ t('teamDetail.teamNameLabel') }}</label
                 >
                 <input
                   v-model="editForm.name"
@@ -1006,7 +1008,7 @@ v-for="t in [
               </div>
               <div class="space-y-3">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                  >团队使命与描述</label
+                  >{{ t('teamDetail.teamDescLabel') }}</label
                 >
                 <textarea
                   v-model="editForm.description"
@@ -1020,12 +1022,12 @@ v-for="t in [
                 <div class="space-y-3">
                   <label
                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                    >团队分类</label
+                    >{{ t('team.category') }}</label
                   >
                   <el-select
                     v-model="editForm.category"
                     class="w-full custom-select"
-                    placeholder="选择团队分类"
+                    :placeholder="t('team.categoryPlaceholder')"
                   >
                     <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
                   </el-select>
@@ -1033,21 +1035,21 @@ v-for="t in [
                 <div v-if="!isPersonalSpace" class="space-y-3">
                   <label
                     class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                    >隐私与可见性</label
+                    >{{ t('teamDetail.privacyLabel') }}</label
                   >
                   <el-select
                     v-model="editForm.visibility"
                     class="w-full custom-select"
-                    placeholder="选择可见性"
+                    :placeholder="t('teamDetail.visibilityPlaceholder')"
                   >
-                    <el-option label="公开 (所有人可搜寻)" value="PUBLIC" />
-                    <el-option label="私密 (仅限受邀成员)" value="PRIVATE" />
+                    <el-option :label="t('teamDetail.visibilityPublic')" value="PUBLIC" />
+                    <el-option :label="t('teamDetail.visibilityPrivate')" value="PRIVATE" />
                   </el-select>
                 </div>
               </div>
               <div class="flex justify-end pt-4">
                 <button type="button" :disabled="isSaving" class="px-10 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50" @click="handleUpdateTeam">
-                  {{ isSaving ? '同步中...' : '保存所有更改' }}
+                  {{ isSaving ? t('teamDetail.syncing') : t('teamDetail.saveChanges') }}
                 </button>
               </div>
             </div>
@@ -1060,25 +1062,25 @@ v-for="t in [
           >
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
               <div class="lg:col-span-1">
-                <h3 class="text-xl font-black mb-3 text-rose-500">归档与危险操作</h3>
+                <h3 class="text-xl font-black mb-3 text-rose-500">{{ t('teamDetail.dangerZone') }}</h3>
                 <p class="text-sm text-slate-500 leading-relaxed">
-                  解散团队是一项不可逆的操作，所有协作记录都将被永久擦除。
+                  {{ t('teamDetail.dangerZoneDesc') }}
                 </p>
               </div>
               <div
                 class="lg:col-span-2 bg-rose-50/50 dark:bg-rose-500/5 p-10 rounded-[2.5rem] border border-rose-100 dark:border-rose-500/20 flex flex-col md:flex-row items-center justify-between gap-6"
               >
                 <div>
-                  <h4 class="text-lg font-black text-rose-600 mb-1">永久解散此团队</h4>
+                  <h4 class="text-lg font-black text-rose-600 mb-1">{{ t('teamDetail.dissolveTitle') }}</h4>
                   <p class="text-sm text-rose-500 opacity-80">
-                    此操作将移除所有成员并删除所有关联的 3D 资产、任务与项目。
+                    {{ t('teamDetail.dissolveDesc') }}
                   </p>
                 </div>
                 <button v-if="isOwner" type="button" class="px-10 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all whitespace-nowrap" @click="handleDeleteTeam">
-                  解散团队
+                  {{ t('teamDetail.dissolveBtn') }}
                 </button>
                 <div v-else class="flex items-center gap-2 text-rose-400 font-bold text-sm italic">
-                  <Shield class="w-4 h-4" /> 只有所有者拥有解散权
+                  <Shield class="w-4 h-4" /> {{ t('teamDetail.dissolveOwnerOnly') }}
                 </div>
               </div>
             </div>
@@ -1097,9 +1099,9 @@ v-for="t in [
       >
         <div class="flex items-center justify-between mb-8">
           <div>
-            <h3 class="text-2xl font-black" style="color: var(--text-primary)">添加新伙伴</h3>
+            <h3 class="text-2xl font-black" style="color: var(--text-primary)">{{ t('teamDetail.addMemberTitle') }}</h3>
             <p class="text-xs text-slate-400 font-medium mt-1">
-              搜索站内用户或通过邮箱邀请外部成员
+              {{ t('teamDetail.addMemberSubtitle') }}
             </p>
           </div>
           <button type="button" class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all" @click="isAddModalOpen = false">
@@ -1111,14 +1113,14 @@ v-for="t in [
           <!-- Search Users -->
           <div class="space-y-4">
             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-              >站内快速添加</label
+              >{{ t('teamDetail.internalSearchLabel') }}</label
             >
             <div class="relative">
               <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 v-model="userSearchQuery"
                 type="text"
-                placeholder="输入用户名或邮箱搜索..."
+                :placeholder="t('teamDetail.searchUserPlaceholder')"
                 class="w-full pl-11 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-sm focus:ring-4 focus:ring-accent/10 outline-none transition-all"
                 style="color: var(--text-primary)"
               />
@@ -1152,7 +1154,7 @@ v-for="t in [
               v-else-if="userSearchQuery && !isSearchingUsers"
               class="text-center py-4 text-slate-400 text-xs italic"
             >
-              未找到匹配的站内用户
+              {{ t('teamDetail.noUsersFound') }}
             </div>
           </div>
 
@@ -1162,14 +1164,14 @@ v-for="t in [
             </div>
             <span
               class="relative px-4 bg-[var(--bg-card)] dark:bg-slate-800/80 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]"
-              >或者</span
+              >{{ t('teamDetail.orLabel') }}</span
             >
           </div>
 
           <!-- Email Invite -->
           <div class="space-y-4">
             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-              >外部邮件邀请</label
+              >{{ t('teamDetail.emailInviteLabel') }}</label
             >
             <div class="flex gap-3">
               <div class="relative flex-1">
@@ -1183,7 +1185,7 @@ v-for="t in [
                 />
               </div>
               <button type="button" :disabled="!inviteEmailInput" class="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50" @click="handleSendInvite">
-                发送
+                {{ t('teamDetail.sendBtn') }}
               </button>
             </div>
           </div>
@@ -1210,17 +1212,15 @@ v-for="t in [
 
         <div class="space-y-6">
           <div>
-            <h3 class="text-2xl font-black text-rose-600">确认解散团队？</h3>
-            <p class="text-xs text-slate-400 font-medium mt-1 leading-relaxed">
-              这是一项高危操作。如果您确定要解散 <strong>{{ team?.name }}</strong
-              >，请完成安全验证。
+            <h3 class="text-2xl font-black text-rose-600">{{ t('teamDetail.dissolveConfirmTitle') }}</h3>
+            <p class="text-xs text-slate-400 font-medium mt-1 leading-relaxed" v-html="t('teamDetail.dissolveWarning', { name: team?.name })">
             </p>
           </div>
 
           <div class="space-y-4">
             <div v-if="authStore.user?.twoFactorEnabled" class="space-y-2">
               <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                >两步验证码</label
+                >{{ t('teamDetail.twoFactorLabel') }}</label
               >
               <input
                 v-model="dissolveCode"
@@ -1233,7 +1233,7 @@ v-for="t in [
             </div>
             <div v-else class="space-y-2">
               <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                >邮箱验证码</label
+                >{{ t('teamDetail.emailCodeLabel') }}</label
               >
               <div class="flex gap-3">
                 <input
@@ -1245,7 +1245,7 @@ v-for="t in [
                   style="color: var(--text-primary)"
                 />
                 <button type="button" :disabled="dissolveCountdown > 0" class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50" @click="sendDissolveCode">
-                  {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : '获取' }}
+                  {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : t('teamDetail.getCodeBtn') }}
                 </button>
               </div>
             </div>
@@ -1253,7 +1253,7 @@ v-for="t in [
 
           <button type="button" :disabled="isDissolving || dissolveCode.length !== 6" class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2" @click="confirmDeleteTeam">
             <Trash2 class="w-4 h-4" />
-            {{ isDissolving ? '正在解散...' : '确认并解散团队' }}
+            {{ isDissolving ? t('teamDetail.dissolving') : t('teamDetail.confirmDissolveBtn') }}
           </button>
         </div>
       </div>

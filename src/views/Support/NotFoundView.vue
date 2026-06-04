@@ -26,24 +26,24 @@ const router = useRouter();
       </div>
 
       <h1 class="text-4xl font-black mb-4 tracking-tight" style="color: var(--text-primary)">
-        页面未找到
+        {{ $t('support.page_not_found') }}
       </h1>
 
       <p
         class="text-lg font-medium mb-12 max-w-lg mx-auto leading-relaxed"
         style="color: var(--text-secondary)"
       >
-        您访问的页面不存在或已被移除，请检查链接是否正确。
+        {{ $t('support.page_not_found_desc') }}
       </p>
 
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
         <button type="button" class="px-8 py-3 bg-accent text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all active:scale-95 flex items-center gap-2" @click="router.push('/')">
           <Home class="w-4 h-4" />
-          返回首页
+          {{ $t('support.back_to_home') }}
         </button>
         <button type="button" class="px-8 py-3 bg-white/5 border rounded-2xl font-bold hover:scale-105 transition-all active:scale-95 flex items-center gap-2" style="border-color: var(--border-base); color: var(--text-primary)" @click="router.back()">
           <ArrowLeft class="w-4 h-4" />
-          返回上页
+          {{ $t('support.back_to_previous') }}
         </button>
       </div>
     </div>

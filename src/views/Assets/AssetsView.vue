@@ -14,6 +14,9 @@ import api from '@/utils/api';
 import MasonryGrid from '@/components/MasonryGrid.vue';
 import AssetCard from '@/components/AssetCard.vue';
 import type { Asset, Category } from '@/types';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 type AssetListItem = Asset & {
   fileSize?: number | null;
@@ -28,7 +31,7 @@ type AssetCategory = Category & {
 
 const router = useRouter();
 const searchQuery = ref('');
-const activeCategory = ref('全部');
+const activeCategory = ref('all');
 const isMobile = ref(window.innerWidth < 768);
 const isFilterMenuOpen = ref(false);
 const assets = ref<AssetListItem[]>([]);
@@ -70,7 +73,7 @@ watch(isZipFile, (isZip) => {
 
 // Computeds
 const categories = computed(() => {
-  const list = [{ id: 'all', name: '全部', count: pagination.value.total }];
+  const list = [{ id: 'all', name: 'all', count: pagination.value.total }];
   assetCategories.value.forEach((cat) => {
     list.push({
       id: cat.id,
@@ -81,9 +84,14 @@ const categories = computed(() => {
   return list;
 });
 
+const getCategoryLabel = (name: string) => {
+  if (name === 'all' || name === '全部') return t('assets.categoryAll');
+  return name;
+};
+
 const filteredAssets = computed(() => {
   return assets.value.filter((asset) => {
-    const matchesCategory = activeCategory.value === '全部' || (asset.category?.name === activeCategory.value);
+    const matchesCategory = activeCategory.value === 'all' || (asset.category?.name === activeCategory.value);
     return matchesCategory;
   });
 });
@@ -111,7 +119,7 @@ const fetchAssets = async () => {
         limit: pagination.value.limit,
         search: searchQuery.value,
         categoryId:
-          activeCategory.value === '全部'
+          activeCategory.value === 'all'
             ? 'all'
             : assetCategories.value.find((c) => c.name === activeCategory.value)?.id || 'all',
       },
@@ -119,7 +127,7 @@ const fetchAssets = async () => {
     assets.value = response.data.assets;
     pagination.value = response.data.pagination;
   } catch (_error) {
-    ElMessage.error('获取资源失败');
+    ElMessage.error(t('assets.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -155,17 +163,17 @@ const handleThumbnailChange = (e: Event) => {
 
 const handleUpload = async () => {
   if (uploadForm.value.uploadType === 'file' && !uploadForm.value.file) {
-    ElMessage.warning('请选择模型文件');
+    ElMessage.warning(t('assets.selectFileWarn'));
     return;
   }
 
   if (uploadForm.value.uploadType === 'link' && !uploadForm.value.externalUrl) {
-    ElMessage.warning('请输入网盘/外链地址');
+    ElMessage.warning(t('assets.inputLinkWarn'));
     return;
   }
 
   if (!uploadForm.value.categoryId) {
-    ElMessage.warning('请选择资源分类');
+    ElMessage.warning(t('assets.selectCategoryWarn'));
     return;
   }
 
@@ -190,13 +198,13 @@ const handleUpload = async () => {
     await api.post('/api/assets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    ElMessage.success('上传成功，请等待管理员审核');
+    ElMessage.success(t('assets.uploadSuccess'));
     isUploadDialogOpen.value = false;
     uploadForm.value = { uploadType: 'file', title: '', description: '', categoryId: '', file: null, externalUrl: '', thumbnail: null, formats: [] };
     fetchAssets();
     fetchCategories();
   } catch (_error) {
-    ElMessage.error('上传失败');
+    ElMessage.error(t('assets.uploadFailed'));
   } finally {
     isUploading.value = false;
   }
@@ -233,9 +241,9 @@ onUnmounted(() => {
       style="border-color: var(--border-base)"
     >
       <div class="flex items-center text-[10px] sm:text-xs gap-1.5 font-bold tracking-wide" style="color: var(--text-secondary)">
-        <span class="hover:text-accent cursor-pointer transition-colors px-2 py-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5">3D 资源库</span>
+        <span class="hover:text-accent cursor-pointer transition-colors px-2 py-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5">{{ t('assets.libraryTitle') }}</span>
         <ChevronRight class="w-3.5 h-3.5 opacity-50" />
-        <span class="text-accent bg-accent/10 px-2 py-1 rounded-md">模型资产</span>
+        <span class="text-accent bg-accent/10 px-2 py-1 rounded-md">{{ t('assets.modelAssets') }}</span>
       </div>
 
       <div class="flex items-center gap-2.5 w-full md:w-auto">
@@ -247,7 +255,7 @@ onUnmounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="在资源中搜索..."
+            :placeholder="t('assets.searchPlaceholder')"
             class="pl-9 pr-3.5 py-1.5 border border-transparent rounded-full text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/30 w-full md:w-64 transition-all duration-300 shadow-sm hover:shadow-md bg-white/60 dark:bg-slate-800/60 backdrop-blur-md"
             style="color: var(--text-primary)"
           />
@@ -267,13 +275,13 @@ onUnmounted(() => {
       >
         <div class="p-2">
           <button type="button" class="w-full py-2 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-600 hover:to-accent text-white rounded-lg text-xs font-bold tracking-wider transition-all duration-500 shadow-md shadow-accent/20 hover:shadow-accent/30 hover:-translate-y-0.5 cursor-pointer" @click="isUploadDialogOpen = true">
-            上传作品
+            {{ t('assets.uploadWork') }}
           </button>
         </div>
 
         <div class="px-2 pb-4 flex-1">
           <div class="text-[10px] font-black uppercase tracking-widest mb-2 ml-1 text-slate-400 dark:text-slate-500">
-            分类筛选
+            {{ t('assets.categoryFilter') }}
           </div>
           <ul class="space-y-1">
             <li v-for="cat in categories" :key="cat.name">
@@ -293,7 +301,7 @@ onUnmounted(() => {
                     class="w-1.5 h-1.5 rounded-full transition-all duration-300 shrink-0"
                     :class="activeCategory === cat.name ? 'bg-accent scale-110 shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]' : 'bg-slate-300 dark:bg-slate-600 group-hover:scale-105'"
                   ></div>
-                  <span class="truncate">{{ cat.name }}</span>
+                  <span class="truncate">{{ getCategoryLabel(cat.name) }}</span>
                 </div>
                 <span 
                   class="text-[9px] px-1 py-0.5 rounded-full transition-colors duration-300 font-bold shrink-0"
@@ -314,11 +322,11 @@ onUnmounted(() => {
         >
           <div class="p-3 flex flex-col gap-3">
             <button type="button" class="w-full py-2 bg-accent text-white rounded-lg text-xs font-bold shadow-md shadow-accent/20 cursor-pointer" @click="isUploadDialogOpen = true; isFilterMenuOpen = false">
-              上传作品
+              {{ t('assets.uploadWork') }}
             </button>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="cat in categories" :key="cat.name" type="button" class="px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer" :class="activeCategory === cat.name ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click="activeCategory = cat.name; isFilterMenuOpen = false">
-                {{ cat.name }} ({{ cat.count }})
+                {{ getCategoryLabel(cat.name) }} ({{ cat.count }})
               </button>
             </div>
           </div>
@@ -362,7 +370,7 @@ onUnmounted(() => {
             style="color: var(--text-secondary)"
           >
             <Box class="w-8 h-8 mb-3 opacity-20" />
-            <p class="text-xs">没有找到匹配的资源</p>
+            <p class="text-xs">{{ t('assets.noAssetsFound') }}</p>
           </div>
         </div>
 
@@ -405,7 +413,7 @@ onUnmounted(() => {
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-base)">
-            <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">上传 3D 资产</h3>
+            <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('assets.uploadTitle') }}</h3>
             <button type="button" class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
               <X class="w-4 h-4" />
             </button>
@@ -416,7 +424,7 @@ onUnmounted(() => {
               <label
                 class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                 style="color: var(--text-secondary)"
-                >资源名称</label
+                >{{ t('assets.resourceName') }}</label
               >
               <input
                 v-model="uploadForm.title"
@@ -427,7 +435,7 @@ onUnmounted(() => {
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="给你的作品起个名字"
+                :placeholder="t('assets.namePlaceholder')"
               />
             </div>
 
@@ -435,7 +443,7 @@ onUnmounted(() => {
               <label
                 class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                 style="color: var(--text-secondary)"
-                >描述 (可选)</label
+                >{{ t('assets.description') }}</label
               >
               <textarea
                 v-model="uploadForm.description"
@@ -446,7 +454,7 @@ onUnmounted(() => {
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="简单介绍一下这个模型..."
+                :placeholder="t('assets.descPlaceholder')"
               ></textarea>
             </div>
 
@@ -454,11 +462,11 @@ onUnmounted(() => {
               <label
                 class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                 style="color: var(--text-secondary)"
-                >资源分类</label
+                >{{ t('assets.category') }}</label
               >
               <el-select
                 v-model="uploadForm.categoryId"
-                placeholder="请选择分类"
+                :placeholder="t('assets.categoryPlaceholder')"
                 class="w-full custom-select"
               >
                 <el-option
@@ -473,10 +481,10 @@ onUnmounted(() => {
             <div>
               <div class="flex items-center gap-2 mb-2">
                 <button type="button" class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer" :class="uploadForm.uploadType === 'file' ? 'bg-accent text-white shadow-sm' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click.prevent="uploadForm.uploadType = 'file'">
-                  本地文件
+                  {{ t('assets.localFile') }}
                 </button>
                 <button type="button" class="px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer" :class="uploadForm.uploadType === 'link' ? 'bg-accent text-white shadow-sm' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click.prevent="uploadForm.uploadType = 'link'">
-                  网盘/外链
+                  {{ t('assets.externalLink') }}
                 </button>
               </div>
 
@@ -484,7 +492,7 @@ onUnmounted(() => {
                 <label
                   class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                   style="color: var(--text-secondary)"
-                  >选择文件 (GLB/GLTF/FBX/OBJ/STL/DAE/ZIP)</label
+                  >{{ t('assets.selectFileLabel') }}</label
                 >
                 <div class="relative group">
                   <input
@@ -499,10 +507,10 @@ onUnmounted(() => {
                   >
                     <Box class="w-6 h-6 text-accent/40" />
                     <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                      {{ uploadForm.file ? uploadForm.file.name : '点击或拖拽模型文件到这里' }}
+                      {{ uploadForm.file ? uploadForm.file.name : t('assets.dragPlaceholder') }}
                     </p>
                     <p class="text-[9px]" style="color: var(--text-secondary); opacity: 0.5">
-                      支持 GLB, GLTF, FBX, OBJ, STL, DAE, ZIP 格式
+                      {{ t('assets.formatsSupported') }}
                     </p>
                   </div>
                 </div>
@@ -512,7 +520,7 @@ onUnmounted(() => {
                 <label
                   class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                   style="color: var(--text-secondary)"
-                  >网盘或外链地址</label
+                  >{{ t('assets.externalLink') }}</label
                 >
                 <input
                   v-model="uploadForm.externalUrl"
@@ -523,7 +531,7 @@ onUnmounted(() => {
                     border-color: var(--border-base);
                     color: var(--text-primary);
                   "
-                  placeholder="请输入完整的分享链接 (如百度网盘等)"
+                  :placeholder="t('assets.externalLinkPlaceholder')"
                 />
               </div>
             </div>
@@ -532,7 +540,7 @@ onUnmounted(() => {
               <label
                 class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                 style="color: var(--text-secondary)"
-                >ZIP 包内包含格式 (多选)</label
+                >{{ t('assets.zipFormats') }}</label
               >
               <el-checkbox-group
                 v-model="uploadForm.formats"
@@ -554,7 +562,7 @@ onUnmounted(() => {
               <label
                 class="block text-[10px] sm:text-xs font-bold uppercase mb-1 ml-0.5"
                 style="color: var(--text-secondary)"
-                >上传封面图 (可选)</label
+                >{{ t('assets.uploadThumbnail') }}</label
               >
               <div class="relative group">
                 <input
@@ -569,7 +577,7 @@ onUnmounted(() => {
                 >
                   <UploadCloud class="w-5 h-5 text-accent/40" />
                   <p class="text-[9px] font-medium" style="color: var(--text-secondary)">
-                    {{ uploadForm.thumbnail ? uploadForm.thumbnail.name : '点击上传封面预览图' }}
+                    {{ uploadForm.thumbnail ? uploadForm.thumbnail.name : t('assets.thumbnailPlaceholder') }}
                   </p>
                 </div>
               </div>
@@ -581,7 +589,7 @@ onUnmounted(() => {
               v-if="isUploading"
               class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"
             ></div>
-            {{ isUploading ? '正在上传...' : '开始上传' }}
+            {{ isUploading ? t('assets.uploading') : t('assets.startUpload') }}
           </button>
         </div>
       </div>
@@ -617,4 +625,3 @@ onUnmounted(() => {
   font-size: 12px;
 }
 </style>
-

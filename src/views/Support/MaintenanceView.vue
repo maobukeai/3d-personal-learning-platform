@@ -44,15 +44,14 @@ const goToLogin = async () => {
       </div>
 
       <h1 class="text-4xl font-black mb-4 tracking-tight" style="color: var(--text-primary)">
-        系统维护中
+        {{ $t('support.maintenance') }}
       </h1>
 
       <p
         class="text-lg font-medium mb-12 max-w-lg mx-auto leading-relaxed"
         style="color: var(--text-secondary)"
       >
-        为了给您提供更好的体验，{{ systemStore.settings.PLATFORM_NAME }} 正在进行系统升级与维护。
-        请稍后再来，感谢您的理解与配合。
+        {{ $t('support.maintenance_desc', { platformName: systemStore.settings.PLATFORM_NAME }) }}
       </p>
 
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -62,7 +61,7 @@ const goToLogin = async () => {
         >
           <Loader2 class="w-4 h-4 text-accent animate-spin" />
           <span class="text-sm font-bold" style="color: var(--text-primary)"
-            >正在优化 3D 渲染引擎...</span
+            >{{ $t('support.optimizing_engine') }}</span
           >
         </div>
       </div>
@@ -72,10 +71,10 @@ const goToLogin = async () => {
           class="text-xs font-bold uppercase tracking-widest mb-4"
           style="color: var(--text-muted)"
         >
-          如果您是管理员
+          {{ $t('support.if_you_are_admin') }}
         </p>
         <button type="button" class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all active:scale-95" @click="goToLogin">
-          进入后台管理
+          {{ $t('support.enter_admin') }}
         </button>
       </div>
     </div>

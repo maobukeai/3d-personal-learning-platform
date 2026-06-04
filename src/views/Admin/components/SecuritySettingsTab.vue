@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { reactive, watch } from 'vue';
 import { Shield, KeyRound, Clock, Sparkles, MonitorSmartphone } from 'lucide-vue-next';
 
@@ -34,10 +36,10 @@ watch(
 );
 
 const sessionTimeoutOptions = [
-  { label: '1 天', value: '1d' },
-  { label: '3 天', value: '3d' },
-  { label: '7 天', value: '7d' },
-  { label: '30 天', value: '30d' },
+  { label: t('admin.1_day'), value: '1d' },
+  { label: t('admin.3_days'), value: '3d' },
+  { label: t('admin.7_days'), value: '7d' },
+  { label: t('admin.30_days'), value: '30d' },
 ];
 </script>
 
@@ -49,7 +51,7 @@ const sessionTimeoutOptions = [
     >
       <div class="flex items-center gap-3 mb-8">
         <Shield class="w-5 h-5 text-blue-500" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">安全策略配置</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.security_policy_configuration') }}</h2>
       </div>
 
       <div class="space-y-6">
@@ -115,7 +117,7 @@ const sessionTimeoutOptions = [
               <Sparkles class="w-4 h-4 text-violet-500" />
               <div>
                 <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >自动审核通过材料</span
+                  >{{ $t('admin.automatically_review_approved_materials') }}</span
                 >
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   开启后用户上传的材料无需人工审核即可发布
@@ -132,7 +134,7 @@ const sessionTimeoutOptions = [
               <MonitorSmartphone class="w-4 h-4 text-cyan-500" />
               <div>
                 <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >自动审核通过作品</span
+                  >{{ $t('admin.automatically_review_and_pass') }}</span
                 >
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   开启后用户发布的作品无需人工审核即可展示

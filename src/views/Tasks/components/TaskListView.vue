@@ -11,6 +11,7 @@ import {
   User,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 
@@ -49,6 +50,7 @@ const emit = defineEmits<{
   (e: 'open-detail', task: Task): void;
 }>();
 
+const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
 
 const inlineTitles = ref<Record<string, string>>({});
@@ -189,11 +191,11 @@ const quickStatusChange = async (task: Task, newStatus: string) => {
   try {
     await api.put(`/api/tasks/${task.id}`, { status: newStatus });
     ElMessage.success(
-      `已移动到 ${newStatus === 'DONE' ? '已完成' : newStatus === 'IN_PROGRESS' ? '进行中' : '待办'}`,
+      t('tasks.movedTo', { status: newStatus === 'DONE' ? t('tasks.done') : newStatus === 'IN_PROGRESS' ? t('tasks.inProgress') : t('tasks.todo') }),
     );
     emit('refresh');
   } catch {
-    ElMessage.error('更新状态失败');
+    ElMessage.error(t('tasks.updateStatusFailed'));
   }
 };
 
@@ -233,20 +235,20 @@ const toggleTaskCompletion = async (task: Task) => {
 const handleProjectChange = async (task: Task, projectId: string | null) => {
   try {
     await api.put(`/api/tasks/${task.id}`, { projectId });
-    ElMessage.success(projectId ? '已关联项目' : '已取消关联项目');
+    ElMessage.success(projectId ? t('tasks.projectAssociated') : t('tasks.projectUnassociated'));
     emit('refresh');
   } catch {
-    ElMessage.error('更新关联项目失败');
+    ElMessage.error(t('tasks.updateProjectFailed'));
   }
 };
 
 const handleAssigneeChange = async (task: Task, assigneeId: string | null) => {
   try {
     await api.put(`/api/tasks/${task.id}`, { assigneeId });
-    ElMessage.success(assigneeId ? '已成功指派负责人' : '已清除负责人');
+    ElMessage.success(assigneeId ? t('tasks.assigneeAssigned') : t('tasks.assigneeCleared'));
     emit('refresh');
   } catch {
-    ElMessage.error('更新负责人失败');
+    ElMessage.error(t('tasks.updateAssigneeFailed'));
   }
 };
 
@@ -286,7 +288,7 @@ const toggleSubtaskInline = async (task: Task, subIdx: number) => {
       task.subtasks = subtasksStr;
       emit('refresh');
     } catch {
-      ElMessage.error('更新子任务失败');
+      ElMessage.error(t('tasks.updateSubtaskFailed'));
     }
   }
 };
@@ -299,9 +301,9 @@ const removeSubtaskInline = async (task: Task, subIdx: number) => {
     await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
     task.subtasks = subtasksStr;
     emit('refresh');
-    ElMessage.success('子任务已删除');
+    ElMessage.success(t('tasks.subtaskDeleted'));
   } catch {
-    ElMessage.error('删除子任务失败');
+    ElMessage.error(t('tasks.deleteSubtaskFailed'));
   }
 };
 
@@ -318,7 +320,7 @@ const handleSubtaskAssigneeChange = async (
       await api.put(`/api/tasks/${task.id}`, { subtasks: subtasksStr });
       task.subtasks = subtasksStr;
     } catch {
-      ElMessage.error('指派子任务负责人失败');
+      ElMessage.error(t('tasks.assignSubtaskAssigneeFailed'));
     }
   }
 };
@@ -339,9 +341,9 @@ const addSubtaskInline = async (task: Task) => {
     task.subtasks = subtasksStr;
     newSubtaskTexts.value[task.id] = '';
     emit('refresh');
-    ElMessage.success('子任务已添加');
+    ElMessage.success(t('tasks.subtaskAdded'));
   } catch {
-    ElMessage.error('添加子任务失败');
+    ElMessage.error(t('tasks.addSubtaskFailed'));
   }
 };
 
@@ -365,11 +367,11 @@ const handleInlineAddInProject = async (columnId: string, projectId: string | nu
     };
 
     await api.post('/api/tasks', payload);
-    ElMessage.success('任务已快速创建');
+    ElMessage.success(t('tasks.quickCreateSuccess'));
     inlineTitles.value[key] = '';
     emit('refresh');
   } catch {
-    ElMessage.error('快速创建任务失败');
+    ElMessage.error(t('tasks.quickCreateFailed'));
   }
 };
 
@@ -420,7 +422,7 @@ const openDetailDrawer = (task: Task) => {
             <span
               class="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-400 shrink-0"
             >
-              {{ proj.tasks.length }} 个任务
+              {{ t('tasks.tasksCount', { count: proj.tasks.length }) }}
             </span>
           </div>
 
@@ -428,7 +430,7 @@ const openDetailDrawer = (task: Task) => {
             v-if="isProjectCollapsed(proj.id)"
             class="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 font-medium font-mono select-none"
           >
-            点击展开项目
+            {{ t('projects.clickToExpand') }}
           </span>
         </div>
 
@@ -487,12 +489,12 @@ const openDetailDrawer = (task: Task) => {
                 class="grid grid-cols-12 px-1.5 sm:px-4 py-1.5 sm:py-2 border-b text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 select-none bg-slate-100/30 dark:bg-white/1"
                 style="border-color: var(--border-base)"
               >
-                <div :class="nameColSpanClass" class="flex items-center gap-1">任务名称</div>
-                <div v-if="visibleColumns.status" class="col-span-1 text-center">状态</div>
-                <div v-if="visibleColumns.project" class="col-span-2 text-center">关联项目</div>
-                <div v-if="visibleColumns.assignee" class="col-span-2 text-center">负责人</div>
-                <div v-if="visibleColumns.dueDate" class="col-span-1 text-center">截止日期</div>
-                <div v-if="visibleColumns.priority" class="col-span-1 text-center">优先级</div>
+                <div :class="nameColSpanClass" class="flex items-center gap-1">{{ t('tasks.taskName') }}</div>
+                <div v-if="visibleColumns.status" class="col-span-1 text-center">{{ t('tasks.status') }}</div>
+                <div v-if="visibleColumns.project" class="col-span-2 text-center">{{ t('tasks.associatedProject') }}</div>
+                <div v-if="visibleColumns.assignee" class="col-span-2 text-center">{{ t('tasks.assignee') }}</div>
+                <div v-if="visibleColumns.dueDate" class="col-span-1 text-center">{{ t('tasks.dueDate') }}</div>
+                <div v-if="visibleColumns.priority" class="col-span-1 text-center">{{ t('tasks.priority') }}</div>
               </div>
 
               <!-- Task Rows -->
@@ -548,7 +550,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                       <span
                         v-if="getSubtaskProgress(task).total > 0"
                         class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded-md text-[9px] font-bold text-slate-400 shrink-0"
-                        title="子任务进度"
+                        :title="t('tasks.subtasksProgress')"
                       >
                         <CheckSquare class="w-2.5 h-2.5" />
                         {{ getSubtaskProgress(task).completed }}/{{ getSubtaskProgress(task).total }}
@@ -595,18 +597,18 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                           >
                             {{
                               task.status === 'TODO'
-                                ? '待办'
+                                ? t('tasks.todo')
                                 : task.status === 'IN_PROGRESS'
-                                  ? '进行中'
-                                  : '已完成'
+                                  ? t('tasks.inProgress')
+                                  : t('tasks.done')
                             }}
                           </span>
                         </span>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item command="TODO">待办</el-dropdown-item>
-                            <el-dropdown-item command="IN_PROGRESS">进行中</el-dropdown-item>
-                            <el-dropdown-item command="DONE">已完成</el-dropdown-item>
+                            <el-dropdown-item command="TODO">{{ t('tasks.todo') }}</el-dropdown-item>
+                            <el-dropdown-item command="IN_PROGRESS">{{ t('tasks.inProgress') }}</el-dropdown-item>
+                            <el-dropdown-item command="DONE">{{ t('tasks.done') }}</el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
                       </el-dropdown>
@@ -632,12 +634,12 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                           <span
                             v-else
                             class="text-slate-450 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
-                            >+ 项目</span
+                            >+ {{ t('tasks.associatedProject') }}</span
                           >
                         </span>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item command="">清除项目</el-dropdown-item>
+                            <el-dropdown-item command="">{{ t('projects.clearProject') }}</el-dropdown-item>
                             <el-dropdown-item v-for="p in projects" :key="p.id" :command="p.id">
                               {{ p.title }}
                             </el-dropdown-item>
@@ -674,12 +676,12 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                           <span
                             v-else
                             class="text-slate-450 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
-                            >+ 负责人</span
+                            >+ {{ t('tasks.assignee') }}</span
                           >
                         </span>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item command="">清除负责人</el-dropdown-item>
+                            <el-dropdown-item command="">{{ t('tasks.clearAssignee') }}</el-dropdown-item>
                             <el-dropdown-item
                               v-for="m in teamMembers"
                               :key="m.id"
@@ -736,14 +738,14 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                       >
                         {{
                           task.priority === 'URGENT'
-                            ? '急'
+                            ? t('tasks.urgent')
                             : task.priority === 'HIGH'
-                              ? '高'
+                              ? t('tasks.high')
                               : task.priority === 'MEDIUM'
-                                ? '中'
+                                ? t('tasks.medium')
                                 : task.priority === 'LOW'
-                                  ? '低'
-                                  : '无'
+                                  ? t('tasks.low')
+                                  : t('tasks.none')
                         }}
                       </span>
                       <span v-else class="text-slate-350 dark:text-slate-600">-</span>
@@ -759,7 +761,7 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                     <div
                       class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2"
                     >
-                      子任务清单
+                      {{ t('tasks.subtaskList') }}
                     </div>
 
                     <!-- Subtask Checklist Rows -->
@@ -814,18 +816,18 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                               <template v-if="sub.assigneeId">
                                 <img v-if="getUserById(sub.assigneeId, task)?.avatarUrl" alt="" :src="getUserById(sub.assigneeId, task)?.avatarUrl || undefined" class="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
                                 <span class="max-w-[70px] truncate">{{
-                                  getUserById(sub.assigneeId, task)?.name || '未知成员'
+                                  getUserById(sub.assigneeId, task)?.name || t('common.unknownMember')
                                 }}</span>
                               </template>
                               <span
                                 v-else
                                 class="text-slate-400 text-[10px] hover:text-accent font-semibold"
-                                >+ 指派成员</span
+                                >+ {{ t('tasks.assignMember') }}</span
                               >
                             </span>
                             <template #dropdown>
                               <el-dropdown-menu>
-                                <el-dropdown-item command="">清除成员</el-dropdown-item>
+                                <el-dropdown-item command="">{{ t('tasks.clearMember') }}</el-dropdown-item>
                                 <el-dropdown-item
                                   v-for="m in getMembersForSubtask(task)"
                                   :key="m.id"
@@ -853,7 +855,7 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                       <input
                         v-model="newSubtaskTexts[task.id]"
                         type="text"
-                        placeholder="+ 快速添加子任务..."
+                        :placeholder="t('tasks.quickAddSubtaskPlaceholder')"
                         class="w-full px-2.5 py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-350 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-xs focus:outline-none transition-all pr-8"
                         style="color: var(--text-primary)"
                         @keyup.enter="addSubtaskInline(task)"
@@ -871,7 +873,7 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                     <input
                       v-model="inlineTitles[col.id + '_' + (proj.id || 'unassigned')]"
                       type="text"
-                      placeholder="+ 快速添加..."
+                      :placeholder="t('tasks.quickAddPlaceholder')"
                       class="w-full px-1.5 sm:px-3 py-1 sm:py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-[9px] sm:text-xs focus:outline-none transition-all pr-8"
                       style="color: var(--text-primary)"
                       @keyup.enter="handleInlineAddInProject(col.id, proj.id)"
@@ -888,7 +890,7 @@ type="button" class="w-4 h-4 rounded-full border flex items-center justify-cente
                 v-if="getTasksByGroupInProject(proj.tasks, col.id).length === 0"
                 class="py-8 text-center text-slate-400 text-xs select-none"
               >
-                此列表中暂无任务，可在上方输入框中快速添加。
+                {{ t('tasks.noTasksInGroup') }}
               </div>
             </div>
           </div>

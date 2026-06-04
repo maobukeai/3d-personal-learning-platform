@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, watch } from 'vue';
 import { X, Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
@@ -68,8 +70,8 @@ function formatTime(date: string | null) {
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return '-';
-  if (seconds < 60) return `${seconds}秒`;
-  return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+  if (seconds < 60) return t('admin.seconds_seconds', { seconds: seconds });
+  return t('admin.math_floor_seconds_60', { Mathfloorseconds60: Math.floor(seconds / 60), seconds60: seconds % 60 });
 }
 </script>
 
@@ -96,11 +98,11 @@ function formatDuration(seconds: number | null) {
       <div class="flex-1 overflow-y-auto p-5 scrollbar-hide">
         <div v-if="isLoadingLogs" class="flex items-center justify-center py-10">
           <Loader2 class="w-5 h-5 animate-spin text-blue-500" />
-          <span class="ml-2 text-sm text-slate-500">加载日志...</span>
+          <span class="ml-2 text-sm text-slate-500">{{ $t('admin.loading_logs') }}</span>
         </div>
 
         <div v-else-if="syncLogs.length === 0" class="text-center py-10">
-          <p class="text-slate-500">暂无同步记录</p>
+          <p class="text-slate-500">{{ $t('admin.no_sync_records_yet') }}</p>
         </div>
 
         <div v-else class="space-y-3">
@@ -126,7 +128,7 @@ function formatDuration(seconds: number | null) {
                       : 'bg-green-100 dark:bg-green-500/20 text-green-600'
                   "
                 >
-                  {{ log.type === 'FULL' ? '全量同步' : '增量同步' }}
+                  {{ log.type === 'FULL' ? t('admin.full_synchronization') : $t('admin.incremental_synchronization') }}
                 </span>
                 <span
                   class="px-2 py-0.5 text-xs rounded-full font-medium"
@@ -140,10 +142,8 @@ function formatDuration(seconds: number | null) {
                 >
                   {{
                     log.status === 'SUCCESS'
-                      ? '成功'
-                      : log.status === 'FAILED'
-                        ? '失败'
-                        : '进行中'
+                      ? t('admin.success') : log.status === 'FAILED'
+                        ? t('admin.failed') : $t('admin.in_progress')
                   }}
                 </span>
               </div>
@@ -161,11 +161,11 @@ function formatDuration(seconds: number | null) {
               v-if="log.status !== 'RUNNING'"
               class="flex flex-wrap gap-3 text-xs text-slate-500"
             >
-              <span>发现 {{ log.resourcesFound }} 个</span>
-              <span class="text-emerald-500">新增 {{ log.resourcesCreated }}</span>
-              <span class="text-amber-500">更新 {{ log.resourcesUpdated }}</span>
-              <span class="text-red-400">删除 {{ log.resourcesDeleted }}</span>
-              <span v-if="log.duration">耗时 {{ formatDuration(log.duration) }}</span>
+              <span>{{ t('admin.log_resourcesfound_found', { count: log.resourcesFound }) }}</span>
+              <span class="text-emerald-500">{{ t('admin.added_log_resourcescreated', { count: log.resourcesCreated }) }}</span>
+              <span class="text-amber-500">{{ t('admin.update_log_resourcesupdated', { count: log.resourcesUpdated }) }}</span>
+              <span class="text-red-400">{{ t('admin.delete_log_resourcesdeleted', { count: log.resourcesDeleted }) }}</span>
+              <span v-if="log.duration">{{ t('admin.time_consuming_formatduration_log', { duration: formatDuration(log.duration) }) }}</span>
             </div>
           </div>
         </div>

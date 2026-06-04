@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { Mail, Settings, Sparkles, Shield, Eye, EyeOff } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -86,11 +88,11 @@ const selectSmtpConfig = (configId: string) => {
 
 const addNewSmtpConfig = async () => {
   try {
-    const { value: name } = await ElMessageBox.prompt('请输入新方案名称：', '新增邮件配置方案', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.added_email_configuration_plan'), {
+      confirmButtonText: t('admin.ok'),
+      cancelButtonText: t('admin.cancel'),
       inputPattern: /\S+/,
-      inputErrorMessage: '方案名称不能为空',
+      inputErrorMessage: t('admin.scheme_name_cannot_be'),
     });
 
     const newId = 'cfg_' + Date.now();
@@ -110,7 +112,7 @@ const addNewSmtpConfig = async () => {
 
     // Auto select the new configuration
     selectSmtpConfig(newId);
-    ElMessage.success(`方案 "${name}" 已新增`);
+    ElMessage.success(t('admin.scheme_name_has_been', { name: name }));
   } catch (_error) {
     // User canceled
   }
@@ -121,17 +123,17 @@ const renameSmtpConfig = async () => {
   if (!activeCfg) return;
 
   try {
-    const { value: name } = await ElMessageBox.prompt('请输入新方案名称：', '重命名配置方案', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.rename_configuration_scheme'), {
+      confirmButtonText: t('admin.ok'),
+      cancelButtonText: t('admin.cancel'),
       inputPattern: /\S+/,
-      inputErrorMessage: '方案名称不能为空',
+      inputErrorMessage: t('admin.scheme_name_cannot_be'),
       inputValue: activeCfg.name,
     });
 
     activeCfg.name = name;
     localSettings.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
-    ElMessage.success('方案重命名成功');
+    ElMessage.success(t('admin.scheme_renamed_successfully'));
   } catch (_error) {
     // User canceled
   }
@@ -139,16 +141,16 @@ const renameSmtpConfig = async () => {
 
 const deleteSmtpConfig = async () => {
   if (smtpConfigs.value.length <= 1) {
-    return ElMessage.warning('必须保留至少一个配置方案');
+    return ElMessage.warning(t('admin.at_least_one_configuration'));
   }
 
   const activeCfg = smtpConfigs.value.find((c) => c.id === activeConfigId.value);
   if (!activeCfg) return;
 
   try {
-    await ElMessageBox.confirm(`确定要删除配置方案 "${activeCfg.name}" 吗？`, '删除配置方案', {
-      confirmButtonText: '确定删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_17', { activeCfgname: activeCfg.name }), t('admin.delete_configuration_plan'), {
+      confirmButtonText: t('admin.confirm_deletion'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
 
@@ -159,7 +161,7 @@ const deleteSmtpConfig = async () => {
 
       // Select the first configuration
       selectSmtpConfig(smtpConfigs.value[0].id);
-      ElMessage.success('方案已删除');
+      ElMessage.success(t('admin.plan_deleted'));
     }
   } catch {
     // User canceled
@@ -257,14 +259,14 @@ const microsoftPoolStats = computed(() => {
 const testSmtp = async () => {
   try {
     const { value: testRecipient } = await ElMessageBox.prompt(
-      '请输入接收测试邮件的邮箱地址（建议使用本方案的发信邮箱或已验证收件人）：',
-      '测试 SMTP 连接',
+      t('admin.please_enter_the_email'),
+      t('admin.test_smtp_connection'),
       {
-        confirmButtonText: '开始测试',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.start_testing'),
+        cancelButtonText: t('admin.cancel'),
         inputPattern:
           /[\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?/,
-        inputErrorMessage: '邮箱格式不正确',
+        inputErrorMessage: t('admin.email_format_is_incorrect'),
         inputValue: localSettings.SMTP_FROM || localSettings.SMTP_USER || '',
       },
     );
@@ -283,7 +285,7 @@ const testSmtp = async () => {
   } catch (error) {
     if (error === 'cancel') return;
     console.error('Test SMTP error:', error);
-    ElMessage.error(getApiErrorMessage(error, 'SMTP 测试失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.smtp_test_failed')));
   } finally {
     isTestingSmtp.value = false;
   }
@@ -422,10 +424,10 @@ onMounted(async () => {
           class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
         >
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
-            >池内总账号</span
+            >{{ $t('admin.total_account_in_the') }}</span
           >
           <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
-            >{{ microsoftPoolStats.total }} 个</span
+            >{{ $t('admin.microsoftpoolstats_total') }}</span
           >
         </div>
         <div
@@ -433,10 +435,10 @@ onMounted(async () => {
         >
           <span
             class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
-            >健康运行中</span
+            >{{ $t('admin.running_healthily') }}</span
           >
           <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
-            >{{ microsoftPoolStats.active }} 个</span
+            >{{ $t('admin.microsoftpoolstats_active') }}</span
           >
         </div>
         <div
@@ -444,7 +446,7 @@ onMounted(async () => {
         >
           <span
             class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400"
-            >今日发送占比</span
+            >{{ $t('admin.today_s_delivery_ratio') }}</span
           >
           <span class="text-xl font-bold mt-2 text-amber-600 dark:text-amber-400">
             {{ microsoftPoolStats.totalSentToday }} /
@@ -456,10 +458,10 @@ onMounted(async () => {
         >
           <span
             class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold"
-            >代理服务器保护</span
+            >{{ $t('admin.proxy_server_protection') }}</span
           >
           <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
-            >{{ microsoftPoolStats.activeWithProxy }} 个</span
+            >{{ $t('admin.microsoftpoolstats_activewithproxy') }}</span
           >
         </div>
       </div>
@@ -471,7 +473,7 @@ onMounted(async () => {
             <Shield class="w-4 h-4 text-indigo-600" />
             <div>
               <span class="text-xs font-bold" style="color: var(--text-primary)"
-                >自动降级与灾备发送 (Failback)</span
+                >{{ $t('admin.automatic_downgrade_and_disaster') }}</span
               >
               <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                 当账号池为空、所有账号均达到每日限量，或发信异常时，系统自动切换为传统的
@@ -520,16 +522,14 @@ onMounted(async () => {
               >
                 {{
                   account.status === 'ACTIVE'
-                    ? '正常'
-                    : account.status === 'EXPIRED'
-                      ? '令牌过期'
-                      : '异常'
+                    ? t('admin.normal') : account.status === 'EXPIRED'
+                      ? t('admin.token_expires') : $t('admin.abnormal')
                 }}
               </span>
             </div>
             <div class="flex items-center gap-4 text-slate-400 text-[10px]">
               <span v-if="account.proxy"
-                >🔒 代理: {{ account.proxy.split('@').pop() }}</span
+                >{{ $t('admin.proxy_account_proxy_split') }}</span
               >
               <span
                 >今日发信:
@@ -564,7 +564,7 @@ onMounted(async () => {
               <span
                 v-if="localSettings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
                 class="text-[10px] font-normal text-amber-500 ml-1"
-                >(备用)</span
+                >{{ $t('admin.standby') }}</span
               >
             </h2>
           </div>
@@ -574,10 +574,10 @@ onMounted(async () => {
 
           <!-- 一行展示：配置方案与管理按钮 -->
           <div class="flex items-center gap-2 text-xs">
-            <span class="font-bold text-slate-400 whitespace-nowrap">方案:</span>
+            <span class="font-bold text-slate-400 whitespace-nowrap">{{ $t('admin.solution') }}</span>
             <el-select
               v-model="activeConfigId"
-              placeholder="选择方案"
+              :placeholder="$t('admin.options')"
               size="small"
               style="width: 110px"
               class="shrink-0 cursor-pointer"
@@ -604,14 +604,14 @@ onMounted(async () => {
         </div>
 
         <button type="button" :disabled="isTestingSmtp" class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer bg-transparent" @click="testSmtp">
-          {{ isTestingSmtp ? '正在尝试握手...' : '测试连接' }}
+          {{ isTestingSmtp ? t('admin.trying_to_shake_hands') : $t('admin.test_connection') }}
         </button>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >服务器地址</label
+            >{{ $t('admin.server_address') }}</label
           >
           <input
             v-model="localSettings.SMTP_HOST"
@@ -627,7 +627,7 @@ onMounted(async () => {
         </div>
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >端口</label
+            >{{ $t('admin.port') }}</label
           >
           <input
             v-model="localSettings.SMTP_PORT"
@@ -643,7 +643,7 @@ onMounted(async () => {
         </div>
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >账号 (USER)</label
+            >{{ $t('admin.account_user') }}</label
           >
           <input
             v-model="localSettings.SMTP_USER"
@@ -658,7 +658,7 @@ onMounted(async () => {
         </div>
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >授权码 (PASS)</label
+            >{{ $t('admin.authorization_code_pass') }}</label
           >
           <div class="relative">
             <input
@@ -679,7 +679,7 @@ onMounted(async () => {
         </div>
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >发件人名称</label
+            >{{ $t('admin.sender_name') }}</label
           >
           <input
             v-model="localSettings.SMTP_FROM_NAME"
@@ -698,7 +698,7 @@ onMounted(async () => {
         </div>
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >发件人邮箱 (FROM)</label
+            >{{ $t('admin.sender_email_from') }}</label
           >
           <input
             v-model="localSettings.SMTP_FROM"
@@ -720,10 +720,10 @@ onMounted(async () => {
             active-color="#6366f1"
           />
           <span class="text-xs font-bold" style="color: var(--text-primary)"
-            >启用 SSL/TLS 连接</span
+            >{{ $t('admin.enable_ssl_tls_connections') }}</span
           >
           <span class="text-[10px] ml-2" style="color: var(--text-muted)"
-            >端口 465 通常需要开启，587 通常关闭</span
+            >{{ $t('admin.port_465_usually_needs') }}</span
           >
         </div>
       </div>

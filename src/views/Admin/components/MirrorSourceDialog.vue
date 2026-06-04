@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, watch } from 'vue';
 import { X, Globe, Upload, Loader2 } from 'lucide-vue-next';
@@ -47,9 +49,9 @@ const emit = defineEmits<{
 }>();
 
 const adapterTypes = [
-  { label: 'Zycku (资源酷)', value: 'ZYCKU' },
-  { label: '通用 WordPress', value: 'GENERIC_WP' },
-  { label: '手动上传 (资产站)', value: 'MANUAL' },
+  { label: t('admin.zycku_resource_cool'), value: 'ZYCKU' },
+  { label: t('admin.universal_wordpress'), value: 'GENERIC_WP' },
+  { label: t('admin.manual_upload_asset_station'), value: 'MANUAL' },
 ];
 
 const formData = ref({
@@ -72,7 +74,7 @@ const handleIconUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 5 * 1024 * 1024) {
-    return ElMessage.warning('图标图片大小不能超过 5MB');
+    return ElMessage.warning(t('admin.icon_image_size_cannot'));
   }
 
   try {
@@ -81,11 +83,11 @@ const handleIconUpload = async (event: Event) => {
     formDataObj.append('mirror_image', file);
     const { data } = await api.post('/api/admin/mirror/upload', formDataObj);
     formData.value.iconUrl = data.url;
-    ElMessage.success('图标上传成功');
+    ElMessage.success(t('admin.icon_uploaded_successfully'));
   } catch (error) {
     console.error('Icon upload error:', error);
     const err = error as { response?: { data?: { error?: string } } };
-    ElMessage.error(getApiErrorMessage(err, '图标上传失败'));
+    ElMessage.error(getApiErrorMessage(err, t('admin.icon_upload_failed')));
   } finally {
     isUploadingIcon.value = false;
     target.value = '';
@@ -128,15 +130,15 @@ watch(
 
 const handleSave = () => {
   if (!formData.value.name.trim()) {
-    ElMessage.warning('请输入名称（英文标识）');
+    ElMessage.warning(t('admin.please_enter_a_name'));
     return;
   }
   if (!formData.value.displayName.trim()) {
-    ElMessage.warning('请输入显示名称');
+    ElMessage.warning(t('admin.please_enter_a_display'));
     return;
   }
   if (!formData.value.baseUrl.trim()) {
-    ElMessage.warning('请输入站点地址');
+    ElMessage.warning(t('admin.please_enter_site_address'));
     return;
   }
 
@@ -145,7 +147,7 @@ const handleSave = () => {
     try {
       syncConfigObj = JSON.parse(formData.value.syncConfig);
     } catch (_e) {
-      ElMessage.warning('配置参数 JSON 格式不正确');
+      ElMessage.warning(t('admin.configuration_parameter_json_format'));
       return;
     }
   }
@@ -175,7 +177,7 @@ const handleClose = () => {
           class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
         >
           <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
-            {{ source ? '编辑镜像源' : '添加镜像源' }}
+            {{ source ? t('admin.edit_image_source') : $t('admin.add_mirror_source') }}
           </h2>
           <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="handleClose">
             <X class="w-5 h-5" />
@@ -185,29 +187,29 @@ const handleClose = () => {
         <div class="p-5 space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >名称（英文标识）</label
+              >{{ $t('admin.name_english_logo') }}</label
             >
             <input
               v-model="formData.name"
               type="text"
-              placeholder="例如: zycku"
+              :placeholder="$t('admin.for_example_zycku')"
               class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >显示名称</label
+              >{{ $t('admin.display_name') }}</label
             >
             <input
               v-model="formData.displayName"
               type="text"
-              placeholder="例如: 资源酷"
+              :placeholder="$t('admin.for_example_resource_cool')"
               class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
             />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >站点图标 (推荐 1:1 比例)</label
+              >{{ $t('admin.site_icon_1_1') }}</label
             >
             <div class="flex items-center gap-4">
               <div
@@ -233,7 +235,7 @@ const handleClose = () => {
                 <input
                   v-model="formData.iconUrl"
                   type="text"
-                  placeholder="或者输入网络图标 URL"
+                  :placeholder="$t('admin.or_enter_the_web')"
                   class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                 />
                 <p class="text-[10px] text-slate-400 dark:text-slate-500 leading-none">
@@ -244,7 +246,7 @@ const handleClose = () => {
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >网站地址</label
+              >{{ $t('admin.website_address') }}</label
             >
             <input
               v-model="formData.baseUrl"
@@ -255,7 +257,7 @@ const handleClose = () => {
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >适配器类型</label
+              >{{ $t('admin.adapter_type') }}</label
             >
             <select
               v-model="formData.adapterType"
@@ -269,20 +271,20 @@ const handleClose = () => {
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >访问权限</label
+                >{{ $t('admin.access_rights') }}</label
               >
               <select
                 v-model="formData.minPlanPriority"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               >
-                <option :value="0">免费版及以上</option>
-                <option :value="1">VIP及以上</option>
-                <option :value="2">SVIP及以上</option>
+                <option :value="0">{{ $t('admin.free_version_and_above') }}</option>
+                <option :value="1">{{ $t('admin.vip_and_above') }}</option>
+                <option :value="2">{{ $t('admin.svip_and_above') }}</option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >同步间隔(秒)</label
+                >{{ $t('admin.synchronization_interval_seconds') }}</label
               >
               <input
                 v-model.number="formData.syncInterval"
@@ -295,23 +297,23 @@ const handleClose = () => {
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >描述</label
+              >{{ $t('admin.description') }}</label
             >
             <textarea
               v-model="formData.description"
               rows="2"
-              placeholder="简要描述该镜像源..."
+              :placeholder="$t('admin.briefly_describe_the_mirror')"
               class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
             ></textarea>
           </div>
           <div v-if="formData.adapterType !== 'MANUAL'">
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >自定义配置参数 (JSON格式)</label
+              >{{ $t('admin.custom_configuration_parameters_json') }}</label
             >
             <textarea
               v-model="formData.syncConfig"
               rows="3"
-              placeholder='例如: {"cookies": "...", "headers": {...}}'
+              :placeholder="$t('admin.for_example_cookies_headers')"
               class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none font-mono text-xs"
             ></textarea>
           </div>
@@ -324,7 +326,7 @@ const handleClose = () => {
             取消
           </button>
           <button type="button" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors cursor-pointer" @click="handleSave">
-            {{ source ? '保存' : '创建' }}
+            {{ source ? t('admin.save') : $t('admin.create') }}
           </button>
         </div>
       </div>

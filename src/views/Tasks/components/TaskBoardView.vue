@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import draggable from 'vuedraggable';
 import { Plus } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import TaskCard from '@/components/TaskCard.vue';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -24,6 +25,7 @@ const emit = defineEmits<{
   (e: 'open-profile', userId: string): void;
 }>();
 
+const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
 const inlineTitles = ref<Record<string, string>>({});
 
@@ -63,25 +65,25 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
 
       if (props.groupBy === 'status') {
         const labels: Record<string, string> = {
-          TODO: '待办',
-          IN_PROGRESS: '进行中',
-          DONE: '已完成',
+          TODO: t('tasks.todo'),
+          IN_PROGRESS: t('tasks.inProgress'),
+          DONE: t('tasks.done'),
         };
-        ElMessage.success(`已移动到 ${labels[columnId] || columnId}`);
+        ElMessage.success(t('tasks.movedTo', { status: labels[columnId] || columnId }));
       } else {
         const labels: Record<string, string> = {
-          URGENT: '紧急',
-          HIGH: '高',
-          MEDIUM: '中',
-          LOW: '低',
-          NONE: '无',
+          URGENT: t('tasks.urgent'),
+          HIGH: t('tasks.high'),
+          MEDIUM: t('tasks.medium'),
+          LOW: t('tasks.low'),
+          NONE: t('tasks.none'),
         };
-        ElMessage.success(`优先级已更新为 ${labels[columnId] || columnId}`);
+        ElMessage.success(t('tasks.priorityUpdated', { priority: labels[columnId] || columnId }));
       }
       emit('refresh-stats');
       emit('refresh');
     } catch {
-      ElMessage.error('更新失败');
+      ElMessage.error(t('tasks.updateFailed'));
       emit('refresh');
     }
   }
@@ -106,12 +108,12 @@ const handleInlineAdd = async (columnId: string) => {
     };
 
     await api.post('/api/tasks', payload);
-    ElMessage.success('任务已快速创建');
+    ElMessage.success(t('tasks.quickCreateSuccess'));
     inlineTitles.value[columnId] = '';
     emit('refresh');
     emit('refresh-stats');
   } catch {
-    ElMessage.error('快速创建任务失败');
+    ElMessage.error(t('tasks.quickCreateFailed'));
   }
 };
 
@@ -200,7 +202,7 @@ const openUserProfile = (userId: string) => {
             <input
               v-model="inlineTitles[col.id]"
               type="text"
-              placeholder="+ 快速添加..."
+              :placeholder="t('tasks.quickAddPlaceholder')"
               class="w-full px-1.5 sm:px-2.5 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/70 focus:bg-white dark:focus:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 focus:border-accent/40 rounded-lg text-[9px] sm:text-[10px] focus:outline-none transition-all pr-8"
               style="color: var(--text-primary)"
               @keyup.enter="handleInlineAdd(col.id)"
@@ -218,7 +220,7 @@ const openUserProfile = (userId: string) => {
           style="border-color: var(--border-base)"
         >
           <Plus class="w-4 h-4 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-          <p class="hidden sm:block text-[10px] font-bold">拖拽或点击新建</p>
+          <p class="hidden sm:block text-[10px] font-bold">{{ t('tasks.dragOrClickToCreate') }}</p>
         </div>
       </div>
     </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, type Component } from 'vue';
 import { useRouter } from 'vue-router';
@@ -52,27 +54,27 @@ interface AdminStatsResponse {
 const router = useRouter();
 
 const stats = ref<DashboardStat[]>([
-  { label: '总用户数', value: '0', color: 'text-blue-600', icon: Users, route: '/admin/users' },
-  { label: '3D资产', value: '0', color: 'text-emerald-600', icon: Box, route: '/admin/assets' },
-  { label: '材质材料', value: '0', color: 'text-amber-600', icon: Layers, route: '/admin/audits' },
-  { label: '作品展示', value: '0', color: 'text-rose-600', icon: Video, route: '/admin/audits' },
+  { label: t('admin.total_number_of_users'), value: '0', color: 'text-blue-600', icon: Users, route: '/admin/users' },
+  { label: t('admin.3d_assets'), value: '0', color: 'text-emerald-600', icon: Box, route: '/admin/assets' },
+  { label: t('admin.material_material'), value: '0', color: 'text-amber-600', icon: Layers, route: '/admin/audits' },
+  { label: t('admin.work_display'), value: '0', color: 'text-rose-600', icon: Video, route: '/admin/audits' },
   {
-    label: '学院课程',
+    label: t('admin.academy_courses'),
     value: '0',
     color: 'text-indigo-600',
     icon: BookOpen,
     route: '/admin/courses',
   },
-  { label: '活跃团队', value: '0', color: 'text-teal-600', icon: UserPlus, route: '/admin/teams' },
+  { label: t('admin.active_team'), value: '0', color: 'text-teal-600', icon: UserPlus, route: '/admin/teams' },
   {
-    label: '待办审核',
+    label: t('admin.pending_review'),
     value: '0',
     color: 'text-orange-600',
     icon: AlertCircle,
     route: '/admin/audits',
   },
   {
-    label: '反馈中心',
+    label: t('admin.feedback_center'),
     value: '0',
     color: 'text-purple-600',
     icon: MessageSquare,
@@ -109,7 +111,7 @@ const fetchBroadcastHistory = async () => {
 
 const handleSendBroadcast = async () => {
   if (!broadcastForm.value.title || !broadcastForm.value.content) {
-    ElMessage.warning('请填写完整的标题和内容');
+    ElMessage.warning(t('admin.please_fill_in_the_1'));
     return;
   }
 
@@ -124,7 +126,7 @@ const handleSendBroadcast = async () => {
       showBroadcastModal.value = false;
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '广播发送失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.broadcast_sending_failed')));
   } finally {
     isBroadcasting.value = false;
   }
@@ -133,10 +135,10 @@ const handleSendBroadcast = async () => {
 const handleDeleteBroadcast = async (id: string) => {
   try {
     await api.delete(`/api/admin/broadcasts/${id}`);
-    ElMessage.success('广播已成功撤回');
+    ElMessage.success(t('admin.broadcast_successfully_withdrawn'));
     fetchBroadcastHistory();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '撤回失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.undo_failed')));
   }
 };
 
@@ -221,7 +223,7 @@ onMounted(() => {
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchAdminStats">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新数据</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh_data') }}</span>
           </button>
           <div
             class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors duration-300"
@@ -244,7 +246,7 @@ onMounted(() => {
           class="p-4 sm:p-8 rounded-2xl sm:rounded-3xl border transition-colors duration-300"
           style="background-color: var(--bg-card); border-color: var(--border-base)"
         >
-          <h3 class="font-bold text-base sm:text-lg mb-4 sm:mb-6 px-1 sm:px-0" style="color: var(--text-primary)">管理操作</h3>
+          <h3 class="font-bold text-base sm:text-lg mb-4 sm:mb-6 px-1 sm:px-0" style="color: var(--text-primary)">{{ $t('admin.management_operations') }}</h3>
           <div class="grid grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-4">
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/users')">
               <div
@@ -252,7 +254,7 @@ onMounted(() => {
               >
                 <Users class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">用户管理</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.user_management') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/audits')">
               <div
@@ -260,7 +262,7 @@ onMounted(() => {
               >
                 <CheckCircle2 class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">内容审核</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.content_moderation') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/courses')">
               <div
@@ -268,7 +270,7 @@ onMounted(() => {
               >
                 <BookOpen class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">课程管理</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.course_management') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/roadmaps')">
               <div
@@ -276,7 +278,7 @@ onMounted(() => {
               >
                 <Clock class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">学习路线</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.learning_route') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/teams')">
               <div
@@ -284,7 +286,7 @@ onMounted(() => {
               >
                 <UserPlus class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">团队管理</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.team_management') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/feedback')">
               <div
@@ -292,7 +294,7 @@ onMounted(() => {
               >
                 <MessageSquare class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">反馈中心</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.feedback_center') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="router.push('/admin/settings')">
               <div
@@ -300,7 +302,7 @@ onMounted(() => {
               >
                 <Layout class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">系统设置</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.system_settings') }}</span>
             </button>
             <button type="button" class="flex flex-col items-center gap-1.5 sm:gap-3 p-2 sm:p-6 rounded-xl sm:rounded-2xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all group" style="border-color: var(--border-base)" @click="showBroadcastModal = true">
               <div
@@ -308,7 +310,7 @@ onMounted(() => {
               >
                 <Megaphone class="w-4 h-4 sm:w-6 h-6" />
               </div>
-              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">全站广播</span>
+              <span class="text-[9px] sm:text-xs font-bold whitespace-nowrap" style="color: var(--text-primary)">{{ $t('admin.site_wide_broadcast') }}</span>
             </button>
           </div>
         </div>
@@ -334,7 +336,7 @@ onMounted(() => {
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="flex items-center justify-between gap-4 mb-6 sm:mb-8">
-              <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新注册用户</h3>
+              <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">{{ $t('admin.latest_registered_user') }}</h3>
               <button type="button" class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap" @click="router.push('/admin/users')">
                 管理所有
               </button>
@@ -355,7 +357,7 @@ onMounted(() => {
                   </div>
                   <div class="min-w-0">
                     <p class="text-xs sm:text-sm font-bold truncate" style="color: var(--text-primary)">
-                      {{ user.name || '匿名用户' }}
+                      {{ user.name || $t('admin.anonymous_user') }}
                     </p>
                     <p class="text-[9px] sm:text-[10px] truncate" style="color: var(--text-muted)">{{ user.email }}</p>
                   </div>
@@ -365,7 +367,7 @@ onMounted(() => {
                 }}</span>
               </div>
               <div v-if="recentUsers.length === 0" class="py-12 text-center text-slate-400">
-                <p class="text-sm font-bold">暂无新用户</p>
+                <p class="text-sm font-bold">{{ $t('admin.no_new_users_yet') }}</p>
               </div>
             </div>
           </div>
@@ -376,7 +378,7 @@ onMounted(() => {
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="flex items-center justify-between gap-4 mb-6 sm:mb-8">
-              <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">最新提交资产</h3>
+              <h3 class="font-bold text-base sm:text-lg" style="color: var(--text-primary)">{{ $t('admin.latest_submitted_assets') }}</h3>
               <button type="button" class="text-[10px] sm:text-xs font-bold text-accent hover:underline whitespace-nowrap" @click="router.push('/admin/assets')">
                 审核所有
               </button>
@@ -418,7 +420,7 @@ onMounted(() => {
                 </div>
               </div>
               <div v-if="recentAssets.length === 0" class="py-12 text-center text-slate-400">
-                <p class="text-sm font-bold">暂无资产提交</p>
+                <p class="text-sm font-bold">{{ $t('admin.no_assets_submitted_yet') }}</p>
               </div>
             </div>
           </div>
@@ -441,8 +443,8 @@ onMounted(() => {
               <Megaphone class="w-5 h-5 sm:w-6 h-6" />
             </div>
             <div>
-              <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">全站系统广播</h3>
-              <p class="text-[10px] sm:text-xs text-slate-400 mt-1">发布并管理全局通知</p>
+              <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">{{ $t('admin.whole_station_system_broadcast') }}</h3>
+              <p class="text-[10px] sm:text-xs text-slate-400 mt-1">{{ $t('admin.post_and_manage_global') }}</p>
             </div>
           </div>
           <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full" @click="showBroadcastModal = false">
@@ -476,12 +478,12 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
         <div v-if="broadcastTab === 'send'" class="space-y-4">
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >广播标题</label
+              >{{ $t('admin.broadcast_title') }}</label
             >
             <input
               v-model="broadcastForm.title"
               type="text"
-              placeholder="输入广播标题..."
+              :placeholder="$t('admin.enter_broadcast_title')"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
               style="
                 background-color: var(--bg-app);
@@ -492,12 +494,12 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >广播内容</label
+              >{{ $t('admin.broadcast_content') }}</label
             >
             <textarea
               v-model="broadcastForm.content"
               rows="4"
-              placeholder="输入广播详细内容..."
+              :placeholder="$t('admin.enter_broadcast_details')"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
               style="
                 background-color: var(--bg-app);
@@ -508,12 +510,12 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >跳转链接 (可选)</label
+              >{{ $t('admin.jump_link_optional') }}</label
             >
             <input
               v-model="broadcastForm.link"
               type="text"
-              placeholder="https://... 或 /path"
+              :placeholder="$t('admin.https_or_path')"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
               style="
                 background-color: var(--bg-app);
@@ -526,7 +528,7 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
           <div class="pt-4">
             <button type="button" :disabled="isBroadcasting" class="w-full py-4 rounded-2xl bg-rose-500 text-white font-bold transition-all shadow-lg shadow-rose-500/20 hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleSendBroadcast">
               <RefreshCw v-if="isBroadcasting" class="w-4 h-4 animate-spin" />
-              {{ isBroadcasting ? '正在发送...' : '立即发布广播' }}
+              {{ isBroadcasting ? [t('admin.sending')]: $t('admin.post_a_broadcast_now') }}
             </button>
           </div>
         </div>
@@ -538,11 +540,11 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
             class="py-20 flex flex-col items-center justify-center text-slate-400"
           >
             <RefreshCw class="w-8 h-8 animate-spin mb-4" />
-            <p class="text-xs font-bold">正在加载历史记录...</p>
+            <p class="text-xs font-bold">{{ $t('admin.loading_history') }}</p>
           </div>
           <div v-else-if="broadcastHistory.length === 0" class="py-20 text-center text-slate-400">
             <Megaphone class="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p class="text-sm font-bold">暂无广播记录</p>
+            <p class="text-sm font-bold">{{ $t('admin.no_broadcast_record_yet') }}</p>
           </div>
           <div
             v-for="broadcast in broadcastHistory"
@@ -570,7 +572,7 @@ type="button" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all fle
                 v-if="broadcast.link"
                 class="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-white/10"
                 style="color: var(--text-secondary)"
-                >链接: {{ broadcast.link }}</span
+                >{{ $t('admin.link_broadcast_link') }}</span
               >
             </div>
           </div>

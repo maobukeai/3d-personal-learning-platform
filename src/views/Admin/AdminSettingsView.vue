@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, watch, computed } from 'vue';
 import {
   Settings,
@@ -53,7 +55,7 @@ const handleLogoUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 2 * 1024 * 1024) {
-    return ElMessage.warning('Logo 图片大小不能超过 2MB');
+    return ElMessage.warning(t('admin.logo_image_size_cannot'));
   }
 
   try {
@@ -62,10 +64,10 @@ const handleLogoUpload = async (event: Event) => {
     formData.append('logo', file);
     const { data } = await api.post('/api/admin/settings/upload-logo', formData);
     settings.value.PLATFORM_LOGO_URL = data.url;
-    ElMessage.success('Logo 上传成功，点击保存以生效');
+    ElMessage.success(t('admin.logo_uploaded_successfully_click'));
   } catch (error) {
     console.error('Logo upload error:', error);
-    ElMessage.error('Logo 上传失败');
+    ElMessage.error(t('admin.logo_upload_failed'));
   } finally {
     isUploadingLogo.value = false;
     target.value = '';
@@ -78,7 +80,7 @@ const handleFaviconUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 1 * 1024 * 1024) {
-    return ElMessage.warning('Favicon 图片大小不能超过 1MB');
+    return ElMessage.warning(t('admin.favicon_image_size_cannot'));
   }
 
   try {
@@ -87,10 +89,10 @@ const handleFaviconUpload = async (event: Event) => {
     formData.append('favicon', file);
     const { data } = await api.post('/api/admin/settings/upload-favicon', formData);
     settings.value.PLATFORM_FAVICON_URL = data.url;
-    ElMessage.success('Favicon 上传成功，点击保存以生效');
+    ElMessage.success(t('admin.favicon_uploaded_successfully_click'));
   } catch (error) {
     console.error('Favicon upload error:', error);
-    ElMessage.error('Favicon 上传失败');
+    ElMessage.error(t('admin.favicon_upload_failed'));
   } finally {
     isUploadingFavicon.value = false;
     target.value = '';
@@ -114,8 +116,8 @@ const defaultSettings = {
   SMTP_ACTIVE_CONFIG_ID: 'default',
   SYSTEM_EMAIL_PROVIDER: 'SMTP',
   MICROSOFT_POOL_FAILBACK: true,
-  EMAIL_VERIFY_SUBJECT: '您的邮箱验证码',
-  EMAIL_VERIFY_BODY: '您好，您的验证码是：{{code}}。请在 10 分钟内输入。',
+  EMAIL_VERIFY_SUBJECT: t('admin.your_email_verification_code'),
+  EMAIL_VERIFY_BODY: t('admin.hello_your_verification_code'),
   PLATFORM_NAME: '3D Personal Learning Hub',
   BROWSER_TITLE: '',
   PLATFORM_LOGO_URL: '',
@@ -191,7 +193,7 @@ const aiProviderDefaults: Record<string, { endpoint: string; model: string; name
   QWEN: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', name: 'Qwen Plus' },
   GEMINI: { endpoint: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash', name: 'Gemini Flash' },
   AZURE: { endpoint: 'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15', model: 'gpt-4o', name: 'Azure OpenAI' },
-  CUSTOM: { endpoint: '', model: '', name: '自定义模型' },
+  CUSTOM: { endpoint: '', model: '', name: t('admin.custom_model') },
 };
 
 const createAiModelConfig = (provider = 'DEEPSEEK'): AiModelConfig => {
@@ -276,12 +278,12 @@ const addAiModel = () => {
 
 const removeAiModel = async (id: string) => {
   if (aiModelConfigs.value.length <= 1) {
-    return ElMessage.warning('至少保留一个 AI 模型配置');
+    return ElMessage.warning(t('admin.keep_at_least_one'));
   }
   try {
-    await ElMessageBox.confirm('确定删除这个 AI 模型配置吗？', '删除模型', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you'), t('admin.delete_model'), {
+      confirmButtonText: t('admin.delete'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
     const removed = aiModelConfigs.value.find((model) => model.id === id);
@@ -366,11 +368,11 @@ const selectSmtpConfig = (configId: string) => {
 
 const addNewSmtpConfig = async () => {
   try {
-    const { value: name } = await ElMessageBox.prompt('请输入新方案名称：', '新增邮件配置方案', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.added_email_configuration_plan'), {
+      confirmButtonText: t('admin.ok'),
+      cancelButtonText: t('admin.cancel'),
       inputPattern: /\S+/,
-      inputErrorMessage: '方案名称不能为空',
+      inputErrorMessage: t('admin.scheme_name_cannot_be'),
     });
 
     const newId = 'cfg_' + Date.now();
@@ -390,7 +392,7 @@ const addNewSmtpConfig = async () => {
 
     // Auto select the new configuration
     selectSmtpConfig(newId);
-    ElMessage.success(`方案 "${name}" 已新增`);
+    ElMessage.success(t('admin.scheme_name_has_been', { name: name }));
   } catch (_error) {
     // User canceled
   }
@@ -401,17 +403,17 @@ const renameSmtpConfig = async () => {
   if (!activeCfg) return;
 
   try {
-    const { value: name } = await ElMessageBox.prompt('请输入新方案名称：', '重命名配置方案', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.rename_configuration_scheme'), {
+      confirmButtonText: t('admin.ok'),
+      cancelButtonText: t('admin.cancel'),
       inputPattern: /\S+/,
-      inputErrorMessage: '方案名称不能为空',
+      inputErrorMessage: t('admin.scheme_name_cannot_be'),
       inputValue: activeCfg.name,
     });
 
     activeCfg.name = name;
     settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
-    ElMessage.success('方案重命名成功');
+    ElMessage.success(t('admin.scheme_renamed_successfully'));
   } catch (_error) {
     // User canceled
   }
@@ -419,16 +421,16 @@ const renameSmtpConfig = async () => {
 
 const deleteSmtpConfig = async () => {
   if (smtpConfigs.value.length <= 1) {
-    return ElMessage.warning('必须保留至少一个配置方案');
+    return ElMessage.warning(t('admin.at_least_one_configuration'));
   }
 
   const activeCfg = smtpConfigs.value.find((c) => c.id === activeConfigId.value);
   if (!activeCfg) return;
 
   try {
-    await ElMessageBox.confirm(`确定要删除配置方案 "${activeCfg.name}" 吗？`, '删除配置方案', {
-      confirmButtonText: '确定删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_17', { activeCfgname: activeCfg.name }), t('admin.delete_configuration_plan'), {
+      confirmButtonText: t('admin.confirm_deletion'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
 
@@ -439,7 +441,7 @@ const deleteSmtpConfig = async () => {
 
       // Select the first configuration
       selectSmtpConfig(smtpConfigs.value[0].id);
-      ElMessage.success('方案已删除');
+      ElMessage.success(t('admin.plan_deleted'));
     }
   } catch {
     // User canceled
@@ -471,26 +473,26 @@ watch(
 );
 
 const tabs = [
-  { id: 'general', label: '基础运营', icon: Globe },
-  { id: 'branding', label: '平台品牌', icon: Palette },
-  { id: 'security', label: '安全策略', icon: Shield },
-  { id: 'upload', label: '上传限制', icon: Upload },
-  { id: 'smtp', label: '邮件服务', icon: Mail },
-  { id: 'social', label: '社交登录', icon: Sparkles },
-  { id: 'template', label: '邮件模板', icon: Layout },
-  { id: 'ai', label: 'AI 智能辅助', icon: Cpu },
+  { id: 'general', label: t('admin.basic_operations'), icon: Globe },
+  { id: 'branding', label: t('admin.platform_brand'), icon: Palette },
+  { id: 'security', label: t('admin.security_policy'), icon: Shield },
+  { id: 'upload', label: t('admin.upload_limit'), icon: Upload },
+  { id: 'smtp', label: t('admin.mail_service'), icon: Mail },
+  { id: 'social', label: t('admin.social_login'), icon: Sparkles },
+  { id: 'template', label: t('admin.email_template'), icon: Layout },
+  { id: 'ai', label: t('admin.ai_intelligent_assistance'), icon: Cpu },
 ];
 
 const sessionTimeoutOptions = [
-  { label: '1 天', value: '1d' },
-  { label: '3 天', value: '3d' },
-  { label: '7 天', value: '7d' },
-  { label: '30 天', value: '30d' },
+  { label: t('admin.1_day'), value: '1d' },
+  { label: t('admin.3_days'), value: '3d' },
+  { label: t('admin.7_days'), value: '7d' },
+  { label: t('admin.30_days'), value: '30d' },
 ];
 
 const defaultRoleOptions = [
-  { label: '普通用户', value: 'USER' },
-  { label: '讲师', value: 'INSTRUCTOR' },
+  { label: t('admin.ordinary_user'), value: 'USER' },
+  { label: t('admin.lecturer'), value: 'INSTRUCTOR' },
 ];
 
 watch(
@@ -589,7 +591,7 @@ const fetchSettings = async () => {
           apiKey: settings.value.AI_API_KEY,
           enabled: true,
           isDefault: true,
-          description: '从旧版单模型配置自动生成',
+          description: t('admin.automatically_generated_from_legacy'),
           capabilities: ['chat'],
         },
       ];
@@ -607,7 +609,7 @@ const fetchSettings = async () => {
     if (smtpConfigs.value.length === 0) {
       const defaultCfg: SmtpConfig = {
         id: 'default',
-        name: '默认配置',
+        name: t('admin.default_configuration'),
         host: settings.value.SMTP_HOST || '',
         port: settings.value.SMTP_PORT || '465',
         user: settings.value.SMTP_USER || '',
@@ -638,7 +640,7 @@ const fetchSettings = async () => {
     hasUnsavedChanges.value = false;
   } catch (error) {
     console.error('Fetch settings error:', error);
-    ElMessage.error('获取设置失败');
+    ElMessage.error(t('admin.failed_to_get_settings'));
   } finally {
     isLoading.value = false;
   }
@@ -646,7 +648,7 @@ const fetchSettings = async () => {
 
 const saveSettings = async () => {
   if (!settings.value.PLATFORM_NAME?.trim()) {
-    return ElMessage.warning('平台名称不能为空');
+    return ElMessage.warning(t('admin.platform_name_cannot_be'));
   }
 
   try {
@@ -657,7 +659,7 @@ const saveSettings = async () => {
     });
 
     await api.post('/api/admin/settings', { settings: settingsPayload });
-    ElMessage.success('系统设置已成功保存');
+    ElMessage.success(t('admin.system_settings_saved_successfully'));
 
     originalSettings.value = JSON.parse(JSON.stringify(settings.value));
     hasUnsavedChanges.value = false;
@@ -688,7 +690,7 @@ const saveSettings = async () => {
     }
   } catch (error: unknown) {
     console.error('Save settings error:', error);
-    ElMessage.error(getApiErrorMessage(error, '保存设置失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.failed_to_save_settings')));
   } finally {
     isSaving.value = false;
   }
@@ -698,11 +700,11 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
   if (val === true || val === 'true') {
     try {
       await ElMessageBox.confirm(
-        '开启维护模式后，所有非管理员用户将无法访问平台。确定要开启吗？',
-        '确认开启维护模式',
+        t('admin.after_maintenance_mode_is'),
+        t('admin.confirm_to_enable_maintenance'),
         {
-          confirmButtonText: '确认开启',
-          cancelButtonText: '取消',
+          confirmButtonText: t('admin.confirm_to_open'),
+          cancelButtonText: t('admin.cancel'),
           type: 'warning',
           confirmButtonClass: 'el-button--danger',
         },
@@ -716,11 +718,11 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
 const resetToDefaults = async () => {
   try {
     await ElMessageBox.confirm(
-      '此操作将所有设置恢复为默认值，未保存的更改将丢失。确定继续？',
-      '重置为默认值',
+      t('admin.this_action_returns_all'),
+      t('admin.reset_to_default'),
       {
-        confirmButtonText: '确认重置',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_reset_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       },
     );
@@ -728,7 +730,7 @@ const resetToDefaults = async () => {
     smtpConfigs.value = [
       {
         id: 'default',
-        name: '默认配置',
+        name: t('admin.default_configuration'),
         host: '',
         port: '465',
         user: '',
@@ -740,21 +742,21 @@ const resetToDefaults = async () => {
     activeConfigId.value = 'default';
     aiModelConfigs.value = [createAiModelConfig()];
     syncAiModelsToSettings();
-    ElMessage.info('已恢复默认值，请点击保存以生效');
+    ElMessage.info(t('admin.default_values_have_been'));
   } catch {}
 };
 
 const testSmtp = async () => {
   try {
     const { value: testRecipient } = await ElMessageBox.prompt(
-      '请输入接收测试邮件的邮箱地址（建议使用本方案的发信邮箱或已验证收件人）：',
-      '测试 SMTP 连接',
+      t('admin.please_enter_the_email'),
+      t('admin.test_smtp_connection'),
       {
-        confirmButtonText: '开始测试',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.start_testing'),
+        cancelButtonText: t('admin.cancel'),
         inputPattern:
           /[\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?/,
-        inputErrorMessage: '邮箱格式不正确',
+        inputErrorMessage: t('admin.email_format_is_incorrect'),
         inputValue: settings.value.SMTP_FROM || settings.value.SMTP_USER || '',
       },
     );
@@ -773,7 +775,7 @@ const testSmtp = async () => {
   } catch (error: unknown) {
     if (error === 'cancel') return;
     console.error('Test SMTP error:', error);
-    ElMessage.error(getApiErrorMessage(error, 'SMTP 测试失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.smtp_test_failed')));
   } finally {
     isTestingSmtp.value = false;
   }
@@ -804,7 +806,7 @@ const handleDrop = (_event: DragEvent, toIndex: number) => {
     list.splice(toIndex, 0, draggedItem);
     aiModelConfigs.value = list;
     syncAiModelsToSettings();
-    ElMessage.success('已更新模型优先排序');
+    ElMessage.success(t('admin.updated_model_prioritization'));
   }
 };
 
@@ -831,13 +833,13 @@ const testAi = async (model?: AiModelConfig) => {
   const modelName = model?.modelName || settings.value.AI_MODEL_NAME;
 
   if (!provider) {
-    return ElMessage.warning('请选择 AI 提供商');
+    return ElMessage.warning(t('admin.please_select_an_ai'));
   }
   if (!apiKey && provider !== 'OLLAMA') {
-    return ElMessage.warning('请输入 API 密钥');
+    return ElMessage.warning(t('admin.please_enter_api_key'));
   }
   if (!modelName) {
-    return ElMessage.warning('请输入模型名称');
+    return ElMessage.warning(t('admin.please_enter_model_name'));
   }
 
   try {
@@ -850,13 +852,13 @@ const testAi = async (model?: AiModelConfig) => {
       modelName,
     });
     if (data.success) {
-      ElMessage.success(data.message || 'AI 接口测试成功！');
+      ElMessage.success(data.message || t('admin.ai_interface_test_successful'));
     } else {
-      ElMessage.error('测试失败，接口未返回成功信号。');
+      ElMessage.error(t('admin.the_test_failed_and'));
     }
   } catch (error: any) {
     console.error('Test AI error:', error);
-    ElMessage.error(getApiErrorMessage(error, 'AI 连接测试失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.ai_connection_test_failed')));
   } finally {
     isTestingAi.value = false;
     testingAiModelId.value = '';
@@ -898,11 +900,11 @@ watch(
 const handleCleanupStorage = async () => {
   try {
     await ElMessageBox.confirm(
-      '此操作将扫描服务器的本地上传目录，并永久物理删除所有未被数据库记录引用的孤儿文件（如已删除帖子的插图、未保存成功的草稿附件等）。此操作不可逆。确定继续？',
-      '确认清理存储空间',
+      t('admin.this_operation_will_scan'),
+      t('admin.confirm_to_clear_storage'),
       {
-        confirmButtonText: '立即清理',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.clean_up_now'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
       },
@@ -914,25 +916,25 @@ const handleCleanupStorage = async () => {
 
     await ElMessageBox.alert(
       `<div class="space-y-2">
-        <p class="text-sm font-bold text-emerald-600">🎉 存储空间清理成功！</p>
+        <p class="text-sm font-bold text-emerald-600">{{ $t('admin.storage_space_cleared_successfully') }}</p>
         <div class="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-3 rounded-lg border border-slate-100 dark:border-white/10 font-mono">
-          <p>🔍 扫描文件数: <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
-          <p>🗑️ 清理文件数: <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
-          <p>❌ 失败或跳过: <span class="font-bold text-rose-500">${stats.errors}</span></p>
+          <p>{{ $t('admin.number_of_scanned_files') }} <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
+          <p>{{ $t('admin.number_of_files_to') }} <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
+          <p>{{ $t('admin.failed_or_skipped') }} <span class="font-bold text-rose-500">${stats.errors}</span></p>
         </div>
-        <p class="text-[10px] text-slate-400">本地磁盘空间已成功释放。</p>
+        <p class="text-[10px] text-slate-400">{{ $t('admin.local_disk_space_has') }}</p>
       </div>`,
-      '清理结果',
+      t('admin.clean_results'),
       {
         dangerouslyUseHTMLString: true,
-        confirmButtonText: '确定',
+        confirmButtonText: t('admin.ok'),
         type: 'success',
       },
     );
   } catch (error: unknown) {
     if (error !== 'cancel') {
       console.error('Cleanup storage error:', error);
-      ElMessage.error(getApiErrorMessage(error, '清理存储空间失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.failed_to_clear_storage')));
     }
   } finally {
     isCleaning.value = false;
@@ -1030,33 +1032,33 @@ window.addEventListener('beforeunload', (e) => {
           <div
             v-if="hasUnsavedChanges"
             class="flex items-center gap-1 px-2 py-1 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0"
-            title="有未保存的更改"
+            :title="$t('admin.there_are_unsaved_changes')"
           >
             <AlertTriangle class="w-3 h-3 text-amber-500" />
             <span class="text-[10px] font-bold whitespace-nowrap hidden md:inline"
-              >有未保存的更改</span
+              >{{ $t('admin.there_are_unsaved_changes') }}</span
             >
           </div>
           <button
 type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
             style="border-color: var(--border-base); color: var(--text-secondary)"
-            title="恢复默认"
+            :title="$t('admin.restore_default')"
             @click="resetToDefaults"
           >
             <RotateCcw class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">恢复默认</span>
+            <span class="hidden sm:inline">{{ $t('admin.restore_default') }}</span>
           </button>
           <button
 type="button"
             :disabled="isSaving"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 text-white rounded-xl font-bold text-[11px] hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0 whitespace-nowrap shadow-sm cursor-pointer"
-            :title="isSaving ? '正在保存...' : '保存全局设置'"
+            ::title="$t('admin.issaving_saving_saving_global')"
             @click="saveSettings"
           >
             <Save v-if="!isSaving" class="w-3.5 h-3.5" />
             <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-            <span class="hidden sm:inline">{{ isSaving ? '正在保存...' : '保存全局设置' }}</span>
+            <span class="hidden sm:inline">{{ $t('admin.issaving_saving_saving_global_1') }}</span>
           </button>
         </div>
       </div>
@@ -1068,7 +1070,7 @@ type="button"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="px-3 mb-4 hidden lg:block">
-          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置分类</h2>
+          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{{ $t('admin.set_categories') }}</h2>
         </div>
         <nav
           class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden"
@@ -1104,13 +1106,13 @@ v-for="tab in tabs"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Globe class="w-5 h-5 text-indigo-600" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">基础运营配置</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.basic_operational_configuration') }}</h2>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >平台显示名称</label
+                    >{{ $t('admin.platform_display_name') }}</label
                   >
                   <input
                     v-model="settings.PLATFORM_NAME"
@@ -1126,7 +1128,7 @@ v-for="tab in tabs"
 
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >新用户默认角色</label
+                    >{{ $t('admin.new_user_default_role') }}</label
                   >
                   <select
                     v-model="settings.DEFAULT_USER_ROLE"
@@ -1151,7 +1153,7 @@ v-for="tab in tabs"
                       <UserPlus class="w-4 h-4 text-emerald-500" />
                       <div>
                         <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >允许新用户注册</span
+                          >{{ $t('admin.allow_new_users_to') }}</span
                         >
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           关闭后仅管理员可创建新账号
@@ -1168,7 +1170,7 @@ v-for="tab in tabs"
                       <Lock class="w-4 h-4 text-rose-500" />
                       <div>
                         <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >维护模式</span
+                          >{{ $t('admin.maintenance_mode') }}</span
                         >
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           开启后仅管理员可登入平台
@@ -1197,13 +1199,13 @@ v-for="tab in tabs"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Palette class="w-5 h-5 text-pink-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">平台品牌配置</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.platform_brand_configuration') }}</h2>
               </div>
 
               <div class="space-y-6">
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >平台 Logo</label
+                    >{{ $t('admin.platform_logo') }}</label
                   >
                   <div class="flex items-center gap-4">
                     <div
@@ -1235,7 +1237,7 @@ v-if="settings.PLATFORM_LOGO_URL"
                       <input
                         v-model="settings.PLATFORM_LOGO_URL"
                         type="text"
-                        placeholder="或者输入 Logo 图片 URL"
+                        :placeholder="$t('admin.or_enter_the_logo')"
                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                         style="
                           background-color: var(--bg-app);
@@ -1252,7 +1254,7 @@ v-if="settings.PLATFORM_LOGO_URL"
 
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >浏览器 Favicon</label
+                    >{{ $t('admin.browser_favicon') }}</label
                   >
                   <div class="flex items-center gap-4">
                     <div
@@ -1286,7 +1288,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                       <input
                         v-model="settings.PLATFORM_FAVICON_URL"
                         type="text"
-                        placeholder="不填则默认使用平台 Logo"
+                        :placeholder="$t('admin.if_left_blank_the')"
                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                         style="
                           background-color: var(--bg-app);
@@ -1303,12 +1305,12 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
 
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >平台描述</label
+                    >{{ $t('admin.platform_description') }}</label
                   >
                   <textarea
                     v-model="settings.PLATFORM_DESCRIPTION"
                     rows="3"
-                    placeholder="一句话介绍你的平台..."
+                    :placeholder="$t('admin.introduce_your_platform_in')"
                     class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all resize-none"
                     style="
                       background-color: var(--bg-app);
@@ -1323,12 +1325,12 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
 
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >浏览器窗口标题</label
+                    >{{ $t('admin.browser_window_title') }}</label
                   >
                   <input
                     v-model="settings.BROWSER_TITLE"
                     type="text"
-                    placeholder="例如：3D 社区 - 建模与设计学习中心"
+                    :placeholder="$t('admin.for_example_3d_community')"
                     class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                     style="
                       background-color: var(--bg-app);
@@ -1343,7 +1345,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
 
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >页脚文字</label
+                    >{{ $t('admin.footer_text') }}</label
                   >
                   <input
                     v-model="settings.FOOTER_TEXT"
@@ -1375,7 +1377,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Shield class="w-5 h-5 text-blue-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">安全策略配置</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.security_policy_configuration') }}</h2>
               </div>
 
               <div class="space-y-6">
@@ -1441,7 +1443,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                       <Sparkles class="w-4 h-4 text-violet-500" />
                       <div>
                         <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >自动审核通过材料</span
+                          >{{ $t('admin.automatically_review_approved_materials') }}</span
                         >
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           开启后用户上传的材料无需人工审核即可发布
@@ -1458,7 +1460,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                       <MonitorSmartphone class="w-4 h-4 text-cyan-500" />
                       <div>
                         <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >自动审核通过作品</span
+                          >{{ $t('admin.automatically_review_and_pass') }}</span
                         >
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           开启后用户发布的作品无需人工审核即可展示
@@ -1483,7 +1485,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Upload class="w-5 h-5 text-emerald-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">上传与存储限制</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.upload_and_storage_limits') }}</h2>
               </div>
 
               <div class="space-y-6">
@@ -1543,7 +1545,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Trash2 class="w-5 h-5 text-rose-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">存储空间清理</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.storage_space_cleanup') }}</h2>
               </div>
 
               <div class="space-y-6">
@@ -1553,7 +1555,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                   <div class="flex items-start gap-2.5">
                     <AlertTriangle class="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
                     <div>
-                      <p class="text-xs font-bold">重要提示与清理范围</p>
+                      <p class="text-xs font-bold">{{ $t('admin.important_tips_and_cleaning') }}</p>
                       <p class="text-[10px] mt-1 leading-relaxed opacity-90">
                         该操作将扫描服务器上的本地上传目录（如
                         branding、discussions、feedback、messages、users
@@ -1568,7 +1570,7 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                 >
                   <div>
                     <span class="text-xs font-bold" style="color: var(--text-primary)"
-                      >一键清理孤儿文件</span
+                      >{{ $t('admin.clean_up_orphan_files') }}</span
                     >
                     <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                       安全清理无用的冗余文件资源，自动保留有效的品牌、课程与讨论资源
@@ -1582,7 +1584,7 @@ type="button"
                   >
                     <Trash2 v-if="!isCleaning" class="w-3.5 h-3.5" />
                     <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-                    <span>{{ isCleaning ? '正在清理中...' : '立即清理' }}</span>
+                    <span>{{ $t('admin.iscleaning_cleaning_clean_now') }}</span>
                   </button>
                 </div>
               </div>
@@ -1599,7 +1601,7 @@ type="button"
               class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-2.5 text-xs font-bold animate-pulse shadow-sm"
             >
               <AlertTriangle class="w-4 h-4 text-amber-500 shrink-0" />
-              <span>⚠️ 您已将发信模式切换为「{{ settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL' ? '微软账号池' : '标准 SMTP' }}」，此更改尚未生效。请务必点击页面右上角的「保存全局设置」按钮！</span>
+              <span>{{ $t('admin.you_have_switched_the') }}</span>
             </div>
 
             <!-- Mode selection -->
@@ -1729,10 +1731,10 @@ type="button"
                   class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
                 >
                   <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
-                    >池内总账号</span
+                    >{{ $t('admin.total_account_in_the') }}</span
                   >
                   <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
-                    >{{ microsoftPoolStats.total }} 个</span
+                    >{{ $t('admin.microsoftpoolstats_total') }}</span
                   >
                 </div>
                 <div
@@ -1740,10 +1742,10 @@ type="button"
                 >
                   <span
                     class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
-                    >健康运行中</span
+                    >{{ $t('admin.running_healthily') }}</span
                   >
                   <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
-                    >{{ microsoftPoolStats.active }} 个</span
+                    >{{ $t('admin.microsoftpoolstats_active') }}</span
                   >
                 </div>
                 <div
@@ -1751,7 +1753,7 @@ type="button"
                 >
                   <span
                     class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400"
-                    >今日发送占比</span
+                    >{{ $t('admin.today_s_delivery_ratio') }}</span
                   >
                   <span class="text-xl font-bold mt-2 text-amber-600 dark:text-amber-400">
                     {{ microsoftPoolStats.totalSentToday }} /
@@ -1763,10 +1765,10 @@ type="button"
                 >
                   <span
                     class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold"
-                    >代理服务器保护</span
+                    >{{ $t('admin.proxy_server_protection') }}</span
                   >
                   <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
-                    >{{ microsoftPoolStats.activeWithProxy }} 个</span
+                    >{{ $t('admin.microsoftpoolstats_activewithproxy') }}</span
                   >
                 </div>
               </div>
@@ -1778,7 +1780,7 @@ type="button"
                     <Shield class="w-4 h-4 text-indigo-600" />
                     <div>
                       <span class="text-xs font-bold" style="color: var(--text-primary)"
-                        >自动降级与灾备发送 (Failback)</span
+                        >{{ $t('admin.automatic_downgrade_and_disaster') }}</span
                       >
                       <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                         当账号池为空、所有账号均达到每日限量，或发信异常时，系统自动切换为传统的
@@ -1827,16 +1829,14 @@ type="button"
                       >
                         {{
                           account.status === 'ACTIVE'
-                            ? '正常'
-                            : account.status === 'EXPIRED'
-                              ? '令牌过期'
-                              : '异常'
+                            ? t('admin.normal') : account.status === 'EXPIRED'
+                              ? t('admin.token_expires') : $t('admin.abnormal')
                         }}
                       </span>
                     </div>
                     <div class="flex items-center gap-4 text-slate-400 text-[10px]">
                       <span v-if="account.proxy"
-                        >🔒 代理: {{ account.proxy.split('@').pop() }}</span
+                        >{{ $t('admin.proxy_account_proxy_split') }}</span
                       >
                       <span
                         >今日发信:
@@ -1871,7 +1871,7 @@ type="button"
                       <span
                         v-if="settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'"
                         class="text-[10px] font-normal text-amber-500 ml-1"
-                        >(备用)</span
+                        >{{ $t('admin.standby') }}</span
                       >
                     </h2>
                   </div>
@@ -1881,10 +1881,10 @@ type="button"
 
                   <!-- 一行展示：配置方案与管理按钮 -->
                   <div class="flex items-center gap-2 text-xs">
-                    <span class="font-bold text-slate-400 whitespace-nowrap">方案:</span>
+                    <span class="font-bold text-slate-400 whitespace-nowrap">{{ $t('admin.solution') }}</span>
                     <el-select
                       v-model="activeConfigId"
-                      placeholder="选择方案"
+                      :placeholder="$t('admin.options')"
                       size="small"
                       style="width: 110px"
                       class="shrink-0 cursor-pointer"
@@ -1929,14 +1929,14 @@ type="button"
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
                   @click="testSmtp"
                 >
-                  {{ isTestingSmtp ? '正在尝试握手...' : '测试连接' }}
+                  {{ isTestingSmtp ? t('admin.trying_to_shake_hands') : $t('admin.test_connection') }}
                 </button>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >服务器地址</label
+                    >{{ $t('admin.server_address') }}</label
                   >
                   <input
                     v-model="settings.SMTP_HOST"
@@ -1952,7 +1952,7 @@ type="button"
                 </div>
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >端口</label
+                    >{{ $t('admin.port') }}</label
                   >
                   <input
                     v-model="settings.SMTP_PORT"
@@ -1968,7 +1968,7 @@ type="button"
                 </div>
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >账号 (USER)</label
+                    >{{ $t('admin.account_user') }}</label
                   >
                   <input
                     v-model="settings.SMTP_USER"
@@ -1983,7 +1983,7 @@ type="button"
                 </div>
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >授权码 (PASS)</label
+                    >{{ $t('admin.authorization_code_pass') }}</label
                   >
                   <div class="relative">
                     <input
@@ -2008,7 +2008,7 @@ type="button"
                 </div>
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >发件人名称</label
+                    >{{ $t('admin.sender_name') }}</label
                   >
                   <input
                     v-model="settings.SMTP_FROM_NAME"
@@ -2027,7 +2027,7 @@ type="button"
                 </div>
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >发件人邮箱 (FROM)</label
+                    >{{ $t('admin.sender_email_from') }}</label
                   >
                   <input
                     v-model="settings.SMTP_FROM"
@@ -2049,10 +2049,10 @@ type="button"
                     active-color="#6366f1"
                   />
                   <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >启用 SSL/TLS 连接</span
+                    >{{ $t('admin.enable_ssl_tls_connections') }}</span
                   >
                   <span class="text-[10px] ml-2" style="color: var(--text-muted)"
-                    >端口 465 通常需要开启，587 通常关闭</span
+                    >{{ $t('admin.port_465_usually_needs') }}</span
                   >
                 </div>
               </div>
@@ -2083,7 +2083,7 @@ type="button"
                     <Chrome class="w-4 h-4 text-accent" />
                     <div>
                       <span class="text-xs font-bold" style="color: var(--text-primary)"
-                        >开启 Google 登录</span
+                        >{{ $t('admin.turn_on_google_sign') }}</span
                       >
                       <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                         允许用户使用 Google 账号直接登录平台
@@ -2168,7 +2168,7 @@ type="button"
                     <Github class="w-4 h-4 text-slate-800 dark:text-white" />
                     <div>
                       <span class="text-xs font-bold" style="color: var(--text-primary)"
-                        >开启 GitHub 登录</span
+                        >{{ $t('admin.enable_github_login') }}</span
                       >
                       <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                         允许用户使用 GitHub 账号直接登录平台
@@ -2256,14 +2256,14 @@ type="button"
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors"
                   @click="showEmailPreview = !showEmailPreview"
                 >
-                  {{ showEmailPreview ? '关闭预览' : '预览邮件' }}
+                  {{ showEmailPreview ? t('admin.close_preview') : $t('admin.preview_message') }}
                 </button>
               </div>
 
               <div class="space-y-6">
                 <div class="space-y-2">
                   <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >邮件主题 (Subject)</label
+                    >{{ $t('admin.email_subject_subject') }}</label
                   >
                   <input
                     v-model="settings.EMAIL_VERIFY_SUBJECT"
@@ -2281,8 +2281,8 @@ type="button"
                     class="text-xs font-bold px-1 flex justify-between items-center"
                     style="color: var(--text-secondary)"
                   >
-                    <span>正文内容 (支持 HTML)</span>
-                    <span v-pre class="text-[10px] opacity-60">可用占位符: {{ code }}</span>
+                    <span>{{ $t('admin.text_content_html_supported') }}</span>
+                    <span v-pre class="text-[10px] opacity-60">{{ $t('admin.available_placeholders_code') }}</span>
                   </label>
                   <textarea
                     v-model="settings.EMAIL_VERIFY_BODY"
@@ -2305,7 +2305,7 @@ type="button"
             >
               <div class="flex items-center gap-3 mb-6">
                 <Eye class="w-5 h-5 text-accent" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">邮件预览</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.email_preview') }}</h2>
               </div>
 
               <div
@@ -2317,7 +2317,7 @@ type="button"
                   style="background-color: var(--bg-app); border-color: var(--border-base)"
                 >
                   <div class="space-y-1">
-                    <p class="text-[10px] font-bold" style="color: var(--text-muted)">主题</p>
+                    <p class="text-[10px] font-bold" style="color: var(--text-muted)">{{ $t('admin.topic') }}</p>
                     <p class="text-xs font-medium" style="color: var(--text-primary)">
                       {{ settings.EMAIL_VERIFY_SUBJECT }}
                     </p>
@@ -2347,7 +2347,7 @@ type="button"
                     <Cpu class="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">AI 智能辅助系统</h2>
+                    <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">{{ $t('admin.ai_intelligent_assistance_system') }}</h2>
                     <p class="text-xs leading-relaxed max-w-lg" style="color: var(--text-secondary)">
                       启用后，用户可以使用 AI 一键生成项目、AI 写作助手等智能功能。API Key 仅保存在服务端，不会暴露给前台用户。
                     </p>
@@ -2358,8 +2358,8 @@ type="button"
                     <el-switch
                       v-model="settings.AI_IMPORT_ENABLED"
                       inline-prompt
-                      active-text="已开启"
-                      inactive-text="已关闭"
+                      :active-text="$t('admin.opened')"
+                      :inactive-text="$t('admin.closed')"
                       style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8;"
                     />
                     <span
@@ -2367,16 +2367,16 @@ type="button"
                       :style="settings.AI_IMPORT_ENABLED
                         ? 'background: rgba(99,102,241,0.12); color: #6366f1;'
                         : 'background: var(--bg-app); color: var(--text-muted);'"
-                    >{{ settings.AI_IMPORT_ENABLED ? '✓ 功能已激活' : '功能未启用' }}</span>
+                    >{{ $t('admin.settings_ai_import_enabled') }}</span>
                   </div>
                 </div>
               </div>
 
               <div v-if="settings.AI_IMPORT_ENABLED" class="mt-4 pt-4 border-t flex flex-wrap gap-2" style="border-color: var(--border-base)">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">🎯 AI 项目一键生成</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">✍️ AI 写作助手</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">🧠 模型思考流显示</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">🔄 实时流式输出</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.one_click_generation_of') }}</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.ai_writing_assistant') }}</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.model_thinking_flow_display') }}</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.real_time_streaming_output') }}</span>
               </div>
             </div>
 
@@ -2384,8 +2384,8 @@ type="button"
             <div v-if="settings.AI_IMPORT_ENABLED" class="space-y-4">
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-sm font-black" style="color: var(--text-primary)">模型池配置</h3>
-                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">{{ aiModelConfigs.length }} 个模型 &middot; {{ aiModelConfigs.filter(m => m.enabled).length }} 个已启用</p>
+                  <h3 class="text-sm font-black" style="color: var(--text-primary)">{{ $t('admin.model_pool_configuration') }}</h3>
+                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">{{ $t('admin.aimodelconfigs_length_models_aimodelconfigs') }}</p>
                 </div>
                 <button
                   type="button"
@@ -2394,7 +2394,7 @@ type="button"
                   @click="addAiModel"
                 >
                   <Plus class="w-3.5 h-3.5" />
-                  <span>添加模型</span>
+                  <span>{{ $t('admin.add_model') }}</span>
                 </button>
               </div>
 
@@ -2423,7 +2423,7 @@ type="button"
                     <!-- Drag handle -->
                     <div
                       class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0"
-                      title="拖拽调整优先级排序"
+                      :title="$t('admin.drag_and_drop_to')"
                       @mouseenter="isDraggable = true"
                       @mouseleave="isDraggable = false"
                       @click.stop
@@ -2444,9 +2444,9 @@ type="button"
 
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ model.name || model.modelName || '未命名模型' }}</span>
-                        <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">⭐ 默认</span>
-                        <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">已禁用</span>
+                        <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ $t('admin.model_name_model_modelname') }}</span>
+                        <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">{{ $t('admin.default') }}</span>
+                        <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.disabled') }}</span>
                       </div>
                       <div class="flex items-center gap-1.5 mt-0.5">
                         <span
@@ -2466,7 +2466,7 @@ type="button"
                         :style="model.isDefault
                           ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
                           : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'"
-                        :title="model.isDefault ? '当前默认模型' : '设为默认模型'"
+                        ::title="$t('admin.model_isdefault_current_default')"
                         @click="setDefaultAiModel(model.id)"
                       >
                         <Star class="w-3.5 h-3.5" :class="model.isDefault ? 'fill-current' : ''" />
@@ -2483,14 +2483,14 @@ type="button"
                           class="w-3 h-3"
                           :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
                         />
-                        <span>{{ isTestingAi && testingAiModelId === model.id ? '测试中' : '测试' }}</span>
+                        <span>{{ $t('admin.istestingai_testingaimodelid_model_id') }}</span>
                       </button>
 
                       <button
                         type="button"
                         class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500"
                         style="color: var(--text-muted);"
-                        title="删除模型"
+                        :title="$t('admin.delete_model')"
                         @click="removeAiModel(model.id)"
                       >
                         <Trash2 class="w-3.5 h-3.5" />
@@ -2511,7 +2511,7 @@ type="button"
                     <div class="px-4 pb-5 pt-4 space-y-4" style="border-top: 1px solid var(--border-base);">
                       <!-- Provider chips -->
                       <div class="space-y-2">
-                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">AI 提供商</label>
+                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.ai_provider') }}</label>
                         <div class="flex flex-wrap gap-2">
                           <button
                             v-for="(meta, key) in providerMeta"
@@ -2535,21 +2535,21 @@ type="button"
 
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">显示名称</label>
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.display_name') }}</label>
                           <input
                             v-model="model.name"
                             type="text"
-                            placeholder="例如：DeepSeek Chat"
+                            :placeholder="$t('admin.for_example_deepseek_chat_1')"
                             class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
                             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
                           />
                         </div>
                         <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">模型 ID</label>
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.model_id') }}</label>
                           <input
                             v-model="model.modelName"
                             type="text"
-                            placeholder="例如: deepseek-chat"
+                            :placeholder="$t('admin.for_example_deepseek_chat')"
                             class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
                             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
                           />
@@ -2563,7 +2563,7 @@ type="button"
                           <input
                             v-model="model.endpoint"
                             type="text"
-                            placeholder="例如: https://api.deepseek.com/v1"
+                            :placeholder="$t('admin.for_example_https_api')"
                             class="w-full pl-10 pr-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
                             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
                           />
@@ -2571,7 +2571,7 @@ type="button"
                       </div>
 
                       <div v-if="model.provider !== 'OLLAMA'" class="space-y-1.5">
-                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Key <span class="ml-1 text-[10px] font-normal normal-case" style="color: var(--text-muted);">&mdash; 仅存于服务端</span></label>
+                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Key <span class="ml-1 text-[10px] font-normal normal-case" style="color: var(--text-muted);">{{ $t('admin.only_exists_on_the') }}</span></label>
                         <div class="relative">
                           <input
                             v-model="model.apiKey"
@@ -2594,7 +2594,7 @@ type="button"
 
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">能力标签 <span class="font-normal normal-case">逗号分隔</span></label>
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.capability_label') }} <span class="font-normal normal-case">{{ $t('admin.comma_separated') }}</span></label>
                           <input
                             :value="model.capabilities.join(', ')"
                             type="text"
@@ -2605,11 +2605,11 @@ type="button"
                           />
                         </div>
                         <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">说明描述</label>
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.description_1') }}</label>
                           <input
                             v-model="model.description"
                             type="text"
-                            placeholder="例如：适合日常问答 / 支持长上下文"
+                            :placeholder="$t('admin.for_example_suitable_for')"
                             class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
                             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
                           />
@@ -2618,7 +2618,7 @@ type="button"
 
                       <div v-if="model.provider === 'OLLAMA'" class="flex items-start gap-2 p-3 rounded-xl" style="background: rgba(124,58,237,0.06); border: 1px dashed rgba(124,58,237,0.25);">
                         <span class="text-sm mt-0.5">🦙</span>
-                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">Ollama 本地模型无需 API Key。请确保 Ollama 已在服务器本地运行，并且目标模型已通过 <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code> 下载。</p>
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">{{ $t('admin.ollama_local_models_do_1') }} <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code> {{ $t('admin.download') }}</p>
                       </div>
 
                       <!-- Advanced settings toggle button -->
@@ -2629,7 +2629,7 @@ type="button"
                           @click="model.showAdvanced = !model.showAdvanced"
                         >
                           <Sliders class="w-3.5 h-3.5" />
-                          <span>{{ model.showAdvanced ? '隐藏高级参数' : '展开高级参数设置' }}</span>
+                          <span>{{ $t('admin.model_showadvanced_hide_advanced') }}</span>
                         </button>
                       </div>
 
@@ -2643,8 +2643,8 @@ type="button"
                           <!-- Temperature Slider -->
                           <div class="space-y-1.5">
                             <label class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between" style="color: var(--text-muted);">
-                              <span>温度值 (Temperature)</span>
-                              <span class="text-[10px] font-mono text-indigo-500">当前: {{ model.temperature?.toFixed(1) ?? '0.7' }}</span>
+                              <span>{{ $t('admin.temperature') }}</span>
+                              <span class="text-[10px] font-mono text-indigo-500">{{ $t('admin.current_model_temperature_tofixed') }}</span>
                             </label>
                             <div class="flex items-center gap-3">
                               <input
@@ -2666,13 +2666,13 @@ type="button"
 
                           <!-- Max Tokens -->
                           <div class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">单次最大生成 (Max Tokens)</label>
+                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.single_maximum_generation_max') }}</label>
                             <input
                               v-model.number="model.maxTokens"
                               type="number"
                               min="1"
                               max="128000"
-                              placeholder="默认 2000"
+                              :placeholder="$t('admin.default_2000')"
                               class="w-full px-3 py-2 rounded-xl border text-xs outline-none font-mono transition-colors"
                               style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
                             />
@@ -2681,11 +2681,11 @@ type="button"
 
                         <!-- System Prompt -->
                         <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">系统提示词预设 (System Prompt)</label>
+                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.system_prompt') }}</label>
                           <textarea
                             v-model="model.systemPrompt"
                             rows="3"
-                            placeholder="例如：你是一个专业的技术写作助手，请使用简洁的中文回答问题..."
+                            :placeholder="$t('admin.for_example_you_are')"
                             class="w-full px-3 py-2 rounded-xl border text-xs outline-none transition-colors resize-none font-sans"
                             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
                           ></textarea>
@@ -2699,8 +2699,8 @@ type="button"
               <!-- Empty state -->
               <div v-if="aiModelConfigs.length === 0" class="flex flex-col items-center justify-center py-12 rounded-2xl border-2 border-dashed" style="border-color: var(--border-base);">
                 <div class="text-4xl mb-3">🤖</div>
-                <p class="text-sm font-bold" style="color: var(--text-primary);">还没有配置任何模型</p>
-                <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">点击「添加模型」来配置你的第一个 AI 服务</p>
+                <p class="text-sm font-bold" style="color: var(--text-primary);">{{ $t('admin.no_models_have_been') }}</p>
+                <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">{{ $t('admin.click_add_model_to') }}</p>
                 <button
                   type="button"
                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
@@ -2708,7 +2708,7 @@ type="button"
                   @click="addAiModel"
                 >
                   <Plus class="w-3.5 h-3.5" />
-                  <span>添加模型</span>
+                  <span>{{ $t('admin.add_model') }}</span>
                 </button>
               </div>
 
@@ -2717,21 +2717,21 @@ type="button"
                 <div class="flex items-center gap-4">
                   <div class="text-center">
                     <p class="text-lg font-black" style="color: var(--text-primary);">{{ aiModelConfigs.length }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted);">总模型数</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">{{ $t('admin.total_number_of_models') }}</p>
                   </div>
                   <div class="w-px h-8" style="background: var(--border-base);"></div>
                   <div class="text-center">
                     <p class="text-lg font-black" style="color: #6366f1;">{{ aiModelConfigs.filter(m => m.enabled).length }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted);">已启用</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">{{ $t('admin.enabled') }}</p>
                   </div>
                   <div class="w-px h-8" style="background: var(--border-base);"></div>
                   <div class="text-center">
                     <p class="text-lg font-black" style="color: #d97706;">{{ aiModelConfigs.filter(m => m.isDefault).length }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted);">默认模型</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">{{ $t('admin.default_model') }}</p>
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <p class="text-[10px] hidden sm:block" style="color: var(--text-muted);">⚠️ 保存前请先测试连通性</p>
+                  <p class="text-[10px] hidden sm:block" style="color: var(--text-muted);">{{ $t('admin.please_test_connectivity_before') }}</p>
                   <button
                     type="button"
                     :disabled="isTestingAi"
@@ -2743,7 +2743,7 @@ type="button"
                       class="w-3.5 h-3.5"
                       :class="isTestingAi && testingAiModelId ? 'animate-spin' : ''"
                     />
-                    <span>{{ isTestingAi ? '正在测试...' : '测试默认模型连接' }}</span>
+                    <span>{{ $t('admin.istestingai_testing_testing_the') }}</span>
                   </button>
                 </div>
               </div>

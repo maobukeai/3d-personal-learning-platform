@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, h } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Search,
   FolderPlus,
@@ -23,6 +24,7 @@ import type { Project, Team, UserType } from '@/types/task';
 import ProjectDetailPanel from './components/ProjectDetailPanel.vue';
 import ProjectFormPanel from './components/ProjectFormPanel.vue';
 
+const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
 const route = useRoute();
 
@@ -91,7 +93,7 @@ const fetchProjects = async () => {
     const response = await api.get('/api/projects');
     projects.value = response.data;
   } catch {
-    ElMessage.error('获取项目失败');
+    ElMessage.error(t('projects.fetchFailed'));
   }
 };
 
@@ -138,7 +140,7 @@ const deleteProject = (id: string) => {
   const deleteRoadmap = ref(true);
 
   const confirmContent = h('div', { class: 'space-y-3 py-1' }, [
-    h('p', { class: 'text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium' }, '确定要永久删除该项目吗？此操作不可逆。'),
+    h('p', { class: 'text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium' }, t('projects.deleteConfirmText')),
     h('div', { class: 'space-y-2 border-t pt-3 border-slate-100 dark:border-white/10' }, [
       h('label', { class: 'flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none' }, [
         h('input', {
@@ -147,7 +149,7 @@ const deleteProject = (id: string) => {
           onChange: (e: any) => { deleteTasks.value = e.target.checked; },
           class: 'rounded border-slate-300 text-accent focus:ring-accent w-3.5 h-3.5 cursor-pointer'
         }),
-        h('span', '同时删除项目名下关联的看板任务')
+        h('span', t('projects.deleteTasksCheckbox'))
       ]),
       h('label', { class: 'flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none' }, [
         h('input', {
@@ -156,14 +158,14 @@ const deleteProject = (id: string) => {
           onChange: (e: any) => { deleteRoadmap.value = e.target.checked; },
           class: 'rounded border-slate-300 text-accent focus:ring-accent w-3.5 h-3.5 cursor-pointer'
         }),
-        h('span', '同时删除项目关联的系统学习路线')
+        h('span', t('projects.deleteRoadmapCheckbox'))
       ])
     ])
   ]);
 
-  ElMessageBox.confirm(confirmContent, '删除项目', {
-    confirmButtonText: '确定删除',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(confirmContent, t('projects.deleteTitle'), {
+    confirmButtonText: t('projects.deleteConfirm'),
+    cancelButtonText: t('common.cancel'),
     confirmButtonClass: 'el-button--danger',
   })
     .then(async () => {
@@ -174,10 +176,10 @@ const deleteProject = (id: string) => {
             deleteRoadmap: deleteRoadmap.value
           }
         });
-        ElMessage.success('项目已删除');
+        ElMessage.success(t('tasks.deleteSuccess'));
         fetchProjects();
       } catch {
-        ElMessage.error('删除失败');
+        ElMessage.error(t('tasks.deleteFailed'));
       }
     })
     .catch(() => {});
@@ -206,13 +208,13 @@ watch(
             class="text-xs sm:text-md font-bold leading-tight truncate"
             style="color: var(--text-primary)"
           >
-            项目管理
+            {{ t('projects.title') }}
           </h1>
           <p
             class="hidden sm:block text-[9px] sm:text-[10px] font-medium mt-0.5"
             style="color: var(--text-muted)"
           >
-            管理团队项目与协作任务
+            {{ t('projects.subtitle') }}
           </p>
         </div>
       </div>
@@ -227,7 +229,7 @@ watch(
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索项目..."
+            :placeholder="t('projects.searchPlaceholder')"
             class="pl-7.5 pr-3 py-1 bg-slate-50 dark:bg-slate-800/40 border rounded-full text-[10px] sm:text-xs outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all shadow-sm w-28 sm:w-40 md:w-56"
             style="border-color: var(--border-base); color: var(--text-primary)"
           />
@@ -236,8 +238,8 @@ watch(
         <!-- Add project button -->
         <button type="button" class="bg-accent hover:bg-accent-dark text-white px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 whitespace-nowrap transition-all active:scale-95 shadow-lg shadow-accent/20 cursor-pointer border-none" @click="openAddDrawer">
           <FolderPlus class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-          <span class="hidden sm:inline">新建项目</span>
-          <span class="sm:hidden">新建</span>
+          <span class="hidden sm:inline">{{ t('projects.newProject') }}</span>
+          <span class="sm:hidden">{{ t('projects.new') }}</span>
         </button>
       </div>
     </div>
@@ -247,7 +249,7 @@ watch(
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
         ></div>
-        <p class="text-sm font-bold text-slate-400">正在加载...</p>
+        <p class="text-sm font-bold text-slate-400">{{ t('common.loading') }}</p>
       </div>
 
       <template v-else>
@@ -257,28 +259,28 @@ watch(
             <div class="max-w-4xl">
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3.5">
                 <StatCard
-                  label="总项目"
+                  :label="t('projects.totalProjects')"
                   :value="projectStats.total"
                   :icon="Layers"
                   color="text-blue-500"
                   horizontal
                 />
                 <StatCard
-                  label="进行中"
+                  :label="t('projects.inProgress')"
                   :value="projectStats.active"
                   :icon="Activity"
                   color="text-orange-500"
                   horizontal
                 />
                 <StatCard
-                  label="已交付"
+                  :label="t('projects.completed')"
                   :value="projectStats.completed"
                   :icon="Award"
                   color="text-emerald-500"
                   horizontal
                 />
                 <StatCard
-                  label="完成率"
+                  :label="t('projects.completionRate')"
                   :value="projectStats.completionRate + '%'"
                   :icon="TrendingUp"
                   color="text-purple-500"
@@ -292,7 +294,7 @@ watch(
                 class="text-md sm:text-lg font-black tracking-tight"
                 style="color: var(--text-primary)"
               >
-                全部项目
+                {{ t('projects.allProjects') }}
               </h2>
               <div class="flex items-center gap-4">
                 <div
@@ -330,13 +332,13 @@ type="button" class="p-1.5 sm:p-2 rounded-lg transition-all border-none bg-trans
                 <Search class="w-6 h-6 sm:w-8 sm:h-8 text-slate-300" />
               </div>
               <h3 class="text-md sm:text-lg font-black mb-1.5" style="color: var(--text-primary)">
-                未找到项目
+                {{ t('projects.noProjects') }}
               </h3>
               <p class="text-[10px] sm:text-xs text-slate-400 max-w-xs sm:max-w-md mb-6">
-                没有匹配当前搜索条件的项目，或者你还没有创建任何项目。
+                {{ t('projects.noProjectsTip') }}
               </p>
               <button type="button" class="px-5 sm:px-6 py-2 sm:py-2.5 bg-accent text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg shadow-accent/20 text-xs sm:text-sm border-none cursor-pointer" @click="openAddDrawer">
-                创建第一个项目
+                {{ t('projects.createFirst') }}
               </button>
             </div>
 
@@ -392,27 +394,27 @@ type="button" class="p-1.5 sm:p-2 rounded-lg transition-all border-none bg-trans
                       <th
                         class="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400"
                       >
-                        项目信息
+                        {{ t('projects.info') }}
                       </th>
                       <th
                         class="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 w-44"
                       >
-                        项目进度
+                        {{ t('projects.progress') }}
                       </th>
                       <th
                         class="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 w-32"
                       >
-                        当前状态
+                        {{ t('projects.statusLabel') }}
                       </th>
                       <th
                         class="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 w-44"
                       >
-                        参与成员
+                        {{ t('projects.members') }}
                       </th>
                       <th
                         class="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right w-24"
                       >
-                        管理
+                        {{ t('projects.manage') }}
                       </th>
                     </tr>
                   </thead>

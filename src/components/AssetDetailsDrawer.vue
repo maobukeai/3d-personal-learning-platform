@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useI18n } from 'vue-i18n';
+
+const { t, locale } = useI18n();
 
 const ModelViewer = defineAsyncComponent(() => import('./ModelViewer.vue'));
 import { 
@@ -51,12 +54,13 @@ const getFormatIcon = (format: string) => {
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString('zh-CN', {
+  return new Date(dateStr).toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 };
+
 
 const handleDownload = () => {
   if (asset.value?.url) {
@@ -87,7 +91,7 @@ const handleDownload = () => {
             <img v-if="asset.thumbnail" :src="asset.thumbnail" alt="Preview" class="max-w-full max-h-full object-contain drop-shadow-2xl" />
             <div v-else class="text-slate-400 flex flex-col items-center">
               <component :is="getFormatIcon(asset.type)" class="w-16 h-16 mb-4 opacity-50 drop-shadow-md" />
-              <span class="text-sm font-bold tracking-widest uppercase">暂无预览图</span>
+              <span class="text-sm font-bold tracking-widest uppercase">{{ t('assets.noPreview') }}</span>
             </div>
           </div>
         </div>
@@ -107,7 +111,7 @@ const handleDownload = () => {
 
         <div class="relative z-10">
           <h2 class="text-2xl font-black mb-3 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">{{ asset.title }}</h2>
-          <p class="text-slate-400 text-sm leading-relaxed">{{ asset.description || '暂无描述' }}</p>
+          <p class="text-slate-400 text-sm leading-relaxed">{{ asset.description || t('assets.noDescription') }}</p>
         </div>
 
         <div class="grid grid-cols-2 gap-3 relative z-10">
@@ -115,19 +119,19 @@ const handleDownload = () => {
             <div class="p-2 rounded-lg bg-accent/20 text-accent">
               <User class="w-4 h-4" />
             </div>
-            <span class="text-sm font-medium text-slate-200 truncate">{{ asset.user?.name || '未知用户' }}</span>
+            <span class="text-sm font-medium text-slate-200 truncate">{{ asset.user?.name || t('assets.unknownUser') }}</span>
           </div>
           <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors duration-300">
             <div class="p-2 rounded-lg bg-accent/20 text-accent">
               <Tag class="w-4 h-4" />
             </div>
-            <span class="text-sm font-medium text-slate-200 truncate">{{ asset.category?.name || '未分类' }}</span>
+            <span class="text-sm font-medium text-slate-200 truncate">{{ asset.category?.name || t('assets.uncategorized') }}</span>
           </div>
           <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors duration-300">
             <div class="p-2 rounded-lg bg-accent/20 text-accent">
               <HardDrive class="w-4 h-4" />
             </div>
-            <span class="text-sm font-medium text-slate-200">{{ asset.size ? `${asset.size} MB` : '未知大小' }}</span>
+            <span class="text-sm font-medium text-slate-200">{{ asset.size ? `${asset.size} MB` : t('assets.unknownSize') }}</span>
           </div>
           <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors duration-300">
             <div class="p-2 rounded-lg bg-accent/20 text-accent">
@@ -139,7 +143,7 @@ const handleDownload = () => {
 
         <!-- Formats Section -->
         <div v-if="parsedFormats.length > 0" class="relative z-10">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">包含格式</h3>
+          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">{{ t('assets.includedFormats') }}</h3>
           <div class="flex flex-wrap gap-2">
             <div 
               v-for="format in parsedFormats" 
@@ -160,11 +164,11 @@ const handleDownload = () => {
           <span class="relative z-10 flex items-center gap-2">
             <template v-if="asset.type === 'LINK'">
               <ExternalLink class="w-5 h-5" />
-              访问外链
+              {{ t('assets.visitExternalLink') }}
             </template>
             <template v-else>
               <Download class="w-5 h-5" />
-              立即下载
+              {{ t('assets.downloadNow') }}
             </template>
           </span>
         </button>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, computed } from 'vue';
 import {
   Pencil,
@@ -153,11 +155,11 @@ defineExpose({ openCreateSubscription, openEditSubscription });
 
 const handleSaveSubscription = async () => {
   if (!subForm.value.userId) {
-    ElMessage.warning('请选择用户');
+    ElMessage.warning(t('admin.please_select_user'));
     return;
   }
   if (!subForm.value.planId) {
-    ElMessage.warning('请选择订阅计划');
+    ElMessage.warning(t('admin.please_select_a_subscription'));
     return;
   }
   try {
@@ -165,31 +167,31 @@ const handleSaveSubscription = async () => {
       const payload: Partial<SubscriptionType> = { ...subForm.value };
       if (!payload.endDate) payload.endDate = null;
       await api.put(`/api/admin/subscriptions/${editingSubscription.value.id}`, payload);
-      ElMessage.success('订阅已更新');
+      ElMessage.success(t('admin.subscription_updated'));
     } else {
       await api.post('/api/admin/subscriptions', subForm.value);
-      ElMessage.success('订阅已创建');
+      ElMessage.success(t('admin.subscription_created'));
     }
     showSubDialog.value = false;
     emit('refresh');
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '保存失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.save_failed')));
   }
 };
 
 const handleDeleteSubscription = async (sub: SubscriptionType) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除用户 ${sub.user?.name || sub.user?.email} 的订阅吗？此操作不可恢复。`,
-      '确认删除',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+      t('admin.are_you_sure_you_7', { param_0: sub.user?.name || sub.user?.email }),
+      t('admin.confirm_deletion_1'),
+      { confirmButtonText: t('admin.delete'), cancelButtonText: t('admin.cancel'), type: 'warning' },
     );
     await api.delete(`/api/admin/subscriptions/${sub.id}`);
-    ElMessage.success('订阅已删除');
+    ElMessage.success(t('admin.subscription_deleted'));
     emit('refresh');
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '删除失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.delete_failed')));
     }
   }
 };
@@ -218,13 +220,13 @@ const getStatusColor = (status: string) => {
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'ACTIVE':
-      return '活跃';
+      return t('admin.active_1');
     case 'CANCELED':
-      return '已取消';
+      return t('admin.canceled');
     case 'EXPIRED':
-      return '已过期';
+      return t('admin.expired_1');
     case 'PAST_DUE':
-      return '逾期';
+      return t('admin.overdue');
     default:
       return status;
   }
@@ -241,25 +243,25 @@ const getStatusLabel = (status: string) => {
         <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
           <button
 v-for="filter in [
-              { key: 'ALL', label: '全部订阅', count: subscriptions.length },
+              { key: 'ALL', label: $t('admin.subscribe_all'), count: subscriptions.length },
               {
                 key: 'ACTIVE',
-                label: '活跃',
+                label: $t('admin.active_1'),
                 count: subscriptions.filter((s: SubscriptionType) => s.status === 'ACTIVE').length,
               },
               {
                 key: 'CANCELED',
-                label: '已取消',
+                label: $t('admin.canceled'),
                 count: subscriptions.filter((s: SubscriptionType) => s.status === 'CANCELED').length,
               },
               {
                 key: 'EXPIRED',
-                label: '已过期',
+                label: $t('admin.expired_1'),
                 count: subscriptions.filter((s: SubscriptionType) => s.status === 'EXPIRED').length,
               },
               {
                 key: 'PAST_DUE',
-                label: '逾期',
+                label: $t('admin.overdue'),
                 count: subscriptions.filter((s: SubscriptionType) => s.status === 'PAST_DUE').length,
               },
             ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
@@ -287,7 +289,7 @@ v-for="filter in [
           <input
             v-model="subSearchQuery"
             type="text"
-            placeholder="搜索用户名、邮箱或计划..."
+            :placeholder="$t('admin.search_for_username_email')"
             class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-violet-500/20 outline-none text-[11px] shadow-sm"
             style="
               background-color: var(--bg-app);
@@ -368,7 +370,7 @@ v-for="filter in [
                 </div>
                 <div>
                   <p class="text-sm font-bold text-[var(--text-primary)]">
-                    {{ sub.user?.name || '未命名' }}
+                    {{ sub.user?.name || $t('admin.unnamed') }}
                   </p>
                   <p class="text-[10px] text-[var(--text-muted)]">{{ sub.user?.email }}</p>
                 </div>
@@ -394,7 +396,7 @@ v-for="filter in [
               </span>
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-sm text-[var(--text-secondary)]">
-              {{ sub.interval === 'YEARLY' ? '年付' : '月付' }}
+              {{ sub.interval === 'YEARLY' ? [t('admin.annual_payment')]: $t('admin.monthly_payment') }}
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
               {{ new Date(sub.startDate).toLocaleDateString() }}
@@ -411,10 +413,10 @@ v-for="filter in [
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4">
               <div class="flex items-center gap-1">
-                <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all" title="编辑" @click="openEditSubscription(sub)">
+                <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all" :title="$t('admin.edit')" @click="openEditSubscription(sub)">
                   <Pencil class="w-4 h-4" />
                 </button>
-                <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" title="删除" @click="handleDeleteSubscription(sub)">
+                <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" :title="$t('admin.delete')" @click="handleDeleteSubscription(sub)">
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -424,7 +426,7 @@ v-for="filter in [
             <td colspan="8" class="px-6 py-16 text-center">
               <div class="flex flex-col items-center gap-3 opacity-20">
                 <Users class="w-10 h-10" />
-                <p class="text-sm font-medium">暂无订阅数据</p>
+                <p class="text-sm font-medium">{{ $t('admin.no_subscription_data_yet') }}</p>
               </div>
             </td>
           </tr>
@@ -448,7 +450,7 @@ v-for="filter in [
             </div>
             <div class="min-w-0">
               <h4 class="text-sm font-black text-[var(--text-primary)] truncate">
-                {{ sub.user?.name || '未命名' }}
+                {{ sub.user?.name || $t('admin.unnamed') }}
               </h4>
               <p class="text-[10px] text-[var(--text-muted)] truncate">
                 {{ sub.user?.email }}
@@ -478,27 +480,27 @@ v-for="filter in [
           class="grid grid-cols-3 gap-2 text-[10px] xs:text-xs border-t border-b border-[var(--border-base)] py-3"
         >
           <div>
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">周期 / 续费</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.cycle_renewal') }}</span>
             <span
               class="font-bold text-[var(--text-secondary)] flex flex-wrap items-center gap-0.5"
             >
-              <span>{{ sub.interval === 'YEARLY' ? '年付' : '月付' }}</span>
+              <span>{{ $t('admin.sub_interval_yearly_annual') }}</span>
               <span class="text-[var(--text-muted)] hidden xs:inline">|</span>
               <span :class="sub.autoRenew ? 'text-emerald-500' : 'text-slate-400'">
-                {{ sub.autoRenew ? '自动续期' : '手动' }}
+                {{ sub.autoRenew ? [t('admin.automatic_renewal')]: $t('admin.manual') }}
               </span>
             </span>
           </div>
           <div>
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">开始日期</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.start_date') }}</span>
             <span class="font-bold text-[var(--text-secondary)]">
               {{ new Date(sub.startDate).toLocaleDateString() }}
             </span>
           </div>
           <div>
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">到期日期</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.expiration_date') }}</span>
             <span class="font-bold text-[var(--text-secondary)]">
-              {{ sub.endDate ? new Date(sub.endDate).toLocaleDateString() : '永久' }}
+              {{ sub.endDate ? new Date(sub.endDate).toLocaleDateString() : $t('admin.permanent') }}
             </span>
           </div>
         </div>
@@ -519,7 +521,7 @@ v-for="filter in [
       <div v-if="filteredSubscriptions.length === 0" class="py-16 text-center">
         <div class="flex flex-col items-center gap-3 opacity-20">
           <Users class="w-10 h-10" />
-          <p class="text-sm font-medium">暂无订阅数据</p>
+          <p class="text-sm font-medium">{{ $t('admin.no_subscription_data_yet') }}</p>
         </div>
       </div>
     </div>
@@ -536,7 +538,7 @@ v-for="filter in [
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{ editingSubscription ? '编辑订阅' : '新增订阅' }}
+              {{ editingSubscription ? [t('admin.edit_subscription')]: $t('admin.add_new_subscription') }}
             </h3>
             <button type="button" class="text-[var(--text-secondary)]" @click="showSubDialog = false">
               <X class="w-5 h-5" />
@@ -546,7 +548,7 @@ v-for="filter in [
           <!-- User Selection -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >用户</label
+              >{{ $t('admin.user_1') }}</label
             >
             <div
               v-if="editingSubscription"
@@ -564,7 +566,7 @@ v-for="filter in [
                 </div>
                 <div>
                   <p class="text-sm font-bold text-[var(--text-primary)]">
-                    {{ editingSubscription.user?.name || '未命名' }}
+                    {{ editingSubscription.user?.name || $t('admin.unnamed') }}
                   </p>
                   <p class="text-[10px] text-[var(--text-muted)]">
                     {{ editingSubscription.user?.email }}
@@ -584,7 +586,7 @@ v-for="filter in [
                     border-color: var(--border-base);
                     color: var(--text-primary);
                   "
-                  placeholder="搜索用户名或邮箱..."
+                  :placeholder="$t('admin.search_for_username_or')"
                 />
               </div>
               <div
@@ -598,7 +600,7 @@ v-for="filter in [
                   </div>
                   <div class="min-w-0">
                     <p class="text-sm font-bold text-[var(--text-primary)] truncate">
-                      {{ user.name || '未命名' }}
+                      {{ user.name || $t('admin.unnamed') }}
                     </p>
                     <p class="text-[10px] text-[var(--text-muted)] truncate">{{ user.email }}</p>
                   </div>
@@ -611,7 +613,7 @@ v-for="filter in [
                   v-if="availableUsers.length === 0"
                   class="px-4 py-8 text-center text-xs text-[var(--text-muted)]"
                 >
-                  {{ userSearchQuery ? '未找到匹配用户' : '所有用户已有订阅' }}
+                  {{ userSearchQuery ? [t('admin.no_matching_user_found')]: $t('admin.all_users_already_subscribed') }}
                 </div>
               </div>
             </div>
@@ -620,7 +622,7 @@ v-for="filter in [
           <!-- Plan Selection -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >订阅计划</label
+              >{{ $t('admin.subscription_plan') }}</label
             >
             <div class="grid grid-cols-3 gap-3">
               <button
@@ -639,7 +641,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                     plan.displayName || plan.name
                   }}</span>
                 </div>
-                <p class="text-[10px] text-[var(--text-muted)]">￥{{ plan.price }}/月</p>
+                <p class="text-[10px] text-[var(--text-muted)]">{{ $t('admin.plan_price_month_1') }}</p>
               </button>
             </div>
           </div>
@@ -648,7 +650,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >订阅状态</label
+                >{{ $t('admin.subscription_status') }}</label
               >
               <select
                 v-model="subForm.status"
@@ -659,15 +661,15 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                   color: var(--text-primary);
                 "
               >
-                <option value="ACTIVE">活跃</option>
-                <option value="CANCELED">已取消</option>
-                <option value="EXPIRED">已过期</option>
-                <option value="PAST_DUE">逾期</option>
+                <option value="ACTIVE">{{ $t('admin.active_1') }}</option>
+                <option value="CANCELED">{{ $t('admin.canceled') }}</option>
+                <option value="EXPIRED">{{ $t('admin.expired_1') }}</option>
+                <option value="PAST_DUE">{{ $t('admin.overdue') }}</option>
               </select>
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >计费周期</label
+                >{{ $t('admin.billing_cycle') }}</label
               >
               <select
                 v-model="subForm.interval"
@@ -678,8 +680,8 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                   color: var(--text-primary);
                 "
               >
-                <option value="MONTHLY">月付</option>
-                <option value="YEARLY">年付</option>
+                <option value="MONTHLY">{{ $t('admin.monthly_payment') }}</option>
+                <option value="YEARLY">{{ $t('admin.annual_payment') }}</option>
               </select>
             </div>
           </div>
@@ -688,7 +690,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >开始日期</label
+                >{{ $t('admin.start_date') }}</label
               >
               <input
                 v-model="subForm.startDate"
@@ -703,7 +705,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >到期日期</label
+                >{{ $t('admin.expiration_date') }}</label
               >
               <input
                 v-model="subForm.endDate"
@@ -721,7 +723,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <!-- Payment Method -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >支付方式</label
+              >{{ $t('admin.payment_method') }}</label
             >
             <select
               v-model="subForm.paymentMethod"
@@ -732,11 +734,11 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
                 color: var(--text-primary);
               "
             >
-              <option value="ADMIN_ASSIGN">管理员分配</option>
-              <option value="ALIPAY">支付宝</option>
-              <option value="WECHAT">微信支付</option>
-              <option value="CARD">银行卡</option>
-              <option value="MOCK_PAYMENT">模拟支付</option>
+              <option value="ADMIN_ASSIGN">{{ $t('admin.administrator_assignment') }}</option>
+              <option value="ALIPAY">{{ $t('admin.alipay') }}</option>
+              <option value="WECHAT">{{ $t('admin.wechat_pay') }}</option>
+              <option value="CARD">{{ $t('admin.bank_card') }}</option>
+              <option value="MOCK_PAYMENT">{{ $t('admin.simulate_payment') }}</option>
             </select>
           </div>
 
@@ -744,7 +746,7 @@ v-for="plan in plans" :key="plan.id" type="button" class="p-4 rounded-2xl border
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >自动续费</label
+                >{{ $t('admin.automatic_renewal_1') }}</label
               >
               <button
 type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
@@ -753,12 +755,12 @@ type="button" class="w-full h-12 rounded-2xl border flex items-center justify-ce
                     : 'border-[var(--border-base)] text-[var(--text-muted)]'
                 " style="border-color: subForm.autoRenew ? undefined : 'var(--border-base)'" @click="subForm.autoRenew = !subForm.autoRenew">
                 <component :is="subForm.autoRenew ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{ subForm.autoRenew ? '已开启' : '已关闭' }}</span>
+                <span class="text-xs font-bold">{{ $t('admin.subform_autorenew_opened_close') }}</span>
               </button>
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >周期结束取消</label
+                >{{ $t('admin.cancel_at_the_end') }}</label
               >
               <button
 type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
@@ -768,7 +770,7 @@ type="button" class="w-full h-12 rounded-2xl border flex items-center justify-ce
                 " style="border-color: subForm.cancelAtPeriodEnd ? undefined : 'var(--border-base)'" @click="subForm.cancelAtPeriodEnd = !subForm.cancelAtPeriodEnd">
                 <component :is="subForm.cancelAtPeriodEnd ? Check : X" class="w-4 h-4" />
                 <span class="text-xs font-bold">{{
-                  subForm.cancelAtPeriodEnd ? '将取消' : '不取消'
+                  subForm.cancelAtPeriodEnd ? [t('admin.will_be_canceled')]: $t('admin.do_not_cancel')
                 }}</span>
               </button>
             </div>
@@ -779,7 +781,7 @@ type="button" class="w-full h-12 rounded-2xl border flex items-center justify-ce
               取消
             </button>
             <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" @click="handleSaveSubscription">
-              <Save class="w-4 h-4" /> {{ editingSubscription ? '保存更改' : '创建订阅' }}
+              <Save class="w-4 h-4" /> {{ editingSubscription ? [t('admin.save_changes_1')]: $t('admin.create_subscription') }}
             </button>
           </div>
         </div>

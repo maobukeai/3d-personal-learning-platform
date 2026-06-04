@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
@@ -72,9 +74,9 @@ const courseStats = computed(() => {
 const expandedCourseIds = ref<Set<string>>(new Set());
 
 const difficultyMap: Record<string, { label: string; color: string }> = {
-  BEGINNER: { label: '入门', color: 'text-emerald-500 bg-emerald-500/10' },
-  INTERMEDIATE: { label: '进阶', color: 'text-amber-500 bg-amber-500/10' },
-  ADVANCED: { label: '高级', color: 'text-rose-500 bg-rose-500/10' },
+  BEGINNER: { label: t('admin.getting_started'), color: 'text-emerald-500 bg-emerald-500/10' },
+  INTERMEDIATE: { label: t('admin.advanced'), color: 'text-amber-500 bg-amber-500/10' },
+  ADVANCED: { label: t('admin.advanced_1'), color: 'text-rose-500 bg-rose-500/10' },
 };
 
 const toggleCourseExpansion = (courseId: string) => {
@@ -132,9 +134,9 @@ const filteredCourses = computed(() => {
 
 const handleDeleteCategory = async (id: string) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个分类吗？', '删除确认', {
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_12'), t('admin.delete_confirmation'), {
+      confirmButtonText: t('admin.confirm_deletion_1'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
   } catch {
@@ -143,19 +145,19 @@ const handleDeleteCategory = async (id: string) => {
 
   try {
     await api.delete(`/api/admin/course-categories/${id}`);
-    ElMessage.success('分类已删除');
+    ElMessage.success(t('admin.category_deleted'));
     fetchCategories();
     fetchCourses();
   } catch (_error) {
-    ElMessage.error('删除分类失败');
+    ElMessage.error(t('admin.failed_to_delete_category'));
   }
 };
 
 const handleDeleteCourse = async (id: string) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个课程吗？所有关联的课时也将被删除。', '删除确认', {
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_15'), t('admin.delete_confirmation'), {
+      confirmButtonText: t('admin.confirm_deletion_1'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
   } catch {
@@ -164,11 +166,11 @@ const handleDeleteCourse = async (id: string) => {
 
   try {
     await api.delete(`/api/admin/courses/${id}`);
-    ElMessage.success('课程已删除');
+    ElMessage.success(t('admin.course_deleted'));
     fetchCourses();
   } catch (error) {
     console.error('Delete course error:', error);
-    ElMessage.error('删除课程失败');
+    ElMessage.error(t('admin.failed_to_delete_course'));
   }
 };
 
@@ -177,17 +179,17 @@ const toggleCourseStatus = async (course: Course) => {
   try {
     await api.put(`/api/admin/courses/${course.id}`, { ...course, status: newStatus });
     fetchCourses();
-    ElMessage.success(newStatus === 'PUBLISHED' ? '课程已发布' : '课程已转为草稿');
+    ElMessage.success(newStatus === 'PUBLISHED' ? t('admin.course_published') : t('admin.course_has_been_converted'));
   } catch (_error) {
-    ElMessage.error('更新状态失败');
+    ElMessage.error(t('admin.update_status_failed'));
   }
 };
 
 const handleDeleteLesson = async (id: string) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个课时吗？', '删除确认', {
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_14'), t('admin.delete_confirmation'), {
+      confirmButtonText: t('admin.confirm_deletion_1'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
   } catch {
@@ -196,11 +198,11 @@ const handleDeleteLesson = async (id: string) => {
 
   try {
     await api.delete(`/api/admin/courses/lessons/${id}`);
-    ElMessage.success('课时已删除');
+    ElMessage.success(t('admin.class_has_been_deleted'));
     fetchCourses();
   } catch (error) {
     console.error('Delete lesson error:', error);
-    ElMessage.error('删除课时失败');
+    ElMessage.error(t('admin.failed_to_delete_class'));
   }
 };
 
@@ -268,15 +270,15 @@ type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="courseImportDialogRef?.open()">
             <LinkIcon class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">外部导入</span>
+            <span class="hidden sm:inline">{{ $t('admin.external_import') }}</span>
           </button>
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="courseEditDialogRef?.open()">
             <Plus class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">新建课程</span>
+            <span class="hidden sm:inline">{{ $t('admin.create_new_course') }}</span>
           </button>
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchCourses">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
         </div>
       </div>
@@ -292,21 +294,21 @@ type="button" class="px-2 py-0.5 sm:px-3 sm:py-1 rounded-md text-[10px] sm:text-
 v-for="filter in [
                 {
                   key: 'ALL',
-                  label: '所有课程',
+                  label: $t('admin.all_courses'),
                   count: courseStats.total,
                   color: 'indigo',
                   icon: BookOpen,
                 },
                 {
                   key: 'PUBLISHED',
-                  label: '已发布',
+                  label: $t('admin.published'),
                   count: courseStats.published,
                   color: 'emerald',
                   icon: Eye,
                 },
                 {
                   key: 'DRAFT',
-                  label: '草稿',
+                  label: $t('admin.draft'),
                   count: courseStats.draft,
                   color: 'amber',
                   icon: EyeOff,
@@ -353,9 +355,9 @@ v-for="filter in [
               color: var(--text-primary);
             "
           >
-            <option value="newest">最新创建</option>
-            <option value="enrollments">报名最多</option>
-            <option value="rating">评分最高</option>
+            <option value="newest">{{ $t('admin.latest_creation') }}</option>
+            <option value="enrollments">{{ $t('admin.most_registrations') }}</option>
+            <option value="rating">{{ $t('admin.top_rated') }}</option>
           </select>
 
           <div class="relative flex-1 lg:flex-none lg:w-64">
@@ -363,7 +365,7 @@ v-for="filter in [
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索课程标题或描述..."
+              :placeholder="$t('admin.search_course_title_or')"
               class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -411,7 +413,7 @@ v-for="filter in [
                   class="absolute inset-0 bg-black/50 flex items-center justify-center"
                 >
                   <span class="px-2 py-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300"
-                    >草稿</span
+                    >{{ $t('admin.draft') }}</span
                   >
                 </div>
               </div>
@@ -433,7 +435,7 @@ v-for="filter in [
                         "
                         class="px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0"
                       >
-                        {{ difficultyMap[course.difficulty]?.label || '入门' }}
+                        {{ difficultyMap[course.difficulty]?.label || $t('admin.getting_started') }}
                       </span>
                       <h3
                         class="font-bold text-sm sm:text-xl truncate"
@@ -449,7 +451,7 @@ v-for="filter in [
                     <p class="text-xs text-slate-400 line-clamp-2">{{ course.description }}</p>
                   </div>
                   <div class="flex items-center gap-2 shrink-0" @click.stop>
-                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" :title="course.status === 'PUBLISHED' ? '转为草稿' : '发布课程'" @click="toggleCourseStatus(course)">
+                    <button type="button" class="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer" ::title="$t('admin.course_status_published_convert')" @click="toggleCourseStatus(course)">
                       <Eye v-if="course.status === 'PUBLISHED'" class="w-4 h-4 text-emerald-500" />
                       <EyeOff v-else class="w-4 h-4 text-slate-400" />
                     </button>
@@ -464,16 +466,16 @@ v-for="filter in [
 
                 <div class="flex items-center gap-4 text-[10px] font-bold text-slate-400">
                   <span class="flex items-center gap-1.5"
-                    ><Video class="w-3.5 h-3.5" /> {{ course.lessons?.length || 0 }} 课时</span
+                    ><Video class="w-3.5 h-3.5" /> {{ $t('admin.course_lessons_length_0') }}</span
                   >
                   <span>•</span>
-                  <span>{{ course._count?.enrollments || 0 }} 人已参加</span>
+                  <span>{{ $t('admin.course_count_enrollments_0') }}</span>
                   <span>•</span>
                   <span class="flex items-center gap-1"
                     ><Star class="w-3 h-3 text-amber-400" /> {{ course.avgRating || '-' }}</span
                   >
                   <span v-if="course._count?.reviews">•</span>
-                  <span v-if="course._count?.reviews">{{ course._count.reviews }} 评价</span>
+                  <span v-if="course._count?.reviews">{{ $t('admin.course_count_reviews_reviews') }}</span>
                 </div>
               </div>
             </div>
@@ -566,7 +568,7 @@ v-for="filter in [
           <!-- Empty State -->
           <div v-if="categories.length === 0" class="py-24 text-center">
             <FolderTree class="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <p class="text-slate-400 font-medium">暂无分类，点击右上方"新建分类"开始</p>
+            <p class="text-slate-400 font-medium">{{ $t('admin.there_is_no_category') }}</p>
           </div>
         </template>
       </div>

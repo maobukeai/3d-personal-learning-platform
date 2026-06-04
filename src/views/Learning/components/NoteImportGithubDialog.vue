@@ -11,6 +11,7 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import axios from 'axios';
+import { useI18n } from 'vue-i18n';
 
 defineProps<{
   myNotebooksList: string[];
@@ -20,6 +21,7 @@ const emit = defineEmits<{
   (e: 'imported'): void;
 }>();
 
+const { t } = useI18n();
 const visible = ref(false);
 const isImporting = ref(false);
 
@@ -41,7 +43,7 @@ const handleSaveConfig = () => {
     category: form.category,
     visibility: form.visibility
   }));
-  ElMessage.success('配置已成功保存到本地！');
+  ElMessage.success(t('notes.githubImport.configSaved'));
 };
 
 const open = () => {
@@ -87,7 +89,7 @@ const checkGithubRepo = async () => {
   cleanPath = cleanPath.replace(/\.git$/i, '');
   const parts = cleanPath.split('/');
   if (parts.length < 2) {
-    ElMessage.error('无效的仓库地址，格式应为 owner/repo');
+    ElMessage.error(t('notes.githubImport.invalidRepo'));
     return;
   }
   const owner = parts[0];
@@ -103,16 +105,16 @@ const checkGithubRepo = async () => {
     }
     
     await axios.get(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-    ElMessage.success('检测成功：该 GitHub 仓库有效且可访问！');
+    ElMessage.success(t('notes.githubImport.repoValid'));
   } catch (err: any) {
     console.error('Validation error:', err);
     const status = err.response?.status;
     if (status === 404) {
-      ElMessage.error('检测失败：未找到该仓库，若是私有仓库请确认是否填写了正确的密钥。');
+      ElMessage.error(t('notes.githubImport.repoNotFound'));
     } else if (status === 401) {
-      ElMessage.error('检测失败：无权访问，请检查密钥是否正确。');
+      ElMessage.error(t('notes.githubImport.unauthorized'));
     } else {
-      ElMessage.error(err.response?.data?.message || '连接 GitHub 失败，请检查仓库路径或网络。');
+      ElMessage.error(err.response?.data?.message || t('notes.githubImport.connectFailed'));
     }
   } finally {
     isCheckingRepo.value = false;
@@ -121,7 +123,7 @@ const checkGithubRepo = async () => {
 
 const handleImport = async () => {
   if (!form.repoUrl || !form.repoUrl.trim()) {
-    ElMessage.warning('请输入 GitHub 仓库地址');
+    ElMessage.warning(t('notes.githubImport.repoRequired'));
     return;
   }
 
@@ -137,14 +139,14 @@ const handleImport = async () => {
     });
 
     ElMessage({
-      message: res.data.message || '导入成功！',
+      message: res.data.message || t('notes.githubImport.importSuccess'),
       type: 'success',
       duration: 5000
     });
     emit('imported');
     visible.value = false;
   } catch (error: any) {
-    const errorMsg = error.response?.data?.error || '导入失败，请检查配置参数。';
+    const errorMsg = error.response?.data?.error || t('notes.githubImport.importFailed');
     ElMessage.error({
       message: errorMsg,
       duration: 5000
@@ -174,8 +176,8 @@ defineExpose({ open });
           <Github class="w-4.5 h-4.5" />
         </div>
         <div class="min-w-0">
-          <h3 class="text-sm font-black text-[var(--text-primary)] leading-none">导入 GitHub 笔记</h3>
-          <p class="text-[10px] text-[var(--text-muted)] mt-1.5 leading-none">从 GitHub 备份一键同步 Obsidian Markdown 笔记</p>
+          <h3 class="text-sm font-black text-[var(--text-primary)] leading-none">{{ t('notes.githubImport.dialogTitle') }}</h3>
+          <p class="text-[10px] text-[var(--text-muted)] mt-1.5 leading-none">{{ t('notes.githubImport.dialogSubtitle') }}</p>
         </div>
       </div>
     </template>
@@ -188,8 +190,8 @@ defineExpose({ open });
       >
         <Loader2 class="animate-spin text-accent w-9 h-9" />
         <div class="text-center">
-          <p class="text-xs font-black text-[var(--text-primary)]">正在拉取并解析 Obsidian 笔记...</p>
-          <p class="text-[10px] text-[var(--text-secondary)] mt-1">这可能需要几秒到一分钟时间，请稍候</p>
+          <p class="text-xs font-black text-[var(--text-primary)]">{{ t('notes.githubImport.syncing') }}</p>
+          <p class="text-[10px] text-[var(--text-secondary)] mt-1">{{ t('notes.githubImport.syncingDesc') }}</p>
         </div>
       </div>
 
@@ -198,7 +200,7 @@ defineExpose({ open });
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
-              GitHub 仓库路径或 URL <span class="text-rose-500">*</span>
+              {{ t('notes.githubImport.repoUrlLabel') }} <span class="text-rose-500">*</span>
             </label>
             <button 
               type="button"
@@ -207,12 +209,12 @@ defineExpose({ open });
               @click="checkGithubRepo"
             >
               <Loader2 v-if="isCheckingRepo" class="animate-spin w-2.5 h-2.5" />
-              <span>检测有效性</span>
+              <span>{{ t('notes.githubImport.testValidity') }}</span>
             </button>
           </div>
           <el-input 
             v-model="form.repoUrl" 
-            placeholder="例如: owner/repo 或 github.com/owner/repo" 
+            :placeholder="t('notes.githubImport.repoPlaceholder')" 
             autocomplete="off"
           >
             <template #prefix>
@@ -223,13 +225,13 @@ defineExpose({ open });
 
         <div class="space-y-1.5">
           <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
-            Personal Access Token (密钥)
+            {{ t('notes.githubImport.tokenLabel') }}
           </label>
           <el-input 
             v-model="form.token" 
             type="password" 
             show-password
-            placeholder="公开仓库可留空；私密仓库必须填写" 
+            :placeholder="t('notes.githubImport.tokenPlaceholder')" 
             autocomplete="new-password"
           >
             <template #prefix>
@@ -241,11 +243,11 @@ defineExpose({ open });
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
-              默认分支
+              {{ t('notes.githubImport.branchLabel') }}
             </label>
             <el-input 
               v-model="form.branch" 
-              placeholder="默认: main" 
+              :placeholder="t('notes.githubImport.branchPlaceholder')" 
               autocomplete="off"
             >
               <template #prefix>
@@ -255,11 +257,11 @@ defineExpose({ open });
           </div>
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
-              指定文件夹目录
+              {{ t('notes.githubImport.folderLabel') }}
             </label>
             <el-input 
               v-model="form.folderPath" 
-              placeholder="可选，例如: docs" 
+              :placeholder="t('notes.githubImport.folderPlaceholder')" 
               autocomplete="off"
             >
               <template #prefix>
@@ -272,21 +274,21 @@ defineExpose({ open });
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5">
-              默认笔记本
+              {{ t('notes.githubImport.defaultNotebookLabel') }}
             </label>
-            <el-select v-model="form.category" placeholder="选择默认笔记本" class="w-full custom-select">
-              <el-option label="默认分类 (未分类)" value="" />
+            <el-select v-model="form.category" :placeholder="t('notes.githubImport.selectNotebookPlaceholder')" class="w-full custom-select">
+              <el-option :label="t('notes.githubImport.uncategorizedOption')" value="" />
               <el-option v-for="item in myNotebooksList" :key="item" :label="item" :value="item" />
             </el-select>
           </div>
           <div class="space-y-1.5">
             <label class="text-[11px] font-bold text-[var(--text-secondary)] px-0.5 flex items-center gap-1">
               <Eye class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
-              导入笔记的可见性
+              {{ t('notes.githubImport.visibilityLabel') }}
             </label>
             <el-radio-group v-model="form.visibility" class="w-full flex custom-radio-group">
-              <el-radio-button label="PRIVATE" class="flex-1">私密</el-radio-button>
-              <el-radio-button label="PUBLIC" class="flex-1">公开</el-radio-button>
+              <el-radio-button label="PRIVATE" class="flex-1">{{ t('notes.githubImport.visibilityPrivate') }}</el-radio-button>
+              <el-radio-button label="PUBLIC" class="flex-1">{{ t('notes.githubImport.visibilityPublic') }}</el-radio-button>
             </el-radio-group>
           </div>
         </div>
@@ -302,7 +304,7 @@ defineExpose({ open });
           :disabled="isImporting" 
           @click="handleSaveConfig"
         >
-          <span>保存配置</span>
+          <span>{{ t('notes.githubImport.saveConfig') }}</span>
         </button>
 
         <!-- Right: Cancel & Start Sync Buttons -->
@@ -313,7 +315,7 @@ defineExpose({ open });
             :disabled="isImporting" 
             @click="visible = false"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button 
             type="button" 
@@ -322,7 +324,7 @@ defineExpose({ open });
             @click="handleImport"
           >
             <Loader2 v-if="isImporting" class="animate-spin w-3.5 h-3.5" />
-            <span>一键同步</span>
+            <span>{{ t('notes.githubImport.syncNow') }}</span>
           </button>
         </div>
       </div>

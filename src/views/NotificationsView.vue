@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
   Bell,
@@ -27,6 +28,7 @@ interface NotificationItem {
   createdAt: string;
 }
 
+const { t } = useI18n();
 const router = useRouter();
 const notifications = ref<NotificationItem[]>([]);
 const isLoading = ref(true);
@@ -42,7 +44,7 @@ const fetchNotifications = async () => {
     notifications.value = response.data.notifications || [];
   } catch (error) {
     console.error('Fetch notifications error:', error);
-    ElMessage.error('无法获取通知列表');
+    ElMessage.error(t('notifications.fetch_failed'));
   } finally {
     isLoading.value = false;
   }
@@ -90,7 +92,7 @@ const getInvitationIdFromLink = (link?: string | null) => {
 const handleProjectInvitation = async (notification: NotificationItem, accept: boolean) => {
   const inviteId = getInvitationIdFromLink(notification.link);
   if (!inviteId) {
-    ElMessage.warning('未能获取邀请 ID');
+    ElMessage.warning(t('notifications.get_invite_id_failed'));
     return;
   }
 
@@ -99,7 +101,7 @@ const handleProjectInvitation = async (notification: NotificationItem, accept: b
     const endpoint = accept ? 'accept' : 'reject';
     await api.post(`/api/projects/invitations/${inviteId}/${endpoint}`);
     respondedInvitations.value[notification.id] = accept ? 'ACCEPTED' : 'REJECTED';
-    ElMessage.success(accept ? '已成功加入项目！' : '已拒绝邀请');
+    ElMessage.success(accept ? t('notifications.invitation_accept_success') : t('notifications.invitation_reject_success'));
     
     // Auto mark notification as read
     if (!notification.isRead) {
@@ -108,7 +110,7 @@ const handleProjectInvitation = async (notification: NotificationItem, accept: b
     }
   } catch (error) {
     console.error('Handle project invitation error:', error);
-    ElMessage.error(accept ? '接受邀请失败' : '拒绝邀请失败');
+    ElMessage.error(accept ? t('notifications.invitation_accept_failed') : t('notifications.invitation_reject_failed'));
   } finally {
     processingInvitations.value[notification.id] = false;
   }
@@ -133,24 +135,24 @@ const handleMarkAllRead = async () => {
   try {
     await api.put('/api/notifications/read-all');
     notifications.value.forEach((n) => (n.isRead = true));
-    ElMessage.success('已将所有通知标记为已读');
+    ElMessage.success(t('notifications.mark_all_success'));
   } catch {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('notifications.mark_all_failed'));
   }
 };
 
 const handleDeleteAll = async () => {
   try {
-    await ElMessageBox.confirm('确定要清空所有通知吗？此操作不可撤销。', '清空通知', {
-      confirmButtonText: '确定清空',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('notifications.clear_confirm_text'), t('notifications.clear_confirm_title'), {
+      confirmButtonText: t('notifications.clear_confirm_btn'),
+      cancelButtonText: t('notifications.clear_cancel_btn'),
       type: 'warning',
     });
     // Assuming there's an endpoint for this, or we do it one by one if not.
     // For now, let's just clear locally if backend doesn't support it yet
     // await api.delete('/api/notifications/all')
     notifications.value = [];
-    ElMessage.success('已清空所有通知');
+    ElMessage.success(t('notifications.clear_all_success'));
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Delete all error:', error);
@@ -210,21 +212,21 @@ onMounted(() => {
           <Bell class="w-4 h-4 md:w-6 md:h-6" />
         </div>
         <div class="min-w-0">
-          <h1 class="text-sm md:text-xl font-bold text-slate-900 dark:text-white truncate">通知中心</h1>
+          <h1 class="text-sm md:text-xl font-bold text-slate-900 dark:text-white truncate">{{ $t('notifications.title') }}</h1>
           <p class="hidden md:block text-xs text-slate-500 dark:text-slate-400 truncate">
-            管理系统通知、团队动态和个人消息
+            {{ $t('notifications.subtitle') }}
           </p>
         </div>
       </div>
 
       <div class="flex items-center gap-1.5 md:gap-3 shrink-0">
-        <button type="button" :disabled="unreadCount === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40" title="全部已读" @click="handleMarkAllRead">
+        <button type="button" :disabled="unreadCount === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-accent bg-accent/5 md:bg-transparent border border-accent/10 md:border-none hover:bg-accent/10 transition-all disabled:opacity-40" title="{{ $t('notifications.mark_all_read') }}" @click="handleMarkAllRead">
           <CheckCheck class="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span class="hidden sm:inline whitespace-nowrap">全部已读</span>
+          <span class="hidden sm:inline whitespace-nowrap">{{ $t('notifications.mark_all_read') }}</span>
         </button>
-        <button type="button" :disabled="notifications.length === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40" title="清空" @click="handleDeleteAll">
+        <button type="button" :disabled="notifications.length === 0" class="flex items-center justify-center gap-1.5 px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-rose-500 bg-rose-500/5 md:bg-transparent border border-rose-500/10 md:border-none hover:bg-rose-50 transition-all disabled:opacity-40" title="{{ $t('notifications.clear_all') }}" @click="handleDeleteAll">
           <Trash2 class="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span class="hidden sm:inline whitespace-nowrap">清空</span>
+          <span class="hidden sm:inline whitespace-nowrap">{{ $t('notifications.clear_all') }}</span>
         </button>
       </div>
     </div>
@@ -242,7 +244,7 @@ onMounted(() => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索通知..."
+              :placeholder="$t('notifications.search_placeholder')"
               class="w-full pl-9 pr-3 py-2 rounded-xl border bg-white/50 dark:bg-slate-800/50 text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
               style="border-color: var(--border-base)"
             />
@@ -254,8 +256,8 @@ onMounted(() => {
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
 v-for="filter in [
-                  { id: 'all', label: '全部', icon: Inbox, count: notifications.length },
-                  { id: 'unread', label: '未读', icon: Bell, count: unreadCount },
+                  { id: 'all', label: $t('notifications.filter_all'), icon: Inbox, count: notifications.length },
+                  { id: 'unread', label: $t('notifications.filter_unread'), icon: Bell, count: unreadCount },
                 ]" :key="filter.id" type="button" class="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs font-medium transition-all whitespace-nowrap shrink-0 min-w-[70px] md:min-w-0" :class="
                   activeFilter === filter.id
                     ? 'bg-accent text-white shadow-md shadow-accent/20'
@@ -285,11 +287,11 @@ v-for="filter in [
             <div class="flex md:flex-col gap-1.5 md:gap-1 shrink-0">
               <button
 v-for="cat in [
-                  { id: 'all', label: '全部类型', icon: Inbox, color: 'text-slate-400', desktopOnly: true },
-                  { id: 'SYSTEM', label: '系统通知', icon: Info, color: 'text-indigo-500' },
-                  { id: 'TEAM', label: '团队动态', icon: Users, color: 'text-blue-500' },
-                  { id: 'TASK', label: '任务更新', icon: Briefcase, color: 'text-amber-500' },
-                  { id: 'MESSAGE', label: '私信消息', icon: MessageSquare, color: 'text-emerald-500' },
+                  { id: 'all', label: $t('notifications.cat_all'), icon: Inbox, color: 'text-slate-400', desktopOnly: true },
+                  { id: 'SYSTEM', label: $t('notifications.cat_system'), icon: Info, color: 'text-indigo-500' },
+                  { id: 'TEAM', label: $t('notifications.cat_team'), icon: Users, color: 'text-blue-500' },
+                  { id: 'TASK', label: $t('notifications.cat_task'), icon: Briefcase, color: 'text-amber-500' },
+                  { id: 'MESSAGE', label: $t('notifications.cat_message'), icon: MessageSquare, color: 'text-emerald-500' },
                 ]" :key="cat.id" type="button" class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[11px] md:text-xs transition-all whitespace-nowrap shrink-0" :class="[
                   cat.desktopOnly ? 'hidden md:flex' : 'flex',
                   activeCategory === cat.id
@@ -312,11 +314,11 @@ v-for="cat in [
         <div class="lg:hidden flex overflow-x-auto gap-2 px-4 py-2 -mx-3.5 mb-4 scrollbar-hide">
           <button
 v-for="cat in [
-              { id: 'all', label: '全部', icon: Inbox },
-              { id: 'SYSTEM', label: '系统', icon: Info },
-              { id: 'TEAM', label: '团队', icon: Users },
-              { id: 'TASK', label: '任务', icon: Briefcase },
-              { id: 'MESSAGE', label: '私信', icon: MessageSquare },
+              { id: 'all', label: $t('notifications.filter_all'), icon: Inbox },
+              { id: 'SYSTEM', label: $t('notifications.cat_system'), icon: Info },
+              { id: 'TEAM', label: $t('notifications.cat_team'), icon: Users },
+              { id: 'TASK', label: $t('notifications.cat_task'), icon: Briefcase },
+              { id: 'MESSAGE', label: $t('notifications.cat_message'), icon: MessageSquare },
             ]" :key="cat.id" type="button" class="px-3 py-2 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors" :class="activeCategory === cat.id ? 'bg-accent text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'" @click="handleCategoryChange(cat.id)">
             <component :is="cat.icon" class="w-3.5 h-3.5" />
             {{ cat.label }}
@@ -385,17 +387,17 @@ v-for="cat in [
                     <!-- Standard Notification Actions -->
                     <template v-if="n.type !== 'PROJECT_INVITE'">
                       <button v-if="n.link" type="button" class="text-[10px] font-bold text-accent hover:underline flex items-center gap-1">
-                        立即处理 <ChevronRight class="w-3 h-3" />
+                        {{ $t('notifications.process_now') }} <ChevronRight class="w-3 h-3" />
                       </button>
                       <button v-if="!n.isRead" type="button" class="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" @click.stop="handleMarkAsRead(n)">
-                        标记为已读
+                        {{ $t('notifications.mark_read') }}
                       </button>
                     </template>
 
                     <!-- Project Invite Actions -->
                     <template v-else>
                       <div v-if="respondedInvitations[n.id]" class="text-[10px] font-bold text-slate-400">
-                        {{ respondedInvitations[n.id] === 'ACCEPTED' ? '已接受邀请' : '已拒绝邀请' }}
+                        {{ respondedInvitations[n.id] === 'ACCEPTED' ? t('notifications.invitation_accept_success') : t('notifications.invitation_reject_success') }}
                       </div>
                       <div v-else class="flex items-center gap-2" @click.stop>
                         <button 
@@ -405,7 +407,7 @@ v-for="cat in [
                           @click="handleProjectInvitation(n, true)"
                         >
                           <Loader2 v-if="processingInvitations[n.id]" class="w-3 h-3 animate-spin" />
-                          接受
+                          {{ $t('notifications.accept') }}
                         </button>
                         <button 
                           type="button" 
@@ -413,7 +415,7 @@ v-for="cat in [
                           class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-350 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                           @click="handleProjectInvitation(n, false)"
                         >
-                          拒绝
+                          {{ $t('notifications.reject') }}
                         </button>
                       </div>
                     </template>
@@ -430,8 +432,8 @@ v-for="cat in [
               <Inbox class="w-10 h-10" />
             </div>
             <div class="space-y-1">
-              <h3 class="text-sm font-bold text-slate-900 dark:text-white">暂无通知</h3>
-              <p class="text-xs text-slate-400">当有新的动态时，我们会在这里通知您</p>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ $t('notifications.no_notifications_title') }}</h3>
+              <p class="text-xs text-slate-400">{{ $t('notifications.no_notifications_desc') }}</p>
             </div>
           </div>
         </div>

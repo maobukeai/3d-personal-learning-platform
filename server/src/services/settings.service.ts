@@ -21,6 +21,7 @@ export interface SystemSettings {
   SMTP_USER: string;
   SMTP_PASS: string;
   SMTP_FROM: string;
+  SMTP_SECURE: boolean;
   SYSTEM_EMAIL_PROVIDER: string;
   MICROSOFT_POOL_FAILBACK: boolean;
   MATERIAL_CATEGORIES: string[];
@@ -154,6 +155,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SMTP_USER: '',
   SMTP_PASS: '',
   SMTP_FROM: 'noreply@3d-learning.com',
+  SMTP_SECURE: false,
   SYSTEM_EMAIL_PROVIDER: 'SMTP',
   MICROSOFT_POOL_FAILBACK: true,
   MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件'],
@@ -340,7 +342,8 @@ class SettingsService {
           s.key.startsWith('ALLOW_') ||
           s.key.startsWith('AUTO_') ||
           s.key.endsWith('_ENABLED') ||
-          s.key.endsWith('_FAILBACK')
+          s.key.endsWith('_FAILBACK') ||
+          s.key === 'SMTP_SECURE'
         ) {
           settings[key] = s.value === 'true';
         } else if (

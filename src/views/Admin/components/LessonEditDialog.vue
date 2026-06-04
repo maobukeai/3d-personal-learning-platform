@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
@@ -164,7 +166,7 @@ const open = (course: CourseForLessonEdit, lesson: LessonForEdit | null = null) 
 
 const handleSaveLesson = async () => {
   if (!lessonForm.value.title.trim()) {
-    ElMessage.warning('请输入课时标题');
+    ElMessage.warning(t('admin.please_enter_the_class'));
     return;
   }
   try {
@@ -178,12 +180,12 @@ const handleSaveLesson = async () => {
     } else {
       await api.post('/api/admin/courses/lessons', payload);
     }
-    ElMessage.success('课时已保存');
+    ElMessage.success(t('admin.lesson_has_been_saved'));
     visible.value = false;
     emit('saved');
   } catch (error) {
     console.error('Save lesson error:', error);
-    ElMessage.error('保存课时失败');
+    ElMessage.error(t('admin.failed_to_save_lesson'));
   }
 };
 
@@ -191,14 +193,14 @@ const handleSaveLesson = async () => {
 const handleAddHotspot = (point: { x: number; y: number; z: number }) => {
   lessonForm.value.hotspots.push({
     ...point,
-    title: `新热点 ${lessonForm.value.hotspots.length + 1}`,
-    content: '点击编辑此热点的详细内容',
+    title: t('admin.new_hotspots_lessonform_value', { param_0: lessonForm.value.hotspots.length + 1 }),
+    content: t('admin.click_to_edit_the'),
   });
 };
 
 const openHotspotEditor = () => {
   if (!lessonForm.value.videoUrl) {
-    return ElMessage.warning('请先提供 3D 模型链接');
+    return ElMessage.warning(t('admin.please_provide_a_3d'));
   }
   isHotspotEditorOpen.value = true;
 };
@@ -235,7 +237,7 @@ const captureCameraForHotspot = () => {
     lessonForm.value.hotspots[currentHotspotIndex.value].cameraPos = state.position;
     lessonForm.value.hotspots[currentHotspotIndex.value].cameraTarget = state.target;
     ElMessage.success(
-      `已保存当前视角到热点: ${lessonForm.value.hotspots[currentHotspotIndex.value].title}`,
+      t('admin.saved_current_view_to', { param_0: lessonForm.value.hotspots[currentHotspotIndex.value].title }),
     );
   }
 };
@@ -264,18 +266,18 @@ defineExpose({ open });
       style="background-color: var(--bg-card)"
     >
       <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-        {{ currentLesson ? '编辑课时' : '新建课时' }}
+        {{ currentLesson ? t('admin.edit_lesson') : $t('admin.create_new_class_hours') }}
       </h3>
       <div class="space-y-4">
         <div class="grid grid-cols-4 gap-4">
           <div class="col-span-2">
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >课时标题</label
+              >{{ $t('admin.lesson_title') }}</label
             >
             <input
               v-model="lessonForm.title"
               type="text"
-              placeholder="输入课时标题..."
+              :placeholder="$t('admin.enter_class_title')"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
               style="
                 background-color: var(--bg-app);
@@ -286,7 +288,7 @@ defineExpose({ open });
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >排序</label
+              >{{ $t('admin.sort') }}</label
             >
             <input
               v-model="lessonForm.order"
@@ -301,7 +303,7 @@ defineExpose({ open });
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >时长(分钟)</label
+              >{{ $t('admin.duration_minutes') }}</label
             >
             <input
               v-model="lessonForm.duration"
@@ -317,7 +319,7 @@ defineExpose({ open });
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >视频链接</label
+            >{{ $t('admin.video_link') }}</label
           >
           <div class="flex gap-2">
             <input
@@ -349,12 +351,12 @@ defineExpose({ open });
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >课时内容 (Markdown)</label
+            >{{ $t('admin.lesson_content_markdown') }}</label
           >
           <textarea
             v-model="lessonForm.content"
             rows="6"
-            placeholder="输入课时详细内容..."
+            :placeholder="$t('admin.enter_class_details')"
             class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
             style="
               background-color: var(--bg-app);
@@ -377,7 +379,7 @@ defineExpose({ open });
     <!-- Hotspot Editor Dialog -->
     <el-dialog
       v-model="isHotspotEditorOpen"
-      title="3D 交互热点编辑器"
+      :title="$t('admin.3d_interactive_hotspot_editor')"
       fullscreen
       append-to-body
       class="hotspot-editor-dialog"
@@ -448,7 +450,7 @@ defineExpose({ open });
                       <Camera
                         v-if="hs.cameraPos"
                         class="w-3.5 h-3.5 text-emerald-500"
-                        title="已设置视角"
+                        :title="$t('admin.viewpoint_set')"
                       />
                     </div>
                     <div
@@ -500,10 +502,10 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
     </el-dialog>
 
     <!-- Hotspot Quick Edit Modal -->
-    <el-dialog v-model="isQuickEditOpen" title="编辑热点详情" width="400px" append-to-body>
+    <el-dialog v-model="isQuickEditOpen" :title="$t('admin.edit_hotspot_details')" width="400px" append-to-body>
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2">热点标题</label>
+          <label class="block text-xs font-bold text-slate-400 mb-2">{{ $t('admin.hot_topics') }}</label>
           <input
             v-model="hotspotEditForm.title"
             type="text"
@@ -511,7 +513,7 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
           />
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-400 mb-2">描述内容</label>
+          <label class="block text-xs font-bold text-slate-400 mb-2">{{ $t('admin.description_content') }}</label>
           <textarea
             v-model="hotspotEditForm.content"
             rows="4"
@@ -532,7 +534,7 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
     <!-- Scene Settings Dialog -->
     <el-dialog
       v-model="isSceneSettingsOpen"
-      title="3D 场景与灯光设置"
+      :title="$t('admin.3d_scene_and_lighting')"
       width="460px"
       append-to-body
       class="custom-rounded-dialog"
@@ -549,20 +551,20 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
           <div>
             <label
               class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >渲染环境 (HDR)</label
+              >{{ $t('admin.rendering_environment_hdr') }}</label
             >
             <el-select v-model="sceneConfigForm.environment" class="w-full">
-              <el-option label="日落余晖 (默认)" value="sunset" />
-              <el-option label="专业摄影棚" value="studio" />
-              <el-option label="户外自然光" value="forest" />
-              <el-option label="室内工作间" value="room" />
+              <el-option :label="$t('admin.sunset_default')" value="sunset" />
+              <el-option :label="$t('admin.professional_photo_studio')" value="studio" />
+              <el-option :label="$t('admin.outdoor_natural_light')" value="forest" />
+              <el-option :label="$t('admin.indoor_workshop')" value="room" />
             </el-select>
           </div>
 
           <div>
             <div class="flex items-center justify-between mb-2 ml-1">
               <label class="text-xs font-black uppercase tracking-widest text-slate-400"
-                >曝光强度 (Exposure)</label
+                >{{ $t('admin.exposure') }}</label
               >
               <span class="text-xs font-bold text-accent">{{
                 sceneConfigForm.exposure.toFixed(1)
@@ -576,7 +578,7 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
           <div>
             <div class="flex items-center justify-between mb-2 ml-1">
               <label class="text-xs font-black uppercase tracking-widest text-slate-400"
-                >主灯光强度</label
+                >{{ $t('admin.main_light_intensity') }}</label
               >
               <span class="text-xs font-bold text-accent">{{
                 sceneConfigForm.lights.intensity.toFixed(1)
@@ -588,7 +590,7 @@ type="button" class="px-8 py-2.5 rounded-xl border font-bold text-sm hover:bg-sl
           <div>
             <label
               class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-3 ml-1"
-              >灯光色调</label
+              >{{ $t('admin.light_tone') }}</label
             >
             <div class="flex items-center gap-3">
               <el-color-picker v-model="sceneConfigForm.lights.color" />

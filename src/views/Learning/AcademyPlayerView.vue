@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   ChevronLeft,
   ChevronRight,
@@ -83,6 +84,7 @@ interface CourseNote {
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 const courseId = route.params.id as string;
 
 const course = ref<Course | null>(null);
@@ -143,7 +145,7 @@ const fetchCourseData = async () => {
       }
     }
   } catch (_error) {
-    ElMessage.error('加载课程失败');
+    ElMessage.error(t('academy.loadCourseFailed'));
     router.push('/academy');
   } finally {
     isLoading.value = false;
@@ -195,7 +197,7 @@ const handleSaveNote = async () => {
     notes.value.unshift(data as CourseNote);
     newNoteContent.value = '';
   } catch (_error) {
-    ElMessage.error('保存笔记失败');
+    ElMessage.error(t('academy.saveNoteFailed'));
   } finally {
     isSavingNote.value = false;
   }
@@ -206,7 +208,7 @@ const handleDeleteNote = async (noteId: string) => {
     await api.delete(`/api/courses/notes/${noteId}`);
     notes.value = notes.value.filter((n) => n.id !== noteId);
   } catch (_error) {
-    ElMessage.error('删除笔记失败');
+    ElMessage.error(t('academy.deleteNoteFailed'));
   }
 };
 
@@ -336,7 +338,7 @@ onMounted(fetchCourseData);
             <h1 class="text-xs font-bold truncate max-w-[150px] md:max-w-md" style="color: var(--text-primary)">
               {{ course?.title }}
             </h1>
-            <p class="text-[9px]" style="color: var(--text-secondary)">正在学习: {{ currentLesson?.title }}</p>
+            <p class="text-[9px]" style="color: var(--text-secondary)">{{ t('academy.currentlyLearning', { title: currentLesson?.title }) }}</p>
           </div>
         </div>
 
@@ -348,7 +350,7 @@ onMounted(fetchCourseData);
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
-            <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 text-accent">已完成 {{ progress }}%</span>
+            <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 text-accent">{{ t('academy.completedProgress', { n: progress }) }}</span>
           </div>
           <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors lg:hidden cursor-pointer" style="color: var(--text-primary)" @click="isSidebarOpen = !isSidebarOpen">
             <Menu class="w-4 h-4" />
@@ -362,7 +364,7 @@ onMounted(fetchCourseData);
           <div
             class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"
           ></div>
-          <p class="text-xs font-bold text-slate-500">正在加载学习内容...</p>
+          <p class="text-xs font-bold text-slate-500">{{ t('academy.loadingLearningContent') }}</p>
         </div>
 
         <template v-else-if="currentLesson">
@@ -380,7 +382,7 @@ onMounted(fetchCourseData);
             >
               <div class="flex items-center gap-2">
                 <Box class="w-4 h-4 text-accent" />
-                <span class="text-[10px] font-bold" style="color: var(--text-primary)">3D 实操教学模式</span>
+                <span class="text-[10px] font-bold" style="color: var(--text-primary)">{{ t('academy.teachingMode3D') }}</span>
               </div>
             </div>
           </div>
@@ -450,7 +452,7 @@ onMounted(fetchCourseData);
             <div class="max-w-3xl mx-auto space-y-4 sm:space-y-6">
               <div class="space-y-2">
                 <span class="px-2 py-0.5 bg-accent/20 text-accent text-[9px] font-bold rounded-full"
-                  >文字教程</span
+                  >{{ t('academy.textTutorial') }}</span
                 >
                 <h2 class="text-xl sm:text-2xl font-bold" style="color: var(--text-primary)">{{ currentLesson.title }}</h2>
               </div>
@@ -462,7 +464,7 @@ onMounted(fetchCourseData);
               </div>
               <div class="pt-6 flex justify-center">
                 <button type="button" class="px-5 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-lg shadow-md shadow-accent/15 flex items-center gap-1.5 transition-colors cursor-pointer" @click="handleVideoEnded">
-                  完成学习 <ChevronRight class="w-3.5 h-3.5" />
+                  {{ t('academy.finishLearning') }} <ChevronRight class="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -478,10 +480,10 @@ onMounted(fetchCourseData);
         <div class="flex items-center gap-1.5 shrink-0">
           <button type="button" :disabled="currentLessonIndex === 0" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 cursor-pointer" :class="currentLessonIndex > 0 ? 'hover:bg-slate-100 dark:hover:bg-white/5 bg-slate-50 dark:bg-white/5' : 'bg-transparent'" style="color: var(--text-primary)" @click="prevLesson">
             <ChevronLeft class="w-3.5 h-3.5" />
-            <span>上一节</span>
+            <span>{{ t('academy.prevLesson') }}</span>
           </button>
           <button type="button" :disabled="currentLessonIndex === lessons.length - 1" class="flex items-center gap-1 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 shadow-lg shadow-accent/10 cursor-pointer" @click="nextLesson">
-            <span>下一节</span>
+            <span>{{ t('academy.nextLesson') }}</span>
             <ChevronRight class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -489,7 +491,7 @@ onMounted(fetchCourseData);
         <!-- Center: Complete toggle -->
         <div class="flex items-center gap-1.5 shrink-0">
           <button
-type="button" :disabled="isTogglingComplete" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer" :class="
+            type="button" :disabled="isTogglingComplete" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all cursor-pointer" :class="
               currentLesson && isLessonCompleted(currentLesson.id)
                 ? 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                 : 'bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
@@ -499,23 +501,23 @@ type="button" :disabled="isTogglingComplete" class="flex items-center gap-1 px-2
               class="w-3.5 h-3.5"
             />
             <Circle v-else class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">{{ currentLesson && isLessonCompleted(currentLesson.id) ? '已完成' : '标记完成' }}</span>
-            <span class="sm:hidden">{{ currentLesson && isLessonCompleted(currentLesson.id) ? '已完成' : '完成' }}</span>
+            <span class="hidden sm:inline">{{ currentLesson && isLessonCompleted(currentLesson.id) ? t('academy.completedStatus') : t('academy.markCompleted') }}</span>
+            <span class="sm:hidden">{{ currentLesson && isLessonCompleted(currentLesson.id) ? t('academy.completedStatus') : t('academy.completeShort') }}</span>
           </button>
 
           <label class="hidden sm:flex items-center gap-1 text-[10px] cursor-pointer" style="color: var(--text-muted)">
             <input v-model="autoPlayNext" type="checkbox" class="accent-accent w-3 h-3" />
-            <span>自动播放</span>
+            <span>{{ t('academy.autoplay') }}</span>
           </label>
         </div>
 
         <!-- Right: Tab buttons -->
         <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
-v-for="tab in [
-              { id: 'content' as const, icon: FileText, label: '课程内容', shortLabel: '大纲' },
-              { id: 'notes' as const, icon: StickyNote, label: '学习笔记', shortLabel: '笔记' },
-              { id: 'discussion' as const, icon: MessageSquare, label: '参与讨论', shortLabel: '讨论' },
+            v-for="tab in [
+              { id: 'content' as const, icon: FileText, label: t('academy.tabOutline'), shortLabel: t('academy.tabOutlineShort') },
+              { id: 'notes' as const, icon: StickyNote, label: t('academy.tabNotes'), shortLabel: t('academy.tabNotesShort') },
+              { id: 'discussion' as const, icon: MessageSquare, label: t('academy.tabDiscussion'), shortLabel: t('academy.tabDiscussionShort') },
             ]" :key="tab.id" type="button" class="flex items-center gap-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer" :class="activeTab === tab.id ? 'text-accent' : 'hover:text-slate-800 dark:hover:text-slate-100'" :style="activeTab !== tab.id ? 'color: var(--text-muted)' : ''" @click="selectTab(tab.id)">
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">{{ tab.label }}</span>
@@ -541,7 +543,7 @@ v-for="tab in [
         <div class="h-12 flex items-center justify-between px-4 border-b shrink-0 transition-colors duration-300" style="border-color: var(--border-base)">
           <div class="flex items-center gap-2">
             <h2 class="text-xs font-bold" style="color: var(--text-primary)">
-              {{ activeTab === 'content' ? '课程大纲' : activeTab === 'notes' ? '学习笔记' : '参与讨论' }}
+              {{ activeTab === 'content' ? t('academy.tabOutline') : activeTab === 'notes' ? t('academy.tabNotes') : t('academy.tabDiscussion') }}
             </h2>
             <span
               v-if="activeTab === 'content'"
@@ -566,10 +568,10 @@ v-for="tab in [
         <!-- Sidebar Tabs for mobile & quick switching -->
         <div class="flex border-b shrink-0 transition-colors duration-300" style="border-color: var(--border-base); background-color: var(--bg-card)">
           <button
-v-for="tab in [
-              { id: 'content' as const, icon: FileText, label: '大纲' },
-              { id: 'notes' as const, icon: StickyNote, label: '笔记' },
-              { id: 'discussion' as const, icon: MessageSquare, label: '讨论' },
+            v-for="tab in [
+              { id: 'content' as const, icon: FileText, label: t('academy.tabOutlineShort') },
+              { id: 'notes' as const, icon: StickyNote, label: t('academy.tabNotesShort') },
+              { id: 'discussion' as const, icon: MessageSquare, label: t('academy.tabDiscussionShort') },
             ]" :key="tab.id" type="button" class="flex-1 py-2 flex items-center justify-center gap-1.5 text-xs font-bold transition-all border-b-2 cursor-pointer" :class="activeTab === tab.id ? 'border-accent text-accent' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'" @click="activeTab = tab.id">
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             <span>{{ tab.label }}</span>
@@ -582,7 +584,7 @@ v-for="tab in [
         </div>
 
         <!-- Tab Content -->
-        <div class="flex-1 overflow-y-auto scrollbar-hide">
+        <div class="flex-1 overflow-y-auto scrollbar-hide transition-colors duration-300" style="background-color: var(--bg-card)">
           <!-- Content Tab: Lesson List -->
           <template v-if="activeTab === 'content'">
             <div class="p-2 sm:p-3 space-y-1">
@@ -633,7 +635,7 @@ v-for="tab in [
                           class="w-3 h-3"
                         />
                         {{
-                          is3DModel(lesson.videoUrl) ? '3D 交互' : lesson.videoUrl ? '视频' : '图文'
+                          is3DModel(lesson.videoUrl) ? t('academy.lessonType3D') : lesson.videoUrl ? t('academy.lessonTypeVideo') : t('academy.lessonTypeRichText')
                         }}
                       </span>
                       <span
@@ -641,7 +643,7 @@ v-for="tab in [
                         class="flex items-center gap-0.5 text-[9px]"
                         style="color: var(--text-muted)"
                       >
-                        <Clock class="w-3 h-3" /> {{ lesson.duration }}分钟
+                        <Clock class="w-3 h-3" /> {{ t('academy.minutesUnit', { n: lesson.duration }) }}
                       </span>
                     </div>
                   </div>
@@ -657,19 +659,19 @@ v-for="tab in [
               <div class="space-y-2">
                 <div class="flex items-center gap-1.5 text-xs" style="color: var(--text-secondary)">
                   <StickyNote class="w-3.5 h-3.5" />
-                  <span class="font-bold">{{ currentLesson?.title }} 的笔记</span>
+                  <span class="font-bold">{{ t('academy.lessonNoteTitle', { title: currentLesson?.title }) }}</span>
                 </div>
                 <textarea
                   v-model="newNoteContent"
                   rows="3"
-                  placeholder="记录你的学习心得..."
+                  :placeholder="t('academy.notePlaceholder')"
                   class="w-full px-3 py-2 rounded-lg border text-xs outline-none resize-none transition-colors focus:border-accent/30"
                   style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary)"
                 ></textarea>
                 <div class="flex justify-end">
                   <button type="button" :disabled="!newNoteContent.trim() || isSavingNote" class="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-md disabled:opacity-40 transition-all cursor-pointer" @click="handleSaveNote">
                     <Send class="w-3.5 h-3.5" />
-                    保存
+                    {{ t('academy.saveBtn') }}
                   </button>
                 </div>
               </div>
@@ -695,7 +697,7 @@ v-for="tab in [
 
                 <div v-if="!notes.length" class="py-6 text-center">
                   <StickyNote class="w-6 h-6 mx-auto mb-1.5" style="color: var(--text-muted)" />
-                  <p class="text-[10px]" style="color: var(--text-muted)">还没有笔记，开始记录吧</p>
+                  <p class="text-[10px]" style="color: var(--text-muted)">{{ t('academy.noNotesYet') }}</p>
                 </div>
               </div>
             </div>
@@ -706,9 +708,9 @@ v-for="tab in [
             <div class="p-3">
               <div class="text-center py-6">
                 <MessageSquare class="w-6 h-6 mx-auto mb-2" style="color: var(--text-muted)" />
-                <p class="text-xs mb-2" style="color: var(--text-muted)">课程讨论区</p>
+                <p class="text-xs mb-2" style="color: var(--text-muted)">{{ t('academy.courseDiscussion') }}</p>
                 <button type="button" class="px-3.5 py-1.5 border hover:bg-slate-100 dark:hover:bg-white/5 text-[10px] sm:text-xs font-bold rounded-lg transition-colors cursor-pointer" style="border-color: var(--border-base); color: var(--text-primary)" @click="router.push(`/discussions`)">
-                  前往讨论区
+                  {{ t('academy.goToDiscussion') }}
                 </button>
               </div>
             </div>
@@ -726,8 +728,8 @@ v-for="tab in [
               <Users v-else class="w-4 h-4" style="color: var(--text-muted)" />
             </div>
             <div>
-              <p class="text-xs font-bold leading-tight" style="color: var(--text-primary)">{{ course?.instructor?.name || '平台认证导师' }}</p>
-              <p class="text-[9px] leading-tight" style="color: var(--text-muted)">3D 设计专家</p>
+              <p class="text-xs font-bold leading-tight" style="color: var(--text-primary)">{{ course?.instructor?.name || t('academy.certifiedInstructor') }}</p>
+              <p class="text-[9px] leading-tight" style="color: var(--text-muted)">{{ t('academy.designExpert') }}</p>
             </div>
           </div>
           <p class="text-[9px] leading-relaxed line-clamp-2" style="color: var(--text-muted)">
@@ -750,18 +752,18 @@ v-for="tab in [
         >
           <CheckCircle2 class="w-7 h-7 text-emerald-400" />
         </div>
-        <h2 class="text-lg font-bold text-white mb-2">🎉 恭喜完成课程！</h2>
-        <p class="text-xs text-slate-400 mb-6">你已经完成了「{{ course?.title }}」的全部课时学习</p>
+        <h2 class="text-lg font-bold text-white mb-2">{{ t('academy.congratsFinishedTitle') }}</h2>
+        <p class="text-xs text-slate-400 mb-6">{{ t('academy.congratsFinishedDesc', { title: course?.title }) }}</p>
         <div class="flex gap-3">
           <button
-type="button" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer" @click="
+            type="button" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer" @click="
               showCompletionModal = false;
               router.push('/academy');
             ">
-            返回课程列表
+            {{ t('academy.backToCourseList') }}
           </button>
           <button type="button" class="flex-1 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-bold shadow-lg shadow-accent/15 transition-all cursor-pointer" @click="showCompletionModal = false">
-            继续复习
+            {{ t('academy.continueReview') }}
           </button>
         </div>
       </div>

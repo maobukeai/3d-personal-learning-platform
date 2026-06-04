@@ -4,6 +4,7 @@ import dns from 'dns';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
 import { config as envConfig } from '../config/env';
+import { settingsService } from '../services/settings.service';
 
 function resolveRealIp(hostname: string): Promise<string> {
   return new Promise((resolve) => {
@@ -47,22 +48,15 @@ function resolveRealIp(hostname: string): Promise<string> {
 let cachedTransporter: nodemailer.Transporter | null = null;
 let cachedConfigHash: string = '';
 
-function buildConfigHash(config: Record<string, string>): string {
+function buildConfigHash(config: any): string {
   return `${config.SMTP_HOST}|${config.SMTP_PORT}|${config.SMTP_USER}|${config.SMTP_PASS}|${config.SMTP_SECURE}`;
 }
 
 async function getTransporter(): Promise<{
   transporter: nodemailer.Transporter | null;
-  config: Record<string, string>;
+  config: any;
 }> {
-  const settings = await prisma.systemSetting.findMany();
-  const config = settings.reduce(
-    (acc: any, curr) => {
-      acc[curr.key] = curr.value;
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
+  const config = await settingsService.getAll();
 
   if (!config.SMTP_HOST || !config.SMTP_USER || !config.SMTP_PASS) {
     if (cachedTransporter) {
@@ -82,8 +76,8 @@ async function getTransporter(): Promise<{
     cachedTransporter.close();
   }
 
-  const isSecure = config.SMTP_SECURE === 'true';
-  const port = parseInt(config.SMTP_PORT) || (isSecure ? 465 : 587);
+  const isSecure = config.SMTP_SECURE === true;
+  const port = Number(config.SMTP_PORT) || (isSecure ? 465 : 587);
 
   const realIp = await resolveRealIp(config.SMTP_HOST);
 
@@ -113,7 +107,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
   const { transporter, config } = await getTransporter();
 
   const provider = config.SYSTEM_EMAIL_PROVIDER || 'SMTP';
-  const fallbackSmtp = config.MICROSOFT_POOL_FAILBACK !== 'false';
+  const fallbackSmtp = config.MICROSOFT_POOL_FAILBACK !== 'false' && config.MICROSOFT_POOL_FAILBACK !== false;
 
   if (provider === 'MICROSOFT_POOL') {
     logger.info(
@@ -155,10 +149,9 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
           '[Email Pool] No eligible Microsoft accounts in pool (either none active or all hit daily limits).',
         );
         if (!fallbackSmtp) {
-          logger.error(
-            '[Email Pool Error] No eligible accounts in pool, and SMTP fallback is disabled.',
-          );
-          return false;
+          const errMsg = 'No eligible Microsoft accounts in pool and SMTP fallback is disabled.';
+          logger.error(`[Email Pool Error] ${errMsg}`);
+          throw new Error(errMsg);
         }
         logger.info('[Email Pool Fallback] Falling back to standard SMTP sending...');
       }
@@ -168,7 +161,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
         err instanceof Error ? err.message : err,
       );
       if (!fallbackSmtp) {
-        return false;
+        throw err;
       }
       logger.info(
         '[Email Pool Fallback] Falling back to standard SMTP sending due to pool failure...',
@@ -198,6 +191,6 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
     logger.error(`[Email Error] To: ${to}`, error);
     cachedTransporter = null;
     cachedConfigHash = '';
-    return false;
+    throw error;
   }
 };

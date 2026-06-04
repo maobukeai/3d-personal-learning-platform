@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
@@ -43,21 +45,21 @@ const open = (category: EditableCategory | null = null) => {
 
 const handleSaveCategory = async () => {
   if (!categoryForm.value.name.trim()) {
-    ElMessage.warning('请输入分类名称');
+    ElMessage.warning(t('admin.please_enter_the_category'));
     return;
   }
   try {
     if (currentCategory.value) {
       await api.put(`/api/admin/course-categories/${currentCategory.value.id}`, categoryForm.value);
-      ElMessage.success('分类更新成功');
+      ElMessage.success(t('admin.classification_updated_successfully'));
     } else {
       await api.post('/api/admin/course-categories', categoryForm.value);
-      ElMessage.success('分类创建成功');
+      ElMessage.success(t('admin.category_created_successfully'));
     }
     visible.value = false;
     emit('saved');
   } catch (_error) {
-    ElMessage.error('保存分类失败');
+    ElMessage.error(t('admin.failed_to_save_category'));
   }
 };
 
@@ -74,17 +76,17 @@ defineExpose({ open });
       style="background-color: var(--bg-card)"
     >
       <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-        {{ currentCategory ? '编辑分类' : '新建分类' }}
+        {{ currentCategory ? t('admin.edit_category') : $t('admin.new_category') }}
       </h3>
       <div class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >分类名称</label
+            >{{ $t('admin.category_name') }}</label
           >
           <input
             v-model="categoryForm.name"
             type="text"
-            placeholder="输入分类名称..."
+            :placeholder="$t('admin.enter_category_name')"
             class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
             style="
               background-color: var(--bg-app);
@@ -95,7 +97,7 @@ defineExpose({ open });
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >排序</label
+            >{{ $t('admin.sort') }}</label
           >
           <input
             v-model="categoryForm.order"

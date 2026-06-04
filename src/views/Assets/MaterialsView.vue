@@ -16,10 +16,14 @@ import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const systemStore = useSystemStore();
 const searchQuery = ref('');
 const activeCategory = ref('全部材料');
+
 interface MaterialItem {
   id: string;
   title?: string | null;
@@ -65,6 +69,39 @@ const categories = computed(() => {
   );
 });
 
+const getCategoryLabel = (category: string) => {
+  switch (category) {
+    case '全部材料':
+      return t('materials.catAll');
+    case '金属':
+      return t('materials.catMetal');
+    case '木纹':
+      return t('materials.catWood');
+    case '石材':
+      return t('materials.catStone');
+    case '织物':
+      return t('materials.catFabric');
+    case '程序化':
+      return t('materials.catProcedural');
+    case '玻璃':
+      return t('materials.catGlass');
+    case '其他':
+      return t('materials.catOther');
+    default:
+      return category;
+  }
+};
+
+const getResolutionLabel = (res: string) => {
+  if (res === '矢量') return t('materials.resVector');
+  if (res === '程序化') return t('materials.resProcedural');
+  return res;
+};
+
+const uploadCategories = computed(() => {
+  return categories.value.filter((c) => c !== '全部材料' && c !== 'All Materials');
+});
+
 const isUploadDialogOpen = ref(false);
 const isUploading = ref(false);
 const uploadForm = ref({
@@ -95,7 +132,7 @@ const fetchMaterials = async () => {
     const response = await api.get('/api/materials', { params });
     materials.value = response.data;
   } catch (_error) {
-    ElMessage.error('获取材料失败');
+    ElMessage.error(t('materials.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -120,11 +157,11 @@ const handlePreviewChange = (e: Event) => {
 
 const handleUpload = async () => {
   if (!uploadForm.value.file) {
-    ElMessage.warning('请选择材料包文件');
+    ElMessage.warning(t('materials.selectFileWarn'));
     return;
   }
   if (!uploadForm.value.preview) {
-    ElMessage.warning('请上传预览图');
+    ElMessage.warning(t('materials.selectPreviewWarn'));
     return;
   }
 
@@ -143,7 +180,7 @@ const handleUpload = async () => {
     await api.post('/api/materials/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    ElMessage.success('材料上传成功，等待审核');
+    ElMessage.success(t('materials.uploadSuccess'));
     isUploadDialogOpen.value = false;
     uploadForm.value = {
       title: '',
@@ -157,7 +194,7 @@ const handleUpload = async () => {
     };
     fetchMaterials();
   } catch (_error) {
-    ElMessage.error('上传失败');
+    ElMessage.error(t('materials.uploadFailed'));
   } finally {
     isUploading.value = false;
   }
@@ -175,8 +212,8 @@ const getTagsList = (tags?: string | null) => {
   if (!tags) return [];
   return tags
     .split(',')
-    .map((t) => t.trim())
-    .filter((t) => t);
+    .map((tStr) => tStr.trim())
+    .filter((tStr) => tStr);
 };
 
 const handleDownload = async (material: MaterialItem) => {
@@ -204,7 +241,7 @@ const handleDownload = async (material: MaterialItem) => {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Failed to download:', error);
-    ElMessage.error('下载失败');
+    ElMessage.error(t('materials.downloadFailed'));
   }
 };
 
@@ -238,7 +275,7 @@ const openDetail = async (material: MaterialItem) => {
 };
 
 const formatFileSize = (mb: number | null | undefined) => {
-  if (!mb) return '未知';
+  if (!mb) return t('materials.unknown');
   if (mb < 1) return `${Math.round(mb * 1024)} KB`;
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
   return `${mb.toFixed(1)} MB`;
@@ -274,7 +311,7 @@ onUnmounted(() => {
         <div class="p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
           <Layers class="w-4 h-4 text-orange-600 dark:text-orange-400" />
         </div>
-        <h1 class="text-md sm:text-lg font-bold" style="color: var(--text-primary)">材料与纹理库</h1>
+        <h1 class="text-md sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('materials.title') }}</h1>
       </div>
 
       <div class="flex items-center gap-2 w-full md:w-auto">
@@ -286,7 +323,7 @@ onUnmounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索材料..."
+            :placeholder="t('materials.searchPlaceholder')"
             class="pl-8 pr-3.5 py-1.5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-full md:w-56 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
             @keyup.enter="fetchMaterials"
@@ -294,7 +331,7 @@ onUnmounted(() => {
         </div>
         <button type="button" class="flex items-center justify-center p-1.5 bg-orange-500 text-white rounded-lg shadow-md shadow-orange-500/20 transition-all hover:bg-orange-600 shrink-0 cursor-pointer" @click="isUploadDialogOpen = true">
           <Plus class="w-3.5 h-3.5" />
-          <span class="hidden sm:inline ml-1 text-xs font-bold">上传</span>
+          <span class="hidden sm:inline ml-1 text-xs font-bold">{{ t('materials.upload') }}</span>
         </button>
       </div>
     </div>
@@ -307,7 +344,7 @@ onUnmounted(() => {
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
           <button
-v-for="cat in categories" :key="cat" type="button" class="px-2 sm:px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-all whitespace-nowrap" :class="
+            v-for="cat in categories" :key="cat" type="button" class="px-2 sm:px-2.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-all whitespace-nowrap" :class="
               activeCategory === cat
                 ? 'bg-slate-800 text-white dark:bg-accent dark:text-white'
                 : 'hover:opacity-80'
@@ -319,25 +356,25 @@ v-for="cat in categories" :key="cat" type="button" class="px-2 sm:px-2.5 py-0.5 
               activeCategory = cat;
               fetchMaterials();
             ">
-            {{ cat }}
+            {{ getCategoryLabel(cat) }}
           </button>
         </div>
 
         <div class="flex items-center gap-1.5 shrink-0">
           <!-- Favorites Toggle -->
           <button
-type="button" class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
+            type="button" class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
               showFavoritesOnly
                 ? 'bg-rose-500/10 text-rose-500'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-rose-500'
             " @click="showFavoritesOnly = !showFavoritesOnly">
             <Heart class="w-3 h-3" :class="showFavoritesOnly ? 'fill-rose-500' : ''" />
-            <span class="hidden sm:inline">收藏</span>
+            <span class="hidden sm:inline">{{ t('materials.favorite') }}</span>
           </button>
 
           <div class="flex items-center gap-0.5 bg-slate-100 dark:bg-white/5 p-0.5 rounded-md shrink-0">
             <button
-type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
+              type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
                 sortBy === 'latest'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600'
@@ -345,10 +382,10 @@ type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" 
                 sortBy = 'latest';
                 fetchMaterials();
               ">
-              最新
+              {{ t('materials.sortLatest') }}
             </button>
             <button
-type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
+              type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" :class="
                 sortBy === 'popular'
                   ? 'bg-white dark:bg-slate-800 text-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-600'
@@ -356,7 +393,7 @@ type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" 
                 sortBy = 'popular';
                 fetchMaterials();
               ">
-              最热
+              {{ t('materials.sortPopular') }}
             </button>
           </div>
         </div>
@@ -393,7 +430,7 @@ type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" 
                   border-color: var(--border-base);
                 "
               >
-                {{ mat.resolution }}
+                {{ getResolutionLabel(mat.resolution || '') }}
               </div>
 
               <!-- Procedural Indicator -->
@@ -401,12 +438,12 @@ type="button" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition-all" 
                 v-if="mat.isProcedural"
                 class="absolute top-1 left-1 bg-accent px-1 py-0.5 rounded text-[7.5px] font-bold text-white shadow-sm flex items-center gap-0.5"
               >
-                <Box class="w-2 h-2" /> 程序化
+                <Box class="w-2 h-2" /> {{ t('materials.procedural') }}
               </div>
 
               <!-- Favorite Button -->
               <button
-type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur transition-all opacity-0 group-hover:opacity-100" :class="
+                type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur transition-all opacity-0 group-hover:opacity-100" :class="
                   mat.isFavorited
                     ? 'bg-rose-500/20 text-rose-500'
                     : 'bg-black/30 text-white hover:text-rose-400'
@@ -442,7 +479,7 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
               <div class="mt-auto flex items-center justify-between">
                 <div class="flex items-center gap-1">
                   <span class="text-[9px] font-medium" style="color: var(--text-secondary)">{{
-                    mat.category
+                    getCategoryLabel(mat.category || '')
                   }}</span>
                   <span
                     v-if="mat.fileSize"
@@ -478,7 +515,7 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
         <div v-else class="h-64 flex flex-col items-center justify-center text-slate-400">
           <Layers class="w-10 h-10 mb-3 opacity-10" />
           <p class="text-xs font-bold">
-            {{ showFavoritesOnly ? '暂无收藏材料' : '该分类下暂无材料' }}
+            {{ showFavoritesOnly ? t('materials.emptyFavorites') : t('materials.emptyState') }}
           </p>
         </div>
       </div>
@@ -515,11 +552,11 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
                   <span
                     v-if="selectedMaterial.isProcedural"
                     class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-accent text-white"
-                    >程序化</span
+                    >{{ t('materials.procedural') }}</span
                   >
                   <span
                     class="px-1.5 py-0.5 rounded text-[8px] font-bold backdrop-blur bg-white/10 text-white"
-                    >{{ selectedMaterial.resolution || '未知' }}</span
+                    >{{ getResolutionLabel(selectedMaterial.resolution || t('materials.unknown')) }}</span
                   >
                   <span
                     v-if="selectedMaterial.fileSize"
@@ -546,26 +583,26 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
               <div class="grid grid-cols-3 gap-1.5 mb-3">
                 <div class="p-1.5 rounded-md text-center bg-[var(--bg-app)]">
                   <p class="text-[8px] font-bold uppercase text-[var(--text-muted)]">
-                    分类
+                    {{ t('materials.category') }}
                   </p>
                   <p class="text-[11px] font-bold mt-0.5 text-[var(--text-primary)]">
-                    {{ selectedMaterial.category }}
+                    {{ getCategoryLabel(selectedMaterial.category || '') }}
                   </p>
                 </div>
                 <div class="p-1.5 rounded-md text-center bg-[var(--bg-app)]">
                   <p class="text-[8px] font-bold uppercase text-[var(--text-muted)]">
-                    分辨率
+                    {{ t('materials.resolution') }}
                   </p>
                   <p class="text-[11px] font-bold mt-0.5 text-[var(--text-primary)]">
-                    {{ selectedMaterial.resolution || '未知' }}
+                    {{ getResolutionLabel(selectedMaterial.resolution || t('materials.unknown')) }}
                   </p>
                 </div>
                 <div class="p-1.5 rounded-md text-center bg-[var(--bg-app)]">
                   <p class="text-[8px] font-bold uppercase text-[var(--text-muted)]">
-                    类型
+                    {{ t('materials.type') }}
                   </p>
                   <p class="text-[11px] font-bold mt-0.5 text-[var(--text-primary)]">
-                    {{ selectedMaterial.isProcedural ? '程序化' : '静态纹理' }}
+                    {{ selectedMaterial.isProcedural ? t('materials.procedural') : t('materials.staticTexture') }}
                   </p>
                 </div>
               </div>
@@ -573,7 +610,7 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
               <!-- Tags -->
               <div v-if="getTagsList(selectedMaterial.tags).length > 0" class="mb-3">
                 <p class="text-[9px] font-bold uppercase mb-1 text-[var(--text-muted)]">
-                  标签
+                  {{ t('materials.tags') }}
                 </p>
                 <div class="flex flex-wrap gap-1">
                   <span
@@ -591,7 +628,7 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
                   class="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)]"
                 >
                   <Download class="w-3.5 h-3.5 text-orange-500" />
-                  {{ selectedMaterial.downloads || 0 }} 次下载
+                  {{ t('materials.downloadsCount', { n: selectedMaterial.downloads || 0 }) }}
                 </div>
                 <div
                   class="flex items-center gap-1 text-xs font-bold text-[var(--text-secondary)]"
@@ -604,7 +641,7 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
                         : 'text-slate-400'
                     "
                   />
-                  {{ selectedMaterial._count?.favorites || 0 }} 人收藏
+                  {{ t('materials.favoritesCount', { n: selectedMaterial._count?.favorites || 0 }) }}
                 </div>
               </div>
 
@@ -616,14 +653,10 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
                 <UserAvatar :user="selectedMaterial.user" size="sm" />
                 <div>
                   <p class="text-[11px] font-bold text-[var(--text-primary)]">
-                    {{ selectedMaterial.user.name || '匿名用户' }}
+                    {{ selectedMaterial.user.name || t('materials.anonymous') }}
                   </p>
                   <p class="text-[9px] text-[var(--text-muted)]">
-                    上传于 {{
-                      selectedMaterial.createdAt
-                        ? new Date(selectedMaterial.createdAt).toLocaleDateString()
-                        : '未知'
-                    }}
+                    {{ t('materials.uploadAt', { date: selectedMaterial.createdAt ? new Date(selectedMaterial.createdAt).toLocaleDateString() : t('materials.unknown') }) }}
                   </p>
                 </div>
               </div>
@@ -635,7 +668,7 @@ type="button" class="absolute top-1 right-1 mt-5 p-1 rounded-md backdrop-blur tr
               style="border-color: var(--border-base)"
             >
               <button
-type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all" :class="
+                type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all" :class="
                   selectedMaterial.isFavorited
                     ? 'bg-rose-500/10 text-rose-500'
                     : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-rose-500'
@@ -644,10 +677,10 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
                   class="w-3.5 h-3.5"
                   :class="selectedMaterial.isFavorited ? 'fill-rose-500' : ''"
                 />
-                {{ selectedMaterial.isFavorited ? '已收藏' : '收藏' }}
+                {{ selectedMaterial.isFavorited ? t('materials.favorited') : t('materials.favorite') }}
               </button>
               <button type="button" class="flex-1 py-1.5 bg-orange-500 text-white rounded-md text-xs font-bold shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all flex items-center justify-center gap-1.5 cursor-pointer" @click="handleDownload(selectedMaterial)">
-                <Download class="w-3.5 h-3.5" /> 下载材料包
+                <Download class="w-3.5 h-3.5" /> {{ t('materials.downloadPackage') }}
               </button>
             </div>
           </template>
@@ -670,7 +703,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between border-b pb-2" style="border-color: var(--border-base)">
-            <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">贡献新材料</h3>
+            <h3 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('materials.uploadTitle') }}</h3>
             <button type="button" class="hover:text-accent transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isUploadDialogOpen = false">
               <X class="w-4 h-4" />
             </button>
@@ -681,39 +714,39 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >材料名称</label
+                  >{{ t('materials.materialName') }}</label
                 >
                 <input
                   v-model="uploadForm.title"
                   type="text"
                   class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-                  placeholder="例如：锈蚀铁片 PBR"
+                  :placeholder="t('materials.namePlaceholder')"
                 />
               </div>
 
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >材料描述</label
+                  >{{ t('materials.materialDesc') }}</label
                 >
                 <textarea
                   v-model="uploadForm.description"
                   rows="2"
                   class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all resize-none"
-                  placeholder="描述材料的特点和用途..."
+                  :placeholder="t('materials.descPlaceholder')"
                 ></textarea>
               </div>
 
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >分类</label
+                  >{{ t('materials.category') }}</label
                 >
                 <el-select v-model="uploadForm.category" class="!w-full custom-select">
                   <el-option
-                    v-for="cat in categories.filter((c) => c !== '全部材料')"
+                    v-for="cat in uploadCategories"
                     :key="cat"
-                    :label="cat"
+                    :label="getCategoryLabel(cat)"
                     :value="cat"
                   />
                 </el-select>
@@ -722,7 +755,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >分辨率 / 类型</label
+                  >{{ t('materials.resolutionOrType') }}</label
                 >
                 <el-select
                   v-model="uploadForm.resolution"
@@ -731,7 +764,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
                   <el-option
                     v-for="res in ['2K', '4K', '8K', '矢量', '程序化']"
                     :key="res"
-                    :label="res"
+                    :label="getResolutionLabel(res)"
                     :value="res"
                   />
                 </el-select>
@@ -740,7 +773,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               <div class="flex items-center gap-2 pt-0.5">
                 <el-switch v-model="uploadForm.isProcedural" active-color="var(--accent)" />
                 <span class="text-[10px] font-bold" style="color: var(--text-secondary)"
-                  >程序化 (.sbsar)</span
+                  >{{ t('materials.proceduralSbsar') }}</span
                 >
               </div>
             </div>
@@ -749,7 +782,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >材料包 (ZIP)</label
+                  >{{ t('materials.materialPackageZip') }}</label
                 >
                 <div class="relative group h-16">
                   <input
@@ -767,7 +800,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
                       class="text-[9px] font-medium truncate px-2 w-full text-center"
                       style="color: var(--text-secondary)"
                     >
-                      {{ uploadForm.file ? uploadForm.file.name : '选择 ZIP/SBSAR' }}
+                      {{ uploadForm.file ? uploadForm.file.name : t('materials.zipPlaceholder') }}
                     </p>
                   </div>
                 </div>
@@ -776,7 +809,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >预览图</label
+                  >{{ t('materials.previewImage') }}</label
                 >
                 <div class="relative group h-16">
                   <input
@@ -794,7 +827,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
                       class="text-[9px] font-medium truncate px-2 w-full text-center"
                       style="color: var(--text-secondary)"
                     >
-                      {{ uploadForm.preview ? uploadForm.preview.name : '上传预览图' }}
+                      {{ uploadForm.preview ? uploadForm.preview.name : t('materials.previewPlaceholder') }}
                     </p>
                   </div>
                 </div>
@@ -803,13 +836,13 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               <div>
                 <label
                   class="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 ml-0.5"
-                  >标签</label
+                  >{{ t('materials.tags') }}</label
                 >
                 <input
                   v-model="uploadForm.tags"
                   type="text"
                   class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-                  placeholder="用逗号分隔"
+                  :placeholder="t('materials.tagsPlaceholder')"
                 />
               </div>
             </div>
@@ -820,7 +853,7 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
               v-if="isUploading"
               class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"
             ></div>
-            {{ isUploading ? '正在上传...' : '发布材料' }}
+            {{ isUploading ? t('materials.uploading') : t('materials.publishMaterial') }}
           </button>
         </div>
       </div>
@@ -861,4 +894,3 @@ type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs fo
   font-size: 12px;
 }
 </style>
-

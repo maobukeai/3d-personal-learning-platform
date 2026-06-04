@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
@@ -94,22 +96,22 @@ const saveCategory = async () => {
   if (!props.stationId) return;
 
   if (!categoryForm.value.name.trim()) {
-    ElMessage.warning('请输入分类名称');
+    ElMessage.warning(t('admin.please_enter_the_category'));
     return;
   }
 
   try {
     if (isEdit.value && editingCategory.value) {
       await api.put(`/api/admin/manual/categories/${editingCategory.value.id}`, categoryForm.value);
-      ElMessage.success('更新分类成功');
+      ElMessage.success(t('admin.classification_updated_successfully_1'));
     } else {
       await api.post(`/api/admin/manual/stations/${props.stationId}/categories`, categoryForm.value);
-      ElMessage.success('创建分类成功');
+      ElMessage.success(t('admin.classification_created_successfully'));
     }
     showDialog.value = false;
     emit('refresh');
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '操作分类失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.operation_classification_failed')));
   }
 };
 
@@ -125,19 +127,19 @@ watch(
     }
 
     const cnMap: Record<string, string> = {
-      '3d模型': '3d-models',
-      '模型': 'models',
-      '贴图': 'textures',
-      '材质': 'materials',
-      '教程': 'courses',
-      '课程': 'courses',
-      '视频教程': 'video-courses',
-      '插件': 'plugins',
-      '软件': 'software',
-      '预设': 'presets',
-      '平面': 'design',
-      '摄影': 'photography',
-      '插画': 'illustrations',
+      [t('admin.3d_model_1')]: '3d-models',
+      [t('admin.model')]: 'models',
+      [t('admin.stickers')]: 'textures',
+      [t('admin.material')]: 'materials',
+      [t('admin.tutorial')]: 'courses',
+      [t('admin.courses')]: 'courses',
+      [t('admin.video_tutorial')]: 'video-courses',
+      [t('admin.plug_in')]: 'plugins',
+      [t('admin.software')]: 'software',
+      [t('admin.default_1')]: 'presets',
+      [t('admin.plane')]: 'design',
+      [t('admin.photography')]: 'photography',
+      [t('admin.illustration')]: 'illustrations',
     };
 
     for (const key in cnMap) {
@@ -167,28 +169,28 @@ defineExpose({
   <!-- DIALOG: MANAGE CATEGORY -->
   <el-dialog
     v-model="showDialog"
-    :title="isEdit ? '编辑分类名称' : '添加资源分类'"
+    ::title="$t('admin.isedit_edit_category_name')"
     width="400px"
     custom-class="premium-dialog"
   >
     <div class="space-y-4 py-2">
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">分类显示名称</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.category_display_name') }}</label>
         <input
           v-model="categoryForm.name"
           type="text"
-          placeholder="如: 精品材质包"
+          :placeholder="$t('admin.such_as_premium_texture')"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         />
       </div>
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">父级分类 (可选，用于侧边栏分组)</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.parent_category_optional_used') }}</label>
         <select
           v-model="categoryForm.parentId"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none text-slate-600 dark:text-slate-300"
         >
-          <option :value="null">无 (作为一级分类/大类)</option>
+          <option :value="null">{{ $t('admin.none_as_a_first') }}</option>
           <option
             v-for="cat in parentCategoryOptions"
             :key="cat.id"
@@ -199,7 +201,7 @@ defineExpose({
         </select>
       </div>
       <div v-if="!categoryForm.parentId && eligibleSubcategories.length > 0" class="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1">
-        <label class="text-xs font-semibold text-slate-500 block">分配子分类 (从现有分类中选择归属于本大类)</label>
+        <label class="text-xs font-semibold text-slate-500 block">{{ $t('admin.assign_subcategories_select_from') }}</label>
         <div class="max-h-36 overflow-y-auto border border-slate-200/60 dark:border-slate-800/80 rounded-xl p-2.5 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5 scrollbar-hide">
           <div
             v-for="cat in eligibleSubcategories"
@@ -223,17 +225,17 @@ defineExpose({
         </div>
       </div>
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">Slug 缩写 (可选，如: materials)</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.slug_abbreviation_optional_such') }}</label>
         <input
           v-model="categoryForm.slug"
           type="text"
-          placeholder="用于路由辅助缩写..."
+          :placeholder="$t('admin.used_for_routing_auxiliary')"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         />
       </div>
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">排序权重 (小号排在前面)</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.sorting_weight_small_number') }}</label>
         <input
           v-model="categoryForm.order"
           type="number"

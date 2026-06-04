@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Search,
   Box,
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const systemStore = useSystemStore();
+const { t } = useI18n();
 
 const isSearchVisible = computed({
   get: () => props.modelValue,
@@ -65,8 +67,8 @@ const flattenedResults = computed(() => {
 });
 
 const getCategoryLabel = (category: GlobalSearchItem['category']) => {
-  if (!category) return '未分类';
-  return typeof category === 'string' ? category : category.name || '未分类';
+  if (!category) return t('common.noData');
+  return typeof category === 'string' ? category : category.name || t('common.noData');
 };
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -160,7 +162,7 @@ onUnmounted(() => {
 <template>
   <el-dialog
     v-model="isSearchVisible"
-    :title="isMobile ? '' : '全局搜索'"
+    :title="isMobile ? '' : t('search.title')"
     :width="isMobile ? '90%' : '600px'"
     :top="isMobile ? '8vh' : '15vh'"
     :class="['search-dialog', 'custom-rounded-dialog', isMobile ? 'mobile-search-dialog' : '']"
@@ -172,7 +174,7 @@ onUnmounted(() => {
       <el-input
         ref="searchInput"
         v-model="searchQuery"
-        placeholder="搜索作品、素材、课程或团队..."
+        :placeholder="t('search.placeholder')"
         :size="isMobile ? 'default' : 'large'"
         clearable
         @keyup.enter="
@@ -207,9 +209,7 @@ onUnmounted(() => {
           <h3
             class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
           >
-            <Box :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> 3D 资产 ({{
-              searchResults.assets.length
-            }})
+            <Box :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> {{ t('search.assetsCount', { n: searchResults.assets.length }) }}
           </h3>
           <div class="space-y-1">
             <div
@@ -264,9 +264,7 @@ onUnmounted(() => {
           <h3
             class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
           >
-            <GraduationCap :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> 学习课程 ({{
-              searchResults.courses.length
-            }})
+            <GraduationCap :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> {{ t('search.coursesCount', { n: searchResults.courses.length }) }}
           </h3>
           <div class="space-y-1">
             <div
@@ -314,9 +312,7 @@ onUnmounted(() => {
           <h3
             class="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
           >
-            <Users :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> 活跃团队 ({{
-              searchResults.teams.length
-            }})
+            <Users :class="isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'" /> {{ t('search.teamsCount', { n: searchResults.teams.length }) }}
           </h3>
           <div class="space-y-1">
             <div
@@ -374,7 +370,7 @@ onUnmounted(() => {
             class="mx-auto text-slate-200"
           />
           <p :class="isMobile ? 'text-xs' : 'text-sm'" class="text-slate-400">
-            未找到与 "{{ searchQuery }}" 相关的结果
+            {{ t('search.noResults', { query: searchQuery }) }}
           </p>
         </div>
       </template>
@@ -384,17 +380,23 @@ onUnmounted(() => {
         <div v-if="searchHistory.length > 0" :class="isMobile ? 'mb-5' : 'mb-8'">
           <div class="flex items-center justify-between px-2 mb-2">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-              >搜索历史</span
+              >{{ t('search.history') }}</span
             >
             <el-button link size="small" class="text-[10px]" @click="clearHistory"
-              >清空历史</el-button
+              >{{ t('search.clearHistory') }}</el-button
             >
           </div>
           <div class="flex flex-wrap gap-2 px-1">
             <button
-v-for="h in searchHistory" :key="h" type="button" :class="
+              v-for="h in searchHistory"
+              :key="h"
+              type="button"
+              :class="
                 isMobile ? 'px-2.5 py-1 text-[11px] rounded-md' : 'px-3 py-1.5 text-xs rounded-lg'
-              " class="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20" @click="searchQuery = h">
+              "
+              class="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-accent/10 hover:text-accent transition-all border border-transparent hover:border-accent/20"
+              @click="searchQuery = h"
+            >
               {{ h }}
             </button>
           </div>
@@ -402,7 +404,7 @@ v-for="h in searchHistory" :key="h" type="button" :class="
 
         <div class="flex items-center justify-between px-2 mb-4">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-            >常用功能</span
+            >{{ t('search.commonFeatures') }}</span
           >
         </div>
         <div :class="[isMobile ? 'gap-1.5' : 'gap-2', 'grid grid-cols-1 md:grid-cols-2 px-1']">
@@ -421,9 +423,9 @@ v-for="h in searchHistory" :key="h" type="button" :class="
               <ImageIcon :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">浏览资产库</p>
+              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">{{ t('search.browseAssets') }}</p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
-                发现高质量 3D 模型
+                {{ t('search.browseAssetsDesc') }}
               </p>
             </div>
           </div>
@@ -442,9 +444,9 @@ v-for="h in searchHistory" :key="h" type="button" :class="
               <GraduationCap :class="isMobile ? 'w-4 h-4' : 'w-5 h-5'" />
             </div>
             <div>
-              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">开始学习</p>
+              <p :class="isMobile ? 'text-xs' : 'text-sm'" class="font-bold">{{ t('search.startLearning') }}</p>
               <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
-                从基础到进阶的课程
+                {{ t('search.startLearningDesc') }}
               </p>
             </div>
           </div>
@@ -462,19 +464,19 @@ v-for="h in searchHistory" :key="h" type="button" :class="
             ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm"
               >↑↓</kbd
             >
-            选择</span
+            {{ t('search.select') }}</span
           >
           <span class="flex items-center gap-1.5"
             ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm"
               >Enter</kbd
             >
-            确认</span
+            {{ t('search.confirm') }}</span
           >
           <span class="flex items-center gap-1.5"
             ><kbd class="px-1.5 py-0.5 rounded border bg-slate-50 dark:bg-slate-900 shadow-sm"
               >esc</kbd
             >
-            关闭</span
+            {{ t('search.close') }}</span
           >
         </div>
         <div class="flex items-center gap-1">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, watch, computed } from 'vue';
 import {
   Ticket,
@@ -115,17 +117,17 @@ defineExpose({ openCreateCodes });
 
 const handleGenerateCodes = async () => {
   if (!codeForm.value.planId) {
-    ElMessage.warning('请选择订阅计划');
+    ElMessage.warning(t('admin.please_select_a_subscription'));
     return;
   }
   isGeneratingCodes.value = true;
   try {
     await api.post('/api/admin/activation-codes', codeForm.value);
-    ElMessage.success('激活码生成成功');
+    ElMessage.success(t('admin.activation_code_generated_successfully'));
     showCodeDialog.value = false;
     emit('refresh');
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '生成激活码失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.failed_to_generate_activation')));
   } finally {
     isGeneratingCodes.value = false;
   }
@@ -134,24 +136,24 @@ const handleGenerateCodes = async () => {
 const handleDeleteCode = async (code: ActivationCode) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除/失效该激活码 (${code.code}) 吗？此操作不可恢复。`,
-      '确认删除',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+      t('admin.are_you_sure_you_3', { codecode: code.code }),
+      t('admin.confirm_deletion_1'),
+      { confirmButtonText: t('admin.delete'), cancelButtonText: t('admin.cancel'), type: 'warning' },
     );
     await api.delete(`/api/admin/activation-codes/${code.id}`);
-    ElMessage.success('激活码已删除');
+    ElMessage.success(t('admin.activation_code_has_been'));
     emit('refresh');
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '删除失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.delete_failed')));
     }
   }
 };
 
 const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text).then(
-    () => ElMessage.success('已复制到剪贴板'),
-    () => ElMessage.error('复制失败'),
+    () => ElMessage.success(t('admin.copied_to_clipboard')),
+    () => ElMessage.error(t('admin.copy_failed')),
   );
 };
 </script>
@@ -166,20 +168,20 @@ const copyToClipboard = (text: string) => {
         <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
           <button
 v-for="filter in [
-              { key: 'ALL', label: '所有激活码', count: activationCodes.length },
+              { key: 'ALL', label: $t('admin.all_activation_codes'), count: activationCodes.length },
               {
                 key: 'ACTIVE',
-                label: '未使用',
+                label: $t('admin.not_used'),
                 count: activationCodes.filter((c) => c.status === 'ACTIVE').length,
               },
               {
                 key: 'USED',
-                label: '已使用',
+                label: $t('admin.already_used'),
                 count: activationCodes.filter((c) => c.status === 'USED').length,
               },
               {
                 key: 'DISABLED',
-                label: '已失效',
+                label: $t('admin.expired'),
                 count: activationCodes.filter(
                   (c) => c.status !== 'ACTIVE' && c.status !== 'USED',
                 ).length,
@@ -207,7 +209,7 @@ v-for="filter in [
           <input
             v-model="codeSearchQuery"
             type="text"
-            placeholder="搜索激活码、计划或使用者..."
+            :placeholder="$t('admin.search_for_activation_codes')"
             class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-violet-500/20 outline-none text-[11px] shadow-sm"
             style="
               background-color: var(--bg-app);
@@ -295,7 +297,7 @@ v-for="filter in [
                   class="text-xs font-mono font-bold text-[var(--text-primary)] select-all"
                   >{{ c.code }}</code
                 >
-                <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all" title="复制激活码" @click="copyToClipboard(c.code)">
+                <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all" :title="$t('admin.copy_activation_code')" @click="copyToClipboard(c.code)">
                   <Copy class="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -317,10 +319,10 @@ v-for="filter in [
               {{ c.durationDays }} 天
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
-              {{ c.bindEmail || '无限制' }}
+              {{ c.bindEmail || $t('admin.unlimited_1') }}
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
-              {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '永久有效' }}
+              {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : $t('admin.valid_permanently') }}
             </td>
             <td
               class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)] max-w-[150px] truncate"
@@ -340,14 +342,14 @@ v-for="filter in [
                 "
               >
                 {{
-                  c.status === 'ACTIVE' ? '未使用' : c.status === 'USED' ? '已使用' : '已失效'
+                  c.status === 'ACTIVE' ? t('admin.not_used') : c.status === 'USED' ? t('admin.already_used') : $t('admin.expired')
                 }}
               </span>
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-[var(--text-secondary)]">
               <div v-if="c.usedBy">
                 <p class="font-bold text-[var(--text-primary)]">
-                  {{ c.usedBy.name || '已使用' }}
+                  {{ c.usedBy.name || $t('admin.already_used') }}
                 </p>
                 <p class="text-[9px] text-[var(--text-muted)]">{{ c.usedBy.email }}</p>
               </div>
@@ -357,7 +359,7 @@ v-for="filter in [
               {{ new Date(c.createdAt).toLocaleString() }}
             </td>
             <td class="px-4 sm:px-6 py-3.5 sm:py-4">
-              <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" title="删除" @click="handleDeleteCode(c)">
+              <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-rose-500 transition-all" :title="$t('admin.delete')" @click="handleDeleteCode(c)">
                 <Trash2 class="w-4 h-4" />
               </button>
             </td>
@@ -366,7 +368,7 @@ v-for="filter in [
             <td colspan="10" class="px-6 py-16 text-center">
               <div class="flex flex-col items-center gap-3 opacity-20">
                 <Ticket class="w-10 h-10" />
-                <p class="text-sm font-medium">暂无激活码记录</p>
+                <p class="text-sm font-medium">{{ $t('admin.no_activation_code_record') }}</p>
               </div>
             </td>
           </tr>
@@ -387,7 +389,7 @@ v-for="filter in [
               class="text-xs font-mono font-bold text-[var(--text-primary)] select-all truncate"
               >{{ c.code }}</code
             >
-            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all shrink-0" title="复制激活码" @click="copyToClipboard(c.code)">
+            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded text-slate-400 hover:text-accent transition-all shrink-0" :title="$t('admin.copy_activation_code')" @click="copyToClipboard(c.code)">
               <Copy class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -412,7 +414,7 @@ v-for="filter in [
               "
             >
               {{
-                c.status === 'ACTIVE' ? '未使用' : c.status === 'USED' ? '已使用' : '已失效'
+                c.status === 'ACTIVE' ? t('admin.not_used') : c.status === 'USED' ? t('admin.already_used') : $t('admin.expired')
               }}
             </span>
           </div>
@@ -422,34 +424,34 @@ v-for="filter in [
           class="grid grid-cols-4 gap-1.5 text-[9px] xs:text-[10px] border-t border-[var(--border-base)] pt-3 min-w-0"
         >
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">天数</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.days') }}</span>
             <span class="font-bold text-[var(--text-secondary)] truncate block"
-              >{{ c.durationDays }}天</span
+              >{{ $t('admin.c_durationdays_days') }}</span
             >
           </div>
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">绑定邮箱</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.bind_email') }}</span>
             <span
               class="font-bold text-[var(--text-secondary)] truncate block"
-              :title="c.bindEmail || '无限制'"
+              ::title="$t('admin.c_bindemail_unlimited')"
             >
-              {{ c.bindEmail || '无限制' }}
+              {{ c.bindEmail || $t('admin.unlimited_1') }}
             </span>
           </div>
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">过期时间</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.expiration_time') }}</span>
             <span class="font-bold text-[var(--text-secondary)] truncate block">
-              {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '永久有效' }}
+              {{ c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : $t('admin.valid_permanently') }}
             </span>
           </div>
           <div class="min-w-0">
-            <span class="text-[var(--text-muted)] block mb-0.5 truncate">生成时间</span>
+            <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{ $t('admin.generation_time') }}</span>
             <span class="font-bold text-[var(--text-secondary)] truncate block">
               {{ new Date(c.createdAt).toLocaleDateString() }}
             </span>
           </div>
           <div class="col-span-2 border-t border-[var(--border-base)] pt-2.5">
-            <span class="text-[var(--text-muted)] block mb-0.5">备注</span>
+            <span class="text-[var(--text-muted)] block mb-0.5">{{ $t('admin.remarks') }}</span>
             <p class="text-[var(--text-secondary)] text-xs line-clamp-2">
               {{ c.description || '-' }}
             </p>
@@ -458,10 +460,10 @@ v-for="filter in [
             v-if="c.usedBy"
             class="col-span-2 border-t border-[var(--border-base)] pt-2.5 min-w-0"
           >
-            <span class="text-[var(--text-muted)] block mb-0.5">使用者</span>
+            <span class="text-[var(--text-muted)] block mb-0.5">{{ $t('admin.user') }}</span>
             <div class="flex items-center gap-2 min-w-0">
               <span class="font-bold text-[var(--text-primary)] text-xs truncate">{{
-                c.usedBy.name || '已使用'
+                c.usedBy.name || $t('admin.already_used')
               }}</span>
               <span class="text-[var(--text-muted)] text-[10px] font-mono truncate"
                 >({{ c.usedBy.email }})</span
@@ -482,7 +484,7 @@ v-for="filter in [
       <div v-if="filteredCodes.length === 0" class="py-16 text-center">
         <div class="flex flex-col items-center gap-3 opacity-20">
           <Ticket class="w-10 h-10" />
-          <p class="text-sm font-medium">暂无激活码记录</p>
+          <p class="text-sm font-medium">{{ $t('admin.no_activation_code_record') }}</p>
         </div>
       </div>
     </div>
@@ -498,7 +500,7 @@ v-for="filter in [
           class="relative w-full max-w-md p-5 sm:p-8 rounded-3xl shadow-2xl space-y-6 bg-[var(--bg-card)] max-h-[85vh] overflow-y-auto scrollbar-hide"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">生成激活码</h3>
+            <h3 class="text-xl font-bold text-[var(--text-primary)]">{{ $t('admin.generate_activation_code') }}</h3>
             <button type="button" class="text-[var(--text-secondary)]" @click="showCodeDialog = false">
               <X class="w-5 h-5" />
             </button>
@@ -507,7 +509,7 @@ v-for="filter in [
           <!-- Plan Selection -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >订阅计划</label
+              >{{ $t('admin.subscription_plan') }}</label
             >
             <select
               v-model="codeForm.planId"
@@ -527,16 +529,16 @@ v-for="filter in [
           <!-- Duration Preset & Custom Days -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >卡片类型 / 持续时间</label
+              >{{ $t('admin.card_type_duration') }}</label
             >
             <div class="grid grid-cols-5 gap-2">
               <button
 v-for="preset in [
-                  { label: '月卡', value: '30' },
-                  { label: '季卡', value: '90' },
-                  { label: '半年', value: '180' },
-                  { label: '年卡', value: '365' },
-                  { label: '自定义', value: 'custom' },
+                  { label: $t('admin.monthly_card'), value: '30' },
+                  { label: $t('admin.season_card'), value: '90' },
+                  { label: $t('admin.half_a_year'), value: '180' },
+                  { label: $t('admin.annual_pass'), value: '365' },
+                  { label: $t('admin.customize'), value: 'custom' },
                 ]" :key="preset.value" type="button" class="py-2 text-[10px] font-bold rounded-xl border transition-all" :style="{
                   backgroundColor:
                     codeForm.durationPreset === preset.value
@@ -566,7 +568,7 @@ v-for="preset in [
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="请输入自定义天数，例如 15 天"
+                :placeholder="$t('admin.please_enter_a_custom')"
               />
             </div>
             <div v-else class="text-[10px] text-emerald-500 font-bold ml-1">
@@ -577,7 +579,7 @@ v-for="preset in [
           <!-- Code Prefix -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >激活码前缀 (可选)</label
+              >{{ $t('admin.activation_code_prefix_optional') }}</label
             >
             <input
               v-model="codeForm.prefix"
@@ -588,14 +590,14 @@ v-for="preset in [
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-              placeholder="如 'VIP'，格式将为 VIP-PLAN-XXXX..."
+              :placeholder="$t('admin.for_example_vip_the')"
             />
           </div>
 
           <!-- Bind Email -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >绑定邮箱限制 (可选)</label
+              >{{ $t('admin.bind_email_restrictions_optional') }}</label
             >
             <input
               v-model="codeForm.bindEmail"
@@ -606,14 +608,14 @@ v-for="preset in [
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-              placeholder="仅限指定邮箱用户兑换"
+              :placeholder="$t('admin.only_available_for_redemption')"
             />
           </div>
 
           <!-- Expiration Date -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >过期失效日期 (可选)</label
+              >{{ $t('admin.expiration_expiration_date_optional') }}</label
             >
             <input
               v-model="codeForm.expiresAt"
@@ -630,7 +632,7 @@ v-for="preset in [
           <!-- Description -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >使用备注 (可选)</label
+              >{{ $t('admin.usage_notes_optional') }}</label
             >
             <input
               v-model="codeForm.description"
@@ -641,14 +643,14 @@ v-for="preset in [
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-              placeholder="如 '活动赠送'、'测试激活码'"
+              :placeholder="$t('admin.such_as_activity_gift')"
             />
           </div>
 
           <!-- Quantity -->
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >生成数量</label
+              >{{ $t('admin.generate_quantity') }}</label
             >
             <input
               v-model.number="codeForm.quantity"
@@ -661,7 +663,7 @@ v-for="preset in [
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-              placeholder="如 5"
+              :placeholder="$t('admin.such_as_5')"
             />
           </div>
 
@@ -676,7 +678,7 @@ v-for="preset in [
                 ></div>
                 生成中...
               </template>
-              <template v-else> 生成激活码 </template>
+              <template v-else> {{ $t('admin.generate_activation_code') }} </template>
             </button>
           </div>
         </div>

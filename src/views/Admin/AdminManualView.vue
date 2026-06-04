@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -28,7 +30,6 @@ import {
   RefreshCw,
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
-import { getPlanName } from '@/utils/plans';
 import { getApiErrorMessage } from '@/utils/error';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 
@@ -123,8 +124,8 @@ const categoryForm = ref({
 });
 
 const statusLabels: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: '启用', color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
-  DISABLED: { label: '禁用', color: 'text-rose-500 bg-rose-50 dark:bg-rose-500/10' },
+  ACTIVE: { label: t('admin.enable'), color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
+  DISABLED: { label: t('admin.disable'), color: 'text-rose-500 bg-rose-50 dark:bg-rose-500/10' },
 };
 
 const formData = ref({
@@ -171,7 +172,7 @@ async function fetchStations() {
     const res = await api.get('/api/manual/stations');
     stations.value = res.data;
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '拉取数据失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.failed_to_pull_data')));
   } finally {
     isLoading.value = false;
   }
@@ -180,11 +181,11 @@ async function fetchStations() {
 async function createStation() {
   try {
     await api.post('/api/admin/manual/stations', formData.value);
-    ElMessage.success('手动资源站创建成功');
+    ElMessage.success(t('admin.manual_resource_station_created'));
     showCreateDialog.value = false;
     await fetchStations();
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '创建失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.creation_failed')));
   }
 }
 
@@ -192,34 +193,34 @@ async function updateStation() {
   if (!editingStation.value) return;
   try {
     await api.put(`/api/admin/manual/stations/${editingStation.value.id}`, formData.value);
-    ElMessage.success('更新成功');
+    ElMessage.success(t('admin.update_successful'));
     showEditDialog.value = false;
     await fetchStations();
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '更新失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.update_failed')));
   }
 }
 
 async function deleteStation(station: ManualStation) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除资源站「${station.displayName}」吗？\n\n⚠️ 此操作将彻底删除此站点下所有手动上传的分类、资源以及相关的用户评论与点赞！\n\n此操作不可恢复！`,
-      '确认删除手动资源站',
+      t('admin.are_you_sure_you_11', { stationdisplayName: station.displayName }),
+      t('admin.confirm_deletion_of_manual'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       }
     );
     await api.delete(`/api/admin/manual/stations/${station.id}`);
-    ElMessage.success('资源站删除成功');
+    ElMessage.success(t('admin.resource_site_deleted_successfully'));
     if (expandedStationId.value === station.id) {
       expandedStationId.value = null;
     }
     await fetchStations();
   } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(e, '删除失败'));
+      ElMessage.error(getApiErrorMessage(e, t('admin.delete_failed')));
     }
   }
 }
@@ -273,7 +274,7 @@ async function fetchStationResources(stationId: string) {
     resourceTotal.value = res.data.total;
     resourceTotalPages.value = res.data.totalPages;
   } catch (_e) {
-    ElMessage.error('拉取资源失败');
+    ElMessage.error(t('admin.failed_to_pull_resources'));
   } finally {
     isLoadingResources.value = false;
   }
@@ -341,17 +342,17 @@ function openEditResource(resource: ManualResource) {
 const isSaving = ref(false);
 const showSettingsSidebar = ref(true);
 
-const charCount = computed(() => resourceForm.value.contentHtml?.length || 0);
-const lineCount = computed(() => {
-  const content = resourceForm.value.contentHtml || '';
-  return content ? content.split('\n').length : 0;
-});
+// const charCount = computed(() => resourceForm.value.contentHtml?.length || 0);
+// const lineCount = computed(() => {
+//   const content = resourceForm.value.contentHtml || '';
+//   return content ? content.split('\n').length : 0;
+// });
 
 async function saveResource() {
   if (!expandedStationId.value) return;
   
   if (!resourceForm.value.title) {
-    ElMessage.warning('请输入资源标题');
+    ElMessage.warning(t('admin.please_enter_a_resource'));
     return;
   }
 
@@ -361,10 +362,10 @@ async function saveResource() {
   try {
     if (isEditingResource.value && editingResource.value) {
       await api.put(`/api/admin/manual/resources/${editingResource.value.id}`, resourceForm.value);
-      ElMessage.success('更新资源成功');
+      ElMessage.success(t('admin.update_resource_successfully'));
     } else {
       await api.post(`/api/admin/manual/stations/${expandedStationId.value}/resources`, resourceForm.value);
-      ElMessage.success('创建资源成功');
+      ElMessage.success(t('admin.resource_created_successfully'));
     }
     showResourceDialog.value = false;
     await Promise.all([
@@ -372,7 +373,7 @@ async function saveResource() {
       fetchStations()
     ]);
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '操作资源失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.failed_to_operate_resource')));
   } finally {
     isSaving.value = false;
   }
@@ -383,23 +384,23 @@ async function deleteResource(resource: ManualResource) {
 
   try {
     await ElMessageBox.confirm(
-      `确定要删除资源「${resource.title}」吗？`,
-      '确认删除资源',
+      t('admin.are_you_sure_you_10', { resourcetitle: resource.title }),
+      t('admin.confirm_resource_deletion'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       }
     );
     await api.delete(`/api/admin/manual/resources/${resource.id}`);
-    ElMessage.success('资源删除成功');
+    ElMessage.success(t('admin.resource_deleted_successfully'));
     await Promise.all([
       fetchStationResources(expandedStationId.value),
       fetchStations()
     ]);
   } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error('删除资源失败');
+      ElMessage.error(t('admin.failed_to_delete_resource'));
     }
   }
 }
@@ -510,22 +511,22 @@ async function saveCategory() {
   if (!expandedStationId.value) return;
 
   if (!categoryForm.value.name) {
-    ElMessage.warning('请输入分类名称');
+    ElMessage.warning(t('admin.please_enter_the_category'));
     return;
   }
 
   try {
     if (isEditingCategory.value && editingCategory.value) {
       await api.put(`/api/admin/manual/categories/${editingCategory.value.id}`, categoryForm.value);
-      ElMessage.success('更新分类成功');
+      ElMessage.success(t('admin.classification_updated_successfully_1'));
     } else {
       await api.post(`/api/admin/manual/stations/${expandedStationId.value}/categories`, categoryForm.value);
-      ElMessage.success('创建分类成功');
+      ElMessage.success(t('admin.classification_created_successfully'));
     }
     showCategoryDialog.value = false;
     await fetchStationCategories(expandedStationId.value);
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '操作分类失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.operation_classification_failed')));
   }
 }
 
@@ -534,20 +535,20 @@ async function deleteCategory(category: ManualCategory) {
 
   try {
     await ElMessageBox.confirm(
-      `确定要删除分类「${category.name}」吗？\n\n⚠️ 删除分类不会删除其项下的资源（它们会转为未分类状态）。`,
-      '确认删除分类',
+      t('admin.are_you_sure_you_6', { categoryname: category.name }),
+      t('admin.confirm_category_deletion'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       }
     );
     await api.delete(`/api/admin/manual/categories/${category.id}`);
-    ElMessage.success('分类删除成功');
+    ElMessage.success(t('admin.category_deleted_successfully'));
     await fetchStationCategories(expandedStationId.value);
   } catch (e: unknown) {
     if (e !== 'cancel') {
-      ElMessage.error('删除分类失败');
+      ElMessage.error(t('admin.failed_to_delete_category'));
     }
   }
 }
@@ -567,19 +568,19 @@ watch(
 
     // 1. 常见 3D 资产领域分类词汇智能英译映射
     const cnMap: Record<string, string> = {
-      '3d模型': '3d-models',
-      '模型': 'models',
-      '贴图': 'textures',
-      '材质': 'materials',
-      '教程': 'courses',
-      '课程': 'courses',
-      '视频教程': 'video-courses',
-      '插件': 'plugins',
-      '软件': 'software',
-      '预设': 'presets',
-      '平面': 'design',
-      '摄影': 'photography',
-      '插画': 'illustrations',
+      [t('admin.3d_model_1')]: '3d-models',
+      [t('admin.model')]: 'models',
+      [t('admin.stickers')]: 'textures',
+      [t('admin.material')]: 'materials',
+      [t('admin.tutorial')]: 'courses',
+      [t('admin.courses')]: 'courses',
+      [t('admin.video_tutorial')]: 'video-courses',
+      [t('admin.plug_in')]: 'plugins',
+      [t('admin.software')]: 'software',
+      [t('admin.default_1')]: 'presets',
+      [t('admin.plane')]: 'design',
+      [t('admin.photography')]: 'photography',
+      [t('admin.illustration')]: 'illustrations',
     };
 
     // 检索是否包含关键词，若是则智能匹配预设英文标识
@@ -613,7 +614,7 @@ const handleIconUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 5 * 1024 * 1024) {
-    return ElMessage.warning('图标图片大小不能超过 5MB');
+    return ElMessage.warning(t('admin.icon_image_size_cannot'));
   }
 
   try {
@@ -622,10 +623,10 @@ const handleIconUpload = async (event: Event) => {
     formDataObj.append('manual_image', file);
     const { data } = await api.post('/api/admin/manual/upload', formDataObj);
     formData.value.iconUrl = data.url;
-    ElMessage.success('图标上传成功');
+    ElMessage.success(t('admin.icon_uploaded_successfully'));
   } catch (error: unknown) {
     console.error('Icon upload error:', error);
-    ElMessage.error(getApiErrorMessage(error, '图标上传失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.icon_upload_failed')));
   } finally {
     isUploadingIcon.value = false;
     target.value = '';
@@ -639,7 +640,7 @@ const handleThumbnailUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 5 * 1024 * 1024) {
-    return ElMessage.warning('预览图大小不能超过 5MB');
+    return ElMessage.warning(t('admin.preview_image_size_cannot'));
   }
 
   try {
@@ -648,10 +649,10 @@ const handleThumbnailUpload = async (event: Event) => {
     formDataObj.append('manual_image', file);
     const { data } = await api.post('/api/admin/manual/upload', formDataObj);
     resourceForm.value.thumbnailUrl = data.url;
-    ElMessage.success('预览图上传成功');
+    ElMessage.success(t('admin.preview_image_uploaded_successfully'));
   } catch (error: unknown) {
     console.error('Thumbnail upload error:', error);
-    ElMessage.error(getApiErrorMessage(error, '预览图上传失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.preview_upload_failed')));
   } finally {
     isUploadingThumbnail.value = false;
     target.value = '';
@@ -664,15 +665,15 @@ const parsedNetdisk = computed(() => {
   if (!url) return null;
   
   if (url.includes('quark.cn')) {
-    return { name: '夸克网盘', color: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-800/30' };
+    return { name: t('admin.quark_network_disk'), color: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-800/30' };
   } else if (url.includes('baidu.com')) {
-    return { name: '百度网盘', color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800/30' };
+    return { name: t('admin.baidu_skydisk'), color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800/30' };
   } else if (url.includes('alipan.com') || url.includes('aliyundrive.com')) {
-    return { name: '阿里云盘', color: 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-800/30' };
+    return { name: t('admin.alibaba_cloud_disk'), color: 'text-orange-500 bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-800/30' };
   } else if (url.includes('123pan.com')) {
-    return { name: '123云盘', color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-800/30' };
+    return { name: t('admin.123_cloud_disk'), color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-800/30' };
   }
-  return { name: '通用链接', color: 'text-slate-500 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-800/30' };
+  return { name: t('admin.universal_link'), color: 'text-slate-500 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-800/30' };
 });
 
 function handleEditorKeydown(e: KeyboardEvent) {
@@ -754,11 +755,11 @@ onUnmounted(() => {
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreate">
             <Plus class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">创建手动资源站</span>
+            <span class="hidden sm:inline">{{ $t('admin.create_a_manual_resource') }}</span>
           </button>
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchStations">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
         </div>
       </div>
@@ -772,9 +773,9 @@ onUnmounted(() => {
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
 v-for="filter in [
-                { key: 'ALL', label: '所有站点', count: stations.length, color: 'indigo', icon: Database },
-                { key: 'ACTIVE', label: '启用中', count: stations.filter(s => s.status === 'ACTIVE').length, color: 'emerald', icon: Check },
-                { key: 'DISABLED', label: '已禁用', count: stations.filter(s => s.status === 'DISABLED').length, color: 'rose', icon: X }
+                { key: 'ALL', label: $t('admin.all_sites'), count: stations.length, color: 'indigo', icon: Database },
+                { key: 'ACTIVE', label: $t('admin.activating'), count: stations.filter(s => s.status === 'ACTIVE').length, color: 'emerald', icon: Check },
+                { key: 'DISABLED', label: $t('admin.disabled'), count: stations.filter(s => s.status === 'DISABLED').length, color: 'rose', icon: X }
               ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
                 statusFilter === filter.key
                   ? filter.key === 'ACTIVE'
@@ -798,7 +799,7 @@ v-for="filter in [
             <input
               v-model="stationSearchQuery"
               type="text"
-              placeholder="按名称或显示名搜索站点..."
+              :placeholder="$t('admin.search_sites_by_name')"
               class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -820,7 +821,7 @@ v-for="filter in [
         <!-- Loading State -->
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
           <Loader2 class="w-10 h-10 text-cyan-500 animate-spin" />
-          <span class="text-slate-400 text-xs tracking-widest uppercase">载入数据中...</span>
+          <span class="text-slate-400 text-xs tracking-widest uppercase">{{ $t('admin.loading_data') }}</span>
         </div>
 
         <!-- Empty State -->
@@ -829,8 +830,8 @@ v-for="filter in [
           class="flex flex-col items-center justify-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl"
         >
           <Database class="w-12 h-12 text-slate-300 dark:text-slate-700 mb-4" />
-          <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-400">暂无手动资源站</h3>
-          <p class="text-xs text-slate-400 mt-1 mb-6">点击右上角按钮创建您的第一个独立手动资源下载站</p>
+          <h3 class="text-sm font-semibold text-slate-600 dark:text-slate-400">{{ $t('admin.there_is_currently_no') }}</h3>
+          <p class="text-xs text-slate-400 mt-1 mb-6">{{ $t('admin.click_the_button_in') }}</p>
           <button type="button" class="px-4 py-2 border border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/5 rounded-xl text-xs transition-colors" @click="openCreate">
             立即创建
           </button>
@@ -865,11 +866,11 @@ v-for="filter in [
                   {{ statusLabels[station.status]?.label || station.status }}
                 </span>
                 <span class="text-[10px] bg-cyan-500/10 text-cyan-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Lock class="w-3 h-3" /> {{ station.minPlanPriority === 0 ? '全员免费' : `${getPlanName(station.minPlanPriority)}及以上` }}
+                  <Lock class="w-3 h-3" /> {{ station.minPlanPriority === 0 ? [t('admin.free_for_all')]: $t('admin.getplanname_station_minplanpriority_and') }}
                 </span>
               </div>
               <p class="text-xs text-slate-400 line-clamp-2 pr-6">
-                {{ station.description || '暂无描述信息...' }}
+                {{ station.description || $t('admin.no_description_yet') }}
               </p>
             </div>
           </div>
@@ -878,19 +879,19 @@ v-for="filter in [
           <div class="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800/60 pt-4 md:pt-0">
             <div class="flex gap-4 items-center">
               <div class="text-left md:text-right shrink-0">
-                <div class="text-xs text-slate-400">总资源数</div>
+                <div class="text-xs text-slate-400">{{ $t('admin.total_resources') }}</div>
                 <div class="text-base font-bold text-slate-700 dark:text-slate-300 font-mono">{{ station.totalResources }}</div>
               </div>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
               <button type="button" class="px-4 py-2 border rounded-xl text-xs font-medium transition-all" :class="expandedStationId === station.id ? 'bg-cyan-500 text-white border-cyan-500' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'" @click="handleExpandStation(station.id)">
-                {{ expandedStationId === station.id ? '收起面板' : '管理分类/资源' }}
+                {{ expandedStationId === station.id ? [t('admin.collapse_panel')]: $t('admin.manage_categories_resources') }}
               </button>
-              <button type="button" class="p-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl transition-colors" title="编辑基本信息" @click="openEdit(station)">
+              <button type="button" class="p-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl transition-colors" :title="$t('admin.edit_basic_information')" @click="openEdit(station)">
                 <Edit3 class="w-4 h-4" />
               </button>
-              <button type="button" class="p-2 border border-rose-200/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-xl transition-colors" title="删除资源站" @click="deleteStation(station)">
+              <button type="button" class="p-2 border border-rose-200/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-xl transition-colors" :title="$t('admin.delete_resource_site')" @click="deleteStation(station)">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -930,7 +931,7 @@ v-for="filter in [
                 <input
                   v-model="resourceSearch"
                   type="text"
-                  placeholder="输入关键字回车检索..."
+                  :placeholder="$t('admin.enter_keyword_and_press')"
                   class="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60"
                   @keydown.enter="handleResourceSearch"
                 />
@@ -940,7 +941,7 @@ v-for="filter in [
                 class="px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 min-w-[150px]"
                 @change="handleCategoryFilterChange"
               >
-                <option :value="null">所有分类</option>
+                <option :value="null">{{ $t('admin.all_categories_1') }}</option>
                 <option v-for="cat in formattedManualCategories" :key="cat.id" :value="cat.id">
                   {{ cat.name }}
                 </option>
@@ -958,7 +959,7 @@ v-for="filter in [
               class="flex flex-col items-center justify-center py-12 bg-white dark:bg-slate-900/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl"
             >
               <FileText class="w-8 h-8 text-slate-300 mb-2" />
-              <p class="text-xs text-slate-400">在此资源站中未检索到任何资源...</p>
+              <p class="text-xs text-slate-400">{{ $t('admin.no_resources_were_retrieved') }}</p>
             </div>
 
             <!-- Resources List -->
@@ -986,7 +987,7 @@ v-for="filter in [
                     </h4>
                     <div class="flex items-center gap-2 text-[10px] text-slate-400">
                       <span class="font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 px-1.5 py-0.2 rounded">
-                        {{ res.category?.name || '未分类' }}
+                        {{ res.category?.name || $t('admin.uncategorized') }}
                       </span>
                       <span class="flex items-center gap-0.5"><Eye class="w-3 h-3" /> {{ res.viewCount }}</span>
                       <span class="flex items-center gap-0.5"><Calendar class="w-3 h-3" /> {{ new Date(res.createdAt).toLocaleDateString() }}</span>
@@ -995,10 +996,10 @@ v-for="filter in [
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
-                  <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40" title="编辑资源" @click="openEditResource(res)">
+                  <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40" :title="$t('admin.edit_resources')" @click="openEditResource(res)">
                     <Edit3 class="w-3.5 h-3.5" />
                   </button>
-                  <button type="button" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20" title="删除资源" @click="deleteResource(res)">
+                  <button type="button" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20" :title="$t('admin.delete_resources')" @click="deleteResource(res)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1006,7 +1007,7 @@ v-for="filter in [
 
               <!-- Pagination Footer -->
               <div v-if="resourceTotalPages > 1" class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2">
-                <span class="text-[10px] text-slate-400">显示 {{ (resourcePage - 1) * resourcePageSize + 1 }} 到 {{ Math.min(resourcePage * resourcePageSize, resourceTotal) }}，共 {{ resourceTotal }} 个资源</span>
+                <span class="text-[10px] text-slate-400">{{ $t('admin.showing_resourcepage_1_resourcepagesize') }}</span>
                 <div class="flex items-center gap-2">
                   <button type="button" :disabled="resourcePage === 1" class="p-1.5 border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40" @click="handlePageChange(resourcePage - 1)">
                     <ChevronLeft class="w-4 h-4" />
@@ -1027,7 +1028,7 @@ v-for="filter in [
               class="flex flex-col items-center justify-center py-10 bg-white dark:bg-slate-900/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl"
             >
               <Layers class="w-8 h-8 text-slate-300 mb-2" />
-              <p class="text-xs text-slate-400">此资源站暂未配置任何分类...</p>
+              <p class="text-xs text-slate-400">{{ $t('admin.this_resource_site_has') }}</p>
             </div>
 
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1046,7 +1047,7 @@ v-for="filter in [
                       子分类 (父: {{ getParentCategoryName(cat) }})
                     </span>
                   </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5">排序权重: {{ cat.order || 0 }}</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">{{ $t('admin.sorting_weight_cat_order') }}</div>
                 </div>
 
                 <div class="flex items-center gap-1.5">
@@ -1067,44 +1068,44 @@ v-for="filter in [
     <!-- DIALOG: CREATE MANUAL STATION -->
     <el-dialog
       v-model="showCreateDialog"
-      title="创建手动资源站"
+      :title="$t('admin.create_a_manual_resource')"
       width="500px"
       custom-class="premium-dialog"
       :before-close="resetForm"
     >
       <div class="space-y-4 py-2">
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">英文标识 (字母/下划线，作为路由唯一标识)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.english_logo_letters_underscores') }}</label>
           <input
             v-model="formData.name"
             type="text"
-            placeholder="如: c4d_assets"
+            :placeholder="$t('admin.such_as_c4d_assets')"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           />
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">显示名称</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.display_name') }}</label>
           <input
             v-model="formData.displayName"
             type="text"
-            placeholder="如: Cinema 4D 手动资源站"
+            :placeholder="$t('admin.such_as_cinema_4d')"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           />
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">会员限制</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.membership_restrictions') }}</label>
           <select
             v-model="formData.minPlanPriority"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           >
-            <option :value="0">免费用户及以上 (无限制)</option>
-            <option :value="1">标准会员及以上</option>
-            <option :value="2">专业会员及以上</option>
-            <option :value="3">钻石会员及以上</option>
+            <option :value="0">{{ $t('admin.free_users_and_above') }}</option>
+            <option :value="1">{{ $t('admin.standard_member_and_above') }}</option>
+            <option :value="2">{{ $t('admin.professional_member_and_above') }}</option>
+            <option :value="3">{{ $t('admin.diamond_members_and_above') }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
-          <label class="text-xs font-semibold text-slate-500">站点图标 (推荐 1:1 比例)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.site_icon_1_1') }}</label>
           <div class="flex items-center gap-4">
             <div
               class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
@@ -1122,7 +1123,7 @@ v-for="filter in [
               <input
                 v-model="formData.iconUrl"
                 type="text"
-                placeholder="或者输入网络图标 URL"
+                :placeholder="$t('admin.or_enter_the_web')"
                 class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
               />
               <p class="text-[10px] text-slate-400 leading-none">
@@ -1132,11 +1133,11 @@ v-for="filter in [
           </div>
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">描述信息</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.description_information') }}</label>
           <textarea
             v-model="formData.description"
             rows="3"
-            placeholder="对本资源站点的精品资源做个简要的介绍..."
+            :placeholder="$t('admin.give_a_brief_introduction')"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           ></textarea>
         </div>
@@ -1156,14 +1157,14 @@ v-for="filter in [
     <!-- DIALOG: EDIT MANUAL STATION -->
     <el-dialog
       v-model="showEditDialog"
-      title="编辑手动资源站"
+      :title="$t('admin.edit_manual_resource_site')"
       width="500px"
       custom-class="premium-dialog"
       :before-close="resetForm"
     >
       <div class="space-y-4 py-2">
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">英文标识 (作为唯一标识路由，不建议修改)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.english_logo_as_the') }}</label>
           <input
             v-model="formData.name"
             type="text"
@@ -1171,7 +1172,7 @@ v-for="filter in [
           />
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">显示名称</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.display_name') }}</label>
           <input
             v-model="formData.displayName"
             type="text"
@@ -1179,29 +1180,29 @@ v-for="filter in [
           />
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">状态</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.status') }}</label>
           <select
             v-model="formData.status"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           >
-            <option value="ACTIVE">启用</option>
-            <option value="DISABLED">禁用</option>
+            <option value="ACTIVE">{{ $t('admin.enable') }}</option>
+            <option value="DISABLED">{{ $t('admin.disable') }}</option>
           </select>
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">会员限制</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.membership_restrictions') }}</label>
           <select
             v-model="formData.minPlanPriority"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           >
-            <option :value="0">免费用户及以上 (无限制)</option>
-            <option :value="1">标准会员及以上</option>
-            <option :value="2">专业会员及以上</option>
-            <option :value="3">钻石会员及以上</option>
+            <option :value="0">{{ $t('admin.free_users_and_above') }}</option>
+            <option :value="1">{{ $t('admin.standard_member_and_above') }}</option>
+            <option :value="2">{{ $t('admin.professional_member_and_above') }}</option>
+            <option :value="3">{{ $t('admin.diamond_members_and_above') }}</option>
           </select>
         </div>
         <div class="space-y-1.5">
-          <label class="text-xs font-semibold text-slate-500">站点图标 (推荐 1:1 比例)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.site_icon_1_1') }}</label>
           <div class="flex items-center gap-4">
             <div
               class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
@@ -1219,7 +1220,7 @@ v-for="filter in [
               <input
                 v-model="formData.iconUrl"
                 type="text"
-                placeholder="或者输入网络图标 URL"
+                :placeholder="$t('admin.or_enter_the_web')"
                 class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
               />
               <p class="text-[10px] text-slate-400 leading-none">
@@ -1229,7 +1230,7 @@ v-for="filter in [
           </div>
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">描述信息</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.description_information') }}</label>
           <textarea
             v-model="formData.description"
             rows="3"
@@ -1269,10 +1270,10 @@ v-for="filter in [
             </button>
             <div class="min-w-0">
               <div class="text-sm font-bold text-[var(--text-primary)] truncate">
-                {{ isEditingResource ? '编辑精品资源' : '发布精品资源' }}
+                {{ isEditingResource ? [t('admin.edit_quality_resources')]: $t('admin.publish_high_quality_resources') }}
               </div>
               <p class="text-[10px] text-[var(--text-muted)] truncate">
-                {{ stations.find(s => s.id === expandedStationId)?.displayName || '资源站' }}
+                {{ stations.find(s => s.id === expandedStationId)?.displayName || $t('admin.resource_station') }}
               </p>
             </div>
           </div>
@@ -1282,17 +1283,17 @@ v-for="filter in [
             <el-radio-group v-model="previewMode" size="small" class="preview-mode-toggle">
               <el-radio-button value="edit">
                 <div class="flex items-center gap-1.5 px-2">
-                  <Edit3 class="w-3.5 h-3.5" /> <span>编辑</span>
+                  <Edit3 class="w-3.5 h-3.5" /> <span>{{ $t('admin.edit') }}</span>
                 </div>
               </el-radio-button>
               <el-radio-button value="live">
                 <div class="flex items-center gap-1.5 px-2">
-                  <Layout class="w-3.5 h-3.5" /> <span>实时</span>
+                  <Layout class="w-3.5 h-3.5" /> <span>{{ $t('admin.real_time') }}</span>
                 </div>
               </el-radio-button>
               <el-radio-button value="preview">
                 <div class="flex items-center gap-1.5 px-2">
-                  <Eye class="w-3.5 h-3.5" /> <span>预览</span>
+                  <Eye class="w-3.5 h-3.5" /> <span>{{ $t('admin.preview') }}</span>
                 </div>
               </el-radio-button>
             </el-radio-group>
@@ -1319,7 +1320,7 @@ type="button" class="p-2 rounded-xl border transition-all cursor-pointer flex it
                 : 'border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5'" @click="showSettingsSidebar = !showSettingsSidebar">
               <PanelRightOpen v-if="!showSettingsSidebar" class="w-4 h-4" />
               <PanelRightClose v-else class="w-4 h-4" />
-              <span class="hidden md:inline">设置</span>
+              <span class="hidden md:inline">{{ $t('admin.settings') }}</span>
             </button>
 
             <button
@@ -1328,7 +1329,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                 : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 hover:-translate-y-0.5'" @click="saveResource">
               <Loader2 v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
               <Check v-else class="w-3.5 h-3.5" />
-              {{ isSaving ? '保存中...' : '保存并发布' }}
+              {{ isSaving ? [t('admin.saving')]: $t('admin.save_and_publish') }}
             </button>
           </div>
         </header>
@@ -1339,7 +1340,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
           <div class="flex-1 overflow-y-auto custom-scrollbar">
             <div class="max-w-5xl mx-auto px-3 md:px-6 pb-16 pt-6 md:pt-10">
               <div class="bg-[var(--bg-card)] border border-[var(--border-base)] shadow-sm rounded-2xl min-h-[70vh] px-5 md:px-12 py-6 md:py-12 transition-all duration-300">
-                <el-input v-model="resourceForm.title" placeholder="请输入资源标题" class="editor-modern-title mb-6" />
+                <el-input v-model="resourceForm.title" :placeholder="$t('admin.please_enter_a_resource')" class="editor-modern-title mb-6" />
                 <div class="w-16 h-0.5 bg-gradient-to-r from-cyan-500/40 to-transparent rounded-full mb-6"></div>
                 <MarkdownEditor
                   v-model="resourceForm.contentHtml"
@@ -1348,7 +1349,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                   :auto-focus="true"
                   :preview="previewMode === 'live'"
                   :preview-only="previewMode === 'preview'"
-                  placeholder="编写资源的详细介绍与使用指南，支持 Markdown 排版、图片、表格及代码高亮..."
+                  :placeholder="$t('admin.detailed_introduction_and_usage')"
                   upload-url="/api/admin/manual/upload"
                   upload-field="manual_image"
                 />
@@ -1379,8 +1380,8 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                   <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></span>
                   所属分类
                 </label>
-                <el-select v-model="resourceForm.categoryId" placeholder="选择分类" size="small" class="w-full">
-                  <el-option label="暂无分类" value="" />
+                <el-select v-model="resourceForm.categoryId" :placeholder="$t('admin.select_category')" size="small" class="w-full">
+                  <el-option :label="$t('admin.no_classification_yet')" value="" />
                   <el-option v-for="cat in formattedManualCategories" :key="cat.id" :label="cat.name" :value="cat.id" />
                 </el-select>
               </div>
@@ -1391,12 +1392,12 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                   <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
                   资源类型
                 </label>
-                <el-select v-model="resourceForm.resourceType" placeholder="选择类型" size="small" class="w-full">
-                  <el-option label="课程/教程" value="COURSE" />
-                  <el-option label="3D模型" value="MODEL" />
-                  <el-option label="材质贴图" value="MATERIAL" />
-                  <el-option label="软件插件" value="SOFTWARE" />
-                  <el-option label="其它资源" value="OTHER" />
+                <el-select v-model="resourceForm.resourceType" :placeholder="$t('admin.select_type')" size="small" class="w-full">
+                  <el-option :label="$t('admin.courses_tutorials')" value="COURSE" />
+                  <el-option :label="$t('admin.3d_model')" value="MODEL" />
+                  <el-option :label="$t('admin.material_map')" value="MATERIAL" />
+                  <el-option :label="$t('admin.software_plug_in')" value="SOFTWARE" />
+                  <el-option :label="$t('admin.other_resources')" value="OTHER" />
                 </el-select>
               </div>
 
@@ -1428,7 +1429,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                   <img v-if="resourceForm.thumbnailUrl" alt="" :src="getAssetUrl(resourceForm.thumbnailUrl)" class="w-full h-full object-cover" />
                   <div v-else class="flex flex-col items-center justify-center p-2 text-center space-y-1 pointer-events-none">
                     <Upload class="w-5 h-5 text-slate-400" />
-                    <span class="text-[10px] text-slate-400">点击上传封面图片</span>
+                    <span class="text-[10px] text-slate-400">{{ $t('admin.click_to_upload_cover') }}</span>
                     <span class="text-[8px] text-slate-400">PNG/JPG/WebP &lt; 5MB</span>
                   </div>
                   
@@ -1440,7 +1441,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                 </div>
                 <el-input
                   v-model="resourceForm.thumbnailUrl"
-                  placeholder="或者输入网络图片 URL"
+                  :placeholder="$t('admin.or_enter_the_web_1')"
                   size="small"
                   class="mt-2"
                 />
@@ -1452,8 +1453,8 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                   <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
                   资源标签
                 </label>
-                <el-input v-model="resourceForm.tags" placeholder="C4D, 材质包, 渲染器" size="small" />
-                <p class="text-[10px] text-[var(--text-muted)] mt-1">多个标签用英文逗号隔开</p>
+                <el-input v-model="resourceForm.tags" :placeholder="$t('admin.c4d_material_pack_renderer')" size="small" />
+                <p class="text-[10px] text-[var(--text-muted)] mt-1">{{ $t('admin.separate_multiple_tags_with') }}</p>
               </div>
 
               <!-- Description -->
@@ -1466,7 +1467,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
                   v-model="resourceForm.description"
                   type="textarea"
                   :rows="3"
-                  placeholder="对此资源的精品特征做简明阐述..."
+                  :placeholder="$t('admin.a_brief_explanation_of')"
                   size="small"
                 />
               </div>
@@ -1493,8 +1494,8 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
             </span>
           </div>
           <div class="flex items-center gap-4 text-[10px] font-medium text-[var(--text-muted)]">
-            <span>{{ charCount }} 字符</span>
-            <span class="hidden sm:inline">{{ lineCount }} 行</span>
+            <span>{{ $t('admin.charcount_characters') }}</span>
+            <span class="hidden sm:inline">{{ $t('admin.linecount_lines') }}</span>
           </div>
         </footer>
       </div>
@@ -1503,27 +1504,27 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
     <!-- DIALOG: MANAGE CATEGORY -->
     <el-dialog
       v-model="showCategoryDialog"
-      :title="isEditingCategory ? '编辑分类名称' : '添加资源分类'"
+      ::title="$t('admin.iseditingcategory_editing_category_name')"
       width="400px"
       custom-class="premium-dialog"
     >
       <div class="space-y-4 py-2">
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">分类显示名称</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.category_display_name') }}</label>
           <input
             v-model="categoryForm.name"
             type="text"
-            placeholder="如: 精品材质包"
+            :placeholder="$t('admin.such_as_premium_texture')"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           />
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">父级分类 (可选，用于侧边栏分组)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.parent_category_optional_used') }}</label>
           <select
             v-model="categoryForm.parentId"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none text-slate-600 dark:text-slate-300"
           >
-            <option :value="null">无 (作为一级分类/大类)</option>
+            <option :value="null">{{ $t('admin.none_as_a_first') }}</option>
             <option
               v-for="cat in parentCategoryOptions"
               :key="cat.id"
@@ -1534,7 +1535,7 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
           </select>
         </div>
         <div v-if="!categoryForm.parentId && eligibleSubcategories.length > 0" class="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 mt-1">
-          <label class="text-xs font-semibold text-slate-500 block">分配子分类 (从现有分类中选择归属于本大类)</label>
+          <label class="text-xs font-semibold text-slate-500 block">{{ $t('admin.assign_subcategories_select_from') }}</label>
           <div class="max-h-36 overflow-y-auto border border-slate-200/60 dark:border-slate-800/80 rounded-xl p-2.5 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5 scrollbar-hide">
             <div
               v-for="cat in eligibleSubcategories"
@@ -1558,16 +1559,16 @@ type="button" :disabled="isSaving" class="px-4 py-2 rounded-xl text-xs font-bold
           </div>
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">Slug 缩写 (可选，如: materials)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.slug_abbreviation_optional_such') }}</label>
           <input
             v-model="categoryForm.slug"
             type="text"
-            placeholder="用于路由辅助缩写..."
+            :placeholder="$t('admin.used_for_routing_auxiliary')"
             class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           />
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-500">排序权重 (小号排在前面)</label>
+          <label class="text-xs font-semibold text-slate-500">{{ $t('admin.sorting_weight_small_number') }}</label>
           <input
             v-model="categoryForm.order"
             type="number"

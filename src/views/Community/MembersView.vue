@@ -10,6 +10,7 @@ import {
   Circle,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
@@ -21,8 +22,10 @@ import type { User } from '@/types';
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
+
 const searchQuery = ref('');
-const activeFilter = ref('全部');
+const activeFilter = ref('all');
 const members = ref<User[]>([]);
 const isLoading = ref(false);
 
@@ -46,11 +49,12 @@ onMounted(async () => {
   }
 });
 
-const filters = ['全部', 'ADMIN', 'USER'];
-const roleLabels: Record<string, string> = {
-  ADMIN: '管理员',
-  USER: '学习者',
-};
+const filters = ['all', 'ADMIN', 'USER'];
+const roleLabels = computed<Record<string, string>>(() => ({
+  all: t('members.all'),
+  ADMIN: t('members.roleAdmin'),
+  USER: t('members.roleUser'),
+}));
 
 const fetchMembers = async () => {
   isLoading.value = true;
@@ -58,7 +62,7 @@ const fetchMembers = async () => {
     const response = await api.get('/api/auth/users/public');
     members.value = response.data;
   } catch (_error) {
-    ElMessage.error('获取成员列表失败');
+    ElMessage.error(t('members.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -71,7 +75,7 @@ const filteredMembers = computed(() => {
     const matchesSearch =
       name.includes(searchQuery.value.toLowerCase()) ||
       email.includes(searchQuery.value.toLowerCase());
-    const matchesFilter = activeFilter.value === '全部' || member.role === activeFilter.value;
+    const matchesFilter = activeFilter.value === 'all' || member.role === activeFilter.value;
     return matchesSearch && matchesFilter;
   });
 });
@@ -84,7 +88,7 @@ const handleChatWithMember = async (member: User) => {
     });
     router.push('/messages');
   } catch (_error) {
-    ElMessage.error('无法发起对话');
+    ElMessage.error(t('members.chatInitFailed'));
   }
 };
 
@@ -102,7 +106,7 @@ const handleChatWithMember = async (member: User) => {
         <div class="p-2 bg-purple-50 rounded-lg">
           <Users class="w-5 h-5 text-purple-600" />
         </div>
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">平台成员</h1>
+        <h1 class="text-xl font-bold" style="color: var(--text-primary)">{{ t('members.platformTitle') }}</h1>
       </div>
 
       <div class="flex items-center gap-3 w-full lg:w-auto mt-2 lg:mt-0">
@@ -114,13 +118,13 @@ const handleChatWithMember = async (member: User) => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索姓名或邮箱..."
+            :placeholder="t('members.searchPlaceholder')"
             class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 w-full lg:w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
         </div>
         <button type="button" class="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-all shadow-lg shadow-accent/20 flex items-center gap-2 shrink-0">
-          <UserPlus class="w-4 h-4" /> <span class="hidden sm:inline">邀请伙伴</span>
+          <UserPlus class="w-4 h-4" /> <span class="hidden sm:inline">{{ t('members.invitePartner') }}</span>
         </button>
       </div>
     </div>
@@ -161,31 +165,31 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
                 class="px-6 py-4 text-xs font-bold uppercase tracking-wider"
                 style="color: var(--text-muted)"
               >
-                成员信息
+                {{ t('members.info') }}
               </th>
               <th
                 class="px-6 py-4 text-xs font-bold uppercase tracking-wider"
                 style="color: var(--text-muted)"
               >
-                角色
+                {{ t('members.role') }}
               </th>
               <th
                 class="px-6 py-4 text-xs font-bold uppercase tracking-wider"
                 style="color: var(--text-muted)"
               >
-                状态
+                {{ t('members.status') }}
               </th>
               <th
                 class="px-6 py-4 text-xs font-bold uppercase tracking-wider"
                 style="color: var(--text-muted)"
               >
-                加入时间
+                {{ t('members.joinTime') }}
               </th>
               <th
                 class="px-6 py-4 text-xs font-bold uppercase tracking-wider text-right"
                 style="color: var(--text-muted)"
               >
-                操作
+                {{ t('members.action') }}
               </th>
             </tr>
           </thead>
@@ -212,7 +216,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
                       style="color: var(--text-primary)"
                       @click="openUserProfile(member.id)"
                     >
-                      {{ member.name || '未设置昵称' }}
+                      {{ member.name || t('members.noNickname') }}
                     </p>
                     <p class="text-xs" style="color: var(--text-muted)">{{ member.email }}</p>
                   </div>
@@ -235,7 +239,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
                     "
                   />
                   <span class="text-xs font-bold" style="color: var(--text-secondary)">{{
-                    authStore.isUserOnline(member.id) ? '在线' : '离线'
+                    authStore.isUserOnline(member.id) ? t('members.online') : t('members.offline')
                   }}</span>
                 </div>
               </td>
@@ -246,7 +250,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
                 <div
                   class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <button type="button" class="p-2 hover:text-accent hover:bg-accent-subtle rounded-lg transition-all" style="color: var(--text-muted)" title="发送消息" @click="handleChatWithMember(member)">
+                  <button type="button" class="p-2 hover:text-accent hover:bg-accent-subtle rounded-lg transition-all" style="color: var(--text-muted)" :title="t('members.sendMessage')" @click="handleChatWithMember(member)">
                     <MessageSquare class="w-4 h-4" />
                   </button>
                   <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-muted)">
@@ -274,7 +278,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
                 "
               />
               <span class="text-[9px] font-bold" style="color: var(--text-secondary)">{{
-                authStore.isUserOnline(member.id) ? '在线' : '离线'
+                authStore.isUserOnline(member.id) ? t('members.online') : t('members.offline')
               }}</span>
             </div>
 
@@ -294,7 +298,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
               style="color: var(--text-primary)"
               @click="openUserProfile(member.id)"
             >
-              {{ member.name || '未设置昵称' }}
+              {{ member.name || t('members.noNickname') }}
             </h3>
             <p class="text-[9px] sm:text-[10px] text-muted-foreground truncate w-full mb-3" style="color: var(--text-muted)">
               {{ member.email }}
@@ -311,7 +315,7 @@ v-for="filter in filters" :key="filter" type="button" class="px-4 py-1.5 rounded
             <!-- Action Buttons -->
             <div class="w-full flex gap-1.5 mt-auto">
               <button type="button" class="flex-1 py-1.5 bg-accent text-white rounded-xl text-[10px] font-bold hover:opacity-90 transition-all flex items-center justify-center gap-1" @click="handleChatWithMember(member)">
-                <MessageSquare class="w-3 h-3" /> 发消息
+                <MessageSquare class="w-3 h-3" /> {{ t('members.sendMessage') }}
               </button>
               <button type="button" class="px-2 py-1.5 bg-slate-100 dark:bg-white/5 rounded-xl border border-[var(--border-base)] transition-all hover:bg-slate-200 dark:hover:bg-white/10 shrink-0" style="color: var(--text-secondary)" @click="openUserProfile(member.id)">
                 <MoreHorizontal class="w-3.5 h-3.5" />

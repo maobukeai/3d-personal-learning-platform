@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import {
   Menu,
@@ -56,6 +57,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const workspaceStore = useWorkspaceStore();
+const { t } = useI18n();
 
 const { menuGroups, mobileNavItems } = useSidebarMenus();
 
@@ -98,9 +100,9 @@ const handleLogoError = () => {
 const handleShare = async () => {
   try {
     await navigator.clipboard.writeText(window.location.href);
-    ElMessage.success('页面链接已复制');
+    ElMessage.success(t('layout.copiedLink'));
   } catch (_err) {
-    ElMessage.error('复制失败');
+    ElMessage.error(t('layout.copyFailed'));
   }
 };
 
@@ -182,7 +184,7 @@ const handleReportBug = () => {
 
 const handleLogout = async () => {
   authStore.logout();
-  ElMessage.success('已成功退出登录');
+  ElMessage.success(t('layout.logoutSuccess'));
   router.push('/login');
 };
 
@@ -406,7 +408,7 @@ onUnmounted(() => {
                 <div
                   class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest"
                 >
-                  切换工作空间
+                  {{ $t('layout.switchWorkspace') }}
                 </div>
                 <el-dropdown-item
                   v-for="ws in workspaceStore.workspaces"
@@ -483,7 +485,7 @@ onUnmounted(() => {
                 <el-dropdown-item class="rounded-lg my-0.5" @click="router.push('/explore-teams')">
                   <div class="flex items-center gap-3 py-1 text-slate-500">
                     <Plus class="w-4 h-4" />
-                    <span class="font-medium">创建或加入团队</span>
+                    <span class="font-medium">{{ $t('layout.createOrJoinTeam') }}</span>
                   </div>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -521,7 +523,7 @@ onUnmounted(() => {
         @click="handleSearch"
       >
         <Search class="w-4 h-4 text-slate-400" />
-        <span class="text-xs text-slate-400 flex-1">搜索功能、作品或文档...</span>
+        <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
         <kbd
           class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
           style="border-color: var(--border-base); color: var(--text-muted)"
@@ -590,14 +592,14 @@ onUnmounted(() => {
                   <div class="flex items-center gap-3 py-1">
                     <UserIcon class="w-4 h-4 text-slate-400" /><span
                       class="font-medium text-slate-600"
-                      >个人资料</span
+                      >{{ $t('layout.profile') }}</span
                     >
                   </div>
                 </el-dropdown-item>
                 <el-dropdown-item command="notifications" class="rounded-lg my-0.5">
                   <div class="flex items-center gap-3 py-1">
                     <Bell class="w-4 h-4 text-slate-400" /><span class="font-medium text-slate-600"
-                      >消息通知</span
+                      >{{ $t('layout.notifications') }}</span
                     >
                   </div>
                 </el-dropdown-item>
@@ -605,14 +607,14 @@ onUnmounted(() => {
                   <div class="flex items-center gap-3 py-1">
                     <CreditCard class="w-4 h-4 text-slate-400" /><span
                       class="font-medium text-slate-600"
-                      >订阅与账单</span
+                      >{{ $t('layout.billing') }}</span
                     >
                   </div>
                 </el-dropdown-item>
                 <div class="border-t border-slate-100 my-2"></div>
                 <el-dropdown-item command="logout" class="rounded-lg my-0.5 text-rose-600">
                   <div class="flex items-center gap-3 py-1">
-                    <LogOut class="w-4 h-4" /><span class="font-bold">退出登录</span>
+                    <LogOut class="w-4 h-4" /><span class="font-bold">{{ $t('layout.logout') }}</span>
                   </div>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -625,7 +627,7 @@ onUnmounted(() => {
             class="px-4 py-2 bg-accent text-white text-xs font-bold rounded-lg shadow-sm hover:bg-accent-hover transition-colors"
             @click="router.push({ path: '/login', query: { redirect: route.fullPath } })"
           >
-            登录
+            {{ $t('layout.login') }}
           </button>
         </template>
       </div>
@@ -647,13 +649,13 @@ onUnmounted(() => {
           <div class="flex items-center gap-3">
             <ShieldCheck class="w-4 h-4 animate-pulse" />
             <span class="text-xs font-bold uppercase tracking-wider"
-              >系统维护模式已开启 - 仅管理员可访问</span
+              >{{ $t('layout.maintenanceMode') }}</span
             >
           </div>
           <RouterLink
             to="/admin/settings"
             class="text-[10px] font-black underline hover:opacity-80 transition-opacity"
-            >前往关闭</RouterLink
+            >{{ $t('layout.goToDisable') }}</RouterLink
           >
         </div>
         <RouterView v-slot="{ Component }">

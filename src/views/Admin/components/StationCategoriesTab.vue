@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref } from 'vue';
 import { Layers, Edit3, Trash2 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -39,20 +41,20 @@ function getParentCategoryName(cat: ManualCategory) {
 const deleteCategory = async (category: ManualCategory) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除分类「${category.name}」吗？\n\n⚠️ 删除分类不会删除其项下的资源（它们会转为未分类状态）。`,
-      '确认删除分类',
+      t('admin.are_you_sure_you_6', { categoryname: category.name }),
+      t('admin.confirm_category_deletion'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       }
     );
     await api.delete(`/api/admin/manual/categories/${category.id}`);
-    ElMessage.success('分类删除成功');
+    ElMessage.success(t('admin.category_deleted_successfully'));
     emit('refresh');
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error('删除分类失败');
+      ElMessage.error(t('admin.failed_to_delete_category'));
     }
   }
 };
@@ -69,7 +71,7 @@ defineExpose({
       class="flex flex-col items-center justify-center py-10 bg-white dark:bg-slate-900/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl"
     >
       <Layers class="w-8 h-8 text-slate-300 mb-2" />
-      <p class="text-xs text-slate-400">此资源站暂未配置任何分类...</p>
+      <p class="text-xs text-slate-400">{{ $t('admin.this_resource_site_has') }}</p>
     </div>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -88,7 +90,7 @@ defineExpose({
               子分类 (父: {{ getParentCategoryName(cat) }})
             </span>
           </div>
-          <div class="text-[10px] text-slate-400 mt-0.5">排序权重: {{ cat.order || 0 }}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">{{ $t('admin.sorting_weight_cat_order') }}</div>
         </div>
 
         <div class="flex items-center gap-1.5">

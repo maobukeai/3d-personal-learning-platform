@@ -133,9 +133,9 @@ const getOtherParticipant = (conv: Conversation | null) => {
 
 const getConversationName = (conv: Conversation | null) => {
   if (!conv) return '';
-  if (conv.isGroup) return conv.name || '未命名群聊';
+  if (conv.isGroup) return conv.name || t('community.chat.unnamedGroup');
   const other = getOtherParticipant(conv);
-  return other?.name || other?.email || '未知用户';
+  return other?.name || other?.email || t('community.chat.unknownUser');
 };
 
 const isMessageRead = (msg: Message) => {
@@ -174,7 +174,7 @@ const handleFileUpload = async (event: Event) => {
     const { url, type } = res.data;
     handleSendMessage(type, url);
   } catch {
-    ElMessage.error('上传失败');
+    ElMessage.error(t('messages.uploadFailed'));
   } finally {
     isUploading.value = false;
     input.value = '';
@@ -218,7 +218,7 @@ const handleDrop = async (event: DragEvent) => {
     const { url, type } = res.data;
     handleSendMessage(type, url);
   } catch {
-    ElMessage.error('上传失败');
+    ElMessage.error(t('messages.uploadFailed'));
   } finally {
     isUploading.value = false;
   }
@@ -276,7 +276,7 @@ const startRecording = async () => {
         const { url } = res.data;
         handleSendMessage('VOICE', url);
       } catch {
-        ElMessage.error('语音上传失败');
+        ElMessage.error(t('messages.uploadFailed'));
       } finally {
         isUploading.value = false;
       }
@@ -291,7 +291,7 @@ const startRecording = async () => {
       recordingDuration.value++;
     }, 1000);
   } catch {
-    ElMessage.error('无法访问麦克风');
+    ElMessage.error(t('community.chat.micAccessFailed'));
   }
 };
 
@@ -357,10 +357,10 @@ const formatDateSeparator = (date: string | Date) => {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  if (d.toDateString() === today.toDateString()) return '今天';
-  if (d.toDateString() === yesterday.toDateString()) return '昨天';
+  if (d.toDateString() === today.toDateString()) return t('community.chat.today');
+  if (d.toDateString() === yesterday.toDateString()) return t('community.chat.yesterday');
 
-  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
 const shouldShowDateSeparator = (currentMsg: Message, previousMsg: Message | null) => {
@@ -416,7 +416,7 @@ const getGroupedReactions = (reactions: MessageReaction[] | undefined) => {
       groups[r.emoji] = { emoji: r.emoji, count: 0, hasMine: false, users: [] };
     }
     groups[r.emoji].count++;
-    groups[r.emoji].users.push(r.user?.name || '未知');
+    groups[r.emoji].users.push(r.user?.name || t('community.chat.unknownUser'));
     if (r.userId === authStore.user?.id) groups[r.emoji].hasMine = true;
   });
   return Object.values(groups);
@@ -492,7 +492,7 @@ const closeContextMenu = () => {
 const copyMessage = (content: string) => {
   navigator.clipboard.writeText(content);
   contextMenu.value.visible = false;
-  ElMessage.success('已复制到剪贴板');
+  ElMessage.success(t('notes.copiedToClipboard'));
 };
 
 const openLink = (url: string) => {
@@ -739,7 +739,7 @@ defineExpose({
                 class="text-[9px] font-bold mb-0.5 px-1"
                 style="color: var(--text-muted)"
               >
-                {{ msg.sender?.name || '未知' }}
+                {{ msg.sender?.name || t('community.chat.unknownUser') }}
               </p>
 
               <!-- Reply Preview -->
@@ -749,13 +749,13 @@ defineExpose({
                 style="background-color: var(--bg-card); color: var(--text-secondary)"
               >
                 <span class="font-bold text-accent">{{
-                  msg.replyTo.sender?.name || '未知'
+                  msg.replyTo.sender?.name || t('community.chat.unknownUser')
                 }}</span>
                 <span class="ml-1 truncate inline-block max-w-[200px] align-bottom">{{
                   msg.replyTo.type === 'IMAGE'
-                    ? '[图片]'
+                    ? '[' + t('community.chat.photosTab') + ']'
                     : msg.replyTo.type === 'FILE'
-                      ? '[文件]'
+                      ? '[' + t('community.chat.filesTab') + ']'
                       : msg.replyTo.content
                 }}</span>
               </div>
@@ -800,7 +800,7 @@ type="button" class="w-7 h-7 rounded-full flex items-center justify-center trans
                       class="text-[9px] font-black uppercase tracking-widest opacity-70"
                       :class="msg.senderId === authStore.user?.id ? 'text-white' : 'text-accent'"
                     >
-                      {{ currentlyPlaying === msg.id ? '播放中' : '语音' }}
+                      {{ currentlyPlaying === msg.id ? t('community.chat.playing') : t('messages.voiceMessage') }}
                     </span>
                   </div>
                 </template>
@@ -822,7 +822,7 @@ type="button" class="w-7 h-7 rounded-full flex items-center justify-center trans
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-[9px] text-accent hover:underline font-bold"
-                        >点击下载</a
+                        >{{ t('community.chat.download') }}</a
                       >
                     </div>
                   </div>
@@ -870,7 +870,7 @@ type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[v
                   ">
                   <SmilePlus class="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
-                <button v-if="msg.senderId === authStore.user?.id" type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer" style="background-color: var(--bg-card)" title="删除消息" @click.stop="handleDeleteMessage(msg.id)">
+                <button v-if="msg.senderId === authStore.user?.id" type="button" class="p-1 rounded-full hover:scale-110 shadow-sm border border-[var(--border-base)] hover:bg-rose-50 dark:hover:bg-rose-900/20 cursor-pointer" style="background-color: var(--bg-card)" :title="t('common.delete')" @click.stop="handleDeleteMessage(msg.id)">
                   <Trash2 class="w-3 h-3 text-rose-500" />
                 </button>
               </div>
@@ -927,13 +927,13 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
       </template>
 
       <div v-if="isLoadingMessages" class="text-center py-4">
-        <span class="text-[10px] text-slate-400 animate-pulse">正在加载历史消息...</span>
+        <span class="text-[10px] text-slate-400 animate-pulse">{{ t('messages.syncing') }}...</span>
       </div>
       <div
         v-if="filteredMessages.length === 0 && messageSearchQuery"
         class="text-center py-20 text-slate-400"
       >
-        <p class="text-xs">未找到匹配的搜索结果</p>
+        <p class="text-xs">{{ t('search.noResults') }}</p>
       </div>
     </div>
 
@@ -946,14 +946,14 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
       <Reply class="w-3.5 h-3.5 text-accent shrink-0" />
       <div class="flex-1 min-w-0">
         <p class="text-[9px] font-bold text-accent">
-          {{ replyToMessage.sender?.name || '未知' }}
+          {{ replyToMessage.sender?.name || t('community.chat.unknownUser') }}
         </p>
         <p class="text-[11px] truncate" style="color: var(--text-secondary)">
           {{
             replyToMessage.type === 'IMAGE'
-              ? '[图片]'
+              ? '[' + t('community.chat.photosTab') + ']'
               : replyToMessage.type === 'FILE'
-                ? '[文件]'
+                ? '[' + t('community.chat.filesTab') + ']'
                 : replyToMessage.content
           }}
         </p>
@@ -1031,13 +1031,13 @@ v-for="group in getGroupedReactions(msg.reactions)" :key="group.emoji" type="but
       @click.stop
     >
       <button type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer" style="color: var(--text-primary)" @click="setReplyTo(contextMenu.message)">
-        <Reply class="w-4 h-4 text-accent" /> {{ t('common.reply') || '回复' }}
+        <Reply class="w-4 h-4 text-accent" /> {{ t('common.reply') }}
       </button>
       <button v-if="contextMenu.message.type === 'TEXT'" type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer" style="color: var(--text-primary)" @click="handleTranslate(contextMenu.message)">
         <Languages class="w-4 h-4 text-indigo-500" /> {{ t('messages.translate') }}
       </button>
       <button v-if="contextMenu.message.type === 'TEXT'" type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-accent/10 transition-all cursor-pointer" style="color: var(--text-primary)" @click="copyMessage(contextMenu.message.content)">
-        <AtSign class="w-4 h-4" style="color: var(--text-muted)" /> {{ t('common.copy') || '复制' }}
+        <AtSign class="w-4 h-4" style="color: var(--text-muted)" /> {{ t('common.copy') }}
       </button>
       <button
 v-if="contextMenu.message.senderId === authStore.user?.id" type="button" class="w-full px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-rose-500/10 text-rose-500 transition-all cursor-pointer" @click="

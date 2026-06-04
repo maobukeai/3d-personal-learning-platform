@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref } from 'vue';
 import { Database, Upload, Loader2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -42,7 +44,7 @@ const handleIconUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 5 * 1024 * 1024) {
-    return ElMessage.warning('图标图片大小不能超过 5MB');
+    return ElMessage.warning(t('admin.icon_image_size_cannot'));
   }
 
   try {
@@ -51,10 +53,10 @@ const handleIconUpload = async (event: Event) => {
     formDataObj.append('manual_image', file);
     const { data } = await api.post('/api/admin/manual/upload', formDataObj);
     formData.value.iconUrl = data.url;
-    ElMessage.success('图标上传成功');
+    ElMessage.success(t('admin.icon_uploaded_successfully'));
   } catch (error) {
     console.error('Icon upload error:', error);
-    ElMessage.error(getApiErrorMessage(error, '图标上传失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.icon_upload_failed')));
   } finally {
     isUploadingIcon.value = false;
     target.value = '';
@@ -91,26 +93,26 @@ const openEdit = (station: ManualStation) => {
 
 const saveStation = async () => {
   if (!formData.value.name.trim()) {
-    ElMessage.warning('请输入英文标识');
+    ElMessage.warning(t('admin.please_enter_english_id'));
     return;
   }
   if (!formData.value.displayName.trim()) {
-    ElMessage.warning('请输入显示名称');
+    ElMessage.warning(t('admin.please_enter_a_display'));
     return;
   }
 
   try {
     if (isEdit.value && editingStation.value) {
       await api.put(`/api/admin/manual/stations/${editingStation.value.id}`, formData.value);
-      ElMessage.success('更新成功');
+      ElMessage.success(t('admin.update_successful'));
     } else {
       await api.post('/api/admin/manual/stations', formData.value);
-      ElMessage.success('手动资源站创建成功');
+      ElMessage.success(t('admin.manual_resource_station_created'));
     }
     showDialog.value = false;
     emit('refresh');
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '保存失败'));
+    ElMessage.error(getApiErrorMessage(e, t('admin.save_failed')));
   }
 };
 
@@ -124,57 +126,57 @@ defineExpose({
   <!-- DIALOG: CREATE OR EDIT MANUAL STATION -->
   <el-dialog
     v-model="showDialog"
-    :title="isEdit ? '编辑手动资源站' : '创建手动资源站'"
+    ::title="$t('admin.isedit_edit_manual_resource')"
     width="500px"
     custom-class="premium-dialog"
   >
     <div class="space-y-4 py-2">
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">英文标识 (字母/下划线，作为路由唯一标识)</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.english_logo_letters_underscores') }}</label>
         <input
           v-model="formData.name"
           type="text"
-          placeholder="如: c4d_assets"
+          :placeholder="$t('admin.such_as_c4d_assets')"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         />
       </div>
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">显示名称</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.display_name') }}</label>
         <input
           v-model="formData.displayName"
           type="text"
-          placeholder="如: Cinema 4D 手动资源站"
+          :placeholder="$t('admin.such_as_cinema_4d')"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         />
       </div>
       <div v-if="isEdit" class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">状态</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.status') }}</label>
         <select
           v-model="formData.status"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         >
-          <option value="ACTIVE">启用</option>
-          <option value="DISABLED">禁用</option>
+          <option value="ACTIVE">{{ $t('admin.enable') }}</option>
+          <option value="DISABLED">{{ $t('admin.disable') }}</option>
         </select>
       </div>
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">会员限制</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.membership_restrictions') }}</label>
         <select
           v-model="formData.minPlanPriority"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         >
-          <option :value="0">免费用户及以上 (无限制)</option>
-          <option :value="1">标准会员及以上</option>
-          <option :value="2">专业会员及以上</option>
-          <option :value="3">钻石会员及以上</option>
+          <option :value="0">{{ $t('admin.free_users_and_above') }}</option>
+          <option :value="1">{{ $t('admin.standard_member_and_above') }}</option>
+          <option :value="2">{{ $t('admin.professional_member_and_above') }}</option>
+          <option :value="3">{{ $t('admin.diamond_members_and_above') }}</option>
         </select>
       </div>
       <div class="space-y-1.5">
-        <label class="text-xs font-semibold text-slate-500">站点图标 (推荐 1:1 比例)</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.site_icon_1_1') }}</label>
         <div class="flex items-center gap-4">
           <div
             class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800"
@@ -192,7 +194,7 @@ defineExpose({
             <input
               v-model="formData.iconUrl"
               type="text"
-              placeholder="或者输入网络图标 URL"
+              :placeholder="$t('admin.or_enter_the_web')"
               class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
               style="color: var(--text-primary);"
             />
@@ -203,11 +205,11 @@ defineExpose({
         </div>
       </div>
       <div class="space-y-1">
-        <label class="text-xs font-semibold text-slate-500">描述信息</label>
+        <label class="text-xs font-semibold text-slate-500">{{ $t('admin.description_information') }}</label>
         <textarea
           v-model="formData.description"
           rows="3"
-          placeholder="对本资源站点的精品资源做个简要的介绍..."
+          :placeholder="$t('admin.give_a_brief_introduction')"
           class="w-full p-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900/60 focus:border-cyan-500 outline-none"
           style="color: var(--text-primary);"
         ></textarea>
@@ -219,7 +221,7 @@ defineExpose({
           取消
         </button>
         <button type="button" class="px-4 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 text-xs font-semibold transition-colors border-none cursor-pointer" @click="saveStation">
-          {{ isEdit ? '保存修改' : '创建资源站' }}
+          {{ isEdit ? t('admin.save_changes') : $t('admin.create_resource_site') }}
         </button>
       </div>
     </template>

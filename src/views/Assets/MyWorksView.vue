@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, defineAsyncComponent, onUnmounted } from 'vue';
 import {
   Search,
   Plus,
@@ -23,9 +23,11 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
-
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
 import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
@@ -74,10 +76,8 @@ interface CategoryType {
   name: string;
 }
 
-
-
 const searchQuery = ref('');
-const activeTab = ref('全部作品');
+const activeTab = ref('ALL');
 const assets = ref<AssetType[]>([]);
 const isLoading = ref(false);
 const selectedAsset = ref<AssetType | null>(null);
@@ -88,20 +88,20 @@ const sortBy = ref('newest');
 
 const isPublishWorkDialogOpen = ref(false);
 
-const sortOptions = [
-  { label: '最新上传', value: 'newest' },
-  { label: '最早上传', value: 'oldest' },
-  { label: '名称 A-Z', value: 'name_asc' },
-  { label: '名称 Z-A', value: 'name_desc' },
-  { label: '文件最大', value: 'size_desc' },
-  { label: '文件最小', value: 'size_asc' },
-];
+const sortOptions = computed(() => [
+  { label: t('myWorks.sortNewest'), value: 'newest' },
+  { label: t('myWorks.sortOldest'), value: 'oldest' },
+  { label: t('myWorks.sortNameAsc'), value: 'name_asc' },
+  { label: t('myWorks.sortNameDesc'), value: 'name_desc' },
+  { label: t('myWorks.sortSizeDesc'), value: 'size_desc' },
+  { label: t('myWorks.sortSizeAsc'), value: 'size_asc' },
+]);
 
 const tabs = computed(() => [
-  { label: '全部作品', count: assets.value.length },
-  { label: '待审核', count: assets.value.filter((a: AssetType) => a.status === 'PENDING').length },
-  { label: '已发布', count: assets.value.filter((a: AssetType) => a.status === 'APPROVED').length },
-  { label: '未通过', count: assets.value.filter((a: AssetType) => a.status === 'REJECTED').length },
+  { key: 'ALL', label: t('myWorks.tabAll'), count: assets.value.length },
+  { key: 'PENDING', label: t('myWorks.statusPending'), count: assets.value.filter((a: AssetType) => a.status === 'PENDING').length },
+  { key: 'APPROVED', label: t('myWorks.statusApproved'), count: assets.value.filter((a: AssetType) => a.status === 'APPROVED').length },
+  { key: 'REJECTED', label: t('myWorks.statusRejected'), count: assets.value.filter((a: AssetType) => a.status === 'REJECTED').length },
 ]);
 
 const stats = computed(() => {
@@ -131,12 +131,12 @@ const fetchMyAssets = async () => {
         type: s.type || 'IMAGE',
         size: 0,
         status: s.status || 'APPROVED',
-        category: { name: '创意作品' },
+        category: { name: t('myWorks.creativeWork') },
       }));
 
     assets.value = [...assetsRes.data, ...independentShowcases];
   } catch {
-    ElMessage.error('获取作品失败');
+    ElMessage.error(t('myWorks.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -154,11 +154,11 @@ const fetchCategories = async () => {
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'PENDING':
-      return '待审核';
+      return t('myWorks.statusPending');
     case 'APPROVED':
-      return '已发布';
+      return t('myWorks.statusApproved');
     case 'REJECTED':
-      return '未通过';
+      return t('myWorks.statusRejected');
     default:
       return status;
   }
@@ -178,12 +178,12 @@ const getStatusBg = (status: string) => {
 };
 
 const getTypeLabel = (type: string) => {
-  if (!type) return '文件';
-  const t = type.toUpperCase();
-  if (['GLB', 'GLTF', 'FBX', 'OBJ', 'STL', 'DAE', '3DS', 'BLEND', 'USDZ', 'ABC'].includes(t))
-    return '3D模型';
-  if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'SVG', 'BMP'].includes(t)) return '图片';
-  if (['MP4', 'WEBM', 'MOV', 'AVI', 'MKV'].includes(t)) return '视频';
+  if (!type) return t('myWorks.typeFile');
+  const tStr = type.toUpperCase();
+  if (['GLB', 'GLTF', 'FBX', 'OBJ', 'STL', 'DAE', '3DS', 'BLEND', 'USDZ', 'ABC'].includes(tStr))
+    return t('myWorks.typeModel');
+  if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'SVG', 'BMP'].includes(tStr)) return t('myWorks.typeImage');
+  if (['MP4', 'WEBM', 'MOV', 'AVI', 'MKV'].includes(tStr)) return t('myWorks.typeVideo');
   return type;
 };
 
@@ -193,7 +193,7 @@ const filteredWorks = computed(() => {
       work.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       (work.description || '').toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchesTab =
-      activeTab.value === '全部作品' || getStatusLabel(work.status) === activeTab.value;
+      activeTab.value === 'ALL' || work.status === activeTab.value;
     return matchesSearch && matchesTab;
   });
 
@@ -232,7 +232,6 @@ onMounted(() => {
   fetchCategories();
 });
 
-import { onUnmounted } from 'vue';
 onUnmounted(() => {
   window.removeEventListener('resize', updateIsMobile);
 });
@@ -260,9 +259,9 @@ const handleMetadataLoaded = async (metadata: Record<string, unknown>) => {
 };
 
 const handleDeleteWork = (work: AssetType) => {
-  ElMessageBox.confirm(`确定要删除作品 "${work.title}" 吗？此操作无法撤销。`, '确认删除', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(t('myWorks.deleteConfirm', { title: work.title }), t('myWorks.deleteTitle'), {
+    confirmButtonText: t('common.confirm'),
+    cancelButtonText: t('common.cancel'),
     type: 'warning',
   })
     .then(async () => {
@@ -276,13 +275,13 @@ const handleDeleteWork = (work: AssetType) => {
         if (isPreviewOpen.value && selectedAsset.value?.id === work.id) {
           isPreviewOpen.value = false;
         }
-        ElMessage.success('作品已删除');
+        ElMessage.success(t('myWorks.deleteSuccess'));
       } catch {
-        ElMessage.error('删除失败');
+        ElMessage.error(t('myWorks.deleteFailed'));
       }
     })
     .catch(() => {
-      // Silently catch cancellation to avoid console error
+      // Silently catch cancellation
     });
 };
 
@@ -309,7 +308,7 @@ const openEditDialog = (work: AssetType) => {
 
 const handleSaveEdit = async () => {
   if (!editForm.value.title.trim()) {
-    ElMessage.warning('作品标题不能为空');
+    ElMessage.warning(t('myWorks.titleRequired'));
     return;
   }
   isSaving.value = true;
@@ -338,10 +337,10 @@ const handleSaveEdit = async () => {
     if (selectedAsset.value?.id === editForm.value.id) {
       selectedAsset.value = { ...selectedAsset.value, ...updatedData };
     }
-    ElMessage.success('作品信息已更新');
+    ElMessage.success(t('myWorks.updateSuccess'));
     isEditDialogOpen.value = false;
   } catch {
-    ElMessage.error('更新失败');
+    ElMessage.error(t('myWorks.updateFailed'));
   } finally {
     isSaving.value = false;
   }
@@ -368,7 +367,7 @@ const openPublishDialog = (work: AssetType) => {
 
 const handlePublishToShowcase = async () => {
   if (!publishForm.value.title.trim()) {
-    ElMessage.warning('作品标题不能为空');
+    ElMessage.warning(t('myWorks.titleRequired'));
     return;
   }
   isPublishing.value = true;
@@ -379,19 +378,14 @@ const handlePublishToShowcase = async () => {
       description: publishForm.value.description,
       tags: publishForm.value.tags,
     });
-    ElMessage.success('作品已成功发布到展示墙，等待审核');
+    ElMessage.success(t('myWorks.publishSuccess'));
     isPublishDialogOpen.value = false;
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '发布失败'));
+    ElMessage.error(getApiErrorMessage(error, t('myWorks.publishFailed')));
   } finally {
     isPublishing.value = false;
   }
 };
-
-onMounted(() => {
-  fetchMyAssets();
-  fetchCategories();
-});
 </script>
 
 <template>
@@ -402,9 +396,9 @@ onMounted(() => {
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center gap-2.5">
-        <h1 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">我的作品</h1>
+        <h1 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">{{ t('myWorks.title') }}</h1>
         <span class="bg-accent/10 text-accent text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full"
-          >共 {{ assets.length }} 个作品</span
+          >{{ t('myWorks.totalCount', { n: assets.length }) }}</span
         >
       </div>
 
@@ -417,7 +411,7 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索作品..."
+            :placeholder="t('myWorks.searchPlaceholder')"
             class="pl-10 pr-4 py-2 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-64 transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
@@ -440,7 +434,7 @@ onMounted(() => {
         >
           <Box class="w-3 h-3 md:w-4 md:h-4 text-accent" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">总数</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.statTotal') }}</p>
             <p class="text-[10px] md:text-sm font-bold" style="color: var(--text-primary)">{{ stats.total }}</p>
           </div>
         </div>
@@ -450,7 +444,7 @@ onMounted(() => {
         >
           <CheckCircle2 class="w-3 h-3 md:w-4 md:h-4 text-emerald-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">已发布</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.statusApproved') }}</p>
             <p class="text-[10px] md:text-sm font-bold text-emerald-500">{{ stats.approved }}</p>
           </div>
         </div>
@@ -460,7 +454,7 @@ onMounted(() => {
         >
           <Clock class="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">审核中</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.statPending') }}</p>
             <p class="text-[10px] md:text-sm font-bold text-amber-500">{{ stats.pending }}</p>
           </div>
         </div>
@@ -470,7 +464,7 @@ onMounted(() => {
         >
           <XCircle class="w-3 h-3 md:w-4 md:h-4 text-rose-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">驳回</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.statRejected') }}</p>
             <p class="text-[10px] md:text-sm font-bold text-rose-500">{{ stats.rejected }}</p>
           </div>
         </div>
@@ -480,7 +474,7 @@ onMounted(() => {
         >
           <HardDrive class="w-3 h-3 md:w-4 md:h-4 text-blue-500" />
           <div class="text-center md:text-left mt-0.5 md:mt-0">
-            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">容量</p>
+            <p class="text-[8px] md:text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.statSize') }}</p>
             <p class="text-[10px] md:text-sm font-bold text-blue-500">{{ stats.totalSize }}M</p>
           </div>
         </div>
@@ -493,12 +487,12 @@ onMounted(() => {
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div class="flex items-center justify-between md:justify-start gap-4 md:gap-6 overflow-x-auto flex-nowrap scrollbar-hide">
-        <button v-for="tab in tabs" :key="tab.label" type="button" class="relative py-2 text-xs md:text-sm font-medium transition-all flex items-center gap-1 md:gap-2 shrink-0" :class="activeTab === tab.label ? 'text-accent' : 'hover:text-accent'" :style="activeTab !== tab.label ? 'color: var(--text-secondary)' : ''" @click="activeTab = tab.label">
+        <button v-for="tab in tabs" :key="tab.key" type="button" class="relative py-2 text-xs md:text-sm font-medium transition-all flex items-center gap-1 md:gap-2 shrink-0" :class="activeTab === tab.key ? 'text-accent' : 'hover:text-accent'" :style="activeTab !== tab.key ? 'color: var(--text-secondary)' : ''" @click="activeTab = tab.key">
           {{ tab.label }}
           <span
             class="text-[9px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded-full"
             :class="
-              activeTab === tab.label
+              activeTab === tab.key
                 ? 'bg-accent/10 text-accent'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-400'
             "
@@ -506,7 +500,7 @@ onMounted(() => {
             {{ tab.count }}
           </span>
           <div
-            v-if="activeTab === tab.label"
+            v-if="activeTab === tab.key"
             class="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-full"
           ></div>
         </button>
@@ -533,7 +527,7 @@ onMounted(() => {
           style="border-color: var(--border-base)"
         >
           <button
-type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'grid' ? 'bg-accent text-white' : ''" :style="
+            type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'grid' ? 'bg-accent text-white' : ''" :style="
               viewMode !== 'grid'
                 ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                 : ''
@@ -541,7 +535,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'grid' ? 
             <LayoutGrid class="w-3 h-3 md:w-3.5 md:h-3.5" />
           </button>
           <button
-type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 'bg-accent text-white' : ''" :style="
+            type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 'bg-accent text-white' : ''" :style="
               viewMode !== 'list'
                 ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                 : ''
@@ -681,7 +675,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
             <div
               class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <button v-if="work.status === 'APPROVED' && !work.isIndependentShowcase" type="button" class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-indigo-500 transition-all" title="发布到展示墙" @click.stop="openPublishDialog(work)">
+              <button v-if="work.status === 'APPROVED' && !work.isIndependentShowcase" type="button" class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-indigo-500 transition-all" :title="t('myWorks.publishToShowcase')" @click.stop="openPublishDialog(work)">
                 <SendHorizonal class="w-4 h-4" />
               </button>
               <button type="button" class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/40 text-blue-500 transition-all" @click.stop="openEditDialog(work)">
@@ -706,13 +700,13 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
         >
           <FolderOpen class="w-16 h-16 mb-4 opacity-10" />
           <p class="text-sm font-bold mb-1">
-            {{ searchQuery ? '没有找到匹配的作品' : '还没有上传作品' }}
+            {{ searchQuery ? t('myWorks.emptySearchTitle') : t('myWorks.emptyTitle') }}
           </p>
           <p class="text-xs mb-4 opacity-60">
-            {{ searchQuery ? '试试其他关键词' : '上传你的第一个作品，开始创作之旅' }}
+            {{ searchQuery ? t('myWorks.emptySearchDesc') : t('myWorks.emptyDesc') }}
           </p>
           <button v-if="!searchQuery" type="button" class="px-6 py-2.5 bg-accent text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-accent/10" @click="isPublishWorkDialogOpen = true">
-            <Plus class="w-4 h-4" /> 上传/发布第一个作品
+            <Plus class="w-4 h-4" /> {{ t('myWorks.uploadFirst') }}
           </button>
         </div>
       </div>
@@ -735,7 +729,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">编辑作品信息</h3>
+            <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">{{ t('myWorks.editTitle') }}</h3>
             <button type="button" style="color: var(--text-secondary)" @click="isEditDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
@@ -746,7 +740,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               <label
                 class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >作品名称</label
+                >{{ t('myWorks.workName') }}</label
               >
               <input
                 v-model="editForm.title"
@@ -764,11 +758,11 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               <label
                 class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >描述 (支持 Markdown)</label
+                >{{ t('myWorks.workDesc') }}</label
               >
               <MarkdownEditor
                 v-model="editForm.description"
-                placeholder="添加作品描述... 支持 Markdown 格式"
+                :placeholder="t('myWorks.workDescPlaceholder')"
                 :height="isMobile ? '200px' : '250px'"
               />
             </div>
@@ -777,11 +771,11 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               <label
                 class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >资源分类</label
+                >{{ t('myWorks.category') }}</label
               >
               <el-select
                 v-model="editForm.categoryId"
-                placeholder="请选择分类"
+                :placeholder="t('myWorks.selectCategoryPlaceholder')"
                 class="w-full custom-select-v2"
                 clearable
               >
@@ -797,10 +791,10 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
 
           <div class="flex items-center gap-3">
             <button type="button" class="flex-1 py-3 border rounded-2xl text-sm font-bold transition-all" style="border-color: var(--border-base); color: var(--text-secondary)" @click="isEditDialogOpen = false">
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button type="button" :disabled="isSaving" class="flex-1 py-3 bg-accent text-white rounded-2xl text-sm font-bold shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" @click="handleSaveEdit">
-              <span v-if="!isSaving">保存修改</span>
+              <span v-if="!isSaving">{{ t('myWorks.saveChanges') }}</span>
               <span
                 v-else
                 class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -826,7 +820,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between">
-            <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">发布到展示墙</h3>
+            <h3 class="text-lg md:text-xl font-bold" style="color: var(--text-primary)">{{ t('myWorks.publishToShowcase') }}</h3>
             <button type="button" style="color: var(--text-secondary)" @click="isPublishDialogOpen = false">
               <X class="w-5 h-5" />
             </button>
@@ -846,7 +840,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
                 {{ publishForm.title }}
               </p>
               <p class="text-[10px]" style="color: var(--text-secondary)">
-                此作品将发布到作品展示墙供大家浏览
+                {{ t('myWorks.publishShowcaseDesc') }}
               </p>
             </div>
           </div>
@@ -856,7 +850,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               <label
                 class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >展示标题</label
+                >{{ t('myWorks.showcaseTitle') }}</label
               >
               <input
                 v-model="publishForm.title"
@@ -867,7 +861,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="展示标题"
+                :placeholder="t('myWorks.showcaseTitle')"
               />
             </div>
 
@@ -875,11 +869,11 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               <label
                 class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >展示描述 (支持 Markdown)</label
+                >{{ t('myWorks.showcaseDesc') }}</label
               >
               <MarkdownEditor
                 v-model="publishForm.description"
-                placeholder="描述你的创作灵感... 支持 Markdown 格式"
+                :placeholder="t('myWorks.showcaseDescPlaceholder')"
                 :height="isMobile ? '200px' : '250px'"
               />
             </div>
@@ -888,7 +882,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               <label
                 class="block text-[10px] md:text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >标签</label
+                >{{ t('myWorks.tags') }}</label
               >
               <input
                 v-model="publishForm.tags"
@@ -899,17 +893,17 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="用逗号分隔，如：Blender,3D渲染,角色建模"
+                :placeholder="t('myWorks.tagsPlaceholder')"
               />
             </div>
           </div>
 
           <div class="flex items-center gap-3">
             <button type="button" class="flex-1 py-3 border rounded-2xl text-sm font-bold transition-all" style="border-color: var(--border-base); color: var(--text-secondary)" @click="isPublishDialogOpen = false">
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button type="button" :disabled="isPublishing" class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2" @click="handlePublishToShowcase">
-              <span v-if="!isPublishing">发布到展示墙</span>
+              <span v-if="!isPublishing">{{ t('myWorks.publishToShowcase') }}</span>
               <span
                 v-else
                 class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -970,7 +964,7 @@ type="button" class="p-1 md:p-1.5 transition-all" :class="viewMode === 'list' ? 
               "
             >
               <button
-v-if="
+                v-if="
                   selectedAsset?.type &&
                   ['GLB', 'GLTF', 'FBX', 'OBJ', 'STL'].includes(selectedAsset.type.toUpperCase())
                 " type="button" class="p-2 rounded-full transition-colors" :class="
@@ -989,14 +983,14 @@ v-if="
                 style="background-color: var(--border-base)"
               ></div>
               <button
-v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" type="button" class="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors" title="发布到展示墙" @click="
+                v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" type="button" class="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors" :title="t('myWorks.publishToShowcase')" @click="
                   openPublishDialog(selectedAsset);
                   isPreviewOpen = false;
                 ">
                 <SendHorizonal class="w-4 h-4" />
               </button>
               <button
-type="button" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-full transition-colors" @click="
+                type="button" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-full transition-colors" @click="
                   if (selectedAsset) openEditDialog(selectedAsset);
                   isPreviewOpen = false;
                 ">
@@ -1032,7 +1026,7 @@ type="button" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/4
 
             <div class="space-y-4 flex-1">
               <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">
-                {{ selectedAsset?.description || '暂无描述' }}
+                {{ selectedAsset?.description || t('myWorks.noDescription') }}
               </p>
 
               <div
@@ -1043,61 +1037,61 @@ type="button" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/4
                   class="text-[10px] uppercase font-bold mb-3 tracking-wider"
                   style="color: var(--text-secondary)"
                 >
-                  资产详情
+                  {{ t('myWorks.assetDetails') }}
                 </p>
                 <div class="grid grid-cols-2 gap-y-3 gap-x-4">
                   <div>
-                    <p class="text-[10px]" style="color: var(--text-secondary)">格式</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.format') }}</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">
                       {{ selectedAsset?.type }}
                     </p>
                   </div>
                   <div>
-                    <p class="text-[10px]" style="color: var(--text-secondary)">文件大小</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.fileSize') }}</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">
-                      {{ selectedAsset?.size || '未知' }} MB
+                      {{ selectedAsset?.size || t('myWorks.unknown') }} MB
                     </p>
                   </div>
                   <div v-if="selectedAsset?.vertices">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">顶点数</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.vertices') }}</p>
                     <p class="text-xs font-bold font-mono" style="color: var(--text-primary)">
                       {{ selectedAsset.vertices.toLocaleString() }}
                     </p>
                   </div>
                   <div v-if="selectedAsset?.faces">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">面数</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.faces') }}</p>
                     <p class="text-xs font-bold font-mono" style="color: var(--text-primary)">
                       {{ selectedAsset.faces.toLocaleString() }}
                     </p>
                   </div>
                   <div v-if="selectedAsset?.materials">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">材质</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.materials') }}</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">
-                      {{ selectedAsset.materials }} 个
+                      {{ selectedAsset.materials }}
                     </p>
                   </div>
                   <div v-if="selectedAsset?.animations">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">动画</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.animations') }}</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">
-                      {{ selectedAsset.animations }} 个
+                      {{ selectedAsset.animations }}
                     </p>
                   </div>
                   <div v-if="selectedAsset?.hasAnimations">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">含动画</p>
-                    <p class="text-xs font-bold text-emerald-500">是</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.hasAnimations') }}</p>
+                    <p class="text-xs font-bold text-emerald-500">{{ t('myWorks.yes') }}</p>
                   </div>
                   <div v-if="selectedAsset?.dimensions">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">尺寸</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.dimensions') }}</p>
                     <p class="text-xs font-bold font-mono" style="color: var(--text-primary)">
                       {{ selectedAsset.dimensions }}
                     </p>
                   </div>
                   <div v-if="selectedAsset?.category">
-                    <p class="text-[10px]" style="color: var(--text-secondary)">分类</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.categoryLabel') }}</p>
                     <p class="text-xs font-bold text-accent">{{ selectedAsset.category.name }}</p>
                   </div>
                   <div>
-                    <p class="text-[10px]" style="color: var(--text-secondary)">上传时间</p>
+                    <p class="text-[10px]" style="color: var(--text-secondary)">{{ t('myWorks.uploadTime') }}</p>
                     <p class="text-xs font-bold" style="color: var(--text-primary)">
                       {{ selectedAsset?.createdAt ? new Date(selectedAsset.createdAt).toLocaleDateString() : '' }}
                     </p>
@@ -1113,21 +1107,21 @@ type="button" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/4
                 download
                 class="w-full py-3 bg-accent hover:bg-accent text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-accent/10 dark:shadow-none flex items-center justify-center gap-2"
               >
-                <Download class="w-4 h-4" /> 下载文件
+                <Download class="w-4 h-4" /> {{ t('myWorks.downloadFile') }}
               </a>
               <button
-v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" type="button" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 hover:bg-indigo-700" @click="
+                v-if="selectedAsset?.status === 'APPROVED' && !selectedAsset?.isIndependentShowcase" type="button" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100 dark:shadow-none flex items-center justify-center gap-2 hover:bg-indigo-700" @click="
                   if (selectedAsset) openPublishDialog(selectedAsset);
                   isPreviewOpen = false;
                 ">
-                <SendHorizonal class="w-4 h-4" /> 发布到展示墙
+                <SendHorizonal class="w-4 h-4" /> {{ t('myWorks.publishToShowcase') }}
               </button>
               <button
-type="button" class="w-full py-3 border rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-80" style="border-color: var(--border-base); color: var(--text-secondary)" @click="
+                type="button" class="w-full py-3 border rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-80" style="border-color: var(--border-base); color: var(--text-secondary)" @click="
                   if (selectedAsset) openEditDialog(selectedAsset);
                   isPreviewOpen = false;
                 ">
-                <Edit3 class="w-4 h-4" /> 编辑信息
+                <Edit3 class="w-4 h-4" /> {{ t('myWorks.editInfo') }}
               </button>
             </div>
           </div>

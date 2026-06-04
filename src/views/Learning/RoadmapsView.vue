@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Map,
   CheckCircle2,
@@ -39,6 +40,7 @@ import RoadmapCard from '@/components/RoadmapCard.vue';
 import { getApiErrorMessage } from '@/utils/error';
 
 const router = useRouter();
+const { t } = useI18n();
 
 interface RoadmapStep {
   id: string;
@@ -139,7 +141,7 @@ const fetchData = async () => {
 
     autoSelectFirstRoadmap();
   } catch (_error) {
-    ElMessage.error('加载学习路径数据失败');
+    ElMessage.error(t('roadmaps.loadFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -206,9 +208,9 @@ const toggleStep = async (stepId: string) => {
     } else {
       myProgress.value.push({ roadmapStepId: stepId, completed: !isCompleted });
     }
-    ElMessage.success(!isCompleted ? '恭喜完成该阶段！' : '已重置阶段进度');
+    ElMessage.success(!isCompleted ? t('roadmaps.stepCompleted') : t('roadmaps.stepReset'));
   } catch (_error) {
-    ElMessage.error('更新进度失败');
+    ElMessage.error(t('roadmaps.updateProgressFailed'));
   }
 };
 
@@ -473,7 +475,7 @@ const openCreateDialog = () => {
     id: '',
     title: '',
     description: '',
-    steps: [{ title: '阶段 1: 起步入门', description: '', subtasks: [] }],
+    steps: [{ title: t('roadmaps.defaultStepTitle', { n: 1 }), description: '', subtasks: [] }],
   };
   showFormDialog.value = true;
 };
@@ -507,7 +509,7 @@ const openEditDialog = () => {
 
 const addFormStep = () => {
   customRoadmapForm.value.steps.push({
-    title: `阶段 ${customRoadmapForm.value.steps.length + 1}: `,
+    title: t('roadmaps.stepTitlePrefix', { n: customRoadmapForm.value.steps.length + 1 }),
     description: '',
     subtasks: [],
   });
@@ -515,7 +517,7 @@ const addFormStep = () => {
 
 const removeFormStep = (index: number) => {
   if (customRoadmapForm.value.steps.length <= 1) {
-    return ElMessage.warning('学习路线至少需要包含一个阶段');
+    return ElMessage.warning(t('roadmaps.atLeastOneStep'));
   }
   customRoadmapForm.value.steps.splice(index, 1);
 };
@@ -535,11 +537,11 @@ const moveFormStep = (index: number, direction: 'up' | 'down') => {
 
 const submitCustomRoadmap = async () => {
   if (!customRoadmapForm.value.title.trim()) {
-    return ElMessage.warning('请输入学习路线名称');
+    return ElMessage.warning(t('roadmaps.titleRequired'));
   }
   const invalidStep = customRoadmapForm.value.steps.some((s) => !s.title.trim());
   if (invalidStep) {
-    return ElMessage.warning('所有阶段的标题均不能为空');
+    return ElMessage.warning(t('roadmaps.stepTitleRequired'));
   }
 
   // Format steps: filter empty subtasks for each step
@@ -561,19 +563,19 @@ const submitCustomRoadmap = async () => {
   try {
     if (isEditing.value) {
       const res = await api.put(`/api/roadmaps/${customRoadmapForm.value.id}`, payload);
-      ElMessage.success('路线更新成功');
+      ElMessage.success(t('roadmaps.updateSuccess'));
       const idx = roadmaps.value.findIndex((r) => r.id === res.data.id);
       if (idx > -1) roadmaps.value[idx] = res.data;
       selectedRoadmap.value = res.data;
     } else {
       const res = await api.post('/api/roadmaps', payload);
-      ElMessage.success('自定义学习路线创建成功');
+      ElMessage.success(t('roadmaps.createSuccess'));
       roadmaps.value.unshift(res.data);
       selectedRoadmap.value = res.data;
     }
     showFormDialog.value = false;
   } catch (error: unknown) {
-    ElMessage.error(getApiErrorMessage(error, '保存路线方案失败'));
+    ElMessage.error(getApiErrorMessage(error, t('roadmaps.saveFailed')));
   } finally {
     formLoading.value = false;
   }
@@ -584,24 +586,24 @@ const deleteCustomRoadmap = async () => {
   if (!roadmap) return;
   try {
     await ElMessageBox.confirm(
-      `确定要彻底删除您的自定义学习路线「${roadmap.title}」吗？此操作不可撤销！`,
-      '警告',
+      t('roadmaps.deleteConfirm', { title: roadmap.title }),
+      t('roadmaps.deleteWarning'),
       {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('roadmaps.deleteConfirmBtn'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
         customClass: 'dark:bg-slate-800 dark:border-slate-700',
       },
     );
 
     await api.delete(`/api/roadmaps/${roadmap.id}`);
-    ElMessage.success('路线删除成功');
+    ElMessage.success(t('roadmaps.deleteSuccess'));
     const idx = roadmaps.value.findIndex((r) => r.id === roadmap.id);
     if (idx > -1) roadmaps.value.splice(idx, 1);
     autoSelectFirstRoadmap();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除学习路线失败');
+      ElMessage.error(t('roadmaps.deleteFailed'));
     }
   }
 };
@@ -609,19 +611,19 @@ const deleteCustomRoadmap = async () => {
 const exportToMarkdown = () => {
   if (!selectedRoadmap.value) return;
   const rm = selectedRoadmap.value;
-  let md = `# 学习路线大纲: ${rm.title}\n\n`;
+  let md = t('roadmaps.export.title', { title: rm.title });
   if (rm.description) md += `> ${rm.description}\n\n`;
-  md += `--- \n\n## 学习大纲阶段拆解 (${rm.steps?.length || 0} 个阶段)\n\n`;
+  md += t('roadmaps.export.stagesHeader', { n: rm.steps?.length || 0 });
 
   (rm.steps || []).forEach((s, idx) => {
-    const isDone = isStepCompleted(s.id) ? ' [已完成]' : '';
-    md += `### 阶段 ${idx + 1}: ${s.title}${isDone}\n`;
+    const isDone = isStepCompleted(s.id) ? t('roadmaps.export.completed') : '';
+    md += t('roadmaps.export.stageTitle', { n: idx + 1, title: s.title, status: isDone });
     if (s.description) md += `${s.description}\n\n`;
 
     // Add checklist items to MD if not empty
     const subTasks = getSubTasksForStep(s);
     if (subTasks.length > 0) {
-      md += `*技能点精通清单：*\n`;
+      md += t('roadmaps.export.checklistHeader');
       subTasks.forEach((st) => {
         const checked = checkedSubTasks.value[st.id] ? '[x]' : '[ ]';
         md += `- ${checked} ${st.text}\n`;
@@ -631,25 +633,25 @@ const exportToMarkdown = () => {
 
     const matched = getRelatedCourses(s);
     if (matched.length > 0) {
-      md += `*建议搭配学习平台课程：*\n`;
+      md += t('roadmaps.export.coursesHeader');
       matched.forEach((c) => {
-        md += `- **${c.title}** (难度: ${c.difficulty})\n`;
+        md += `- **${c.title}** (${t('roadmaps.export.difficulty')}: ${c.difficulty})\n`;
       });
       md += `\n`;
     }
   });
 
-  md += `\n*导出时间: ${new Date().toLocaleString()} | 3D 个人探索式学习空间*`;
+  md += t('roadmaps.export.footer', { time: new Date().toLocaleString() });
 
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `${rm.title}_学习路线.md`);
+  link.setAttribute('download', `${rm.title}_${t('sidebar.roadmaps')}.md`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  ElMessage.success('大纲已成功导出为 Markdown 文件！');
+  ElMessage.success(t('roadmaps.exportSuccess'));
 };
 
 const handleTabChange = (tab: 'system' | 'custom') => {
@@ -676,8 +678,8 @@ onMounted(() => {
   >
     <!-- Header -->
     <PageHeader
-      title="学习路径"
-      subtitle="以极致科学的 3D 节点图谱指引成长，亦可自由编排专属学习战役"
+      :title="t('sidebar.roadmaps')"
+      :subtitle="t('roadmaps.subtitle')"
       :icon="Map"
     >
       <div v-if="!isLoading" class="flex items-center gap-2 sm:gap-3">
@@ -688,14 +690,14 @@ onMounted(() => {
           <div class="flex items-center gap-1.5">
             <Compass class="w-4 h-4 text-emerald-500" />
             <span class="text-xs font-bold text-slate-500 dark:text-slate-400"
-              >系统官方: {{ overallStats.systemCount }}</span
+              >{{ t('roadmaps.official') }}: {{ overallStats.systemCount }}</span
             >
           </div>
           <div class="w-px h-3 bg-slate-300 dark:bg-slate-700"></div>
           <div class="flex items-center gap-1.5">
             <User class="w-4 h-4 text-accent" />
             <span class="text-xs font-bold text-slate-500 dark:text-slate-400"
-              >我的路线: {{ overallStats.customCount }}</span
+              >{{ t('roadmaps.custom') }}: {{ overallStats.customCount }}</span
             >
           </div>
         </div>
@@ -707,7 +709,7 @@ onMounted(() => {
             <Flame class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
             <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300"
               >{{ overallStats.completedSteps }}/{{ overallStats.totalSteps }}
-              <span class="text-slate-400 font-normal">阶段</span></span
+              <span class="text-slate-400 font-normal">{{ t('roadmaps.stageUnit') }}</span></span
             >
           </div>
         </div>
@@ -767,7 +769,7 @@ type="button"
               @click="handleTabChange('system')"
             >
               <Compass class="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-              <span class="truncate">官方推荐</span>
+              <span class="truncate">{{ t('roadmaps.officialRecommend') }}</span>
             </button>
             <button
 type="button"
@@ -780,7 +782,7 @@ type="button"
               @click="handleTabChange('custom')"
             >
               <User class="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-              <span class="truncate">我的学习计划</span>
+              <span class="truncate">{{ t('roadmaps.myLearningPlan') }}</span>
             </button>
           </div>
 
@@ -803,7 +805,7 @@ v-if="activeTab === 'custom'"
           @click="openCreateDialog"
         >
           <Plus class="w-4 h-4" />
-          规划个性化学习路径
+          {{ t('roadmaps.createRoadmap') }}
         </button>
 
         <!-- Roadmap selector list -->
@@ -839,7 +841,7 @@ v-if="activeTab === 'custom'"
             >
               <Map class="w-8 h-8 text-slate-300 dark:text-slate-600 mb-3" />
               <p class="text-xs text-slate-400">
-                {{ activeTab === 'system' ? '暂无系统官方推荐路线' : '您还没有规划过学习计划哦' }}
+                {{ activeTab === 'system' ? t('roadmaps.noOfficial') : t('roadmaps.noCustom') }}
               </p>
             </div>
           </template>
@@ -879,19 +881,19 @@ v-if="activeTab === 'custom'"
                     v-if="selectedRoadmap.projectId"
                     class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-550/10 text-amber-600 dark:text-amber-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
                   >
-                    <FolderOpen class="w-2.5 h-2.5" /> 项目路线
+                    <FolderOpen class="w-2.5 h-2.5" /> {{ t('roadmaps.projectRoadmap') }}
                   </span>
                   <span
                     v-else-if="selectedRoadmap.creatorId === null"
                     class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
                   >
-                    <Sparkles class="w-2 h-2" /> 官方推荐
+                    <Sparkles class="w-2 h-2" /> {{ t('roadmaps.officialRecommend') }}
                   </span>
                   <span
                     v-else
                     class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-accent/10 text-accent text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
                   >
-                    <User class="w-2 h-2" /> 我的计划
+                    <User class="w-2 h-2" /> {{ t('roadmaps.myLearningPlan') }}
                   </span>
                 </div>
 
@@ -904,7 +906,7 @@ v-if="activeTab === 'custom'"
                     @click="router.push({ name: 'ProjectDetail', params: { id: selectedRoadmap.projectId } })"
                   >
                     <FolderOpen class="w-2.5 h-2.5" />
-                    <span>进入关联项目</span>
+                    <span>{{ t('roadmaps.enterRelatedProject') }}</span>
                   </button>
                   <button
                     type="button"
@@ -912,7 +914,7 @@ v-if="activeTab === 'custom'"
                     @click="exportToMarkdown"
                   >
                     <Download class="w-2.5 h-2.5" />
-                    <span>导出</span>
+                    <span>{{ t('roadmaps.exportAction') }}</span>
                   </button>
                   <template v-if="selectedRoadmap.creatorId !== null">
                     <button
@@ -921,7 +923,7 @@ type="button"
                       @click="openEditDialog"
                     >
                       <Edit3 class="w-2.5 h-2.5" />
-                      <span>修改</span>
+                      <span>{{ t('roadmaps.modify') }}</span>
                     </button>
                     <button
 type="button"
@@ -929,7 +931,7 @@ type="button"
                       @click="deleteCustomRoadmap"
                     >
                       <Trash2 class="w-2.5 h-2.5" />
-                      <span>删除</span>
+                      <span>{{ t('roadmaps.delete') }}</span>
                     </button>
                   </template>
                 </div>
@@ -941,14 +943,14 @@ type="button"
               >
                 <div class="space-y-1 sm:space-y-1.5 flex-1 min-w-0">
                   <p class="text-[9px] sm:text-xs text-slate-500 leading-relaxed truncate max-w-xl">
-                    {{ selectedRoadmap.description || '从入门到进阶的完整学习大纲。' }}
+                    {{ selectedRoadmap.description || t('roadmaps.defaultDesc') }}
                   </p>
 
                   <!-- Combined metadata -->
                   <div class="flex flex-wrap items-center gap-x-2 sm:gap-x-4 gap-y-0.5">
                     <span class="hidden xs:flex items-center gap-0.5 font-medium">
                       <User class="w-3 h-3 text-slate-400/80 dark:text-slate-500/80" />
-                      由{{ selectedRoadmap.creatorId === null ? '系统' : '自己' }}创建
+                      {{ t('roadmaps.createdBy', { creator: selectedRoadmap.creatorId === null ? t('roadmaps.creatorSystem') : t('roadmaps.creatorSelf') }) }}
                     </span>
 
                     <div class="hidden xs:block w-px h-2 bg-slate-200 dark:bg-slate-800"></div>
@@ -958,7 +960,7 @@ type="button"
                     >
                       <Target class="w-3 h-3 text-accent/80" />
                       {{ selectedRoadmap.steps?.length || 0 }}
-                      <span class="font-normal text-slate-400">阶段</span>
+                      <span class="font-normal text-slate-400">{{ t('roadmaps.stageUnit') }}</span>
                     </div>
 
                     <div class="w-px h-2 bg-slate-200 dark:bg-slate-800"></div>
@@ -970,7 +972,7 @@ type="button"
                       {{
                         selectedRoadmap.steps?.filter((s: RoadmapStep) => isStepCompleted(s.id)).length || 0
                       }}
-                      <span class="font-normal text-slate-400">已解锁</span>
+                      <span class="font-normal text-slate-400">{{ t('roadmaps.unlocked') }}</span>
                     </div>
                   </div>
                 </div>
@@ -1080,14 +1082,14 @@ type="button"
                                 getStepStatus(step, index) === 'upcoming',
                             }"
                           >
-                            模块 {{ Number(index) + 1 }}
+                            {{ t('roadmaps.moduleNumber', { n: Number(index) + 1 }) }}
                           </span>
 
                           <span
                             v-if="activeStepId === step.id"
                             class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse"
                           >
-                            <Sparkle class="w-2 h-2" /> 聚焦中
+                            <Sparkle class="w-2 h-2" /> {{ t('roadmaps.focusing') }}
                           </span>
                         </div>
 
@@ -1111,7 +1113,7 @@ type="button"
                         >
                           {{
                             step.description ||
-                            '当前阶段暂无详细指引。点击即可在右侧面板查看智能技能 Checklist 及关联推荐。'
+                            t('roadmaps.noGuidelines')
                           }}
                         </p>
                       </div>
@@ -1158,12 +1160,12 @@ type="button"
                       <h4
                         class="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest"
                       >
-                        智能探索分析仪
+                        {{ t('roadmaps.analyzerTitle') }}
                       </h4>
                       <p
                         class="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-200"
                       >
-                        阶段聚焦
+                        {{ t('roadmaps.stageFocus') }}
                       </p>
                     </div>
                   </div>
@@ -1171,7 +1173,7 @@ type="button"
                   <span
                     class="text-[8px] sm:text-xs font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded-full shrink-0"
                   >
-                    模块 {{ selectedRoadmap.steps.indexOf(activeStep) + 1 }}
+                    {{ t('roadmaps.moduleNumber', { n: selectedRoadmap.steps.indexOf(activeStep) + 1 }) }}
                   </span>
                 </div>
 
@@ -1187,7 +1189,7 @@ type="button"
                   >
                     {{
                       activeStep.description ||
-                      '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。'
+                      t('roadmaps.customStageDesc')
                     }}
                   </p>
                 </div>
@@ -1195,7 +1197,7 @@ type="button"
                 <!-- Toggle Completion Action -->
                 <div class="pt-1 sm:pt-2 relative z-10">
                   <button
-type="button"
+                    type="button"
                     class="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
                     :class="
                       isStepCompleted(activeStep.id)
@@ -1205,7 +1207,7 @@ type="button"
                     @click="toggleStep(activeStep.id)"
                   >
                     <CheckCircle2 class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    {{ isStepCompleted(activeStep.id) ? '已攻克阶段（重置）' : '攻克阶段大纲目标' }}
+                    {{ isStepCompleted(activeStep.id) ? t('roadmaps.stepCompletedReset') : t('roadmaps.conquerStage') }}
                   </button>
                 </div>
 
@@ -1217,7 +1219,7 @@ type="button"
                     class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1"
                   >
                     <TrendingUp class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
-                    技能属性评估
+                    {{ t('roadmaps.metricsTitle') }}
                   </div>
 
                   <div class="space-y-1.5 sm:space-y-2">
@@ -1225,7 +1227,7 @@ type="button"
                       <div
                         class="flex items-center justify-between text-[8px] sm:text-[10px] text-slate-500 mb-0.5"
                       >
-                        <span>技能挑战难度</span>
+                        <span>{{ t('roadmaps.difficultyMetric') }}</span>
                         <span class="font-bold text-slate-700 dark:text-slate-300">
                           {{
                             getMetricsForStep(activeStep, selectedRoadmap.steps.indexOf(activeStep))
@@ -1253,7 +1255,7 @@ type="button"
                       <div
                         class="flex items-center justify-between text-[8px] sm:text-[10px] text-slate-500 mb-0.5"
                       >
-                        <span>工程实战权重</span>
+                        <span>{{ t('roadmaps.practicalMetric') }}</span>
                         <span class="font-bold text-slate-700 dark:text-slate-300">
                           {{
                             getMetricsForStep(activeStep, selectedRoadmap.steps.indexOf(activeStep))
@@ -1282,7 +1284,7 @@ type="button"
                     >
                       <span class="text-slate-500 flex items-center gap-1">
                         <Clock class="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-400" />
-                        预估研读周期
+                        {{ t('roadmaps.durationMetric') }}
                       </span>
                       <span class="font-black text-slate-700 dark:text-slate-200">
                         {{
@@ -1290,7 +1292,7 @@ type="button"
                             .duration
                         }}
                         <span class="text-[8px] sm:text-[10px] font-normal text-slate-400"
-                          >小时</span
+                          >{{ t('roadmaps.hourUnit') }}</span
                         >
                       </span>
                     </div>
@@ -1306,7 +1308,7 @@ type="button"
                     class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
                   >
                     <ListTodo class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
-                    技能突围细分任务
+                    {{ t('roadmaps.checklistTitle') }}
                   </div>
 
                   <div
@@ -1355,7 +1357,7 @@ type="button"
                     class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
                   >
                     <GraduationCap class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
-                    智能推荐关联课程
+                    {{ t('roadmaps.recommendCoursesTitle') }}
                   </div>
 
                   <div class="space-y-1.5 sm:space-y-2.5">
@@ -1390,16 +1392,16 @@ type="button"
                           >
                             {{
                               course.difficulty === 'BEGINNER'
-                                ? '入门'
+                                ? t('common.difficulty.beginner')
                                 : course.difficulty === 'INTERMEDIATE'
-                                  ? '进阶'
-                                  : '高级'
+                                  ? t('common.difficulty.intermediate')
+                                  : t('common.difficulty.advanced')
                             }}
                           </span>
                           <span
                             class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[7px] sm:text-[9px]"
                           >
-                            去掌握 <ArrowRight class="w-2 h-2" />
+                            {{ t('roadmaps.goMaster') }} <ArrowRight class="w-2 h-2" />
                           </span>
                         </div>
                       </div>
@@ -1422,10 +1424,10 @@ type="button"
             <Map class="w-10 h-10 text-slate-300 dark:text-slate-600 animate-pulse" />
           </div>
           <h3 class="text-lg font-bold mb-2 text-slate-800 dark:text-slate-100">
-            暂无任何学习路径
+            {{ t('roadmaps.noRoadmapsTitle') }}
           </h3>
           <p class="text-sm text-slate-400 max-w-xs leading-relaxed">
-            平台还未添加系统推荐学习路径，您可以点击左侧“规划个性化学习路径”设计属于您自己的成长路线大纲。
+            {{ t('roadmaps.noRoadmapsDesc') }}
           </p>
         </div>
 
@@ -1437,11 +1439,11 @@ type="button"
           <div
             class="w-20 h-20 rounded-3xl bg-slate-50 dark:bg-white/5 flex items-center justify-center mb-6 border border-slate-200/50 dark:border-slate-800"
           >
-            <Compass class="w-10 h-10 text-slate-300 dark:text-slate-600 animate-spin-slow" />
+            <Compass class="w-10 h-10 text-slate-300 dark:text-slate-600 animate-pulse" />
           </div>
-          <h3 class="text-lg font-bold mb-2 text-slate-800 dark:text-slate-100">未选定攻坚路线</h3>
+          <h3 class="text-lg font-bold mb-2 text-slate-800 dark:text-slate-100">{{ t('roadmaps.noSelectionTitle') }}</h3>
           <p class="text-sm text-slate-400">
-            请从左侧选择一条推荐路径或您自己的自定义计划，开启 3D 技能探索。
+            {{ t('roadmaps.noSelectionDesc') }}
           </p>
         </div>
       </div>
@@ -1466,7 +1468,7 @@ type="button"
                 <Map class="w-4 h-4" />
               </div>
               <h3 class="text-base font-black text-slate-800 dark:text-slate-100">
-                {{ isEditing ? '编辑我的学习路线' : '规划新学习路线' }}
+                {{ isEditing ? t('roadmaps.editRoadmapTitle') : t('roadmaps.createRoadmapTitle') }}
               </h3>
             </div>
             <button
@@ -1482,24 +1484,12 @@ type="button"
           <div class="flex-1 p-5 overflow-y-auto space-y-4">
             <div class="space-y-1.5">
               <label class="block text-xs font-black text-slate-500 uppercase tracking-wider"
-                >路线名称</label
+                >{{ t('roadmaps.formTitle') }}</label
               >
-              <input
-                v-model="customRoadmapForm.title"
-                type="text"
-                placeholder="例如: Blender 物理动画攻坚计划"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-              />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="block text-xs font-black text-slate-500 uppercase tracking-wider"
-                >描述（目标）</label
-              >
-              <textarea
+                      <textarea
                 v-model="customRoadmapForm.description"
                 rows="2"
-                placeholder="用简短的内容描述该学习路线的大致目标与期望..."
+                :placeholder="t('roadmaps.formDescPlaceholder')"
                 class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
               ></textarea>
             </div>
@@ -1510,7 +1500,7 @@ type="button"
                 class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2"
               >
                 <label class="block text-xs font-black text-slate-500 uppercase tracking-wider"
-                  >学习大纲与阶段 ({{ customRoadmapForm.steps.length }})</label
+                  >{{ t('roadmaps.formStagesLabel', { n: customRoadmapForm.steps.length }) }}</label
                 >
                 <button
                   type="button"
@@ -1518,7 +1508,7 @@ type="button"
                   @click="addFormStep"
                 >
                   <Plus class="w-3.5 h-3.5" />
-                  新增学习阶段
+                  {{ t('roadmaps.formAddStage') }}
                 </button>
               </div>
 
@@ -1530,7 +1520,7 @@ type="button"
                 >
                   <!-- Controls inside step row -->
                   <div class="flex items-center justify-between gap-2.5">
-                    <span class="text-xs font-black text-accent shrink-0">阶段 {{ idx + 1 }}</span>
+                    <span class="text-xs font-black text-accent shrink-0">{{ t('roadmaps.formStageNum', { n: idx + 1 }) }}</span>
 
                     <div class="flex items-center gap-1.5">
                       <!-- Move up -->
@@ -1566,14 +1556,14 @@ type="button"
                   <input
                     v-model="step.title"
                     type="text"
-                    placeholder="阶段标题 (例如: 掌握物理动力学与重力场)"
+                    :placeholder="t('roadmaps.formStageTitlePlaceholder')"
                     class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-accent"
                   />
                   <textarea
                     v-model="step.description"
                     rows="1"
-                    placeholder="该阶段需要攻克的具体技能或任务说明（选填）"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                    :placeholder="t('roadmaps.formStageDescPlaceholder')"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-650 bg-white dark:bg-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-accent resize-none"
                   ></textarea>
 
                   <!-- User Customizable Subtasks List Editor -->
@@ -1583,7 +1573,7 @@ type="button"
                         class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1"
                       >
                         <CheckCircle2 class="w-3 h-3 text-accent" />
-                        <span>阶段细分任务清单（留空则在前台隐藏此模块）</span>
+                        <span>{{ t('roadmaps.formStageChecklistLabel') }}</span>
                       </label>
                       <button
                         type="button"
@@ -1591,7 +1581,7 @@ type="button"
                         @click="step.subtasks.push('')"
                       >
                         <Plus class="w-3 h-3" />
-                        <span>添加任务项</span>
+                        <span>{{ t('roadmaps.formAddTaskItem') }}</span>
                       </button>
                     </div>
 
@@ -1609,7 +1599,7 @@ type="button"
                         <input
                           v-model="step.subtasks[sIdx]"
                           type="text"
-                          placeholder="例如: 掌握多边形布线与拓扑原理"
+                          :placeholder="t('roadmaps.formTaskPlaceholder')"
                           class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-750 text-xs outline-none focus:ring-1 focus:ring-accent text-slate-900 dark:text-white"
                         />
                         <button
@@ -1625,7 +1615,7 @@ type="button"
                         v-if="!step.subtasks || step.subtasks.length === 0"
                         class="text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100/50 dark:bg-white/1 py-2 px-3 rounded-xl border border-dashed border-slate-200/50 dark:border-white/5 text-center font-medium"
                       >
-                        暂无自定义细分任务，留空则在前台页面直接隐藏细分任务模块
+                        {{ t('roadmaps.formNoTasksDesc') }}
                       </div>
                     </div>
                   </div>
@@ -1639,21 +1629,21 @@ type="button"
             class="p-5 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-end gap-3"
           >
             <button
-type="button"
+              type="button"
               class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
               @click="showFormDialog = false"
             >
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button
-type="button"
+              type="button"
               class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-accent hover:bg-accent-dark transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-accent/20"
               :class="formLoading ? 'opacity-70 pointer-events-none' : ''"
               @click="submitCustomRoadmap"
             >
               <Zap v-if="!formLoading" class="w-3.5 h-3.5" />
               <Loader2 v-else class="w-3.5 h-3.5 animate-spin" />
-              保存我的路线
+              {{ t('roadmaps.formSaveBtn') }}
             </button>
           </div>
         </div>

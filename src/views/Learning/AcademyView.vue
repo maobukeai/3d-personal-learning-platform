@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Search,
   GraduationCap,
@@ -59,6 +60,7 @@ interface ContinuingEnrollment extends AcademyEnrollment {
   course: AcademyCourse;
 }
 
+const { t } = useI18n();
 const router = useRouter();
 const searchQuery = ref('');
 const categories = ref<AcademyCategory[]>([]);
@@ -207,11 +209,11 @@ const featuredCourses = computed(() => {
 });
 
 const activeCategory = computed(() => {
-  if (activeCategoryId.value === 'mine') return '我的课程';
-  if (activeCategoryId.value === 'bookmarked') return '我的收藏';
-  if (!activeCategoryId.value) return '全部课程';
+  if (activeCategoryId.value === 'mine') return t('academy.myCourses');
+  if (activeCategoryId.value === 'bookmarked') return t('academy.myBookmarks');
+  if (!activeCategoryId.value) return t('academy.allCourses');
   const cat = categories.value.find((c) => c.id === activeCategoryId.value);
-  return cat?.name || '全部课程';
+  return cat?.name || t('academy.allCourses');
 });
 
 onMounted(() => {
@@ -226,8 +228,8 @@ onMounted(() => {
   >
     <!-- Top Header -->
     <PageHeader
-      title="学院课程"
-      subtitle="探索 3D 设计的无限可能"
+      :title="t('academy.title')"
+      :subtitle="t('academy.subtitle')"
       :icon="GraduationCap"
     >
       <div class="relative flex-1 min-w-0 sm:min-w-[240px] lg:min-w-[160px]">
@@ -238,7 +240,7 @@ onMounted(() => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="搜索课程..."
+          :placeholder="t('academy.searchPlaceholder')"
           class="pl-10 pr-4 py-2 rounded-xl border text-xs sm:text-sm w-full outline-none transition-all lg:focus:w-72"
           style="
             background-color: var(--bg-app);
@@ -254,15 +256,15 @@ onMounted(() => {
       <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <button type="button" class="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-xl border text-xs sm:text-sm font-bold transition-all shrink-0" :class="showFilters || difficultyFilter ? 'border-accent/30 text-accent' : ''" style="border-color: var(--border-base); color: var(--text-secondary)" @click="showFilters = !showFilters">
           <Filter class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          筛选
+          {{ t('academy.filter') }}
         </button>
 
         <div class="flex items-center gap-0.5 sm:gap-1 p-0.5 sm:p-1 rounded-xl shrink-0" style="background-color: var(--bg-app)">
           <button
             v-for="sort in [
-              { key: 'newest', label: '最新' },
-              { key: 'popular', label: '最热' },
-              { key: 'rating', label: '好评' },
+              { key: 'newest', label: t('academy.sortByNewest') },
+              { key: 'popular', label: t('academy.sortByPopular') },
+              { key: 'rating', label: t('academy.sortByRating') },
             ]"
             :key="sort.key"
             type="button"
@@ -286,14 +288,14 @@ onMounted(() => {
       class="px-3 sm:px-4.5 lg:px-5 py-1.5 sm:py-2 border-b flex flex-wrap items-center gap-2.5 sm:gap-3 transition-colors duration-300"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <span class="text-xs font-bold" style="color: var(--text-muted)">难度：</span>
+      <span class="text-xs font-bold" style="color: var(--text-muted)">{{ t('academy.difficultyLabel') }}</span>
       <div class="flex flex-wrap items-center gap-2">
         <button
           v-for="d in [
-            { key: '', label: '全部' },
-            { key: 'BEGINNER', label: '入门' },
-            { key: 'INTERMEDIATE', label: '进阶' },
-            { key: 'ADVANCED', label: '高级' },
+            { key: '', label: t('academy.difficultyAll') },
+            { key: 'BEGINNER', label: t('academy.difficultyBeginner') },
+            { key: 'INTERMEDIATE', label: t('academy.difficultyIntermediate') },
+            { key: 'ADVANCED', label: t('academy.difficultyAdvanced') },
           ]"
           :key="d.key"
           type="button"
@@ -322,7 +324,7 @@ onMounted(() => {
         :style="activeCategoryId ? 'color: var(--text-secondary)' : ''"
         @click="activeCategoryId = null"
       >
-        全部课程
+        {{ t('academy.allCourses') }}
       </button>
       <button
         type="button"
@@ -331,7 +333,7 @@ onMounted(() => {
         :style="activeCategoryId !== 'mine' ? 'color: var(--text-secondary)' : ''"
         @click="activeCategoryId = 'mine'"
       >
-        <BookOpen class="w-3.5 h-3.5" /> 我的课程
+        <BookOpen class="w-3.5 h-3.5" /> {{ t('academy.myCourses') }}
       </button>
       <button
         type="button"
@@ -340,7 +342,7 @@ onMounted(() => {
         :style="activeCategoryId !== 'bookmarked' ? 'color: var(--text-secondary)' : ''"
         @click="activeCategoryId = 'bookmarked'"
       >
-        <Bookmark class="w-3.5 h-3.5" /> 我的收藏
+        <Bookmark class="w-3.5 h-3.5" /> {{ t('academy.myBookmarks') }}
       </button>
       <div
         class="h-4 w-[1px] mx-1 transition-colors duration-300"
@@ -369,41 +371,41 @@ onMounted(() => {
           <section>
             <div class="flex items-center gap-2 mb-2 sm:mb-2.5">
               <TrendingUp class="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
-              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">学习概览</h2>
+              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.learningStats') }}</h2>
             </div>
             <!-- Stats Container: Fixed 5 columns -->
             <div class="grid grid-cols-5 gap-1 sm:gap-2.5">
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">在学</span>
+                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsLearning') }}</span>
                   <BookOpen class="hidden sm:block w-4 h-4 text-accent" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-accent">{{ learningStats.inProgressCourses }}</p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">已完成</span>
+                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsCompleted') }}</span>
                   <Trophy class="hidden sm:block w-4 h-4 text-amber-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-amber-500">{{ learningStats.completedCourses }}</p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">课时</span>
+                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsLessons') }}</span>
                   <Clock class="hidden sm:block w-4 h-4 text-indigo-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-indigo-500">{{ learningStats.totalLessons }}</p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">平均</span>
+                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsAverage') }}</span>
                   <Target class="hidden sm:block w-4 h-4 text-emerald-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-emerald-500">{{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span></p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
                 <div class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1">
-                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">报名</span>
+                  <span class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase">{{ t('academy.statsEnrollments') }}</span>
                   <Flame class="hidden sm:block w-4 h-4 text-rose-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-rose-500">{{ learningStats.totalCourses }}</p>
@@ -415,7 +417,7 @@ onMounted(() => {
           <section v-if="continueLearningCourses.length > 0">
             <div class="flex items-center gap-2 mb-4">
               <Play class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">继续学习</h2>
+              <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.continueLearning') }}</h2>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <CourseCard
@@ -436,7 +438,7 @@ onMounted(() => {
         >
           <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Sparkles class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">精选推荐</h2>
+            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.featuredRecommend') }}</h2>
           </div>
           <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
             <CourseCard
@@ -461,7 +463,7 @@ onMounted(() => {
         >
           <div class="flex items-center gap-2 mb-2.5 sm:mb-3">
             <Heart class="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
-            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">猜你想学</h2>
+            <h2 class="text-base sm:text-lg font-bold" style="color: var(--text-primary)">{{ t('academy.guessYouLike') }}</h2>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-4">
             <CourseCard
@@ -481,7 +483,7 @@ onMounted(() => {
               {{ activeCategory }}
             </h2>
             <span class="text-[10px] sm:text-xs font-bold" style="color: var(--text-muted)"
-              >{{ filteredCourses.length }} 门课程</span
+              >{{ t('academy.coursesCount', { n: filteredCourses.length }) }}</span
             >
           </div>
 
@@ -516,10 +518,10 @@ onMounted(() => {
             <p class="text-sm">
               {{
                 activeCategoryId === 'bookmarked'
-                  ? '还没有收藏课程'
+                  ? t('academy.emptyBookmarks')
                   : activeCategoryId === 'mine'
-                    ? '还没有加入课程'
-                    : '没有找到相关的课程'
+                    ? t('academy.emptyMyCourses')
+                    : t('academy.emptyNoResults')
               }}
             </p>
             <button
@@ -528,7 +530,7 @@ onMounted(() => {
               class="mt-3 px-4 py-2 bg-accent text-white text-xs font-bold rounded-xl shadow-lg shadow-accent/20"
               @click="activeCategoryId = null"
             >
-              浏览课程
+              {{ t('academy.browseCourses') }}
             </button>
           </div>
         </section>

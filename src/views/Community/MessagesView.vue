@@ -78,7 +78,7 @@ const sharedFiles = computed(() => {
     .filter((m) => m.type === 'FILE')
     .map((m) => ({
       id: m.id,
-      name: m.content.split('/').pop() || '未知文件',
+      name: m.content.split('/').pop() || t('messages.unknownFile'),
       url: m.content,
       createdAt: m.createdAt,
       size: m.fileSize,
@@ -260,7 +260,7 @@ const startNewChat = async (user: ChatUser) => {
       selectConversation(existing);
     }
   } catch {
-    ElMessage.error('创建对话失败');
+    ElMessage.error(t('tasks.chatFailed'));
   }
 };
 
@@ -276,7 +276,7 @@ const createGroupChat = async (payload: { name: string; participantIds: string[]
     conversations.value.unshift(response.data);
     selectConversation(response.data);
   } catch {
-    ElMessage.error('创建群聊失败');
+    ElMessage.error(t('messages.groupCreateFailed'));
   }
 };
 
@@ -291,17 +291,17 @@ const leaveGroupChat = async () => {
     if (conversations.value.length > 0) {
       selectConversation(conversations.value[0]);
     }
-    ElMessage.success('已退出群聊');
+    ElMessage.success(t('messages.groupLeftSuccess'));
   } catch {
-    ElMessage.error('退出群聊失败');
+    ElMessage.error(t('messages.groupLeftFailed'));
   }
 };
 
 const deleteConversation = async (conv: Conversation) => {
   try {
-    await ElMessageBox.confirm('确定要删除此会话吗？这将清除你的本地聊天记录。', '删除确认', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('messages.deleteConversationConfirm'), t('messages.deleteConversationConfirmTitle'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     });
     await api.delete(`/api/messages/conversations/${conv.id}`);
@@ -313,10 +313,10 @@ const deleteConversation = async (conv: Conversation) => {
         selectConversation(conversations.value[0]);
       }
     }
-    ElMessage.success('会话已删除');
+    ElMessage.success(t('messages.conversationDeletedSuccess'));
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除会话失败');
+      ElMessage.error(t('messages.conversationDeletedFailed'));
     }
   }
   conversationContextMenu.value.visible = false;
@@ -513,16 +513,16 @@ onUnmounted(() => {
       <div class="w-16 h-16 bg-accent/5 rounded-full flex items-center justify-center mb-4 shrink-0">
         <Users class="w-8 h-8 text-accent opacity-20" />
       </div>
-      <h2 class="text-lg font-bold mb-1.5" style="color: var(--text-primary)">开启新对话</h2>
+      <h2 class="text-lg font-bold mb-1.5" style="color: var(--text-primary)">{{ t('messages.startNewChatTitle') }}</h2>
       <p class="text-xs max-w-xs mx-auto mb-6" style="color: var(--text-secondary)">
-        在左侧选择一个联系人开始聊天，或者点击加号查找新朋友。
+        {{ t('messages.startNewChatDesc') }}
       </p>
       <div class="flex gap-2">
         <button type="button" class="px-5 py-2 bg-accent text-white rounded-xl font-bold shadow-md shadow-accent/20 hover:scale-102 transition-all text-xs cursor-pointer" @click="isNewChatDialogOpen = true">
-          寻找联系人
+          {{ t('messages.findContacts') }}
         </button>
         <button type="button" class="px-5 py-2 bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 hover:scale-102 transition-all text-xs cursor-pointer" @click="isGroupChatDialogOpen = true">
-          创建群聊
+          {{ t('messages.createGroup') }}
         </button>
       </div>
     </div>

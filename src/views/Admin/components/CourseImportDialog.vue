@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus, Loader2, CheckCircle2 } from 'lucide-vue-next';
@@ -45,9 +47,9 @@ const handleParseExternal = async () => {
       url,
     });
     parsedMetadata.value = data;
-    ElMessage.success('解析成功');
+    ElMessage.success(t('admin.parsed_successfully'));
   } catch (error) {
-    const errorMsg = getApiErrorMessage(error, '解析失败，请检查链接是否正确');
+    const errorMsg = getApiErrorMessage(error, t('admin.parsing_failed_please_check'));
     ElMessage.error(errorMsg);
   } finally {
     isParsing.value = false;
@@ -65,11 +67,11 @@ const handleImportExternal = async () => {
       lessons: parsedMetadata.value.lessons,
       categoryId: selectedCategoryId.value || undefined,
     });
-    ElMessage.success('课程导入成功');
+    ElMessage.success(t('admin.course_imported_successfully'));
     visible.value = false;
     emit('saved');
   } catch (error) {
-    const errorMsg = getApiErrorMessage(error, '导入失败');
+    const errorMsg = getApiErrorMessage(error, t('admin.import_failed'));
     ElMessage.error(errorMsg);
   } finally {
     isParsing.value = false;
@@ -89,7 +91,7 @@ defineExpose({ open });
       style="background-color: var(--bg-card)"
     >
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold" style="color: var(--text-primary)">从 外部平台 导入课程</h3>
+        <h3 class="text-xl font-bold" style="color: var(--text-primary)">{{ $t('admin.import_courses_from_external') }}</h3>
         <button type="button" class="text-slate-400 hover:text-slate-600 cursor-pointer" @click="visible = false">
           <Plus class="w-6 h-6 rotate-45" />
         </button>
@@ -98,13 +100,13 @@ defineExpose({ open });
       <div class="space-y-6">
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >课程或项目链接 (支持 B站 / YouTube / GitHub)</label
+            >{{ $t('admin.course_or_project_link') }}</label
           >
           <div class="flex gap-2">
             <input
               v-model="externalUrl"
               type="text"
-              placeholder="粘贴 B站、YouTube 或 GitHub 链接..."
+              :placeholder="$t('admin.paste_bilibili_youtube_or')"
               class="flex-1 px-4 py-3 rounded-2xl border transition-all outline-none"
               style="
                 background-color: var(--bg-app);
@@ -123,7 +125,7 @@ defineExpose({ open });
         <!-- Binding Category dropdown -->
         <div v-if="parsedMetadata">
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >绑定导入课程分类</label
+            >{{ $t('admin.bind_and_import_course') }}</label
           >
           <select
             v-model="selectedCategoryId"
@@ -134,7 +136,7 @@ defineExpose({ open });
               color: var(--text-primary);
             "
           >
-            <option value="">不绑定分类 (空)</option>
+            <option value="">{{ $t('admin.do_not_bind_categories') }}</option>
             <option v-for="cat in props.categories" :key="cat.id" :value="cat.id">
               {{ cat.name }}
             </option>

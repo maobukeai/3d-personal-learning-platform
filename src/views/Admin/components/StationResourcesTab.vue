@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, watch } from 'vue';
 import { Search, Loader2, FileText, Eye, Calendar, Edit3, Trash2, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -81,7 +83,7 @@ const fetchStationResources = async () => {
     resourceTotal.value = res.data.total;
     resourceTotalPages.value = res.data.totalPages;
   } catch (_e) {
-    ElMessage.error('拉取资源失败');
+    ElMessage.error(t('admin.failed_to_pull_resources'));
   } finally {
     isLoadingResources.value = false;
   }
@@ -105,21 +107,21 @@ const handlePageChange = (newPage: number) => {
 const deleteResource = async (resource: ManualResource) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除资源「${resource.title}」吗？`,
-      '确认删除资源',
+      t('admin.are_you_sure_you_10', { resourcetitle: resource.title }),
+      t('admin.confirm_resource_deletion'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       }
     );
     await api.delete(`/api/admin/manual/resources/${resource.id}`);
-    ElMessage.success('资源删除成功');
+    ElMessage.success(t('admin.resource_deleted_successfully'));
     fetchStationResources();
     emit('refresh-station');
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error('删除资源失败');
+      ElMessage.error(t('admin.failed_to_delete_resource'));
     }
   }
 };
@@ -153,7 +155,7 @@ defineExpose({
         <input
           v-model="resourceSearch"
           type="text"
-          placeholder="输入关键字回车检索..."
+          :placeholder="$t('admin.enter_keyword_and_press')"
           class="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60"
           style="color: var(--text-primary);"
           @keydown.enter="handleResourceSearch"
@@ -164,7 +166,7 @@ defineExpose({
         class="px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:border-cyan-500 outline-none bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 min-w-[150px]"
         @change="handleCategoryFilterChange"
       >
-        <option :value="null">所有分类</option>
+        <option :value="null">{{ $t('admin.all_categories_1') }}</option>
         <option v-for="cat in props.formattedCategories" :key="cat.id" :value="cat.id">
           {{ cat.name }}
         </option>
@@ -182,7 +184,7 @@ defineExpose({
       class="flex flex-col items-center justify-center py-12 bg-white dark:bg-slate-900/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl"
     >
       <FileText class="w-8 h-8 text-slate-300 mb-2" />
-      <p class="text-xs text-slate-400">在此资源站中未检索到任何资源...</p>
+      <p class="text-xs text-slate-400">{{ $t('admin.no_resources_were_retrieved') }}</p>
     </div>
 
     <!-- Resources List -->
@@ -210,7 +212,7 @@ defineExpose({
             </h4>
             <div class="flex items-center gap-2 text-[10px] text-slate-400">
               <span class="font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 px-1.5 py-0.2 rounded">
-                {{ res.category?.name || '未分类' }}
+                {{ res.category?.name || $t('admin.uncategorized') }}
               </span>
               <span class="flex items-center gap-0.5"><Eye class="w-3 h-3" /> {{ res.viewCount }}</span>
               <span class="flex items-center gap-0.5"><Calendar class="w-3 h-3" /> {{ new Date(res.createdAt).toLocaleDateString() }}</span>
@@ -219,10 +221,10 @@ defineExpose({
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40 bg-transparent cursor-pointer" title="编辑资源" @click="manualResourceDialogRef?.openEdit(res)">
+          <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-lg transition-colors border border-slate-200/40 dark:border-slate-700/40 bg-transparent cursor-pointer" :title="$t('admin.edit_resources')" @click="manualResourceDialogRef?.openEdit(res)">
             <Edit3 class="w-3.5 h-3.5" />
           </button>
-          <button type="button" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20 bg-transparent cursor-pointer" title="删除资源" @click="deleteResource(res)">
+          <button type="button" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded-lg transition-colors border border-rose-200/20 bg-transparent cursor-pointer" :title="$t('admin.delete_resources')" @click="deleteResource(res)">
             <Trash2 class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -230,7 +232,7 @@ defineExpose({
 
       <!-- Pagination Footer -->
       <div v-if="resourceTotalPages > 1" class="flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-2">
-        <span class="text-[10px] text-slate-400">显示 {{ (resourcePage - 1) * resourcePageSize + 1 }} 到 {{ Math.min(resourcePage * resourcePageSize, resourceTotal) }}，共 {{ resourceTotal }} 个资源</span>
+        <span class="text-[10px] text-slate-400">{{ $t('admin.showing_resourcepage_1_resourcepagesize') }}</span>
         <div class="flex items-center gap-2">
           <button type="button" :disabled="resourcePage === 1" class="p-1.5 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-all disabled:opacity-40 bg-transparent cursor-pointer text-slate-500" @click="handlePageChange(resourcePage - 1)">
             <ChevronLeft class="w-4 h-4" />

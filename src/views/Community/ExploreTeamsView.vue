@@ -2,6 +2,7 @@
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Users,
   Plus,
@@ -23,6 +24,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+const { t } = useI18n();
 
 const isCreateTeamVisible = ref(false);
 const isDetailVisible = ref(false);
@@ -56,7 +58,7 @@ const fetchData = async () => {
     myTeamIds.value = new Set((myRes.data as ExploreTeam[]).map((t) => t.id));
   } catch (error) {
     console.error('Fetch teams error:', error);
-    ElMessage.error('获取小组失败');
+    ElMessage.error(t('teams.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -86,22 +88,22 @@ const handleApplyToJoin = async (group: ExploreTeam | null) => {
 
   try {
     await ElMessageBox.confirm(
-      `你正在申请加入 "${group.name}"，申请信息将发送给团队管理员。`,
-      '申请加入团队',
+      t('teams.applyConfirmMsg', { name: group.name }),
+      t('teams.applyConfirmTitle'),
       {
-        confirmButtonText: '提交申请',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.submit') || '提交申请',
+        cancelButtonText: t('common.cancel') || '取消',
         type: 'info',
         customClass: 'custom-rounded-dialog',
       },
     );
     applyingIds.value.add(group.id);
     await api.post('/api/teams/apply', { teamId: group.id });
-    ElMessage.success(`申请已提交！等待 "${group.name}" 管理员审批`);
+    ElMessage.success(t('teams.applySuccess', { name: group.name }) || `申请已提交！等待 "${group.name}" 管理员审批`);
     fetchData();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '申请失败，请稍后重试'));
+      ElMessage.error(getApiErrorMessage(error, t('teams.applyFailed') || '申请失败，请稍后重试'));
     }
   } finally {
     applyingIds.value.delete(group.id);
@@ -140,7 +142,7 @@ onMounted(() => {
         <!-- Back Button -->
         <button type="button" class="inline-flex items-center gap-1.5 text-slate-400 hover:text-accent transition-all mb-1.5 lg:mb-2 group px-2 py-0.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-full border border-white/20 dark:border-slate-700/50 shadow-sm text-[10px] sm:text-xs" @click="router.back()">
           <ChevronLeft class="w-3 h-3 transition-transform group-hover:-translate-x-1" />
-          <span class="font-black uppercase tracking-[0.2em]">返回</span>
+          <span class="font-black uppercase tracking-[0.2em]">{{ t('teams.back') }}</span>
         </button>
 
         <div class="flex flex-col lg:flex-row items-center gap-4 lg:gap-8">
@@ -150,22 +152,22 @@ onMounted(() => {
               class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-1 lg:mb-2 shadow-sm"
             >
               <Sparkles class="w-2.5 h-2.5" />
-              <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">3D 协作社区</span>
+              <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{{ t('teams.title') }}</span>
             </div>
             <h1
               class="text-lg sm:text-2xl lg:text-3xl font-black tracking-tight leading-tight"
               style="color: var(--text-primary)"
             >
-              找到属于你的
+              {{ t('teams.collaborateTitle') }}
               <span
                 class="text-transparent bg-clip-text bg-gradient-to-r from-accent via-blue-400 to-indigo-500"
-                >创意团队</span
+                >{{ t('teams.collaborateSub') }}</span
               >
             </h1>
             <p
               class="mt-1 lg:mt-2 text-xs lg:text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl hidden sm:block"
             >
-              在这里，你可以创建自己的学习小组，或者加入志同道合的团队。共享资产、协作项目，共同见证创意的诞生。
+              {{ t('teams.welcomeText') }}
             </p>
 
             <!-- Small Benefits Tags - Hidden on very small screens to save space -->
@@ -173,17 +175,17 @@ onMounted(() => {
               <div
                 class="flex items-center gap-1.5 px-2 py-1 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-white/40 dark:border-slate-700/40 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
               >
-                <Layers class="w-3 h-3 text-accent" /> 专属资产库
+                <Layers class="w-3 h-3 text-accent" /> {{ t('teams.assetLib') }}
               </div>
               <div
                 class="flex items-center gap-1.5 px-2 py-1 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-white/40 dark:border-slate-700/40 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
               >
-                <Users class="w-3 h-3 text-purple-400" /> 实时协作
+                <Users class="w-3 h-3 text-purple-400" /> {{ t('teams.realtimeCollab') }}
               </div>
               <div
                 class="flex items-center gap-1.5 px-2 py-1 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-white/40 dark:border-slate-700/40 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400"
               >
-                <Trophy class="w-3 h-3 text-amber-400" /> 导师辅导
+                <Trophy class="w-3 h-3 text-amber-400" /> {{ t('teams.tutorSupport') }}
               </div>
             </div>
           </div>
@@ -208,7 +210,7 @@ onMounted(() => {
                 </div>
                 <div>
                   <h3 class="text-sm sm:text-base lg:text-lg font-black tracking-tight" style="color: var(--text-primary)">
-                    创建团队
+                    {{ t('teams.createTitle') }}
                   </h3>
                   <div
                     class="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"
@@ -221,21 +223,21 @@ onMounted(() => {
               <p
                 class="text-xs text-slate-500 dark:text-slate-400 mb-3 lg:mb-4 leading-relaxed font-medium hidden sm:block"
               >
-                主导项目架构，邀请精英成员加入协作。
+                {{ t('teams.createSub') }}
               </p>
 
               <div class="flex items-center justify-between">
                 <div
                   class="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] sm:text-xs bg-accent text-white rounded-lg font-black uppercase tracking-wider shadow-md shadow-accent/20"
                 >
-                  开始创建 <ArrowRight class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  {{ t('teams.startCreate') }} <ArrowRight class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 </div>
                 <div class="text-right hidden sm:block">
                   <div class="text-base lg:text-lg font-black leading-none" style="color: var(--text-primary)">
                     100+
                   </div>
                   <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    活跃团队
+                    {{ t('teams.activeTeams') }}
                   </div>
                 </div>
               </div>
@@ -263,7 +265,7 @@ onMounted(() => {
             >
               <Globe class="w-3.5 h-3.5 text-white" />
             </div>
-            发现公开小组
+            {{ t('teams.discoverTeams') }}
             <span
               class="text-[10px] sm:text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full"
               >{{ publicTeams.length }}</span
@@ -277,7 +279,7 @@ onMounted(() => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索小组名称..."
+              :placeholder="t('teams.searchPlaceholder')"
               class="w-full pl-9 pr-4 py-1.5 sm:py-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border-2 rounded-[20px] focus:border-accent outline-none transition-all text-[11px] sm:text-xs font-medium shadow-sm"
               style="border-color: var(--border-base); color: var(--text-primary)"
             />
@@ -290,7 +292,7 @@ onMounted(() => {
           <div v-if="isLoading" class="flex flex-col items-center justify-center h-full py-20">
             <Loader2 class="w-10 h-10 text-accent animate-spin" />
             <p class="mt-5 text-xs font-black text-slate-400 uppercase tracking-widest">
-              连接中...
+              {{ t('teams.loading') }}
             </p>
           </div>
 
@@ -319,13 +321,13 @@ onMounted(() => {
           >
             <Users class="w-14 h-14 opacity-10 mb-6" style="color: var(--text-muted)" />
             <h4 class="text-2xl font-black mb-2" style="color: var(--text-primary)">
-              暂无匹配小组
+              {{ t('teams.noMatchingTeams') }}
             </h4>
             <p class="text-sm font-medium text-slate-400 text-center">
-              试着精简搜索词，或点燃创意的火花。
+              {{ t('teams.noMatchingTeamsSub') }}
             </p>
             <button type="button" class="mt-10 px-10 py-4 bg-accent text-white rounded-xl font-black text-sm shadow-lg shadow-accent/20 hover:scale-105 transition-all" @click="isCreateTeamVisible = true">
-              创建首个小组
+              {{ t('teams.createFirstTeam') }}
             </button>
           </div>
         </div>

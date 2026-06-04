@@ -44,7 +44,7 @@ const fetchPublicUsers = async () => {
     }));
   } catch (error) {
     console.error('Fetch users error:', error);
-    ElMessage.error('获取用户列表失败');
+    ElMessage.error(t('community.teamDetail.fetchFailed'));
   } finally {
     isLoadingUsers.value = false;
   }
@@ -84,7 +84,7 @@ const handleClose = () => {
         <input
           v-model="userSearchQuery"
           type="text"
-          placeholder="搜索用户姓名或邮箱..."
+          :placeholder="t('community.teamDetail.searchUserPlaceholder')"
           class="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
           style="color: var(--text-primary)"
         />
@@ -106,7 +106,7 @@ const handleClose = () => {
           <UserAvatar :user="user" size="sm" />
           <div class="flex-1 min-w-0">
             <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
-              {{ user.name || '未命名用户' }}
+              {{ user.name || t('community.chat.unnamedUser') }}
             </p>
             <p class="text-[9px] text-slate-400 truncate">{{ user.email }}</p>
           </div>
@@ -122,7 +122,7 @@ const handleClose = () => {
           class="py-6 text-center text-slate-400"
         >
           <UserIcon class="w-6 h-6 mx-auto mb-1.5 opacity-10" />
-          <p class="text-xs">未找到匹配的用户</p>
+          <p class="text-xs">{{ t('search.noResults', { query: userSearchQuery }) }}</p>
         </div>
       </div>
     </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, computed, watch } from 'vue';
 import {
@@ -177,7 +179,7 @@ async function fetchResources(sourceId: string) {
     resourceTotal.value = res.data.total;
     resourceTotalPages.value = res.data.totalPages;
   } catch (_e) {
-    ElMessage.error('加载资源列表失败');
+    ElMessage.error(t('admin.failed_to_load_resource'));
   } finally {
     isLoadingResources.value = false;
   }
@@ -269,7 +271,7 @@ async function openEditResource(res: MirrorResource) {
 
 async function saveResource() {
   if (!resourceForm.value.title.trim()) {
-    ElMessage.warning('请输入资源标题');
+    ElMessage.warning(t('admin.please_enter_a_resource'));
     return;
   }
   try {
@@ -280,40 +282,40 @@ async function saveResource() {
 
     if (isEditingResource.value && editingResource.value) {
       await api.put(`/api/admin/mirror/resources/${editingResource.value.id}`, payload);
-      ElMessage.success('资源更新成功');
+      ElMessage.success(t('admin.resource_updated_successfully'));
     } else {
       await api.post(`/api/admin/mirror/sources/${props.sourceId}/resources`, payload);
-      ElMessage.success('资源创建成功');
+      ElMessage.success(t('admin.resource_created_successfully_1'));
     }
     showResourceDialog.value = false;
     await fetchResources(props.sourceId);
     emit('update-counts');
   } catch (e) {
     const err = e as { response?: { data?: { error?: string } } };
-    ElMessage.error(getApiErrorMessage(err, '操作失败'));
+    ElMessage.error(getApiErrorMessage(err, t('admin.operation_failed')));
   }
 }
 
 async function deleteResource(res: MirrorResource) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除资源「${res.title}」吗？此操作不可恢复。`,
-      '确认删除资源',
+      t('admin.are_you_sure_you_9', { restitle: res.title }),
+      t('admin.confirm_resource_deletion'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
       },
     );
     await api.delete(`/api/admin/mirror/resources/${res.id}`);
-    ElMessage.success('资源已删除');
+    ElMessage.success(t('admin.resource_deleted'));
     await fetchResources(props.sourceId);
     emit('update-counts');
   } catch (e) {
     if (e !== 'cancel') {
       const err = e as { response?: { data?: { error?: string } } };
-      ElMessage.error(getApiErrorMessage(err, '删除失败'));
+      ElMessage.error(getApiErrorMessage(err, t('admin.delete_failed')));
     }
   }
 }
@@ -353,7 +355,7 @@ function openEditCategory(cat: MirrorCategory) {
 
 async function saveCategory() {
   if (!categoryForm.value.name.trim()) {
-    ElMessage.warning('请输入分类名称');
+    ElMessage.warning(t('admin.please_enter_the_category'));
     return;
   }
   try {
@@ -367,41 +369,41 @@ async function saveCategory() {
 
     if (isEditingCategory.value && editingCategory.value) {
       await api.put(`/api/admin/mirror/categories/${editingCategory.value.id}`, payload);
-      ElMessage.success('分类更新成功');
+      ElMessage.success(t('admin.classification_updated_successfully'));
     } else {
       await api.post(`/api/admin/mirror/sources/${props.sourceId}/categories`, payload);
-      ElMessage.success('分类创建成功');
+      ElMessage.success(t('admin.category_created_successfully'));
     }
     showCategoryDialog.value = false;
     await fetchCategories(props.sourceId);
     emit('update-counts');
   } catch (e) {
     const err = e as { response?: { data?: { error?: string } } };
-    ElMessage.error(getApiErrorMessage(err, '操作失败'));
+    ElMessage.error(getApiErrorMessage(err, t('admin.operation_failed')));
   }
 }
 
 async function deleteCategory(cat: MirrorCategory) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除分类「${cat.name}」吗？关联该分类的资源会被设为「未分类」。`,
-      '确认删除分类',
+      t('admin.are_you_sure_you_5', { catname: cat.name }),
+      t('admin.confirm_category_deletion'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
       },
     );
     await api.delete(`/api/admin/mirror/categories/${cat.id}`);
-    ElMessage.success('分类已删除');
+    ElMessage.success(t('admin.category_deleted'));
     await fetchCategories(props.sourceId);
     await fetchResources(props.sourceId);
     emit('update-counts');
   } catch (e) {
     if (e !== 'cancel') {
       const err = e as { response?: { data?: { error?: string } } };
-      ElMessage.error(getApiErrorMessage(err, '删除失败'));
+      ElMessage.error(getApiErrorMessage(err, t('admin.delete_failed')));
     }
   }
 }
@@ -441,7 +443,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           >
             <FileText class="w-4 h-4 text-cyan-500" />
             资源管理
-            <span class="text-xs text-slate-400 font-normal">共 {{ resourceTotal }} 个</span>
+            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_resourcetotal') }}</span>
           </h4>
           <div class="flex items-center gap-2">
             <div class="relative">
@@ -451,7 +453,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               <input
                 v-model="resourceSearch"
                 type="text"
-                placeholder="搜索资源..."
+                :placeholder="$t('admin.search_resources')"
                 class="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 w-48"
                 @keyup.enter="doResourceSearch"
               />
@@ -461,7 +463,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               @change="doResourceSearch"
             >
-              <option :value="null">全部分类</option>
+              <option :value="null">{{ $t('admin.all_categories') }}</option>
               <option
                 v-for="cat in formattedMirrorCategories"
                 :key="cat.id"
@@ -472,7 +474,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             </select>
             <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer" @click="openCreateResource">
               <Plus class="w-3.5 h-3.5" />
-              新增资源
+              {{ $t('admin.add_new_resources') }}
             </button>
           </div>
         </div>
@@ -480,13 +482,13 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
         <!-- Loading -->
         <div v-if="isLoadingResources" class="flex items-center justify-center py-10">
           <Loader2 class="w-5 h-5 animate-spin text-cyan-500" />
-          <span class="ml-2 text-sm text-slate-500">加载资源...</span>
+          <span class="ml-2 text-sm text-slate-500">{{ $t('admin.loading_resources') }}</span>
         </div>
 
         <!-- Empty -->
         <div v-else-if="resourceList.length === 0" class="text-center py-10">
           <Database class="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-          <p class="text-sm text-slate-400">暂无资源数据</p>
+          <p class="text-sm text-slate-400">{{ $t('admin.no_resource_data_yet') }}</p>
         </div>
 
         <!-- Resource Table -->
@@ -494,7 +496,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           <table class="w-full text-xs">
             <thead>
               <tr class="border-b border-slate-200 dark:border-slate-700">
-                <th class="text-left py-2 px-2 text-slate-500 font-medium">标题</th>
+                <th class="text-left py-2 px-2 text-slate-500 font-medium">{{ $t('admin.title') }}</th>
                 <th
                   class="text-left py-2 px-2 text-slate-500 font-medium hidden md:table-cell"
                 >
@@ -515,7 +517,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                 >
                   链接
                 </th>
-                <th class="text-right py-2 px-2 text-slate-500 font-medium">操作</th>
+                <th class="text-right py-2 px-2 text-slate-500 font-medium">{{ $t('admin.operation') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -557,10 +559,10 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                 </td>
                 <td class="py-2.5 px-2">
                   <div class="flex items-center justify-end gap-1">
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer" title="编辑" @click="openEditResource(res)">
+                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer" :title="$t('admin.edit')" @click="openEditResource(res)">
                       <Edit3 class="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer" title="删除" @click="deleteResource(res)">
+                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer" :title="$t('admin.delete')" @click="deleteResource(res)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -598,32 +600,32 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           >
             <Layers class="w-4 h-4 text-cyan-500" />
             分类管理
-            <span class="text-xs text-slate-400 font-normal">共 {{ sourceCategories.length }} 个分类</span>
+            <span class="text-xs text-slate-400 font-normal">{{ $t('admin.total_sourcecategories_length_categories') }}</span>
           </h4>
           <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer" @click="openCreateCategory">
             <Plus class="w-3.5 h-3.5" />
-            新增分类
+            {{ $t('admin.add_new_category') }}
           </button>
         </div>
 
         <div v-if="sourceCategories.length === 0" class="text-center py-10">
           <Layers class="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-          <p class="text-sm text-slate-400">暂无分类数据，请先创建分类</p>
+          <p class="text-sm text-slate-400">{{ $t('admin.there_is_no_classification') }}</p>
         </div>
 
         <div v-else class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>
               <tr class="border-b border-slate-200 dark:border-slate-700">
-                <th class="text-left py-2 px-2 text-slate-500 font-medium">名称</th>
-                <th class="text-left py-2 px-2 text-slate-500 font-medium">父级分类</th>
+                <th class="text-left py-2 px-2 text-slate-500 font-medium">{{ $t('admin.name') }}</th>
+                <th class="text-left py-2 px-2 text-slate-500 font-medium">{{ $t('admin.parent_category') }}</th>
                 <th class="text-left py-2 px-2 text-slate-500 font-medium">
                   Slug (别名)
                 </th>
                 <th class="text-center py-2 px-2 text-slate-500 font-medium">
                   排序权重 (Order)
                 </th>
-                <th class="text-right py-2 px-2 text-slate-500 font-medium">操作</th>
+                <th class="text-right py-2 px-2 text-slate-500 font-medium">{{ $t('admin.operation') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -644,10 +646,10 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                 </td>
                 <td class="py-2.5 px-2">
                   <div class="flex items-center justify-end gap-1">
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer" title="编辑" @click="openEditCategory(cat)">
+                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors cursor-pointer" :title="$t('admin.edit')" @click="openEditCategory(cat)">
                       <Edit3 class="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer" title="删除" @click="deleteCategory(cat)">
+                    <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer" :title="$t('admin.delete')" @click="deleteCategory(cat)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -676,7 +678,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
             >
               <FileText class="w-5 h-5 text-cyan-500" />
-              {{ isEditingResource ? '编辑资源' : '新增资源' }}
+              {{ isEditingResource ? t('admin.edit_resources') : $t('admin.add_new_resources') }}
             </h2>
             <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="showResourceDialog = false">
               <X class="w-5 h-5" />
@@ -686,36 +688,36 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           <div class="p-5 space-y-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >标题 <span class="text-red-400">*</span></label
+                >{{ $t('admin.title') }} <span class="text-red-400">*</span></label
               >
               <input
                 v-model="resourceForm.title"
                 type="text"
-                placeholder="资源标题"
+                :placeholder="$t('admin.resource_title')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
               />
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >描述</label
+                >{{ $t('admin.description') }}</label
               >
               <textarea
                 v-model="resourceForm.description"
                 rows="2"
-                placeholder="资源描述..."
+                :placeholder="$t('admin.resource_description')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 resize-none"
               ></textarea>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                  >分类</label
+                  >{{ $t('admin.classification') }}</label
                 >
                 <select
                   v-model="resourceForm.categoryId"
                   class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                 >
-                  <option value="">未分类</option>
+                  <option value="">{{ $t('admin.uncategorized') }}</option>
                   <option
                     v-for="cat in formattedMirrorCategories"
                     :key="cat.id"
@@ -727,7 +729,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               </div>
               <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                  >资源类型</label
+                  >{{ $t('admin.resource_type') }}</label
                 >
                 <input
                   v-model="resourceForm.resourceType"
@@ -739,7 +741,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >缩略图URL</label
+                >{{ $t('admin.thumbnail_url') }}</label
               >
               <input
                 v-model="resourceForm.thumbnailUrl"
@@ -750,34 +752,34 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >网盘链接 (contentUrl)</label
+                >{{ $t('admin.network_disk_link_contenturl') }}</label
               >
               <input
                 v-model="resourceForm.contentUrl"
                 type="text"
-                placeholder="网盘下载链接..."
+                :placeholder="$t('admin.network_disk_download_link')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
               />
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >标签</label
+                >{{ $t('admin.label') }}</label
               >
               <input
                 v-model="resourceForm.tags"
                 type="text"
-                placeholder='JSON数组格式, 如: ["3D", "教程"]'
+                :placeholder="$t('admin.json_array_format_such')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
               />
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >正文 HTML</label
+                >{{ $t('admin.text_html') }}</label
               >
               <textarea
                 v-model="resourceForm.contentHtml"
                 rows="6"
-                placeholder="HTML内容..."
+                :placeholder="$t('admin.html_content')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 resize-none font-mono text-xs"
               ></textarea>
             </div>
@@ -790,7 +792,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               取消
             </button>
             <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors cursor-pointer" @click="saveResource">
-              {{ isEditingResource ? '保存' : '创建' }}
+              {{ isEditingResource ? t('admin.save') : $t('admin.create') }}
             </button>
           </div>
         </div>
@@ -812,7 +814,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
             >
               <Layers class="w-5 h-5 text-cyan-500" />
-              {{ isEditingCategory ? '编辑分类' : '新增分类' }}
+              {{ isEditingCategory ? t('admin.edit_category') : $t('admin.add_new_category') }}
             </h2>
             <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="showCategoryDialog = false">
               <X class="w-5 h-5" />
@@ -822,12 +824,12 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
           <div class="p-5 space-y-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                >分类名称 <span class="text-red-400">*</span></label
+                >{{ $t('admin.category_name') }} <span class="text-red-400">*</span></label
               >
               <input
                 v-model="categoryForm.name"
                 type="text"
-                placeholder="例如: 3D模型"
+                :placeholder="$t('admin.for_example_3d_model')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
               />
             </div>
@@ -835,14 +837,14 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >父级分类
                 <span class="text-xs text-slate-400 font-normal"
-                  >（可选，用于侧边栏分组）</span
+                  >{{ $t('admin.optional_for_sidebar_grouping') }}</span
                 ></label
               >
               <select
                 v-model="categoryForm.parentExternalId"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               >
-                <option :value="null">无（作为一级分类/大类）</option>
+                <option :value="null">{{ $t('admin.none_as_a_first_1') }}</option>
                 <option
                   v-for="cat in parentCategoryOptions"
                   :key="cat.id"
@@ -859,7 +861,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >分配子分类
                 <span class="text-xs text-slate-400 font-normal"
-                  >（从现有分类中选择归属于本大类）</span
+                  >{{ $t('admin.select_from_existing_categories') }}</span
                 ></label
               >
               <div
@@ -895,19 +897,19 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >Slug (别名)
-                <span class="text-xs text-slate-400 font-normal">（可选）</span></label
+                <span class="text-xs text-slate-400 font-normal">{{ $t('admin.optional') }}</span></label
               >
               <input
                 v-model="categoryForm.slug"
                 type="text"
-                placeholder="例如: 3d-models"
+                :placeholder="$t('admin.for_example_3d_models')"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400"
               />
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >排序权重 (Order)
-                <span class="text-xs text-slate-400 font-normal">（越小越靠前）</span></label
+                <span class="text-xs text-slate-400 font-normal">{{ $t('admin.the_smaller_it_is') }}</span></label
               >
               <input
                 v-model.number="categoryForm.order"
@@ -925,7 +927,7 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
               取消
             </button>
             <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors cursor-pointer" @click="saveCategory">
-              {{ isEditingCategory ? '保存' : '创建' }}
+              {{ isEditingCategory ? t('admin.save') : $t('admin.create') }}
             </button>
           </div>
         </div>

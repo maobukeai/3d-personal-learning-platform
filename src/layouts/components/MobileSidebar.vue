@@ -185,7 +185,7 @@ const handleLogoError = () => {
             class="w-4 h-4 shrink-0"
             :class="route.path === '/settings' ? 'text-accent' : 'text-slate-400'"
           />
-          <span class="flex-1 text-xs truncate">设置选项</span>
+          <span class="flex-1 text-xs truncate">{{ $t('sidebar.settingsOption') }}</span>
         </RouterLink>
         <button
           type="button"
@@ -196,7 +196,7 @@ const handleLogoError = () => {
           "
         >
           <HelpCircle class="w-4 h-4 shrink-0" />
-          <span class="flex-1 text-xs text-left truncate">问题反馈</span>
+          <span class="flex-1 text-xs text-left truncate">{{ $t('sidebar.feedbackOption') }}</span>
         </button>
       </div>
     </aside>

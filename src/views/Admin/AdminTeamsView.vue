@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import {
@@ -141,7 +143,7 @@ const openEditModal = (team: AdminTeam) => {
 
 const handleSubmit = async () => {
   if (!form.value.name || !form.value.ownerId) {
-    ElMessage.warning('请填写团队名称并选择负责人');
+    ElMessage.warning(t('admin.please_fill_in_the'));
     return;
   }
 
@@ -149,16 +151,16 @@ const handleSubmit = async () => {
     isSubmitting.value = true;
     if (modalMode.value === 'create') {
       await api.post('/api/admin/teams', form.value);
-      ElMessage.success('团队创建成功');
+      ElMessage.success(t('admin.team_created_successfully'));
     } else {
       await api.put(`/api/admin/teams/${form.value.id}`, form.value);
-      ElMessage.success('团队信息已更新');
+      ElMessage.success(t('admin.team_information_has_been'));
     }
     isModalOpen.value = false;
     fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '操作失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.operation_failed')));
   } finally {
     isSubmitting.value = false;
   }
@@ -167,23 +169,23 @@ const handleSubmit = async () => {
 const deleteTeam = async (id: string) => {
   try {
     await ElMessageBox.confirm(
-      '确定要解散该团队吗？此操作不可逆，将删除所有相关协作数据。',
-      '确认解散团队',
+      t('admin.are_you_sure_you_23'),
+      t('admin.confirm_the_disbandment_of'),
       {
-        confirmButtonText: '确定解散',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_dissolution'),
+        cancelButtonText: t('admin.cancel'),
         type: 'error',
         confirmButtonClass: 'el-button--danger',
       },
     );
     await api.delete(`/api/admin/teams/${id}`);
-    ElMessage.success('团队已解散');
+    ElMessage.success(t('admin.the_team_has_been'));
     if (selectedTeam.value?.id === id) isMemberDrawerOpen.value = false;
     fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '删除失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.delete_failed')));
     }
   }
 };
@@ -191,28 +193,28 @@ const deleteTeam = async (id: string) => {
 const updateMemberRole = async (teamId: string, userId: string, role: string) => {
   try {
     await api.put(`/api/admin/teams/${teamId}/members/${userId}/role`, { role });
-    ElMessage.success('成员角色已更新');
+    ElMessage.success(t('admin.member_role_updated'));
     fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '更新角色失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.failed_to_update_role')));
   }
 };
 
 const removeMember = async (teamId: string, userId: string, userName: string) => {
   try {
-    await ElMessageBox.confirm(`确定要将成员 "${userName}" 移出团队吗？`, '移除成员', {
-      confirmButtonText: '确定移除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_20', { userName: userName }), t('admin.remove_member'), {
+      confirmButtonText: t('admin.confirm_removal'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
     });
     await api.delete(`/api/admin/teams/${teamId}/members/${userId}`);
-    ElMessage.success('成员已移除');
+    ElMessage.success(t('admin.member_removed'));
     fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '移除失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.removal_failed')));
     }
   }
 };
@@ -235,12 +237,12 @@ const handleAddMember = async () => {
       userId: selectedUserId.value,
       role: 'MEMBER',
     });
-    ElMessage.success('成员已添加');
+    ElMessage.success(t('admin.member_has_been_added'));
     addMemberDialogVisible.value = false;
     fetchTeams();
     workspaceStore.fetchWorkspaces();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '添加成员失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.failed_to_add_member')));
   }
 };
 
@@ -261,11 +263,11 @@ const filteredTeams = computed(() => {
 const getRoleLabel = (role: string) => {
   switch (role) {
     case 'OWNER':
-      return '负责人';
+      return t('admin.person_in_charge');
     case 'ADMIN':
-      return '管理员';
+      return t('admin.administrator');
     case 'MEMBER':
-      return '成员';
+      return t('admin.member');
     default:
       return role;
   }
@@ -328,11 +330,11 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
               fetchUsers();
             ">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-accent text-white rounded-xl font-bold text-[11px] shadow-sm hover:scale-105 active:scale-95 transition-all whitespace-nowrap cursor-pointer" @click="openCreateModal">
             <Plus class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">创建团队</span>
+            <span class="hidden sm:inline">{{ $t('admin.create_a_team') }}</span>
           </button>
         </div>
       </div>
@@ -347,7 +349,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
             class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-600 text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 shrink-0"
           >
             <Users class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-            <span>全部协作团队</span>
+            <span>{{ $t('admin.all_collaborative_teams') }}</span>
             <span class="opacity-60">({{ filteredTeams.length }})</span>
           </span>
         </div>
@@ -361,7 +363,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索团队名称或负责人..."
+              :placeholder="$t('admin.search_for_a_team')"
               class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-teal-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -451,14 +453,14 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
                   <div class="flex items-center gap-2">
                     <UserAvatar :user="team.owner" size="xs" />
                     <span class="text-xs font-bold" style="color: var(--text-primary)">{{
-                      team.owner?.name || team.owner?.email || '无'
+                      team.owner?.name || team.owner?.email || $t('admin.none')
                     }}</span>
                   </div>
                 </td>
                 <td
                   class="px-4 sm:px-6 py-3.5 sm:py-4 text-xs text-slate-400 max-w-[300px] truncate"
                 >
-                  {{ team.description || '暂无团队描述' }}
+                  {{ team.description || $t('admin.no_team_description_yet') }}
                 </td>
                 <td class="px-4 sm:px-6 py-3.5 sm:py-4">
                   <span
@@ -524,7 +526,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
                   <div class="flex items-center gap-1.5 mt-0.5">
                     <UserAvatar :user="team.owner" size="xs" />
                     <span class="text-[10px] font-bold text-slate-400">{{
-                      team.owner?.name || '管理员'
+                      team.owner?.name || $t('admin.administrator')
                     }}</span>
                   </div>
                 </div>
@@ -537,7 +539,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
             </div>
 
             <p class="text-[11px] text-slate-500 line-clamp-2 mb-4 leading-relaxed px-1">
-              {{ team.description || '暂无团队描述' }}
+              {{ team.description || $t('admin.no_team_description_yet') }}
             </p>
 
             <div class="flex items-center gap-2" @click.stop>
@@ -665,7 +667,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
                           removeMember(
                             selectedTeam.id,
                             member.userId,
-                            member.user?.name || member.user?.email || '未知成员',
+                            member.user?.name || member.user?.email || $t('admin.unknown_member'),
                           )
                         "
                       >
@@ -696,7 +698,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
       >
         <div class="flex items-center justify-between mb-8">
           <h3 class="text-xl font-black tracking-tight" style="color: var(--text-primary)">
-            {{ modalMode === 'create' ? '创建协作团队' : '编辑团队信息' }}
+            {{ modalMode === 'create' ? t('admin.create_a_collaborative_team') : $t('admin.edit_team_information') }}
           </h3>
           <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" @click="isModalOpen = false">
             <X class="w-6 h-6 text-slate-400" />
@@ -707,12 +709,12 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
           <div>
             <label
               class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
-              >团队名称</label
+              >{{ $t('admin.team_name') }}</label
             >
             <input
               v-model="form.name"
               type="text"
-              placeholder="输入团队名称..."
+              :placeholder="$t('admin.enter_team_name')"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none font-bold"
               style="
                 background-color: var(--bg-app);
@@ -725,12 +727,12 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
           <div>
             <label
               class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
-              >团队负责人</label
+              >{{ $t('admin.team_leader') }}</label
             >
             <el-select
               v-model="form.ownerId"
               filterable
-              placeholder="选择负责人..."
+              :placeholder="$t('admin.choose_the_person_in')"
               class="w-full modern-select"
             >
               <el-option
@@ -745,12 +747,12 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
           <div>
             <label
               class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
-              >团队描述</label
+              >{{ $t('admin.team_description') }}</label
             >
             <textarea
               v-model="form.description"
               rows="3"
-              placeholder="描述该团队的协作职责..."
+              :placeholder="$t('admin.describe_the_team_s')"
               class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none text-sm font-medium"
               style="
                 background-color: var(--bg-app);
@@ -781,7 +783,7 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
     <!-- Add Member Dialog -->
     <el-dialog
       v-model="addMemberDialogVisible"
-      title="添加团队成员"
+      :title="$t('admin.add_team_members')"
       width="400px"
       destroy-on-close
       align-center
@@ -789,12 +791,12 @@ type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 r
       <div class="space-y-4">
         <div>
           <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest"
-            >选择用户</label
+            >{{ $t('admin.select_user') }}</label
           >
           <el-select
             v-model="selectedUserId"
             filterable
-            placeholder="搜索并选择用户..."
+            :placeholder="$t('admin.search_and_select_users')"
             class="w-full modern-select"
           >
             <el-option

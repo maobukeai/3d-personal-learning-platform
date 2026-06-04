@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
 import {
   MessageSquare,
@@ -33,7 +35,7 @@ const fetchFeedbacks = async () => {
     const response = await api.get('/api/admin/feedback');
     feedbacks.value = response.data;
   } catch (_error) {
-    ElMessage.error('获取反馈列表失败');
+    ElMessage.error(t('admin.failed_to_get_feedback'));
   } finally {
     isLoading.value = false;
   }
@@ -73,11 +75,11 @@ const handleReply = async () => {
     await api.put(`/api/admin/feedback/${currentFeedback.value.id}/status`, {
       adminReply: replyText.value,
     });
-    ElMessage.success('已发送回复');
+    ElMessage.success(t('admin.reply_sent'));
     replyDialogVisible.value = false;
     fetchFeedbacks();
   } catch (_error) {
-    ElMessage.error('发送回复失败');
+    ElMessage.error(t('admin.failed_to_send_reply'));
   } finally {
     isSubmittingReply.value = false;
   }
@@ -86,10 +88,10 @@ const handleReply = async () => {
 const updateStatus = async (id: string, status: string) => {
   try {
     await api.put(`/api/admin/feedback/${id}/status`, { status });
-    ElMessage.success('状态已更新');
+    ElMessage.success(t('admin.status_updated'));
     fetchFeedbacks();
   } catch (_error) {
-    ElMessage.error('更新状态失败');
+    ElMessage.error(t('admin.update_status_failed'));
   }
 };
 
@@ -107,19 +109,19 @@ const setFilterStatus = (status: string) => {
 
 const deleteFeedback = async (id: string) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条反馈记录吗？删除后无法恢复。', '确认删除', {
-      confirmButtonText: '确定删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('admin.are_you_sure_you_16'), t('admin.confirm_deletion_1'), {
+      confirmButtonText: t('admin.confirm_deletion'),
+      cancelButtonText: t('admin.cancel'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger',
     });
 
     await api.delete(`/api/admin/feedback/${id}`);
-    ElMessage.success('删除成功');
+    ElMessage.success(t('admin.delete_successfully'));
     fetchFeedbacks();
   } catch (error: unknown) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败');
+      ElMessage.error(t('admin.delete_failed'));
     }
   }
 };
@@ -142,13 +144,13 @@ const getStatusType = (status: string): "primary" | "success" | "warning" | "inf
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'OPEN':
-      return '待处理';
+      return t('admin.pending');
     case 'IN_PROGRESS':
-      return '处理中';
+      return t('admin.processing');
     case 'RESOLVED':
-      return '已解决';
+      return t('admin.resolved');
     case 'CLOSED':
-      return '已关闭';
+      return t('admin.closed');
     default:
       return status;
   }
@@ -170,11 +172,11 @@ const getPriorityColor = (priority: string) => {
 const getPriorityLabel = (priority: string) => {
   switch (priority) {
     case 'HIGH':
-      return '高';
+      return t('admin.high');
     case 'MEDIUM':
-      return '中';
+      return t('admin.in');
     case 'LOW':
-      return '低';
+      return t('admin.low');
     default:
       return priority;
   }
@@ -241,7 +243,7 @@ type="button"
             @click="fetchFeedbacks"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
         </div>
       </div>
@@ -255,11 +257,11 @@ type="button"
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
 v-for="filter in [
-                { key: 'ALL', label: '所有反馈', count: feedbacks.length },
-                { key: 'OPEN', label: '待处理', count: feedbacks.filter(f => f.status === 'OPEN').length },
-                { key: 'IN_PROGRESS', label: '处理中', count: feedbacks.filter(f => f.status === 'IN_PROGRESS').length },
-                { key: 'RESOLVED', label: '已解决', count: feedbacks.filter(f => f.status === 'RESOLVED').length },
-                { key: 'CLOSED', label: '已关闭', count: feedbacks.filter(f => f.status === 'CLOSED').length }
+                { key: 'ALL', label: $t('admin.all_feedback'), count: feedbacks.length },
+                { key: 'OPEN', label: $t('admin.pending'), count: feedbacks.filter(f => f.status === 'OPEN').length },
+                { key: 'IN_PROGRESS', label: $t('admin.processing'), count: feedbacks.filter(f => f.status === 'IN_PROGRESS').length },
+                { key: 'RESOLVED', label: $t('admin.resolved'), count: feedbacks.filter(f => f.status === 'RESOLVED').length },
+                { key: 'CLOSED', label: $t('admin.closed'), count: feedbacks.filter(f => f.status === 'CLOSED').length }
               ]"
               :key="filter.key"
               type="button"
@@ -292,7 +294,7 @@ v-for="filter in [
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索反馈内容、用户名、邮箱..."
+              :placeholder="$t('admin.search_feedback_content_username')"
               class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -316,7 +318,7 @@ v-for="filter in [
           class="flex flex-col items-center justify-center py-20 text-slate-400"
         >
           <RefreshCw class="w-8 h-8 animate-spin mb-4" />
-          <p class="text-sm font-medium">正在加载反馈列表...</p>
+          <p class="text-sm font-medium">{{ $t('admin.loading_feedback_list') }}</p>
         </div>
 
         <template v-else>
@@ -398,7 +400,7 @@ v-for="filter in [
                         <MessageSquare class="w-3 h-3 text-indigo-600" />
                       </div>
                       <span class="text-[10px] font-black uppercase text-indigo-600 tracking-wider"
-                        >官方回复</span
+                        >{{ $t('admin.official_reply') }}</span
                       >
                     </div>
                     <span v-if="item.repliedAt" class="text-[9px] text-slate-400 font-bold">
@@ -431,7 +433,7 @@ type="button"
                       @click="openReplyDialog(item)"
                     >
                       <MessageSquare class="w-3 h-3" />
-                      {{ item.adminReply ? '编辑回复' : '回复用户' }}
+                      {{ item.adminReply ? t('admin.edit_reply') : $t('admin.reply_to_user') }}
                     </button>
 
                     <el-dropdown trigger="click">
@@ -444,16 +446,16 @@ type="button"
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item @click="updateStatus(item.id, 'OPEN')"
-                            >设为待处理</el-dropdown-item
+                            >{{ $t('admin.set_as_pending') }}</el-dropdown-item
                           >
                           <el-dropdown-item @click="updateStatus(item.id, 'IN_PROGRESS')"
-                            >设为处理中</el-dropdown-item
+                            >{{ $t('admin.set_as_processing') }}</el-dropdown-item
                           >
                           <el-dropdown-item @click="updateStatus(item.id, 'RESOLVED')"
-                            >标记为已解决</el-dropdown-item
+                            >{{ $t('admin.mark_as_solved') }}</el-dropdown-item
                           >
                           <el-dropdown-item @click="updateStatus(item.id, 'CLOSED')"
-                            >关闭反馈</el-dropdown-item
+                            >{{ $t('admin.close_feedback') }}</el-dropdown-item
                           >
                         </el-dropdown-menu>
                       </template>
@@ -462,7 +464,7 @@ type="button"
                     <button
 type="button"
                       class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                      title="删除记录"
+                      :title="$t('admin.delete_record')"
                       @click="deleteFeedback(item.id)"
                     >
                       <Trash2 class="w-4 h-4" />
@@ -480,14 +482,14 @@ type="button"
             <div class="p-4 bg-slate-50 rounded-full mb-4">
               <CheckCircle2 class="w-12 h-12 opacity-20" />
             </div>
-            <p class="text-sm font-medium">没有找到匹配的反馈记录</p>
+            <p class="text-sm font-medium">{{ $t('admin.no_matching_feedback_record') }}</p>
           </div>
         </template>
       </div>
     </div>
 
     <!-- Reply Dialog -->
-    <el-dialog v-model="replyDialogVisible" title="回复用户反馈" width="500px" destroy-on-close>
+    <el-dialog v-model="replyDialogVisible" :title="$t('admin.respond_to_user_feedback')" width="500px" destroy-on-close>
       <div v-if="currentFeedback" class="space-y-4">
         <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
           <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
@@ -503,20 +505,20 @@ type="button"
 
         <div>
           <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2"
-            >你的回复</label
+            >{{ $t('admin.your_reply') }}</label
           >
           <el-input
             v-model="replyText"
             type="textarea"
             :rows="6"
-            placeholder="输入你给用户的正式回复..."
+            :placeholder="$t('admin.enter_your_formal_reply')"
             maxlength="1000"
             show-word-limit
           />
         </div>
 
         <div class="flex items-center gap-2 py-2">
-          <p class="text-[10px] text-slate-400">提示: 发送回复后，用户将收到系统实时通知。</p>
+          <p class="text-[10px] text-slate-400">{{ $t('admin.tip_after_sending_a') }}</p>
         </div>
       </div>
       <template #footer>
@@ -536,14 +538,14 @@ type="button"
           >
             <RefreshCw v-if="isSubmittingReply" class="w-3.5 h-3.5 animate-spin" />
             <Send v-else class="w-3.5 h-3.5" />
-            {{ currentFeedback?.adminReply ? '更新回复' : '发送回复' }}
+            {{ currentFeedback?.adminReply ? t('admin.update_reply') : $t('admin.send_reply') }}
           </button>
         </div>
       </template>
     </el-dialog>
 
     <!-- Image Preview Dialog -->
-    <el-dialog v-model="previewVisible" title="图片预览" width="60%" destroy-on-close>
+    <el-dialog v-model="previewVisible" :title="$t('admin.picture_preview')" width="60%" destroy-on-close>
       <img alt="" :src="previewImageUrl" class="w-full h-auto rounded-xl" />
     </el-dialog>
   </div>

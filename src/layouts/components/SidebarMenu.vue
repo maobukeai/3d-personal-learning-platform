@@ -99,11 +99,11 @@ const workspaceStore = useWorkspaceStore();
           class="w-4 h-4"
           :class="route.path === '/settings' ? 'text-accent' : 'text-slate-400'"
         />
-        设置选项
+        {{ $t('sidebar.settingsOption') }}
       </RouterLink>
       <button type="button" class="w-full flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-md transition-colors" @click="emit('report-bug')">
         <HelpCircle class="w-4 h-4 text-slate-400" />
-        问题反馈
+        {{ $t('sidebar.feedbackOption') }}
       </button>
     </div>
   </aside>

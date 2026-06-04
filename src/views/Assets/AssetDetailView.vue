@@ -19,6 +19,9 @@ import {
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import type { Asset } from '@/types';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 type ModelViewerExpose = {
   setViewMode?: (mode: 'solid' | 'wireframe') => void;
@@ -70,7 +73,7 @@ const fetchAsset = async () => {
     const response = await api.get(`/api/assets/${assetId}`);
     asset.value = response.data;
   } catch (_error) {
-    ElMessage.error('无法加载资产详情');
+    ElMessage.error(t('assets.fetchDetailFailed'));
     router.replace('/assets');
   } finally {
     isLoading.value = false;
@@ -150,11 +153,11 @@ const parsedFormats = computed(() => {
         <button type="button" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-accent to-blue-500 hover:from-blue-500 hover:to-accent text-white rounded-lg text-xs font-bold tracking-wider shadow-md shadow-accent/15 hover:shadow-accent/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer" @click="handleDownload">
           <template v-if="asset?.type === 'LINK'">
             <ExternalLink class="w-3.5 h-3.5" />
-            <span>访问外链</span>
+            <span>{{ t('assets.visitExternalLink') }}</span>
           </template>
           <template v-else>
             <Download class="w-3.5 h-3.5" />
-            <span>立即下载</span>
+            <span>{{ t('assets.downloadNow') }}</span>
           </template>
         </button>
       </div>
@@ -165,7 +168,7 @@ const parsedFormats = computed(() => {
       <!-- Loading State -->
       <div v-if="isLoading" class="absolute inset-0 z-30 flex flex-col items-center justify-center" style="background-color: var(--bg-app)">
         <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p class="font-medium text-xs" style="color: var(--text-secondary)">加载资产中...</p>
+        <p class="font-medium text-xs" style="color: var(--text-secondary)">{{ t('assets.loadingAsset') }}</p>
       </div>
 
       <!-- Left: 3D Viewer Area -->
@@ -187,26 +190,26 @@ const parsedFormats = computed(() => {
             <img v-if="asset.thumbnail" :src="asset.thumbnail" alt="Preview" class="relative z-10 max-w-full max-h-full object-contain drop-shadow-2xl px-6" />
             <div v-else class="relative z-10 flex flex-col items-center" style="color: var(--text-secondary)">
               <Box class="w-16 h-16 mb-3 opacity-50 drop-shadow-md" />
-              <span class="text-base font-bold tracking-widest uppercase">暂无预览图</span>
+              <span class="text-base font-bold tracking-widest uppercase">{{ t('assets.noPreviewImage') }}</span>
             </div>
           </div>
         </template>
         
         <!-- Viewer Tools Overlay -->
         <div v-if="asset && ['GLB', 'GLTF', 'FBX', 'OBJ', 'STL'].includes(asset.type)" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-xl p-1.5 flex items-center gap-1 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.autoRotate ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" title="自动旋转" @click="viewerConfig.autoRotate = !viewerConfig.autoRotate">
+          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.autoRotate ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" :title="t('assets.autoRotate')" @click="viewerConfig.autoRotate = !viewerConfig.autoRotate">
             <RefreshCw class="w-3.5 h-3.5" :class="viewerConfig.autoRotate ? 'animate-spin-slow' : ''" />
           </button>
           
           <div class="w-px h-4 bg-white/10 mx-0.5"></div>
           
-          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.viewMode === 'wireframe' ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" title="线框模式" @click="toggleViewMode">
+          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="viewerConfig.viewMode === 'wireframe' ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" :title="t('assets.wireframeMode')" @click="toggleViewMode">
             <Box class="w-3.5 h-3.5" />
           </button>
 
           <div class="w-px h-4 bg-white/10 mx-0.5"></div>
 
-          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="isClayMode ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" title="材质白模模式 (用于解决缺贴图变黑/隐形)" @click="toggleClayMode">
+          <button type="button" class="p-1.5 rounded-lg transition-all duration-300 cursor-pointer" :class="isClayMode ? 'bg-accent text-white' : 'hover:bg-white/10 text-slate-400'" :title="t('assets.clayModeDesc')" @click="toggleClayMode">
             <Paintbrush class="w-3.5 h-3.5" />
           </button>
           
@@ -227,7 +230,7 @@ const parsedFormats = computed(() => {
           <!-- Header Info -->
           <div>
             <h2 class="text-base sm:text-lg font-bold mb-1.5">{{ asset.title }}</h2>
-            <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">{{ asset.description || '这件作品暂无描述信息。' }}</p>
+            <p class="text-xs leading-relaxed" style="color: var(--text-secondary)">{{ asset.description || t('assets.noDescription') }}</p>
           </div>
 
           <!-- Metadata Grid -->
@@ -236,19 +239,19 @@ const parsedFormats = computed(() => {
               <div class="p-1.5 rounded bg-accent/15 text-accent">
                 <User class="w-3.5 h-3.5" />
               </div>
-              <span class="text-xs font-bold truncate">{{ asset.user?.name || '未知用户' }}</span>
+              <span class="text-xs font-bold truncate">{{ asset.user?.name || t('assets.unknownUser') }}</span>
             </div>
             <div class="flex items-center gap-2 p-2 sm:p-2.5 rounded-lg border transition-colors" style="background-color: var(--bg-app); border-color: var(--border-base)">
               <div class="p-1.5 rounded bg-accent/15 text-accent">
                 <Tag class="w-3.5 h-3.5" />
               </div>
-              <span class="text-xs font-bold truncate">{{ asset.category?.name || '未分类' }}</span>
+              <span class="text-xs font-bold truncate">{{ asset.category?.name || t('assets.uncategorized') }}</span>
             </div>
             <div class="flex items-center gap-2 p-2 sm:p-2.5 rounded-lg border transition-colors" style="background-color: var(--bg-app); border-color: var(--border-base)">
               <div class="p-1.5 rounded bg-accent/15 text-accent">
                 <HardDrive class="w-3.5 h-3.5" />
               </div>
-              <span class="text-xs font-bold">{{ asset.size ? `${asset.size} MB` : '未知大小' }}</span>
+              <span class="text-xs font-bold">{{ asset.size ? `${asset.size} MB` : t('assets.unknownSize') }}</span>
             </div>
             <div class="flex items-center gap-2 p-2 sm:p-2.5 rounded-lg border transition-colors" style="background-color: var(--bg-app); border-color: var(--border-base)">
               <div class="p-1.5 rounded bg-accent/15 text-accent">
@@ -260,26 +263,26 @@ const parsedFormats = computed(() => {
 
           <!-- 3D Model Stats (if GLB/GLTF) -->
           <div v-if="modelStats" class="space-y-2">
-            <h3 class="text-[9px] font-black uppercase tracking-wider text-slate-400" style="color: var(--text-secondary)">模型数据</h3>
+            <h3 class="text-[9px] font-black uppercase tracking-wider text-slate-400" style="color: var(--text-secondary)">{{ t('assets.modelData') }}</h3>
             <div class="grid grid-cols-3 gap-1.5">
               <div class="flex flex-col items-center justify-center p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">
                 <span class="text-sm font-extrabold mb-0.5">{{ ((modelStats.vertices || 0) / 1000).toFixed(1) }}k</span>
-                <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">顶点数</span>
+                <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">{{ t('assets.vertices') }}</span>
               </div>
               <div class="flex flex-col items-center justify-center p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">
                 <span class="text-sm font-extrabold mb-0.5">{{ ((modelStats.faces || 0) / 1000).toFixed(1) }}k</span>
-                <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">面数</span>
+                <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">{{ t('assets.faces') }}</span>
               </div>
               <div class="flex flex-col items-center justify-center p-2 rounded-lg border" style="background-color: var(--bg-app); border-color: var(--border-base)">
                 <span class="text-sm font-extrabold mb-0.5">{{ modelStats.animations }}</span>
-                <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">动画数</span>
+                <span class="text-[8px] font-bold uppercase text-slate-400" style="color: var(--text-secondary)">{{ t('assets.animations') }}</span>
               </div>
             </div>
           </div>
 
           <!-- Parsed Formats -->
           <div v-if="parsedFormats.length > 0" class="space-y-2">
-            <h3 class="text-[9px] font-black uppercase tracking-wider text-slate-400" style="color: var(--text-secondary)">包含格式</h3>
+            <h3 class="text-[9px] font-black uppercase tracking-wider text-slate-400" style="color: var(--text-secondary)">{{ t('assets.includedFormats') }}</h3>
             <div class="flex flex-wrap gap-1.5">
               <div 
                 v-for="format in parsedFormats" 
@@ -305,6 +308,9 @@ const parsedFormats = computed(() => {
 @keyframes spin {
   from {
     transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
   to {
     transform: rotate(360deg);

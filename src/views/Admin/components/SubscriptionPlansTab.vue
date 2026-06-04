@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref } from 'vue';
 import {
   CreditCard,
@@ -109,41 +111,41 @@ defineExpose({ openCreatePlan, openEditPlan });
 
 const handleSavePlan = async () => {
   if (!planForm.value.name) {
-    ElMessage.warning('请填写计划名称');
+    ElMessage.warning(t('admin.please_fill_in_the_2'));
     return;
   }
   try {
     if (editingPlan.value) {
       await api.put(`/api/admin/subscription-plans/${editingPlan.value.id}`, planForm.value);
-      ElMessage.success('计划已更新');
+      ElMessage.success(t('admin.plan_has_been_updated'));
     } else {
       await api.post('/api/admin/subscription-plans', planForm.value);
-      ElMessage.success('计划已创建');
+      ElMessage.success(t('admin.plan_created'));
     }
     showPlanDialog.value = false;
     emit('refresh');
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '保存失败'));
+    ElMessage.error(getApiErrorMessage(error, t('admin.save_failed')));
   }
 };
 
 const handleDeletePlan = async (plan: SubscriptionPlan) => {
   if ((plan.subscriberCount || 0) > 0) {
-    ElMessage.warning(`该计划仍有 ${plan.subscriberCount || 0} 名订阅者，无法删除`);
+    ElMessage.warning(t('admin.the_plan_still_has', { param_0: plan.subscriberCount || 0 }));
     return;
   }
   try {
     await ElMessageBox.confirm(
-      `确定要删除 ${plan.displayName || plan.name} 计划吗？此操作不可恢复。`,
-      '确认删除',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+      t('admin.are_you_sure_you_2', { param_0: plan.displayName || plan.name }),
+      t('admin.confirm_deletion_1'),
+      { confirmButtonText: t('admin.delete'), cancelButtonText: t('admin.cancel'), type: 'warning' },
     );
     await api.delete(`/api/admin/subscription-plans/${plan.id}`);
-    ElMessage.success('计划已删除');
+    ElMessage.success(t('admin.plan_deleted_1'));
     emit('refresh');
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(getApiErrorMessage(error, '删除失败'));
+      ElMessage.error(getApiErrorMessage(error, t('admin.delete_failed')));
     }
   }
 };
@@ -190,7 +192,7 @@ const getPlanIcon = (name: string) => {
                 <span
                   v-if="plan.isPopular"
                   class="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-black rounded-full"
-                  >推荐</span
+                  >{{ $t('admin.recommended') }}</span
                 >
               </div>
               <div
@@ -198,26 +200,26 @@ const getPlanIcon = (name: string) => {
               >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><DollarSign class="w-3 h-3 shrink-0" />月付 ￥{{ plan.price
-                  }}{{ plan.yearlyPrice ? ` / 年付 ￥${plan.yearlyPrice}` : '' }}</span
+                  }}{{ plan.yearlyPrice ? $t('admin.yearly_payment_plan_yearlyprice', { planyearlyPrice: plan.yearlyPrice }) : '' }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><HardDrive class="w-3 h-3 shrink-0" />{{
-                    (plan.maxStorage || 0) >= 9999 ? '无限' : (plan.maxStorage || 0) + 'GB'
+                    (plan.maxStorage || 0) >= 9999 ? t('admin.unlimited') : (plan.maxStorage || 0) + 'GB'
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><Users class="w-3 h-3 shrink-0" />{{
-                    (plan.maxTeams || 0) >= 999 ? '无限' : (plan.maxTeams || 0) + '团队'
+                    (plan.maxTeams || 0) >= 999 ? t('admin.unlimited') : (plan.maxTeams || 0) + $t('admin.team')
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><FolderOpen class="w-3 h-3 shrink-0" />{{
-                    (plan.maxProjects || 0) >= 9999 ? '无限' : (plan.maxProjects || 0) + '项目'
+                    (plan.maxProjects || 0) >= 9999 ? t('admin.unlimited') : (plan.maxProjects || 0) + $t('admin.project')
                   }}</span
                 >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><Box class="w-3 h-3 shrink-0" />{{
-                    (plan.maxAssets || 0) >= 9999 ? '无限' : (plan.maxAssets || 0) + '资产'
+                    (plan.maxAssets || 0) >= 9999 ? t('admin.unlimited') : (plan.maxAssets || 0) + $t('admin.assets_1')
                   }}</span
                 >
               </div>
@@ -227,7 +229,7 @@ const getPlanIcon = (name: string) => {
             class="flex items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-0 border-[var(--border-base)] shrink-0"
           >
             <span class="text-xs text-[var(--text-muted)]"
-              >{{ plan.subscriberCount || 0 }} 订阅者</span
+              >{{ $t('admin.plan_subscribercount_0_subscribers') }}</span
             >
             <div class="flex items-center gap-1">
               <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-slate-400 hover:text-accent transition-all" @click="openEditPlan(plan)">
@@ -268,7 +270,7 @@ const getPlanIcon = (name: string) => {
         >
           <div class="flex items-center justify-between">
             <h3 class="text-xl font-bold text-[var(--text-primary)]">
-              {{ editingPlan ? '编辑计划' : '新建计划' }}
+              {{ editingPlan ? t('admin.edit_plan') : $t('admin.new_plan') }}
             </h3>
             <button type="button" class="text-[var(--text-secondary)]" @click="showPlanDialog = false">
               <X class="w-5 h-5" />
@@ -278,7 +280,7 @@ const getPlanIcon = (name: string) => {
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >计划标识 (英文)</label
+                >{{ $t('admin.program_logo_english') }}</label
               >
               <input
                 v-model="planForm.name"
@@ -294,7 +296,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >显示名称</label
+                >{{ $t('admin.display_name') }}</label
               >
               <input
                 v-model="planForm.displayName"
@@ -305,7 +307,7 @@ const getPlanIcon = (name: string) => {
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="e.g. 专业版"
+                :placeholder="$t('admin.e_g_professional_edition')"
               />
             </div>
           </div>
@@ -313,7 +315,7 @@ const getPlanIcon = (name: string) => {
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >月付价格 (￥)</label
+                >{{ $t('admin.monthly_payment_price') }}</label
               >
               <input
                 v-model.number="planForm.price"
@@ -328,7 +330,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >年付价格 (￥)</label
+                >{{ $t('admin.annual_payment_price') }}</label
               >
               <input
                 v-model.number="planForm.yearlyPrice"
@@ -339,7 +341,7 @@ const getPlanIcon = (name: string) => {
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="留空则不支持年付"
+                :placeholder="$t('admin.if_left_blank_annual')"
               />
             </div>
           </div>
@@ -347,7 +349,7 @@ const getPlanIcon = (name: string) => {
           <div class="grid grid-cols-4 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >存储 (GB)</label
+                >{{ $t('admin.storage_gb') }}</label
               >
               <input
                 v-model.number="planForm.maxStorage"
@@ -362,7 +364,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >团队数</label
+                >{{ $t('admin.number_of_teams') }}</label
               >
               <input
                 v-model.number="planForm.maxTeams"
@@ -377,7 +379,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >项目数</label
+                >{{ $t('admin.number_of_items') }}</label
               >
               <input
                 v-model.number="planForm.maxProjects"
@@ -392,7 +394,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >资产数</label
+                >{{ $t('admin.number_of_assets') }}</label
               >
               <input
                 v-model.number="planForm.maxAssets"
@@ -410,7 +412,7 @@ const getPlanIcon = (name: string) => {
           <div class="grid grid-cols-3 gap-4">
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >排序优先级</label
+                >{{ $t('admin.sort_priority') }}</label
               >
               <input
                 v-model.number="planForm.priority"
@@ -425,7 +427,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >徽章颜色</label
+                >{{ $t('admin.badge_color') }}</label
               >
               <input
                 v-model="planForm.badgeColor"
@@ -436,7 +438,7 @@ const getPlanIcon = (name: string) => {
             </div>
             <div class="space-y-2">
               <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                >推荐标记</label
+                >{{ $t('admin.recommended_tag') }}</label
               >
               <button
 type="button" class="w-full h-12 rounded-2xl border flex items-center justify-center gap-2 transition-all" :class="
@@ -445,14 +447,14 @@ type="button" class="w-full h-12 rounded-2xl border flex items-center justify-ce
                     : 'border-[var(--border-base)] text-[var(--text-muted)]'
                 " style="border-color: planForm.isPopular ? undefined : 'var(--border-base)'" @click="planForm.isPopular = !planForm.isPopular">
                 <component :is="planForm.isPopular ? Check : X" class="w-4 h-4" />
-                <span class="text-xs font-bold">{{ planForm.isPopular ? '推荐' : '普通' }}</span>
+                <span class="text-xs font-bold">{{ $t('admin.planform_ispopular_recommended_normal') }}</span>
               </button>
             </div>
           </div>
 
           <div class="space-y-2">
             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-              >功能特性</label
+              >{{ $t('admin.features') }}</label
             >
             <div class="flex gap-2">
               <input
@@ -464,7 +466,7 @@ type="button" class="w-full h-12 rounded-2xl border flex items-center justify-ce
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="输入功能描述后按回车添加"
+                :placeholder="$t('admin.enter_the_function_description')"
                 @keyup.enter="addFeature"
               />
               <button type="button" class="px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold" @click="addFeature">
@@ -490,7 +492,7 @@ type="button" class="w-full h-12 rounded-2xl border flex items-center justify-ce
               取消
             </button>
             <button type="button" class="flex-1 py-3 rounded-2xl font-bold text-sm bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" @click="handleSavePlan">
-              <Save class="w-4 h-4" /> {{ editingPlan ? '保存更改' : '创建计划' }}
+              <Save class="w-4 h-4" /> {{ editingPlan ? t('admin.save_changes_1') : $t('admin.create_plan') }}
             </button>
           </div>
         </div>

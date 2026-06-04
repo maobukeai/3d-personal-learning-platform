@@ -270,7 +270,7 @@ onMounted(() => {
           @click="() => { importDialogMode = 'ai_assistant'; isAddDialogOpen = true; }"
         >
           <Brain class="w-4 h-4" />
-          <span>智能规划助手</span>
+          <span>{{ t('dashboard.aiPlanner') }}</span>
         </button>
         <!-- 文本导入 -->
         <button
@@ -280,7 +280,7 @@ onMounted(() => {
           @click="() => { importDialogMode = 'traditional'; isAddDialogOpen = true; }"
         >
           <FileText class="w-4 h-4 text-slate-500 dark:text-slate-400" />
-          <span>文本导入</span>
+          <span>{{ t('dashboard.textImport') }}</span>
         </button>
       </div>
     </div>

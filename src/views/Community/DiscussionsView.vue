@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   Search,
   MessageSquare,
@@ -26,6 +27,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import DiscussionCard from '@/components/DiscussionCard.vue';
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 const currentUserId = computed(() => authStore.user?.id);
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 
@@ -76,12 +78,12 @@ const sortBy = ref('newest');
 const selectedTag = ref('');
 const availableTags = ref<string[]>([]);
 
-const sortOptions = [
-  { value: 'newest', label: '最新发布', icon: Clock },
-  { value: 'most_commented', label: '最多回复', icon: MessageSquare },
-  { value: 'most_liked', label: '最多点赞', icon: Flame },
-  { value: 'most_viewed', label: '最多浏览', icon: Eye },
-];
+const sortOptions = computed(() => [
+  { value: 'newest', label: t('community.discussions.sortNewest'), icon: Clock },
+  { value: 'most_commented', label: t('community.discussions.sortComments'), icon: MessageSquare },
+  { value: 'most_liked', label: t('community.discussions.sortLikes'), icon: Flame },
+  { value: 'most_viewed', label: t('community.discussions.sortViews'), icon: Eye },
+]);
 
 const pagination = ref({
   total: 0,
@@ -109,7 +111,7 @@ const handleImageSelect = (e: Event) => {
   if (!files) return;
 
   if (selectedImages.value.length + files.length > 5) {
-    ElMessage.warning('最多只能上传 5 张图片');
+    ElMessage.warning(t('community.discussions.maxImagesLimit', { count: 5 }));
     return;
   }
 
@@ -160,11 +162,11 @@ const formatTime = (dateStr: string) => {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes} 分钟前`;
-  if (hours < 24) return `${hours} 小时前`;
-  if (days < 7) return `${days} 天前`;
-  return date.toLocaleDateString();
+  if (minutes < 1) return t('common.time.justNow');
+  if (minutes < 60) return t('common.time.minutesAgo', { n: minutes });
+  if (hours < 24) return t('common.time.hoursAgo', { n: hours });
+  if (days < 7) return t('common.time.daysAgo', { n: days });
+  return date.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN');
 };
 
 const fetchDiscussions = async () => {
@@ -229,7 +231,7 @@ const topContributors = computed(() => {
 
 const handleCreateDiscussion = async () => {
   if (!postForm.value.title || !postForm.value.content) {
-    ElMessage.warning('请填写标题和内容');
+    ElMessage.warning(t('support.fill_all_fields'));
     return;
   }
 
@@ -251,7 +253,7 @@ const handleCreateDiscussion = async () => {
     await api.post('/api/discussions', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    ElMessage.success('发布成功');
+    ElMessage.success(t('community.discussions.postSuccess'));
     showCreateModal.value = false;
     postForm.value = { title: '', content: '', tags: '' };
     selectedImages.value = [];
@@ -259,7 +261,7 @@ const handleCreateDiscussion = async () => {
     fetchDiscussions();
     fetchTags();
   } catch (_error) {
-    ElMessage.error('发布失败');
+    ElMessage.error(t('community.discussions.postFailed'));
   }
 };
 
@@ -271,7 +273,7 @@ const openDiscussion = async (id: string) => {
     replyingTo.value = null;
     replyContent.value = '';
   } catch (_error) {
-    ElMessage.error('无法加载讨论详情');
+    ElMessage.error(t('common.error'));
   }
 };
 
@@ -287,10 +289,10 @@ const handleAddComment = async () => {
     if (!selectedDiscussion.value.comments) selectedDiscussion.value.comments = [];
     selectedDiscussion.value.comments.push(response.data);
     newComment.value = '';
-    ElMessage.success('评论已发表');
+    ElMessage.success(t('community.discussions.postSuccess'));
     fetchDiscussions();
   } catch (_error) {
-    ElMessage.error('发表评论失败');
+    ElMessage.error(t('community.discussions.postFailed'));
   } finally {
     isSubmittingComment.value = false;
   }
@@ -316,10 +318,10 @@ const handleReplyComment = async (parentId: string) => {
     }
     replyContent.value = '';
     replyingTo.value = null;
-    ElMessage.success('回复已发表');
+    ElMessage.success(t('community.discussions.postSuccess'));
     fetchDiscussions();
   } catch (_error) {
-    ElMessage.error('回复失败');
+    ElMessage.error(t('community.discussions.postFailed'));
   }
 };
 
@@ -334,7 +336,7 @@ const toggleLikeDiscussion = async (discussion: Discussion, event?: Event) => {
         : discussion._count.likes - 1;
     }
   } catch (_error) {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
 
@@ -348,7 +350,7 @@ const toggleLikeComment = async (comment: DiscussionComment) => {
         : comment._count.likes - 1;
     }
   } catch (_error) {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
 
@@ -357,39 +359,39 @@ const togglePinDiscussion = async (discussion: Discussion, event?: Event) => {
   try {
     await api.post(`/api/discussions/${discussion.id}/pin`);
     discussion.isPinned = !discussion.isPinned;
-    ElMessage.success(discussion.isPinned ? '已置顶' : '已取消置顶');
+    ElMessage.success(discussion.isPinned ? t('community.discussions.pinSuccess') : t('community.discussions.unpinSuccess'));
     fetchDiscussions();
   } catch (_error) {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
 
 const deleteDiscussion = async (discussion: Discussion, event?: Event) => {
   if (event) event.stopPropagation();
   try {
-    await ElMessageBox.confirm('确定要删除这篇讨论吗？此操作不可撤销。', '删除确认', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('community.discussions.deletePostConfirm'), t('common.confirmDelete'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     });
     await api.delete(`/api/discussions/${discussion.id}`);
-    ElMessage.success('已删除');
+    ElMessage.success(t('community.discussions.deleteSuccess'));
     if (isDetailOpen.value) {
       isDetailOpen.value = false;
     }
     fetchDiscussions();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败');
+      ElMessage.error(t('community.discussions.deleteFailed'));
     }
   }
 };
 
 const deleteComment = async (comment: DiscussionComment, parentComment?: DiscussionComment) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条评论吗？', '删除确认', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('community.discussions.deleteCommentConfirm'), t('common.confirmDelete'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     });
     await api.delete(`/api/discussions/comments/${comment.id}`);
@@ -406,11 +408,11 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
         );
       }
     }
-    ElMessage.success('已删除');
+    ElMessage.success(t('community.discussions.deleteSuccess'));
     fetchDiscussions();
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败');
+      ElMessage.error(t('community.discussions.deleteFailed'));
     }
   }
 };
@@ -435,8 +437,8 @@ onMounted(() => {
   <div class="flex flex-col h-full" style="background-color: var(--bg-app)">
     <!-- Header -->
     <PageHeader
-      title="交流社区"
-      :subtitle="`${pagination.total} 篇`"
+      :title="t('community.discussions.title')"
+      :subtitle="pagination.total + ' ' + (authStore.user?.language === 'en' ? 'posts' : '篇')"
       :icon="MessageSquare"
     >
       <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
@@ -448,7 +450,7 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索讨论..."
+            :placeholder="t('community.discussions.searchPlaceholder')"
             class="pl-9 pr-4 py-1.5 border rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-48 lg:w-60 transition-all"
             style="
               background-color: var(--bg-app);
@@ -458,7 +460,7 @@ onMounted(() => {
           />
         </div>
         <button type="button" class="hidden md:flex bg-accent hover:bg-accent text-white px-4 py-2 rounded-full text-sm font-medium items-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20" @click="showCreateModal = true">
-          <Edit3 class="w-4 h-4" /> 发起讨论
+          <Edit3 class="w-4 h-4" /> {{ t('community.discussions.newPost') }}
         </button>
         <button type="button" class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20" @click="showCreateModal = true">
           <Edit3 class="w-4 h-4" />
@@ -474,7 +476,7 @@ onMounted(() => {
       <!-- Sort Options -->
       <div class="flex items-center gap-1 shrink-0">
         <button
-v-for="opt in sortOptions" :key="opt.value" type="button" class="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
+          v-for="opt in sortOptions" :key="opt.value" type="button" class="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
             sortBy === opt.value
               ? 'background-color: var(--accent); color: white'
               : 'background-color: var(--bg-app); color: var(--text-secondary)'
@@ -489,15 +491,15 @@ v-for="opt in sortOptions" :key="opt.value" type="button" class="px-3 py-1.5 rou
       <div v-if="availableTags.length > 0" class="flex lg:hidden items-center gap-1.5 shrink-0">
         <Tag class="w-3 h-3" style="color: var(--text-muted)" />
         <button
-type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
+          type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
             !selectedTag
               ? 'background-color: var(--accent); color: white'
               : 'background-color: var(--bg-app); color: var(--text-secondary)'
           " @click="selectedTag = ''">
-          全部
+          {{ t('community.teams.allCategories') }}
         </button>
         <button
-v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
+          v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
             selectedTag === tag
               ? 'background-color: var(--accent); color: white'
               : 'background-color: var(--bg-app); color: var(--text-secondary)'
@@ -538,8 +540,8 @@ v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded
             "
           >
             <MessageSquare class="w-12 h-12 mb-4 opacity-10" />
-            <p class="text-sm">暂无讨论内容</p>
-            <p class="text-xs mt-1 opacity-60">点击右侧「发起讨论帖子」开始交流</p>
+            <p class="text-sm">{{ t('common.noData') }}</p>
+            <p class="text-xs mt-1 opacity-60">{{ t('community.discussions.editorPlaceholder') }}</p>
           </div>
 
           <!-- Pagination Footer -->
@@ -559,19 +561,19 @@ v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded
         <div class="w-full lg:w-80 shrink-0 space-y-4">
           <!-- Quick Action Card -->
           <div class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl flex flex-col gap-3">
-            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">交流互动</h4>
+            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">{{ t('community.discussions.announcements') }}</h4>
             <p class="text-xs leading-relaxed" style="color: var(--text-muted)">
-              欢迎来到创作者交流社区！在这里分享您的 3D 渲染成品、建模心得、软件技术，与同行一起成长。
+              {{ t('community.discussions.subtitle') }}
             </p>
             <button type="button" class="w-full bg-accent hover:bg-accent text-white py-2.5 rounded-xl text-xs font-bold items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20 flex cursor-pointer" @click="showCreateModal = true">
-              <Edit3 class="w-4 h-4" /> 发起讨论帖子
+              <Edit3 class="w-4 h-4" /> {{ t('community.discussions.newPost') }}
             </button>
           </div>
 
           <!-- Hot Discussions Card -->
           <div v-if="hotDiscussions.length > 0" class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl space-y-3">
             <h4 class="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style="color: var(--text-secondary)">
-              <Flame class="w-3.5 h-3.5 text-orange-500 fill-orange-500" /> 热门推荐帖子
+              <Flame class="w-3.5 h-3.5 text-orange-500 fill-orange-500" /> {{ t('community.discussions.hotPosts') }}
             </h4>
             <div class="space-y-2.5">
               <div
@@ -596,8 +598,8 @@ v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded
                     {{ hd.title }}
                   </p>
                   <p class="text-[9px] flex items-center gap-2" style="color: var(--text-muted)">
-                    <span>{{ hd.user?.name || '匿名' }}</span>
-                    <span>{{ hd.viewCount || 0 }} 浏览</span>
+                    <span>{{ hd.user?.name || t('community.discussions.anonymous') }}</span>
+                    <span>{{ hd.viewCount || 0 }} {{ t('community.discussions.views') }}</span>
                   </p>
                 </div>
               </div>
@@ -606,16 +608,16 @@ v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded
 
           <!-- Top Contributors Card -->
           <div v-if="topContributors.length > 0" class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">活跃创作者</h4>
+            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">{{ t('community.discussions.activeCreators') }}</h4>
             <div class="space-y-3">
               <div v-for="c in topContributors" :key="c.user.id" class="flex items-center gap-2.5">
                 <UserAvatar :user="c.user" size="xs" />
                 <div class="flex-1 min-w-0">
                   <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
-                    {{ c.user.name || '匿名创作者' }}
+                    {{ c.user.name || t('community.discussions.anonymousCreator') }}
                   </p>
                   <p class="text-[9px]" style="color: var(--text-muted)">
-                    发表了 {{ c.count }} 篇讨论
+                    {{ t('community.discussions.publishedPosts', { count: c.count }) }}
                   </p>
                 </div>
               </div>
@@ -624,10 +626,10 @@ v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded
 
           <!-- Popular Tags Card -->
           <div v-if="availableTags.length > 0" class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">热门话题标签</h4>
+            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">{{ t('community.discussions.popularTags') }}</h4>
             <div class="flex flex-wrap gap-1.5">
               <button
-v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all hover:opacity-85" :style="
+                v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all hover:opacity-85" :style="
                   selectedTag === tag
                     ? 'background-color: var(--accent); color: white'
                     : 'background-color: var(--bg-app); color: var(--text-secondary); border: 1px solid var(--border-base)'
@@ -663,13 +665,13 @@ v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5
               <div>
                 <div class="flex items-center gap-1.5">
                   <p class="text-[11px] sm:text-xs font-bold" style="color: var(--text-primary)">
-                    {{ selectedDiscussion.user?.name || '匿名用户' }}
+                    {{ selectedDiscussion.user?.name || t('community.discussions.anonymous') }}
                   </p>
                   <span
                     v-if="selectedDiscussion.isPinned"
                     class="px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-bold"
                     style="background-color: var(--accent); color: white"
-                    >置顶</span
+                    >{{ t('community.discussions.pinned') }}</span
                   >
                 </div>
                 <p class="text-[8.5px] sm:text-[9px]" style="color: var(--text-muted)">
@@ -717,21 +719,21 @@ v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5
             >
               <button type="button" class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold transition-colors cursor-pointer" :class="selectedDiscussion.isLiked ? 'text-red-500' : ''" :style="!selectedDiscussion.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeDiscussion(selectedDiscussion)">
                 <Heart class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'fill-red-500': selectedDiscussion.isLiked }" />
-                {{ selectedDiscussion._count?.likes || 0 }} <span class="hidden sm:inline">赞</span>
+                {{ selectedDiscussion._count?.likes || 0 }} <span class="hidden sm:inline">{{ t('community.discussions.likes') }}</span>
               </button>
               <div
                 class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold"
                 style="color: var(--text-muted)"
               >
                 <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {{ selectedDiscussion._count?.comments || 0 }} <span class="hidden sm:inline">回复</span>
+                {{ selectedDiscussion._count?.comments || 0 }} <span class="hidden sm:inline">{{ t('community.discussions.comments') }}</span>
               </div>
               <div
                 class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold"
                 style="color: var(--text-muted)"
               >
                 <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {{ selectedDiscussion.viewCount || 0 }} <span class="hidden sm:inline">浏览</span>
+                {{ selectedDiscussion.viewCount || 0 }} <span class="hidden sm:inline">{{ t('community.discussions.views') }}</span>
               </div>
             </div>
 
@@ -759,7 +761,7 @@ v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5
               >
                 <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
                 <h3 class="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-widest">
-                  全部回复 ({{ selectedDiscussion.comments?.length || 0 }})
+                  {{ t('community.discussions.allComments', { count: selectedDiscussion.comments?.length || 0 }) }}
                 </h3>
               </div>
 
@@ -775,7 +777,7 @@ v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5
                     <div class="p-2 sm:p-2.5 rounded-lg" style="background-color: var(--bg-app)">
                       <div class="flex items-center justify-between mb-0.5">
                         <span class="text-[11px] font-bold" style="color: var(--text-primary)">{{
-                          comment.user?.name || '匿名用户'
+                          comment.user?.name || t('community.discussions.anonymous')
                         }}</span>
                         <span class="text-[8.5px]" style="color: var(--text-muted)">{{
                           formatTime(comment.createdAt)
@@ -792,14 +794,14 @@ v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5
                         {{ comment._count?.likes || 0 }}
                       </button>
                       <button
-type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-accent cursor-pointer" style="color: var(--text-muted)" @click="
+                        type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-accent cursor-pointer" style="color: var(--text-muted)" @click="
                           replyingTo = replyingTo?.id === comment.id ? null : comment;
                           replyContent = '';
                         ">
-                        <MessageSquare class="w-2.5 h-2.5" /> 回复
+                        <MessageSquare class="w-2.5 h-2.5" /> {{ t('common.reply') }}
                       </button>
                       <button v-if="currentUserId === comment.user?.id || isAdmin" type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-red-500 cursor-pointer" style="color: var(--text-muted)" @click="deleteComment(comment)">
-                        <Trash2 class="w-2.5 h-2.5" /> 删除
+                        <Trash2 class="w-2.5 h-2.5" /> {{ t('common.delete') }}
                       </button>
                     </div>
 
@@ -814,30 +816,30 @@ type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition
                           color: var(--text-primary);
                         "
                         rows="2"
-                        :placeholder="`回复 ${comment.user?.name || '匿名用户'}...`"
+                        :placeholder="t('community.discussions.replyTo', { name: comment.user?.name || t('community.discussions.anonymous') })"
                       ></textarea>
                       <div class="flex justify-end gap-1.5">
                         <button type="button" class="px-2.5 py-1 rounded-xl text-[9px] transition-all font-bold cursor-pointer" style="color: var(--text-muted)" @click="replyingTo = null">
-                          取消
+                          {{ t('common.cancel') }}
                         </button>
                         <button type="button" :disabled="!replyContent" class="px-3 py-1 bg-accent text-white font-bold rounded-xl text-[9px] shadow-md shadow-accent/10 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer" @click="handleReplyComment(comment.id)">
-                          <Send class="w-2 h-2" /> 发表回复
+                          <Send class="w-2 h-2" /> {{ t('common.reply') }}
                         </button>
                       </div>
                     </div>
 
                     <!-- Show Replies Toggle -->
                     <button
-v-if="
+                      v-if="
                         comment._count?.replies > 0 &&
                         (!comment.replies ||
                           comment.replies.length === 0 ||
                           !expandedReplies.has(comment.id))
                       " type="button" class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer" @click="toggleReplies(comment.id)">
-                      <ChevronDown class="w-2.5 h-2.5" /> 查看 {{ comment._count?.replies }} 条回复
+                      <ChevronDown class="w-2.5 h-2.5" /> {{ t('community.discussions.showRepliesCount', { count: comment._count?.replies }) }}
                     </button>
                     <button v-if="expandedReplies.has(comment.id) && comment._count?.replies > 0" type="button" class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer" @click="toggleReplies(comment.id)">
-                      <ChevronUp class="w-2.5 h-2.5" /> 收起回复
+                      <ChevronUp class="w-2.5 h-2.5" /> {{ t('community.discussions.collapseReplies') }}
                     </button>
 
                     <!-- Nested Replies -->
@@ -854,7 +856,7 @@ v-if="
                               <span
                                 class="text-[9.5px] font-bold"
                                 style="color: var(--text-primary)"
-                                >{{ reply.user?.name || '匿名用户' }}</span
+                                >{{ reply.user?.name || t('community.discussions.anonymous') }}</span
                               >
                               <span class="text-[7.5px]" style="color: var(--text-muted)">{{
                                 formatTime(reply.createdAt)
@@ -876,7 +878,7 @@ v-if="
                               {{ reply._count?.likes || 0 }}
                             </button>
                             <button v-if="currentUserId === reply.user?.id || isAdmin" type="button" class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors hover:text-red-500 cursor-pointer" style="color: var(--text-muted)" @click="deleteComment(reply, comment)">
-                              <Trash2 class="w-2 h-2" /> 删除
+                              <Trash2 class="w-2 h-2" /> {{ t('common.delete') }}
                             </button>
                           </div>
                         </div>
@@ -905,11 +907,11 @@ v-if="
                     color: var(--text-primary);
                   "
                   rows="3"
-                  placeholder="撰写你的回复..."
+                  :placeholder="t('community.discussions.editorPlaceholder')"
                 ></textarea>
                 <div class="flex justify-end">
                   <button type="button" :disabled="!newComment || isSubmittingComment" class="px-3.5 py-1 bg-accent text-white font-bold rounded-xl text-xs shadow-lg shadow-accent/20 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer" @click="handleAddComment">
-                    <Send class="w-3 h-3" /> 发表回复
+                    <Send class="w-3 h-3" /> {{ t('community.discussions.postComment') }}
                   </button>
                 </div>
               </div>
@@ -931,7 +933,7 @@ v-if="
           style="background-color: var(--bg-card)"
         >
           <div class="flex items-center justify-between pb-1">
-            <h3 class="text-md sm:text-lg font-black" style="color: var(--text-primary)">发布新讨论</h3>
+            <h3 class="text-md sm:text-lg font-black" style="color: var(--text-primary)">{{ t('community.discussions.newPost') }}</h3>
             <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-secondary)" @click="showCreateModal = false">
               <X class="w-4 h-4 sm:w-5 h-5" />
             </button>
@@ -942,7 +944,7 @@ v-if="
               <label
                 class="block text-[10px] font-black uppercase mb-1.5 ml-1 tracking-wider"
                 style="color: var(--text-secondary)"
-                >标题</label
+                >{{ t('community.discussions.postTitleLabel') }}</label
               >
               <input
                 v-model="postForm.title"
@@ -953,7 +955,7 @@ v-if="
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="给讨论起个标题"
+                placeholder="..."
               />
             </div>
 
@@ -961,13 +963,13 @@ v-if="
               <label
                 class="block text-[10px] font-black uppercase mb-1.5 ml-1 tracking-wider"
                 style="color: var(--text-secondary)"
-                >内容</label
+                >{{ t('community.discussions.postContentLabel') }}</label
               >
               <MarkdownEditor
                 v-model="postForm.content"
                 height="400px"
                 class="h-[200px] sm:h-[400px]"
-                placeholder="你想说点什么？支持 Markdown 格式..."
+                :placeholder="t('community.discussions.editorPlaceholder')"
               />
             </div>
 
@@ -976,7 +978,7 @@ v-if="
               <label
                 class="block text-[10px] font-black uppercase mb-1.5 ml-1 tracking-wider"
                 style="color: var(--text-secondary)"
-                >标签 (用逗号分隔)</label
+                >{{ t('community.discussions.postTagsLabel') }}</label
               >
               <input
                 v-model="postForm.tags"
@@ -987,11 +989,11 @@ v-if="
                   border-color: var(--border-base);
                   color: var(--text-primary);
                 "
-                placeholder="例如: 技术, 3D建模, Blender"
+                placeholder="..."
               />
               <div v-if="availableTags.length > 0" class="flex flex-wrap gap-1.5 mt-2">
                 <span class="text-[9px] font-bold" style="color: var(--text-muted)"
-                  >热门标签:</span
+                  >{{ t('community.discussions.popularTags') }}:</span
                 >
                 <button v-for="tag in availableTags.slice(0, 8)" :key="tag" type="button" class="px-2 py-0.5 rounded-full text-[9px] font-bold hover:opacity-80 transition-opacity" style="background-color: var(--bg-app); color: var(--accent)" @click="postForm.tags = postForm.tags ? `${postForm.tags}, ${tag}` : tag">
                   #{{ tag }}
@@ -1004,7 +1006,7 @@ v-if="
               <label
                 class="block text-[10px] font-black uppercase mb-2 ml-1 tracking-wider"
                 style="color: var(--text-secondary)"
-                >图片 (最多 5 张)</label
+                >{{ t('community.discussions.postImagesLabel') }}</label
               >
               <div class="flex flex-wrap gap-2.5">
                 <div
@@ -1024,7 +1026,7 @@ v-if="
                   style="border-color: var(--border-base)"
                 >
                   <Plus class="w-4 h-4" style="color: var(--text-muted)" />
-                  <span class="text-[9px] mt-0.5" style="color: var(--text-muted)">上传图片</span>
+                  <span class="text-[9px] mt-0.5" style="color: var(--text-muted)">{{ t('common.save') }}</span>
                   <input
                     type="file"
                     class="hidden"
@@ -1039,7 +1041,7 @@ v-if="
 
           <div class="pt-2">
             <button type="button" class="w-full py-2.5 sm:py-3 bg-accent text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all flex items-center justify-center gap-2 cursor-pointer" @click="handleCreateDiscussion">
-              <Send class="w-3.5 h-3.5" /> 立即发布
+              <Send class="w-3.5 h-3.5" /> {{ t('community.discussions.postSubmit') }}
             </button>
           </div>
         </div>

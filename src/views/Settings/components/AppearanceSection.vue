@@ -121,14 +121,14 @@ v-for="theme in themeOptions" :key="theme.id" type="button" class="flex flex-col
         </button>
       </div>
       <p class="text-[10px] text-slate-400 mt-6">
-        选择一个你喜欢的颜色，它将作为平台的主要按钮和交互高亮色。
+        {{ t('settings.accentColorDesc') }}
       </p>
     </div>
 
     <div class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
       <div class="flex items-center gap-3 mb-6">
         <Languages class="w-5 h-5 text-accent" />
-        <h3 class="text-lg font-bold" style="color: var(--text-primary)">语言偏好</h3>
+        <h3 class="text-lg font-bold" style="color: var(--text-primary)">{{ t('settings.languagePreference') }}</h3>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
         <button

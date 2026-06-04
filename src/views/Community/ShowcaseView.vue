@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   Search,
   MonitorPlay,
@@ -74,11 +75,12 @@ interface CommentItem {
   user: ShowcaseUser;
 }
 
+const { t } = useI18n();
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
 const searchQuery = ref('');
-const activeFilter = ref('热门');
-const activeTypeFilter = ref('全部');
+const activeFilter = ref('popular');
+const activeTypeFilter = ref('all');
 const showcases = ref<ShowcaseItem[]>([]);
 const isLoading = ref(false);
 
@@ -96,24 +98,27 @@ const handleStartChat = async (user: ShowcaseUser) => {
       participantIds: [user.id],
       isGroup: false,
     });
-    // For showcase view, we might want to redirect to messages
-    // but often users just want to see the profile
   } catch (_error) {
-    ElMessage.error('创建对话失败');
+    ElMessage.error(t('members.chatInitFailed'));
   }
 };
 
-const filters = ['热门', '最新'];
-const typeFilters = ['全部', 'IMAGE', 'VIDEO', 'MODEL', 'OTHER', 'TEXT'];
+const filters = ['popular', 'newest'];
+const filterLabels = computed<Record<string, string>>(() => ({
+  popular: t('showcase.popular'),
+  newest: t('showcase.newest'),
+}));
 
-const typeFilterLabels: Record<string, string> = {
-  全部: '全部',
-  IMAGE: '图片',
-  VIDEO: '视频',
-  MODEL: '3D模型',
-  OTHER: '其他',
-  TEXT: '文本',
-};
+const typeFilters = ['all', 'IMAGE', 'VIDEO', 'MODEL', 'OTHER', 'TEXT'];
+
+const typeFilterLabels = computed<Record<string, string>>(() => ({
+  all: t('showcase.allTypes'),
+  IMAGE: t('showcase.typeImage'),
+  VIDEO: t('showcase.typeVideo'),
+  MODEL: t('showcase.typeModel'),
+  OTHER: t('showcase.typeOther'),
+  TEXT: t('showcase.typeText'),
+}));
 
 const getTypeBg = (type: string) => {
   switch (type) {
@@ -133,17 +138,17 @@ const getTypeBg = (type: string) => {
 const getTypeLabel = (type: string) => {
   switch (type) {
     case 'MODEL':
-      return '3D模型';
+      return t('showcase.typeModel');
     case 'VIDEO':
-      return '视频';
+      return t('showcase.typeVideo');
     case 'IMAGE':
-      return '图片';
+      return t('showcase.typeImage');
     case 'TEXT':
-      return '文本';
+      return t('showcase.typeText');
     case 'OTHER':
-      return '其他';
+      return t('showcase.typeOther');
     default:
-      return '作品';
+      return t('showcase.typeWork');
   }
 };
 
@@ -162,12 +167,14 @@ const currentImageIndex = ref(0);
 const fetchShowcases = async () => {
   isLoading.value = true;
   try {
+    const filterVal = activeFilter.value === 'popular' ? '热门' : '最新';
+    const typeVal = activeTypeFilter.value === 'all' ? '全部' : activeTypeFilter.value;
     const response = await api.get('/api/showcase', {
-      params: { filter: activeFilter.value, type: activeTypeFilter.value },
+      params: { filter: filterVal, type: typeVal },
     });
     showcases.value = response.data;
   } catch (_error) {
-    ElMessage.error('获取作品展示失败');
+    ElMessage.error(t('showcase.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -189,7 +196,7 @@ const openDetail = async (item: ShowcaseItem) => {
       showcases.value[idx] = { ...showcases.value[idx], views: response.data.views };
     }
   } catch (_error) {
-    ElMessage.error('获取作品详情失败');
+    ElMessage.error(t('showcase.detailFailed'));
     isDetailOpen.value = false;
     return;
   } finally {
@@ -260,7 +267,7 @@ const submitComment = async () => {
     }
     newComment.value = '';
   } catch (_error) {
-    ElMessage.error('评论失败');
+    ElMessage.error(t('showcase.commentFailed'));
   } finally {
     isSubmittingComment.value = false;
   }
@@ -268,9 +275,9 @@ const submitComment = async () => {
 
 const deleteComment = async (comment: CommentItem) => {
   try {
-    await ElMessageBox.confirm('确定要删除这条评论吗？', '确认删除', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('showcase.deleteCommentConfirm'), t('showcase.deleteCommentTitle'), {
+      confirmButtonText: t('common.confirm') || '确定',
+      cancelButtonText: t('common.cancel') || '取消',
       type: 'warning',
     });
     await api.delete(`/api/showcase/${detailItem.value!.id}/comment/${comment.id}`);
@@ -280,7 +287,7 @@ const deleteComment = async (comment: CommentItem) => {
     if (idx !== -1) {
       showcases.value[idx].commentsCount--;
     }
-    ElMessage.success('评论已删除');
+    ElMessage.success(t('showcase.commentDeleteSuccess'));
   } catch {
     // Ignore error
   }
@@ -296,7 +303,7 @@ const toggleLike = async (item: ShowcaseItem) => {
       detailItem.value.likesCount += response.data.liked ? 1 : -1;
     }
   } catch (_error) {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('showcase.actionFailed'));
   }
 };
 
@@ -309,10 +316,10 @@ const handleShare = () => {
       setTimeout(() => {
         shareCopied.value = false;
       }, 2000);
-      ElMessage.success('链接已复制到剪贴板');
+      ElMessage.success(t('showcase.copySuccess'));
     })
     .catch(() => {
-      ElMessage.error('复制失败');
+      ElMessage.error(t('showcase.copyFailed'));
     });
 };
 
@@ -331,10 +338,10 @@ const formatTime = (dateStr: string) => {
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 30) return `${days}天前`;
+  if (minutes < 1) return t('showcase.justNow');
+  if (minutes < 60) return t('showcase.minutesAgo', { n: minutes });
+  if (hours < 24) return t('showcase.hoursAgo', { n: hours });
+  if (days < 30) return t('showcase.daysAgo', { n: days });
   return date.toLocaleDateString();
 };
 
@@ -353,7 +360,7 @@ onMounted(fetchShowcases);
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="background-color: var(--bg-app)">
     <!-- Header -->
     <PageHeader
-      title="作品展示"
+      :title="t('showcase.title')"
       :icon="MonitorPlay"
     >
       <div class="flex flex-row items-center gap-2 sm:gap-3 w-full md:w-auto">
@@ -365,7 +372,7 @@ onMounted(fetchShowcases);
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索优秀作品..."
+            :placeholder="t('showcase.searchPlaceholder')"
             class="pl-10 pr-4 py-2 border-none rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full transition-all"
             style="background-color: var(--bg-app); color: var(--text-primary)"
           />
@@ -376,8 +383,8 @@ type="button"
           @click="openPublishDialog"
         >
           <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span class="hidden xs:inline">发布我的作品</span>
-          <span class="xs:hidden">发布</span>
+          <span class="hidden xs:inline">{{ t('showcase.publishMyWork') }}</span>
+          <span class="xs:hidden">{{ t('showcase.publishShort') }}</span>
         </button>
       </div>
     </PageHeader>
@@ -396,15 +403,15 @@ alt=""
           <div class="flex items-center gap-2 mb-1">
             <span
               class="bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest"
-              >社区精选</span
+              >{{ t('showcase.featuredSelection') }}</span
             >
             <div class="flex items-center gap-1 text-white/60 text-[10px]">
-              <Flame class="w-3 h-3 text-orange-500" /> 推荐作品
+              <Flame class="w-3 h-3 text-orange-500" /> {{ t('showcase.recommendedWork') }}
             </div>
           </div>
-          <h2 class="text-base sm:text-lg font-bold text-white mb-1">展示你的创意作品</h2>
+          <h2 class="text-base sm:text-lg font-bold text-white mb-1">{{ t('showcase.featuredTitle') }}</h2>
           <p class="text-white/70 text-[11px] sm:text-xs max-w-xl line-clamp-2">
-            发布你的渲染成品、3D模型、动画短片或任何创意作品，与全球创作者交流心得。
+            {{ t('showcase.featuredDesc') }}
           </p>
         </div>
       </div>
@@ -430,7 +437,7 @@ v-for="f in filters"
               fetchShowcases();
             "
           >
-            {{ f }}
+            {{ filterLabels[f] || f }}
           </button>
         </div>
         <div class="w-px h-4 shrink-0" style="background-color: var(--border-base)"></div>
@@ -461,7 +468,7 @@ v-for="tf in typeFilters"
       </div>
       <div class="flex items-center gap-1.5 text-xs font-bold shrink-0 self-start lg:self-auto" style="color: var(--text-muted)">
         <Trophy class="w-3.5 h-3.5 text-amber-500 shrink-0" />
-        <span class="truncate">年度优秀作品选拔进行中</span>
+        <span class="truncate">{{ t('showcase.yearlyTrophy') }}</span>
         <ChevronRight class="w-3 h-3 shrink-0" />
       </div>
     </div>
@@ -485,7 +492,7 @@ v-for="tf in typeFilters"
 
         <div v-else class="h-64 flex flex-col items-center justify-center text-slate-400">
           <MonitorPlay class="w-12 h-12 mb-4 opacity-10" />
-          <p class="text-sm font-bold">还没有人发布作品，成为第一个吧！</p>
+          <p class="text-sm font-bold">{{ t('showcase.noShowcases') }}</p>
         </div>
       </div>
     </div>
@@ -650,7 +657,7 @@ v-if="currentImageIndex < getDetailImages.length - 1"
                 >
                   <Box class="w-6 h-6 text-blue-500 shrink-0" />
                   <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-bold" style="color: var(--text-secondary)">关联3D模型</p>
+                    <p class="text-[10px] font-bold" style="color: var(--text-secondary)">{{ t('showcase.linkedModel') }}</p>
                     <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
                       {{ detailItem.asset.title }}
                     </p>
@@ -660,7 +667,7 @@ v-if="currentImageIndex < getDetailImages.length - 1"
                     download
                     class="px-2.5 py-1 bg-blue-500 text-white rounded-lg text-[11px] font-bold hover:bg-blue-600 transition-all shrink-0"
                   >
-                    下载模型
+                    {{ t('showcase.downloadModel') }}
                   </a>
                 </div>
 
@@ -671,7 +678,7 @@ v-if="currentImageIndex < getDetailImages.length - 1"
                 >
                   <div class="flex items-center gap-1.5 text-xs" style="color: var(--text-secondary)">
                     <Eye class="w-3.5 h-3.5" />
-                    <span class="font-bold">{{ detailItem.views }}</span> 浏览
+                    <span class="font-bold">{{ detailItem.views }}</span> {{ t('showcase.viewsUnit') }}
                   </div>
                   <button
 type="button"
@@ -681,11 +688,11 @@ type="button"
                     @click="toggleLike(detailItem)"
                   >
                     <Heart class="w-3.5 h-3.5" :class="detailItem.isLiked ? 'fill-rose-500' : ''" />
-                    <span class="font-bold">{{ detailItem.likesCount }}</span> 点赞
+                    <span class="font-bold">{{ detailItem.likesCount }}</span> {{ t('showcase.likesUnit') }}
                   </button>
                   <div class="flex items-center gap-1.5 text-xs" style="color: var(--text-secondary)">
                     <MessageCircle class="w-3.5 h-3.5" />
-                    <span class="font-bold">{{ detailItem.commentsCount }}</span> 评论
+                    <span class="font-bold">{{ detailItem.commentsCount }}</span> {{ t('showcase.commentsUnit') }}
                   </div>
                   <button
 type="button"
@@ -698,14 +705,14 @@ type="button"
                       class="w-3.5 h-3.5"
                       :class="shareCopied ? 'text-emerald-500' : ''"
                     />
-                    {{ shareCopied ? '已复制' : '分享' }}
+                    {{ shareCopied ? t('showcase.copied') : t('showcase.share') }}
                   </button>
                 </div>
 
                 <!-- Comments Section -->
                 <div class="mt-4">
                   <h3 class="text-xs sm:text-sm font-bold mb-3" style="color: var(--text-primary)">
-                    评论 ({{ detailItem.commentsCount }})
+                    {{ t('showcase.commentsTitle', { count: detailItem.commentsCount }) }}
                   </h3>
 
                   <!-- Comment Input -->
@@ -715,7 +722,7 @@ type="button"
                       <input
                         v-model="newComment"
                         type="text"
-                        placeholder="写下你的评论..."
+                        :placeholder="t('showcase.writeComment')"
                         class="flex-1 px-3 py-2 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
                         style="background-color: var(--bg-app); color: var(--text-primary)"
                         @keyup.enter="submitComment"
@@ -738,7 +745,7 @@ type="button"
                     ></div>
                   </div>
                   <div v-else-if="comments.length === 0" class="py-6 text-center">
-                    <p class="text-xs" style="color: var(--text-muted)">暂无评论，来说点什么吧</p>
+                    <p class="text-xs" style="color: var(--text-muted)">{{ t('showcase.noComments') }}</p>
                   </div>
                   <div v-else class="space-y-3">
                     <div
@@ -750,7 +757,7 @@ type="button"
                       <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 mb-0.5">
                           <span class="text-[11px] font-bold" style="color: var(--text-primary)">{{
-                            comment.user.name || '匿名用户'
+                            comment.user.name || t('showcase.anonymousUser')
                           }}</span>
                           <span class="text-[9px]" style="color: var(--text-muted)">{{
                             formatTime(comment.createdAt)

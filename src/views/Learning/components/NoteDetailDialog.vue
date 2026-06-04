@@ -23,6 +23,7 @@ import { getApiErrorMessage } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
+import { useI18n } from 'vue-i18n';
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
@@ -54,6 +55,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
 const visible = ref(false);
 const detailNote = ref<Note | null>(null);
 const isCopying = ref(false);
@@ -75,7 +77,7 @@ const handleChatWithMember = async (member: any) => {
     visible.value = false; // Close detail modal
     router.push('/messages');
   } catch (_error) {
-    ElMessage.error('无法发起对话');
+    ElMessage.error(t('notes.startChatFailed'));
   }
 };
 
@@ -96,7 +98,7 @@ const fetchComments = async (noteId: string) => {
     const res = await api.get(`/api/notes/${noteId}/comments`);
     comments.value = res.data;
   } catch {
-    ElMessage.error('加载评论失败');
+    ElMessage.error(t('notes.loadCommentsFailed'));
   } finally {
     loadingComments.value = false;
   }
@@ -105,7 +107,7 @@ const fetchComments = async (noteId: string) => {
 const submitComment = async () => {
   if (!detailNote.value) return;
   if (!commentContent.value || !commentContent.value.trim()) {
-    ElMessage.warning('请输入评论内容');
+    ElMessage.warning(t('notes.commentRequired'));
     return;
   }
   submittingComment.value = true;
@@ -115,12 +117,12 @@ const submitComment = async () => {
     });
     comments.value.push(res.data);
     commentContent.value = '';
-    ElMessage.success('发表评论成功！');
+    ElMessage.success(t('notes.commentSuccess'));
     if (detailNote.value._count) {
       detailNote.value._count.comments++;
     }
   } catch (err: any) {
-    ElMessage.error(getApiErrorMessage(err, '发表评论失败'));
+    ElMessage.error(getApiErrorMessage(err, t('notes.commentFailed')));
   } finally {
     submittingComment.value = false;
   }
@@ -130,12 +132,12 @@ const handleDeleteComment = async (commentId: string) => {
   try {
     await api.delete(`/api/notes/comment/${commentId}`);
     comments.value = comments.value.filter(c => c.id !== commentId);
-    ElMessage.success('删除评论成功');
+    ElMessage.success(t('notes.commentDeleteSuccess'));
     if (detailNote.value && detailNote.value._count) {
       detailNote.value._count.comments = Math.max(0, detailNote.value._count.comments - 1);
     }
   } catch (err: any) {
-    ElMessage.error(getApiErrorMessage(err, '删除评论失败'));
+    ElMessage.error(getApiErrorMessage(err, t('notes.commentDeleteFailed')));
   }
 };
 
@@ -184,7 +186,7 @@ const open = async (note: Note) => {
     });
     fetchComments(note.id);
   } catch {
-    ElMessage.error('加载笔记详情失败');
+    ElMessage.error(t('notes.loadDetailFailed'));
   }
 };
 
@@ -204,7 +206,7 @@ const handleLike = async () => {
       likesCount: detailNote.value._count.likes
     });
   } catch {
-    ElMessage.error('操作失败');
+    ElMessage.error(t('notes.operationFailed'));
   }
 };
 
@@ -213,13 +215,13 @@ const handleTogglePopular = async () => {
   try {
     const res = await api.post(`/api/notes/${detailNote.value.id}/popular`);
     detailNote.value.isPopular = res.data.isPopular;
-    ElMessage.success(detailNote.value.isPopular ? '已推荐该笔记为热门！' : '已取消该热门推荐');
+    ElMessage.success(detailNote.value.isPopular ? t('notes.popularRecommended') : t('notes.popularCancelled'));
     emit('popular-updated', {
       id: detailNote.value.id,
       isPopular: detailNote.value.isPopular
     });
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '操作失败'));
+    ElMessage.error(getApiErrorMessage(error, t('notes.operationFailed')));
   }
 };
 
@@ -228,12 +230,12 @@ const handleCopy = async () => {
   try {
     await navigator.clipboard.writeText(detailNote.value.content);
     isCopying.value = true;
-    ElMessage.success('已复制全文到剪贴板');
+    ElMessage.success(t('notes.copiedToClipboard'));
     setTimeout(() => {
       isCopying.value = false;
     }, 2000);
   } catch {
-    ElMessage.error('复制失败');
+    ElMessage.error(t('notes.copyFailed'));
   }
 };
 
@@ -271,14 +273,14 @@ const summaryProgress = ref(0);
 
 const currentThinkingStep = computed(() => {
   const percent = summaryProgress.value;
-  if (percent < 12) return "分析段落结构";
-  if (percent < 25) return "梳理核心要点";
-  if (percent < 38) return "提取关键概念";
-  if (percent < 50) return "生成摘要大纲";
-  if (percent < 65) return "提炼要点内容";
-  if (percent < 80) return "过滤冗余词句";
-  if (percent < 92) return "润色语言表达";
-  return "完成核心排版";
+  if (percent < 12) return t('notes.thinkingStep1');
+  if (percent < 25) return t('notes.thinkingStep2');
+  if (percent < 38) return t('notes.thinkingStep3');
+  if (percent < 50) return t('notes.thinkingStep4');
+  if (percent < 65) return t('notes.thinkingStep5');
+  if (percent < 80) return t('notes.thinkingStep6');
+  if (percent < 92) return t('notes.thinkingStep7');
+  return t('notes.thinkingStep8');
 });
 
 const generateAiSummary = async () => {
@@ -325,11 +327,11 @@ const generateAiSummary = async () => {
       sessionSummary.value = res.data.summary;
     } else {
       clearInterval(progressInterval);
-      ElMessage.error('未能获取生成摘要');
+      ElMessage.error(t('notes.aiSummaryEmpty'));
     }
   } catch (err: any) {
     clearInterval(progressInterval);
-    ElMessage.error(getApiErrorMessage(err, '生成摘要失败，请重试'));
+    ElMessage.error(getApiErrorMessage(err, t('notes.aiSummaryFailed')));
   } finally {
     isSummarizing.value = false;
   }
@@ -352,7 +354,7 @@ defineExpose({ open });
       <button 
         type="button" 
         class="dialog-close-btn absolute top-4 right-4 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
-        title="关闭阅读"
+        :title="t('notes.closeReading')"
         @click="visible = false"
       >
         <X class="w-4 h-4" />
@@ -366,17 +368,17 @@ defineExpose({ open });
         <!-- User Information Dashboard (Clickable) -->
         <div 
           class="mb-4 p-3 rounded-2xl border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center gap-3 shadow-xs cursor-pointer hover:border-accent/40 hover:shadow-sm transition-all"
-          title="查看作者资料"
+          :title="t('notes.viewAuthorProfile')"
           @click="handleShowUserProfile(detailNote.user.id)"
         >
           <UserAvatar :user="detailNote.user" size="sm" md-size="md" class="shrink-0 ring-2 ring-accent/10 hover:scale-105 transition-all" />
           <div class="min-w-0">
             <h4 class="font-black text-xs text-[var(--text-primary)] leading-tight flex items-center gap-1.5 hover:text-accent transition-colors">
               {{ detailNote.user.name }}
-              <span class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 dark:bg-purple-400/10 text-purple-600 dark:text-purple-400 rounded">作者</span>
+              <span class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 dark:bg-purple-400/10 text-purple-600 dark:text-purple-400 rounded">{{ t('notes.author') }}</span>
             </h4>
             <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1 leading-relaxed">
-              {{ detailNote.user.bio || '探索者' }}
+              {{ detailNote.user.bio || t('notes.explorer') }}
             </p>
           </div>
         </div>
@@ -385,14 +387,14 @@ defineExpose({ open });
         <div class="space-y-4 overflow-y-auto pr-1 scrollbar-hide flex-1">
           <!-- Metrics -->
           <div class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs">
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2.5">文章看板</p>
+            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2.5">{{ t('notes.articleDashboard') }}</p>
             <div class="grid grid-cols-2 gap-2">
               <div class="bg-slate-50 dark:bg-zinc-800/40 p-2 rounded-xl text-center">
-                <span class="text-[9px] text-[var(--text-muted)] block">阅读</span>
+                <span class="text-[9px] text-[var(--text-muted)] block">{{ t('notes.viewsUnit') }}</span>
                 <span class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"><Eye class="w-3 h-3 text-[var(--text-muted)]" />{{ detailNote.views }}</span>
               </div>
               <div class="bg-slate-50 dark:bg-zinc-800/40 p-2 rounded-xl text-center">
-                <span class="text-[9px] text-[var(--text-muted)] block">喜爱</span>
+                <span class="text-[9px] text-[var(--text-muted)] block">{{ t('notes.likesUnit') }}</span>
                 <span class="text-xs font-black text-[var(--text-primary)] flex items-center justify-center gap-1 mt-0.5"><Heart class="w-3 h-3 text-rose-500" />{{ detailNote._count.likes }}</span>
               </div>
             </div>
@@ -400,11 +402,11 @@ defineExpose({ open });
 
           <!-- Reading ToolBox -->
           <div class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs space-y-3">
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">个性化排版</p>
+            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">{{ t('notes.typography') }}</p>
             
             <!-- Font Sizer -->
             <div class="flex items-center justify-between text-xs">
-              <span class="text-[10px] font-medium text-[var(--text-secondary)]">正文字号</span>
+              <span class="text-[10px] font-medium text-[var(--text-secondary)]">{{ t('notes.fontSize') }}</span>
               <div class="flex items-center gap-1 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
                 <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(-1)"><Minus class="w-2.5 h-2.5" /></button>
                 <span class="text-[10px] font-black px-1 text-[var(--text-primary)]">{{ fontSize }}px</span>
@@ -416,7 +418,7 @@ defineExpose({ open });
 
           <!-- Tags & Category Panel -->
           <div class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs">
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">笔记本标签</p>
+            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">{{ t('notes.notebookTags') }}</p>
             <div class="flex flex-wrap gap-1">
               <span v-if="detailNote.category" class="px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/15 text-accent text-[9px] font-black">{{ detailNote.category }}</span>
               <span v-for="tag in parseTags(detailNote)" :key="tag" class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]">#{{ tag }}</span>
@@ -434,7 +436,7 @@ defineExpose({ open });
             @click="handleTogglePopular"
           >
             <Star class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isPopular }" />
-            <span>{{ detailNote.isPopular ? '已推热门' : '推荐热门' }}</span>
+            <span>{{ detailNote.isPopular ? t('notes.popularRecommendedShort') : t('notes.recommendPopular') }}</span>
           </button>
 
           <button 
@@ -444,7 +446,7 @@ defineExpose({ open });
             @click="handleLike"
           >
             <Heart class="w-3.5 h-3.5" :class="{ 'fill-current': detailNote.isLiked }" />
-            <span>{{ detailNote.isLiked ? '已赞' : '点赞笔记' }}</span>
+            <span>{{ detailNote.isLiked ? t('notes.liked') : t('notes.likeNote') }}</span>
           </button>
           
           <button 
@@ -454,7 +456,7 @@ defineExpose({ open });
             @click="emit('share', detailNote)"
           >
             <Share2 class="w-3.5 h-3.5" />
-            <span>分享笔记</span>
+            <span>{{ t('notes.shareNote') }}</span>
           </button>
 
           <button 
@@ -463,7 +465,7 @@ defineExpose({ open });
             @click="handleCopy"
           >
             <component :is="isCopying ? Check : Copy" class="w-3.5 h-3.5" />
-            <span>{{ isCopying ? '已复制' : '复制全文' }}</span>
+            <span>{{ isCopying ? t('notes.copied') : t('notes.copyFullText') }}</span>
           </button>
         </div>
       </aside>
@@ -492,10 +494,10 @@ defineExpose({ open });
                 <div class="min-w-0">
                   <h4 class="font-black text-xs text-[var(--text-primary)] leading-none flex items-center gap-1">
                     {{ detailNote.user.name }}
-                    <span class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded">作者</span>
+                    <span class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded">{{ t('notes.author') }}</span>
                   </h4>
                   <p class="text-[10px] text-[var(--text-muted)] mt-1 line-clamp-1 leading-relaxed">
-                    {{ detailNote.user.bio || '探索者' }}
+                    {{ detailNote.user.bio || t('notes.explorer') }}
                   </p>
                 </div>
               </div>
@@ -517,7 +519,7 @@ defineExpose({ open });
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-primary)]">
                     <Sparkles class="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                    <span>核心摘要</span>
+                    <span>{{ t('notes.coreSummary') }}</span>
                   </div>
                   <button 
                     type="button"
@@ -526,7 +528,7 @@ defineExpose({ open });
                     @click="generateAiSummary"
                   >
                     <Sparkles class="w-3 h-3 text-[var(--text-muted)]" :class="{ 'animate-pulse': isSummarizing }" />
-                    <span>{{ isSummarizing ? '提炼中...' : (sessionSummary ? '重新生成' : '生成 AI 摘要') }}</span>
+                    <span>{{ isSummarizing ? t('notes.summarizing') : (sessionSummary ? t('notes.regenerate') : t('notes.generateAiSummary')) }}</span>
                   </button>
                 </div>
                 
@@ -537,7 +539,7 @@ defineExpose({ open });
                   <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
                     <span class="flex items-center gap-1.5 font-bold text-[var(--text-secondary)]">
                       <Loader2 class="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
-                      AI 正在思考: {{ currentThinkingStep }}...
+                      {{ t('notes.aiThinking', { step: currentThinkingStep }) }}
                     </span>
                     <span class="font-bold text-[var(--accent)]">{{ summaryProgress }}%</span>
                   </div>
@@ -549,7 +551,7 @@ defineExpose({ open });
                   </div>
                 </div>
                 <div v-else class="text-[var(--text-muted)] text-[10.5px] mt-1.5 py-0.5">
-                  待摘要
+                  {{ t('notes.awaitingSummary') }}
                 </div>
               </div>
             </header>
@@ -566,7 +568,7 @@ defineExpose({ open });
             <div class="md:hidden mt-3 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50/50 dark:bg-white/[0.02] space-y-2">
               <!-- Personalized typography font size -->
               <div class="flex items-center justify-between text-[11px] pb-1.5 border-b border-[var(--border-base)]">
-                <span class="font-bold text-[var(--text-secondary)]">字号调整</span>
+                <span class="font-bold text-[var(--text-secondary)]">{{ t('notes.fontSizeAdjust') }}</span>
                 <div class="flex items-center gap-0.5 bg-slate-50 dark:bg-zinc-800/40 rounded-lg p-0.5 border border-[var(--border-base)]">
                   <button type="button" class="w-5 h-5 flex items-center justify-center hover:bg-[var(--bg-card)] rounded text-[var(--text-secondary)] transition-all cursor-pointer" @click="changeFontSize(-1)"><Minus class="w-2.5 h-2.5" /></button>
                   <span class="text-[10px] font-black px-1.5 text-[var(--text-primary)]">{{ fontSize }}px</span>
@@ -584,7 +586,7 @@ defineExpose({ open });
                   @click="handleTogglePopular"
                 >
                   <Star class="w-3 h-3" :class="{ 'fill-current': detailNote.isPopular }" />
-                  <span>{{ detailNote.isPopular ? '已热' : '推荐热门' }}</span>
+                  <span>{{ detailNote.isPopular ? t('notes.popularHot') : t('notes.recommendPopular') }}</span>
                 </button>
 
                 <button 
@@ -594,7 +596,7 @@ defineExpose({ open });
                   @click="handleLike"
                 >
                   <Heart class="w-3 h-3" :class="{ 'fill-current': detailNote.isLiked }" />
-                  <span>{{ detailNote.isLiked ? '已赞' : '点赞' }}</span>
+                  <span>{{ detailNote.isLiked ? t('notes.liked') : t('notes.like') }}</span>
                 </button>
 
                 <button 
@@ -604,7 +606,7 @@ defineExpose({ open });
                   @click="emit('share', detailNote)"
                 >
                   <Share2 class="w-3 h-3" />
-                  <span>分享</span>
+                  <span>{{ t('notes.share') }}</span>
                 </button>
                 
                 <button 
@@ -613,7 +615,7 @@ defineExpose({ open });
                   @click="handleCopy"
                 >
                   <component :is="isCopying ? Check : Copy" class="w-3 h-3" />
-                  <span>{{ isCopying ? '已复制' : '复制全文' }}</span>
+                  <span>{{ isCopying ? t('notes.copied') : t('notes.copyFullText') }}</span>
                 </button>
               </div>
 
@@ -632,7 +634,7 @@ defineExpose({ open });
             <div class="flex items-center justify-between">
               <h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text-primary)">
                 <MessageSquare class="w-4 h-4 text-accent" />
-                <span>全部评论 ({{ comments.length }})</span>
+                <span>{{ t('notes.commentsCount', { n: comments.length }) }}</span>
               </h3>
             </div>
 
@@ -644,7 +646,7 @@ defineExpose({ open });
                   v-model="commentContent"
                   type="textarea"
                   :rows="3"
-                  placeholder="写下你的想法，交流看法..."
+                  :placeholder="t('notes.commentPlaceholder')"
                   maxlength="500"
                   show-word-limit
                   class="custom-textarea"
@@ -657,20 +659,20 @@ defineExpose({ open });
                     :loading="submittingComment"
                     @click="submitComment"
                   >
-                    发表评论
+                    {{ t('notes.publishComment') }}
                   </el-button>
                 </div>
               </div>
             </div>
             <div v-else class="p-4 bg-slate-50 dark:bg-white/5 border border-dashed border-[var(--border-base)] rounded-2xl text-center">
-              <p class="text-xs text-[var(--text-muted)] mb-2.5">您需要登录后才能发表评论</p>
-              <el-button type="primary" size="small" round @click="visible = false; router.push('/login')">去登录</el-button>
+              <p class="text-xs text-[var(--text-muted)] mb-2.5">{{ t('notes.loginToComment') }}</p>
+              <el-button type="primary" size="small" round @click="visible = false; router.push('/login')">{{ t('notes.goLogin') }}</el-button>
             </div>
 
             <!-- Comments List -->
             <div v-loading="loadingComments" class="space-y-4">
               <div v-if="comments.length === 0" class="text-center py-6 text-xs text-[var(--text-muted)]">
-                暂无评论，快来发表第一条评论吧~
+                {{ t('notes.noCommentsYet') }}
               </div>
               <div
                 v-for="item in comments"
@@ -682,7 +684,7 @@ defineExpose({ open });
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors" @click="handleShowUserProfile(item.user.id)">
                       {{ item.user.name }}
-                      <span v-if="item.userId === detailNote.userId" class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md">作者</span>
+                      <span v-if="item.userId === detailNote.userId" class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md">{{ t('notes.author') }}</span>
                     </span>
                     <div class="flex items-center gap-2">
                       <span class="text-[10px] text-[var(--text-muted)]">{{ new Date(item.createdAt).toLocaleString('zh-CN') }}</span>
@@ -690,7 +692,7 @@ defineExpose({ open });
                         v-if="item.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'"
                         type="button"
                         class="p-1 text-[var(--text-muted)] hover:text-red-500 rounded transition-all cursor-pointer bg-transparent border-0"
-                        title="删除评论"
+                        :title="t('notes.deleteComment')"
                         @click="handleDeleteComment(item.id)"
                       >
                         <Trash2 class="w-3.5 h-3.5" />
@@ -707,7 +709,7 @@ defineExpose({ open });
           <footer class="mt-12 pt-6 border-t border-[var(--border-base)]">
             <div class="flex flex-col items-center justify-center gap-2 select-none text-[var(--text-muted)] opacity-60">
               <BookOpen class="w-5 h-5 text-accent" />
-              <span class="text-[10px] font-black tracking-widest">阅读结束</span>
+              <span class="text-[10px] font-black tracking-widest">{{ t('notes.endReading') }}</span>
             </div>
           </footer>
         </div>

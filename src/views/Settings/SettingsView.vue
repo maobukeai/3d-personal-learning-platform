@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -24,14 +24,14 @@ const { t } = useI18n();
 const route = useRoute();
 const activeSection = ref('profile');
 
-const sections = [
+const sections = computed(() => [
   { id: 'profile', label: t('settings.profile'), icon: User },
   { id: 'notifications', label: t('settings.notifications'), icon: Bell },
   { id: 'security', label: t('settings.account'), icon: ShieldCheck },
   { id: 'appearance', label: t('settings.appearance'), icon: Palette },
   { id: 'teams', label: t('settings.teams'), icon: Users },
   { id: 'data', label: t('settings.dangerZone'), icon: Download },
-];
+]);
 
 onMounted(() => {
   if (route.query.tab) {
@@ -70,7 +70,7 @@ watch(
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="px-4 mb-4 hidden lg:block">
-          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">设置选项</h2>
+          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{{ $t('settings.settingsOption') }}</h2>
         </div>
         <nav class="flex lg:flex-col gap-1.5 lg:gap-1 pb-1 lg:pb-0">
           <button

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, watch } from 'vue';
 import { RefreshCw, Terminal, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -28,13 +30,13 @@ const moduleFilter = ref('');
 const actionFilter = ref('');
 
 const modules = [
-  { label: '全部模块', value: '' },
-  { label: '系统设置', value: 'SETTINGS' },
-  { label: '用户管理', value: 'USER' },
-  { label: '资产管理', value: 'ASSET' },
-  { label: '认证', value: 'AUTH' },
-  { label: '内容审核', value: 'MATERIAL' },
-  { label: '作品展示', value: 'SHOWCASE' },
+  { label: t('admin.all_modules'), value: '' },
+  { label: t('admin.system_settings'), value: 'SETTINGS' },
+  { label: t('admin.user_management'), value: 'USER' },
+  { label: t('admin.asset_management'), value: 'ASSET' },
+  { label: t('admin.certification'), value: 'AUTH' },
+  { label: t('admin.content_moderation'), value: 'MATERIAL' },
+  { label: t('admin.work_display'), value: 'SHOWCASE' },
 ];
 
 const fetchLogs = async () => {
@@ -51,7 +53,7 @@ const fetchLogs = async () => {
     total.value = data.total;
     totalPages.value = data.pages;
   } catch (_error) {
-    ElMessage.error('获取审计日志失败');
+    ElMessage.error(t('admin.failed_to_obtain_audit'));
   } finally {
     isLoading.value = false;
   }
@@ -63,20 +65,20 @@ const formatDate = (date: string) => {
 
 const getActionLabel = (action: string) => {
   const labels: Record<string, string> = {
-    LOGIN: '登录',
-    LOGOUT: '登出',
-    UPDATE_SETTINGS: '更新设置',
-    CREATE_USER: '创建用户',
-    UPDATE_USER: '更新用户',
-    DELETE_USER: '删除用户',
-    RESET_PASSWORD: '重置密码',
-    APPROVE_ASSET: '通过资产',
-    REJECT_ASSET: '拒绝资产',
-    DELETE_ASSET: '删除资产',
-    APPROVE_MATERIAL: '通过材料',
-    REJECT_MATERIAL: '拒绝材料',
-    APPROVE_SHOWCASE: '通过作品',
-    REJECT_SHOWCASE: '拒绝作品',
+    LOGIN: t('admin.login'),
+    LOGOUT: t('admin.log_out'),
+    UPDATE_SETTINGS: t('admin.update_settings'),
+    CREATE_USER: t('admin.create_user'),
+    UPDATE_USER: t('admin.update_user'),
+    DELETE_USER: t('admin.delete_user'),
+    RESET_PASSWORD: t('admin.reset_password'),
+    APPROVE_ASSET: t('admin.by_assets'),
+    REJECT_ASSET: t('admin.reject_assets'),
+    DELETE_ASSET: t('admin.delete_assets'),
+    APPROVE_MATERIAL: t('admin.by_material'),
+    REJECT_MATERIAL: t('admin.reject_material'),
+    APPROVE_SHOWCASE: t('admin.through_works'),
+    REJECT_SHOWCASE: t('admin.reject_work'),
   };
   return labels[action] || action;
 };
@@ -135,7 +137,7 @@ onMounted(fetchLogs);
         <div class="flex items-center gap-1.5 sm:gap-2.5">
           <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchLogs">
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
         </div>
       </div>
@@ -173,11 +175,11 @@ v-for="m in modules" :key="m.value" type="button" class="px-1 py-0.5 sm:px-2.5 s
         <!-- 检索与统计 -->
         <div class="w-full flex items-center justify-between lg:justify-end gap-3 lg:w-auto shrink-0">
           <div class="relative flex-1 lg:flex-none lg:w-64">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">操作类型</span>
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('admin.operation_type') }}</span>
             <input
               v-model="actionFilter"
               type="text"
-              placeholder="例如: LOGIN, CREATE_USER..."
+              :placeholder="$t('admin.for_example_login_create')"
               class="w-full pl-16 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-slate-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -272,7 +274,7 @@ v-for="m in modules" :key="m.value" type="button" class="px-1 py-0.5 sm:px-2.5 s
                       <span
                         class="text-xs font-black truncate"
                         style="color: var(--text-primary)"
-                        >{{ log.user?.name || '系统' }}</span
+                        >{{ log.user?.name || t('admin.system') }}</span
                       >
                       <span class="text-[10px] text-slate-400 truncate">{{
                         log.user?.email || 'SYSTEM'
@@ -337,7 +339,7 @@ v-for="m in modules" :key="m.value" type="button" class="px-1 py-0.5 sm:px-2.5 s
                 <UserAvatar :user="log.user" size="sm" />
                 <div class="flex flex-col min-w-0">
                   <span class="text-xs font-black truncate" style="color: var(--text-primary)">{{
-                    log.user?.name || '系统'
+                    log.user?.name || $t('admin.system')
                   }}</span>
                   <span class="text-[10px] text-slate-400">{{
                     formatDate(log.createdAt).split(' ')[1]

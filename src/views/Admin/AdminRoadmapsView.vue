@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
@@ -123,23 +125,23 @@ const openEditModal = (roadmap: Roadmap | null = null) => {
       description: '',
       steps: [
         {
-          title: '阶段 1: 核心基础概念',
-          description: '介绍基础的工具界面布局、关键操作快捷键，完成简单的几何体搭建',
+          title: t('admin.phase_1_core_basic'),
+          description: t('admin.introduce_basic_tool_interface'),
           subtasks: [
-            '构建基本的场景视口与画布模板',
-            '认识常用几何体模型并完成低模拼装',
-            '熟练使用挤出、环切和倒角命令建模',
+            t('admin.build_basic_scene_viewport'),
+            t('admin.understand_common_geometric_models'),
+            t('admin.proficient_in_modeling_using'),
           ],
           order: 1,
         },
         {
-          title: '阶段 2: 深入实战与优化',
+          title: t('admin.stage_2_in_depth'),
           description:
-            '引入进阶编辑指令，完成具有一定复杂度的完整实体作品，学会材质与灯光的基础配置',
+            t('admin.introduce_advanced_editing_instructions'),
           subtasks: [
-            '运用 Subdivision 细分修改器给模型增加圆角细节',
-            '完成模型的 UV 展开且确保贴图无接缝拉伸',
-            '调试 HDRI 环境光渲染并导出一张高保真静帧',
+            t('admin.use_the_subdivision_modifier'),
+            t('admin.complete_the_uv_unfolding'),
+            t('admin.debug_hdri_ambient_rendering'),
           ],
           order: 2,
         },
@@ -187,7 +189,7 @@ const moveStepDown = (index: number) => {
 
 const handleSaveRoadmap = async () => {
   if (!editForm.value.title.trim()) {
-    ElMessage.warning('请输入学习路线名称');
+    ElMessage.warning(t('admin.please_enter_the_learning'));
     return;
   }
 
@@ -195,9 +197,9 @@ const handleSaveRoadmap = async () => {
   const validSteps = editForm.value.steps.filter((s) => s.title.trim());
   if (validSteps.length === 0) {
     try {
-      await ElMessageBox.confirm('当前路线没有任何有效步骤，确认保存吗？', '保存确认', {
-        confirmButtonText: '继续保存',
-        cancelButtonText: '取消',
+      await ElMessageBox.confirm(t('admin.the_current_route_does'), t('admin.save_confirmation'), {
+        confirmButtonText: t('admin.continue_to_save'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       });
     } catch {
@@ -236,7 +238,7 @@ const handleSaveRoadmap = async () => {
     await fetchRoadmaps();
   } catch (error) {
     console.error('Save roadmap error:', error);
-    ElMessage.error('保存失败，请检查数据库配置');
+    ElMessage.error(t('admin.saving_failed_please_check'));
   } finally {
     isLoading.value = false;
   }
@@ -245,11 +247,11 @@ const handleSaveRoadmap = async () => {
 const handleDeleteRoadmap = async (id: string) => {
   try {
     await ElMessageBox.confirm(
-      '确定要删除这个官方路线吗？该操作不可逆，将级联清除该路线的所有步骤及用户的学习记录！',
-      '删除确认',
+      t('admin.are_you_sure_you_13'),
+      t('admin.delete_confirmation'),
       {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion_1'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
       },
     );
@@ -263,7 +265,7 @@ const handleDeleteRoadmap = async (id: string) => {
     await fetchRoadmaps();
   } catch (error) {
     console.error('Delete roadmap error:', error);
-    ElMessage.error('删除失败，请重试');
+    ElMessage.error(t('admin.deletion_failed_please_try'));
   } finally {
     isLoading.value = false;
   }
@@ -319,7 +321,7 @@ onMounted(() => {
 
         <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-md shadow-indigo-500/15 cursor-pointer whitespace-nowrap hover:scale-102" @click="openEditModal()">
           <Plus class="w-3.5 h-3.5" />
-          <span>新建学习路线</span>
+          <span>{{ $t('admin.create_a_new_learning') }}</span>
         </button>
       </div>
 
@@ -333,14 +335,14 @@ onMounted(() => {
             class="px-2.5 py-1 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 text-[10px] sm:text-[11px] font-bold flex items-center gap-1.5 shrink-0"
           >
             <Milestone class="w-3 h-3" />
-            <span>官方路线</span>
+            <span>{{ $t('admin.official_route') }}</span>
             <span class="opacity-60 font-black">({{ totalRoadmapsCount }})</span>
           </span>
           <span
             class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-[10px] sm:text-[11px] font-bold flex items-center gap-1.5 shrink-0"
           >
             <Layers3 class="w-3 h-3" />
-            <span>核心步骤总数</span>
+            <span>{{ $t('admin.total_number_of_core') }}</span>
             <span class="opacity-60 font-black">{{ totalStepsCount }}</span>
           </span>
         </div>
@@ -354,7 +356,7 @@ onMounted(() => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="快速查找官方路线..."
+              :placeholder="$t('admin.find_official_routes_quickly')"
               class="w-full pl-9 pr-7 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -396,13 +398,13 @@ onMounted(() => {
         >
           <FolderOpen class="w-8 h-8" />
         </div>
-        <h3 class="text-md font-bold mb-2" style="color: var(--text-primary)">没有找到学习路线</h3>
+        <h3 class="text-md font-bold mb-2" style="color: var(--text-primary)">{{ $t('admin.no_learning_route_found') }}</h3>
         <p class="text-xs text-slate-400 leading-relaxed mb-6">
           目前没有已发布的官方路线，或者搜索关键字未匹配到任何结果。点击右上角即可新建官方教学路径。
         </p>
         <button type="button" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer whitespace-nowrap" @click="openEditModal()">
           <Plus class="w-4 h-4" />
-          <span>创建首条官方路线</span>
+          <span>{{ $t('admin.create_the_first_official') }}</span>
         </button>
       </div>
 
@@ -457,10 +459,10 @@ onMounted(() => {
 
                 <!-- Quick Metadata Actions -->
                 <div class="flex items-center gap-1 shrink-0">
-                  <button type="button" class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors" title="编辑整条路线" @click="openEditModal(roadmap)">
+                  <button type="button" class="p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 transition-colors" :title="$t('admin.edit_entire_route')" @click="openEditModal(roadmap)">
                     <Edit2 class="w-3.5 h-3.5" />
                   </button>
-                  <button type="button" class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors" title="级联删除路线" @click="handleDeleteRoadmap(roadmap.id)">
+                  <button type="button" class="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors" :title="$t('admin.cascading_delete_routes')" @click="handleDeleteRoadmap(roadmap.id)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -470,7 +472,7 @@ onMounted(() => {
               <p
                 class="text-xs text-slate-400 dark:text-slate-400 leading-relaxed mb-6 line-clamp-2"
               >
-                {{ roadmap.description || '暂无路线描述，点击右上角编辑按钮进行补充。' }}
+                {{ roadmap.description || $t('admin.there_is_no_route') }}
               </p>
 
               <!-- Step Outline Pipeline Visualization -->
@@ -482,7 +484,7 @@ onMounted(() => {
                   class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"
                 >
                   <BookOpen class="w-3 h-3 text-indigo-500" />
-                  <span>核心知识大纲预览</span>
+                  <span>{{ $t('admin.core_knowledge_outline_preview') }}</span>
                 </div>
 
                 <div
@@ -511,7 +513,7 @@ onMounted(() => {
                     v-if="roadmap.steps.length > 3"
                     class="pt-1 text-[10px] text-indigo-500/90 font-black flex items-center gap-1 pl-1"
                   >
-                    <span>还有 {{ roadmap.steps.length - 3 }} 个高级进阶节点</span>
+                    <span>{{ $t('admin.there_are_also_roadmap') }}</span>
                     <ArrowRight class="w-3 h-3" />
                   </div>
                 </div>
@@ -523,7 +525,7 @@ onMounted(() => {
                 class="py-6 text-center bg-slate-50/50 dark:bg-white/2 rounded-2xl border border-dashed border-slate-200 dark:border-white/5 text-slate-400 mb-6 flex flex-col items-center justify-center gap-1.5"
               >
                 <Layers class="w-5 h-5 opacity-40" />
-                <span class="text-xs font-medium">当前路线还没有任何学习节点</span>
+                <span class="text-xs font-medium">{{ $t('admin.the_current_route_does_1') }}</span>
               </div>
             </div>
 
@@ -534,10 +536,10 @@ onMounted(() => {
             >
               <div class="flex items-center gap-1">
                 <Calendar class="w-3 h-3 opacity-60" />
-                <span>更新时间: {{ roadmap.createdAt ? new Date(roadmap.createdAt).toLocaleDateString() : '-' }}</span>
+                <span>{{ $t('admin.update_time_roadmap_createdat') }}</span>
               </div>
               <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5" @click="openEditModal(roadmap)">
-                <span>进入编辑器</span>
+                <span>{{ $t('admin.enter_the_editor') }}</span>
                 <ArrowRight class="w-3 h-3" />
               </button>
             </div>
@@ -576,7 +578,7 @@ onMounted(() => {
                 class="text-lg font-bold flex items-center gap-2"
                 style="color: var(--text-primary)"
               >
-                {{ currentRoadmap ? '编辑官方学习路线' : '编排全新学习路线' }}
+                {{ currentRoadmap ? t('admin.edit_official_learning_route') : $t('admin.arrange_a_new_learning') }}
               </h3>
               <p class="text-[10px] text-slate-400">
                 在这里统一进行路线元数据配置以及高精度节点流的增删、行内编辑和顺序调整
@@ -599,18 +601,18 @@ onMounted(() => {
                 class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
               >
                 <Info class="w-3.5 h-3.5" />
-                <span>基础属性配置</span>
+                <span>{{ $t('admin.basic_attribute_configuration') }}</span>
               </div>
 
               <div>
                 <label
                   class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider"
-                  >路线标题</label
+                  >{{ $t('admin.route_title') }}</label
                 >
                 <input
                   v-model="editForm.title"
                   type="text"
-                  placeholder="例如：3D 角色雕刻大师实战路线"
+                  :placeholder="$t('admin.for_example_3d_character')"
                   class="w-full px-4 py-2.5 rounded-xl border transition-all outline-none text-xs font-bold"
                   style="
                     background-color: var(--bg-app);
@@ -623,12 +625,12 @@ onMounted(() => {
               <div>
                 <label
                   class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider"
-                  >核心描述</label
+                  >{{ $t('admin.core_description') }}</label
                 >
                 <textarea
                   v-model="editForm.description"
                   rows="4"
-                  placeholder="简述该路线的学习大纲目标、预期产出及核心人群定位..."
+                  :placeholder="$t('admin.briefly_describe_the_learning_1')"
                   class="w-full px-4 py-2.5 rounded-xl border transition-all outline-none resize-none text-xs leading-relaxed"
                   style="
                     background-color: var(--bg-app);
@@ -647,22 +649,22 @@ onMounted(() => {
                 class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
               >
                 <HelpCircle class="w-3.5 h-3.5 text-indigo-500" />
-                <span>🎯 教学编排标准建议</span>
+                <span>{{ $t('admin.suggestions_on_teaching_arrangement') }}</span>
               </div>
               <ul class="text-[10px] leading-relaxed space-y-2 text-slate-400">
                 <li class="flex items-start gap-1.5">
                   <span class="text-indigo-500 mt-0.5">•</span>
-                  <span><strong>步骤清晰</strong>：每个步骤节点目标建议足够聚焦且可度量。</span>
+                  <span><strong>{{ $t('admin.clear_steps') }}</strong>{{ $t('admin.the_goal_of_each') }}</span>
                 </li>
                 <li class="flex items-start gap-1.5">
                   <span class="text-indigo-500 mt-0.5">•</span>
-                  <span><strong>步长合理</strong>：官方路线推荐规划 3-7 个重点主攻步骤。</span>
+                  <span><strong>{{ $t('admin.reasonable_step_size') }}</strong>{{ $t('admin.the_official_route_recommends') }}</span>
                 </li>
                 <li class="flex items-start gap-1.5">
                   <span class="text-indigo-500 mt-0.5">•</span>
                   <span
-                    ><strong>无损升级</strong
-                    >：对正在被学习的路线，请避免删除有用户进度的节点。修改标题及添加新步骤是完全无损安全的。</span
+                    ><strong>{{ $t('admin.lossless_upgrade') }}</strong
+                    >{{ $t('admin.for_the_route_being') }}</span
                   >
                 </li>
               </ul>
@@ -676,7 +678,7 @@ onMounted(() => {
                 class="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5"
               >
                 <Layers3 class="w-3.5 h-3.5" />
-                <span>学习阶段节点设计</span>
+                <span>{{ $t('admin.learning_stage_node_design') }}</span>
                 <span
                   class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/25"
                 >
@@ -686,7 +688,7 @@ onMounted(() => {
 
               <button type="button" class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-indigo-500/30 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all text-[10px] font-black cursor-pointer" @click="addStep">
                 <Plus class="w-3 h-3" />
-                <span>新增步骤</span>
+                <span>{{ $t('admin.add_new_steps') }}</span>
               </button>
             </div>
 
@@ -700,10 +702,10 @@ onMounted(() => {
                 class="py-12 flex flex-col items-center justify-center text-slate-400 gap-2"
               >
                 <Layers class="w-8 h-8 opacity-30" />
-                <p class="text-xs font-medium">当前没有任何步骤节点</p>
+                <p class="text-xs font-medium">{{ $t('admin.there_are_currently_no_1') }}</p>
                 <button type="button" class="mt-2 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500 text-indigo-500 hover:text-white text-[10px] font-bold border border-indigo-500/20 transition-all cursor-pointer" @click="addStep">
                   <Plus class="w-3.5 h-3.5" />
-                  <span>添加首个步骤</span>
+                  <span>{{ $t('admin.add_first_step') }}</span>
                 </button>
               </div>
 
@@ -727,10 +729,10 @@ onMounted(() => {
 
                       <!-- Arrow Controls -->
                       <div class="flex flex-col gap-0.5">
-                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === 0" title="上移" @click="moveStepUp(index)">
+                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === 0" :title="$t('admin.move_up')" @click="moveStepUp(index)">
                           <ChevronUp class="w-3.5 h-3.5" />
                         </button>
-                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === editForm.steps.length - 1" title="下移" @click="moveStepDown(index)">
+                        <button type="button" class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-indigo-500 disabled:opacity-30 disabled:pointer-events-none transition-colors" :disabled="index === editForm.steps.length - 1" :title="$t('admin.move_down')" @click="moveStepDown(index)">
                           <ChevronDown class="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -741,7 +743,7 @@ onMounted(() => {
                       <input
                         v-model="step.title"
                         type="text"
-                        placeholder="输入节点标题（例如：掌握硬表面细分曲面建模）"
+                        :placeholder="$t('admin.enter_a_node_title')"
                         class="w-full px-3 py-1.5 rounded-lg border text-xs font-bold outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
                         style="
                           background-color: var(--bg-app);
@@ -752,7 +754,7 @@ onMounted(() => {
                       <textarea
                         v-model="step.description"
                         rows="2"
-                        placeholder="简述学习要点、需要掌握的命令工具，以及达标建议（选填）..."
+                        :placeholder="$t('admin.briefly_describe_the_learning')"
                         class="w-full px-3 py-1.5 rounded-lg border text-[11px] leading-relaxed outline-none transition-all focus:ring-1 focus:ring-indigo-500/30 resize-none"
                         style="
                           background-color: var(--bg-app);
@@ -770,11 +772,11 @@ onMounted(() => {
                             class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1"
                           >
                             <CheckCircle2 class="w-3.5 h-3.5 text-indigo-500" />
-                            <span>阶段细分任务清单（留空则生成智能默认词条）</span>
+                            <span>{{ $t('admin.stage_breakdown_task_list') }}</span>
                           </label>
                           <button type="button" class="text-[10px] font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer" @click="step.subtasks.push('')">
                             <Plus class="w-3 h-3" />
-                            <span>添加任务项</span>
+                            <span>{{ $t('admin.add_task_item') }}</span>
                           </button>
                         </div>
 
@@ -792,7 +794,7 @@ onMounted(() => {
                             <input
                               v-model="step.subtasks[sIdx]"
                               type="text"
-                              placeholder="例如：完成多边形布线与拓扑原理"
+                              :placeholder="$t('admin.for_example_complete_polygon')"
                               class="flex-1 px-3 py-1 rounded-lg border text-[11px] outline-none transition-all focus:ring-1 focus:ring-indigo-500/30"
                               style="
                                 background-color: var(--bg-app);
@@ -816,7 +818,7 @@ onMounted(() => {
                     </div>
 
                     <!-- Delete Step Action -->
-                    <button type="button" class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1" title="移除步骤" @click="removeStep(index)">
+                    <button type="button" class="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 transition-colors shrink-0 align-self-start mt-1" :title="$t('admin.removal_steps')" @click="removeStep(index)">
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -836,7 +838,7 @@ onMounted(() => {
           </button>
           <button type="button" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-md shadow-indigo-500/10 flex items-center justify-center gap-1.5" @click="handleSaveRoadmap">
             <CheckCircle2 class="w-4 h-4" />
-            <span>保存路线编排</span>
+            <span>{{ $t('admin.save_route_arrangement') }}</span>
           </button>
         </div>
       </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, onMounted } from 'vue';
 import { CreditCard, Plus, RefreshCw } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -73,7 +75,7 @@ const fetchData = async () => {
     subscriptions.value = subsRes.data;
     activationCodes.value = Array.isArray(codesRes.data) ? codesRes.data : codesRes.data.data;
   } catch (_error) {
-    ElMessage.error('获取数据失败');
+    ElMessage.error(t('admin.failed_to_get_data'));
   } finally {
     isLoading.value = false;
   }
@@ -84,7 +86,7 @@ const fetchUsers = async () => {
     const res = await api.get('/api/admin/users', { params: { page: 1, limit: 200 } });
     users.value = Array.isArray(res.data) ? res.data : res.data.data;
   } catch (_error) {
-    ElMessage.error('获取用户列表失败');
+    ElMessage.error(t('admin.failed_to_get_user'));
   }
 };
 
@@ -172,10 +174,8 @@ type="button" class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text
             <span>
               {{
                 activeTab === 'plans'
-                  ? '新建计划'
-                  : activeTab === 'subscriptions'
-                    ? '新增订阅'
-                    : '生成激活码'
+                  ? t('admin.new_plan') : activeTab === 'subscriptions'
+                    ? t('admin.add_new_subscription') : $t('admin.generate_activation_code')
               }}
             </span>
           </button>

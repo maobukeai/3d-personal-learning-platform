@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { reactive, watch } from 'vue';
 import { Globe, UserPlus, Lock } from 'lucide-vue-next';
 import { ElMessageBox } from 'element-plus';
@@ -35,19 +37,19 @@ watch(
 );
 
 const defaultRoleOptions = [
-  { label: '普通用户', value: 'USER' },
-  { label: '讲师', value: 'INSTRUCTOR' },
+  { label: t('admin.ordinary_user'), value: 'USER' },
+  { label: t('admin.lecturer'), value: 'INSTRUCTOR' },
 ];
 
 const handleToggleMaintenance = async (val: string | number | boolean) => {
   if (val) {
     try {
       await ElMessageBox.confirm(
-        '开启维护模式后，所有非管理员用户将无法访问平台。确定要开启吗？',
-        '确认开启维护模式',
+        t('admin.after_maintenance_mode_is'),
+        t('admin.confirm_to_enable_maintenance'),
         {
-          confirmButtonText: '确认开启',
-          cancelButtonText: '取消',
+          confirmButtonText: t('admin.confirm_to_open'),
+          cancelButtonText: t('admin.cancel'),
           type: 'warning',
           confirmButtonClass: 'el-button--danger',
         },
@@ -67,13 +69,13 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
     >
       <div class="flex items-center gap-3 mb-8">
         <Globe class="w-5 h-5 text-indigo-600" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">基础运营配置</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.basic_operational_configuration') }}</h2>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >平台显示名称</label
+            >{{ $t('admin.platform_display_name') }}</label
           >
           <input
             v-model="localSettings.PLATFORM_NAME"
@@ -89,7 +91,7 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
 
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >新用户默认角色</label
+            >{{ $t('admin.new_user_default_role') }}</label
           >
           <select
             v-model="localSettings.DEFAULT_USER_ROLE"
@@ -114,7 +116,7 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
               <UserPlus class="w-4 h-4 text-emerald-500" />
               <div>
                 <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >允许新用户注册</span
+                  >{{ $t('admin.allow_new_users_to') }}</span
                 >
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   关闭后仅管理员可创建新账号
@@ -131,7 +133,7 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
               <Lock class="w-4 h-4 text-rose-500" />
               <div>
                 <span class="text-xs font-bold" style="color: var(--text-primary)"
-                  >维护模式</span
+                  >{{ $t('admin.maintenance_mode') }}</span
                 >
                 <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                   开启后仅管理员可登入平台

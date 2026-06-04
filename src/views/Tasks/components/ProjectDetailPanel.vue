@@ -32,9 +32,11 @@ import { getApiErrorMessage } from '@/utils/error';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 
+const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
 const router = useRouter();
@@ -115,12 +117,12 @@ const isDetailInviteDialogOpen = ref(false);
 const detailInviteUserIds = ref<string[]>([]);
 const teamMembers = ref<ProjectUser[]>([]);
 
-const priorityOptions = [
-  { id: 'URGENT', label: '紧急', color: 'bg-red-500', textColor: 'text-red-500', icon: Flame },
-  { id: 'HIGH', label: '高', color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp },
-  { id: 'MEDIUM', label: '中', color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus },
-  { id: 'LOW', label: '低', color: 'bg-slate-400', textColor: 'text-slate-400', icon: ArrowDown },
-];
+const priorityOptions = computed(() => [
+  { id: 'URGENT', label: t('tasks.urgent'), color: 'bg-red-500', textColor: 'text-red-500', icon: Flame },
+  { id: 'HIGH', label: t('tasks.high'), color: 'bg-orange-500', textColor: 'text-orange-500', icon: ArrowUp },
+  { id: 'MEDIUM', label: t('tasks.medium'), color: 'bg-amber-500', textColor: 'text-amber-500', icon: Minus },
+  { id: 'LOW', label: t('tasks.low'), color: 'bg-slate-400', textColor: 'text-slate-400', icon: ArrowDown },
+]);
 
 const fetchTeamMembers = async (teamId?: string) => {
   try {
@@ -181,7 +183,7 @@ const fetchProjectDetail = async (id: string) => {
       await fetchTeamMembers(projectDetail.value.teamId);
     }
   } catch {
-    ElMessage.error('获取项目详情失败');
+    ElMessage.error(t('projects.fetchFailed'));
   } finally {
     isDetailLoading.value = false;
   }
@@ -196,32 +198,32 @@ const open = async (projectId: string) => {
 const handleUpdateTaskStatus = async (task: ProjectTask, newStatus: string) => {
   try {
     await api.put(`/api/tasks/${task.id}`, { status: newStatus });
-    ElMessage.success('任务状态已更新');
+    ElMessage.success(t('tasks.updateStatusSuccess'));
     if (activeProjectId.value) {
       await fetchProjectDetail(activeProjectId.value);
     }
     emit('refresh-list');
   } catch {
-    ElMessage.error('更新任务状态失败');
+    ElMessage.error(t('tasks.updateStatusFailed'));
   }
 };
 
 const handleDeleteTask = (taskId: string) => {
-  ElMessageBox.confirm('确定要删除这个任务吗？', '确认删除', {
+  ElMessageBox.confirm(t('tasks.deleteConfirm'), t('tasks.confirmDelete'), {
     type: 'warning',
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+    confirmButtonText: t('common.confirm'),
+    cancelButtonText: t('common.cancel'),
   })
     .then(async () => {
       try {
         await api.delete(`/api/tasks/${taskId}`);
-        ElMessage.success('任务已删除');
+        ElMessage.success(t('tasks.deleteSuccess'));
         if (activeProjectId.value) {
           await fetchProjectDetail(activeProjectId.value);
         }
         emit('refresh-list');
       } catch {
-        ElMessage.error('删除任务失败');
+        ElMessage.error(t('tasks.deleteFailed'));
       }
     })
     .catch(() => {});
@@ -241,11 +243,11 @@ const handleSendDetailInvite = async () => {
     await api.post(`/api/projects/${projectDetail.value.id}/invite`, {
       userIds: detailInviteUserIds.value,
     });
-    ElMessage.success(`已发送 ${detailInviteUserIds.value.length} 份邀请`);
+    ElMessage.success(t('projects.invitationSent', { count: detailInviteUserIds.value.length }));
     isDetailInviteDialogOpen.value = false;
     fetchProjectDetail(projectDetail.value.id);
   } catch {
-    ElMessage.error('发送邀请失败');
+    ElMessage.error(t('projects.sendInviteFailed'));
   }
 };
 
@@ -253,11 +255,11 @@ const handleJoinProjectDetail = async () => {
   if (!projectDetail.value) return;
   try {
     await api.post(`/api/projects/${projectDetail.value.id}/join`);
-    ElMessage.success('成功加入项目');
+    ElMessage.success(t('projects.joinSuccess'));
     fetchProjectDetail(projectDetail.value.id);
     emit('refresh-list');
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '加入失败'));
+    ElMessage.error(getApiErrorMessage(error, t('projects.joinFailed')));
   }
 };
 
@@ -269,11 +271,11 @@ const handleQuickAddTask = async () => {
       teamId: workspaceStore.activeTeamId,
     });
     quickTaskTitle.value = '';
-    ElMessage.success('任务已添加');
+    ElMessage.success(t('tasks.addSuccess'));
     await fetchProjectDetail(activeProjectId.value);
     emit('refresh-list');
   } catch {
-    ElMessage.error('添加任务失败');
+    ElMessage.error(t('tasks.addFailed'));
   }
 };
 
@@ -294,7 +296,7 @@ const handleBatchCreateTasks = async () => {
 
   try {
     await api.post(`/api/projects/${activeProjectId.value}/tasks/batch`, { tasks: payloadTasks });
-    ElMessage.success(`成功批量创建 ${lines.length} 个任务`);
+    ElMessage.success(t('tasks.batchCreateSuccess', { count: lines.length }));
     isBatchDialogOpen.value = false;
     batchTaskText.value = '';
     batchAssigneeId.value = '';
@@ -303,7 +305,7 @@ const handleBatchCreateTasks = async () => {
     await fetchProjectDetail(activeProjectId.value);
     emit('refresh-list');
   } catch {
-    ElMessage.error('批量创建任务失败');
+    ElMessage.error(t('tasks.batchCreateFailed'));
   }
 };
 
@@ -370,9 +372,9 @@ const toggleStep = async (stepId: string) => {
     } else {
       myProgress.value.push({ roadmapStepId: stepId, completed: !isCompleted });
     }
-    ElMessage.success(!isCompleted ? '恭喜完成该阶段！' : '已重置阶段进度');
+    ElMessage.success(!isCompleted ? t('projects.stepCompleted') : t('projects.stepReset'));
   } catch (_error) {
-    ElMessage.error('更新进度失败');
+    ElMessage.error(t('projects.updateProgressFailed'));
   }
 };
 
@@ -658,23 +660,23 @@ defineExpose({
               <h3 class="text-lg font-black tracking-tight" style="color: var(--text-primary)">
                 {{ projectDetail.title }}
               </h3>
-              <p class="text-[10px] font-bold text-slate-400">项目详情与任务协作</p>
+              <p class="text-[10px] font-bold text-slate-400">{{ t('projects.detailSubtitle') }}</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
             <!-- Join Project Button for non-members on PUBLIC projects -->
             <button v-if="!isDetailMember && projectDetail.visibility === 'PUBLIC'" type="button" class="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 border-none" @click="handleJoinProjectDetail">
               <Plus class="w-3.5 h-3.5" />
-              <span>报名加入项目</span>
+              <span>{{ t('projects.joinProject') }}</span>
             </button>
 
             <button type="button" class="px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none" @click="navigateToTaskBoard(projectDetail.id)">
               <FolderOpen class="w-3.5 h-3.5" />
-              <span>在看板中查看</span>
+              <span>{{ t('projects.viewInBoard') }}</span>
             </button>
 
             <!-- View Mode Toggle (Drawer vs Modal) -->
-            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none" :title="projectDetailViewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'" @click="toggleDetailViewMode">
+            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none" :title="projectDetailViewMode === 'drawer' ? t('projects.switchToModal') : t('projects.switchToDrawer')" @click="toggleDetailViewMode">
               <component
                 :is="projectDetailViewMode === 'drawer' ? Maximize2 : Minimize2"
                 class="w-4.5 h-4.5"
@@ -696,7 +698,7 @@ defineExpose({
             <div
               class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
             ></div>
-            <p class="text-xs font-bold text-slate-400">正在加载项目详情...</p>
+            <p class="text-xs font-bold text-slate-400">{{ t('projects.loadingDetails') }}</p>
           </div>
 
           <div
@@ -713,7 +715,7 @@ defineExpose({
                   :class="activeLeftTab === 'tasks' ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
                   @click="activeLeftTab = 'tasks'"
                 >
-                  项目任务
+                  {{ t('projects.projectTasks') }}
                 </button>
                 <button
                   type="button"
@@ -721,7 +723,7 @@ defineExpose({
                   :class="activeLeftTab === 'roadmap' ? 'bg-white dark:bg-slate-700 text-accent shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-transparent'"
                   @click="activeLeftTab = 'roadmap'"
                 >
-                  学习路线
+                  {{ t('projects.learningPath') }}
                 </button>
               </div>
 
@@ -731,12 +733,12 @@ defineExpose({
                   <h4
                     class="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
                   >
-                    <Layers class="w-4 h-4" /> 项目任务 ({{ sortedTasks.length }})
+                    <Layers class="w-4 h-4" /> {{ t('projects.projectTasks') }} ({{ sortedTasks.length }})
                   </h4>
                   <div class="flex gap-2">
                     <button type="button" class="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:opacity-95 transition-all cursor-pointer border-none" @click="isBatchDialogOpen = true">
                       <Plus class="w-3 h-3" />
-                      <span>批量添加</span>
+                      <span>{{ t('projects.batchAdd') }}</span>
                     </button>
                   </div>
                 </div>
@@ -746,7 +748,7 @@ defineExpose({
                   <input
                     v-model="quickTaskTitle"
                     type="text"
-                    placeholder="在此输入新任务标题，按回车快速添加..."
+                    :placeholder="t('projects.quickTaskPlaceholder')"
                     class="w-full pl-4 pr-12 py-2 bg-slate-50 dark:bg-slate-800/30 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
                     style="border-color: var(--border-base); color: var(--text-primary)"
                     @keydown.enter="handleQuickAddTask"
@@ -763,7 +765,7 @@ defineExpose({
                   style="border-color: var(--border-base)"
                 >
                   <CheckCircle2 class="w-8 h-8 text-slate-300 mb-2" />
-                  <p class="text-xs font-bold text-slate-400">目前暂无关联任务</p>
+                  <p class="text-xs font-bold text-slate-400">{{ t('projects.noTasksLinked') }}</p>
                 </div>
                 <div
                   v-else
@@ -779,27 +781,27 @@ defineExpose({
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px]"
                         >
-                          任务名称
+                          {{ t('tasks.taskName') }}
                         </th>
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-36"
                         >
-                          执行人
+                          {{ t('tasks.assignee') }}
                         </th>
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-24"
                         >
-                          优先级
+                          {{ t('tasks.priority') }}
                         </th>
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-32"
                         >
-                          状态
+                          {{ t('tasks.status') }}
                         </th>
                         <th
                           class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] text-right w-16"
                         >
-                          操作
+                          {{ t('common.actions') }}
                         </th>
                       </tr>
                     </thead>
@@ -824,7 +826,7 @@ defineExpose({
                               task.assignee.name || task.assignee.email
                             }}</span>
                           </div>
-                          <span v-else class="text-slate-400">未指派</span>
+                          <span v-else class="text-slate-400">{{ t('tasks.unassigned') }}</span>
                         </td>
                         <td class="px-3.5 py-2">
                           <span
@@ -841,12 +843,12 @@ defineExpose({
                           >
                             {{
                               task.priority === 'URGENT'
-                                ? '紧急'
+                                ? t('tasks.urgent')
                                 : task.priority === 'HIGH'
-                                  ? '高'
+                                  ? t('tasks.high')
                                   : task.priority === 'MEDIUM'
-                                    ? '中'
-                                    : '低'
+                                    ? t('tasks.medium')
+                                    : t('tasks.low')
                             }}
                           </span>
                         </td>
@@ -857,9 +859,9 @@ defineExpose({
                             class="!w-24 custom-select-small"
                             @change="(val: string) => handleUpdateTaskStatus(task, val)"
                           >
-                            <el-option label="待办" value="TODO" />
-                            <el-option label="进行中" value="IN_PROGRESS" />
-                            <el-option label="已完成" value="DONE" />
+                            <el-option :label="t('tasks.status.todo')" value="TODO" />
+                            <el-option :label="t('tasks.status.inProgress')" value="IN_PROGRESS" />
+                            <el-option :label="t('tasks.status.done')" value="DONE" />
                           </el-select>
                         </td>
                         <td class="px-3.5 py-2 text-right">
@@ -890,14 +892,14 @@ defineExpose({
                         </h2>
                       </div>
                       <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                        {{ projectDetail.roadmap.description || '项目专属学习路线大纲，点击下方节点进行学习探索。' }}
+                        {{ projectDetail.roadmap.description || t('projects.roadmapTip') }}
                       </p>
                     </div>
                     
                     <!-- Progress -->
                     <div class="flex items-center gap-2.5 shrink-0 self-start sm:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-1.5 px-2.5 rounded-xl">
                       <div class="flex flex-col items-end">
-                        <span class="text-[8px] font-black uppercase text-slate-400 tracking-wider">路线进度</span>
+                        <span class="text-[8px] font-black uppercase text-slate-400 tracking-wider">{{ t('projects.roadmapProgress') }}</span>
                         <span class="text-xs font-black text-emerald-500">{{ calculateRoadmapProgress(projectDetail.roadmap) }}%</span>
                       </div>
                       <div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -979,10 +981,10 @@ defineExpose({
                                     getStepStatus(step, index) === 'upcoming',
                                 }"
                               >
-                                阶段 {{ index + 1 }}
+                                {{ t('projects.stage', { num: index + 1 }) }}
                               </span>
                               <span v-if="activeStepId === step.id" class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.2 rounded flex items-center gap-0.5">
-                                <Sparkle class="w-2.5 h-2.5" /> 探索中
+                                <Sparkle class="w-2.5 h-2.5" /> {{ t('projects.exploring') }}
                               </span>
                             </div>
                             <h3
@@ -1018,15 +1020,15 @@ defineExpose({
                     <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 relative z-10">
                       <div class="flex items-center gap-1.5">
                         <div class="w-7 h-7 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
-                          <Gauge class="w-4 h-4" />
+                           <Gauge class="w-4 h-4" />
                         </div>
                         <div class="space-y-0.5">
-                          <h4 class="text-[8px] font-black text-slate-400 uppercase tracking-widest">智能探索分析仪</h4>
-                          <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200">阶段详情聚焦</p>
+                          <h4 class="text-[8px] font-black text-slate-400 uppercase tracking-widest">{{ t('projects.explorerAnalyzer') }}</h4>
+                          <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200">{{ t('projects.stageDetailFocus') }}</p>
                         </div>
                       </div>
                       <span class="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.2 rounded-full shrink-0">
-                        阶段 {{ projectDetail.roadmap.steps.indexOf(activeStep) + 1 }}
+                        {{ t('projects.stage', { num: projectDetail.roadmap.steps.indexOf(activeStep) + 1 }) }}
                       </span>
                     </div>
 
@@ -1036,7 +1038,7 @@ defineExpose({
                         {{ activeStep.title }}
                       </h3>
                       <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                        {{ activeStep.description || '当前阶段为您的自定义攻坚节点。配合下方的技能突破清单，探索该领域并攻克技术难题。' }}
+                        {{ activeStep.description || t('projects.customStepTip') }}
                       </p>
                     </div>
 
@@ -1049,7 +1051,7 @@ defineExpose({
                         @click="toggleStep(activeStep.id)"
                       >
                         <CheckCircle2 class="w-3.5 h-3.5" />
-                        <span>{{ isStepCompleted(activeStep.id) ? '已攻克阶段 (重置)' : '攻克阶段大纲目标' }}</span>
+                        <span>{{ isStepCompleted(activeStep.id) ? t('projects.stepCompletedReset') : t('projects.stepCompleteTarget') }}</span>
                       </button>
                     </div>
 
@@ -1057,13 +1059,13 @@ defineExpose({
                     <div class="space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10">
                       <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
                         <TrendingUp class="w-3 h-3 text-accent" />
-                        <span>技能属性评估</span>
+                        <span>{{ t('projects.skillsAssessment') }}</span>
                       </div>
 
                       <div class="space-y-1.5">
                         <div>
                           <div class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
-                            <span>技能挑战难度</span>
+                            <span>{{ t('projects.skillDifficulty') }}</span>
                             <span class="font-bold text-slate-700 dark:text-slate-355">
                               {{ getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).difficulty }}%
                             </span>
@@ -1078,7 +1080,7 @@ defineExpose({
 
                         <div>
                           <div class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
-                            <span>工程实战权重</span>
+                            <span>{{ t('projects.practicalWeight') }}</span>
                             <span class="font-bold text-slate-700 dark:text-slate-355">
                               {{ getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).practical }}%
                             </span>
@@ -1094,11 +1096,11 @@ defineExpose({
                         <div class="flex items-center justify-between text-[11px] pt-0.5">
                           <span class="text-slate-500 flex items-center gap-1">
                             <Clock class="w-3 h-3 text-slate-450" />
-                            预估学习时间
+                            {{ t('projects.estimatedStudyTime') }}
                           </span>
                           <span class="font-black text-slate-700 dark:text-slate-200">
                             {{ getMetricsForStep(activeStep, projectDetail.roadmap.steps.indexOf(activeStep)).duration }}
-                            <span class="text-[9px] font-normal text-slate-400">小时</span>
+                            <span class="text-[9px] font-normal text-slate-400">{{ t('projects.hours') }}</span>
                           </span>
                         </div>
                       </div>
@@ -1111,7 +1113,7 @@ defineExpose({
                     >
                       <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         <ListTodo class="w-3 h-3 text-accent" />
-                        <span>技能突破细分任务</span>
+                        <span>{{ t('projects.skillsChecklist') }}</span>
                       </div>
 
                       <div class="space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -1144,7 +1146,7 @@ defineExpose({
                     >
                       <div class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         <GraduationCap class="w-3 h-3 text-accent" />
-                        <span>智能推荐关联课程</span>
+                        <span>{{ t('projects.recommendedCourses') }}</span>
                       </div>
 
                       <div class="space-y-2">
@@ -1169,10 +1171,10 @@ defineExpose({
                             </h4>
                             <div class="flex items-center justify-between text-[8px] text-slate-400">
                               <span class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[8px]">
-                                {{ course.difficulty === 'BEGINNER' ? '入门' : course.difficulty === 'INTERMEDIATE' ? '进阶' : '高级' }}
+                                {{ course.difficulty === 'BEGINNER' ? t('common.difficulty.beginner') : course.difficulty === 'INTERMEDIATE' ? t('common.difficulty.intermediate') : t('common.difficulty.advanced') }}
                               </span>
                               <span class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[8px]">
-                                去掌握 <ArrowRight class="w-2 h-2" />
+                                {{ t('projects.goMaster') }} <ArrowRight class="w-2 h-2" />
                               </span>
                             </div>
                           </div>
@@ -1191,13 +1193,13 @@ defineExpose({
                 <h4
                   class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1 text-left"
                 >
-                  项目愿景
+                  {{ t('projects.projectVision') }}
                 </h4>
                 <p
                   class="text-xs text-slate-500 leading-relaxed bg-slate-50 dark:bg-slate-800/20 p-3 rounded-xl border text-left"
                   style="border-color: var(--border-base)"
                 >
-                  {{ projectDetail.description || '暂无项目描述。' }}
+                  {{ projectDetail.description || t('projects.noDescription') }}
                 </p>
               </div>
 
@@ -1210,13 +1212,13 @@ defineExpose({
                   <div
                     class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
                   >
-                    截止日期
+                    {{ t('tasks.dueDate') }}
                   </div>
                   <span class="text-xs font-bold" style="color: var(--text-primary)">
                     {{
                       projectDetail.dueDate
                         ? new Date(projectDetail.dueDate).toLocaleDateString()
-                        : '未设定'
+                        : t('common.notSet')
                     }}
                   </span>
                 </div>
@@ -1227,7 +1229,7 @@ defineExpose({
                   <div
                     class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
                   >
-                    项目进度
+                    {{ t('projects.projectProgress') }}
                   </div>
                   <div class="flex items-center gap-2">
                     <div
@@ -1251,11 +1253,11 @@ defineExpose({
                   <h4
                     class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5"
                   >
-                    <Users class="w-3.5 h-3.5" /> 参与成员 ({{ projectDetail.members.length }})
+                    <Users class="w-3.5 h-3.5" /> {{ t('projects.members') }} ({{ projectDetail.members.length }})
                   </h4>
                   <button v-if="isDetailOwner" type="button" class="px-2 py-0.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer border-none" @click="openInviteDetailDialog">
                     <Plus class="w-2.5 h-2.5" />
-                    <span>邀请</span>
+                    <span>{{ t('projects.invite') }}</span>
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
@@ -1281,7 +1283,7 @@ defineExpose({
                   class="pt-1.5 space-y-1.5 text-left"
                 >
                   <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    已发邀请 (等待接受)
+                    {{ t('projects.sentInvitationsPending') }}
                   </div>
                   <div class="flex flex-wrap gap-1.5">
                     <div
@@ -1325,7 +1327,7 @@ defineExpose({
       >
         <div class="flex items-center justify-between">
           <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
-            批量添加项目任务
+            {{ t('projects.batchAddTask') }}
           </h3>
           <button type="button" class="bg-transparent border-none cursor-pointer" style="color: var(--text-secondary)" @click="isBatchDialogOpen = false">
             <X class="w-5 h-5" />
@@ -1335,38 +1337,38 @@ defineExpose({
           <div>
             <label
               class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-              >任务标题列表 (一行一个任务标题)</label
+              >{{ t('projects.batchTaskTitleList') }}</label
             >
             <textarea
               v-model="batchTaskText"
               rows="6"
               class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
               style="color: var(--text-primary);"
-              placeholder="例如：&#10;核心功能代码编写&#10;接口文档编写&#10;前端样式还原校验"
+              :placeholder="t('projects.batchTaskPlaceholder')"
             ></textarea>
           </div>
 
           <!-- Tasks Preview -->
           <div v-if="parsedBatchTasks.length > 0" class="space-y-1.5 sm:space-y-2">
             <label class="block text-[10px] sm:text-xs font-bold uppercase text-slate-400 ml-1"
-              >即将创建的任务预览 (共 {{ parsedBatchTasks.length }} 个)</label
+              >{{ t('projects.batchTaskPreview', { count: parsedBatchTasks.length }) }}</label
             >
             <div
               class="max-h-24 overflow-y-auto border rounded-xl p-2.5 space-y-1 bg-slate-50 dark:bg-slate-800/10 scrollbar-hide"
               style="border-color: var(--border-base)"
             >
               <div
-                v-for="(t, index) in parsedBatchTasks"
+                v-for="(tTask, index) in parsedBatchTasks"
                 :key="index"
                 class="flex items-center justify-between text-[11px] font-bold py-0.5 border-b last:border-0"
                 style="border-color: var(--border-base)"
               >
                 <span class="truncate flex-1 pr-4" style="color: var(--text-primary)">
-                  {{ index + 1 }}. {{ t }}
+                  {{ index + 1 }}. {{ tTask }}
                 </span>
                 <span
                   class="px-1 py-0.2 bg-accent/10 text-accent rounded text-[7px] uppercase font-black tracking-wider shrink-0"
-                  >待创建</span
+                  >{{ t('projects.toBeCreated') }}</span
                 >
               </div>
             </div>
@@ -1376,12 +1378,12 @@ defineExpose({
             <div>
               <label
                 class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                >统一负责人</label
+                >{{ t('projects.batchAssignee') }}</label
               >
               <el-select
                 v-model="batchAssigneeId"
                 clearable
-                placeholder="选择负责人"
+                :placeholder="t('projects.selectAssignee')"
                 class="!w-full custom-select"
               >
                 <el-option
@@ -1400,7 +1402,7 @@ defineExpose({
             <div>
               <label
                 class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-                >统一优先级</label
+                >{{ t('projects.batchPriority') }}</label
               >
               <el-select v-model="batchPriority" class="!w-full custom-select">
                 <el-option
@@ -1421,19 +1423,19 @@ defineExpose({
           <div>
             <label
               class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
-              >统一截止日期</label
+              >{{ t('projects.batchDueDate') }}</label
             >
             <el-date-picker
               v-model="batchDueDate"
               type="date"
-              placeholder="Deadline"
+              :placeholder="t('tasks.dueDate')"
               class="!w-full !rounded-2xl custom-date-picker"
               popper-class="custom-date-popper"
             />
           </div>
         </div>
         <button type="button" class="w-full py-3.5 bg-accent text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm border-none cursor-pointer" @click="handleBatchCreateTasks">
-          批量创建任务
+          {{ t('projects.batchCreateButton') }}
         </button>
       </div>
     </div>
@@ -1455,7 +1457,7 @@ defineExpose({
       >
         <div class="flex items-center justify-between">
           <h3 class="text-lg sm:text-xl font-bold" style="color: var(--text-primary)">
-            邀请新成员加入项目
+            {{ t('projects.inviteMembersTitle') }}
           </h3>
           <button type="button" class="bg-transparent border-none cursor-pointer" style="color: var(--text-secondary)" @click="isDetailInviteDialogOpen = false">
             <X class="w-5 h-5" />
@@ -1466,12 +1468,12 @@ defineExpose({
           <div v-if="availableMembersForDetailInvite.length > 0">
             <label
               class="block text-[10px] sm:text-xs font-bold uppercase mb-1.5 sm:mb-2 ml-1 text-slate-400"
-              >选择要邀请的团队成员</label
+              >{{ t('projects.selectTeamMembers') }}</label
             >
             <el-select
               v-model="detailInviteUserIds"
               multiple
-              placeholder="选择成员"
+              :placeholder="t('projects.selectMember')"
               class="!w-full custom-select"
             >
               <el-option
@@ -1488,16 +1490,16 @@ defineExpose({
             </el-select>
           </div>
           <div v-else class="text-center py-6 text-slate-400 text-xs font-bold">
-            团队中没有可邀请的其他成员（所有成员均已加入该项目）
+            {{ t('projects.noOtherMembersToInvite') }}
           </div>
         </div>
 
         <div class="flex justify-end gap-2.5 sm:gap-3 pt-2">
           <button type="button" class="px-4 py-2 sm:px-5 sm:py-2.5 bg-slate-100 dark:bg-white/5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold hover:scale-105 transition-all cursor-pointer border-none" style="color: var(--text-primary)" @click="isDetailInviteDialogOpen = false">
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button type="button" class="px-4 py-2 sm:px-5 sm:py-2.5 bg-accent text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold hover:scale-105 transition-all shadow-md shadow-accent/20 cursor-pointer disabled:opacity-50 disabled:hover:scale-100 border-none" :disabled="detailInviteUserIds.length === 0" @click="handleSendDetailInvite">
-            发送邀请
+            {{ t('projects.sendInvite') }}
           </button>
         </div>
       </div>

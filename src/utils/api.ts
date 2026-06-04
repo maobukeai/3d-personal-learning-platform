@@ -132,9 +132,14 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError);
 
-        // Only redirect to login if we are on a route that requires authentication
-        if (router.currentRoute.value.meta.requiresAuth) {
-          authStore.logout();
+        // Always logout to clear credentials on refresh token failure
+        authStore.logout();
+
+        // Redirect to login if on a route that requires authentication
+        const requiresAuth = router.currentRoute.value.meta.requiresAuth ||
+          router.currentRoute.value.matched.some((record) => record.meta.requiresAuth);
+        
+        if (requiresAuth) {
           router.push('/login');
         }
         return Promise.reject(refreshError);

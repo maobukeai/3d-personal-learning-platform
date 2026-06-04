@@ -115,9 +115,9 @@ const handleStartChat = async (user: UserType) => {
       participantIds: [user.id],
       isGroup: false,
     });
-    ElMessage.success('已发起对话');
+    ElMessage.success(t('tasks.chatStarted'));
   } catch {
-    ElMessage.error('创建对话失败');
+    ElMessage.error(t('tasks.chatFailed'));
   }
 };
 
@@ -231,7 +231,7 @@ const priorityColumns = computed(() => [
   },
   {
     id: 'NONE',
-    title: '无优先级',
+    title: t('tasks.noPriority'),
     color: 'bg-slate-400',
     headerBg: 'from-slate-400/10 to-transparent',
   },
@@ -363,7 +363,7 @@ const tasksByProject = computed(() => {
 
   projectMap['unassigned'] = {
     id: null,
-    name: '未指定项目',
+    name: t('projects.unassignedProject'),
     tasks: [],
   };
 
@@ -375,16 +375,16 @@ const tasksByProject = computed(() => {
     };
   });
 
-  filtered.forEach((t) => {
-    const pid = t.projectId || 'unassigned';
+  filtered.forEach((taskItem) => {
+    const pid = taskItem.projectId || 'unassigned';
     if (!projectMap[pid]) {
       projectMap[pid] = {
-        id: t.projectId || null,
-        name: t.project?.title || '未知项目',
+        id: taskItem.projectId || null,
+        name: taskItem.project?.title || t('projects.unknownProject'),
         tasks: [],
       };
     }
-    projectMap[pid].tasks.push(t);
+    projectMap[pid].tasks.push(taskItem);
   });
 
   const result = Object.values(projectMap).filter((g) => g.tasks.length > 0);
@@ -433,7 +433,7 @@ const fetchTasks = async () => {
     const response = await api.get('/api/tasks');
     tasks.value = response.data;
   } catch {
-    ElMessage.error('获取任务失败');
+    ElMessage.error(t('tasks.fetchFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -499,14 +499,14 @@ const handleAddTaskWithPayload = async (payload: {
       participantIds: payload.participantIds && payload.participantIds.length > 0 ? payload.participantIds : undefined,
     };
     await api.post('/api/tasks', formattedPayload);
-    ElMessage.success('任务已添加');
+    ElMessage.success(t('tasks.addSuccess'));
     isAddDialogOpen.value = false;
     fetchTasks();
     fetchStats();
   } catch (error) {
-    const errMsg = getApiErrorMessage(error, '添加任务失败');
+    const errMsg = getApiErrorMessage(error, t('tasks.addFailed'));
     if (errMsg === '部分指定人员不在该团队中') {
-      ElMessage.error('部分指定人员不在该团队中，请重新选择');
+      ElMessage.error(t('tasks.memberNotInTeam'));
     } else {
       ElMessage.error(errMsg);
     }
@@ -547,19 +547,19 @@ const handleListViewRefresh = () => {
 };
 
 const deleteTask = (task: Task) => {
-  ElMessageBox.confirm('确定删除该任务吗？', '提示', {
+  ElMessageBox.confirm(t('tasks.deleteConfirm'), t('tasks.tip'), {
     type: 'warning',
-    confirmButtonText: '确定删除',
-    cancelButtonText: '取消',
+    confirmButtonText: t('tasks.confirmDelete'),
+    cancelButtonText: t('common.cancel'),
   }).then(async () => {
     try {
       await api.delete(`/api/tasks/${task.id}`);
-      ElMessage.success('已删除');
+      ElMessage.success(t('tasks.deleteSuccess'));
       isDetailDrawerOpen.value = false;
       fetchTasks();
       fetchStats();
     } catch {
-      ElMessage.error('删除失败');
+      ElMessage.error(t('tasks.deleteFailed'));
     }
   });
 };
@@ -650,7 +650,7 @@ onMounted(() => {
           <div class="p-1.5 bg-accent/10 rounded-lg">
             <CheckCircle2 class="w-4.5 h-4.5 text-accent" />
           </div>
-          <h1 class="text-base md:text-lg font-bold" style="color: var(--text-primary)">任务看板</h1>
+          <h1 class="text-base md:text-lg font-bold" style="color: var(--text-primary)">{{ t('tasks.board') }}</h1>
         </div>
 
         <button type="button" class="md:hidden p-2 bg-accent text-white rounded-lg shadow-lg shadow-accent/20 hover:shadow-none transition-all flex items-center justify-center shrink-0" @click="openAddDialog('TODO')">
@@ -664,7 +664,7 @@ onMounted(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索任务..."
+            :placeholder="t('tasks.searchPlaceholder')"
             class="pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-white/5 border-none rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-40 lg:w-48 transition-all"
             style="color: var(--text-primary)"
           />
@@ -690,11 +690,11 @@ type="button" class="p-1 rounded-md transition-all" :class="
         </div>
 
         <button type="button" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all" @click="router.push({ path: '/team-tasks', query: { openCreate: 'true' } })">
-          <FolderPlus class="w-3.5 h-3.5 text-slate-500" /> 新建项目
+          <FolderPlus class="w-3.5 h-3.5 text-slate-500" /> {{ t('tasks.newProject') }}
         </button>
 
         <button type="button" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all" @click="openAddDialog('TODO')">
-          <Plus class="w-3.5 h-3.5" /> 新建任务
+          <Plus class="w-3.5 h-3.5" /> {{ t('tasks.newTask') }}
         </button>
       </div>
     </div>
@@ -711,7 +711,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
         >
           <TrendingUp class="w-3 h-3 text-emerald-500" />
           <span class="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
-            >{{ completionRate }}% 完成</span
+            >{{ completionRate }}% {{ t('tasks.done') }}</span
           >
         </div>
         <div
@@ -720,7 +720,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
         >
           <AlertCircle class="w-3 h-3 text-rose-500" />
           <span class="text-[9px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400"
-            >{{ overdueCount }} 逾期</span
+            >{{ overdueCount }} {{ t('tasks.overdue') }}</span
           >
         </div>
         <div
@@ -728,7 +728,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
         >
           <BarChart3 class="w-3 h-3 text-slate-400" />
           <span class="text-[9px] sm:text-[10px] font-bold text-slate-500"
-            >{{ tasks.length }} 总计</span
+            >{{ tasks.length }} {{ t('tasks.total') }}</span
           >
         </div>
       </div>
@@ -739,9 +739,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
         class="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/15 border border-accent/30 text-accent whitespace-nowrap shadow-sm text-[9px] sm:text-[10px] font-bold"
       >
         <FolderOpen class="w-3 h-3" />
-        <span
-          >项目: {{ projects.find((p) => p.id === selectedProjectId)?.title || '加载中...' }}</span
-        >
+        <span>{{ t('sidebar.projects') }}: {{ projects.find((p) => p.id === selectedProjectId)?.title || t('common.loading') }}</span>
         <button type="button" class="hover:text-rose-500 transition-colors ml-1" @click="clearProjectFilter">
           <X class="w-2.5 h-2.5" />
         </button>
@@ -753,17 +751,17 @@ type="button" class="p-1 rounded-md transition-all" :class="
       <div class="flex items-center gap-2 shrink-0">
         <span
           class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >时间:</span
+          >{{ t('tasks.time') }}</span
         >
         <div
           class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
         >
           <button
-v-for="f in [
-              { id: 'all', label: '全部' },
-              { id: 'overdue', label: '逾期' },
-              { id: 'today', label: '今日' },
-              { id: 'week', label: '本周' },
+            v-for="f in [
+              { id: 'all', label: t('tasks.all') },
+              { id: 'overdue', label: t('tasks.overdue') },
+              { id: 'today', label: t('tasks.today') },
+              { id: 'week', label: t('tasks.week') },
             ]" :key="f.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               dateFilter === f.id
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
@@ -780,17 +778,17 @@ v-for="f in [
       <div class="flex items-center gap-2 shrink-0">
         <span
           class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >状态:</span
+          >{{ t('tasks.status') }}</span
         >
         <div
           class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
         >
           <button
-v-for="s in [
-              { id: 'all', label: '全部' },
-              { id: 'TODO', label: '待办', textColor: 'text-slate-500 dark:text-slate-400' },
-              { id: 'IN_PROGRESS', label: '进行中', textColor: 'text-blue-500' },
-              { id: 'DONE', label: '已完成', textColor: 'text-emerald-500' },
+            v-for="s in [
+              { id: 'all', label: t('tasks.all') },
+              { id: 'TODO', label: t('tasks.todo'), textColor: 'text-slate-500 dark:text-slate-400' },
+              { id: 'IN_PROGRESS', label: t('tasks.inProgress'), textColor: 'text-blue-500' },
+              { id: 'DONE', label: t('tasks.done'), textColor: 'text-emerald-500' },
             ]" :key="s.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               statusFilter === s.id
                 ? 'bg-white dark:bg-slate-700 shadow-sm ' + (s.textColor || 'text-accent')
@@ -807,21 +805,21 @@ v-for="s in [
       <div class="flex items-center gap-2 shrink-0">
         <span
           class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >优先级:</span
+          >{{ t('tasks.priority') }}</span
         >
         <div
           class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
         >
           <button
-type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               priorityFilter === 'all'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             " @click="priorityFilter = 'all'">
-            全部
+            {{ t('tasks.all') }}
           </button>
           <button
-v-for="p in priorityOptions" :key="p.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap" :class="
+            type="button" v-for="p in priorityOptions" :key="p.id" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap" :class="
               priorityFilter === p.id
                 ? 'bg-white dark:bg-slate-700 shadow-sm ' + p.textColor
                 : 'text-slate-500 hover:text-slate-700'
@@ -838,26 +836,26 @@ v-for="p in priorityOptions" :key="p.id" type="button" class="px-1.5 sm:px-2 py-
       <div class="flex items-center gap-2 shrink-0">
         <span
           class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >分组方式:</span
+          >{{ t('tasks.groupBy') }}</span
         >
         <div
           class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
         >
           <button
-type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               groupBy === 'status'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             " @click="groupBy = 'status'">
-            按状态
+            {{ t('tasks.groupByStatus') }}
           </button>
           <button
-type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               groupBy === 'priority'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             " @click="groupBy = 'priority'">
-            按优先级
+            {{ t('tasks.groupByPriority') }}
           </button>
         </div>
       </div>
@@ -868,34 +866,34 @@ type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] 
       <div class="flex items-center gap-2 shrink-0">
         <span
           class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
-          >排序方式:</span
+          >{{ t('tasks.sortBy') }}</span
         >
         <div
           class="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto scrollbar-hide"
         >
           <button
-type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               sortBy === 'natural'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             " @click="sortBy = 'natural'">
-            按自然顺序
+            {{ t('tasks.sortNatural') }}
           </button>
           <button
-type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               sortBy === 'createdAt_asc'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             " @click="sortBy = 'createdAt_asc'">
-            最早创建
+            {{ t('tasks.sortCreatedAsc') }}
           </button>
           <button
-type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
+            type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all whitespace-nowrap" :class="
               sortBy === 'createdAt_desc'
                 ? 'bg-white dark:bg-slate-700 text-accent shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             " @click="sortBy = 'createdAt_desc'">
-            最新创建
+            {{ t('tasks.sortCreatedDesc') }}
           </button>
         </div>
       </div>
@@ -906,25 +904,25 @@ type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] 
       <div class="flex items-center gap-2 shrink-0">
         <!-- Hide Completed Toggle -->
         <button
-type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border" :class="
+          type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border" :class="
             hideCompleted
               ? 'bg-accent/15 border-accent/30 text-accent shadow-sm'
               : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:hover:bg-white/10'
           " @click="hideCompleted = !hideCompleted">
           <EyeOff v-if="hideCompleted" class="w-3.5 h-3.5 text-accent" />
           <Eye v-else class="w-3.5 h-3.5 text-slate-400" />
-          <span>隐藏已完成</span>
+          <span>{{ t('tasks.hideCompleted') }}</span>
         </button>
 
         <!-- Only My Tasks Toggle -->
         <button
-type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border" :class="
+          type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border" :class="
             onlyMyTasks
               ? 'bg-accent/15 border-accent/30 text-accent shadow-sm'
               : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:hover:bg-white/10'
           " @click="onlyMyTasks = !onlyMyTasks">
           <User class="w-3.5 h-3.5 text-slate-400" :class="{ 'text-accent': onlyMyTasks }" />
-          <span>仅看我的</span>
+          <span>{{ t('tasks.onlyMy') }}</span>
         </button>
 
         <!-- Column Visibility Popover -->
@@ -938,14 +936,14 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
           <template #reference>
             <button type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:hover:bg-white/10">
               <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400" />
-              <span>展示列</span>
+              <span>{{ t('tasks.showColumns') }}</span>
             </button>
           </template>
           <div class="p-1 space-y-2.5">
             <div
               class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
             >
-              显示列表列
+              {{ t('tasks.showListColumns') }}
             </div>
             <label
               class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
@@ -956,7 +954,7 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleColumnVisibility('status')"
               />
-              <span>状态</span>
+              <span>{{ t('tasks.status') }}</span>
             </label>
             <label
               class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
@@ -967,7 +965,7 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleColumnVisibility('project')"
               />
-              <span>关联项目</span>
+              <span>{{ t('tasks.associatedProject') }}</span>
             </label>
             <label
               class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
@@ -978,7 +976,7 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleColumnVisibility('assignee')"
               />
-              <span>负责人</span>
+              <span>{{ t('tasks.assignee') }}</span>
             </label>
             <label
               class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
@@ -989,7 +987,7 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleColumnVisibility('dueDate')"
               />
-              <span>截止日期</span>
+              <span>{{ t('tasks.dueDate') }}</span>
             </label>
             <label
               class="flex items-center gap-2 text-xs cursor-pointer text-slate-600 dark:text-slate-300 select-none hover:text-accent transition-colors"
@@ -1000,7 +998,7 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
                 class="rounded border-slate-300 dark:border-slate-600 text-accent focus:ring-accent w-3.5 h-3.5"
                 @change="toggleColumnVisibility('priority')"
               />
-              <span>优先级</span>
+              <span>{{ t('tasks.priority') }}</span>
             </label>
           </div>
         </el-popover>
@@ -1008,7 +1006,7 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
         <!-- Reset Filters Button -->
         <button v-if="isAnyFilterActive" type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap border border-dashed border-rose-300 dark:border-rose-700/60 text-rose-500 hover:bg-rose-500/10 hover:border-rose-400" @click="resetAllFilters">
           <RotateCcw class="w-3.5 h-3.5 text-rose-500" />
-          <span>重置筛选</span>
+          <span>{{ t('tasks.resetFilters') }}</span>
         </button>
       </div>
     </div>
@@ -1052,10 +1050,10 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
       >
         <CheckCircle2 class="w-8 h-8 text-slate-300 dark:text-slate-600" />
       </div>
-      <p class="text-sm font-bold text-slate-400 mb-1">暂无任务</p>
-      <p class="text-xs text-slate-400 mb-4">点击新建任务按钮开始第一步吧</p>
+      <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noTasks') }}</p>
+      <p class="text-xs text-slate-400 mb-4">{{ t('tasks.clickNewTaskTip') }}</p>
       <button type="button" class="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-accent/20 transition-all" @click="openAddDialog('TODO')">
-        <Plus class="w-4 h-4" /> 新建任务
+        <Plus class="w-4 h-4" /> {{ t('tasks.newTask') }}
       </button>
     </div>
 
@@ -1070,12 +1068,12 @@ type="button" class="px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold tr
       >
         <SlidersHorizontal class="w-8 h-8 text-slate-300 dark:text-slate-600" />
       </div>
-      <p class="text-sm font-bold text-slate-400 mb-1">未找到匹配的任务</p>
+      <p class="text-sm font-bold text-slate-400 mb-1">{{ t('tasks.noMatchingTasks') }}</p>
       <p class="text-xs text-slate-400 mb-4">
-        没有任务符合当前的过滤/搜索条件，请重置或修改筛选条件。
+        {{ t('tasks.noMatchingTasksTip') }}
       </p>
       <button type="button" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition-all cursor-pointer mx-auto" @click="resetAllFilters">
-        <RotateCcw class="w-3.5 h-3.5" /> 重置所有筛选
+        <RotateCcw class="w-3.5 h-3.5" /> {{ t('tasks.resetAllFilters') }}
       </button>
     </div>
 

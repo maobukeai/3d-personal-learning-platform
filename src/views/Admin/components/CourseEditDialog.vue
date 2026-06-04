@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
@@ -50,21 +52,21 @@ const open = (course: Course | null = null) => {
 
 const handleSaveCourse = async () => {
   if (!courseForm.value.title.trim()) {
-    ElMessage.warning('请输入课程标题');
+    ElMessage.warning(t('admin.please_enter_course_title'));
     return;
   }
   try {
     if (currentCourse.value) {
       await api.put(`/api/admin/courses/${currentCourse.value.id}`, courseForm.value);
-      ElMessage.success('课程更新成功');
+      ElMessage.success(t('admin.course_updated_successfully'));
     } else {
       await api.post('/api/admin/courses', courseForm.value);
-      ElMessage.success('课程创建成功');
+      ElMessage.success(t('admin.course_created_successfully'));
     }
     visible.value = false;
     emit('saved');
   } catch (_error) {
-    ElMessage.error('保存课程失败');
+    ElMessage.error(t('admin.failed_to_save_course'));
   }
 };
 
@@ -81,17 +83,17 @@ defineExpose({ open });
       style="background-color: var(--bg-card)"
     >
       <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary)">
-        {{ currentCourse ? '编辑课程' : '新建课程' }}
+        {{ currentCourse ? t('admin.edit_course') : $t('admin.create_new_course') }}
       </h3>
       <div class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >课程标题</label
+            >{{ $t('admin.course_title') }}</label
           >
           <input
             v-model="courseForm.title"
             type="text"
-            placeholder="输入课程标题..."
+            :placeholder="$t('admin.enter_course_title')"
             class="w-full px-4 py-3 rounded-2xl border transition-all outline-none"
             style="
               background-color: var(--bg-app);
@@ -103,7 +105,7 @@ defineExpose({ open });
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >课程分类</label
+              >{{ $t('admin.course_classification') }}</label
             >
             <select
               v-model="courseForm.categoryId"
@@ -114,7 +116,7 @@ defineExpose({ open });
                 color: var(--text-primary);
               "
             >
-              <option value="">请选择分类</option>
+              <option value="">{{ $t('admin.please_select_a_category') }}</option>
               <option v-for="cat in props.categories" :key="cat.id" :value="cat.id">
                 {{ cat.name }}
               </option>
@@ -122,7 +124,7 @@ defineExpose({ open });
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-              >难度等级</label
+              >{{ $t('admin.difficulty_level') }}</label
             >
             <select
               v-model="courseForm.difficulty"
@@ -133,15 +135,15 @@ defineExpose({ open });
                 color: var(--text-primary);
               "
             >
-              <option value="BEGINNER">入门</option>
-              <option value="INTERMEDIATE">进阶</option>
-              <option value="ADVANCED">高级</option>
+              <option value="BEGINNER">{{ $t('admin.getting_started') }}</option>
+              <option value="INTERMEDIATE">{{ $t('admin.advanced') }}</option>
+              <option value="ADVANCED">{{ $t('admin.advanced_1') }}</option>
             </select>
           </div>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >发布状态</label
+            >{{ $t('admin.release_status') }}</label
           >
           <div class="flex items-center gap-4">
             <label class="flex items-center gap-2 cursor-pointer">
@@ -151,7 +153,7 @@ defineExpose({ open });
                 value="PUBLISHED"
                 class="accent-accent"
               />
-              <span class="text-sm font-medium" style="color: var(--text-primary)">发布</span>
+              <span class="text-sm font-medium" style="color: var(--text-primary)">{{ $t('admin.publish') }}</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input
@@ -160,18 +162,18 @@ defineExpose({ open });
                 value="DRAFT"
                 class="accent-accent"
               />
-              <span class="text-sm font-medium" style="color: var(--text-primary)">草稿</span>
+              <span class="text-sm font-medium" style="color: var(--text-primary)">{{ $t('admin.draft') }}</span>
             </label>
           </div>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >课程描述</label
+            >{{ $t('admin.course_description') }}</label
           >
           <textarea
             v-model="courseForm.description"
             rows="3"
-            placeholder="输入课程简介..."
+            :placeholder="$t('admin.enter_course_description')"
             class="w-full px-4 py-3 rounded-2xl border transition-all outline-none resize-none"
             style="
               background-color: var(--bg-app);
@@ -182,7 +184,7 @@ defineExpose({ open });
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider"
-            >封面图链接</label
+            >{{ $t('admin.cover_image_link') }}</label
           >
           <input
             v-model="courseForm.thumbnail"

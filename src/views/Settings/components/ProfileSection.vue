@@ -36,7 +36,7 @@ const handleUpdateProfile = async () => {
     await authStore.updateProfile(profileForm.value);
     ElMessage.success(t('settings.successUpdate'));
   } catch {
-    ElMessage.error('更新失败');
+    ElMessage.error(t('settings.updateFailed'));
   }
 };
 
@@ -46,9 +46,9 @@ const handleAvatarUpload = async (e: Event) => {
   if (!file) return;
   try {
     await authStore.uploadAvatar(file);
-    ElMessage.success('头像已更新');
+    ElMessage.success(t('settings.avatarUpdated'));
   } catch {
-    ElMessage.error('头像上传失败');
+    ElMessage.error(t('settings.avatarUploadFailed'));
   }
 };
 </script>
@@ -61,7 +61,7 @@ const handleAvatarUpload = async (e: Event) => {
         <div class="absolute inset-0 rounded-2xl bg-black/0 group-hover/avatar-upload:bg-black/40 transition-all duration-300 flex items-center justify-center z-10">
           <div class="opacity-0 group-hover/avatar-upload:opacity-100 transition-all duration-300 transform scale-75 group-hover/avatar-upload:scale-100 flex flex-col items-center gap-1">
             <Camera class="w-6 h-6 text-white drop-shadow-lg" />
-            <span class="text-[10px] text-white font-bold drop-shadow-lg">更换头像</span>
+            <span class="text-[10px] text-white font-bold drop-shadow-lg">{{ t('settings.changeAvatar') }}</span>
           </div>
         </div>
         <input type="file" class="hidden" accept="image/*" @change="handleAvatarUpload" />
@@ -71,7 +71,7 @@ const handleAvatarUpload = async (e: Event) => {
           {{ t('settings.profile') }}
         </h2>
         <p class="text-xs mt-1" style="color: var(--text-secondary)">
-          点击头像即可更换，建议上传 500x500px 以上的 JPG 或 PNG 格式图片
+          {{ t('settings.profileAvatarTip') }}
         </p>
       </div>
     </div>
@@ -79,7 +79,7 @@ const handleAvatarUpload = async (e: Event) => {
     <div class="space-y-6">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">昵称</label>
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileNickname') }}</label>
           <input
             v-model="profileForm.name"
             type="text"
@@ -92,7 +92,7 @@ const handleAvatarUpload = async (e: Event) => {
           />
         </div>
         <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">所在地</label>
+          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileLocation') }}</label>
           <div class="relative">
             <MapPin class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -104,14 +104,14 @@ const handleAvatarUpload = async (e: Event) => {
                 border-color: var(--border-base);
                 color: var(--text-primary);
               "
-              placeholder="城市, 国家"
+              :placeholder="t('settings.profileLocationPlaceholder')"
             />
           </div>
         </div>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">个人简介</label>
+        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileBio') }}</label>
         <textarea
           v-model="profileForm.bio"
           rows="4"
@@ -121,12 +121,12 @@ const handleAvatarUpload = async (e: Event) => {
             border-color: var(--border-base);
             color: var(--text-primary);
           "
-          placeholder="向大家介绍一下你自己吧..."
+          :placeholder="t('settings.profileBioPlaceholder')"
         ></textarea>
       </div>
 
       <div class="space-y-2">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">个人主页/作品集</label>
+        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileWebsite') }}</label>
         <div class="relative">
           <Globe class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -138,7 +138,7 @@ const handleAvatarUpload = async (e: Event) => {
               border-color: var(--border-base);
               color: var(--text-primary);
             "
-            placeholder="https://yourportfolio.com"
+            :placeholder="t('settings.profileWebsitePlaceholder')"
           />
         </div>
       </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, reactive, watch } from 'vue';
 import { Palette, Image, Upload, RefreshCw, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
@@ -45,7 +47,7 @@ const handleLogoUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 2 * 1024 * 1024) {
-    return ElMessage.warning('Logo 图片大小不能超过 2MB');
+    return ElMessage.warning(t('admin.logo_image_size_cannot'));
   }
 
   try {
@@ -54,10 +56,10 @@ const handleLogoUpload = async (event: Event) => {
     formData.append('logo', file);
     const { data } = await api.post('/api/admin/settings/upload-logo', formData);
     localSettings.PLATFORM_LOGO_URL = data.url;
-    ElMessage.success('Logo 上传成功，点击保存以生效');
+    ElMessage.success(t('admin.logo_uploaded_successfully_click'));
   } catch (error) {
     console.error('Logo upload error:', error);
-    ElMessage.error('Logo 上传失败');
+    ElMessage.error(t('admin.logo_upload_failed'));
   } finally {
     isUploadingLogo.value = false;
     target.value = '';
@@ -70,7 +72,7 @@ const handleFaviconUpload = async (event: Event) => {
   if (!file) return;
 
   if (file.size > 1 * 1024 * 1024) {
-    return ElMessage.warning('Favicon 图片大小不能超过 1MB');
+    return ElMessage.warning(t('admin.favicon_image_size_cannot'));
   }
 
   try {
@@ -79,10 +81,10 @@ const handleFaviconUpload = async (event: Event) => {
     formData.append('favicon', file);
     const { data } = await api.post('/api/admin/settings/upload-favicon', formData);
     localSettings.PLATFORM_FAVICON_URL = data.url;
-    ElMessage.success('Favicon 上传成功，点击保存以生效');
+    ElMessage.success(t('admin.favicon_uploaded_successfully_click'));
   } catch (error) {
     console.error('Favicon upload error:', error);
-    ElMessage.error('Favicon 上传失败');
+    ElMessage.error(t('admin.favicon_upload_failed'));
   } finally {
     isUploadingFavicon.value = false;
     target.value = '';
@@ -98,13 +100,13 @@ const handleFaviconUpload = async (event: Event) => {
     >
       <div class="flex items-center gap-3 mb-8">
         <Palette class="w-5 h-5 text-pink-500" />
-        <h2 class="text-lg font-bold" style="color: var(--text-primary)">平台品牌配置</h2>
+        <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.platform_brand_configuration') }}</h2>
       </div>
 
       <div class="space-y-6">
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >平台 Logo</label
+            >{{ $t('admin.platform_logo') }}</label
           >
           <div class="flex items-center gap-4">
             <div
@@ -131,7 +133,7 @@ const handleFaviconUpload = async (event: Event) => {
               <input
                 v-model="localSettings.PLATFORM_LOGO_URL"
                 type="text"
-                placeholder="或者输入 Logo 图片 URL"
+                :placeholder="$t('admin.or_enter_the_logo')"
                 class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                 style="
                   background-color: var(--bg-app);
@@ -148,7 +150,7 @@ const handleFaviconUpload = async (event: Event) => {
 
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >浏览器 Favicon</label
+            >{{ $t('admin.browser_favicon') }}</label
           >
           <div class="flex items-center gap-4">
             <div
@@ -178,7 +180,7 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
               <input
                 v-model="localSettings.PLATFORM_FAVICON_URL"
                 type="text"
-                placeholder="不填则默认使用平台 Logo"
+                :placeholder="$t('admin.if_left_blank_the')"
                 class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                 style="
                   background-color: var(--bg-app);
@@ -195,12 +197,12 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
 
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >平台描述</label
+            >{{ $t('admin.platform_description') }}</label
           >
           <textarea
             v-model="localSettings.PLATFORM_DESCRIPTION"
             rows="3"
-            placeholder="一句话介绍你的平台..."
+            :placeholder="$t('admin.introduce_your_platform_in')"
             class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all resize-none"
             style="
               background-color: var(--bg-app);
@@ -215,12 +217,12 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
 
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >浏览器窗口标题</label
+            >{{ $t('admin.browser_window_title') }}</label
           >
           <input
             v-model="localSettings.BROWSER_TITLE"
             type="text"
-            placeholder="例如：3D 社区 - 建模与设计学习中心"
+            :placeholder="$t('admin.for_example_3d_community')"
             class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
             style="
               background-color: var(--bg-app);
@@ -236,7 +238,7 @@ v-if="localSettings.PLATFORM_FAVICON_URL || localSettings.PLATFORM_LOGO_URL" alt
 
         <div class="space-y-2">
           <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-            >页脚文字</label
+            >{{ $t('admin.footer_text') }}</label
           >
           <input
             v-model="localSettings.FOOTER_TEXT"

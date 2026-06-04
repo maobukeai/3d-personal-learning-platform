@@ -2,6 +2,7 @@
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   ChevronLeft,
   PlayCircle,
@@ -67,6 +68,7 @@ interface CourseDetail {
   };
 }
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const courseId = route.params.id as string;
@@ -80,11 +82,11 @@ const isSubmittingReview = ref(false);
 const isEnrolling = ref(false);
 const isBookmarked = ref(false);
 
-const difficultyMap: Record<string, { label: string; color: string }> = {
-  BEGINNER: { label: '入门', color: 'text-emerald-500 bg-emerald-500/10' },
-  INTERMEDIATE: { label: '进阶', color: 'text-amber-500 bg-amber-500/10' },
-  ADVANCED: { label: '高级', color: 'text-rose-500 bg-rose-500/10' },
-};
+const difficultyMap = computed<Record<string, { label: string; color: string }>>(() => ({
+  BEGINNER: { label: t('academy.difficultyBeginner'), color: 'text-emerald-500 bg-emerald-500/10' },
+  INTERMEDIATE: { label: t('academy.difficultyIntermediate'), color: 'text-amber-500 bg-amber-500/10' },
+  ADVANCED: { label: t('academy.difficultyAdvanced'), color: 'text-rose-500 bg-rose-500/10' },
+}));
 
 const fetchCourse = async () => {
   isLoading.value = true;
@@ -92,7 +94,7 @@ const fetchCourse = async () => {
     const { data } = await api.get(`/api/courses/${courseId}`);
     course.value = data;
   } catch (_error) {
-    ElMessage.error('加载课程失败');
+    ElMessage.error(t('academy.loadCourseFailed'));
     router.push('/academy');
   } finally {
     isLoading.value = false;
@@ -113,10 +115,10 @@ const courseProgress = computed(() => {
 
 const totalDurationFormatted = computed(() => {
   const mins = course.value?.totalDuration || 0;
-  if (mins < 60) return `${mins} 分钟`;
+  if (mins < 60) return t('academy.minuteUnitDetail', { n: mins });
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m > 0 ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
+  return m > 0 ? `${h} ${t('academy.statsAverage')} ${t('academy.minuteUnitDetail', { n: m })}` : `${h} ${t('academy.statsAverage')}`;
 });
 
 const courseTags = computed(() => {
@@ -149,7 +151,7 @@ const handleEnroll = async () => {
   const authStore = useAuthStore();
 
   if (!authStore.isAuthenticated) {
-    ElMessage.warning('请先登录后再加入课程');
+    ElMessage.warning(t('academy.enrollCourseNow'));
     router.push({
       path: '/login',
       query: { redirect: route.fullPath },
@@ -160,10 +162,10 @@ const handleEnroll = async () => {
   isEnrolling.value = true;
   try {
     await api.post('/api/courses/enroll', { courseId });
-    ElMessage.success('成功加入课程');
+    ElMessage.success(t('academy.joined'));
     fetchCourse();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '加入课程失败'));
+    ElMessage.error(getApiErrorMessage(error, t('academy.loadCourseFailed')));
   } finally {
     isEnrolling.value = false;
   }
@@ -179,7 +181,7 @@ const handleStartLearning = (lessonIndex?: number) => {
 
 const toggleBookmark = () => {
   isBookmarked.value = !isBookmarked.value;
-  ElMessage.success(isBookmarked.value ? '已收藏课程' : '已取消收藏');
+  ElMessage.success(isBookmarked.value ? t('academy.myBookmarks') : t('academy.emptyBookmarks'));
 };
 
 const handleShare = () => {
@@ -187,10 +189,10 @@ const handleShare = () => {
   navigator.clipboard
     .writeText(url)
     .then(() => {
-      ElMessage.success('链接已复制到剪贴板');
+      ElMessage.success(t('layout.copiedLink'));
     })
     .catch(() => {
-      ElMessage.error('复制失败');
+      ElMessage.error(t('layout.copyFailed'));
     });
 };
 
@@ -200,7 +202,7 @@ const handleSubmitReview = async () => {
   const authStore = useAuthStore();
 
   if (!authStore.isAuthenticated) {
-    ElMessage.warning('请先登录后再发表评价');
+    ElMessage.warning(t('academy.enrollCourseNow'));
     router.push({
       path: '/login',
       query: { redirect: route.fullPath },
@@ -215,12 +217,12 @@ const handleSubmitReview = async () => {
       rating: reviewRating.value,
       comment: reviewComment.value,
     });
-    ElMessage.success('评价提交成功');
+    ElMessage.success(t('academy.submitReview'));
     reviewComment.value = '';
     reviewRating.value = 5;
     fetchCourse();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '提交评价失败'));
+    ElMessage.error(getApiErrorMessage(error, t('academy.loadCourseFailed')));
   } finally {
     isSubmittingReview.value = false;
   }
@@ -235,9 +237,9 @@ const getLessonTypeIcon = (lesson: Lesson) => {
 
 const getLessonTypeLabel = (lesson: Lesson) => {
   const url = lesson.videoUrl;
-  if (!url) return '图文';
-  if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf')) return '3D 交互';
-  return '视频';
+  if (!url) return t('academy.lessonTypeRichText');
+  if (url.toLowerCase().endsWith('.glb') || url.toLowerCase().endsWith('.gltf')) return t('academy.lessonType3D');
+  return t('academy.lessonTypeVideo');
 };
 
 const formatTimeAgo = (dateStr: string) => {
@@ -245,11 +247,11 @@ const formatTimeAgo = (dateStr: string) => {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return '今天';
-  if (days < 7) return `${days} 天前`;
-  if (days < 30) return `${Math.floor(days / 7)} 周前`;
-  if (days < 365) return `${Math.floor(days / 30)} 月前`;
-  return `${Math.floor(days / 365)} 年前`;
+  if (days === 0) return t('academy.timeToday');
+  if (days < 7) return t('academy.timeDaysAgo', { n: days });
+  if (days < 30) return t('academy.timeWeeksAgo', { n: Math.floor(days / 7) });
+  if (days < 365) return t('academy.timeMonthsAgo', { n: Math.floor(days / 30) });
+  return t('academy.timeYearsAgo', { n: Math.floor(days / 365) });
 };
 
 onMounted(fetchCourse);
@@ -269,7 +271,7 @@ onMounted(fetchCourse);
         <ChevronLeft class="w-5 h-5" style="color: var(--text-secondary)" />
       </button>
       <div class="h-4 w-px" style="background-color: var(--border-base)"></div>
-      <span class="text-sm font-bold" style="color: var(--text-primary)">课程详情</span>
+      <span class="text-sm font-bold" style="color: var(--text-primary)">{{ t('academy.courseDetail') }}</span>
       <div class="ml-auto flex items-center gap-2">
         <button type="button" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" @click="toggleBookmark">
           <Bookmark
@@ -322,7 +324,7 @@ alt="" :src="
                       "
                       class="px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm"
                     >
-                      {{ difficultyMap[course.difficulty]?.label || '入门' }}
+                      {{ difficultyMap[course.difficulty]?.label || t('academy.difficultyBeginner') }}
                     </span>
                   </div>
                   <h1 class="text-lg sm:text-xl md:text-2xl font-black text-white mb-2 leading-tight">
@@ -346,10 +348,10 @@ alt="" :src="
             <div class="flex items-center gap-1 shrink-0">
               <Star class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 fill-amber-400" />
               <span class="font-bold" style="color: var(--text-primary)">{{
-                course.avgRating || '暂无'
+                course.avgRating || t('common.noData')
               }}</span>
               <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)"
-                >({{ course._count?.reviews || 0 }})</span
+                >({{ t('academy.reviewsCount', { n: course._count?.reviews || 0 }) }})</span
               >
             </div>
             <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
@@ -358,7 +360,7 @@ alt="" :src="
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course._count?.enrollments || 0
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">参加</span>
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{ t('academy.joined') }}</span>
             </div>
             <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
             <div class="flex items-center gap-1 shrink-0">
@@ -366,7 +368,7 @@ alt="" :src="
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course.lessons?.length || 0
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">课时</span>
+              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{ t('academy.lessonHour') }}</span>
             </div>
             <div class="h-3 w-px hidden sm:block shrink-0" style="background-color: var(--border-base)"></div>
             <div class="flex items-center gap-1 shrink-0">
@@ -405,11 +407,11 @@ alt="" :src="
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-1.5">
                     <h4 class="text-xs font-bold" style="color: var(--text-primary)">
-                      {{ instructorInfo.name || '讲师' }}
+                      {{ instructorInfo.name || t('academy.instructor') }}
                     </h4>
                     <span
                       class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-500/10 text-indigo-500 leading-none"
-                      >讲师</span
+                      >{{ t('academy.instructor') }}</span
                     >
                   </div>
                   <p class="text-[10px] mt-0.5 leading-normal" style="color: var(--text-muted)">
@@ -422,10 +424,10 @@ alt="" :src="
                 >
                   <span class="flex items-center gap-1"
                     ><BookOpen class="w-3 h-3" />
-                    {{ instructorInfo._count?.courses || 1 }} 门课程</span
+                    {{ t('academy.coursesCountInstructor', { n: instructorInfo._count?.courses || 1 }) }}</span
                   >
                   <span class="flex items-center gap-1"
-                    ><Users class="w-3 h-3" /> {{ instructorInfo._count?.courses || 0 }} 学员</span
+                    ><Users class="w-3 h-3" /> {{ t('academy.studentsCountInstructor', { n: instructorInfo._count?.courses || 0 }) }}</span
                   >
                 </div>
               </div>
@@ -441,7 +443,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       ? 'bg-accent text-white shadow-sm shadow-accent/15'
                       : ''
                   " :style="activeSection !== 'outline' ? 'color: var(--text-secondary)' : ''" @click="activeSection = 'outline'">
-                  课程大纲
+                  {{ t('academy.courseOutline') }}
                 </button>
                 <button
 type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer" :class="
@@ -449,7 +451,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       ? 'bg-accent text-white shadow-sm shadow-accent/15'
                       : ''
                   " :style="activeSection !== 'reviews' ? 'color: var(--text-secondary)' : ''" @click="activeSection = 'reviews'">
-                  学员评价 ({{ course._count?.reviews || 0 }})
+                  {{ t('academy.studentReviews', { n: course._count?.reviews || 0 }) }}
                 </button>
               </div>
 
@@ -501,7 +503,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                           class="flex items-center gap-1 text-[9px] font-bold"
                           style="color: var(--text-muted)"
                         >
-                          <Clock class="w-3 h-3 text-slate-400" /> {{ lesson.duration }} 分钟
+                          <Clock class="w-3 h-3 text-slate-400" /> {{ t('academy.minuteUnitDetail', { n: lesson.duration }) }}
                         </span>
                       </div>
                     </div>
@@ -520,7 +522,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     class="w-10 h-10 mx-auto mb-3 opacity-20"
                     style="color: var(--text-muted)"
                   />
-                  <p class="text-xs" style="color: var(--text-muted)">课程内容正在准备中</p>
+                  <p class="text-xs" style="color: var(--text-muted)">{{ t('academy.coursePreparing') }}</p>
                 </div>
               </template>
 
@@ -543,13 +545,13 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                           class="w-3.5 h-3.5"
                           :class="
                             i <= Math.round(course.avgRating || 0)
-                              ? 'text-amber-400 fill-amber-400'
-                              : 'text-slate-200 dark:text-slate-700'
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-slate-200 dark:text-slate-700'
                           "
                         />
                       </div>
                       <p class="text-[10px] mt-1.5" style="color: var(--text-muted)">
-                        {{ course._count?.reviews || 0 }} 条评价
+                        {{ t('academy.reviewsCount', { n: course._count?.reviews || 0 }) }}
                       </p>
                     </div>
                     <div class="flex-1 space-y-1">
@@ -561,7 +563,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                         <span
                           class="text-[10px] font-bold w-7 text-right"
                           style="color: var(--text-secondary)"
-                          >{{ item.stars }} 星</span>
+                          >{{ t('academy.starUnit', { n: item.stars }) }}</span>
                         <div
                           class="flex-1 h-1.5 rounded-full overflow-hidden"
                           style="background-color: var(--bg-app)"
@@ -585,10 +587,10 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
                   <h4 class="text-xs font-bold mb-3" style="color: var(--text-primary)">
-                    写下你的评价
+                    {{ t('academy.writeReview') }}
                   </h4>
                   <div class="flex items-center gap-2 mb-3">
-                    <span class="text-[11px] font-bold" style="color: var(--text-muted)">评分：</span>
+                    <span class="text-[11px] font-bold" style="color: var(--text-muted)">{{ t('academy.scoreLabel') }}</span>
                     <button v-for="i in 5" :key="i" type="button" class="p-0.5 transition-transform hover:scale-125 cursor-pointer" @click="reviewRating = i">
                       <Star
                         class="w-4.5 h-4.5 transition-colors"
@@ -603,7 +605,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                   <textarea
                     v-model="reviewComment"
                     rows="2"
-                    placeholder="分享你的学习体验..."
+                    :placeholder="t('academy.reviewPlaceholder')"
                     class="w-full px-3 py-2 rounded-xl border transition-all outline-none resize-none text-xs"
                     style="
                       background-color: var(--bg-app);
@@ -614,7 +616,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                   <div class="flex justify-end mt-2">
                     <button type="button" :disabled="isSubmittingReview" class="flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white font-bold text-xs rounded-lg shadow disabled:opacity-50 transition-all cursor-pointer" @click="handleSubmitReview">
                       <Send class="w-3.5 h-3.5" />
-                      提交评价
+                      {{ t('academy.submitReview') }}
                     </button>
                   </div>
                 </div>
@@ -631,7 +633,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       <UserAvatar :user="review.user" size="sm" class="shrink-0" />
                       <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
-                          {{ review.user?.name || '匿名用户' }}
+                          {{ review.user?.name || t('academy.anonymousUser') }}
                         </p>
                         <div class="flex items-center gap-2 leading-none mt-0.5">
                           <div class="flex items-center">
@@ -671,7 +673,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       style="color: var(--text-muted)"
                     />
                     <p class="text-xs" style="color: var(--text-muted)">
-                      暂无评价，成为第一个评价的人吧
+                      {{ t('academy.noReviewsYet') }}
                     </p>
                   </div>
                 </div>
@@ -692,7 +694,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                       <CheckCircle2 class="w-4 h-4 text-emerald-500" />
                     </div>
                     <div>
-                      <p class="text-[10px] font-bold leading-none mb-1" style="color: var(--text-muted)">学习进度</p>
+                      <p class="text-[10px] font-bold leading-none mb-1" style="color: var(--text-muted)">{{ t('academy.progressLabel') }}</p>
                       <p class="text-base font-black leading-none" style="color: var(--text-primary)">
                         {{ courseProgress }}%
                       </p>
@@ -708,11 +710,11 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     ></div>
                   </div>
                   <p class="text-[10px] mb-3" style="color: var(--text-muted)">
-                    已完成 {{ completedLessonCount }} / {{ course.lessons?.length || 0 }} 课时
+                    {{ t('academy.completedProgressLessons', { completed: completedLessonCount, total: course.lessons?.length || 0 }) }}
                   </p>
                   <button type="button" class="w-full py-2 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md flex items-center justify-center gap-1.5 cursor-pointer" @click="handleStartLearning()">
                     <PlayCircle class="w-4 h-4" />
-                    继续学习
+                    {{ t('academy.continueLearning') }}
                   </button>
                 </div>
 
@@ -726,27 +728,27 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     <div class="flex items-center gap-2.5">
                       <BookOpen class="w-3.5 h-3.5" style="color: var(--text-muted)" />
                       <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ course.lessons?.length || 0 }} 节课时</span>
+                        >{{ t('academy.lessonsCountDetail', { n: course.lessons?.length || 0 }) }}</span>
                     </div>
                     <div class="flex items-center gap-2.5">
                       <Timer class="w-3.5 h-3.5" style="color: var(--text-muted)" />
                       <span class="text-xs" style="color: var(--text-secondary)"
-                        >总时长 {{ totalDurationFormatted }}</span>
+                        >{{ t('academy.totalDuration', { time: totalDurationFormatted }) }}</span>
                     </div>
                     <div class="flex items-center gap-2.5">
                       <Signal class="w-3.5 h-3.5" style="color: var(--text-muted)" />
                       <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ difficultyMap[course.difficulty]?.label || '入门' }}难度</span>
+                        >{{ t('academy.difficultyLevel', { level: difficultyMap[course.difficulty]?.label || t('academy.difficultyBeginner') }) }}</span>
                     </div>
                     <div class="flex items-center gap-2.5">
                       <Users class="w-3.5 h-3.5" style="color: var(--text-muted)" />
                       <span class="text-xs" style="color: var(--text-secondary)"
-                        >{{ course._count?.enrollments || 0 }} 人已参加</span>
+                        >{{ t('academy.enrolledCount', { n: course._count?.enrollments || 0 }) }}</span>
                     </div>
                   </div>
                   <button type="button" :disabled="isEnrolling" class="w-full py-2.5 bg-accent text-white font-bold rounded-lg text-xs shadow shadow-accent/15 transition-all hover:shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer" @click="handleEnroll">
                     <GraduationCap class="w-4 h-4" />
-                    {{ isEnrolling ? '加入中...' : '立即参加' }}
+                    {{ isEnrolling ? t('academy.enrolling') : t('academy.enrollNow') }}
                   </button>
                 </div>
 
@@ -756,10 +758,10 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                   style="background-color: var(--bg-card); border-color: var(--border-base)"
                 >
                   <h4 class="text-xs font-bold mb-2" style="color: var(--text-primary)">
-                    课程简介
+                    {{ t('academy.courseSummary') }}
                   </h4>
                   <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary)">
-                    {{ course.description || '暂无简介' }}
+                    {{ course.description || t('academy.noSummary') }}
                   </p>
                 </div>
 
@@ -773,7 +775,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     class="text-xs font-bold mb-2.5 flex items-center gap-1.5"
                     style="color: var(--text-primary)"
                   >
-                    <Tag class="w-3.5 h-3.5 text-accent" /> 课程标签
+                    <Tag class="w-3.5 h-3.5 text-accent" /> {{ t('academy.courseTags') }}
                   </h4>
                   <div class="flex flex-wrap gap-1.5">
                     <span
@@ -796,14 +798,14 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     class="text-xs font-bold mb-2 flex items-center gap-1.5"
                     style="color: var(--text-primary)"
                   >
-                    <StickyNote class="w-3.5 h-3.5 text-amber-500" /> 学习笔记
+                    <StickyNote class="w-3.5 h-3.5 text-amber-500" /> {{ t('academy.studyNotes') }}
                   </h4>
                   <p class="text-[10px] mb-2.5" style="color: var(--text-muted)">
-                    记录你的学习心得和笔记
+                    {{ t('academy.noteShortDesc') }}
                   </p>
                   <textarea
                     rows="3"
-                    placeholder="在这里快速记录笔记..."
+                    :placeholder="t('academy.quickNotePlaceholder')"
                     class="w-full px-2.5 py-1.5 rounded-lg border text-[11px] outline-none resize-none transition-all focus:ring-2 focus:ring-accent/20"
                     style="
                       background-color: var(--bg-app);
@@ -812,7 +814,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
                     "
                   ></textarea>
                   <button type="button" class="w-full mt-2 py-1.5 border border-slate-200 dark:border-white/10 text-[10px] font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-1.5 cursor-pointer" style="color: var(--text-secondary)">
-                    <StickyNote class="w-3.5 h-3.5" /> 保存笔记
+                    <StickyNote class="w-3.5 h-3.5" /> {{ t('academy.saveNote') }}
                   </button>
                 </div>
               </div>
@@ -827,7 +829,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
           >
             <button type="button" :disabled="isEnrolling" class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2" @click="handleEnroll">
               <GraduationCap class="w-5 h-5" />
-              {{ isEnrolling ? '加入中...' : '立即参加课程' }}
+              {{ isEnrolling ? t('academy.enrolling') : t('academy.enrollCourseNow') }}
             </button>
           </div>
           <div
@@ -837,7 +839,7 @@ type="button" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all c
           >
             <button type="button" class="w-full py-3.5 bg-accent text-white font-bold rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center gap-2" @click="handleStartLearning()">
               <PlayCircle class="w-5 h-5" />
-              继续学习 ({{ courseProgress }}%)
+              {{ t('academy.continueLearning') }} ({{ courseProgress }}%)
             </button>
           </div>
         </div>

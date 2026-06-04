@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { X, Maximize2, Minimize2, Trash2 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -17,6 +18,7 @@ interface TeamMember {
 
 const authStore = useAuthStore();
 const workspaceStore = useWorkspaceStore();
+const { t } = useI18n();
 
 const props = defineProps<{
   teamMembers: TeamMember[];
@@ -52,21 +54,21 @@ const toggleProjectFormViewMode = () => {
   localStorage.setItem('project_form_view_mode', projectFormViewMode.value);
 };
 
-const colors = [
-  { name: '电光蓝', value: 'bg-blue-500' },
-  { name: '极光绿', value: 'bg-emerald-500' },
-  { name: '霓虹紫', value: 'bg-purple-500' },
-  { name: '日落橙', value: 'bg-orange-500' },
-  { name: '蔷薇红', value: 'bg-rose-500' },
-  { name: '品牌色', value: 'bg-accent' },
-];
+const colors = computed(() => [
+  { name: t('projects.colors.blue'), value: 'bg-blue-500' },
+  { name: t('projects.colors.emerald'), value: 'bg-emerald-500' },
+  { name: t('projects.colors.purple'), value: 'bg-purple-500' },
+  { name: t('projects.colors.orange'), value: 'bg-orange-500' },
+  { name: t('projects.colors.rose'), value: 'bg-rose-500' },
+  { name: t('projects.colors.accent'), value: 'bg-accent' },
+]);
 
-const statusOptions = [
-  { value: 'PLANNED', label: '规划中' },
-  { value: 'IN_PROGRESS', label: '进行中' },
-  { value: 'PAUSED', label: '已暂停' },
-  { value: 'COMPLETED', label: '已完成' },
-];
+const statusOptions = computed(() => [
+  { value: 'PLANNED', label: t('projects.status.planned') },
+  { value: 'IN_PROGRESS', label: t('projects.status.inProgress') },
+  { value: 'PAUSED', label: t('projects.status.paused') },
+  { value: 'COMPLETED', label: t('projects.status.completed') },
+]);
 
 const availableTeamMembers = computed(() => {
   const currentMemberIds = new Set(projectMembers.value.map((m) => m.userId));
@@ -115,7 +117,7 @@ const openEdit = (project: Project) => {
 
 const handleSaveProject = async () => {
   if (!projectForm.value.title.trim()) {
-    ElMessage.warning('请输入项目标题');
+    ElMessage.warning(t('projects.validation.titleRequired'));
     return;
   }
   try {
@@ -126,29 +128,29 @@ const handleSaveProject = async () => {
           userIds: projectForm.value.inviteUserIds,
         });
       }
-      ElMessage.success('项目已更新');
+      ElMessage.success(t('projects.updateSuccess'));
     } else {
       await api.post('/api/projects', {
         ...projectForm.value,
         teamId: workspaceStore.activeTeamId,
       });
-      ElMessage.success('项目已创建');
+      ElMessage.success(t('projects.createSuccess'));
     }
     isDrawerOpen.value = false;
     emit('saved');
   } catch {
-    ElMessage.error(isEditMode.value ? '更新项目失败' : '创建项目失败');
+    ElMessage.error(isEditMode.value ? t('projects.updateFailed') : t('projects.createFailed'));
   }
 };
 
 const handleRemoveMember = async (userId: string) => {
   try {
     await api.post(`/api/projects/${projectForm.value.id}/members/remove`, { userId });
-    ElMessage.success('已移出项目成员');
+    ElMessage.success(t('projects.memberRemoved'));
     projectMembers.value = projectMembers.value.filter((m) => m.userId !== userId);
     emit('saved');
   } catch {
-    ElMessage.error('移除成员失败');
+    ElMessage.error(t('projects.removeMemberFailed'));
   }
 };
 
@@ -199,11 +201,11 @@ defineExpose({
             class="text-lg sm:text-xl font-black tracking-tight"
             style="color: var(--text-primary)"
           >
-            {{ isEditMode ? '配置项目' : '启动新项目' }}
+            {{ isEditMode ? t('projects.configProject') : t('projects.startNewProject') }}
           </h3>
           <div class="flex items-center gap-2">
             <!-- View Mode Toggle -->
-            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none" :title="projectFormViewMode === 'drawer' ? '切换为弹窗模式' : '切换为抽屉模式'" @click="toggleProjectFormViewMode">
+            <button type="button" class="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all text-slate-500 dark:text-slate-400 cursor-pointer bg-transparent border-none" :title="projectFormViewMode === 'drawer' ? t('projects.switchToModal') : t('projects.switchToDrawer')" @click="toggleProjectFormViewMode">
               <component
                 :is="projectFormViewMode === 'drawer' ? Maximize2 : Minimize2"
                 class="w-4.5 h-4.5"
@@ -220,46 +222,46 @@ defineExpose({
           <div>
             <label
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-              >项目标识 (名称)</label
+              >{{ t('projects.projectIdentifier') }}</label
             >
             <input
               v-model="projectForm.title"
               type="text"
               class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
               style="border-color: var(--border-base); color: var(--text-primary)"
-              placeholder="例如：代码 M8 重构"
+              :placeholder="t('projects.titlePlaceholder')"
             />
           </div>
           <div>
             <label
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-              >项目愿景 (描述)</label
+              >{{ t('projects.projectVisionDesc') }}</label
             >
             <textarea
               v-model="projectForm.description"
               rows="2"
               class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all resize-none"
               style="border-color: var(--border-base); color: var(--text-primary)"
-              placeholder="一句话概括这个项目的终极目标..."
+              :placeholder="t('projects.visionPlaceholder')"
             ></textarea>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
-                >交付物 (截止日期)</label
+                >{{ t('projects.deliverableDueDate') }}</label
               >
               <el-date-picker
                 v-model="projectForm.dueDate"
                 type="date"
-                placeholder="Deadline"
+                :placeholder="t('tasks.dueDate')"
                 class="!w-full !rounded-xl custom-date-picker-compact"
               />
             </div>
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
-                >视觉色彩</label
+                >{{ t('projects.visualColor') }}</label
               >
               <el-select
                 v-model="projectForm.color"
@@ -283,7 +285,7 @@ defineExpose({
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-                >当前状态</label
+                >{{ t('projects.currentStatus') }}</label
               >
               <el-select v-model="projectForm.status" class="!w-full custom-select-compact">
                 <el-option
@@ -297,7 +299,7 @@ defineExpose({
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-                  >项目完成进度 (基于关联任务自动计算)</label
+                  >{{ t('projects.autoProgressTip') }}</label
                 >
                 <span class="text-xs font-black text-accent">{{ projectForm.progress }}%</span>
               </div>
@@ -316,17 +318,17 @@ defineExpose({
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
-                >可见性与报名</label
+                >{{ t('projects.visibilityAndEnrollment') }}</label
               >
               <el-select v-model="projectForm.visibility" class="!w-full custom-select-compact">
-                <el-option label="私有 (仅邀请)" value="PRIVATE" />
-                <el-option label="公开 (成员可报名)" value="PUBLIC" />
+                <el-option :label="t('projects.visibility.private')" value="PRIVATE" />
+                <el-option :label="t('projects.visibility.public')" value="PUBLIC" />
               </el-select>
             </div>
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1 text-left"
-                >人员满载限制</label
+                >{{ t('projects.maxMembersLimit') }}</label
               >
               <el-input-number
                 v-model="projectForm.maxMembers"
@@ -339,14 +341,14 @@ defineExpose({
           <div>
             <label
               class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-1"
-              >分类标签 (逗号分隔)</label
+              >{{ t('projects.categoryTags') }}</label
             >
             <input
               v-model="projectForm.tags"
               type="text"
               class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-bold"
               style="border-color: var(--border-base); color: var(--text-primary)"
-              placeholder="如：3D建模, WebGL, 内部工具"
+              :placeholder="t('projects.tagsPlaceholder')"
             />
           </div>
 
@@ -356,7 +358,7 @@ defineExpose({
             <div v-if="projectMembers.length > 0">
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-                >当前项目成员 ({{ projectMembers.length }})</label
+                >{{ t('projects.currentMembersCount', { count: projectMembers.length }) }}</label
               >
               <div
                 class="border rounded-xl p-2.5 space-y-1.5 bg-slate-50 dark:bg-slate-800/10 max-h-32 overflow-y-auto"
@@ -379,7 +381,7 @@ defineExpose({
                     >
                   </div>
                   <!-- Prevent removing oneself or project owner if we can identify role -->
-                  <button v-if="m.role !== 'OWNER' && m.userId !== authStore.user?.id" type="button" class="p-1 hover:text-rose-500 text-slate-400 rounded transition-all hover:bg-rose-55 dark:hover:bg-rose-500/10 bg-transparent border-none cursor-pointer" title="移出项目" @click="handleRemoveMember(m.userId)">
+                  <button v-if="m.role !== 'OWNER' && m.userId !== authStore.user?.id" type="button" class="p-1 hover:text-rose-500 text-slate-400 rounded transition-all hover:bg-rose-55 dark:hover:bg-rose-500/10 bg-transparent border-none cursor-pointer" :title="t('projects.removeMember')" @click="handleRemoveMember(m.userId)">
                     <Trash2 class="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -390,12 +392,12 @@ defineExpose({
             <div v-if="availableTeamMembers.length > 0">
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-                >邀请新项目成员</label
+                >{{ t('projects.inviteNewMembers') }}</label
               >
               <el-select
                 v-model="projectForm.inviteUserIds"
                 multiple
-                placeholder="选择要邀请的成员"
+                :placeholder="t('projects.selectMembersToInvite')"
                 class="!w-full custom-select-compact"
               >
                 <el-option
@@ -418,12 +420,12 @@ defineExpose({
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-                >直接加入的成员</label
+                >{{ t('projects.directMembers') }}</label
               >
               <el-select
                 v-model="projectForm.memberIds"
                 multiple
-                placeholder="选择直接加入的成员"
+                :placeholder="t('projects.selectDirectMembers')"
                 class="!w-full custom-select-compact"
               >
                 <el-option
@@ -443,12 +445,12 @@ defineExpose({
             <div>
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
-                >发送邀请的成员</label
+                >{{ t('projects.invitedMembers') }}</label
               >
               <el-select
                 v-model="projectForm.inviteUserIds"
                 multiple
-                placeholder="选择要邀请的成员"
+                :placeholder="t('projects.selectMembersToInvite')"
                 class="!w-full custom-select-compact"
               >
                 <el-option
@@ -464,7 +466,7 @@ defineExpose({
                 </el-option>
               </el-select>
               <p class="text-[9px] sm:text-[10px] text-slate-400 mt-1.5 ml-1">
-                被邀请的成员将收到通知，可自行决定是否加入
+                {{ t('projects.inviteTip') }}
               </p>
             </div>
           </template>
@@ -473,10 +475,10 @@ defineExpose({
         <!-- Footer -->
         <div class="flex gap-3.5 p-3.5 border-t shrink-0 bg-slate-50/30 dark:bg-slate-900/10" style="border-color: var(--border-base)">
           <button type="button" class="flex-1 py-2 sm:py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl font-black transition-all text-xs border-none cursor-pointer" style="color: var(--text-primary)" @click="isDrawerOpen = false">
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button type="button" class="flex-[2] py-2 sm:py-2.5 bg-accent text-white rounded-xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs border-none cursor-pointer" @click="handleSaveProject">
-            {{ isEditMode ? '确认并应用更改' : '正式启动项目' }}
+            {{ isEditMode ? t('projects.confirmApplyChanges') : t('projects.startProject') }}
           </button>
         </div>
       </div>

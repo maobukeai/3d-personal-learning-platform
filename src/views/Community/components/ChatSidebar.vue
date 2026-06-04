@@ -73,23 +73,23 @@ const getOtherParticipant = (conv: ChatConversation | null) => {
 
 const getConversationName = (conv: ChatConversation | null) => {
   if (!conv) return '';
-  if (conv.isGroup) return conv.name || '未命名群聊';
+  if (conv.isGroup) return conv.name || t('community.chat.unnamedGroup');
   const other = getOtherParticipant(conv);
-  return other?.name || other?.email || '未知用户';
+  return other?.name || other?.email || t('community.chat.unknownUser');
 };
 
 const getLastMessagePreview = (conv: ChatConversation) => {
   const lastMsg = conv.messages?.[0];
-  if (!lastMsg) return '暂无消息';
-  const senderName = lastMsg.sender?.name || '未知';
+  if (!lastMsg) return t('common.noData');
+  const senderName = lastMsg.sender?.name || t('community.chat.unknownUser');
   const prefix = conv.isGroup ? `${senderName}: ` : '';
   switch (lastMsg.type) {
     case 'IMAGE':
-      return `${prefix}[图片]`;
+      return `${prefix}[${t('community.chat.photosTab')}]`;
     case 'VOICE':
-      return `${prefix}[语音]`;
+      return `${prefix}[${t('messages.voiceMessage')}]`;
     case 'FILE':
-      return `${prefix}[文件] ${lastMsg.content.split('/').pop()}`;
+      return `${prefix}[${t('community.chat.filesTab')}] ${lastMsg.content.split('/').pop()}`;
     case 'SYSTEM':
       return lastMsg.content;
     default:
@@ -121,10 +121,10 @@ const filteredConversations = computed(() => {
           {{ t('messages.title') }}
         </h1>
         <div class="flex gap-1">
-          <button type="button" class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all cursor-pointer" title="创建群聊" @click="emit('create-group-chat')">
+          <button type="button" class="p-1.5 bg-indigo-500/10 text-indigo-500 rounded-lg hover:bg-indigo-500 hover:text-white transition-all cursor-pointer" :title="t('community.chat.groupChat')" @click="emit('create-group-chat')">
             <Users class="w-3.5 h-3.5" />
           </button>
-          <button type="button" class="p-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all cursor-pointer" title="发起新聊天" @click="emit('start-new-chat')">
+          <button type="button" class="p-1.5 bg-accent/10 text-accent rounded-lg hover:bg-accent hover:text-white transition-all cursor-pointer" :title="t('messages.startNewChat')" @click="emit('start-new-chat')">
             <Plus class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -245,7 +245,7 @@ const filteredConversations = computed(() => {
           </div>
 
           <!-- Hover Delete Button (for Desktop) -->
-          <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden" title="删除会话" @click.stop="emit('delete-conversation', conv)">
+          <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-rose-500 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 z-20 shadow-lg md:flex hidden" :title="t('common.delete')" @click.stop="emit('delete-conversation', conv)">
             <Trash2 class="w-3.5 h-3.5" />
           </button>
         </div>

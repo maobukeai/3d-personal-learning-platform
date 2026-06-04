@@ -4,6 +4,10 @@ import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
 import { X, Box, UploadCloud, Image, Film, FileText, File } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const props = defineProps<{
@@ -69,17 +73,17 @@ const getTypeIcon = (type: string) => {
 const getTypeLabel = (type: string) => {
   switch (type) {
     case 'MODEL':
-      return '3D模型';
+      return t('publishDialog.typeModel');
     case 'VIDEO':
-      return '视频';
+      return t('publishDialog.typeVideo');
     case 'IMAGE':
-      return '图片';
+      return t('publishDialog.typeImage');
     case 'TEXT':
-      return '文本';
+      return t('publishDialog.typeText');
     case 'OTHER':
-      return '其他';
+      return t('publishDialog.typeOther');
     default:
-      return '作品';
+      return t('publishDialog.typeWork');
   }
 };
 
@@ -143,7 +147,7 @@ const handleAssetFileChange = (e: Event) => {
 
 const handlePublish = async () => {
   if (!publishForm.value.title.trim()) {
-    ElMessage.warning('请输入作品标题');
+    ElMessage.warning(t('publishDialog.titleRequired'));
     return;
   }
 
@@ -159,12 +163,12 @@ const handlePublish = async () => {
       });
     } else if (publishCategory.value === 'asset') {
       if (!publishForm.value.assetFile) {
-        ElMessage.warning('请上传3D模型文件');
+        ElMessage.warning(t('publishDialog.modelRequired'));
         isPublishing.value = false;
         return;
       }
       if (!publishForm.value.assetCategory) {
-        ElMessage.warning('请选择资源分类');
+        ElMessage.warning(t('publishDialog.categoryRequired'));
         isPublishing.value = false;
         return;
       }
@@ -190,7 +194,7 @@ const handlePublish = async () => {
       });
     } else {
       if (publishForm.value.type !== 'TEXT' && !publishForm.value.thumbnail) {
-        ElMessage.warning('请上传作品封面图');
+        ElMessage.warning(t('publishDialog.thumbnailRequired'));
         isPublishing.value = false;
         return;
       }
@@ -214,11 +218,11 @@ const handlePublish = async () => {
       });
     }
 
-    ElMessage.success('作品已成功发布，等待审核');
+    ElMessage.success(t('publishDialog.publishSuccess'));
     closeDialog();
     emit('published');
   } catch (error) {
-    const msg = getApiErrorMessage(error, '发布失败');
+    const msg = getApiErrorMessage(error, t('publishDialog.publishFailed'));
     ElMessage.error(msg);
   } finally {
     isPublishing.value = false;
@@ -267,7 +271,7 @@ onUnmounted(() => {
         style="background-color: var(--bg-card)"
       >
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-xl font-bold" style="color: var(--text-primary)">发布/上传作品</h3>
+          <h3 class="text-xl font-bold" style="color: var(--text-primary)">{{ t('publishDialog.title') }}</h3>
           <button type="button" style="color: var(--text-secondary)" @click="closeDialog">
             <X class="w-5 h-5" />
           </button>
@@ -280,15 +284,15 @@ onUnmounted(() => {
         >
           <button type="button" class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5" :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''" :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''" @click="publishCategory = 'model'">
             <Box class="w-3.5 h-3.5" />
-            3D模型展示
+            {{ t('publishDialog.tabModel') }}
           </button>
           <button type="button" class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5" :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''" :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''" @click="publishCategory = 'asset'">
             <UploadCloud class="w-3.5 h-3.5" />
-            资产上传与同步展示
+            {{ t('publishDialog.tabAsset') }}
           </button>
           <button type="button" class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5" :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''" :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''" @click="publishCategory = 'work'">
             <Image class="w-3.5 h-3.5" />
-            创意作品展示
+            {{ t('publishDialog.tabWork') }}
           </button>
         </div>
 
@@ -300,11 +304,11 @@ onUnmounted(() => {
                 <div>
                   <label
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >选择已有作品</label
+                    >{{ t('publishDialog.selectExisting') }}</label
                   >
                   <el-select
                     v-model="selectedAssetId"
-                    placeholder="请选择已审核通过的作品"
+                    :placeholder="t('publishDialog.selectExistingPlaceholder')"
                     class="w-full custom-select-v2"
                     @change="onAssetSelected"
                   >
@@ -319,20 +323,20 @@ onUnmounted(() => {
                     v-if="myApprovedAssets.length === 0"
                     class="text-[10px] text-slate-400 mt-1 ml-1"
                   >
-                    暂无已审核通过的作品，请切换到“资产上传”或先上传资产
+                    {{ t('publishDialog.noApprovedAssetsTip') }}
                   </p>
                 </div>
 
                 <div>
                   <label
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >展示标题 *</label
+                    >{{ t('publishDialog.showcaseTitleLabel') }}</label
                   >
                   <input
                     v-model="publishForm.title"
                     type="text"
                     class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    placeholder="给作品起个响亮的名字"
+                    :placeholder="t('publishDialog.titlePlaceholder')"
                     style="color: var(--text-primary)"
                   />
                 </div>
@@ -340,27 +344,27 @@ onUnmounted(() => {
                 <div>
                   <label
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >标签</label
+                    >{{ t('publishDialog.tagsLabel') }}</label
                   >
                   <input
                     v-model="publishForm.tags"
                     type="text"
                     class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    placeholder="用逗号分隔，如：Blender,3D渲染,角色建模"
+                    :placeholder="t('publishDialog.tagsPlaceholder')"
                     style="color: var(--text-primary)"
                   />
-                  <p class="text-[10px] text-slate-400 mt-1 ml-1">最多5个标签，用逗号分隔</p>
+                  <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
                 </div>
               </div>
 
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >作品描述</label
+                  >{{ t('publishDialog.descriptionLabel') }}</label
                 >
                 <MarkdownEditor
                   v-model="publishForm.description"
-                  placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式"
+                  :placeholder="t('publishDialog.descriptionPlaceholder')"
                   :height="isMobile ? '300px' : '350px'"
                 />
               </div>
@@ -376,7 +380,7 @@ onUnmounted(() => {
                 <div>
                   <label
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >资产文件 *</label
+                    >{{ t('publishDialog.assetFileLabel') }}</label
                   >
                   <div class="relative group h-32">
                     <input
@@ -394,11 +398,11 @@ onUnmounted(() => {
                         {{
                           publishForm.assetFile
                             ? publishForm.assetFile.name
-                            : '点击或拖拽上传资产文件'
+                            : t('publishDialog.dragAssetFile')
                         }}
                       </p>
                       <p class="text-[10px]" style="color: var(--text-muted)">
-                        支持 3D模型文件及压缩包
+                        {{ t('publishDialog.supportedAssetFiles') }}
                       </p>
                     </div>
                   </div>
@@ -407,13 +411,13 @@ onUnmounted(() => {
                 <div>
                   <label
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >作品标题 *</label
+                    >{{ t('publishDialog.titleLabel') }}</label
                   >
                   <input
                     v-model="publishForm.title"
                     type="text"
                     class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    placeholder="给作品起个响亮的名字"
+                    :placeholder="t('publishDialog.titlePlaceholder')"
                     style="color: var(--text-primary)"
                   />
                 </div>
@@ -422,11 +426,11 @@ onUnmounted(() => {
                   <div>
                     <label
                       class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                      >资源分类 *</label
+                      >{{ t('publishDialog.categoryLabel') }}</label
                     >
                     <el-select
                       v-model="publishForm.assetCategory"
-                      placeholder="请选择分类"
+                      :placeholder="t('publishDialog.selectCategoryPlaceholder')"
                       class="w-full custom-select-v2"
                     >
                       <el-option
@@ -440,7 +444,7 @@ onUnmounted(() => {
                   <div>
                     <label
                       class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                      >封面图 (可选)</label
+                      >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
                     >
                     <div class="relative group h-11">
                       <input
@@ -454,7 +458,7 @@ onUnmounted(() => {
                         style="border-color: var(--border-base)"
                       >
                         <p class="text-xs truncate px-2" style="color: var(--text-secondary)">
-                          {{ publishForm.thumbnail ? publishForm.thumbnail.name : '上传预览图' }}
+                          {{ publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.uploadPreview') }}
                         </p>
                       </div>
                     </div>
@@ -464,13 +468,13 @@ onUnmounted(() => {
                 <div>
                   <label
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                    >标签</label
+                    >{{ t('publishDialog.tagsLabel') }}</label
                   >
                   <input
                     v-model="publishForm.tags"
                     type="text"
                     class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                    placeholder="用逗号分隔"
+                    :placeholder="t('publishDialog.tagsCommaPlaceholder')"
                     style="color: var(--text-primary)"
                   />
                 </div>
@@ -479,11 +483,11 @@ onUnmounted(() => {
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >作品描述</label
+                  >{{ t('publishDialog.descriptionLabel') }}</label
                 >
                 <MarkdownEditor
                   v-model="publishForm.description"
-                  placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式"
+                  :placeholder="t('publishDialog.descriptionPlaceholder')"
                   :height="isMobile ? '300px' : '350px'"
                 />
               </div>
@@ -499,11 +503,11 @@ onUnmounted(() => {
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >作品类型</label
+                  >{{ t('publishDialog.workTypeLabel') }}</label
                 >
                 <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1">
                   <button
-v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button" class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1" :class="publishForm.type === t ? 'bg-indigo-600 text-white shadow-md' : ''" :style="
+                    v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button" class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1" :class="publishForm.type === t ? 'bg-indigo-600 text-white shadow-md' : ''" :style="
                       publishForm.type !== t
                         ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                         : ''
@@ -517,13 +521,13 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >作品标题 *</label
+                  >{{ t('publishDialog.titleLabel') }}</label
                 >
                 <input
                   v-model="publishForm.title"
                   type="text"
                   class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  placeholder="给作品起个响亮的名字"
+                  :placeholder="t('publishDialog.titlePlaceholder')"
                   style="color: var(--text-primary)"
                 />
               </div>
@@ -531,7 +535,7 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
               <div v-if="publishForm.type !== 'TEXT'">
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >封面图 *</label
+                  >{{ t('publishDialog.thumbnailRequiredLabel') }}</label
                 >
                 <div class="relative group h-32">
                   <input
@@ -546,7 +550,7 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
                   >
                     <UploadCloud class="w-6 h-6 text-indigo-500/40" />
                     <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                      {{ publishForm.thumbnail ? publishForm.thumbnail.name : '点击上传封面图' }}
+                      {{ publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.clickUploadThumbnail') }}
                     </p>
                   </div>
                 </div>
@@ -555,7 +559,7 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
               <div v-else>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >封面图 (可选)</label
+                  >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
                 >
                 <div class="relative group h-24">
                   <input
@@ -573,7 +577,7 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
                       {{
                         publishForm.thumbnail
                           ? publishForm.thumbnail.name
-                          : '点击上传封面图（可选）'
+                          : t('publishDialog.clickUploadThumbnailOptional')
                       }}
                     </p>
                   </div>
@@ -583,7 +587,7 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
               <div v-if="publishForm.type !== 'TEXT'">
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >更多图片 (可选，最多9张)</label
+                  >{{ t('publishDialog.moreImagesLabel') }}</label
                 >
                 <div class="relative group h-20">
                   <input
@@ -601,8 +605,8 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
                     <p class="text-[10px] font-medium" style="color: var(--text-secondary)">
                       {{
                         publishForm.images.length > 0
-                          ? `已选择 ${publishForm.images.length} 张图片`
-                          : '点击上传更多图片'
+                          ? t('publishDialog.selectedImagesCount', { n: publishForm.images.length })
+                          : t('publishDialog.clickUploadMoreImages')
                       }}
                     </p>
                   </div>
@@ -615,20 +619,20 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
               >
                 <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
                 <span class="text-xs font-bold" style="color: var(--text-secondary)"
-                  >这是一个视频作品</span
+                  >{{ t('publishDialog.isVideoWorkLabel') }}</span
                 >
               </div>
 
               <div v-if="publishForm.isVideo">
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >视频链接</label
+                  >{{ t('publishDialog.videoUrlLabel') }}</label
                 >
                 <input
                   v-model="publishForm.videoUrl"
                   type="text"
                   class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  placeholder="请输入外部视频平台链接"
+                  :placeholder="t('publishDialog.videoUrlPlaceholder')"
                   style="color: var(--text-primary)"
                 />
               </div>
@@ -636,16 +640,16 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
               <div>
                 <label
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                  >标签</label
+                  >{{ t('publishDialog.tagsLabel') }}</label
                 >
                 <input
                   v-model="publishForm.tags"
                   type="text"
                   class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                  placeholder="用逗号分隔，如：Blender,3D渲染,角色建模"
+                  :placeholder="t('publishDialog.tagsPlaceholder')"
                   style="color: var(--text-primary)"
                 />
-                <p class="text-[10px] text-slate-400 mt-1 ml-1">最多5个标签，用逗号分隔</p>
+                <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
               </div>
             </div>
 
@@ -653,11 +657,11 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
             <div class="w-full md:w-[60%] min-w-0">
               <label
                 class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
-                >作品描述</label
+                >{{ t('publishDialog.descriptionLabel') }}</label
               >
               <MarkdownEditor
                 v-model="publishForm.description"
-                placeholder="描述你的创作灵感、使用的技术和工具... 支持 Markdown 格式"
+                :placeholder="t('publishDialog.descriptionPlaceholder')"
                 :height="isMobile ? '400px' : '500px'"
               />
             </div>
@@ -670,7 +674,7 @@ v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button"
             v-if="isPublishing"
             class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
           ></div>
-          {{ isPublishing ? '正在处理发布...' : '立即发布作品' }}
+          {{ isPublishing ? t('publishDialog.publishing') : t('publishDialog.publishNow') }}
         </button>
       </div>
     </div>

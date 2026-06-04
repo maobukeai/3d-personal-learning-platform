@@ -3,6 +3,7 @@
 import { getApiErrorMessage } from '@/utils/error';
 
 import { ref, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useRoute, useRouter } from 'vue-router';
 
@@ -43,6 +44,7 @@ import type { Feedback } from '@/types';
 
 
 
+const { t } = useI18n();
 const route = useRoute();
 
 const router = useRouter();
@@ -81,11 +83,11 @@ const bugForm = ref({
 
 const priorityOptions = [
 
-  { value: 'LOW', label: '低' },
+  { value: 'LOW', label: t('support.priority_low') },
 
-  { value: 'MEDIUM', label: '中' },
+  { value: 'MEDIUM', label: t('support.priority_medium') },
 
-  { value: 'HIGH', label: '高' },
+  { value: 'HIGH', label: t('support.priority_high') },
 
 ];
 
@@ -117,7 +119,7 @@ const fetchMyFeedbacks = async () => {
 
   } catch {
 
-    ElMessage.error('无法获取反馈历史');
+    ElMessage.error(t('support.fetching_history_failed'));
 
   } finally {
 
@@ -165,19 +167,19 @@ const getStatusLabel = (status: string) => {
 
     case 'OPEN':
 
-      return '待处理';
+      return t('support.status_open');
 
     case 'IN_PROGRESS':
 
-      return '处理中';
+      return t('support.status_progress');
 
     case 'RESOLVED':
 
-      return '已解决';
+      return t('support.status_resolved');
 
     case 'CLOSED':
 
-      return '已关闭';
+      return t('support.status_closed');
 
     default:
 
@@ -229,7 +231,7 @@ const handleFileUpload = async (event: Event) => {
 
   if (file.size > 5 * 1024 * 1024) {
 
-    ElMessage.error('图片大小不能超过 5MB');
+    ElMessage.error(t('support.upload_limit_error'));
 
     return;
 
@@ -257,11 +259,11 @@ const handleFileUpload = async (event: Event) => {
 
     previewUrl.value = response.data.url;
 
-    ElMessage.success('图片上传成功');
+    ElMessage.success(t('support.upload_success'));
 
   } catch {
 
-    ElMessage.error('图片上传失败');
+    ElMessage.error(t('support.upload_failed'));
 
   } finally {
 
@@ -287,7 +289,7 @@ const handleSubmit = async () => {
 
   if (!bugForm.value.title || !bugForm.value.description) {
 
-    ElMessage.warning('请填写完整的标题和描述信息');
+    ElMessage.warning(t('support.fill_all_fields'));
 
     return;
 
@@ -307,7 +309,7 @@ const handleSubmit = async () => {
 
     isSubmitted.value = true;
 
-    ElMessage.success('报告已提交，感谢你的反馈');
+    ElMessage.success(t('support.submit_success_toast'));
 
     // Refresh history if already loaded
 
@@ -315,7 +317,7 @@ const handleSubmit = async () => {
 
   } catch (error) {
 
-    ElMessage.error(getApiErrorMessage(error, '提交失败，请重试'));
+    ElMessage.error(getApiErrorMessage(error, t('support.submit_failed')));
 
     isSubmitting.value = false;
 
@@ -387,7 +389,7 @@ onMounted(() => {
 
         </div>
 
-        <h1 class="text-xl font-bold" style="color: var(--text-primary)">报告问题与反馈</h1>
+        <h1 class="text-xl font-bold" style="color: var(--text-primary)">{{ $t('support.report_bug') }}</h1>
 
       </div>
 
@@ -424,7 +426,7 @@ type="button" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font
 
           <Bug class="w-3.5 h-3.5" />
 
-          提交反馈
+          {{ $t('support.submit_feedback') }}
 
         </button>
 
@@ -447,7 +449,7 @@ type="button" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font
 
           <History class="w-3.5 h-3.5" />
 
-          反馈历史
+          {{ $t('support.feedback_history') }}
 
         </button>
 
@@ -481,13 +483,13 @@ type="button" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font
 
               <h2 class="text-lg font-bold mb-2" style="color: var(--text-primary)">
 
-                遇到麻烦了吗？
+                {{ $t('support.trouble_title') }}
 
               </h2>
 
               <p class="text-sm text-slate-500">
 
-                描述你遇到的问题或改进建议，我们的技术团队会尽快处理。
+                {{ $t('support.trouble_desc') }}
 
               </p>
 
@@ -505,19 +507,19 @@ type="button" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font
 
                   <label class="block text-xs font-bold text-slate-400 uppercase mb-2"
 
-                    >反馈类型</label
+                    >{{ $t('support.feedback_type') }}</label
 
                   >
 
                   <el-select v-model="bugForm.type" class="w-full" size="large">
 
-                    <el-option label="程序 Bug (功能异常)" value="Bug" />
+                    <el-option :label="$t('support.type_bug')" value="Bug" />
 
-                    <el-option label="功能建议 (新想法)" value="Feature" />
+                    <el-option :label="$t('support.type_feature')" value="Feature" />
 
-                    <el-option label="界面优化 (视觉/操作)" value="UI" />
+                    <el-option :label="$t('support.type_ui')" value="UI" />
 
-                    <el-option label="其他反馈" value="Other" />
+                    <el-option :label="$t('support.type_other')" value="Other" />
 
                   </el-select>
 
@@ -527,7 +529,7 @@ type="button" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font
 
                   <label class="block text-xs font-bold text-slate-400 uppercase mb-2"
 
-                    >紧急程度</label
+                    >{{ $t('support.priority_level') }}</label
 
                   >
 
@@ -560,7 +562,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                 <label class="block text-xs font-bold text-slate-400 uppercase mb-2"
 
-                  >问题摘要</label
+                  >{{ $t('support.issue_summary') }}</label
 
                 >
 
@@ -568,7 +570,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                   v-model="bugForm.title"
 
-                  placeholder="请用一句话简述你遇到的问题..."
+                  :placeholder="$t('support.issue_summary_placeholder')"
 
                   size="large"
 
@@ -582,7 +584,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                 <label class="block text-xs font-bold text-slate-400 uppercase mb-2"
 
-                  >详细描述</label
+                  >{{ $t('support.detailed_desc') }}</label
 
                 >
 
@@ -594,7 +596,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                   :rows="6"
 
-                  placeholder="请详细描述问题发生的步骤、预期结果以及实际结果。如果可以，请附带你的系统环境信息。"
+                  :placeholder="$t('support.detailed_desc_placeholder')"
 
                 />
 
@@ -608,7 +610,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                 <label class="block text-xs font-bold text-slate-400 uppercase mb-2"
 
-                  >附件/截图 (可选)</label
+                  >{{ $t('support.attachment_label') }}</label
 
                 >
 
@@ -648,9 +650,9 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                     />
 
-                    <p class="text-xs font-bold">点击或拖拽图片到此处上传</p>
+                    <p class="text-xs font-bold">{{ $t('support.upload_tip') }}</p>
 
-                    <p class="text-[10px] mt-1">支持 PNG, JPG, GIF (最大 5MB)</p>
+                    <p class="text-[10px] mt-1">{{ $t('support.upload_limits') }}</p>
 
                   </template>
 
@@ -662,7 +664,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                     ></div>
 
-                    <p class="text-xs font-bold text-accent">正在上传...</p>
+                    <p class="text-xs font-bold text-accent">{{ $t('support.uploading') }}</p>
 
                   </template>
 
@@ -712,7 +714,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                   <Info class="w-3.5 h-3.5" />
 
-                  我们将在 1-3 个工作日内通过邮件回复你。
+                  {{ $t('support.reply_timeline_tip') }}
 
                 </div>
 
@@ -728,7 +730,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                   ></span>
 
-                  {{ isSubmitting ? '提交中...' : '提交反馈报告' }}
+                  {{ isSubmitting ? $t('support.submitting') : $t('support.submit_report_btn') }}
 
                 </button>
 
@@ -764,13 +766,13 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
             <h2 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">
 
-              报告提交成功！
+              {{ $t('support.submit_success_title') }}
 
             </h2>
 
             <p class="text-slate-500 mb-8 max-w-sm mx-auto">
 
-              感谢你为完善平台做出的贡献。你可以继续浏览其他页面，或者在反馈历史中查看处理进度。
+              感谢你为完善平台做出的贡献。你可以继续浏览其他页面，或者在{{ $t('support.feedback_history') }}中查看处理进度。
 
             </p>
 
@@ -778,7 +780,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
               <button type="button" class="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all" @click="isSubmitted = false">
 
-                再次提交
+                {{ $t('support.submit_again') }}
 
               </button>
 
@@ -790,7 +792,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
               >
 
-                返回仪表盘
+                {{ $t('support.back_to_dashboard') }}
 
               </RouterLink>
 
@@ -822,7 +824,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
               ></div>
 
-              <p class="text-sm font-medium">正在获取反馈历史...</p>
+              <p class="text-sm font-medium">正在获取{{ $t('support.feedback_history') }}...</p>
 
             </div>
 
@@ -916,7 +918,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                       <span class="text-[10px] font-black uppercase text-rose-600 tracking-wider"
 
-                        >官方回复</span
+                        >{{ $t('support.official_reply') }}</span
 
                       >
 
@@ -954,7 +956,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                   >
 
-                    <ImageIcon class="w-3 h-3" /> 查看附件 <ExternalLink class="w-3 h-3" />
+                    <ImageIcon class="w-3 h-3" /> {{ $t('support.view_attachment') }} <ExternalLink class="w-3 h-3" />
 
                   </a>
 
@@ -1000,11 +1002,11 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                 <History class="w-12 h-12 opacity-10 mb-4" />
 
-                <p class="text-sm font-medium">还没有任何反馈记录</p>
+                <p class="text-sm font-medium">{{ $t('support.no_feedback_yet') }}</p>
 
                 <button type="button" class="mt-4 text-xs font-bold text-rose-600 hover:underline" @click="activeTab = 'submit'">
 
-                  去提交第一个反馈
+                  {{ $t('support.submit_first_feedback') }}
 
                 </button>
 
@@ -1024,7 +1026,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
           <div class="bg-accent-subtle/50 p-6 rounded-2xl border border-accent-subtle/50">
 
-            <h3 class="text-sm font-bold text-blue-800 mb-3">常见问题解答</h3>
+            <h3 class="text-sm font-bold text-blue-800 mb-3">{{ $t('support.faq_title') }}</h3>
 
             <ul class="space-y-3">
 
@@ -1044,7 +1046,7 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
                 />
 
-                <span>如何导出支持 Web 端的 GLB 文件？</span>
+                <span>{{ $t('support.faq_question') }}</span>
 
               </li>
 
@@ -1054,19 +1056,17 @@ v-for="p in priorityOptions" :key="p.value" type="button" class="flex-1 py-1.5 t
 
           <div class="bg-slate-800 p-6 rounded-2xl text-white">
 
-            <h3 class="text-sm font-bold mb-3">联系技术支持</h3>
+            <h3 class="text-sm font-bold mb-3">{{ $t('support.contact_support') }}</h3>
 
             <p class="text-xs text-slate-400 leading-relaxed mb-4">
 
-              如果你遇到了紧急的账号安全问题，请直接拨打我们的 24/7
-
-              技术支持热线或通过即时聊天联系我们。
+              {{ $t('support.contact_support_desc') }}
 
             </p>
 
             <button type="button" class="text-xs font-bold text-accent hover:text-accent/30 transition-colors flex items-center gap-1">
 
-              开启在线聊天 <ChevronRight class="w-3 h-3" />
+              {{ $t('support.start_chat') }} <ChevronRight class="w-3 h-3" />
 
             </button>
 

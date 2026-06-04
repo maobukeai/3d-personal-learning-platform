@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 import { ref, computed, onMounted, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -96,51 +98,51 @@ const activeTab = ref<'assets' | 'materials' | 'showcases'>(
 const pageConfig = computed<PageConfigType>(() => {
   if (activeTab.value === 'assets') {
     return {
-      title: '3D资产审核中心',
-      desc: '集中审核与管控用户提交至模型库的所有3D模型资产',
+      title: t('admin.3d_asset_review_center'),
+      desc: t('admin.centrally_review_and_control_2'),
       apiPath: '/api/admin/assets',
       icon: Box,
-      itemTypeLabel: (item: AuditItem) => item.type || '模型资产',
+      itemTypeLabel: (item: AuditItem) => item.type || t('admin.model_assets'),
       itemIcon: (_item: AuditItem) => Box,
       commonReasons: [
-        '模型存在破面或法线错误等严重质量问题',
-        '模型面数过高，未进行合理的拓扑优化',
-        '未包含必要的材质贴图或贴图丢失',
-        '资产版权不明或涉嫌侵权盗版',
-        '资产描述信息不完善或存在误导',
+        t('admin.the_model_has_serious'),
+        t('admin.the_number_of_model'),
+        t('admin.necessary_material_maps_are'),
+        t('admin.asset_copyright_is_unknown'),
+        t('admin.asset_description_information_is'),
       ],
     };
   } else if (activeTab.value === 'materials') {
     return {
-      title: '材质材料审核中心',
-      desc: '集中审核与管控用户提交至材质库的各类材质和基础材料',
+      title: t('admin.material_review_center'),
+      desc: t('admin.centrally_review_and_control_1'),
       apiPath: '/api/admin/materials',
       icon: Layers,
-      itemTypeLabel: (item: AuditItem) => item.category || '材质材料',
+      itemTypeLabel: (item: AuditItem) => item.category || t('admin.material_material'),
       itemIcon: (_item: AuditItem) => Layers,
       commonReasons: [
-        '材质贴图分辨率过低或清晰度不足',
-        '缺少必要的通道贴图（如法线、粗糙度等）',
-        '无缝贴图边缘存在明显接缝或重复感过强',
-        '材质版权归属不明或涉嫌未经授权搬运',
-        '参数设置不合理或无法在主流引擎中正确渲染',
+        t('admin.the_texture_map_resolution'),
+        t('admin.missing_necessary_channel_maps'),
+        t('admin.there_are_obvious_seams'),
+        t('admin.the_copyright_ownership_of'),
+        t('admin.parameter_settings_are_unreasonable'),
       ],
     };
   } else {
     return {
-      title: '作品内容审核中心',
-      desc: '集中审核与管控用户提交至前台展示墙的所有3D创意作品、视频及图文',
+      title: t('admin.work_content_review_center'),
+      desc: t('admin.centrally_review_and_control'),
       apiPath: '/api/admin/showcases',
       icon: Sparkles,
       itemTypeLabel: (item: AuditItem) =>
-        item.isVideo || item.type === 'VIDEO' ? '视频演示' : '创意图文',
+        item.isVideo || item.type === 'VIDEO' ? t('admin.video_demonstration') : t('admin.creative_graphics'),
       itemIcon: (item: AuditItem) => (item.isVideo || item.type === 'VIDEO' ? Video : ImageIcon),
       commonReasons: [
-        '作品内容包含敏感或违规信息',
-        '封面或媒体文件无法正常加载显示',
-        '作品描述过于简陋或存在误导营销',
-        '版权归属不明或涉嫌未经授权搬运',
-        '与平台3D/创意学习主旨关联性不足',
+        t('admin.the_content_of_the'),
+        t('admin.cover_or_media_files'),
+        t('admin.the_description_of_the'),
+        t('admin.the_copyright_ownership_is'),
+        t('admin.insufficient_relevance_to_the'),
       ],
     };
   }
@@ -209,7 +211,7 @@ const fetchItems = async () => {
     items.value = data;
   } catch (error) {
     console.error(`Fetch ${activeTab.value} error:`, error);
-    ElMessage.error(`获取${pageConfig.value.title}列表失败`);
+    ElMessage.error(t('admin.failed_to_obtain_pageconfig', { param_0: pageConfig.value.title }));
   } finally {
     isLoading.value = false;
   }
@@ -264,18 +266,18 @@ const handleStatusUpdate = async (item: AuditItem, status: string) => {
 
   try {
     await api.put(`${pageConfig.value.apiPath}/${item.id}/status`, { status });
-    ElMessage.success('审核已通过');
+    ElMessage.success(t('admin.review_passed'));
     fetchItems();
     fetchAllForStats();
   } catch (error) {
     const err = error as ApiError;
-    ElMessage.error(err.response?.data?.error || '操作失败');
+    ElMessage.error(err.response?.data?.error || t('admin.operation_failed'));
   }
 };
 
 const submitRejection = async () => {
   if (!rejectionForm.value.reason) {
-    return ElMessage.warning('请提供拒绝原因');
+    return ElMessage.warning(t('admin.please_provide_reason_for'));
   }
 
   try {
@@ -285,20 +287,20 @@ const submitRejection = async () => {
         status: 'REJECTED',
         rejectReason: rejectionForm.value.reason,
       });
-      ElMessage.success(`已批量拒绝 ${selectedIds.value.length} 项记录`);
+      ElMessage.success(t('admin.selectedids_value_length_records', { param_0: selectedIds.value.length }));
     } else {
       await api.put(`${pageConfig.value.apiPath}/${rejectionForm.value.targetId}/status`, {
         status: 'REJECTED',
         rejectReason: rejectionForm.value.reason,
       });
-      ElMessage.success('已打回该记录');
+      ElMessage.success(t('admin.the_record_has_been'));
     }
     isRejectDialogOpen.value = false;
     fetchItems();
     fetchAllForStats();
   } catch (error) {
     const err = error as ApiError;
-    ElMessage.error(err.response?.data?.error || '操作失败');
+    ElMessage.error(err.response?.data?.error || t('admin.operation_failed'));
   }
 };
 
@@ -307,9 +309,9 @@ const handleBatchApprove = async () => {
 
   try {
     await ElMessageBox.confirm(
-      `确定要批量批准选中的 ${selectedIds.value.length} 项记录吗？`,
-      '批量操作确认',
-      { confirmButtonText: '确定批准', cancelButtonText: '取消', type: 'success' },
+      t('admin.are_you_sure_you_21', { param_0: selectedIds.value.length }),
+      t('admin.batch_operation_confirmation'),
+      { confirmButtonText: t('admin.confirm_approval'), cancelButtonText: t('admin.cancel'), type: 'success' },
     );
 
     await api.put(`${pageConfig.value.apiPath}/batch-status`, {
@@ -317,13 +319,13 @@ const handleBatchApprove = async () => {
       status: 'APPROVED',
     });
 
-    ElMessage.success(`已批准 ${selectedIds.value.length} 项记录`);
+    ElMessage.success(t('admin.approved_selectedids_value_length', { param_0: selectedIds.value.length }));
     fetchItems();
     fetchAllForStats();
   } catch (error) {
     if (error !== 'cancel') {
       const err = error as ApiError;
-      ElMessage.error(err.response?.data?.error || '批量操作失败');
+      ElMessage.error(err.response?.data?.error || t('admin.batch_operation_failed'));
     }
   }
 };
@@ -337,23 +339,23 @@ const handleBatchReject = () => {
 const handleDelete = async (item: AuditItem) => {
   try {
     await ElMessageBox.confirm(
-      `确定要永久删除记录 "${item.title}" 吗？此操作不可撤销。`,
-      '危险操作确认',
+      t('admin.are_you_sure_you_22', { itemtitle: item.title }),
+      t('admin.confirmation_of_hazardous_operations'),
       {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('admin.confirm_deletion'),
+        cancelButtonText: t('admin.cancel'),
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
       },
     );
     await api.delete(`${pageConfig.value.apiPath}/${item.id}`);
-    ElMessage.success('删除成功');
+    ElMessage.success(t('admin.delete_successfully'));
     fetchItems();
     fetchAllForStats();
   } catch (error) {
     if (error !== 'cancel') {
       const err = error as ApiError;
-      ElMessage.error(err.response?.data?.error || '删除失败');
+      ElMessage.error(err.response?.data?.error || t('admin.delete_failed'));
     }
   }
 };
@@ -398,13 +400,13 @@ const handleUpdate = async () => {
     }
 
     await api.put(`${pageConfig.value.apiPath}/${editForm.value.id}`, payload);
-    ElMessage.success('内容详情更新成功');
+    ElMessage.success(t('admin.content_details_updated_successfully'));
     isEditOpen.value = false;
     fetchItems();
     fetchAllForStats();
   } catch (error) {
     const err = error as ApiError;
-    ElMessage.error(err.response?.data?.error || '更新失败');
+    ElMessage.error(err.response?.data?.error || t('admin.update_failed'));
   } finally {
     isSaving.value = false;
   }
@@ -417,11 +419,11 @@ const formatDate = (date: string) => {
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'PENDING':
-      return '待审核';
+      return t('admin.pending_review_1');
     case 'APPROVED':
-      return '已批准';
+      return t('admin.approved');
     case 'REJECTED':
-      return '未通过';
+      return t('admin.failed_1');
     default:
       return status;
   }
@@ -457,9 +459,9 @@ watch(
 );
 
 const moderationTabs = computed(() => [
-  { id: 'assets' as const, name: '3D资产审核', icon: Box, badge: workspaceStore.adminStats.pendingAssets },
-  { id: 'materials' as const, name: '材质材料审核', icon: Layers, badge: workspaceStore.adminStats.pendingMaterials },
-  { id: 'showcases' as const, name: '作品内容审核', icon: Sparkles, badge: workspaceStore.adminStats.pendingShowcases }
+  { id: 'assets' as const, name: t('admin.3d_asset_review'), icon: Box, badge: workspaceStore.adminStats.pendingAssets },
+  { id: 'materials' as const, name: t('admin.material_material_review'), icon: Layers, badge: workspaceStore.adminStats.pendingMaterials },
+  { id: 'showcases' as const, name: t('admin.work_content_review'), icon: Sparkles, badge: workspaceStore.adminStats.pendingShowcases }
 ]);
 
 onMounted(() => {
@@ -508,7 +510,7 @@ type="button"
             @click="openCategoryManager"
           >
             <FolderCog class="w-3.5 h-3.5" />
-            <span class="hidden sm:inline">分类管理</span>
+            <span class="hidden sm:inline">{{ $t('admin.classification_management') }}</span>
           </button>
           <button
 type="button"
@@ -520,7 +522,7 @@ type="button"
             "
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
-            <span class="hidden sm:inline">刷新</span>
+            <span class="hidden sm:inline">{{ $t('admin.refresh') }}</span>
           </button>
         </div>
       </div>
@@ -544,7 +546,7 @@ v-for="tab in moderationTabs"
               @click="activeTab = tab.id"
             >
               <component :is="tab.icon" class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-              <span>{{ tab.name.replace('审核', '') }}</span>
+              <span>{{ $t('admin.tab_name_replace_audit') }}</span>
               <span
                 v-if="tab.badge > 0"
                 class="px-1 py-0.2 sm:px-1.5 sm:py-0.5 text-[8px] font-extrabold rounded-full bg-rose-500 text-white leading-none min-w-[13px] text-center"
@@ -560,10 +562,10 @@ v-for="tab in moderationTabs"
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
 v-for="filter in [
-                { key: 'PENDING', label: '待审核', count: stats.pending, color: 'amber', icon: Clock },
-                { key: 'APPROVED', label: '已通过', count: stats.approved, color: 'emerald', icon: CheckCircle2 },
-                { key: 'REJECTED', label: '已打回', count: stats.rejected, color: 'rose', icon: XCircle },
-                { key: '', label: '全部', count: stats.total, color: 'indigo', icon: Tag }
+                { key: 'PENDING', label: $t('admin.pending_review_1'), count: stats.pending, color: 'amber', icon: Clock },
+                { key: 'APPROVED', label: $t('admin.passed'), count: stats.approved, color: 'emerald', icon: CheckCircle2 },
+                { key: 'REJECTED', label: $t('admin.called_back'), count: stats.rejected, color: 'rose', icon: XCircle },
+                { key: '', label: $t('admin.all'), count: stats.total, color: 'indigo', icon: Tag }
               ]"
               :key="filter.key"
               type="button"
@@ -606,7 +608,7 @@ type="button"
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="检索记录名称、作者..."
+              :placeholder="$t('admin.search_record_name_author')"
               class="w-full pl-9 pr-3 py-1.5 rounded-lg border transition-all focus:ring-2 focus:ring-indigo-500/20 outline-none text-[11px] shadow-sm"
               style="
                 background-color: var(--bg-app);
@@ -632,7 +634,7 @@ type="button"
           >
             <div class="flex items-center gap-4">
               <span class="text-xs font-black tracking-wider px-2.5 py-1 bg-white/10 rounded-lg"
-                >已勾选 {{ selectedIds.length }} 项记录</span
+                >{{ $t('admin.selectedids_length_records_have') }}</span
               >
               <button
 type="button"
@@ -670,7 +672,7 @@ type="button"
         <div
           class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-lg"
         ></div>
-        <p class="text-xs font-bold text-slate-400 tracking-wider">正在加载审核队列...</p>
+        <p class="text-xs font-bold text-slate-400 tracking-wider">{{ $t('admin.loading_review_queue') }}</p>
       </div>
 
       <!-- 空白状态 -->
@@ -686,7 +688,7 @@ type="button"
         <h3 class="text-base font-bold mb-1" style="color: var(--text-primary)">
           没有需要审核的记录
         </h3>
-        <p class="text-xs text-slate-400 max-w-sm">当前分类及搜索条件下暂无匹配的用户提交记录。</p>
+        <p class="text-xs text-slate-400 max-w-sm">{{ $t('admin.there_are_currently_no') }}</p>
       </div>
 
       <!-- 极品卡片瀑布排版 -->
@@ -774,7 +776,7 @@ type="button"
               <button
 type="button"
                 class="p-2 rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-xl"
-                title="永久删除记录"
+                :title="$t('admin.permanently_delete_records')"
                 @click="handleDelete(item)"
               >
                 <Trash2 class="w-3.5 h-3.5" />
@@ -811,7 +813,7 @@ type="button"
                 class="text-[11px] line-clamp-2 leading-relaxed"
                 style="color: var(--text-secondary)"
               >
-                {{ item.description || '作者未填写详细描述信息。' }}
+                {{ item.description || $t('admin.the_author_has_not') }}
               </p>
             </div>
 
@@ -840,13 +842,13 @@ type="button"
                   <template v-else-if="activeTab === 'assets'">
                     <span class="flex items-center gap-1 font-medium"
                       ><Box class="w-3 h-3 text-slate-400" />
-                      {{ item.size ? item.size + ' MB' : '未知大小' }}</span
+                      {{ item.size ? item.size + ' MB' : $t('admin.unknown_size') }}</span
                     >
                   </template>
                   <template v-else-if="activeTab === 'materials'">
                     <span class="flex items-center gap-1 font-medium"
                       ><Layers class="w-3 h-3 text-slate-400" />
-                      {{ item.resolution || '未知分辨率' }}</span
+                      {{ item.resolution || $t('admin.unknown_resolution') }}</span
                     >
                   </template>
                 </div>
@@ -859,7 +861,7 @@ type="button"
                 <div class="flex items-center gap-2 min-w-0">
                   <UserAvatar :user="item.user" size="sm" />
                   <span class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
-                    {{ item.user?.name || item.user?.email?.split('@')[0] || '匿名创作者' }}
+                    {{ item.user?.name || item.user?.email?.split('@')[0] || $t('admin.anonymous_creator') }}
                   </span>
                 </div>
               </div>
@@ -892,7 +894,7 @@ v-if="item.status !== 'REJECTED'"
     <!-- 绝美高级编辑弹窗 -->
     <el-dialog
       v-model="isEditOpen"
-      :title="`超级编辑管理 - ${pageConfig.title.replace('中心', '')}`"
+      ::title="$t('admin.super_editor_management_pageconfig')"
       width="560px"
       class="custom-rounded-dialog"
     >
@@ -900,7 +902,7 @@ v-if="item.status !== 'REJECTED'"
         <!-- 共同字段：标题 -->
         <div class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >内容标题</label
+            >{{ $t('admin.content_title') }}</label
           >
           <input
             v-model="editForm.title"
@@ -913,7 +915,7 @@ v-if="item.status !== 'REJECTED'"
         <!-- 针对资产和作品展示的字段：描述 -->
         <div v-if="activeTab === 'assets' || activeTab === 'showcases'" class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >详细描述 / 备注</label
+            >{{ $t('admin.detailed_description_remarks') }}</label
           >
           <textarea
             v-model="editForm.description"
@@ -926,7 +928,7 @@ v-if="item.status !== 'REJECTED'"
         <!-- 针对资产的模型类别 -->
         <div v-if="activeTab === 'assets'" class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >资产归属板块 / 类别</label
+            >{{ $t('admin.asset_ownership_sector_category') }}</label
           >
           <el-select v-model="editForm.categoryId" class="w-full" size="large">
             <el-option
@@ -941,12 +943,12 @@ v-if="item.status !== 'REJECTED'"
         <!-- 针对材质的单行文本类别 -->
         <div v-if="activeTab === 'materials'" class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >材质组别 (手动录入)</label
+            >{{ $t('admin.material_group_manual_entry') }}</label
           >
           <input
             v-model="editForm.category"
             type="text"
-            placeholder="例如: 木纹, 金属..."
+            :placeholder="$t('admin.for_example_wood_grain')"
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs font-medium"
             style="color: var(--text-primary)"
           />
@@ -955,12 +957,12 @@ v-if="item.status !== 'REJECTED'"
         <!-- 针对材质和展示作品的附加标签 -->
         <div v-if="activeTab === 'materials' || activeTab === 'showcases'" class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >特征标签组合 (逗号分隔)</label
+            >{{ $t('admin.feature_tag_combinations_comma') }}</label
           >
           <input
             v-model="editForm.tags"
             type="text"
-            placeholder="例如: 科技, cyberpunk, 游戏场景..."
+            :placeholder="$t('admin.for_example_technology_cyberpunk')"
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs font-medium"
             style="color: var(--text-primary)"
           />
@@ -969,12 +971,12 @@ v-if="item.status !== 'REJECTED'"
         <!-- 共同字段：强制干预审核状态 -->
         <div class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >管理员强制状态变更</label
+            >{{ $t('admin.administrator_forced_status_change') }}</label
           >
           <el-select v-model="editForm.status" class="w-full" size="large">
-            <el-option label="待审核流转 (PENDING)" value="PENDING" />
-            <el-option label="强制核准通过 (APPROVED)" value="APPROVED" />
-            <el-option label="强制打回退稿 (REJECTED)" value="REJECTED" />
+            <el-option :label="$t('admin.pending_transfer_pending')" value="PENDING" />
+            <el-option :label="$t('admin.approved_1')" value="APPROVED" />
+            <el-option :label="$t('admin.forced_rejection_rejected')" value="REJECTED" />
           </el-select>
         </div>
       </div>
@@ -994,7 +996,7 @@ type="button"
             class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-600/20 hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
             @click="handleUpdate"
           >
-            {{ isSaving ? '正在写入数据库...' : '确认并保存全部更改' }}
+            {{ isSaving ? [t('admin.writing_to_database')]: $t('admin.confirm_and_save_all') }}
           </button>
         </div>
       </template>
@@ -1003,7 +1005,7 @@ type="button"
     <!-- 绝美拒绝原因反馈弹窗 -->
     <el-dialog
       v-model="isRejectDialogOpen"
-      title="填写审核打回通知"
+      :title="$t('admin.fill_in_the_review')"
       width="460px"
       class="custom-rounded-dialog"
     >
@@ -1019,7 +1021,7 @@ type="button"
 
         <div class="space-y-3">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >快捷填充原因模板</label
+            >{{ $t('admin.quickly_fill_reason_template') }}</label
           >
           <div class="flex flex-wrap gap-1.5">
             <button
@@ -1041,12 +1043,12 @@ v-for="reason in pageConfig.commonReasons"
 
         <div class="space-y-2">
           <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
-            >详细打回说明 (必填)</label
+            >{{ $t('admin.detailed_call_back_instructions') }}</label
           >
           <textarea
             v-model="rejectionForm.reason"
             rows="4"
-            placeholder="请输入具体的违规或优化建议..."
+            :placeholder="$t('admin.please_enter_specific_violations')"
             class="w-full px-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none text-xs shadow-inner"
           ></textarea>
         </div>

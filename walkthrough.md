@@ -531,10 +531,24 @@ I compacted the layout spacing, paddings, and font sizes in the academy course o
 - **构建与测试验证**：
   - 后端：运行 `npm run build` 和 `npm test`，所有 TypeScript 编译及 28 项 Jest 集成测试用例 100% 顺利通过。
   - 前端：运行 `npm run build`，Vite 编译与打包完全通过，无任何 Warning。
+# 15. 全系统国际化 (i18n) 适配与构建加固 (本次更新)
 
+为了全面提升平台的国际化体验，我们对前台（课程、资产、笔记、社区、任务）与后台管理系统的所有 Vue 组件及 TS/JS 文件中的硬编码中文进行了地毯式的提取与国际化适配：
 
+- **i18n 适配深度重构**：
+  - 遍历了 `src/views/Learning/`, `src/views/Admin/`, `src/views/Tasks/`, `src/views/Community/` 等目录下数十个 Vue 组件。
+  - 将所有硬编码的中文提示、按钮、表单占位符及状态标识等文字，全部重构为统一的 `$t(...)`（模板中）或 `t(...)`（`<script setup>` 中）国际化调用。
+  - 针对带有动态插值的翻译需求，重构了诸如“耗时”、“新增/更新/删除记录数”等包含 Vue 语法的翻译 key。修改为规范的 i18n 参数传递模式（如 `t('admin.time_consuming_formatduration_log', { duration: formatDuration(log.duration) })`），并在 `en-US.ts` 与 `zh-CN.ts` 字典中以 `{count}` / `{duration}` 取代硬编码的模板插值。
+  
+- **修复 bracket 语法及三元表达式类型冲突**：
+  - 修复了脚本替换过程中残留的 `[t('...')]` 数组格式错误和 `$t` 变量作用域遮蔽问题。
+  - 修正了 `AdminAuditsView.vue`、`AdminCoursesView.vue` 和 `AdminAuditLogsView.vue` 中多处类型不匹配的语法解析问题，将返回的字符串数组强制转回标准字符串输出。
 
-
-
-
+- **编译与类型安全验证**：
+  - 清理了 `AdminManualView.vue`、`ManualResourceDialog.vue` 和 `MirrorSyncLogsDialog.vue` 等组件中未使用的 import 声明和 computed 变量，消除了所有的 TS6133 警告。
+  - 在根目录下全量执行：
+    ```bash
+    npx vue-tsc -b
+    ```
+    **结果**：编译流程顺利完成，**零报错、零类型冲突**。全站国际化切换完全支持平滑热重载。
 

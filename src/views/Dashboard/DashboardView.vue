@@ -170,7 +170,7 @@ const fetchDashboardData = async () => {
     const overallTasksData = overallTasksRes?.data || [];
     recentTasks.value = (tasksData.length > 0 ? tasksData : overallTasksData).slice(0, 4);
 
-    if (projectsRes?.data && Array.isArray(projectsRes.data) && projectsRes.data.length > 0) {
+    if (projectsRes?.data && Array.isArray(projectsRes.data)) {
       recentProjects.value = projectsRes.data.slice(0, 3).map((p: any) => ({
         id: p.id,
         title: p.title,
@@ -178,11 +178,7 @@ const fetchDashboardData = async () => {
         color: p.color || 'bg-accent',
       }));
     } else {
-      recentProjects.value = [
-        { id: 'p1', title: '未来城市 - 赛博朋克场景', progress: 65, color: 'bg-blue-500' },
-        { id: 'p2', title: '中世纪城堡场景重建', progress: 40, color: 'bg-purple-500' },
-        { id: 'p3', title: '产品可视化渲染练习', progress: 20, color: 'bg-orange-500' },
-      ];
+      recentProjects.value = [];
     }
   } catch (error) {
     console.error('Fetch dashboard data error:', error);
@@ -649,33 +645,18 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Empty state promo card -->
-          <div v-else class="blender-card flex flex-col md:flex-row h-full min-h-[220px]">
-            <div class="relative w-full md:w-2/5 h-36 md:h-auto overflow-hidden shrink-0">
-              <img
-                src="/images/course_pbr.png"
-                class="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                alt="Recommended Course"
-              />
-              <div class="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/85 to-transparent"></div>
-            </div>
-            <div class="p-3.5 flex flex-col justify-between flex-1">
-              <div class="space-y-1.5">
-                <span class="text-[9px] font-bold uppercase tracking-widest" style="color: var(--text-muted)">精品推荐</span>
-                <h2 class="text-xs md:text-sm font-black leading-snug" style="color: var(--text-primary)">探索 Blender 3D 精品课程</h2>
-                <p class="text-[10px] leading-relaxed font-medium" style="color: var(--text-secondary)">
-                  从几何节点到复杂流体动力学计算，由浅入深获取业界前沿 3D 资产建模与动画制作技巧。
-                </p>
-              </div>
-              <button
-                type="button"
-                class="w-full flex items-center justify-center gap-1 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold rounded-lg transition-all cursor-pointer"
-                @click="router.push('/academy')"
-              >
-                <span>开启学习之旅</span>
-                <ChevronRight class="w-3.5 h-3.5" />
-              </button>
-            </div>
+          <!-- Empty state for course progress -->
+          <div v-else class="blender-card flex flex-col items-center justify-center p-6 h-full min-h-[220px] text-center">
+            <BookOpen class="w-8 h-8 mb-2 opacity-25" style="color: var(--text-muted)" />
+            <p class="text-xs font-bold mb-3.5" style="color: var(--text-secondary)">暂无正在学习的课程</p>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 px-4.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold rounded-lg transition-all cursor-pointer shadow-[0_0_10px_rgba(37,99,235,0.2)]"
+              @click="router.push('/academy')"
+            >
+              <span>探索课程库</span>
+              <ChevronRight class="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
@@ -807,7 +788,7 @@ onUnmounted(() => {
           </div>
 
           <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col justify-between">
-            <div class="divide-y">
+            <div v-if="recentProjects.length > 0" class="divide-y">
               <div
                 v-for="project in recentProjects"
                 :key="project.id"
@@ -829,6 +810,10 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+            </div>
+            <div v-else class="flex flex-col items-center justify-center py-10 flex-1">
+              <Layers class="w-8 h-8 mb-2 opacity-25" style="color: var(--text-muted)" />
+              <p class="text-xs font-bold text-center" style="color: var(--text-secondary)">暂无最近项目</p>
             </div>
 
             <!-- Create Project Shortcut -->

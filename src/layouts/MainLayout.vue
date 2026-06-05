@@ -646,37 +646,46 @@ onUnmounted(() => {
         <!-- Search bar on medium screens (no tabs visible) -->
         <div
           v-else
-          class="topbar-search hidden md:flex items-center gap-2 w-[260px] xl:w-[380px] h-9 px-3 rounded-lg border cursor-pointer"
+          class="topbar-search hidden md:flex items-center gap-2 w-[260px] xl:w-[380px] h-9 px-3 rounded-lg border cursor-pointer transition-colors"
+          style="background-color: var(--bg-subtle); border-color: var(--border-base)"
           @click="handleSearch"
         >
-          <Search class="w-4 h-4 topbar-search-icon" />
-          <span class="text-xs flex-1 topbar-search-placeholder">{{ $t('layout.searchPlaceholder') }}</span>
+          <Search class="w-4 h-4 text-slate-400" />
+          <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
           <kbd
-            class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block topbar-search-kbd"
+            class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
+            style="border-color: var(--border-base); color: var(--text-muted)"
             >Ctrl+K</kbd
           >
         </div>
       </div>
 
       <!-- Right: Actions + Avatar -->
-      <div class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[300px] shrink-0">
-        <!-- Search icon (when tabs are visible, search moves here) -->
+      <div class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[300px] xl:w-[360px] shrink-0">
+        <!-- Search bar for desktop mode when tabs are visible -->
+        <div
+          v-if="showTopTabs && !isMobile"
+          class="topbar-search hidden lg:flex items-center gap-2 w-[180px] xl:w-[240px] h-8.5 px-3 rounded-lg border cursor-pointer transition-colors"
+          style="background-color: var(--bg-subtle); border-color: var(--border-base)"
+          @click="handleSearch"
+        >
+          <Search class="w-3.5 h-3.5 text-slate-400" />
+          <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
+          <kbd
+            class="text-[9px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
+            style="border-color: var(--border-base); color: var(--text-muted)"
+            >Ctrl+K</kbd
+          >
+        </div>
+
+        <!-- Search icon button for smaller screens / non-desktop tabs mode -->
         <button
           type="button"
-          class="topbar-icon-btn w-9 h-9 flex items-center justify-center"
-          :class="showTopTabs && !isMobile ? 'hidden lg:flex' : 'flex md:hidden'"
+          class="topbar-icon-btn w-9 h-9 items-center justify-center cursor-pointer"
+          :class="showTopTabs && !isMobile ? 'lg:hidden flex' : 'flex md:hidden'"
           @click="handleSearch"
         >
           <Search class="w-4.5 h-4.5" style="color: var(--text-muted)" />
-        </button>
-        <!-- Search button for top-tab mode (desktop) -->
-        <button
-          v-if="showTopTabs && !isMobile"
-          type="button"
-          class="hidden lg:flex topbar-icon-btn w-9 h-9 items-center justify-center"
-          @click="handleSearch"
-        >
-          <Search class="w-4 h-4" style="color: var(--text-muted)" />
         </button>
 
         <!-- Notification Bell Center Dropdown -->
@@ -871,7 +880,8 @@ onUnmounted(() => {
 }
 
 .workspace-switcher:hover,
-.topbar-icon-btn:hover {
+.topbar-icon-btn:hover,
+.topbar-search:hover {
   background-color: var(--bg-subtle);
 }
 
@@ -883,42 +893,7 @@ onUnmounted(() => {
 }
 
 .topbar-search {
-  background-color: var(--bg-subtle);
-  border-color: var(--border-base);
   box-shadow: inset 0 0 0 1px transparent;
-  transition: all 0.2s ease;
-}
-
-.topbar-search:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.topbar-search-icon,
-.topbar-search-placeholder {
-  color: var(--text-muted) !important;
-  transition: color 0.2s ease;
-}
-
-.topbar-search:hover .topbar-search-icon,
-.topbar-search:hover .topbar-search-placeholder {
-  color: var(--text-secondary) !important;
-}
-
-.topbar-search-kbd {
-  border-color: var(--border-base) !important;
-  color: var(--text-muted) !important;
-  background-color: rgba(0, 0, 0, 0.03);
-  transition: all 0.2s ease;
-}
-
-.dark .topbar-search-kbd {
-  background-color: rgba(255, 255, 255, 0.04);
-}
-
-.topbar-search:hover .topbar-search-kbd {
-  border-color: var(--border-strong) !important;
-  color: var(--text-primary) !important;
 }
 
 .content-surface {

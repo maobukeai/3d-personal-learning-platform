@@ -8,6 +8,7 @@ html.theme-glass {
   /* Layout backgrounds – transparent/translucent frosted white */
   --bg-app: #f1f5f9;
   --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card-rgb: 255, 255, 255;
   --bg-sidebar: rgba(248, 250, 252, 0.92);
 
   /* Text */
@@ -36,6 +37,7 @@ html.dark.theme-glass {
   /* Layout backgrounds – transparent/translucent frosted dark (Blender-inspired #0F1319 / #1C2129 / #12161E) */
   --bg-app: #0F1319;
   --bg-card: rgba(28, 33, 41, 0.82);
+  --bg-card-rgb: 28, 33, 41;
   --bg-sidebar: rgba(18, 22, 30, 0.88);
   --bg-elevated: rgba(36, 42, 53, 0.85);
   --bg-subtle: #0F1319;

@@ -1847,4 +1847,23 @@ const copyMessage = (text: string, index: number) => {
   color: inherit !important;
   border: none !important;
 }
+
+/* Override blockquote and inline code styling inside md-editor for theme compatibility */
+.elf-chat-box :deep(.md-editor-preview blockquote) {
+  background-color: var(--bg-app, rgba(0, 0, 0, 0.05)) !important;
+  border-left: 4px solid var(--accent, #6366f1) !important;
+  color: var(--text-primary) !important;
+  padding: 10px 16px !important;
+  border-radius: 6px !important;
+  margin: 8px 0 !important;
+}
+
+.elf-chat-box :deep(.md-editor-preview code) {
+  background-color: var(--bg-app, rgba(0, 0, 0, 0.05)) !important;
+  color: var(--accent, #6366f1) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-family: monospace !important;
+  font-size: 0.9em !important;
+}
 </style>

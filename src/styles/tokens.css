@@ -32,6 +32,7 @@
   /* Layout backgrounds */
   --bg-app: #f4f6f8;
   --bg-card: #ffffff;
+  --bg-card-rgb: 255, 255, 255;
   --bg-elevated: #ffffff;
   --bg-sidebar: #f8fafc;
   --bg-subtle: #f9fafb;
@@ -89,6 +90,7 @@
   /* Layout backgrounds — authentic warm carbon/charcoal grays from Blender */
   --bg-app: #0F1319;
   --bg-card: #1C2129;
+  --bg-card-rgb: 28, 33, 41;
   --bg-elevated: #242A35;
   --bg-sidebar: #12161E;
   --bg-subtle: #0F1319;

@@ -21,6 +21,7 @@ import {
   Briefcase,
   MonitorPlay,
   Lock,
+  SquarePen,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import AISprite from '@/components/AISprite.vue';
@@ -698,6 +699,17 @@ onUnmounted(() => {
             }
           "
         />
+
+        <!-- Bug Report / Feedback Button -->
+        <button
+          type="button"
+          class="topbar-icon-btn w-9 h-9 flex items-center justify-center cursor-pointer"
+          style="color: var(--text-muted)"
+          :title="$t('support.report_bug')"
+          @click="handleReportBug"
+        >
+          <SquarePen class="w-4.5 h-4.5" />
+        </button>
 
         <!-- User Avatar or Login Button -->
         <template v-if="authStore.isAuthenticated">

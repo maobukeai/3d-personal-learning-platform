@@ -5,6 +5,26 @@ import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { settingsService } from '../services/settings.service';
 
+/** All image-purpose upload field names — used for size limits and extension checks. */
+const IMAGE_FIELD_NAMES = [
+  'logo',
+  'favicon',
+  'avatar',
+  'cover',
+  'manual_image',
+  'mirror_image',
+  'image',
+  'images',
+  'thumbnail',
+  'banner',
+  'banner_image',
+] as const;
+
+type ImageFieldName = (typeof IMAGE_FIELD_NAMES)[number];
+
+const isImageField = (fieldname: string): fieldname is ImageFieldName =>
+  (IMAGE_FIELD_NAMES as readonly string[]).includes(fieldname);
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dir = './uploads/avatars';
@@ -83,25 +103,8 @@ const createUploadMiddleware = (config: {
 
       // Check if it's logo, favicon, or avatar to set lower default limit (5MB) before upload
       const isSystemImage =
-        config.fieldname === 'logo' ||
-        config.fieldname === 'favicon' ||
-        config.fieldname === 'avatar' ||
-        config.fieldname === 'cover' ||
-        config.fieldname === 'manual_image' ||
-        config.fieldname === 'mirror_image' ||
-        config.fieldname === 'image' ||
-        (config.fields &&
-          config.fields.some((f) =>
-            [
-              'logo',
-              'favicon',
-              'avatar',
-              'cover',
-              'manual_image',
-              'mirror_image',
-              'image',
-            ].includes(f.name),
-          ));
+        isImageField(config.fieldname || '') ||
+        (config.fields && config.fields.some((f) => isImageField(f.name)));
 
       if (isSystemImage) {
         maxFileSize = 5 * 1024 * 1024;
@@ -160,19 +163,7 @@ const createUploadMiddleware = (config: {
               let finalAllowedExtensions = allowedExtensions;
               let finalMaxFileSize = maxFileSize;
 
-              if (file.fieldname === 'image') {
-                finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
-              } else if (
-                file.fieldname === 'logo' ||
-                file.fieldname === 'favicon' ||
-                file.fieldname === 'avatar' ||
-                file.fieldname === 'cover' ||
-                file.fieldname === 'manual_image' ||
-                file.fieldname === 'mirror_image' ||
-                file.fieldname === 'image' ||
-                file.fieldname === 'banner' ||
-                file.fieldname === 'banner_image'
-              ) {
+              if (isImageField(file.fieldname)) {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
               } else if (
                 file.fieldname === 'file' ||
@@ -223,14 +214,7 @@ const createUploadMiddleware = (config: {
               }
               if (file.size > finalMaxFileSize) {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-                const displayLimit =
-                  file.fieldname === 'logo' ||
-                  file.fieldname === 'favicon' ||
-                  file.fieldname === 'avatar' ||
-                  file.fieldname === 'cover' ||
-                  file.fieldname === 'image'
-                    ? '5'
-                    : settings.MAX_FILE_SIZE;
+                const displayLimit = isImageField(file.fieldname) ? '5' : settings.MAX_FILE_SIZE;
                 logger.error(
                   `[UploadError] File ${file.originalname} size ${file.size} exceeded limit ${displayLimit}MB`,
                 );

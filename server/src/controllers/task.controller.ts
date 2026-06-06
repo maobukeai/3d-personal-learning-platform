@@ -4,6 +4,8 @@ import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { createNotification, createNotificationBatch } from '../utils/notification';
+import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
+import logger from '../utils/logger';
 
 export const getAllTasks = async (req: AuthRequest, res: Response) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
@@ -186,6 +188,10 @@ export const createTask = async (req: AuthRequest, res: Response) => {
       req,
     });
 
+    if (task.status === 'DONE') {
+      await awardPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
+    }
+
     if (task.projectId) {
       const projectTasks = await prisma.task.findMany({
         where: { projectId: task.projectId },
@@ -224,7 +230,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
           );
         }
       } catch (notifErr) {
-        console.error('Failed to send task creation notifications:', notifErr);
+        logger.error('Failed to send task creation notifications:', notifErr);
       }
     }
 
@@ -344,6 +350,16 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    const isStatusChanged = status !== undefined && status !== existingTask.status;
+    const transitioningToDone = isStatusChanged && status === 'DONE';
+    const transitioningFromDone = isStatusChanged && existingTask.status === 'DONE';
+
+    if (transitioningToDone) {
+      await awardPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
+    } else if (transitioningFromDone) {
+      await deductPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
+    }
+
     // Notify assignee if status changed or re-assigned
     if (
       status &&
@@ -441,7 +457,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
           );
         }
       } catch (notifErr) {
-        console.error('Failed to send task update notifications:', notifErr);
+        logger.error('Failed to send task update notifications:', notifErr);
       }
     }
 
@@ -477,6 +493,10 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.task.delete({ where: { id } });
+
+    if (existingTask.status === 'DONE') {
+      await deductPoints(existingTask.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
+    }
 
     await auditService.log({
       userId: req.userId,
@@ -525,7 +545,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
           );
         }
       } catch (notifErr) {
-        console.error('Failed to send task deletion notifications:', notifErr);
+        logger.error('Failed to send task deletion notifications:', notifErr);
       }
     }
 

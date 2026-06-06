@@ -21,6 +21,7 @@ model User {
   website                    String?
   role                       String                      @default("USER") // 'USER' or 'ADMIN'
   status                     String                      @default("ACTIVE") // 'ACTIVE' or 'BANNED'
+  points                     Int                         @default(50)
   emailVerified              Boolean                     @default(false)
   twoFactorEnabled           Boolean                     @default(false)
   twoFactorSecret            String?
@@ -274,13 +275,13 @@ model SystemSetting {
 model Asset {
   id           String  @id @default(uuid())
   title        String
-  description  String?
+  description  String? @db.Text
   url          String
   thumbnail    String?
   type         String // e.g., 'GLB', 'GLTF', 'FBX'
   status       String  @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
   rejectReason String?
-  formats      String? // 存储 JSON 字符串，如 ["FBX", "OBJ"]
+  formats      String? @db.Text // 存储 JSON 字符串，如 ["FBX", "OBJ"]
 
   // 3D Metadata
   vertices      Int?
@@ -380,9 +381,9 @@ model Enrollment {
 model Discussion {
   id        String           @id @default(uuid())
   title     String
-  content   String
-  images    String? // JSON array of image URLs
-  tags      String? // JSON array of tag names
+  content   String           @db.Text
+  images    String?          @db.Text // JSON array of image URLs
+  tags      String?          @db.Text // JSON array of tag names
   userId    String
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String? // Optional: link to a course
@@ -412,7 +413,7 @@ model DiscussionLike {
 
 model Comment {
   id           String        @id @default(uuid())
-  content      String
+  content      String        @db.Text
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   discussionId String
@@ -447,7 +448,7 @@ model Task {
   description  String?           @db.Text
   status       String // 'TODO', 'IN_PROGRESS', 'DONE'
   priority     String            @default("MEDIUM") // 'LOW', 'MEDIUM', 'HIGH', 'URGENT'
-  tags         String? // JSON string of tag names
+  tags         String?           @db.Text // JSON string of tag names
   subtasks     String?           @db.Text // JSON string of [{ id: string, text: string, done: boolean }]
   dueDate      DateTime?
   userId       String
@@ -569,7 +570,7 @@ model Project {
   status      String              @default("IN_PROGRESS") // 'IN_PROGRESS', 'COMPLETED', 'PAUSED'
   dueDate     DateTime?
   color       String              @default("bg-accent")
-  tags        String? // JSON string or comma separated
+  tags        String?             @db.Text // JSON string or comma separated
   visibility  String              @default("PRIVATE") // 'PUBLIC', 'PRIVATE' (Team internal)
   maxMembers  Int                 @default(10)
   members     ProjectMember[]
@@ -600,9 +601,9 @@ model ProjectMember {
 
 model ProjectDiscussion {
   id        String                      @id @default(uuid())
-  content   String
+  content   String                      @db.Text
   type      String                      @default("TEXT")
-  images    String?
+  images    String?                     @db.Text
   fileUrl   String?
   fileName  String?
   fileSize  Float?
@@ -644,13 +645,13 @@ model ProjectInvitation {
 model Material {
   id           String             @id @default(uuid())
   title        String
-  description  String?
+  description  String?            @db.Text
   category     String
   resolution   String? // '4K', '8K', '矢量', etc.
   previewUrl   String?
   fileUrl      String
   fileSize     Float? // in MB
-  tags         String?
+  tags         String?            @db.Text
   isProcedural Boolean            @default(false)
   downloads    Int                @default(0)
   status       String             @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
@@ -678,11 +679,11 @@ model MaterialFavorite {
 model Showcase {
   id           String            @id @default(uuid())
   title        String
-  description  String?
-  tags         String?
+  description  String?           @db.Text
+  tags         String?           @db.Text
   type         String            @default("IMAGE") // 'IMAGE', 'VIDEO', 'MODEL', 'OTHER'
   thumbnailUrl String
-  images       String? // JSON array of image URLs
+  images       String?           @db.Text // JSON array of image URLs
   videoUrl     String?
   isVideo      Boolean           @default(false)
   views        Int               @default(0)

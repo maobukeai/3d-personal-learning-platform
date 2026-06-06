@@ -792,7 +792,7 @@ export default {
   layout: {
     switchWorkspace: 'Switch Workspace',
     createOrJoinTeam: 'Create or Join Team',
-    searchPlaceholder: 'Search features, works or docs...',
+    searchPlaceholder: 'Search works, tutorials, users...',
     profile: 'Profile',
     notifications: 'Notifications',
     billing: 'Subscription & Billing',
@@ -804,6 +804,7 @@ export default {
     copiedLink: 'Link copied to clipboard',
     copyFailed: 'Failed to copy link',
     logoutSuccess: 'Logged out successfully',
+    adminWorkspace: 'Admin Workspace (Admin only)',
   },
   search: {
     title: 'Global Search',

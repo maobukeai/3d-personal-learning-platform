@@ -41,7 +41,10 @@ import type {
   DashboardTask,
 } from './types';
 
+import { useRouter } from 'vue-router';
+
 const { t } = useI18n();
+const router = useRouter();
 const authStore = useAuthStore();
 
 const greeting = computed(() => {
@@ -148,12 +151,10 @@ const fetchDashboardData = async () => {
       stats.value[2].value = data.assetCount.toString();
       stats.value[2].trend = data.trends?.assets || '0';
       
-      // Calculate simulated points: 1240 + 10 * feedbackCount
-      const basePoints = 1240;
-      const feedbackCount = data.feedbackCount || 0;
-      const computedPoints = basePoints + feedbackCount * 10;
-      stats.value[3].value = computedPoints.toLocaleString();
-      stats.value[3].trend = `+${feedbackCount * 10 || 120}`;
+      // Get real points and points trend from backend
+      const userPoints = data.points !== undefined ? data.points : 50;
+      stats.value[3].value = userPoints.toLocaleString();
+      stats.value[3].trend = data.trends?.points || '+0';
     }
 
     if (enrollmentsRes?.data) {
@@ -216,7 +217,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
 const quickActions = [
   { icon: BookOpen, label: '继续课程', color: 'qa-blue', route: '/academy' },
   { icon: Upload, label: '上传作品', color: 'qa-purple', route: '/my-works' },
-  { icon: FolderOpen, label: '浏览项目', color: 'qa-green', route: '/workspace' },
+  { icon: FolderOpen, label: '浏览项目', color: 'qa-green', route: '/projects' },
   { icon: Users, label: '探索团队', color: 'qa-orange', route: '/explore-teams' },
   { icon: MessageSquare, label: '社区讨论', color: 'qa-pink', route: '/discussions' },
   { icon: Zap, label: '我的任务', color: 'qa-yellow', route: '/work' },
@@ -295,18 +296,10 @@ const fetchLeaderboard = async () => {
   if (res?.data && Array.isArray(res.data)) {
     leaderboard.value = res.data.slice(0, 5);
   } else {
-    leaderboard.value = [
-      { id: '1', name: '张三丰', score: 9840, rank: 1 },
-      { id: '2', name: '李梦阳', score: 8720, rank: 2 },
-      { id: '3', name: '王晓明', score: 7650, rank: 3 },
-      { id: '4', name: '陈小云', score: 6430, rank: 4 },
-      { id: '5', name: '刘思远', score: 5210, rank: 5 },
-    ];
+    leaderboard.value = [];
   }
 };
 
-import { useRouter } from 'vue-router';
-const router = useRouter();
 
 interface ActiveBanner {
   id: string;
@@ -321,7 +314,7 @@ interface ActiveBanner {
 }
 const activeBanners = ref<ActiveBanner[]>([]);
 const activeSlideIndex = ref(0);
-let carouselTimer: any = null;
+let carouselTimer: ReturnType<typeof setInterval> | null = null;
 
 const startCarousel = () => {
   stopCarousel();
@@ -781,7 +774,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="text-[10px] font-bold text-accent hover:underline cursor-pointer"
-              @click="router.push('/workspace')"
+              @click="router.push('/projects')"
             >
               查看全部
             </button>
@@ -793,7 +786,7 @@ onUnmounted(() => {
                 v-for="project in recentProjects"
                 :key="project.id"
                 class="flex items-center gap-3 px-3.5 py-3 hover:bg-white/5 transition-colors cursor-pointer"
-                @click="router.push('/workspace')"
+                @click="router.push(`/project/${project.id}`)"
               >
                 <!-- Thumbnail -->
                 <div class="w-9 h-9 rounded-lg overflow-hidden border flex items-center justify-center shrink-0" style="border-color: var(--border-base)" :class="project.color">

@@ -791,7 +791,7 @@ export default {
   layout: {
     switchWorkspace: '切换工作空间',
     createOrJoinTeam: '创建或加入团队',
-    searchPlaceholder: '搜索功能、作品或文档...',
+    searchPlaceholder: '搜索作品、教程、用户...',
     profile: '个人资料',
     notifications: '消息通知',
     billing: '订阅与账单',
@@ -803,6 +803,7 @@ export default {
     copiedLink: '页面链接已复制',
     copyFailed: '复制失败',
     logoutSuccess: '已成功退出登录',
+    adminWorkspace: '管理工作区 (仅管理员)',
   },
   search: {
     title: '全局搜索',

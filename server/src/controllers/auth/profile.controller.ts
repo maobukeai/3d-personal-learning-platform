@@ -799,16 +799,53 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       return pct >= 0 ? `+${pct}%` : `${pct}%`;
     };
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { points: true },
+    });
+    const points = user?.points ?? 50;
+
+    // Calculate points earned in the last 7 days
+    const [
+      recentDiscussionsCount,
+      recentCommentsCount,
+      recentDiscussionLikesCount,
+      recentCommentLikesCount,
+      recentShowcaseLikesCount,
+      recentCompletedLessonsCount,
+      recentCompletedTasksCount,
+      recentShowcasesCount,
+    ] = await Promise.all([
+      prisma.discussion.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.comment.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.discussionLike.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.commentLike.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.showcaseLike.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.lessonProgress.count({ where: { userId, completed: true, completedAt: { gte: sevenDaysAgo } } }),
+      prisma.task.count({ where: { userId, status: 'DONE', updatedAt: { gte: sevenDaysAgo } } }),
+      prisma.showcase.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+    ]);
+
+    const pointsTrendValue =
+      recentDiscussionsCount * 15 +
+      recentCommentsCount * 5 +
+      (recentDiscussionLikesCount + recentCommentLikesCount + recentShowcaseLikesCount) * 2 +
+      recentCompletedLessonsCount * 30 +
+      recentCompletedTasksCount * 20 +
+      recentShowcasesCount * 50;
+
     res.json({
       assetCount,
       taskCount,
       feedbackCount,
       learningProgress: `${totalProgress}%`,
+      points,
       trends: {
         assets: computeTrend(recentAssets, prevAssets),
         tasks: computeTrend(recentTasks, prevTasks),
         feedbacks: computeTrend(recentFeedbacks, prevFeedbacks),
         learning: totalProgress > 0 ? `+${totalProgress}%` : '0%',
+        points: `+${pointsTrendValue}`,
       },
     });
   } catch (error) {

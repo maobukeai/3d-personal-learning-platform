@@ -221,6 +221,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
         AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
         AI_MODEL_NAME: selectedModel.modelName,
+        capabilities: selectedModel.capabilities,
       },
       req.userId,
     );

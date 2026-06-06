@@ -48,3 +48,6 @@ server/scratch/
 # AI agent artifacts
 walkthrough.md
 code_review_report.md
+
+# Developer debug/test scripts (not for version control)
+server/scripts/test-ai-stream.js

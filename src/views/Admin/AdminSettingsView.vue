@@ -852,6 +852,7 @@ const testAi = async (model?: AiModelConfig) => {
       endpoint,
       apiKey,
       modelName,
+      capabilities: model?.capabilities,
     });
     if (data.success) {
       ElMessage.success(data.message || t('admin.ai_interface_test_successful'));

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Plus,
   LogOut,
+  ExternalLink,
   User as UserIcon,
   CreditCard,
   Bell,
@@ -21,7 +22,6 @@ import {
   Briefcase,
   MonitorPlay,
   Lock,
-  SquarePen,
 } from 'lucide-vue-next';
 import UserAvatar from '@/components/UserAvatar.vue';
 import AISprite from '@/components/AISprite.vue';
@@ -290,7 +290,7 @@ onMounted(async () => {
   // Apply stored theme (defaults to 'glass-dark') and accent color
   const storedTheme = preferences.getTheme();
   applyTheme(storedTheme);
-  applyAccentColor('#F5792A');
+  applyAccentColor(preferences.getAccentColor());
 
   if (!systemStore.isInitialized) {
     systemStore.fetchSettings();
@@ -379,7 +379,7 @@ onUnmounted(() => {
       class="topbar h-14 flex items-center justify-between px-3 md:px-4 shrink-0 z-30 glass-header"
     >
       <!-- Left: Brand Logo + Brand Name & Workspace Switcher -->
-      <div class="flex items-center gap-2.5 min-w-0 lg:w-[300px] shrink-0">
+      <div class="flex items-center gap-2.5 min-w-0 lg:w-[260px] xl:w-[280px] shrink-0">
         <button
           type="button"
           class="topbar-icon-btn w-9 h-9 flex items-center justify-center lg:hidden shrink-0 -ml-1"
@@ -591,7 +591,7 @@ onUnmounted(() => {
                                 : 'text-slate-700 dark:text-slate-200'
                             "
                           >
-                            管理工作区 (仅管理员)
+                            {{ $t('layout.adminWorkspace') }}
                           </span>
                           <span class="text-[9px] text-slate-500 font-medium">
                             {{ adminWorkspace.description }}
@@ -652,7 +652,7 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search class="w-4 h-4 text-slate-400" />
-          <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
+          <span class="text-xs text-slate-400 flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
           <kbd
             class="text-[10px] px-2 py-0.5 rounded border font-mono hidden lg:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
@@ -662,7 +662,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Right: Actions + Avatar -->
-      <div class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[300px] xl:w-[360px] shrink-0">
+      <div class="flex items-center justify-end gap-1.5 md:gap-2 lg:w-[380px] xl:w-[440px] shrink-0">
         <!-- Search bar for desktop mode when tabs are visible -->
         <div
           v-if="showTopTabs && !isMobile"
@@ -671,7 +671,7 @@ onUnmounted(() => {
           @click="handleSearch"
         >
           <Search class="w-3.5 h-3.5 text-slate-400" />
-          <span class="text-xs text-slate-400 flex-1">{{ $t('layout.searchPlaceholder') }}</span>
+          <span class="text-xs text-slate-400 flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
           <kbd
             class="text-[9px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
@@ -700,15 +700,15 @@ onUnmounted(() => {
           "
         />
 
-        <!-- Bug Report / Feedback Button -->
+        <!-- Direct Logout/Exit Icon Button -->
         <button
+          v-if="authStore.isAuthenticated"
           type="button"
-          class="topbar-icon-btn w-9 h-9 flex items-center justify-center cursor-pointer"
-          style="color: var(--text-muted)"
-          :title="$t('support.report_bug')"
-          @click="handleReportBug"
+          class="topbar-icon-btn w-9 h-9 flex items-center justify-center transition-colors relative"
+          :title="$t('layout.logout')"
+          @click="handleLogout"
         >
-          <SquarePen class="w-4.5 h-4.5" />
+          <ExternalLink class="w-4.5 h-4.5" style="color: var(--text-muted)" />
         </button>
 
         <!-- User Avatar or Login Button -->
@@ -716,9 +716,22 @@ onUnmounted(() => {
           <el-dropdown trigger="click" placement="bottom-end" @command="handleProfileClick">
             <button
               type="button"
-              class="flex items-center gap-0 p-0.5 rounded-full hover:ring-2 hover:ring-accent/30 transition-all cursor-pointer outline-none"
+              class="flex items-center gap-2 p-0.5 sm:px-2.5 sm:py-1 rounded-full sm:rounded-lg hover:bg-slate-100/5 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/10 dark:hover:border-white/5 transition-all cursor-pointer outline-none"
             >
               <UserAvatar :user="authStore.user ?? undefined" size="md" />
+              <div class="flex flex-col text-left leading-tight hidden sm:flex">
+                <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[90px] truncate">
+                  {{ authStore.user?.name || '未命名用户' }}
+                </span>
+                <div class="mt-0.5 flex items-center">
+                  <span
+                    class="text-[9px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/35 dark:border-amber-500/25 rounded-full px-1.5 py-0.2 select-none leading-none scale-90 origin-left"
+                  >
+                    Lv.{{ authStore.userLevel }}
+                  </span>
+                </div>
+              </div>
+              <ChevronDown class="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
             </button>
             <template #dropdown>
               <el-dropdown-menu class="w-56 p-2 rounded-xl border shadow-lg">

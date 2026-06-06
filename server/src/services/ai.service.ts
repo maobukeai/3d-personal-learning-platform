@@ -19,6 +19,7 @@ export interface AIServiceConfig {
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
+  capabilities?: string[];
 }
 
 type AIProvider = 'DEEPSEEK' | 'OPENAI' | 'AZURE' | 'GEMINI' | 'OLLAMA' | string;
@@ -91,6 +92,49 @@ function cleanEndpointUrl(url: string | undefined | null): string {
     cleaned += '/chat/completions';
   }
   return cleaned;
+}
+
+/**
+ * Normalizes endpoint URL to robustly append /images/generations for image models.
+ */
+function cleanImageEndpointUrl(url: string | undefined | null): string {
+  if (!url) return '';
+  let cleaned = normalizeParam(url);
+  cleaned = cleaned.replace(/\/+$/, '');
+  if (cleaned.endsWith('/chat/completions')) {
+    cleaned = cleaned.substring(0, cleaned.length - '/chat/completions'.length);
+  }
+  cleaned = cleaned.replace(/\/+$/, '');
+  if (!cleaned.endsWith('/images/generations')) {
+    cleaned += '/images/generations';
+  }
+  return cleaned;
+}
+
+/**
+ * Detects if a model is an image generation model based on its name or capabilities.
+ */
+function isImageGenerationModel(modelName: string, capabilities?: string[]): boolean {
+  if (capabilities && Array.isArray(capabilities)) {
+    const list = capabilities.map(c => c.toLowerCase().trim());
+    if (list.some(c => c === 'draw' || c === 'image' || c === 'image_generation' || c === 'paint' || c === 'txt2img' || c === 't2i')) {
+      return true;
+    }
+  }
+  const name = modelName.toLowerCase();
+  return name.includes('flux') ||
+         name.includes('stable-diffusion') ||
+         name.includes('sdxl') ||
+         name.includes('sd-') ||
+         name.includes('dall-e') ||
+         name.includes('midjourney') ||
+         name.includes('playground') ||
+         name.includes('cogview') ||
+         name.includes('kolors') ||
+         name.includes('image') ||
+         name.includes('draw') ||
+         name.includes('paint') ||
+         name.includes('generate');
 }
 
 /**
@@ -518,10 +562,6 @@ async function executeLLMRequest(
     } else {
       const text = response.data?.choices?.[0]?.message?.content;
       if (!text) {
-        console.error(
-          'DEBUG: response.data from custom LLM is:',
-          JSON.stringify(response.data, null, 2),
-        );
         throw new Error('API 返回内容为空，请确认模型名称与接口是否兼容。');
       }
       return text;
@@ -557,6 +597,35 @@ export async function callLLM(
     },
   );
 
+  if (isImageGenerationModel(modelName, overrides?.capabilities)) {
+    try {
+      const imgUrl = cleanImageEndpointUrl(url);
+      logger.info(
+        `[AI Service Image Test] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
+      );
+
+      const response = await axios.post(imgUrl, {
+        model: modelName,
+        prompt: 'a white dot',
+        n: 1,
+        size: '256x256',
+      }, {
+        headers,
+        timeout: AI_REQUEST_TIMEOUT_MS,
+      });
+
+      const responseData = response.data;
+      const imgData = responseData.data?.[0];
+      if (imgData && (imgData.url || imgData.b64_json)) {
+        return 'OK [生图模型测试成功，已生成测试图]';
+      }
+      throw new Error('未获取到生成的图片数据，请检查生图接口响应格式。');
+    } catch (error: unknown) {
+      logger.error(`[AI Service Image Test Error (${provider})]:`, sanitizeAIError(error));
+      throw new Error(toUserFacingAIError(error, provider));
+    }
+  }
+
   logger.info(
     `[AI Service] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(url)}`,
   );
@@ -583,6 +652,7 @@ export async function streamLLMChat(
 ): Promise<void> {
   const controller = new AbortController();
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let activityTimer: ReturnType<typeof setInterval> | null = null;
   let completed = false;
   let activeProvider: AIProvider = normalizeProvider(overrides?.AI_PROVIDER);
 
@@ -598,6 +668,98 @@ export async function streamLLMChat(
       },
     );
     activeProvider = provider;
+
+    if (isImageGenerationModel(modelName, overrides?.capabilities)) {
+      // Establish SSE stream headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.setHeader('Content-Encoding', 'none');
+      res.flushHeaders();
+
+      sendSSE(res, {
+        event: 'meta',
+        requestId,
+        provider,
+        model: modelName,
+        ...streamMeta,
+      });
+
+      sendSSE(res, { reasoning: `正在为您使用生图模型 ${modelName} 生成图片，请稍候...\n(Please wait while generating image using model: ${modelName})`, requestId });
+
+      try {
+        const lastUserMsg = messages[messages.length - 1]?.content || '画一幅精美的3D模型渲染图';
+        const cleanPrompt = lastUserMsg.replace(/\[图片\]/g, '').trim();
+        const imgUrl = cleanImageEndpointUrl(url);
+
+        logger.info(
+          `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
+        );
+
+        const response = await axios.post(imgUrl, {
+          model: modelName,
+          prompt: cleanPrompt,
+          n: 1,
+          size: '1024x1024',
+        }, {
+          headers,
+          timeout: AI_STREAM_TIMEOUT_MS,
+        });
+
+        const responseData = response.data;
+        const imgData = responseData.data?.[0];
+        let finalMarkdown = '';
+
+        if (imgData) {
+          const urlOrBase64 = imgData.url || (imgData.b64_json ? `data:image/png;base64,${imgData.b64_json}` : null);
+          if (urlOrBase64) {
+            finalMarkdown = `![${cleanPrompt}](${urlOrBase64})`;
+          }
+        }
+
+        if (!finalMarkdown) {
+          throw new Error('未获取到生成的图片数据，请检查生图接口响应格式。');
+        }
+
+        // Stream back the markdown image
+        sendSSE(res, { text: finalMarkdown, requestId });
+
+        // Save to database
+        if (userId) {
+          try {
+            await prisma.aiMessage.create({
+              data: {
+                userId,
+                role: 'assistant',
+                content: finalMarkdown,
+                reasoning: `使用生图模型 ${modelName} 生成图片。`,
+              },
+            });
+          } catch (dbErr) {
+            logger.error('[AI Chat] Failed to save image message to DB:', dbErr);
+          }
+        }
+
+        sendSSE(res, {
+          event: 'done',
+          requestId,
+          usage: {
+            outputChars: finalMarkdown.length,
+            reasoningChars: 0,
+          },
+        });
+        sendSSE(res, '[DONE]');
+        res.end();
+        return;
+      } catch (err) {
+        logger.error('[AI Image Generation Error]:', sanitizeAIError(err));
+        const errMsg = toUserFacingAIError(err, provider);
+        sendSSE(res, { error: `图片生成失败: ${errMsg}`, requestId });
+        res.end();
+        return;
+      }
+    }
 
     // Establish SSE stream headers ONLY after config was prepared successfully
     res.setHeader('Content-Type', 'text/event-stream');
@@ -642,6 +804,36 @@ export async function streamLLMChat(
     });
 
     const stream = response.data;
+    let lastActivityTime = Date.now();
+    const STREAM_ACTIVITY_TIMEOUT_MS = 25_000;
+
+    activityTimer = setInterval(() => {
+      if (!completed) {
+        const inactiveTime = Date.now() - lastActivityTime;
+        if (inactiveTime > STREAM_ACTIVITY_TIMEOUT_MS) {
+          logger.warn(
+            `[AI Streaming Chat] requestId=${requestId} stream activity timeout (inactive for ${inactiveTime}ms). Aborting.`,
+          );
+          controller.abort();
+          if (!completed) {
+            completed = true;
+            if (heartbeatTimer) {
+              clearInterval(heartbeatTimer);
+              heartbeatTimer = null;
+            }
+            if (activityTimer) {
+              clearInterval(activityTimer);
+              activityTimer = null;
+            }
+            if (!res.writableEnded) {
+              sendSSE(res, { error: 'AI服务响应超时，已自动断开连接。请重试。', requestId });
+              res.end();
+            }
+          }
+        }
+      }
+    }, 5000);
+
     let buffer = '';
     let assistantContent = '';
     let assistantReasoning = '';
@@ -706,6 +898,10 @@ export async function streamLLMChat(
         clearInterval(heartbeatTimer);
         heartbeatTimer = null;
       }
+      if (activityTimer) {
+        clearInterval(activityTimer);
+        activityTimer = null;
+      }
 
       if (userId && assistantContent) {
         try {
@@ -737,6 +933,7 @@ export async function streamLLMChat(
     };
 
     stream.on('data', (chunk: Buffer) => {
+      lastActivityTime = Date.now();
       buffer += chunk.toString('utf8');
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
@@ -755,6 +952,10 @@ export async function streamLLMChat(
         clearInterval(heartbeatTimer);
         heartbeatTimer = null;
       }
+      if (activityTimer) {
+        clearInterval(activityTimer);
+        activityTimer = null;
+      }
       logger.error(`[AI Stream Source Error] requestId=${requestId}:`, sanitizeAIError(err));
       if (!res.writableEnded) {
         sendSSE(res, { error: err.message, requestId });
@@ -765,6 +966,10 @@ export async function streamLLMChat(
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
+    }
+    if (activityTimer) {
+      clearInterval(activityTimer);
+      activityTimer = null;
     }
     completed = true;
     logger.error('[AI Streaming Request Error]:', sanitizeAIError(error));

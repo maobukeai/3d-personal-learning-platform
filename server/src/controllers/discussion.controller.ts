@@ -7,6 +7,7 @@ import { createNotification } from '../utils/notification';
 import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { sanitizeHtml } from '../utils/sanitize';
+import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 
 export const getAllDiscussions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, tag, sort } = req.query;
@@ -48,7 +49,7 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response, next: N
             select: { comments: true, likes: true },
           },
           likes: {
-            where: { userId: req.userId },
+            where: { userId: req.userId || '' },
             select: { id: true },
           },
         },
@@ -102,7 +103,7 @@ export const getDiscussionById = async (req: AuthRequest, res: Response, next: N
               select: { id: true, name: true, avatarUrl: true },
             },
             likes: {
-              where: { userId: req.userId },
+              where: { userId: req.userId || '' },
               select: { id: true },
             },
             _count: {
@@ -114,7 +115,7 @@ export const getDiscussionById = async (req: AuthRequest, res: Response, next: N
                   select: { id: true, name: true, avatarUrl: true },
                 },
                 likes: {
-                  where: { userId: req.userId },
+                  where: { userId: req.userId || '' },
                   select: { id: true },
                 },
                 _count: {
@@ -130,7 +131,7 @@ export const getDiscussionById = async (req: AuthRequest, res: Response, next: N
           select: { comments: true, likes: true },
         },
         likes: {
-          where: { userId: req.userId },
+          where: { userId: req.userId || '' },
           select: { id: true },
         },
       },
@@ -190,6 +191,8 @@ export const createDiscussion = async (req: AuthRequest, res: Response, next: Ne
       },
     });
 
+    await awardPoints(req.userId as string, PointsAction.CREATE_DISCUSSION);
+
     emitToAll('new_activity', {
       id: `d-${discussion.id}`,
       user: req.user?.name || '有人',
@@ -217,6 +220,7 @@ export const deleteDiscussion = async (req: AuthRequest, res: Response, next: Ne
     }
 
     await prisma.discussion.delete({ where: { id } });
+    await deductPoints(discussion.userId, PointsAction.CREATE_DISCUSSION);
     res.json({ message: 'Discussion deleted' });
   } catch (error) {
     next(error);
@@ -227,16 +231,19 @@ export const toggleLikeDiscussion = async (req: AuthRequest, res: Response, next
   const discussionId = req.params.id as string;
   try {
     const existing = await prisma.discussionLike.findUnique({
-      where: { discussionId_userId: { discussionId, userId: req.userId! } },
+      where: { discussionId_userId: { discussionId, userId: req.userId || '' } },
     });
 
     if (existing) {
       await prisma.discussionLike.delete({ where: { id: existing.id } });
+      await deductPoints(req.userId!, PointsAction.LIKE_CONTENT);
       res.json({ isLiked: false });
     } else {
       await prisma.discussionLike.create({
-        data: { discussionId, userId: req.userId! },
+        data: { discussionId, userId: req.userId || '' },
       });
+
+      await awardPoints(req.userId!, PointsAction.LIKE_CONTENT);
 
       const discussion = await prisma.discussion.findUnique({
         where: { id: discussionId },
@@ -333,6 +340,8 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
       },
     });
 
+    await awardPoints(req.userId as string, PointsAction.CREATE_COMMENT);
+
     if (comment.discussion.userId !== req.userId) {
       await createNotification({
         type: 'MESSAGE',
@@ -385,6 +394,7 @@ export const deleteComment = async (req: AuthRequest, res: Response, next: NextF
     }
 
     await prisma.comment.delete({ where: { id } });
+    await deductPoints(comment.userId, PointsAction.CREATE_COMMENT);
     res.json({ message: 'Comment deleted' });
   } catch (error) {
     next(error);
@@ -395,16 +405,18 @@ export const toggleLikeComment = async (req: AuthRequest, res: Response, next: N
   const commentId = req.params.id as string;
   try {
     const existing = await prisma.commentLike.findUnique({
-      where: { commentId_userId: { commentId, userId: req.userId! } },
+      where: { commentId_userId: { commentId, userId: req.userId || '' } },
     });
 
     if (existing) {
       await prisma.commentLike.delete({ where: { id: existing.id } });
+      await deductPoints(req.userId!, PointsAction.LIKE_CONTENT);
       res.json({ isLiked: false });
     } else {
       await prisma.commentLike.create({
-        data: { commentId, userId: req.userId! },
+        data: { commentId, userId: req.userId || '' },
       });
+      await awardPoints(req.userId!, PointsAction.LIKE_CONTENT);
       res.json({ isLiked: true });
     }
   } catch (error) {

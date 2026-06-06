@@ -6,6 +6,7 @@ import { createNotification } from '../utils/notification';
 import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
+import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 
 export const getAllShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { filter, type } = req.query;
@@ -215,6 +216,8 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
       req,
     });
 
+    await awardPoints(req.userId as string, PointsAction.PUBLISH_SHOWCASE);
+
     res.status(201).json(showcase);
   } catch (error) {
     next(error);
@@ -283,6 +286,8 @@ export const publishAssetToShowcase = async (
       newValue: showcase,
       req,
     });
+
+    await awardPoints(req.userId as string, PointsAction.PUBLISH_SHOWCASE);
 
     res.status(201).json(showcase);
   } catch (error) {
@@ -385,6 +390,8 @@ export const deleteShowcase = async (req: AuthRequest, res: Response, next: Next
       where: { id },
     });
 
+    await deductPoints(showcase.userId, PointsAction.PUBLISH_SHOWCASE);
+
     await auditService.log({
       userId: req.userId as string,
       action: AuditAction.DELETE_SHOWCASE,
@@ -412,6 +419,7 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
       await prisma.showcaseLike.delete({
         where: { id: existing.id },
       });
+      await deductPoints(userId, PointsAction.LIKE_CONTENT);
       res.json({ liked: false });
     } else {
       const like = await prisma.showcaseLike.create({
@@ -431,6 +439,8 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
           category: 'MENTION',
         });
       }
+
+      await awardPoints(userId, PointsAction.LIKE_CONTENT);
 
       res.json({ liked: true });
     }
@@ -484,6 +494,8 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
         category: 'MENTION',
       });
     }
+
+    await awardPoints(req.userId as string, PointsAction.CREATE_COMMENT);
     res.status(201).json(comment);
   } catch (error) {
     next(error);
@@ -508,6 +520,8 @@ export const deleteComment = async (req: AuthRequest, res: Response, next: NextF
     await prisma.showcaseComment.delete({
       where: { id: commentId },
     });
+
+    await deductPoints(comment.userId, PointsAction.CREATE_COMMENT);
 
     res.json({ message: 'Comment deleted successfully' });
   } catch (error) {

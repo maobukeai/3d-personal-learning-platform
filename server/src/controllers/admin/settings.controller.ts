@@ -361,7 +361,8 @@ export const cleanupStorage = async (req: AuthRequest, res: Response, next: Next
 
 export const testAi = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { provider, endpoint, apiKey, modelName } = req.body;
+    const { provider, endpoint, apiKey, modelName, capabilities } = req.body;
+    logger.info(`[Admin Test AI] Request Body: ${JSON.stringify({ provider, endpoint, modelName, capabilities })} (apiKey masked)`);
 
     if (!provider) {
       return next(new AppError('提供商不能为空', 400));
@@ -379,13 +380,18 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
       AI_API_KEY: apiKey,
       AI_API_ENDPOINT: endpoint,
       AI_MODEL_NAME: modelName,
+      capabilities: Array.isArray(capabilities)
+        ? capabilities
+        : typeof capabilities === 'string'
+          ? capabilities.split(',').map((c: string) => c.trim()).filter(Boolean)
+          : undefined,
     });
 
     res.json({
       success: true,
       message: `AI 接口测试成功！模型响应: "${responseText.trim()}"`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[AI Test Error]:', error);
     next(new AppError(error instanceof Error ? error.message : String(error), 500));
   }

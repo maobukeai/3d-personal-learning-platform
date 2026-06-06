@@ -12,6 +12,7 @@ interface User {
   location?: string;
   website?: string;
   role: string;
+  points?: number;
   emailVerified?: boolean;
   twoFactorEnabled?: boolean;
   language?: string;
@@ -67,6 +68,19 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.user,
     isUserOnline: (state) => (userId: string) => state.onlineUserIds.has(userId),
+    userLevel: (state) => {
+      const points = state.user?.points ?? 50;
+      if (points < 100) return 1;
+      if (points < 200) return 2;
+      if (points < 350) return 3;
+      if (points < 500) return 4;
+      if (points < 700) return 5;
+      if (points < 950) return 6;
+      if (points < 1200) return 7;
+      if (points < 1500) return 8;
+      if (points < 1900) return 9;
+      return 10;
+    },
   },
   actions: {
     setUnreadMessagesCount(count: number) {

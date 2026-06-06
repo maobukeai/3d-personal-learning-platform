@@ -5,6 +5,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { parseBilibiliUrl } from '../utils/bilibili';
 import { AppError } from '../middlewares/error.middleware';
+import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 
 export const getAllCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { categoryId, search, difficulty, sort } = req.query;
@@ -399,6 +400,13 @@ export const toggleLessonComplete = async (req: AuthRequest, res: Response, next
     const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
     if (!lesson) return next(new AppError('Lesson not found', 404));
 
+    // Determine points change based on completion transition
+    const existingProgress = await prisma.lessonProgress.findUnique({
+      where: { userId_lessonId: { userId: req.userId as string, lessonId } },
+    });
+    const transitioningToComplete = completed && (!existingProgress || !existingProgress.completed);
+    const transitioningToIncomplete = !completed && existingProgress && existingProgress.completed;
+
     const progress = await prisma.lessonProgress.upsert({
       where: {
         userId_lessonId: { userId: req.userId as string, lessonId: lessonId },
@@ -411,6 +419,12 @@ export const toggleLessonComplete = async (req: AuthRequest, res: Response, next
         completedAt: completed ? new Date() : null,
       },
     });
+
+    if (transitioningToComplete) {
+      await awardPoints(req.userId as string, PointsAction.COMPLETE_LESSON);
+    } else if (transitioningToIncomplete) {
+      await deductPoints(req.userId as string, PointsAction.COMPLETE_LESSON);
+    }
 
     const totalLessons = await prisma.lesson.count({ where: { courseId: lesson.courseId } });
     const completedCount = await prisma.lessonProgress.count({

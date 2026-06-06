@@ -81,6 +81,10 @@ export const parseMarkdownToPlanJson = (text: string): any => {
 
     // Detect section headers
     if (line.startsWith('# ')) {
+      if (currentRoadmapStep) {
+        roadmapSteps.push(currentRoadmapStep);
+        currentRoadmapStep = null;
+      }
       parsed.title = line
         .substring(2)
         .replace(/^(?:项目|PROJECT)\s*[:|：]\s*/i, '')
@@ -88,6 +92,10 @@ export const parseMarkdownToPlanJson = (text: string): any => {
       currentSection = 'project';
       continue;
     } else if (line.startsWith('## ')) {
+      if (currentRoadmapStep) {
+        roadmapSteps.push(currentRoadmapStep);
+        currentRoadmapStep = null;
+      }
       const secName = line.substring(3).trim();
       if (
         secName.includes('任务') ||

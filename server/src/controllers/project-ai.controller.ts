@@ -8,6 +8,7 @@ import {
   AIChatMessage as ServiceAIChatMessage,
   callLLM,
   streamLLMChat,
+  AIServiceConfig,
 } from '../services/ai.service';
 import { getAIModelById, settingsService } from '../services/settings.service';
 import { parseBaiduNetdiskLink } from '../utils/baiduNetdisk';
@@ -143,7 +144,22 @@ export const aiGenerateProjectText = async (
       return next(new AppError('检测到潜在的安全威胁或非法指令注入。', 400));
     }
 
-    const generatedMarkdown = await callLLM(prompt.trim(), PROJECT_GENERATION_PROMPT);
+    const settings = await settingsService.getAll();
+    const selectedModel = getAIModelById(settings, undefined);
+    
+    const overrides: Partial<AIServiceConfig> = selectedModel ? {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: selectedModel.provider,
+      AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+      AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+      AI_MODEL_NAME: selectedModel.modelName,
+      capabilities: selectedModel.capabilities,
+      maxTokens: 16384,
+    } : {
+      maxTokens: 16384,
+    };
+
+    const generatedMarkdown = await callLLM(prompt.trim(), PROJECT_GENERATION_PROMPT, overrides);
 
     res.json({
       success: true,
@@ -419,6 +435,15 @@ export const coPlanChatStream = async (req: AuthRequest, res: Response, next: Ne
       return next(new AppError('只有团队创建人或管理员才能在团队中生成项目规划', 403));
     }
 
+    const settings = await settingsService.getAll();
+    const selectedModel = getAIModelById(
+      settings,
+      typeof req.body.modelId === 'string' ? req.body.modelId.trim() : undefined,
+    );
+    if (!selectedModel || !selectedModel.enabled) {
+      return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
+    }
+
     const isNetdisk = !!netdiskInfo;
     const netdiskText = formatNetdiskInfoForPrompt(netdiskInfo);
     const systemPrompt = getCoPlanChatPrompt(isNetdisk);
@@ -431,7 +456,17 @@ export const coPlanChatStream = async (req: AuthRequest, res: Response, next: Ne
       ...normalizedMessages,
     ];
 
-    await streamLLMChat(extendedMessages, systemPrompt, res);
+    const overrides: Partial<AIServiceConfig> = {
+      AI_IMPORT_ENABLED: true,
+      AI_PROVIDER: selectedModel.provider,
+      AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+      AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+      AI_MODEL_NAME: selectedModel.modelName,
+      capabilities: selectedModel.capabilities,
+      maxTokens: 16384,
+    };
+
+    await streamLLMChat(extendedMessages, systemPrompt, res, overrides, req.userId);
   } catch (error) {
     if (res.headersSent) {
       if (!res.writableEnded) {

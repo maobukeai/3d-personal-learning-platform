@@ -405,7 +405,10 @@ async function prepareRequestConfig(
 
   const temperature =
     overrides?.temperature ?? matchingModel?.temperature ?? options.temperature ?? 0.3;
-  const maxTokens = overrides?.maxTokens ?? matchingModel?.maxTokens;
+  let maxTokens = overrides?.maxTokens ?? matchingModel?.maxTokens;
+  if (maxTokens === 2000 || !maxTokens) {
+    maxTokens = 8192;
+  }
   const systemPromptPreset = overrides?.systemPrompt ?? matchingModel?.systemPrompt;
 
   let finalSystemPrompt = systemPrompt;

@@ -319,7 +319,7 @@ let carouselTimer: ReturnType<typeof setInterval> | null = null;
 const startCarousel = () => {
   stopCarousel();
   if (activeBanners.value.length > 1) {
-    carouselTimer = window.setInterval(() => {
+    carouselTimer = setInterval(() => {
       activeSlideIndex.value = (activeSlideIndex.value + 1) % activeBanners.value.length;
     }, 5000);
   }
@@ -327,7 +327,7 @@ const startCarousel = () => {
 
 const stopCarousel = () => {
   if (carouselTimer) {
-    window.clearInterval(carouselTimer);
+    clearInterval(carouselTimer);
     carouselTimer = null;
   }
 };

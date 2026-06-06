@@ -816,7 +816,7 @@ onUnmounted(() => {
           >
         </div>
         <RouterView v-slot="{ Component }">
-          <Transition name="fade-slide" mode="out-in">
+          <Transition name="page-fade" mode="out-in">
             <component :is="Component" />
           </Transition>
         </RouterView>

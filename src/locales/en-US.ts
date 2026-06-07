@@ -38,6 +38,7 @@ export default {
     themeGlass: 'Glassmorphism',
     themeGlassLight: 'Light Glass',
     themeGlassDark: 'Dark Glass',
+    themeGlassAuto: 'Auto Switch (Beijing Time)',
     themeSystem: 'System',
     accentColor: 'Accent Color',
     successUpdate: 'Settings updated',

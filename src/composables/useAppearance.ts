@@ -15,15 +15,31 @@ export const languageOptions: Array<{ label: string; value: LocalePreference }> 
   { label: 'English', value: 'en-US' },
 ];
 
+export const getBeijingHour = (): number => {
+  const utc = new Date().getTime() + (new Date().getTimezoneOffset() * 60000);
+  const beijingTime = new Date(utc + (3600000 * 8));
+  return beijingTime.getHours();
+};
+
+export const getEffectiveTheme = (theme: ThemePreference): 'glass-light' | 'glass-dark' => {
+  if (theme === 'glass-auto') {
+    const hour = getBeijingHour();
+    return hour >= 6 && hour < 18 ? 'glass-light' : 'glass-dark';
+  }
+  return theme;
+};
+
 export const applyThemeToDocument = (theme: ThemePreference) => {
   const root = document.documentElement;
   const classes = new Set(root.classList);
   classes.delete('dark');
   classes.delete('theme-glass');
 
-  if (theme === 'glass-light') {
+  const effectiveTheme = getEffectiveTheme(theme);
+
+  if (effectiveTheme === 'glass-light') {
     classes.add('theme-glass');
-  } else if (theme === 'glass-dark') {
+  } else if (effectiveTheme === 'glass-dark') {
     classes.add('theme-glass');
     classes.add('dark');
   }

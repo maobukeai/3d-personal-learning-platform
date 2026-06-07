@@ -38,6 +38,7 @@ export default {
     themeGlass: '磨砂玻璃',
     themeGlassLight: '浅色磨砂玻璃',
     themeGlassDark: '深色磨砂玻璃',
+    themeGlassAuto: '自动切换 (北京时间)',
     themeSystem: '跟随系统',
     accentColor: '强调色',
     successUpdate: '设置已更新',

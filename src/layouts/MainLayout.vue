@@ -236,9 +236,31 @@ const handleLogout = async () => {
 
 const currentTheme = ref<ThemePreference>(preferences.getTheme());
 
+let autoThemeInterval: number | null = null;
+
+const startAutoThemeInterval = () => {
+  stopAutoThemeInterval();
+  applyThemeToDocument('glass-auto');
+  autoThemeInterval = window.setInterval(() => {
+    applyThemeToDocument('glass-auto');
+  }, 60000);
+};
+
+const stopAutoThemeInterval = () => {
+  if (autoThemeInterval !== null) {
+    clearInterval(autoThemeInterval);
+    autoThemeInterval = null;
+  }
+};
+
 const applyTheme = (theme: ThemePreference) => {
   currentTheme.value = theme;
-  applyThemeToDocument(theme);
+  if (theme === 'glass-auto') {
+    startAutoThemeInterval();
+  } else {
+    stopAutoThemeInterval();
+    applyThemeToDocument(theme);
+  }
 };
 
 const applyAccentColor = (color: string) => {
@@ -359,6 +381,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('resize', updateIsMobile);
   window.removeEventListener('theme-changed', handleThemeChangeExternal);
+  stopAutoThemeInterval();
 });
 </script>
 

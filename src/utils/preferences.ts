@@ -1,4 +1,4 @@
-export type ThemePreference = 'glass-light' | 'glass-dark';
+export type ThemePreference = 'glass-light' | 'glass-dark' | 'glass-auto';
 export type LocalePreference = 'zh-CN' | 'en-US';
 
 const storageKeys = {
@@ -58,7 +58,7 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
 };
 
 const isThemePreference = (value: string | null): value is ThemePreference =>
-  value === 'glass-light' || value === 'glass-dark';
+  value === 'glass-light' || value === 'glass-dark' || value === 'glass-auto';
 
 const isLocalePreference = (value: string | null): value is LocalePreference =>
   value === 'zh-CN' || value === 'en-US';

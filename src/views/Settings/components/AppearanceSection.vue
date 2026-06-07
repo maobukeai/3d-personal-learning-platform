@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Sun, Moon, Languages } from 'lucide-vue-next';
+import { Sun, Moon, SunMoon, Languages } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { preferences, type LocalePreference, type ThemePreference } from '@/utils/preferences';
 import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
@@ -30,6 +30,7 @@ const themeOptions = computed<Array<{ id: ThemePreference; label: string; icon: 
   () => [
     { id: 'glass-light', label: t('settings.themeGlassLight'), icon: Sun },
     { id: 'glass-dark', label: t('settings.themeGlassDark'), icon: Moon },
+    { id: 'glass-auto', label: t('settings.themeGlassAuto'), icon: SunMoon },
   ]
 );
 
@@ -60,7 +61,7 @@ const applyLanguage = (lang: LocalePreference) => {
       <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary)">
         {{ t('settings.theme') }}
       </h3>
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 lg:gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
         <button
 v-for="theme in themeOptions" :key="theme.id" type="button" class="flex flex-col items-center gap-3 p-6 rounded-2xl border transition-all" :class="
             currentTheme === theme.id

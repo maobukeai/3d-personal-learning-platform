@@ -43,6 +43,7 @@ router.post(
 
 router.use(authenticate);
 
+router.get('/ai-chat/usage', projectAiController.getAiUsage);
 router.get('/ai-chat/history', projectAiController.getAiChatHistory);
 router.delete('/ai-chat/history', projectAiController.clearAiChatHistory);
 

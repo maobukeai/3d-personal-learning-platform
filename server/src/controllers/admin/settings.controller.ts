@@ -362,7 +362,9 @@ export const cleanupStorage = async (req: AuthRequest, res: Response, next: Next
 export const testAi = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { provider, endpoint, apiKey, modelName, capabilities } = req.body;
-    logger.info(`[Admin Test AI] Request Body: ${JSON.stringify({ provider, endpoint, modelName, capabilities })} (apiKey masked)`);
+    logger.info(
+      `[Admin Test AI] Request Body: ${JSON.stringify({ provider, endpoint, modelName, capabilities })} (apiKey masked)`,
+    );
 
     if (!provider) {
       return next(new AppError('提供商不能为空', 400));
@@ -383,7 +385,10 @@ export const testAi = async (req: AuthRequest, res: Response, next: NextFunction
       capabilities: Array.isArray(capabilities)
         ? capabilities
         : typeof capabilities === 'string'
-          ? capabilities.split(',').map((c: string) => c.trim()).filter(Boolean)
+          ? capabilities
+              .split(',')
+              .map((c: string) => c.trim())
+              .filter(Boolean)
           : undefined,
     });
 

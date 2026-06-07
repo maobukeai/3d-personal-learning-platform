@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import {
   Settings,
   Mail,
@@ -982,15 +982,20 @@ const microsoftPoolStats = computed(() => {
   };
 });
 
-onMounted(async () => {
-  await fetchSettings();
-  await fetchMicrosoftAccounts();
-});
-
-window.addEventListener('beforeunload', (e) => {
+const handleBeforeUnload = (e: BeforeUnloadEvent) => {
   if (hasUnsavedChanges.value) {
     e.preventDefault();
   }
+};
+
+onMounted(async () => {
+  await fetchSettings();
+  await fetchMicrosoftAccounts();
+  window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
 });
 </script>
 

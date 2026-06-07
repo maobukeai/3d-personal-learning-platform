@@ -13,7 +13,7 @@ import {
   Edit3,
   Trash2,
   CheckSquare,
-  Square
+  Square,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
@@ -189,7 +189,12 @@ const handleDrop = async (event: DragEvent, targetNotebookName: string) => {
       category: categoryToSend || null,
     };
     await api.put(`/api/notes/${noteId}`, payload);
-    ElMessage.success(t('notes.moveSuccess', { name: targetNotebookName === 'UNCATEGORIZED' ? t('notes.uncategorized') : targetNotebookName }));
+    ElMessage.success(
+      t('notes.moveSuccess', {
+        name:
+          targetNotebookName === 'UNCATEGORIZED' ? t('notes.uncategorized') : targetNotebookName,
+      }),
+    );
 
     // Optimistic local update
     const idx = notes.value.findIndex((n) => n.id === noteId);
@@ -351,11 +356,15 @@ const handleDetailViewsUpdated = (data: { id: string; views: number }) => {
 
 const handleDelete = async (note: Note) => {
   try {
-    await ElMessageBox.confirm(t('notes.deleteConfirm'), t('common.confirmDelete') || t('common.delete'), {
-      confirmButtonText: t('common.delete'),
-      cancelButtonText: t('common.cancel'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      t('notes.deleteConfirm'),
+      t('common.confirmDelete') || t('common.delete'),
+      {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      },
+    );
     await api.delete(`/api/notes/${note.id}`);
     ElMessage.success(t('notes.deleteSuccess'));
     await loadNotes();
@@ -369,13 +378,13 @@ const handleTogglePopular = async (note: Note) => {
     const res = await api.post(`/api/notes/${note.id}/popular`);
     note.isPopular = res.data.isPopular;
     ElMessage.success(note.isPopular ? t('notes.popularRecommended') : t('notes.popularCancelled'));
-    
+
     // Synced reactive list update
     const idx = notes.value.findIndex((n) => n.id === note.id);
     if (idx !== -1) {
       notes.value[idx].isPopular = res.data.isPopular;
     }
-    
+
     if (activeTab.value === 'POPULAR') {
       loadNotes();
     }
@@ -421,8 +430,8 @@ const toggleNoteSelection = (note: Note) => {
 const handleSelectAll = (checked: any) => {
   if (checked) {
     selectedNoteIds.value = notes.value
-      .filter(n => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN')
-      .map(n => n.id);
+      .filter((n) => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN')
+      .map((n) => n.id);
   } else {
     selectedNoteIds.value = [];
   }
@@ -441,20 +450,16 @@ const handleBatchDelete = async () => {
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
         type: 'warning',
-      }
+      },
     );
 
     loading.value = true;
     try {
-      await Promise.all(
-        selectedNoteIds.value.map(id =>
-          api.delete(`/api/notes/${id}`)
-        )
-      );
+      await Promise.all(selectedNoteIds.value.map((id) => api.delete(`/api/notes/${id}`)));
       ElMessage.success(t('notes.batchDeleteSuccess', { n: selectedNoteIds.value.length }));
       selectedNoteIds.value = [];
       isSelectionMode.value = false;
-      
+
       await loadTagsAndCategories();
       await loadNotes();
     } catch (err) {
@@ -485,14 +490,12 @@ const confirmBatchMove = async () => {
   try {
     const categoryValue = targetMoveCategory.value || null;
     await Promise.all(
-      selectedNoteIds.value.map(id =>
-        api.put(`/api/notes/${id}`, { category: categoryValue })
-      )
+      selectedNoteIds.value.map((id) => api.put(`/api/notes/${id}`, { category: categoryValue })),
     );
     ElMessage.success(t('notes.batchMoveSuccess', { n: selectedNoteIds.value.length }));
     selectedNoteIds.value = [];
     isSelectionMode.value = false;
-    
+
     await loadTagsAndCategories();
     await loadNotes();
   } catch (err) {
@@ -515,7 +518,7 @@ const handleRenameNotebook = async (oldName: string) => {
         inputValue: oldName,
         inputPattern: /\S+/,
         inputErrorMessage: t('notes.nameNotEmpty'),
-      }
+      },
     );
 
     const trimmedName = newName.trim();
@@ -534,14 +537,14 @@ const handleRenameNotebook = async (oldName: string) => {
     }
 
     // 2. Rename notes on server
-    const notesToUpdate = notes.value.filter(n => n.category === oldName && n.userId === authStore.user?.id);
+    const notesToUpdate = notes.value.filter(
+      (n) => n.category === oldName && n.userId === authStore.user?.id,
+    );
     if (notesToUpdate.length > 0) {
       loading.value = true;
       try {
         await Promise.all(
-          notesToUpdate.map(note =>
-            api.put(`/api/notes/${note.id}`, { category: trimmedName })
-          )
+          notesToUpdate.map((note) => api.put(`/api/notes/${note.id}`, { category: trimmedName })),
         );
       } catch (err) {
         console.error(err);
@@ -574,20 +577,20 @@ const handleDeleteNotebook = async (name: string) => {
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
         type: 'warning',
-      }
+      },
     );
 
-    localNotebooks.value = localNotebooks.value.filter(n => n !== name);
+    localNotebooks.value = localNotebooks.value.filter((n) => n !== name);
     saveLocalNotebooks();
 
-    const notesToUpdate = notes.value.filter(n => n.category === name && n.userId === authStore.user?.id);
+    const notesToUpdate = notes.value.filter(
+      (n) => n.category === name && n.userId === authStore.user?.id,
+    );
     if (notesToUpdate.length > 0) {
       loading.value = true;
       try {
         await Promise.all(
-          notesToUpdate.map(note =>
-            api.put(`/api/notes/${note.id}`, { category: null })
-          )
+          notesToUpdate.map((note) => api.put(`/api/notes/${note.id}`, { category: null })),
         );
       } catch (err) {
         console.error(err);
@@ -641,17 +644,21 @@ onUnmounted(() => {
     style="background-color: var(--bg-app)"
   >
     <!-- Header Section -->
-    <PageHeader
-      :title="t('notes.title')"
-      :subtitle="t('notes.subtitle')"
-      :icon="Notebook"
-    >
+    <PageHeader :title="t('notes.title')" :subtitle="t('notes.subtitle')" :icon="Notebook">
       <div class="flex items-center gap-2.5 w-full sm:w-auto">
-        <button type="button" class="bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 border border-[var(--border-base)] shrink-0 w-full sm:w-auto cursor-pointer shadow-xs" @click="openImportDialog">
+        <button
+          type="button"
+          class="bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-primary)] px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 border border-[var(--border-base)] shrink-0 w-full sm:w-auto cursor-pointer shadow-xs"
+          @click="openImportDialog"
+        >
           <Github class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-secondary)]" />
           <span>{{ t('notes.importGithub') }}</span>
         </button>
-        <button type="button" class="bg-accent hover:bg-accent-dark text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 shadow-lg shadow-accent/20 shrink-0 w-full sm:w-auto cursor-pointer" @click="openCreateDialog">
+        <button
+          type="button"
+          class="bg-accent hover:bg-accent-dark text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all active:scale-95 shadow-lg shadow-accent/20 shrink-0 w-full sm:w-auto cursor-pointer"
+          @click="openCreateDialog"
+        >
           <Plus class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>{{ t('notes.publish') }}</span>
         </button>
@@ -659,7 +666,9 @@ onUnmounted(() => {
     </PageHeader>
 
     <!-- Main Content Area -->
-    <div class="flex-1 overflow-y-auto custom-scrollbar pt-0 pb-2.5 px-2.5 sm:pt-0 sm:pb-4 sm:px-4 lg:pt-0 lg:pb-4.5 lg:px-4.5">
+    <div
+      class="flex-1 overflow-y-auto custom-scrollbar pt-0 pb-2.5 px-2.5 sm:pt-0 sm:pb-4 sm:px-4 lg:pt-0 lg:pb-4.5 lg:px-4.5"
+    >
       <div class="max-w-none">
         <div class="mb-1 md:mb-1.5">
           <el-tabs v-model="activeTab" class="custom-note-tabs" @tab-change="handleTabChange">
@@ -676,63 +685,113 @@ onUnmounted(() => {
             class="hidden md:flex flex-col w-60 shrink-0 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl p-3.5 space-y-3.5 shadow-sm"
           >
             <div class="flex items-center justify-between">
-              <span class="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
+              <span
+                class="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5"
+              >
                 <Notebook class="w-4 h-4 text-accent" /> {{ t('notes.notebookManagement') }}
               </span>
-              <button type="button" class="text-accent hover:text-accent-dark hover:bg-accent/5 p-1 rounded-lg transition-all cursor-pointer" :title="t('notes.newNotebook')" @click="createNotebookDialogRef?.open()">
+              <button
+                type="button"
+                class="text-accent hover:text-accent-dark hover:bg-accent/5 p-1 rounded-lg transition-all cursor-pointer"
+                :title="t('notes.newNotebook')"
+                @click="createNotebookDialogRef?.open()"
+              >
                 <FolderPlus class="w-4 h-4" />
               </button>
             </div>
-            
+
             <div class="flex flex-col gap-1 max-h-[500px] overflow-y-auto custom-scrollbar">
               <!-- All Notes -->
               <button
-                type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
-                  !filterCategory ? 'bg-accent/10 text-accent font-black border-accent/10' : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
-                  draggedNotebook === 'ALL' ? 'bg-accent/20 text-accent border-accent/30 shadow-sm' : ''
-                ]" @click="selectNotebook('ALL')" @dragover.prevent @dragenter.prevent="draggedNotebook = 'ALL'" @dragleave="draggedNotebook = null" @drop="handleDrop($event, 'ALL')">
+                type="button"
+                class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent"
+                :class="[
+                  !filterCategory
+                    ? 'bg-accent/10 text-accent font-black border-accent/10'
+                    : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
+                  draggedNotebook === 'ALL'
+                    ? 'bg-accent/20 text-accent border-accent/30 shadow-sm'
+                    : '',
+                ]"
+                @click="selectNotebook('ALL')"
+                @dragover.prevent
+                @dragenter.prevent="draggedNotebook = 'ALL'"
+                @dragleave="draggedNotebook = null"
+                @drop="handleDrop($event, 'ALL')"
+              >
                 <span class="flex items-center gap-2 truncate">
-                  <Folder class="w-3.5 h-3.5" :class="[!filterCategory ? 'text-accent' : 'text-[var(--text-muted)]']" /> {{ t('notes.allNotes') }}
+                  <Folder
+                    class="w-3.5 h-3.5"
+                    :class="[!filterCategory ? 'text-accent' : 'text-[var(--text-muted)]']"
+                  />
+                  {{ t('notes.allNotes') }}
                 </span>
               </button>
-              
+
               <!-- Uncategorized -->
               <button
-                type="button" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent" :class="[
-                  filterCategory === '__uncategorized__' ? 'bg-accent/10 text-accent font-black border-accent/10' : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
-                  draggedNotebook === 'UNCATEGORIZED' ? 'bg-accent/20 text-accent border-accent/30 shadow-sm' : ''
-                ]" @click="selectNotebook('UNCATEGORIZED')" @dragover.prevent @dragenter.prevent="draggedNotebook = 'UNCATEGORIZED'" @dragleave="draggedNotebook = null" @drop="handleDrop($event, 'UNCATEGORIZED')">
+                type="button"
+                class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 text-left w-full cursor-pointer border border-transparent"
+                :class="[
+                  filterCategory === '__uncategorized__'
+                    ? 'bg-accent/10 text-accent font-black border-accent/10'
+                    : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
+                  draggedNotebook === 'UNCATEGORIZED'
+                    ? 'bg-accent/20 text-accent border-accent/30 shadow-sm'
+                    : '',
+                ]"
+                @click="selectNotebook('UNCATEGORIZED')"
+                @dragover.prevent
+                @dragenter.prevent="draggedNotebook = 'UNCATEGORIZED'"
+                @dragleave="draggedNotebook = null"
+                @drop="handleDrop($event, 'UNCATEGORIZED')"
+              >
                 <span class="flex items-center gap-2 truncate">
-                  <Folder class="w-3.5 h-3.5" :class="[filterCategory === '__uncategorized__' ? 'text-accent' : 'text-[var(--text-muted)]']" /> {{ t('notes.uncategorized') }}
+                  <Folder
+                    class="w-3.5 h-3.5"
+                    :class="[
+                      filterCategory === '__uncategorized__'
+                        ? 'text-accent'
+                        : 'text-[var(--text-muted)]',
+                    ]"
+                  />
+                  {{ t('notes.uncategorized') }}
                 </span>
               </button>
-              
+
               <!-- Dynamic Categories / Notebooks -->
               <div
-                v-for="cat in myNotebooksList" 
-                :key="cat" 
-                class="group/notebook flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 w-full border border-transparent" 
+                v-for="cat in myNotebooksList"
+                :key="cat"
+                class="group/notebook flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 w-full border border-transparent"
                 :class="[
-                  filterCategory === cat ? 'bg-accent/10 text-accent font-black border-accent/10' : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
-                  draggedNotebook === cat ? 'bg-accent/20 text-accent border-accent/30 shadow-sm' : ''
+                  filterCategory === cat
+                    ? 'bg-accent/10 text-accent font-black border-accent/10'
+                    : 'text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5',
+                  draggedNotebook === cat
+                    ? 'bg-accent/20 text-accent border-accent/30 shadow-sm'
+                    : '',
                 ]"
               >
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   class="flex items-center gap-2 truncate text-left flex-1 cursor-pointer bg-transparent border-0 font-bold text-inherit p-0"
-                  @click="selectNotebook(cat)" 
-                  @dragover.prevent 
-                  @dragenter.prevent="draggedNotebook = cat" 
-                  @dragleave="draggedNotebook = null" 
+                  @click="selectNotebook(cat)"
+                  @dragover.prevent
+                  @dragenter.prevent="draggedNotebook = cat"
+                  @dragleave="draggedNotebook = null"
                   @drop="handleDrop($event, cat)"
                 >
-                  <Folder class="w-3.5 h-3.5 shrink-0" :class="[filterCategory === cat ? 'text-accent' : 'text-[var(--text-muted)]']" />
+                  <Folder
+                    class="w-3.5 h-3.5 shrink-0"
+                    :class="[filterCategory === cat ? 'text-accent' : 'text-[var(--text-muted)]']"
+                  />
                   <span class="truncate">{{ cat }}</span>
                 </button>
-                
+
                 <!-- Rename & Delete actions visible on hover -->
                 <div class="hidden group-hover/notebook:flex items-center gap-1 shrink-0 pl-1">
-                  <button 
+                  <button
                     type="button"
                     class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-accent border-0 bg-transparent"
                     :title="t('notes.renameNotebook')"
@@ -740,7 +799,7 @@ onUnmounted(() => {
                   >
                     <Edit3 class="w-3 h-3" />
                   </button>
-                  <button 
+                  <button
                     type="button"
                     class="p-0.5 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded transition-all cursor-pointer text-[var(--text-muted)] hover:text-red-500 border-0 bg-transparent"
                     :title="t('notes.deleteNotebook')"
@@ -756,7 +815,9 @@ onUnmounted(() => {
           <!-- Right side: Note content list -->
           <div class="flex-1 min-w-0 w-full flex flex-col gap-2 md:gap-3">
             <!-- Search & Filters -->
-            <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 md:gap-2">
+            <div
+              class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 md:gap-2"
+            >
               <!-- Search Input & Sort Select Side-by-Side on Mobile -->
               <div class="flex items-center gap-1.5 flex-1 min-w-0">
                 <el-input
@@ -782,11 +843,20 @@ onUnmounted(() => {
               </div>
 
               <!-- Tags and Categories Selects -->
-              <div v-if="tags.length || categories.length || (activeTab === 'MY' && myNotebooksList.length)" class="flex items-center gap-1.5 w-full sm:w-auto">
+              <div
+                v-if="
+                  tags.length || categories.length || (activeTab === 'MY' && myNotebooksList.length)
+                "
+                class="flex items-center gap-1.5 w-full sm:w-auto"
+              >
                 <!-- Mobile Notebook Dropdown Selector -->
                 <el-select
                   v-if="activeTab === 'MY'"
-                  :model-value="filterCategory === '__uncategorized__' ? 'UNCATEGORIZED' : (filterCategory || 'ALL')"
+                  :model-value="
+                    filterCategory === '__uncategorized__'
+                      ? 'UNCATEGORIZED'
+                      : filterCategory || 'ALL'
+                  "
                   :placeholder="t('notes.notebookLabel')"
                   class="md:hidden flex-1 !w-full note-filter-select"
                   @change="selectNotebook"
@@ -804,7 +874,12 @@ onUnmounted(() => {
                   clearable
                   @change="loadNotes"
                 >
-                  <el-option v-for="t in tags" :key="t" :label="t" :value="t" />
+                  <el-option
+                    v-for="tagName in tags"
+                    :key="tagName"
+                    :label="tagName"
+                    :value="tagName"
+                  />
                 </el-select>
 
                 <!-- Only show Category dropdown if not in MY tab -->
@@ -826,9 +901,9 @@ onUnmounted(() => {
                 type="button"
                 class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 h-8 rounded-lg text-xs font-black border transition-all active:scale-95 cursor-pointer shadow-2xs"
                 :class="[
-                  isSelectionMode ? 
-                  'bg-purple-500/10 border-purple-500/25 text-purple-500 dark:text-purple-400' : 
-                  'bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-zinc-800'
+                  isSelectionMode
+                    ? 'bg-purple-500/10 border-purple-500/25 text-purple-500 dark:text-purple-400'
+                    : 'bg-[var(--bg-card)] border-[var(--border-base)] text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-zinc-800',
                 ]"
                 @click="toggleSelectionMode"
               >
@@ -839,32 +914,42 @@ onUnmounted(() => {
             </div>
 
             <!-- Batch Management Action Bar -->
-            <div 
-              v-if="isSelectionMode && activeTab === 'MY'" 
+            <div
+              v-if="isSelectionMode && activeTab === 'MY'"
               class="flex items-center justify-between p-3 rounded-2xl border border-accent/20 bg-accent/5 backdrop-blur-xs text-xs font-bold mb-3"
             >
               <div class="flex items-center gap-3">
                 <el-checkbox
-                  :model-value="notes.length > 0 && selectedNoteIds.length === notes.filter(n => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN').length"
+                  :model-value="
+                    notes.length > 0 &&
+                    selectedNoteIds.length ===
+                      notes.filter(
+                        (n) => n.userId === authStore.user?.id || authStore.user?.role === 'ADMIN',
+                      ).length
+                  "
                   @change="handleSelectAll"
                 >
-                  <span class="text-xs font-bold text-[var(--text-primary)]">{{ t('notes.selectAll') }}</span>
+                  <span class="text-xs font-bold text-[var(--text-primary)]">{{
+                    t('notes.selectAll')
+                  }}</span>
                 </el-checkbox>
-                <span class="text-[var(--text-secondary)]">{{ t('notes.selectedCount', { n: selectedNoteIds.length }) }}</span>
+                <span class="text-[var(--text-secondary)]">{{
+                  t('notes.selectedCount', { n: selectedNoteIds.length })
+                }}</span>
               </div>
               <div class="flex items-center gap-2">
-                <el-button 
-                  type="primary" 
-                  size="small" 
+                <el-button
+                  type="primary"
+                  size="small"
                   round
                   :disabled="selectedNoteIds.length === 0"
                   @click="handleBatchMove"
                 >
                   {{ t('notes.batchMove') }}
                 </el-button>
-                <el-button 
-                  type="danger" 
-                  size="small" 
+                <el-button
+                  type="danger"
+                  size="small"
                   round
                   :disabled="selectedNoteIds.length === 0"
                   @click="handleBatchDelete"
@@ -893,12 +978,13 @@ onUnmounted(() => {
               >
                 <Notebook class="w-12 h-12 text-[var(--text-muted)] opacity-40" />
               </div>
-              <p class="text-[var(--text-secondary)] font-medium">{{ t('notes.noNotesContent') }}</p>
+              <p class="text-[var(--text-secondary)] font-medium">
+                {{ t('notes.noNotesContent') }}
+              </p>
             </div>
 
             <!-- Content list -->
             <div v-else class="w-full">
-              
               <!-- TIMELINE FEED for ACTIVITY Tab -->
               <ActivityTimeline
                 v-if="activeTab === 'ACTIVITY'"
@@ -913,13 +999,26 @@ onUnmounted(() => {
                 @clone="(note) => cloneDialogRef?.open(note)"
                 @edit="openEditDialog"
                 @delete="handleDelete"
-                @filter-tag="(t) => { filterTag = t; loadNotes() }"
-                @filter-category="(c) => { filterCategory = c; loadNotes() }"
+                @filter-tag="
+                  (t) => {
+                    filterTag = t;
+                    loadNotes();
+                  }
+                "
+                @filter-category="
+                  (c) => {
+                    filterCategory = c;
+                    loadNotes();
+                  }
+                "
                 @click-avatar="handleShowUserProfile"
               />
 
               <!-- CARDS GRID for MY & POPULAR Tabs -->
-              <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              <div
+                v-else
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+              >
                 <NoteCard
                   v-for="(note, index) in notes"
                   :key="note.id"
@@ -989,9 +1088,7 @@ onUnmounted(() => {
       @share="openShareDialog"
     />
 
-    <NoteShareDialog
-      ref="shareDialogRef"
-    />
+    <NoteShareDialog ref="shareDialogRef" />
 
     <NoteImportGithubDialog
       ref="githubImportDialogRef"
@@ -1006,10 +1103,21 @@ onUnmounted(() => {
     />
 
     <!-- Batch Move Dialog -->
-    <el-dialog v-model="isMoveDialogOpen" :title="t('notes.batchMoveTitle')" width="min(400px, 95%)" destroy-on-close>
+    <el-dialog
+      v-model="isMoveDialogOpen"
+      :title="t('notes.batchMoveTitle')"
+      width="min(400px, 95%)"
+      destroy-on-close
+    >
       <div class="py-2">
-        <p class="text-xs text-[var(--text-secondary)] mb-3">{{ t('notes.selectTargetNotebook') }}</p>
-        <el-select v-model="targetMoveCategory" :placeholder="t('notes.selectNotebookPlaceholder')" class="w-full">
+        <p class="text-xs text-[var(--text-secondary)] mb-3">
+          {{ t('notes.selectTargetNotebook') }}
+        </p>
+        <el-select
+          v-model="targetMoveCategory"
+          :placeholder="t('notes.selectNotebookPlaceholder')"
+          class="w-full"
+        >
           <el-option :label="t('notes.uncategorized')" value="" />
           <el-option v-for="cat in myNotebooksList" :key="cat" :label="cat" :value="cat" />
         </el-select>

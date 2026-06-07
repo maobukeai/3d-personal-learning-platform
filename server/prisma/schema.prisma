@@ -1133,15 +1133,18 @@ model MicrosoftEmailAccount {
 }
 
 model AiMessage {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String   // 'user' or 'assistant'
-  content   String   @db.Text
-  reasoning String?  @db.Text
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         String   // 'user' or 'assistant'
+  content      String   @db.Text
+  reasoning    String?  @db.Text
+  sessionId    String   @default("default")
+  sessionTitle String   @default("新对话")
+  createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([userId, sessionId, createdAt])
 }
 
 model NoteShare {

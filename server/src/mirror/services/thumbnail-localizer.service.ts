@@ -324,7 +324,9 @@ class ThumbnailLocalizer {
     }
   }
 
-  async cleanupOrphanedImages(sourceId: string): Promise<{ deletedCount: number; savedBytes: number }> {
+  async cleanupOrphanedImages(
+    sourceId: string,
+  ): Promise<{ deletedCount: number; savedBytes: number }> {
     try {
       const sourceDir = path.join(this.baseDir, sourceId);
       if (!fs.existsSync(sourceDir)) {
@@ -334,7 +336,7 @@ class ThumbnailLocalizer {
       // 1. Get all resources belonging to this source from the database
       const resources = await prisma.mirrorResource.findMany({
         where: { sourceId },
-        select: { thumbnailUrl: true, contentHtml: true }
+        select: { thumbnailUrl: true, contentHtml: true },
       });
 
       // 2. Extract referenced filenames
@@ -376,7 +378,7 @@ class ThumbnailLocalizer {
 
       if (deletedCount > 0) {
         logger.info(
-          `[ThumbnailLocalizer] Cleaned up ${deletedCount} orphaned files for source ${sourceId}, saved ${(savedBytes / 1024 / 1024).toFixed(2)} MB.`
+          `[ThumbnailLocalizer] Cleaned up ${deletedCount} orphaned files for source ${sourceId}, saved ${(savedBytes / 1024 / 1024).toFixed(2)} MB.`,
         );
       }
 
@@ -384,7 +386,7 @@ class ThumbnailLocalizer {
     } catch (e) {
       logger.error(
         `[ThumbnailLocalizer] Failed to cleanup orphaned images for source ${sourceId}:`,
-        e instanceof Error ? e.message : String(e)
+        e instanceof Error ? e.message : String(e),
       );
       return { deletedCount: 0, savedBytes: 0 };
     }

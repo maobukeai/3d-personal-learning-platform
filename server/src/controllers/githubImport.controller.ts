@@ -151,9 +151,10 @@ export const importNotesFromGithub = async (req: AuthRequest, res: Response) => 
     let treeResponse;
     try {
       treeResponse = await axios.get(treeUrl, { headers });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const isAxiosError = axios.isAxiosError(err);
       // If 'main' branch fails with 404, try 'master' branch as fallback
-      if (branch === 'main' && err.response?.status === 404) {
+      if (branch === 'main' && isAxiosError && err.response?.status === 404) {
         logger.info(`Branch main not found for ${owner}/${repo}, trying master fallback...`);
         treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
         treeResponse = await axios.get(treeUrl, { headers });
@@ -262,11 +263,13 @@ export const importNotesFromGithub = async (req: AuthRequest, res: Response) => 
       count: createdCount + updatedCount,
       failed: failCount,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('GitHub notes import error:', error);
-    const status = error.response?.status || 500;
+    const isAxiosError = axios.isAxiosError(error);
+    const status = isAxiosError ? error.response?.status || 500 : 500;
     const errorMsg =
-      error.response?.data?.message || '连接 GitHub 失败，请检查仓库地址、分支名及密钥是否正确。';
+      (isAxiosError && error.response?.data?.message) ||
+      '连接 GitHub 失败，请检查仓库地址、分支名及密钥是否正确。';
     res.status(status).json({ error: errorMsg });
   }
 };

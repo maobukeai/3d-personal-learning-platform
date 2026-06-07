@@ -18,11 +18,7 @@ router.post(
 
 router.get('/sources', adminMirrorController.getAllSources);
 router.get('/sources/:id/export', adminMirrorController.exportSource);
-router.post(
-  '/sources/import',
-  upload.single('file'),
-  adminMirrorController.importSource,
-);
+router.post('/sources/import', upload.single('file'), adminMirrorController.importSource);
 router.get('/import/status/:taskId', adminMirrorController.getImportStatus);
 router.post('/sources', adminMirrorController.createSource);
 router.get('/sources/:id', adminMirrorController.getSourceDetail);

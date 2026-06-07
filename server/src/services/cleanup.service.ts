@@ -64,6 +64,10 @@ export const startCleanupJob = (intervalMs = 60 * 60 * 1000) => {
     cleanupExpiredData();
   }, intervalMs);
 
+  if (cleanupInterval && typeof cleanupInterval.unref === 'function') {
+    cleanupInterval.unref();
+  }
+
   logger.info(`[Cleanup] Background cleanup job started (interval: ${intervalMs / 1000}s).`);
 };
 

@@ -47,7 +47,9 @@ export const awardPoints = async (userId: string, action: PointsAction): Promise
     });
 
     await redisService.invalidateUserCache(userId).catch(() => {});
-    logger.info(`[Points] Awarded ${amount} points to user ${userId} for ${ACTION_NAMES[action]}. New total: ${user.points}`);
+    logger.info(
+      `[Points] Awarded ${amount} points to user ${userId} for ${ACTION_NAMES[action]}. New total: ${user.points}`,
+    );
     return user.points;
   } catch (error) {
     logger.error(`[Points] Failed to award points to user ${userId} for ${action}:`, error);
@@ -74,7 +76,9 @@ export const deductPoints = async (userId: string, action: PointsAction): Promis
     });
 
     await redisService.invalidateUserCache(userId).catch(() => {});
-    logger.info(`[Points] Deducted ${amount} points from user ${userId} due to undoing ${ACTION_NAMES[action]}. New total: ${updated.points}`);
+    logger.info(
+      `[Points] Deducted ${amount} points from user ${userId} due to undoing ${ACTION_NAMES[action]}. New total: ${updated.points}`,
+    );
     return updated.points;
   } catch (error) {
     logger.error(`[Points] Failed to deduct points from user ${userId} for ${action}:`, error);

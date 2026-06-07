@@ -1,62 +1,486 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick, watch, defineAsyncComponent } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
-  Send,
-  X,
-  Trash2,
-  Copy,
-  Check,
-  Square,
+  AlertTriangle,
   Brain,
+  Check,
   ChevronDown,
   ChevronUp,
-  Maximize2,
-  Minimize2,
-  RefreshCw,
-  Image,
+  Cloud,
+  Copy,
   Cpu,
-  Sparkles,
   Database,
   Globe,
-  Cloud,
+  Image,
+  Maximize2,
+  Menu,
+  Minimize2,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
   Settings,
+  Sparkles,
+  Square,
+  Trash2,
+  X,
 } from 'lucide-vue-next';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
-import { useDragAndResize } from '@/composables/useDragAndResize';
-import { useHolidayTheme } from '@/composables/useHolidayTheme';
 import api, { getAssetUrl } from '@/utils/api';
 
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3/lib/es/MdPreview.mjs'));
 import('md-editor-v3/lib/style.css');
 
-// State management stores
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
 const route = useRoute();
+const router = useRouter();
 
-// UI State Variables
+const isVip = computed(() => {
+  const sub = authStore.user?.subscription;
+  return sub && sub.plan?.name !== 'FREE' && sub.status === 'ACTIVE';
+});
+
+const vipPlanName = computed(() => {
+  return (
+    authStore.user?.subscription?.plan?.displayName ||
+    authStore.user?.subscription?.plan?.name ||
+    ''
+  );
+});
+
+const goToBilling = () => {
+  isOpen.value = false;
+  router.push('/billing');
+};
+
 const isOpen = ref(false);
-const isGenerating = ref(false);
-const isTyping = ref(false);
-const inputMessage = ref('');
+const isGeneratingMap = ref<Record<string, boolean>>({});
+const isTypingMap = ref<Record<string, boolean>>({});
 const showBubble = ref(true);
-const streamMeta = ref<{ provider?: string; model?: string; requestId?: string } | null>(null);
+const inputMessage = ref('');
+const showModelDropdown = ref(false);
+const streamMetaMap = ref<
+  Record<string, { provider?: string; model?: string; requestId?: string } | null>
+>({});
+const copiedIndex = ref<string | null>(null);
 const selectedModelId = ref(localStorage.getItem('ai_sprite_model_id') || '');
-
-// Multimodal Upload States
-const uploadedImages = ref<{ url: string; name: string }[]>([]);
-const isUploading = ref(false);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const chatContainer = ref<HTMLDivElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const uploadError = ref('');
+const isUploading = ref(false);
+const isDark = ref(document.documentElement.classList.contains('dark'));
+const historySearch = ref('');
+const activeHistoryId = ref('');
+const chatMode = ref<'default' | 'search' | 'research'>('default');
+
+const showUsageDialog = ref(false);
+const loadingUsage = ref(false);
+const usageData = ref<{
+  usedToday: number;
+  dailyLimit: number;
+  planName: string;
+  planDisplayName: string;
+} | null>(null);
+
+const usagePercent = computed(() => {
+  if (!usageData.value) return 0;
+  return Math.min(100, (usageData.value.usedToday / usageData.value.dailyLimit) * 100);
+});
+
+const usageError = ref('');
+
+const fetchUsageLimit = async () => {
+  loadingUsage.value = true;
+  usageError.value = '';
+  usageData.value = null;
+  showUsageDialog.value = true;
+  try {
+    const response = await api.get('/api/projects/ai-chat/usage');
+    if (response.data && response.data.success) {
+      usageData.value = response.data.data;
+    } else {
+      usageError.value = response.data?.message || '获取额度数据失败，请重试';
+    }
+  } catch (error: any) {
+    console.error('[AI Usage] Failed to fetch AI usage:', error);
+    const apiError =
+      error?.response?.data?.message || error?.message || '请求发送失败，请检查网络或刷新重试';
+    usageError.value = apiError;
+  } finally {
+    loadingUsage.value = false;
+  }
+};
+
+const handleUpgradeClick = () => {
+  showUsageDialog.value = false;
+  goToBilling();
+};
+
+const isFullscreen = ref(false);
+const width = ref(parseInt(localStorage.getItem('ai_sprite_width') || '1000'));
+const height = ref(parseInt(localStorage.getItem('ai_sprite_height') || '720'));
+const offsetX = ref(0);
+const offsetY = ref(0);
+const showMobileSidebar = ref(false);
+const windowWidth = ref(window.innerWidth);
+
+const updateWindowSize = () => {
+  windowWidth.value = window.innerWidth;
+};
+
+const isMobile = computed(() => windowWidth.value < 768);
+
+// Drag logic
+let isDragging = false;
+let startDragX = 0;
+let startDragY = 0;
+
+const startDrag = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
+  if (
+    target.closest('button') ||
+    target.closest('input') ||
+    target.closest('textarea') ||
+    isFullscreen.value ||
+    isMobile.value
+  ) {
+    return;
+  }
+
+  isDragging = true;
+  startDragX = event.clientX - offsetX.value;
+  startDragY = event.clientY - offsetY.value;
+
+  document.addEventListener('mousemove', handleDrag);
+  document.addEventListener('mouseup', stopDrag);
+};
+
+const handleDrag = (event: MouseEvent) => {
+  if (!isDragging) return;
+  offsetX.value = event.clientX - startDragX;
+  offsetY.value = event.clientY - startDragY;
+};
+
+const stopDrag = () => {
+  isDragging = false;
+  document.removeEventListener('mousemove', handleDrag);
+  document.removeEventListener('mouseup', stopDrag);
+};
+
+// Resize logic
+let isResizing = false;
+let startWidth = 0;
+let startHeight = 0;
+let startResizeX = 0;
+let startResizeY = 0;
+
+const startResize = (event: MouseEvent) => {
+  if (isFullscreen.value || isMobile.value) return;
+
+  isResizing = true;
+  startWidth = width.value;
+  startHeight = height.value;
+  startResizeX = event.clientX;
+  startResizeY = event.clientY;
+
+  document.addEventListener('mousemove', handleResize);
+  document.addEventListener('mouseup', stopResize);
+};
+
+const handleResize = (event: MouseEvent) => {
+  if (!isResizing) return;
+  const deltaX = event.clientX - startResizeX;
+  const deltaY = event.clientY - startResizeY;
+
+  width.value = Math.max(500, Math.min(window.innerWidth - 40, startWidth + deltaX));
+  height.value = Math.max(400, Math.min(window.innerHeight - 40, startHeight + deltaY));
+};
+
+const stopResize = () => {
+  isResizing = false;
+  localStorage.setItem('ai_sprite_width', width.value.toString());
+  localStorage.setItem('ai_sprite_height', height.value.toString());
+  document.removeEventListener('mousemove', handleResize);
+  document.removeEventListener('mouseup', stopResize);
+};
+
+const chatModeOptions = [
+  { value: 'default', label: '普通对话', icon: Sparkles },
+  { value: 'search', label: '联网搜索', icon: Globe },
+  { value: 'research', label: '深度研究', icon: Brain },
+] as const;
+
+const uploadedImages = ref<{ url: string; name: string }[]>([]);
 
 const MAX_UPLOAD_IMAGES = 4;
 const MAX_UPLOAD_IMAGE_BYTES = 5 * 1024 * 1024;
 const SUPPORTED_UPLOAD_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
+const activeReaders: Record<string, ReadableStreamDefaultReader<Uint8Array> | null> = {};
+const activeAbortControllers: Record<string, AbortController | null> = {};
+const typewriterQueueMap = ref<Record<string, { type: 'text' | 'reasoning'; char: string }[]>>({});
+const typewriterTimerMap: Record<string, ReturnType<typeof setInterval> | null> = {};
+const typewriterTargetIdMap = ref<Record<string, string>>({});
 let uploadErrorTimer: ReturnType<typeof setTimeout> | null = null;
+let bubbleTimer: ReturnType<typeof setTimeout> | null = null;
+let darkObserver: MutationObserver | null = null;
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+  reasoning?: string;
+  isThinking?: boolean;
+  isThinkingExpanded?: boolean;
+  sessionId?: string;
+  sessionTitle?: string;
+  sources?: Array<{ title: string; link: string; domain: string; publishedAt?: string }>;
+  isSourcesExpanded?: boolean;
+}
+
+const makeMessageId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const generateSessionId = () => {
+  return 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+};
+
+const currentSessionId = ref(localStorage.getItem('ai_sprite_session_id') || generateSessionId());
+if (!localStorage.getItem('ai_sprite_session_id')) {
+  localStorage.setItem('ai_sprite_session_id', currentSessionId.value);
+}
+
+const createMessage = (
+  role: Message['role'],
+  content: string,
+  partial: Partial<Message> = {},
+): Message => ({
+  id: partial.id || makeMessageId(),
+  role,
+  content,
+  createdAt: partial.createdAt || new Date().toISOString(),
+  reasoning: partial.reasoning || '',
+  isThinking: partial.isThinking || false,
+  isThinkingExpanded: partial.isThinkingExpanded ?? false,
+  sessionId: partial.sessionId || currentSessionId.value,
+  sessionTitle: partial.sessionTitle || '新对话',
+  sources: partial.sources,
+  isSourcesExpanded: partial.isSourcesExpanded ?? false,
+});
+
+const createGreetingMessage = () =>
+  createMessage(
+    'assistant',
+    '你好，我是 AI 助手。你可以让我帮你梳理学习计划、分析 3D 项目、解答代码问题，或一起拆解当前工作的下一步。',
+  );
+
+const messages = ref<Message[]>([createGreetingMessage()]);
+
+interface ChatSession {
+  id: string;
+  title: string;
+  preview: string;
+  time: string;
+  createdAt: string;
+}
+
+const chatSessions = computed<ChatSession[]>(() => {
+  const groups: Record<string, Message[]> = {};
+  messages.value.forEach((msg) => {
+    const sId = msg.sessionId || 'default';
+    if (!groups[sId]) {
+      groups[sId] = [];
+    }
+    groups[sId].push(msg);
+  });
+
+  const list: ChatSession[] = [];
+  Object.keys(groups).forEach((sId) => {
+    const groupMessages = groups[sId];
+    const userMsgs = groupMessages.filter((m) => m.role === 'user');
+    if (userMsgs.length === 0) return;
+
+    const firstUserMsg = userMsgs[0];
+    const lastMsg = groupMessages[groupMessages.length - 1];
+
+    // Use the stored sessionTitle if it is custom, otherwise fallback to message content summary
+    const storedTitle = groupMessages.find(
+      (m) => m.sessionTitle && m.sessionTitle !== '新对话',
+    )?.sessionTitle;
+    const title = storedTitle || summarizeMessage(firstUserMsg.content);
+
+    list.push({
+      id: sId,
+      title,
+      preview: sanitizePreviewText(lastMsg.content) || '点击查看该对话',
+      time: formatHistoryTime(
+        lastMsg.createdAt || firstUserMsg.createdAt || new Date().toISOString(),
+      ),
+      createdAt: firstUserMsg.createdAt || new Date().toISOString(),
+    });
+  });
+
+  return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+});
+
+const activeSessionMessages = computed(() => {
+  const filtered = messages.value.filter((msg) => {
+    const sId = msg.sessionId || 'default';
+    return sId === currentSessionId.value;
+  });
+
+  if (filtered.length === 0) {
+    return [createGreetingMessage()];
+  }
+  return filtered;
+});
+
+const selectSession = (sessionId: string) => {
+  currentSessionId.value = sessionId;
+  localStorage.setItem('ai_sprite_session_id', sessionId);
+  showMobileSidebar.value = false;
+  scrollToBottom();
+};
+
+const startNewChat = () => {
+  const newSessId = generateSessionId();
+  currentSessionId.value = newSessId;
+  localStorage.setItem('ai_sprite_session_id', newSessId);
+  messages.value.push(
+    createMessage('assistant', '你好！已开启新对话，请问有什么可以帮您的？', {
+      sessionId: newSessId,
+      sessionTitle: '新对话',
+    }),
+  );
+  showMobileSidebar.value = false;
+  saveHistory();
+  scrollToBottom();
+};
+
+const deleteSession = async (sessionId: string) => {
+  const isDeletingActive = currentSessionId.value === sessionId;
+
+  // Remove messages of this session locally
+  messages.value = messages.value.filter((msg) => (msg.sessionId || 'default') !== sessionId);
+
+  if (authStore.isAuthenticated) {
+    try {
+      await api.delete('/api/projects/ai-chat/history', {
+        params: { sessionId },
+      });
+    } catch (error) {
+      console.error('Failed to delete AI chat session on server:', error);
+    }
+  } else {
+    saveHistory();
+  }
+
+  if (isDeletingActive) {
+    const remainingSessions = chatSessions.value;
+    if (remainingSessions.length > 0) {
+      selectSession(remainingSessions[0].id);
+    } else {
+      startNewChat();
+    }
+  }
+};
+
+const providerMeta: Record<
+  string,
+  { color: string; bg: string; border: string; label: string; lucideIcon: any }
+> = {
+  DEEPSEEK: {
+    color: '#2563eb',
+    bg: 'rgba(37,99,235,0.08)',
+    border: 'rgba(37,99,235,0.2)',
+    label: 'DeepSeek',
+    lucideIcon: Cpu,
+  },
+  OPENAI: {
+    color: '#10a37f',
+    bg: 'rgba(16,163,127,0.08)',
+    border: 'rgba(16,163,127,0.2)',
+    label: 'OpenAI',
+    lucideIcon: Sparkles,
+  },
+  OLLAMA: {
+    color: '#7c3aed',
+    bg: 'rgba(124,58,237,0.08)',
+    border: 'rgba(124,58,237,0.2)',
+    label: 'Ollama',
+    lucideIcon: Database,
+  },
+  QWEN: {
+    color: '#ea580c',
+    bg: 'rgba(234,88,12,0.08)',
+    border: 'rgba(234,88,12,0.2)',
+    label: 'Qwen',
+    lucideIcon: Globe,
+  },
+  GEMINI: {
+    color: '#db2777',
+    bg: 'rgba(219,39,119,0.08)',
+    border: 'rgba(219,39,119,0.2)',
+    label: 'Gemini',
+    lucideIcon: Sparkles,
+  },
+  AZURE: {
+    color: '#0284c7',
+    bg: 'rgba(2,132,199,0.08)',
+    border: 'rgba(2,132,199,0.2)',
+    label: 'Azure',
+    lucideIcon: Cloud,
+  },
+  CUSTOM: {
+    color: '#64748b',
+    bg: 'rgba(100,116,139,0.08)',
+    border: 'rgba(100,116,139,0.2)',
+    label: 'Custom',
+    lucideIcon: Settings,
+  },
+};
+
+const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
+
+const availableAiModels = computed(() =>
+  (systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
+);
+
+const currentModel = computed(
+  () =>
+    availableAiModels.value.find((model) => model.id === selectedModelId.value) ||
+    availableAiModels.value[0],
+);
+
+watch(
+  availableAiModels,
+  (models) => {
+    if (models.length === 0) {
+      selectedModelId.value = '';
+      return;
+    }
+
+    const existing = models.find((model) => model.id === selectedModelId.value);
+    if (!existing) {
+      selectedModelId.value = models.find((model) => model.isDefault)?.id || models[0].id;
+    }
+  },
+  { immediate: true },
+);
+
+watch(selectedModelId, (value) => {
+  if (value) {
+    localStorage.setItem('ai_sprite_model_id', value);
+  } else {
+    localStorage.removeItem('ai_sprite_model_id');
+  }
+});
 
 const showUploadError = (message: string) => {
   uploadError.value = message;
@@ -77,9 +501,262 @@ const redactLocalMessage = (content: string) =>
     )
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer [已脱敏]');
 
+const sanitizePreviewText = (content: string) =>
+  content
+    .replace(/!\[[^\]]*]\([^)]*\)/g, '[图片]')
+    .replace(/[`>#*_~-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const summarizeMessage = (content: string, max = 24) => {
+  const clean = sanitizePreviewText(content);
+  if (!clean) return '未命名对话';
+  return clean.length > max ? `${clean.slice(0, max)}...` : clean;
+};
+
+const formatHistoryTime = (value: string) => {
+  try {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+    const now = new Date();
+    const sameDay = date.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (sameDay) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    if (date.toDateString() === yesterday.toDateString()) {
+      return '昨天';
+    }
+    return date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+  } catch (error) {
+    console.error('Failed to format history time:', error);
+    return '';
+  }
+};
+
+const recentPrompts = computed(() => {
+  const filtered = historySearch.value.trim().toLowerCase();
+  return chatSessions.value.filter((item) => {
+    if (!filtered) return true;
+
+    // Check if session title or preview matches
+    if (
+      item.title.toLowerCase().includes(filtered) ||
+      item.preview.toLowerCase().includes(filtered)
+    ) {
+      return true;
+    }
+
+    // Check if any message inside this session matches
+    const sessionMessages = messages.value.filter(
+      (msg) => (msg.sessionId || 'default') === item.id,
+    );
+    return sessionMessages.some((msg) => msg.content.toLowerCase().includes(filtered));
+  });
+});
+
+const currentConversationTitle = computed(() => {
+  const activeSess = chatSessions.value.find((s) => s.id === currentSessionId.value);
+  return activeSess?.title || '新对话';
+});
+
+const currentConversationMeta = computed(() => {
+  const activeSessMsgs = activeSessionMessages.value.filter((m) => m.role === 'user');
+  return activeSessMsgs.length > 0 ? `当前会话共 ${activeSessMsgs.length} 条提问` : '新对话';
+});
+
+const shouldShowLandingState = computed(
+  () =>
+    !isGeneratingMap.value[currentSessionId.value] &&
+    !isTypingMap.value[currentSessionId.value] &&
+    activeSessionMessages.value.length <= 1 &&
+    activeSessionMessages.value.every((message) => message.role === 'assistant'),
+);
+
+const messageRefs = new Map<string, HTMLElement>();
+
+const setMessageRef = (id: string, element: Element | null) => {
+  if (element instanceof HTMLElement) {
+    messageRefs.set(id, element);
+  } else {
+    messageRefs.delete(id);
+  }
+};
+
+const scrollToBottom = async () => {
+  await nextTick();
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+};
+
+const syncActiveHistory = () => {
+  const lastUserMessage = [...messages.value].reverse().find((message) => message.role === 'user');
+  activeHistoryId.value = lastUserMessage?.id || '';
+};
+
+const saveHistory = () => {
+  if (!authStore.isAuthenticated) {
+    const safeMessages = messages.value.slice(-40).map((message) => ({
+      ...message,
+      content: redactLocalMessage(message.content),
+      isThinking: false,
+      isThinkingExpanded: false,
+    }));
+    sessionStorage.setItem('ai_sprite_chat_history', JSON.stringify(safeMessages));
+  }
+};
+
+/** Marker string used to embed serialised sources inside the reasoning field. */
+const SOURCES_MARKER = '\n[sources]: ';
+
+const parseSourcesFromReasoning = (reasoningText: string) => {
+  if (!reasoningText) return { text: '', sources: null };
+  const idx = reasoningText.lastIndexOf(SOURCES_MARKER);
+  if (idx >= 0) {
+    try {
+      const sourcesStr = reasoningText.slice(idx + SOURCES_MARKER.length);
+      const parsed = JSON.parse(sourcesStr);
+      // Guard: sources must be an array of objects, otherwise ignore
+      if (!Array.isArray(parsed)) return { text: reasoningText, sources: null };
+      return {
+        text: reasoningText.slice(0, idx),
+        sources: parsed as Array<{
+          title: string;
+          link: string;
+          domain: string;
+          publishedAt?: string;
+        }>,
+      };
+    } catch {
+      return { text: reasoningText, sources: null };
+    }
+  }
+  return { text: reasoningText, sources: null };
+};
+
+const loadGuestHistory = () => {
+  const saved = sessionStorage.getItem('ai_sprite_chat_history');
+  if (!saved) {
+    messages.value = [createGreetingMessage()];
+    syncActiveHistory();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      messages.value = parsed
+        .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
+        .slice(-40)
+        .map((msg: any) => {
+          const sourcesResult = parseSourcesFromReasoning(msg.reasoning || '');
+          return createMessage(msg.role, msg.content, {
+            id: msg.id,
+            createdAt: msg.createdAt,
+            reasoning: sourcesResult.text,
+            sources: msg.sources || sourcesResult.sources || undefined,
+            isSourcesExpanded: false,
+            sessionId: msg.sessionId || 'default',
+            sessionTitle: msg.sessionTitle || '新对话',
+          });
+        });
+      const latestMsg = messages.value[messages.value.length - 1];
+      if (latestMsg && latestMsg.sessionId) {
+        currentSessionId.value = latestMsg.sessionId;
+        localStorage.setItem('ai_sprite_session_id', latestMsg.sessionId);
+      }
+      syncActiveHistory();
+      return;
+    }
+  } catch (error) {
+    console.warn('Failed to parse local AI chat history:', error);
+  }
+
+  messages.value = [createGreetingMessage()];
+  syncActiveHistory();
+};
+
+const loadHistory = async () => {
+  if (!authStore.isAuthenticated) {
+    loadGuestHistory();
+    return;
+  }
+
+  try {
+    const response = await api.get('/api/projects/ai-chat/history');
+    const history = response.data?.data || [];
+    if (response.data?.success && history.length > 0) {
+      messages.value = history
+        .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
+        .slice(-80)
+        .map((msg: any) => {
+          const sourcesResult = parseSourcesFromReasoning(msg.reasoning || '');
+          return createMessage(msg.role, msg.content, {
+            id: msg.id,
+            createdAt: msg.createdAt,
+            reasoning: sourcesResult.text,
+            sources: sourcesResult.sources || undefined,
+            isSourcesExpanded: false,
+            sessionId: msg.sessionId || 'default',
+            sessionTitle: msg.sessionTitle || '新对话',
+          });
+        });
+      const latestMsg = messages.value[messages.value.length - 1];
+      if (latestMsg && latestMsg.sessionId) {
+        currentSessionId.value = latestMsg.sessionId;
+        localStorage.setItem('ai_sprite_session_id', latestMsg.sessionId);
+      }
+    } else {
+      messages.value = [createGreetingMessage()];
+    }
+    syncActiveHistory();
+  } catch (error: any) {
+    if (error?.response?.status !== 401) {
+      console.error('Failed to fetch AI chat history from server:', error);
+    }
+    loadGuestHistory();
+  }
+};
+
+watch(
+  () => authStore.isAuthenticated,
+  () => {
+    loadHistory();
+  },
+  { immediate: true },
+);
+
+watch(isOpen, (open) => {
+  if (open) {
+    showBubble.value = false;
+    offsetX.value = 0;
+    offsetY.value = 0;
+    showMobileSidebar.value = false;
+    nextTick(() => {
+      textareaRef.value?.focus();
+      scrollToBottom();
+    });
+  } else {
+    showModelDropdown.value = false;
+    showMobileSidebar.value = false;
+  }
+});
+
+watch(inputMessage, async () => {
+  await nextTick();
+  const textarea = textareaRef.value;
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${Math.min(160, textarea.scrollHeight)}px`;
+});
+
 const canAttachImage = (file: File) => {
   if (uploadedImages.value.length >= MAX_UPLOAD_IMAGES) {
-    showUploadError(`最多可附加 ${MAX_UPLOAD_IMAGES} 张图片`);
+    showUploadError(`最多只能上传 ${MAX_UPLOAD_IMAGES} 张图片`);
     return false;
   }
   if (!SUPPORTED_UPLOAD_IMAGE_TYPES.has(file.type)) {
@@ -93,69 +770,15 @@ const canAttachImage = (file: File) => {
   return true;
 };
 
-/**
- * Triggers the hidden file input.
- */
 const triggerFileInput = () => {
-  if (fileInputRef.value) {
-    fileInputRef.value.click();
-  }
+  fileInputRef.value?.click();
 };
 
-/**
- * Uploads selected image files.
- */
-const handleFileChange = async (e: Event) => {
-  const target = e.target as HTMLInputElement;
-  if (!target.files || target.files.length === 0) return;
-
-  isUploading.value = true;
-  try {
-    for (let i = 0; i < target.files.length; i++) {
-      const file = target.files[i];
-      if (file.type.startsWith('image/')) {
-        await uploadAndAppendImage(file);
-      }
-    }
-  } finally {
-    isUploading.value = false;
-    target.value = '';
-  }
-};
-
-/**
- * Captures image files pasted from clipboard.
- */
-const handlePaste = async (e: ClipboardEvent) => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (item.type.indexOf('image') !== -1) {
-      e.preventDefault();
-      const file = item.getAsFile();
-      if (file) {
-        isUploading.value = true;
-        try {
-          await uploadAndAppendImage(file);
-        } finally {
-          isUploading.value = false;
-        }
-      }
-    }
-  }
-};
-
-/**
- * Uploads an image to backend and adds it to the attached list.
- */
 const uploadAndAppendImage = async (file: File) => {
   if (!canAttachImage(file)) return;
 
   const formData = new FormData();
   formData.append('image', file);
-
   const csrfToken = document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
 
   try {
@@ -168,314 +791,135 @@ const uploadAndAppendImage = async (file: File) => {
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      let message = errText || `Upload HTTP error: ${response.status}`;
+      const errorText = await response.text();
+      let message = errorText || `Upload HTTP error: ${response.status}`;
       try {
-        const parsed = JSON.parse(errText);
+        const parsed = JSON.parse(errorText);
         message = parsed.error || parsed.message || message;
       } catch {}
       throw new Error(message);
     }
 
     const result = await response.json();
-    if (result.success && result.url) {
-      uploadedImages.value.push({
-        url: result.url,
-        name: result.name || file.name,
-      });
-      await scrollToBottom();
-    } else {
+    if (!result.success || !result.url) {
       throw new Error(result.error || '图片上传失败');
     }
+
+    uploadedImages.value.push({
+      url: result.url,
+      name: result.name || file.name,
+    });
+    await scrollToBottom();
   } catch (error) {
     console.error('Failed to upload image:', error);
     showUploadError(error instanceof Error ? error.message : '图片上传失败');
   }
 };
 
-/**
- * Removes attached image by index.
- */
-const removeUploadedImage = (idx: number) => {
-  uploadedImages.value.splice(idx, 1);
-};
+const handleFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (!target.files?.length) return;
 
-// DOM reference for auto-scroll
-const chatContainer = ref<HTMLDivElement | null>(null);
-
-/**
- * Scroll conversation messages container to bottom.
- */
-const scrollToBottom = async () => {
-  await nextTick();
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  isUploading.value = true;
+  try {
+    for (let index = 0; index < target.files.length; index += 1) {
+      const file = target.files[index];
+      if (file.type.startsWith('image/')) {
+        await uploadAndAppendImage(file);
+      }
+    }
+  } finally {
+    isUploading.value = false;
+    target.value = '';
   }
 };
 
-// Composable state helpers for drag, resize, and holiday checking
-const {
-  chatBoxWidth,
-  chatBoxHeight,
-  isResizing,
-  isMaximized,
-  position,
-  getHasMoved,
-  onDragStart,
-  onResizeStart,
-  toggleMaximize,
-  adjustBoxSizeForViewport,
-} = useDragAndResize({
-  initialWidth: 380,
-  initialHeight: 480,
-  storageWidthKey: 'ai_sprite_chat_width',
-  storageHeightKey: 'ai_sprite_chat_height',
-  onPostScroll: scrollToBottom,
-});
+const handlePaste = async (event: ClipboardEvent) => {
+  const items = event.clipboardData?.items;
+  if (!items) return;
 
-const { currentHoliday } = useHolidayTheme();
-
-const availableAiModels = computed(() =>
-  (systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
-);
-
-watch(
-  availableAiModels,
-  (models) => {
-    if (models.length === 0) {
-      selectedModelId.value = '';
-      return;
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if (!item.type.startsWith('image/')) continue;
+    event.preventDefault();
+    const file = item.getAsFile();
+    if (!file) continue;
+    isUploading.value = true;
+    try {
+      await uploadAndAppendImage(file);
+    } finally {
+      isUploading.value = false;
     }
-
-    const storedModel = models.find((model) => model.id === selectedModelId.value);
-    if (!storedModel) {
-      selectedModelId.value = models.find((model) => model.isDefault)?.id || models[0].id;
-    }
-  },
-  { immediate: true },
-);
-
-watch(selectedModelId, (modelId) => {
-  if (modelId) {
-    localStorage.setItem('ai_sprite_model_id', modelId);
-  } else {
-    localStorage.removeItem('ai_sprite_model_id');
   }
-});
-
-const showModelDropdown = ref(false);
-const currentModel = computed(() => {
-  return availableAiModels.value.find((m) => m.id === selectedModelId.value) || availableAiModels.value[0];
-});
-
-const providerMeta: Record<string, { color: string; bg: string; border: string; label: string; lucideIcon: any }> = {
-  DEEPSEEK: { color: '#2563eb', bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.25)', label: 'DeepSeek', lucideIcon: Cpu },
-  OPENAI: { color: '#10a37f', bg: 'rgba(16,163,127,0.08)', border: 'rgba(16,163,127,0.25)', label: 'OpenAI', lucideIcon: Sparkles },
-  OLLAMA: { color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', label: 'Ollama', lucideIcon: Database },
-  QWEN: { color: '#ea580c', bg: 'rgba(234,88,12,0.08)', border: 'rgba(234,88,12,0.25)', label: 'Qwen', lucideIcon: Globe },
-  GEMINI: { color: '#db2777', bg: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.25)', label: 'Gemini', lucideIcon: Sparkles },
-  AZURE: { color: '#0284c7', bg: 'rgba(2,132,199,0.08)', border: 'rgba(2,132,199,0.25)', label: 'Azure', lucideIcon: Cloud },
-  CUSTOM: { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.25)', label: 'Custom', lucideIcon: Settings },
 };
-const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
 
-const handleDocumentClickForModel = (e: MouseEvent) => {
-  const target = e.target as HTMLElement;
+const removeUploadedImage = (index: number) => {
+  uploadedImages.value.splice(index, 1);
+};
+
+const handleSpriteClick = () => {
+  isOpen.value = !isOpen.value;
+};
+
+const handleDocumentClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
   if (!target.closest('.model-select-dropdown-container')) {
     showModelDropdown.value = false;
   }
 };
 
-onMounted(() => {
-  window.addEventListener('click', handleDocumentClickForModel);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('click', handleDocumentClickForModel);
-});
-
-// Active LLM Stream Reader & Copy States
-let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-const copiedIndex = ref<number | null>(null);
-
-const isDark = ref(document.documentElement.classList.contains('dark'));
-let darkObserver: MutationObserver | null = null;
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
-
-// Chat message contract
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  reasoning?: string;
-  isThinking?: boolean;
-  isThinkingExpanded?: boolean;
-}
-
-const createGreetingMessage = (): Message => ({
-  role: 'assistant',
-  content:
-    '您好，我是平台的 AI 企业学习顾问。可以协助您处理 3D 技术问答、项目拆解、学习路线规划、资产质量检查和平台使用问题。请直接描述目标、当前进展或遇到的阻塞点。',
-});
-
-const loadGuestHistory = () => {
-  const saved = sessionStorage.getItem('ai_sprite_chat_history');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        messages.value = parsed
-          .filter((msg) => msg?.role === 'user' || msg?.role === 'assistant')
-          .slice(-40);
-        return;
-      }
-    } catch (e) {
-      console.warn('Failed to parse local AI chat history:', e);
-    }
-  }
-  messages.value = [createGreetingMessage()];
-};
-
-// Initial chat prompt message history
-const messages = ref<Message[]>([createGreetingMessage()]);
-
-/**
- * Handles clicks on the mascot sprite. Ignores trigger if dragging just occurred.
- */
-const handleSpriteClick = () => {
-  if (getHasMoved()) return;
-  isOpen.value = !isOpen.value;
-  if (isOpen.value) {
-    showBubble.value = false;
-    adjustBoxSizeForViewport();
-    scrollToBottom();
-  } else {
-    isMaximized.value = false;
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    handleSend();
   }
 };
 
-// Loads conversation history. If authenticated, fetches from the database. Otherwise, falls back to sessionStorage.
-const loadHistory = async () => {
-  if (!authStore.isAuthenticated) {
-    loadGuestHistory();
-    return;
+const startTypewriter = (messageId: string, sId: string) => {
+  if (typewriterTimerMap[sId]) return;
+  typewriterTargetIdMap.value[sId] = messageId;
+
+  if (!typewriterQueueMap.value[sId]) {
+    typewriterQueueMap.value[sId] = [];
   }
 
-  try {
-    const response = await api.get('/api/projects/ai-chat/history');
-    if (response.data && response.data.success && response.data.data.length > 0) {
-      messages.value = response.data.data
-        .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
-        .slice(-80)
-        .map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-          reasoning: '',
-          isThinking: false,
-          isThinkingExpanded: false,
-        }));
-    } else {
-      messages.value = [createGreetingMessage()];
-    }
-  } catch (error: any) {
-    if (error?.response?.status !== 401) {
-      console.error('Failed to fetch AI chat history from server:', error);
-    }
-    loadGuestHistory();
-  }
-};
+  typewriterTimerMap[sId] = setInterval(() => {
+    const currentMessage = messages.value.find((m) => m.id === messageId);
+    if (!currentMessage) return;
 
-// Watch authentication state changes to load corresponding history dynamically
-watch(
-  () => authStore.isAuthenticated,
-  () => {
-    loadHistory();
-  },
-  { immediate: true },
-);
-
-// Initialize session state on mount
-onMounted(() => {
-  // Auto fade out bubble tip after 8 seconds
-  setTimeout(() => {
-    showBubble.value = false;
-  }, 8000);
-
-  // Observe dark class changes on documentElement
-  darkObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-        isDark.value = document.documentElement.classList.contains('dark');
-      }
-    });
-  });
-  darkObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class'],
-  });
-});
-
-onUnmounted(() => {
-  handleStop();
-  if (uploadErrorTimer) {
-    clearTimeout(uploadErrorTimer);
-  }
-  if (darkObserver) {
-    darkObserver.disconnect();
-  }
-});
-
-/**
- * Persists messages in session storage.
- */
-const saveHistory = () => {
-  if (!authStore.isAuthenticated) {
-    const safeMessages = messages.value.slice(-40).map((message) => ({
-      ...message,
-      content: redactLocalMessage(message.content),
-      reasoning: undefined,
-      isThinking: false,
-      isThinkingExpanded: false,
-    }));
-    sessionStorage.setItem('ai_sprite_chat_history', JSON.stringify(safeMessages));
-  }
-};
-
-// Typewriter queue: chars pending display + interval handle
-const typewriterQueue = ref<{ type: 'text' | 'reasoning'; char: string }[]>([]);
-let typewriterTimer: ReturnType<typeof setInterval> | null = null;
-let typewriterTargetIndex = -1;
-
-/**
- * Drain one character per tick from the typewriter queue into the message.
- * Scroll happens via requestAnimationFrame at most once per frame.
- */
-const startTypewriter = (targetIdx: number) => {
-  if (typewriterTimer !== null) return; // already running
-  if (targetIdx < 0 || !messages.value[targetIdx]) return;
-  typewriterTargetIndex = targetIdx;
-
-  typewriterTimer = setInterval(() => {
-    // Drain up to 12 chars per tick (~720 chars/s) — fast enough to keep up with any LLM
-    // but still creates a smooth character-by-character visual effect.
-    const batch = Math.min(12, typewriterQueue.value.length);
+    const queue = typewriterQueueMap.value[sId];
+    const batch = Math.min(12, queue.length);
     if (batch === 0) return;
-    for (let i = 0; i < batch; i++) {
-      const item = typewriterQueue.value.shift();
-      if (item !== undefined && messages.value[typewriterTargetIndex]) {
-        const msg = messages.value[typewriterTargetIndex];
-        if (item.type === 'reasoning') {
-          msg.isThinking = true;
-          if (!msg.reasoning) msg.reasoning = '';
-          msg.reasoning += item.char;
-        } else {
-          msg.isThinking = false;
-          msg.content += item.char;
+
+    let hasReasoning = false;
+    for (let index = 0; index < batch; index += 1) {
+      const item = queue.shift();
+      if (!item) continue;
+
+      if (item.type === 'reasoning') {
+        currentMessage.isThinking = true;
+        currentMessage.reasoning = `${currentMessage.reasoning || ''}${item.char}`;
+        hasReasoning = true;
+      } else {
+        currentMessage.isThinking = false;
+        currentMessage.content += item.char;
+      }
+    }
+
+    if (hasReasoning) {
+      const msgEl = messageRefs.get(currentMessage.id);
+      if (msgEl) {
+        const thinkingContentEl = msgEl.querySelector('.thinking-content');
+        if (thinkingContentEl) {
+          thinkingContentEl.scrollTop = thinkingContentEl.scrollHeight;
         }
       }
     }
-    // Smart auto-scroll: only scroll if the user is already near the bottom
-    const container = chatContainer.value;
-    if (container) {
+
+    if (sId === currentSessionId.value) {
+      const container = chatContainer.value;
+      if (!container) return;
+
       const threshold = 80;
       const isNearBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
@@ -485,124 +929,156 @@ const startTypewriter = (targetIdx: number) => {
         });
       }
     }
-  }, 16); // ~60 fps
+  }, 16);
 };
 
-const stopTypewriter = () => {
-  if (typewriterTimer !== null) {
-    clearInterval(typewriterTimer);
-    typewriterTimer = null;
+const stopTypewriter = (sId: string) => {
+  if (typewriterTimerMap[sId]) {
+    clearInterval(typewriterTimerMap[sId]!);
+    typewriterTimerMap[sId] = null;
   }
 };
 
-/**
- * Flush remaining queued chars instantly (used when stream ends or user stops).
- */
-const flushTypewriterQueue = (targetIdx: number) => {
-  stopTypewriter();
-  if (targetIdx < 0 || !messages.value[targetIdx]) {
-    typewriterQueue.value = [];
+const flushTypewriterQueue = (messageId: string, sId: string) => {
+  stopTypewriter(sId);
+  const currentMessage = messages.value.find((m) => m.id === messageId);
+  const queue = typewriterQueueMap.value[sId] || [];
+  if (!currentMessage) {
+    typewriterQueueMap.value[sId] = [];
     return;
   }
-  while (typewriterQueue.value.length > 0) {
-    const item = typewriterQueue.value.shift();
-    if (item !== undefined) {
-      const msg = messages.value[targetIdx];
-      if (item.type === 'reasoning') {
-        if (!msg.reasoning) msg.reasoning = '';
-        msg.reasoning += item.char;
-      } else {
-        msg.content += item.char;
-      }
+
+  while (queue.length > 0) {
+    const item = queue.shift();
+    if (!item) continue;
+    if (item.type === 'reasoning') {
+      currentMessage.reasoning = `${currentMessage.reasoning || ''}${item.char}`;
+    } else {
+      currentMessage.content += item.char;
     }
   }
 };
 
-const adjustTextareaHeight = () => {
-  const ta = textareaRef.value;
-  if (!ta) return;
-  ta.style.height = 'auto';
-  ta.style.height = `${Math.min(120, ta.scrollHeight)}px`;
-};
-
-watch(inputMessage, () => {
-  nextTick(adjustTextareaHeight);
-});
-
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    handleSend();
-  }
-};
-
-const regenerateResponse = async () => {
-  if (isGenerating.value || isTyping.value) return;
-
-  let lastUserMsgIndex = -1;
-  for (let i = messages.value.length - 1; i >= 0; i--) {
-    if (messages.value[i].role === 'user') {
-      lastUserMsgIndex = i;
-      break;
+const handleStop = (sId: string = currentSessionId.value) => {
+  if (activeAbortControllers[sId]) {
+    try {
+      activeAbortControllers[sId]!.abort();
+    } catch (error) {
+      console.error('Failed to abort fetch for session:', sId, error);
     }
+    activeAbortControllers[sId] = null;
+  }
+  if (activeReaders[sId]) {
+    try {
+      activeReaders[sId]!.cancel();
+    } catch (error) {
+      console.error('Failed to cancel active reader for session:', sId, error);
+    }
+    activeReaders[sId] = null;
   }
 
-  if (lastUserMsgIndex === -1) return;
-
-  messages.value = messages.value.slice(0, lastUserMsgIndex + 1);
-  const lastUserText = messages.value.pop()?.content || '';
-  inputMessage.value = lastUserText;
-  await handleSend();
+  const targetId = typewriterTargetIdMap.value[sId];
+  if (targetId) {
+    flushTypewriterQueue(targetId, sId);
+  }
+  if (typewriterQueueMap.value[sId]) {
+    typewriterQueueMap.value[sId] = [];
+  }
+  isGeneratingMap.value[sId] = false;
+  isTypingMap.value[sId] = false;
 };
 
-/**
- * Streams the conversation reply from the backend Server-Sent Events (SSE) API.
- * Uses the browser native fetch API to read chunks on-the-fly.
- * Characters are fed into a typewriter queue to always show smooth char-by-char output.
- */
 const handleSend = async () => {
-  if (isGenerating.value || isTyping.value) return;
+  const sId = currentSessionId.value;
+  if (isGeneratingMap.value[sId] || isTypingMap.value[sId]) return;
 
-  const textMsg = inputMessage.value.trim();
-  if (!textMsg && uploadedImages.value.length === 0) return;
+  const textMessage = inputMessage.value.trim();
+  if (!textMessage && uploadedImages.value.length === 0) return;
 
-  let userMsg = textMsg;
+  // Concurrency check (max 3 concurrent requests across all sessions).
+  // Must take the union of both maps' keys to correctly count sessions that are
+  // still in the "typing" phase even though "generating" has already completed.
+  const activeSessionKeys = new Set([
+    ...Object.keys(isGeneratingMap.value),
+    ...Object.keys(isTypingMap.value),
+  ]);
+  const activeGeneratingCount = [...activeSessionKeys].filter(
+    (key) => isGeneratingMap.value[key] || isTypingMap.value[key],
+  ).length;
+  if (activeGeneratingCount >= 3) {
+    const warnMessage = createMessage(
+      'assistant',
+      '同时提问的对话已达上限（最多 3 个），请等待其他对话生成完毕。',
+      { sessionId: sId },
+    );
+    messages.value.push(warnMessage);
+    saveHistory();
+    scrollToBottom();
+    return;
+  }
+
+  let userContent = textMessage;
   if (uploadedImages.value.length > 0) {
     const imageMarkdown = uploadedImages.value
-      .map((img) => `![${img.name}](${img.url})`)
+      .map((image) => `![${image.name}](${image.url})`)
       .join('\n');
-    userMsg = textMsg ? `${imageMarkdown}\n\n${textMsg}` : imageMarkdown;
+    userContent = textMessage ? `${imageMarkdown}\n\n${textMessage}` : imageMarkdown;
   }
 
-  messages.value.push({ role: 'user', content: userMsg });
+  const userMessage = createMessage('user', userContent, { sessionId: sId });
+  messages.value.push(userMessage);
+  activeHistoryId.value = userMessage.id;
   inputMessage.value = '';
   uploadedImages.value = [];
-
-  nextTick(() => {
-    if (textareaRef.value) {
-      textareaRef.value.style.height = 'auto';
-    }
-  });
   saveHistory();
+
+  await nextTick();
+  if (textareaRef.value) {
+    textareaRef.value.style.height = 'auto';
+  }
   await scrollToBottom();
 
-  isGenerating.value = true;
-  typewriterQueue.value = [];
-  streamMeta.value = null;
+  const chatHistory = activeSessionMessages.value.slice(-10).map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+  const sessionTitle =
+    activeSessionMessages.value.find((message) => message.role === 'user')?.content.slice(0, 30) ||
+    '新对话';
+
+  const assistantMessage = createMessage('assistant', '', {
+    reasoning: '',
+    isThinking: true,
+    isThinkingExpanded: true,
+    sessionId: sId,
+  });
+  messages.value.push(assistantMessage);
+
+  isGeneratingMap.value[sId] = true;
+  typewriterQueueMap.value[sId] = [];
+  streamMetaMap.value[sId] = null;
+  const controller = new AbortController();
+  activeAbortControllers[sId] = controller;
+  const signal = controller.signal;
+
+  await nextTick();
+  await scrollToBottom();
 
   try {
-    const chatHistory = messages.value.slice(-10);
-    // Invoke direct native fetch to stream chunked SSE payloads
     const response = await fetch('/api/projects/ai-chat', {
       method: 'POST',
       headers: createJsonHeaders(),
+      signal,
       body: JSON.stringify({
         messages: chatHistory,
         modelId: selectedModelId.value || undefined,
         context: {
-          path: route?.path || '',
+          path: route.path || '',
           title: document.title || '',
         },
+        sessionId: sId,
+        sessionTitle,
+        mode: chatMode.value,
       }),
     });
 
@@ -614,92 +1090,116 @@ const handleSend = async () => {
       throw new Error('Readable stream not supported in this browser environment.');
     }
 
-    isGenerating.value = false;
-    isTyping.value = true;
+    isGeneratingMap.value[sId] = false;
+    isTypingMap.value[sId] = true;
 
-    // Insert an empty assistant message block for append-streaming
-    messages.value.push({
-      role: 'assistant',
-      content: '',
-      reasoning: '',
-      isThinking: false,
-      isThinkingExpanded: true,
-    });
-    const targetIndex = messages.value.length - 1;
-
-    // Start typewriter draining the queue into the message
-    startTypewriter(targetIndex);
-
-    activeReader = response.body.getReader();
+    startTypewriter(assistantMessage.id, sId);
+    const reader = response.body.getReader();
+    activeReaders[sId] = reader;
 
     await parseSSEStream(
-      activeReader,
+      reader,
       (payload) => {
         if (payload.event === 'meta') {
-          streamMeta.value = {
+          streamMetaMap.value[sId] = {
             provider: payload.provider,
             model: payload.model,
             requestId: payload.requestId,
           };
-        } else if (payload.event === 'heartbeat' || payload.event === 'done') {
           return;
-        } else if (payload.error) {
-          for (const ch of `\n[错误: ${payload.error}]`) {
-            typewriterQueue.value.push({ type: 'text', char: ch });
+        }
+
+        if (payload.event === 'heartbeat' || payload.event === 'done') {
+          return;
+        }
+
+        if (payload.event === 'sources') {
+          const msgObj = messages.value.find((m) => m.id === assistantMessage.id);
+          if (msgObj) {
+            msgObj.sources = payload.sources;
+            msgObj.isSourcesExpanded = false;
           }
-        } else if (payload.reasoning) {
-          for (const ch of payload.reasoning) {
-            typewriterQueue.value.push({ type: 'reasoning', char: ch });
+          return;
+        }
+
+        if (payload.error) {
+          if (!typewriterQueueMap.value[sId]) typewriterQueueMap.value[sId] = [];
+          for (const char of `\n[错误: ${payload.error}]`) {
+            typewriterQueueMap.value[sId].push({ type: 'text', char });
           }
-        } else if (payload.text) {
-          for (const ch of payload.text) {
-            typewriterQueue.value.push({ type: 'text', char: ch });
+          return;
+        }
+
+        if (payload.reasoning) {
+          if (!typewriterQueueMap.value[sId]) typewriterQueueMap.value[sId] = [];
+          for (const char of payload.reasoning) {
+            typewriterQueueMap.value[sId].push({ type: 'reasoning', char });
+          }
+          return;
+        }
+
+        if (payload.text) {
+          if (!typewriterQueueMap.value[sId]) typewriterQueueMap.value[sId] = [];
+          for (const char of payload.text) {
+            typewriterQueueMap.value[sId].push({ type: 'text', char });
           }
         }
       },
       () => {},
-      (err) => {
-        throw err;
+      (error) => {
+        throw error;
       },
     );
 
-    // Stream ended — wait for typewriter to fully drain the queue, then stop it cleanly.
     await new Promise<void>((resolve) => {
-      const waitDrain = setInterval(() => {
-        if (typewriterQueue.value.length === 0) {
-          clearInterval(waitDrain);
+      const timer = setInterval(() => {
+        const queue = typewriterQueueMap.value[sId];
+        if (!queue || queue.length === 0) {
+          clearInterval(timer);
           resolve();
         }
       }, 20);
     });
 
-    // Auto collapse thinking process after generation completes successfully
-    if (messages.value[targetIndex]) {
-      messages.value[targetIndex].isThinkingExpanded = false;
+    const msgObj = messages.value.find((m) => m.id === assistantMessage.id);
+    if (msgObj) {
+      msgObj.isThinkingExpanded = false;
     }
   } catch (error: any) {
-    console.error('AI streaming chat error:', error);
-    isGenerating.value = false;
-    flushTypewriterQueue(typewriterTargetIndex); // flush any pending chars on error
-    const errMsg = error.message || '连接失败';
-    messages.value.push({ role: 'assistant', content: `AI 服务暂时不可用：${errMsg}` });
+    if (error.name !== 'AbortError') {
+      console.error('AI streaming chat error in session:', sId, error);
+    }
+    isGeneratingMap.value[sId] = false;
+    flushTypewriterQueue(assistantMessage.id, sId);
+    const message = error?.message || '连接失败';
+    const msgObj = messages.value.find((m) => m.id === assistantMessage.id);
+    if (msgObj) {
+      msgObj.content = error.name === 'AbortError' ? '生成已终止' : `AI 服务暂时不可用：${message}`;
+      msgObj.isThinking = false;
+      msgObj.isThinkingExpanded = false;
+    }
   } finally {
-    stopTypewriter();
-    isTyping.value = false;
-    activeReader = null;
+    stopTypewriter(sId);
+    isTypingMap.value[sId] = false;
+    activeReaders[sId] = null;
+    activeAbortControllers[sId] = null;
     saveHistory();
-    await scrollToBottom();
+    if (sId === currentSessionId.value) {
+      await scrollToBottom();
+    }
   }
 };
 
 const clearHistory = async () => {
-  messages.value = [
-    {
-      role: 'assistant',
-      content: '历史记录已清空。请告诉我新的目标、问题或需要分析的上下文。',
-    },
-  ];
-  streamMeta.value = null;
+  messages.value = [];
+  const sId = currentSessionId.value;
+  streamMetaMap.value[sId] = null;
+  activeHistoryId.value = '';
+
+  const newSessId = generateSessionId();
+  currentSessionId.value = newSessId;
+  localStorage.setItem('ai_sprite_session_id', newSessId);
+
   if (authStore.isAuthenticated) {
     try {
       await api.delete('/api/projects/ai-chat/history');
@@ -709,1161 +1209,1406 @@ const clearHistory = async () => {
   } else {
     saveHistory();
   }
+
+  messages.value = [
+    createMessage('assistant', '历史记录已清空，请告诉我新的目标、问题或需要 analysis 的上下文。', {
+      sessionId: newSessId,
+    }),
+  ];
+
+  await scrollToBottom();
 };
 
-/**
- * Stops/cancels the active stream reader generation.
- */
-const handleStop = () => {
-  if (activeReader) {
-    try {
-      activeReader.cancel();
-    } catch (e) {
-      console.error('Failed to cancel active reader:', e);
-    }
-    activeReader = null;
-  }
-  // Flush remaining queued typewriter chars instantly on stop
-  flushTypewriterQueue(typewriterTargetIndex);
-  typewriterQueue.value = [];
-  isGenerating.value = false;
-  isTyping.value = false;
+const regenerateResponse = async () => {
+  const sId = currentSessionId.value;
+  if (isGeneratingMap.value[sId] || isTypingMap.value[sId]) return;
+
+  const sessionMessages = messages.value.filter(
+    (message) => (message.sessionId || 'default') === sId,
+  );
+  const lastUserMessage = [...sessionMessages].reverse().find((message) => message.role === 'user');
+  if (!lastUserMessage) return;
+
+  messages.value = messages.value.filter(
+    (message) =>
+      (message.sessionId || 'default') !== sId ||
+      new Date(message.createdAt).getTime() < new Date(lastUserMessage.createdAt).getTime(),
+  );
+  inputMessage.value = sanitizePreviewText(lastUserMessage.content);
+  await nextTick();
+  textareaRef.value?.focus();
+  await handleSend();
 };
 
-/**
- * Safe clipboard copy utility supporting navigator.clipboard (HTTPS)
- * and standard document.execCommand fallback (HTTP / local development).
- */
 const copyToClipboard = (text: string): Promise<void> => {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
+  if (navigator.clipboard?.writeText) {
     return navigator.clipboard.writeText(text);
   }
+
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.style.position = 'fixed';
   textarea.style.opacity = '0';
   document.body.appendChild(textarea);
   textarea.select();
+
   try {
     const success = document.execCommand('copy');
     document.body.removeChild(textarea);
     return success ? Promise.resolve() : Promise.reject(new Error('Copy command failed'));
-  } catch (err) {
+  } catch (error) {
     document.body.removeChild(textarea);
-    return Promise.reject(err);
+    return Promise.reject(error);
   }
 };
 
-/**
- * Copies the message text content to the clipboard.
- */
-const copyMessage = (text: string, index: number) => {
+const copyMessage = (text: string, id: string) => {
   copyToClipboard(text)
     .then(() => {
-      copiedIndex.value = index;
+      copiedIndex.value = id;
       setTimeout(() => {
-        if (copiedIndex.value === index) {
+        if (copiedIndex.value === id) {
           copiedIndex.value = null;
         }
-      }, 2000);
+      }, 1800);
     })
-    .catch((err) => {
-      console.error('Failed to copy message:', err);
+    .catch((error) => {
+      console.error('Failed to copy message:', error);
     });
 };
+
+onMounted(() => {
+  bubbleTimer = setTimeout(() => {
+    showBubble.value = false;
+  }, 7000);
+
+  window.addEventListener('click', handleDocumentClick);
+  window.addEventListener('resize', updateWindowSize);
+
+  darkObserver = new MutationObserver(() => {
+    isDark.value = document.documentElement.classList.contains('dark');
+  });
+  darkObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+});
+
+onUnmounted(() => {
+  // Abort all active stream readers across every session
+  Object.keys(activeAbortControllers).forEach((sId) => {
+    handleStop(sId);
+  });
+  // Remove global drag/resize document listeners to prevent leaks when the
+  // component unmounts while the user is mid-drag or mid-resize
+  stopDrag();
+  stopResize();
+  window.removeEventListener('click', handleDocumentClick);
+  window.removeEventListener('resize', updateWindowSize);
+  if (bubbleTimer) {
+    clearTimeout(bubbleTimer);
+  }
+  if (uploadErrorTimer) {
+    clearTimeout(uploadErrorTimer);
+  }
+  darkObserver?.disconnect();
+});
 </script>
 
 <template>
-  <div
-    v-if="systemStore.settings.AI_IMPORT_ENABLED"
-    class="fixed z-[99] flex flex-col items-end elf-parent-container"
-    :style="
-      isMaximized
-        ? { top: '24px', left: '24px', right: '24px', bottom: '24px' }
-        : { bottom: position.bottom + 'px', right: position.right + 'px' }
-    "
-    :class="{ 'elf-parent-maximized': isMaximized }"
-  >
-    <!-- Bubble Tip -->
+  <div v-if="systemStore.settings.AI_IMPORT_ENABLED" class="fixed bottom-5 right-5 z-[99]">
     <Transition name="fade">
       <div
         v-if="showBubble && !isOpen"
-        class="mb-3 px-4 py-2.5 rounded-2xl shadow-xl text-xs font-semibold relative max-w-xs break-all animate-bounce-slow pointer-events-none select-none"
+        class="pointer-events-none absolute bottom-[84px] right-0 w-64 rounded-3xl border px-4 py-3 text-xs font-medium leading-5 shadow-xl"
         style="
-          background: var(--bg-card);
-          border: 1px solid var(--border-base);
+          background: rgba(255, 255, 255, 0.94);
+          border-color: rgba(244, 114, 182, 0.18);
           color: var(--text-secondary);
+          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
         "
       >
-        <span>需要项目、3D 或代码支持时，可以随时打开 AI 顾问。</span>
-        <!-- Arrow -->
-        <div
-          class="absolute bottom-[-6px] right-6 w-3 h-3 rotate-45 border-r border-b"
-          style="background: var(--bg-card); border-color: var(--border-base)"
-        ></div>
+        需要整理学习计划、分析项目、看代码或继续推进当前工作时，随时打开 AI 助手。
       </div>
     </Transition>
 
-    <!-- Chat Box -->
-    <Transition name="slide-fade">
+    <Transition name="panel-fade">
       <div
         v-if="isOpen"
-        class="mb-4 rounded-3xl shadow-2xl border flex flex-col overflow-hidden relative backdrop-blur-md animate-none elf-chat-box"
         :class="[
-          isResizing ? '' : 'transition-all duration-300',
-          isMaximized ? 'is-maximized' : '',
+          'fixed inset-0 z-[100] flex items-center justify-center transition-all duration-200',
+          isFullscreen || isMobile ? 'p-0' : 'p-3 md:p-5 pointer-events-none',
         ]"
-        :style="{
-          width: isMaximized ? '100%' : chatBoxWidth + 'px',
-          height: isMaximized ? '100%' : chatBoxHeight + 'px',
-          backgroundColor: 'rgba(var(--bg-card-rgb, 255, 255, 255), 0.85)',
-          borderColor: 'var(--border-base)',
-        }"
       >
-        <!-- Drag resize handles (resizes from top, left, and top-left edges) -->
-        <!-- Left edge -->
+        <div class="ai-overlay absolute inset-0 pointer-events-auto" @click="isOpen = false"></div>
+
         <div
-          v-if="!isMaximized"
-          class="absolute left-0 top-0 bottom-0 w-2 cursor-w-resize z-30 select-none"
-          @mousedown="onResizeStart($event, 'left')"
-          @touchstart="onResizeStart($event, 'left')"
-        ></div>
-        <!-- Top edge -->
-        <div
-          v-if="!isMaximized"
-          class="absolute left-0 right-0 top-0 h-2 cursor-n-resize z-30 select-none"
-          @mousedown="onResizeStart($event, 'top')"
-          @touchstart="onResizeStart($event, 'top')"
-        ></div>
-        <!-- Top-left corner -->
-        <div
-          v-if="!isMaximized"
-          class="absolute left-0 top-0 w-4 h-4 cursor-nw-resize z-40 select-none"
-          @mousedown="onResizeStart($event, 'top-left')"
-          @touchstart="onResizeStart($event, 'top-left')"
-        ></div>
-        <!-- Top-left visual corner bracket cue -->
-        <div
-          v-if="!isMaximized"
-          class="absolute left-2 top-2 w-2.5 h-2.5 border-l-2 border-t-2 border-slate-400/40 dark:border-slate-500/40 rounded-tl pointer-events-none z-30 elf-resize-bracket"
-        ></div>
-        <!-- Chat Header (draggable handle to move dialogue window) -->
-        <div
-          class="px-5 py-3 border-b flex items-center justify-between bg-gradient-to-r from-indigo-500/10 via-accent/10 to-transparent select-none"
-          :class="isMaximized ? '' : 'cursor-grab active:cursor-grabbing'"
-          style="border-color: var(--border-base)"
-          @mousedown="isMaximized ? undefined : onDragStart($event, isOpen)"
-          @touchstart="isMaximized ? undefined : onDragStart($event, isOpen)"
+          :class="[
+            'ai-shell relative flex overflow-hidden border pointer-events-auto shadow-2xl transition-all duration-200',
+            isFullscreen || isMobile
+              ? 'w-full h-full rounded-none border-none max-w-none max-h-none'
+              : 'rounded-[24px]',
+          ]"
+          :style="
+            isFullscreen || isMobile
+              ? {}
+              : {
+                  width: width + 'px',
+                  height: height + 'px',
+                  transform: `translate(${offsetX}px, ${offsetY}px)`,
+                }
+          "
         >
-          <div class="flex items-center gap-2.5">
-            <!-- Miniature Glowing Mascot inside chat header -->
-            <div
-              class="w-8 h-8 rounded-xl bg-slate-950 flex items-center justify-center text-white shadow-md relative border overflow-hidden"
-              style="border-color: var(--accent)"
-            >
-              <svg viewBox="0 0 64 64" class="w-7 h-7">
-                <path
-                  d="M 12 24 L 6 18 M 52 24 L 58 18"
-                  stroke="var(--accent)"
-                  stroke-width="3"
-                  stroke-linecap="round"
-                />
-                <rect
-                  x="10"
-                  y="16"
-                  width="44"
-                  height="36"
-                  rx="16"
-                  fill="rgba(255, 255, 255, 0.1)"
-                  stroke="var(--accent)"
-                  stroke-width="2.5"
-                />
-                <rect x="14" y="21" width="36" height="25" rx="10" fill="rgba(15, 23, 42, 0.9)" />
-                <circle cx="23" cy="30" r="2.5" fill="var(--accent)" />
-                <circle cx="41" cy="30" r="2.5" fill="var(--accent)" />
-                <path
-                  d="M 27 37 Q 32 40 37 37"
-                  fill="none"
-                  stroke="var(--accent)"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <span
-                class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950"
-              ></span>
+          <!-- Mobile Sidebar Backdrop -->
+          <div
+            v-if="isMobile && showMobileSidebar"
+            class="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs pointer-events-auto"
+            @click="showMobileSidebar = false"
+          ></div>
+
+          <aside
+            :class="[
+              'ai-sidebar shrink-0 border-r border-slate-200 dark:border-slate-800 md:flex md:flex-col',
+              isMobile
+                ? showMobileSidebar
+                  ? 'fixed inset-y-0 left-0 z-50 flex flex-col w-[280px] transition-transform duration-300 shadow-2xl pointer-events-auto'
+                  : 'hidden'
+                : 'hidden w-[300px]',
+            ]"
+          >
+            <div class="border-b border-slate-200 dark:border-slate-800 px-5 pb-4 pt-5">
+              <div class="flex items-center gap-3">
+                <div class="ai-logo">
+                  <Sparkles class="h-4 w-4" />
+                </div>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                    AI 助手
+                  </p>
+                  <p class="truncate text-xs text-slate-500">智能学习与项目协作</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-400/10 dark:border-pink-400/5 bg-white/75 dark:bg-white/5 text-slate-800 dark:text-slate-200 px-3 py-3 text-sm font-medium transition hover:-translate-y-0.5 hover:bg-white/95 dark:hover:bg-white/10"
+                @click="startNewChat"
+              >
+                <Plus class="h-4 w-4 text-accent" />
+                <span>新建对话</span>
+              </button>
             </div>
-            <div>
-              <p class="text-xs font-black tracking-tight" style="color: var(--text-primary)">
-                AI 企业学习顾问
-              </p>
-              <!-- Custom Premium Model Switcher Dropdown -->
-              <div v-if="availableAiModels.length > 0" class="relative inline-block mt-0.5 model-select-dropdown-container">
+
+            <div class="px-5 pt-4">
+              <div
+                class="flex items-center gap-2 rounded-2xl border border-slate-400/10 dark:border-slate-400/5 bg-white/70 dark:bg-white/5 px-3 py-2.5"
+              >
+                <Search class="h-4 w-4 text-slate-400" />
+                <input
+                  v-model="historySearch"
+                  type="text"
+                  class="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200"
+                  placeholder="搜索历史会话"
+                />
+              </div>
+            </div>
+
+            <div class="min-h-0 flex-1 px-3 pb-3 pt-4">
+              <div class="mb-2 px-2 text-xs font-medium text-slate-400">历史会话</div>
+              <div class="h-full space-y-1 overflow-y-auto pr-1 ai-scrollbar">
                 <button
+                  v-for="item in recentPrompts"
+                  :key="item.id"
                   type="button"
-                  class="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-widest transition-all duration-200 cursor-pointer border shadow-sm select-none"
-                  :style="`
-                    background: ${getProviderMeta(currentModel?.provider || '').bg};
-                    color: ${getProviderMeta(currentModel?.provider || '').color};
-                    border-color: ${getProviderMeta(currentModel?.provider || '').border};
-                  `"
-                  title="切换 AI 模型"
-                  @click.stop="showModelDropdown = !showModelDropdown"
+                  class="group relative w-full rounded-2xl px-3 py-3 text-left transition border focus:outline-none"
+                  :class="
+                    currentSessionId === item.id
+                      ? 'bg-white dark:bg-white/10 border-slate-200/50 dark:border-white/10 shadow-[0_16px_38px_rgba(244,114,182,0.06)]'
+                      : 'border-transparent hover:bg-white/60 dark:hover:bg-white/5'
+                  "
+                  @click="selectSession(item.id)"
                 >
-                  <component
-                    :is="getProviderMeta(currentModel?.provider || '').lucideIcon"
-                    class="w-3 h-3"
-                    :style="`color: ${getProviderMeta(currentModel?.provider || '').color};`"
-                  />
-                  <span class="max-w-[110px] truncate">{{ currentModel?.name }}</span>
-                  <ChevronDown class="w-2.5 h-2.5 opacity-70" />
+                  <div class="flex items-start justify-between gap-3">
+                    <p class="line-clamp-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                      {{ item.title }}
+                    </p>
+                    <span class="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{{
+                      item.time
+                    }}</span>
+                  </div>
+                  <p
+                    class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400 pr-6"
+                  >
+                    {{ item.preview }}
+                  </p>
+                  <button
+                    type="button"
+                    class="absolute bottom-3 right-3 hidden group-hover:block p-1 text-slate-400 hover:text-rose-500 rounded transition focus:outline-none"
+                    title="删除会话"
+                    @click.stop="deleteSession(item.id)"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
                 </button>
 
-                <!-- Floating Dropdown list -->
-                <transition
-                  enter-active-class="transition ease-out duration-100"
-                  enter-from-class="transform opacity-0 scale-95"
-                  enter-to-class="transform opacity-100 scale-100"
-                  leave-active-class="transition ease-in duration-75"
-                  leave-from-class="transform opacity-100 scale-100"
-                  leave-to-class="transform opacity-0 scale-95"
+                <div
+                  v-if="chatSessions.length === 0"
+                  class="rounded-2xl border border-dashed px-4 py-6 text-center text-xs text-slate-400"
+                  style="border-color: rgba(148, 163, 184, 0.18)"
                 >
-                  <div
-                    v-if="showModelDropdown"
-                    class="absolute left-0 mt-1.5 w-52 rounded-xl shadow-xl border overflow-hidden z-50 py-1"
-                    style="
-                      background-color: var(--bg-card);
-                      border-color: var(--border-base);
-                      backdrop-filter: blur(16px);
-                    "
-                    @click.stop
+                  还没有历史对话，开始发起聊天吧。
+                </div>
+
+                <div
+                  v-else-if="recentPrompts.length === 0"
+                  class="rounded-2xl border border-dashed px-4 py-6 text-center text-xs text-slate-400"
+                  style="border-color: rgba(148, 163, 184, 0.18)"
+                >
+                  没有找到匹配的会话。
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t px-4 pb-4 pt-3" style="border-color: rgba(148, 163, 184, 0.14)">
+              <div class="subscription-card rounded-[24px] border p-4">
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">
+                  {{ isVip ? `当前订阅：${vipPlanName}` : '升级专业版' }}
+                </p>
+                <p class="subscription-desc mt-1 text-xs leading-5">
+                  {{
+                    isVip
+                      ? '您已解锁更长上下文、更强模型和更多协作能力。'
+                      : '解锁更长上下文、更强模型和更多协作能力。'
+                  }}
+                </p>
+                <button
+                  type="button"
+                  class="subscription-btn mt-3 w-full rounded-2xl px-3 py-2.5 text-sm font-medium transition hover:opacity-90"
+                  @click="goToBilling"
+                >
+                  {{ isVip ? '管理订阅' : '立即升级' }}
+                </button>
+              </div>
+
+              <div
+                class="mt-3 flex items-center gap-3 rounded-2xl bg-white/60 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 px-3 py-3 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all select-none"
+                title="查看 AI 使用额度"
+                @click="fetchUsageLimit"
+              >
+                <UserAvatar :user="authStore.user ?? undefined" size="sm" />
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {{ authStore.user?.name || '访客用户' }}
+                  </p>
+                  <p class="truncate text-xs text-slate-400 dark:text-slate-500">
+                    {{ authStore.user?.email || '当前会话' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <section class="ai-main flex min-w-0 flex-1 flex-col">
+            <header
+              class="flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 select-none cursor-move"
+              style="border-color: rgba(148, 163, 184, 0.14)"
+              @mousedown="startDrag"
+            >
+              <div class="min-w-0">
+                <div class="flex items-center gap-3">
+                  <!-- Mobile Sidebar Toggle -->
+                  <button
+                    v-if="isMobile"
+                    type="button"
+                    class="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 transition"
+                    title="历史会话"
+                    @click="showMobileSidebar = !showMobileSidebar"
                   >
-                    <div class="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 select-none">
-                      选择 AI 模型
+                    <Menu class="h-4 w-4" />
+                  </button>
+
+                  <div class="ai-logo ai-logo--small md:hidden">
+                    <Sparkles class="h-3.5 w-3.5" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                      {{ currentConversationTitle }}
+                    </p>
+                    <p class="text-xs text-slate-400">{{ currentConversationMeta }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <!-- Mobile New Chat Button -->
+                <button
+                  type="button"
+                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700 md:hidden"
+                  title="新建对话"
+                  @click="startNewChat"
+                >
+                  <Plus class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-rose-500"
+                  title="清空历史"
+                  @click="clearHistory"
+                >
+                  <Trash2 class="h-4 w-4" />
+                </button>
+                <!-- Fullscreen Toggle (Desktop Only) -->
+                <button
+                  v-if="!isMobile"
+                  type="button"
+                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+                  :title="isFullscreen ? '退出全屏' : '全屏'"
+                  @click="isFullscreen = !isFullscreen"
+                >
+                  <component :is="isFullscreen ? Minimize2 : Maximize2" class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+                  title="关闭"
+                  @click="isOpen = false"
+                >
+                  <X class="h-4 w-4" />
+                </button>
+              </div>
+            </header>
+
+            <div
+              ref="chatContainer"
+              class="ai-chat-content relative min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-6 ai-scrollbar"
+            >
+              <div class="pointer-events-none absolute inset-0 overflow-hidden">
+                <div
+                  class="absolute left-[-120px] top-[10%] h-72 w-72 rounded-full bg-rose-200/30 blur-3xl"
+                ></div>
+                <div
+                  class="absolute right-[-120px] top-[38%] h-72 w-72 rounded-full bg-amber-100/45 blur-3xl"
+                ></div>
+              </div>
+
+              <div class="relative mx-auto w-full max-w-4xl space-y-5">
+                <div
+                  v-if="shouldShowLandingState"
+                  class="flex min-h-[260px] flex-col items-center justify-center gap-4 px-4 text-center"
+                >
+                  <div class="ai-empty-badge">
+                    <Sparkles class="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p class="text-lg font-semibold text-slate-700 dark:text-slate-200">
+                      有什么可以帮忙的吗？
+                    </p>
+                    <p class="mt-2 text-sm leading-6 text-slate-400">
+                      你可以让我整理学习路线、分析项目、解释代码，或者继续处理当前任务。
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  v-for="(msg, index) in activeSessionMessages"
+                  :key="msg.id"
+                  :ref="(el) => setMessageRef(msg.id, el as Element | null)"
+                  class="flex gap-3"
+                  :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+                >
+                  <template v-if="msg.role === 'assistant'">
+                    <div class="ai-logo ai-logo--small mt-1 hidden shrink-0 md:flex">
+                      <Sparkles class="h-3.5 w-3.5" />
                     </div>
-                    <div class="max-h-48 overflow-y-auto scrollbar-hide">
+                  </template>
+
+                  <div class="group max-w-[92%] md:max-w-[78%]">
+                    <div
+                      class="rounded-[24px] px-4 py-3.5 shadow-sm"
+                      :class="
+                        msg.role === 'user' ? 'ai-user-bubble ml-auto' : 'ai-assistant-bubble'
+                      "
+                    >
+                      <div
+                        v-if="msg.role === 'assistant' && (msg.reasoning || msg.isThinking)"
+                        class="mb-3 border-b border-dashed border-slate-200/80 pb-3 text-xs text-slate-500"
+                      >
+                        <button
+                          type="button"
+                          class="flex w-full items-center gap-2 text-left font-medium transition hover:text-slate-700 dark:hover:text-slate-300"
+                          @click="msg.isThinkingExpanded = !msg.isThinkingExpanded"
+                        >
+                          <Brain
+                            class="h-3.5 w-3.5"
+                            :class="msg.isThinking ? 'animate-pulse text-rose-400' : ''"
+                          />
+                          <span>{{ msg.isThinking ? '思考中...' : '思考过程' }}</span>
+                          <component
+                            :is="msg.isThinkingExpanded ? ChevronUp : ChevronDown"
+                            class="ml-auto h-3.5 w-3.5 text-slate-400"
+                          />
+                        </button>
+                        <div
+                          v-show="msg.isThinkingExpanded"
+                          class="thinking-content mt-2 max-h-[150px] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 px-3 py-2 leading-6 ai-scrollbar border border-slate-100 dark:border-slate-800"
+                        >
+                          <span
+                            v-if="!msg.reasoning && msg.isThinking"
+                            class="inline-flex items-center gap-1.5 text-slate-400 dark:text-slate-500"
+                          >
+                            <span
+                              class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 dark:bg-slate-600"
+                            ></span>
+                            <span
+                              class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 dark:bg-slate-600 [animation-delay:0.15s]"
+                            ></span>
+                            <span
+                              class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 dark:bg-slate-600 [animation-delay:0.3s]"
+                            ></span>
+                          </span>
+                          <span v-else>{{ msg.reasoning }}</span>
+                        </div>
+                      </div>
+
+                      <!-- Collapsible Reference Sources -->
+                      <div
+                        v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0"
+                        class="mb-3 border-b border-dashed border-slate-200/80 pb-3 text-xs text-slate-500"
+                      >
+                        <button
+                          type="button"
+                          class="flex w-full items-center gap-2 text-left font-medium transition hover:text-slate-700 dark:hover:text-slate-300"
+                          @click="msg.isSourcesExpanded = !msg.isSourcesExpanded"
+                        >
+                          <Globe class="h-3.5 w-3.5 text-blue-500" />
+                          <span>参考来源 ({{ msg.sources.length }})</span>
+                          <component
+                            :is="msg.isSourcesExpanded ? ChevronUp : ChevronDown"
+                            class="ml-auto h-3.5 w-3.5 text-slate-400"
+                          />
+                        </button>
+                        <div
+                          v-show="msg.isSourcesExpanded"
+                          class="mt-2 max-h-[220px] overflow-y-auto rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 p-2.5 leading-6 ai-scrollbar border border-slate-100 dark:border-slate-800"
+                        >
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <a
+                              v-for="(source, sIdx) in msg.sources"
+                              :key="sIdx"
+                              :href="source.link"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="flex flex-col gap-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-2.5 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xs transition"
+                            >
+                              <div class="flex items-center justify-between gap-1.5">
+                                <span
+                                  class="shrink-0 rounded-md bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
+                                >
+                                  [{{ sIdx + 1 }}]
+                                </span>
+                                <span
+                                  class="flex min-w-0 items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500"
+                                >
+                                  <span class="truncate">
+                                    {{ source.domain || 'unknown' }}
+                                  </span>
+                                  <span
+                                    v-if="source.publishedAt"
+                                    class="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                  >
+                                    {{ source.publishedAt.slice(0, 10) }}
+                                  </span>
+                                </span>
+                              </div>
+                              <p
+                                class="line-clamp-2 text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-normal hover:text-blue-500 dark:hover:text-blue-400 transition"
+                                :title="source.title"
+                              >
+                                {{ source.title }}
+                              </p>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+
+                      <MdPreview
+                        :model-value="msg.content"
+                        :theme="isDark ? 'dark' : 'light'"
+                        class="ai-preview"
+                      />
+                    </div>
+
+                    <div
+                      class="mt-2 flex items-center gap-3 px-1 text-[11px] text-slate-400 opacity-0 transition group-hover:opacity-100"
+                      :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+                    >
                       <button
-                        v-for="model in availableAiModels"
-                        :key="model.id"
                         type="button"
-                        class="w-full flex items-start gap-2 px-2.5 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-150 cursor-pointer"
-                        :class="model.id === selectedModelId ? 'bg-indigo-500/5 dark:bg-indigo-400/5' : ''"
-                        @click.stop="selectedModelId = model.id; showModelDropdown = false"
+                        class="flex items-center gap-1 transition hover:text-slate-700"
+                        @click="copyMessage(msg.content, msg.id)"
                       >
                         <component
-                          :is="getProviderMeta(model.provider).lucideIcon"
-                          class="w-3.5 h-3.5 mt-0.5 flex-shrink-0"
-                          :style="`color: ${getProviderMeta(model.provider).color};`"
+                          :is="copiedIndex === msg.id ? Check : Copy"
+                          class="h-3.5 w-3.5"
                         />
-                        <div class="flex-1 min-w-0">
-                          <div class="flex items-center gap-1">
-                            <p
-                              class="text-[11px] font-bold truncate"
-                              :class="model.id === selectedModelId ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'"
-                            >
-                              {{ model.name }}
-                            </p>
-                            <span
-                              v-if="model.isDefault"
-                              class="text-[8px] font-black px-1 rounded select-none"
-                              style="background: rgba(251,191,36,0.15); color: #d97706;"
-                            >⭐</span>
-                          </div>
-                          <p class="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate">{{ model.modelName }}</p>
-                        </div>
-                        <span v-if="model.id === selectedModelId" class="text-indigo-500 text-[10px] font-bold select-none">✓</span>
+                        <span>{{ copiedIndex === msg.id ? '已复制' : '复制内容' }}</span>
+                      </button>
+                      <button
+                        v-if="
+                          msg.role === 'assistant' &&
+                          index === activeSessionMessages.length - 1 &&
+                          !isGeneratingMap[currentSessionId] &&
+                          !isTypingMap[currentSessionId]
+                        "
+                        type="button"
+                        class="flex items-center gap-1 transition hover:text-slate-700"
+                        @click="regenerateResponse"
+                      >
+                        <RefreshCw class="h-3.5 w-3.5" />
+                        <span>重新生成</span>
                       </button>
                     </div>
                   </div>
-                </transition>
+                </div>
               </div>
-              <p v-else class="text-[9px] text-emerald-500 font-bold uppercase tracking-widest">
-                {{ streamMeta?.model || '企业级答疑在线' }}
-              </p>
             </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
-              :title="isMaximized ? '还原窗口' : '最大化窗口'"
-              @click="toggleMaximize"
-            >
-              <component :is="isMaximized ? Minimize2 : Maximize2" class="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
-              title="清空会话历史"
-              @click="clearHistory"
-            >
-              <Trash2 class="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              class="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
-              @click="
-                isOpen = false;
-                isMaximized = false;
-              "
-            >
-              <X class="w-4 h-4" />
-            </button>
-          </div>
-        </div>
 
-        <!-- Chat messages container -->
-        <div
-          ref="chatContainer"
-          class="flex-1 p-4 overflow-y-auto space-y-4 scrollbar-thin relative"
-          style="background: linear-gradient(180deg, rgba(248, 250, 252, 0.3) 0%, var(--bg-card) 100%);"
-        >
-          <!-- Decorative Glow Blurs in the background of chat messages -->
-          <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03] dark:opacity-[0.06] select-none">
-            <div class="absolute -left-10 top-1/4 w-40 h-40 rounded-full blur-3xl" style="background: var(--accent);"></div>
-            <div class="absolute -right-10 bottom-1/4 w-40 h-40 rounded-full blur-3xl bg-indigo-500"></div>
-          </div>
+            <footer
+              class="border-t px-4 pb-4 pt-3 md:px-6 md:pb-5"
+              style="border-color: rgba(148, 163, 184, 0.14)"
+            >
+              <div class="mx-auto max-w-4xl">
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  class="hidden"
+                  @change="handleFileChange"
+                />
+
+                <div
+                  v-if="uploadedImages.length > 0 || isUploading"
+                  class="mb-3 flex flex-wrap gap-2 rounded-[22px] border border-slate-200/80 bg-white/70 p-3"
+                >
+                  <div
+                    v-for="(image, index) in uploadedImages"
+                    :key="image.url"
+                    class="group relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-200/80"
+                  >
+                    <img
+                      :src="getAssetUrl(image.url)"
+                      :alt="image.name"
+                      class="h-full w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
+                      @click="removeUploadedImage(index)"
+                    >
+                      <X class="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  <div
+                    v-if="isUploading"
+                    class="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white"
+                  >
+                    <span
+                      class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"
+                    ></span>
+                  </div>
+                </div>
+
+                <p v-if="uploadError" class="mb-2 px-1 text-xs text-rose-500">{{ uploadError }}</p>
+
+                <div
+                  class="rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl"
+                >
+                  <textarea
+                    ref="textareaRef"
+                    v-model="inputMessage"
+                    class="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm leading-7 text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    placeholder="输入你的问题或需求，按 Enter 发送，Shift + Enter 换行"
+                    :disabled="isGeneratingMap[currentSessionId] || isTypingMap[currentSessionId]"
+                    rows="1"
+                    @keydown="handleKeydown"
+                    @paste="handlePaste"
+                  />
+
+                  <div class="mt-2.5 flex items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 transition hover:bg-white dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200"
+                        title="上传图片"
+                        @click="triggerFileInput"
+                      >
+                        <Image class="h-3.5 w-3.5" />
+                      </button>
+
+                      <div
+                        class="flex items-center rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-0.5"
+                      >
+                        <button
+                          v-for="option in chatModeOptions"
+                          :key="option.value"
+                          type="button"
+                          class="flex h-7 items-center justify-center rounded-md px-2 text-[10px] sm:text-xs font-medium transition"
+                          :class="
+                            chatMode === option.value
+                              ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
+                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                          "
+                          :title="option.label"
+                          @click="chatMode = option.value"
+                        >
+                          <component :is="option.icon" class="h-3.5 w-3.5" />
+                          <span class="hidden sm:inline ml-1">{{ option.label }}</span>
+                        </button>
+                      </div>
+
+                      <div
+                        v-if="availableAiModels.length > 0"
+                        class="model-select-dropdown-container relative"
+                      >
+                        <button
+                          type="button"
+                          class="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] sm:text-xs font-medium transition hover:bg-slate-50"
+                          :style="{
+                            background: getProviderMeta(currentModel?.provider || '').bg,
+                            color: getProviderMeta(currentModel?.provider || '').color,
+                            borderColor: getProviderMeta(currentModel?.provider || '').border,
+                          }"
+                          @click.stop="showModelDropdown = !showModelDropdown"
+                        >
+                          <component
+                            :is="getProviderMeta(currentModel?.provider || '').lucideIcon"
+                            class="h-3.5 w-3.5"
+                          />
+                          <span class="hidden sm:inline">{{
+                            currentModel?.name || '默认模型'
+                          }}</span>
+                          <ChevronDown class="h-3.5 w-3.5" />
+                        </button>
+
+                        <Transition name="fade">
+                          <div
+                            v-if="showModelDropdown"
+                            class="absolute bottom-[calc(100%+10px)] left-0 z-20 w-64 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl"
+                          >
+                            <div
+                              class="border-b border-slate-100 dark:border-slate-800 px-4 py-3 text-xs font-medium text-slate-400"
+                            >
+                              选择 AI 模型
+                            </div>
+                            <div class="max-h-64 overflow-y-auto ai-scrollbar py-2">
+                              <button
+                                v-for="model in availableAiModels"
+                                :key="model.id"
+                                type="button"
+                                class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                :class="
+                                  model.id === selectedModelId
+                                    ? 'bg-rose-50/80 dark:bg-rose-950/30'
+                                    : ''
+                                "
+                                @click.stop="
+                                  selectedModelId = model.id;
+                                  showModelDropdown = false;
+                                "
+                              >
+                                <component
+                                  :is="getProviderMeta(model.provider).lucideIcon"
+                                  class="mt-0.5 h-4 w-4 shrink-0"
+                                  :style="{ color: getProviderMeta(model.provider).color }"
+                                />
+                                <div class="min-w-0 flex-1">
+                                  <div class="flex items-center gap-2">
+                                    <p
+                                      class="truncate text-sm font-medium text-slate-800 dark:text-slate-200"
+                                    >
+                                      {{ model.name }}
+                                    </p>
+                                    <span
+                                      v-if="model.isDefault"
+                                      class="rounded-full bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400"
+                                    >
+                                      默认
+                                    </span>
+                                  </div>
+                                  <p class="truncate text-xs text-slate-400 dark:text-slate-500">
+                                    {{ model.modelName }}
+                                  </p>
+                                </div>
+                                <Check
+                                  v-if="model.id === selectedModelId"
+                                  class="h-4 w-4 shrink-0 text-rose-400"
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        </Transition>
+                      </div>
+
+                      <span
+                        v-else
+                        class="rounded-lg bg-slate-100 px-2 py-1.5 text-xs text-slate-500"
+                      >
+                        {{ streamMetaMap[currentSessionId]?.model || '默认模型' }}
+                      </span>
+                    </div>
+
+                    <button
+                      v-if="isGeneratingMap[currentSessionId] || isTypingMap[currentSessionId]"
+                      type="button"
+                      class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-500 px-3 py-1.5 text-xs sm:text-sm font-medium text-white transition hover:bg-rose-600"
+                      @click="handleStop()"
+                    >
+                      <Square class="h-3.5 w-3.5 fill-current" />
+                      <span class="hidden sm:inline">停止生成</span>
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      :disabled="!inputMessage.trim() && uploadedImages.length === 0"
+                      class="ai-send-btn inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium text-white transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
+                      @click="handleSend"
+                    >
+                      <Send class="h-3.5 w-3.5" />
+                      <span class="hidden sm:inline">发送</span>
+                    </button>
+                  </div>
+
+                  <p class="mt-2 px-1 text-xs text-slate-400 dark:text-slate-500">
+                    {{
+                      chatMode === 'research'
+                        ? '深度研究会自动规划多轮检索并整理来源，适合做方案调研、竞品分析和技术选型。'
+                        : chatMode === 'search'
+                          ? '联网搜索会补充实时网页结果，适合查询最新信息。'
+                          : '普通对话更适合继续当前上下文、代码协作和日常提问。'
+                    }}
+                  </p>
+                </div>
+              </div>
+            </footer>
+          </section>
+
+          <!-- Resize Handle (Desktop floating window only) -->
           <div
-            v-for="(msg, idx) in messages"
-            :key="idx"
-            class="flex items-start gap-2.5"
-            :class="msg.role === 'user' ? 'flex-row-reverse text-right' : ''"
+            v-if="!isFullscreen && !isMobile"
+            class="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize z-50 flex items-end justify-end p-0.5"
+            @mousedown.stop="startResize"
           >
-            <!-- Avatar -->
-            <div class="shrink-0">
-              <UserAvatar
-                v-if="msg.role === 'user'"
-                :user="authStore.user ?? undefined"
-                size="sm"
+            <svg
+              width="8"
+              height="8"
+              viewBox="0 0 8 8"
+              fill="none"
+              class="text-slate-400 dark:text-slate-600"
+            >
+              <line
+                x1="6"
+                y1="1"
+                x2="1"
+                y2="6"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
               />
-              <div
-                v-else
-                class="w-7 h-7 rounded-lg bg-slate-900 dark:bg-slate-950 text-white flex items-center justify-center shadow-md border overflow-hidden"
-                style="border-color: var(--accent)"
-              >
-                <svg viewBox="0 0 64 64" class="w-6 h-6">
-                  <path
-                    d="M 12 24 L 6 18 M 52 24 L 58 18"
-                    stroke="var(--accent)"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                  />
-                  <rect
-                    x="10"
-                    y="16"
-                    width="44"
-                    height="36"
-                    rx="16"
-                    fill="rgba(255, 255, 255, 0.1)"
-                    stroke="var(--accent)"
-                    stroke-width="2.5"
-                  />
-                  <rect x="14" y="21" width="36" height="25" rx="10" fill="rgba(15, 23, 42, 0.9)" />
-                  <circle cx="23" cy="30" r="2.5" fill="var(--accent)" />
-                  <circle cx="41" cy="30" r="2.5" fill="var(--accent)" />
-                  <path
-                    d="M 27 37 Q 32 40 37 37"
-                    fill="none"
-                    stroke="var(--accent)"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <!-- Message bubble -->
-            <div class="max-w-[75%] flex flex-col space-y-1 group">
-              <span class="text-[9px] text-slate-400 font-bold px-1">
-                {{ msg.role === 'user' ? authStore.user?.name || '我' : 'AI 顾问' }}
-              </span>
-              <div
-                class="px-3.5 py-2 rounded-2xl text-xs leading-relaxed break-words text-left"
-                :class="
-                  msg.role === 'user'
-                    ? 'bg-accent text-white rounded-tr-none shadow-md shadow-accent/15'
-                    : 'bg-indigo-500/[0.04] dark:bg-indigo-400/[0.03] backdrop-blur-sm rounded-tl-none border border-indigo-500/10 dark:border-indigo-400/10 shadow-sm'
-                "
-                :style="
-                  msg.role === 'user'
-                    ? { background: 'var(--accent)' }
-                    : { color: 'var(--text-primary)' }
-                "
-              >
-                <!-- Render thinking steps if assistant and reasoning is present -->
-                <div
-                  v-if="msg.role === 'assistant' && msg.reasoning"
-                  class="mb-2 pb-2 border-b border-dashed border-slate-200/60 dark:border-white/10 text-[11px] text-slate-400 dark:text-slate-500 font-sans select-none"
-                >
-                  <div
-                    class="flex items-center gap-1.5 cursor-pointer font-bold hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                    @click="
-                      msg.isThinkingExpanded = msg.isThinkingExpanded === false ? true : false
-                    "
-                  >
-                    <Brain
-                      class="w-3.5 h-3.5 text-slate-400"
-                      :class="msg.isThinking ? 'animate-pulse text-indigo-500' : ''"
-                    />
-                    <span>{{ msg.isThinking ? '思考中...' : '已思考' }}</span>
-                    <component
-                      :is="msg.isThinkingExpanded === false ? ChevronDown : ChevronUp"
-                      class="w-3 h-3 text-slate-400 ml-auto shrink-0"
-                    />
-                  </div>
-                  <div
-                    v-show="msg.isThinkingExpanded !== false"
-                    class="mt-1.5 pl-3.5 pr-2 py-1 text-slate-500/80 dark:text-slate-400/80 italic whitespace-pre-wrap leading-relaxed border-l-2 border-slate-250 dark:border-white/5"
-                  >
-                    {{ msg.reasoning }}
-                  </div>
-                </div>
-
-                <div class="markdown-preview-container text-left">
-                  <MdPreview
-                    :model-value="msg.content"
-                    :theme="isDark ? 'dark' : 'light'"
-                    class="md-preview-custom"
-                    style="
-                      background: transparent !important;
-                      padding: 0 !important;
-                      color: inherit;
-                    "
-                  />
-                </div>
-              </div>
-
-              <!-- Message Action Bar (Copy Button & Regenerate) -->
-              <div
-                v-if="msg.role === 'assistant'"
-                class="flex items-center gap-3 px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none"
-              >
-                <button
-                  type="button"
-                  class="flex items-center gap-1 text-[10px] text-slate-400 hover:text-accent transition-colors cursor-pointer"
-                  @click="copyMessage(msg.content, idx)"
-                >
-                  <component :is="copiedIndex === idx ? Check : Copy" class="w-2.5 h-2.5" />
-                  <span>{{ copiedIndex === idx ? '已复制' : '复制内容' }}</span>
-                </button>
-                <button
-                  v-if="idx === messages.length - 1 && !isGenerating && !isTyping"
-                  type="button"
-                  class="flex items-center gap-1 text-[10px] text-slate-400 hover:text-accent transition-colors cursor-pointer"
-                  @click="regenerateResponse"
-                >
-                  <RefreshCw class="w-2.5 h-2.5" />
-                  <span>重新生成</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Loading Indicator bubble -->
-          <div v-if="isGenerating" class="flex items-start gap-2.5">
-            <div
-              class="w-7 h-7 rounded-lg bg-slate-900 dark:bg-slate-950 text-white flex items-center justify-center shadow-md border overflow-hidden animate-pulse"
-              style="border-color: var(--accent)"
-            >
-              <svg viewBox="0 0 64 64" class="w-6 h-6">
-                <path
-                  d="M 12 24 L 6 18 M 52 24 L 58 18"
-                  stroke="var(--accent)"
-                  stroke-width="3"
-                  stroke-linecap="round"
-                />
-                <rect
-                  x="10"
-                  y="16"
-                  width="44"
-                  height="36"
-                  rx="16"
-                  fill="rgba(255, 255, 255, 0.1)"
-                  stroke="var(--accent)"
-                  stroke-width="2.5"
-                />
-                <rect x="14" y="21" width="36" height="25" rx="10" fill="rgba(15, 23, 42, 0.9)" />
-                <ellipse
-                  cx="23"
-                  cy="30"
-                  rx="2.5"
-                  ry="1.5"
-                  fill="var(--accent)"
-                  class="animate-ping"
-                />
-                <ellipse
-                  cx="41"
-                  cy="30"
-                  rx="2.5"
-                  ry="1.5"
-                  fill="var(--accent)"
-                  class="animate-ping"
-                />
-                <path
-                  d="M 24 37 C 28 35, 30 39, 34 35 C 36 37, 38 35, 40 37"
-                  fill="none"
-                  stroke="var(--accent)"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  class="talking-mouth-path"
-                />
-              </svg>
-            </div>
-            <div class="max-w-[75%] flex flex-col space-y-1">
-              <span class="text-[9px] text-slate-400 font-bold px-1">AI 顾问</span>
-              <div
-                class="px-3.5 py-2 bg-slate-100 dark:bg-white/5 rounded-2xl rounded-tl-none border border-slate-200/50 dark:border-white/5 flex items-center gap-1.5"
-              >
-                <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"></div>
-                <div
-                  class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]"
-                ></div>
-                <div
-                  class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Chat Input footer -->
-        <div
-          class="p-3 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-col gap-2"
-          style="border-color: var(--border-base)"
-        >
-          <!-- Hidden File Input -->
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-            style="display: none"
-            @change="handleFileChange"
-          />
-
-          <!-- Attached Images Preview -->
-          <div
-            v-if="uploadedImages.length > 0 || isUploading"
-            class="flex flex-wrap gap-2 p-2 bg-white dark:bg-slate-900 border rounded-xl overflow-x-auto max-h-24 scrollbar-thin"
-            style="border-color: var(--border-base)"
-          >
-            <div
-              v-for="(img, idx) in uploadedImages"
-              :key="idx"
-              class="group relative w-12 h-12 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 shadow-sm shrink-0"
-            >
-              <img :src="getAssetUrl(img.url)" class="w-full h-full object-cover" />
-              <div
-                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200"
-              >
-                <button
-                  type="button"
-                  class="p-0.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
-                  @click="removeUploadedImage(idx)"
-                >
-                  <X class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-            <div
-              v-if="isUploading"
-              class="w-12 h-12 rounded-lg border border-dashed border-slate-300 dark:border-white/20 flex items-center justify-center bg-slate-50 dark:bg-white/5 animate-pulse shrink-0"
-            >
-              <span
-                class="w-4 h-4 rounded-full border-2 border-slate-400 border-t-transparent animate-spin"
-              ></span>
-            </div>
-          </div>
-
-          <p v-if="uploadError" class="px-2 text-[10px] font-medium text-rose-500">
-            {{ uploadError }}
-          </p>
-
-          <div
-            class="flex items-center gap-2 bg-white dark:bg-slate-900 border rounded-2xl px-3 py-1.5 shadow-inner focus-within:ring-2 focus-within:ring-accent/20 transition-all"
-            style="border-color: var(--border-base)"
-          >
-            <!-- Upload Icon Button -->
-            <button
-              type="button"
-              class="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
-              title="发送图片"
-              @click="triggerFileInput"
-            >
-              <Image class="w-4.5 h-4.5" />
-            </button>
-
-            <textarea
-              ref="textareaRef"
-              v-model="inputMessage"
-              class="flex-1 bg-transparent border-none outline-none text-xs resize-none py-1 leading-normal scrollbar-thin"
-              style="
-                color: var(--text-primary);
-                min-height: 20px;
-                max-height: 120px;
-                overflow-y: auto;
-              "
-              placeholder="描述您的 3D、代码、项目或平台问题，支持粘贴图片..."
-              :rows="1"
-              :disabled="isGenerating || isTyping"
-              @keydown="handleKeydown"
-              @paste="handlePaste"
-            />
-            <button
-              v-if="isGenerating || isTyping"
-              type="button"
-              class="w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
-              @click="handleStop"
-            >
-              <Square class="w-3 h-3 fill-current" />
-            </button>
-            <button
-              v-else
-              type="button"
-              :disabled="!inputMessage.trim() && uploadedImages.length === 0"
-              class="w-7 h-7 rounded-xl bg-accent text-white flex items-center justify-center shadow-md shadow-accent/10 hover:scale-105 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-              style="background: var(--accent)"
-              @click="handleSend"
-            >
-              <Send class="w-3.5 h-3.5" />
-            </button>
+              <line
+                x1="7"
+                y1="4"
+                x2="4"
+                y2="7"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
           </div>
         </div>
       </div>
     </Transition>
 
-    <!-- Upgraded Theme-consistent Draggable Sprite Button -->
-    <div
-      v-if="!isMaximized"
-      class="elf-mascot relative w-15 h-15 rounded-full flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 animate-float-sprite"
-      style="background-color: var(--bg-card); border: 2px solid var(--accent)"
-      :style="{
-        boxShadow: `0 0 20px color-mix(in srgb, var(--accent) 35%, transparent)`,
-      }"
-      @mousedown="onDragStart($event, isOpen)"
-      @touchstart="onDragStart($event, isOpen)"
+    <button
+      v-if="!isOpen"
+      type="button"
+      class="ai-trigger group relative flex h-[62px] w-[62px] items-center justify-center overflow-hidden rounded-full border text-white shadow-[0_22px_44px_rgba(244,114,182,0.32)] transition hover:-translate-y-1"
       @click="handleSpriteClick"
     >
-      <!-- holographic background gradient pulse -->
       <div
-        class="absolute inset-0 animate-pulse pointer-events-none"
-        :style="{
-          background: `radial-gradient(circle at center, color-mix(in srgb, var(--accent) 35%, transparent) 0%, transparent 70%)`,
-        }"
+        class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.28),transparent_48%)]"
       ></div>
+      <Sparkles class="relative z-10 h-6 w-6 transition group-hover:scale-110" />
+    </button>
 
-      <!-- scanning line animation -->
+    <!-- AI Usage Dialog -->
+    <Transition name="fade">
       <div
-        class="scanner-line absolute left-0 right-0 h-[1.5px] z-10 pointer-events-none opacity-60"
-        style="background-color: var(--accent)"
-        :style="{
-          boxShadow: `0 0 6px var(--accent)`,
-        }"
-      ></div>
-
-      <!-- holographic grid decor -->
-      <div
-        class="absolute inset-0 border rounded-full animate-ping [animation-duration:3s] pointer-events-none"
-        style="border-color: var(--accent); opacity: 0.15"
-      ></div>
-
-      <!-- Upgraded Custom Vector Mascot -->
-      <svg
-        viewBox="0 0 64 64"
-        class="w-12 h-12 z-20 transition-transform duration-300 pointer-events-none"
-        :style="{ transform: isOpen ? 'scale(0.88) rotate(-3deg)' : 'scale(1)' }"
+        v-if="showUsageDialog"
+        class="fixed inset-0 z-[150] flex items-center justify-center p-4"
       >
-        <!-- Holiday Dressing Accessories (rendered dynamically based on calendar dates) -->
-        <g v-if="currentHoliday === 'spring-festival'" class="holiday-accessory spring-festival">
-          <!-- Red headband banner -->
-          <rect
-            x="18"
-            y="13"
-            width="28"
-            height="4"
-            rx="2.5"
-            fill="#ef4444"
-            stroke="#eab308"
-            stroke-width="0.5"
-          />
-          <!-- Gold central coin decoration -->
-          <circle cx="32" cy="15" r="4.5" fill="#eab308" />
-          <rect x="31" y="14" width="2" height="2" fill="#ef4444" />
-          <!-- Hanging left tassel -->
-          <line
-            x1="18"
-            y1="16"
-            x2="14"
-            y2="24"
-            stroke="#ef4444"
-            stroke-width="2.5"
-            stroke-linecap="round"
-          />
-          <!-- Hanging right tassel -->
-          <line
-            x1="46"
-            y1="16"
-            x2="50"
-            y2="24"
-            stroke="#ef4444"
-            stroke-width="2.5"
-            stroke-linecap="round"
-          />
-        </g>
-        <g v-else-if="currentHoliday === 'halloween'" class="holiday-accessory halloween">
-          <!-- Wizard Witch Hat -->
-          <path
-            d="M 14 16 L 32 1 L 50 16 Z"
-            fill="#1e1b4b"
-            stroke="var(--accent)"
-            stroke-width="1.5"
-          />
-          <rect x="22" y="13" width="20" height="3.5" fill="#f97316" />
-          <rect x="30" y="12.5" width="4" height="4" fill="#eab308" />
-        </g>
-        <g v-else-if="currentHoliday === 'christmas'" class="holiday-accessory christmas">
-          <!-- Red Santa Hat -->
-          <path d="M 18 16 Q 32 2 46 16 Z" fill="#ef4444" />
-          <circle cx="32" cy="3" r="3.5" fill="#ffffff" />
-          <rect x="15" y="14" width="34" height="4.5" rx="2.5" fill="#ffffff" />
-        </g>
-        <g v-else-if="currentHoliday === 'new-year'" class="holiday-accessory new-year">
-          <!-- Cute colorful party hat -->
-          <path
-            d="M 22 16 L 32 2 L 42 16 Z"
-            fill="#6366f1"
-            stroke="var(--accent)"
-            stroke-width="1"
-          />
-          <path d="M 25 12 L 30 5 L 33 5 L 28 12 Z" fill="#eab308" />
-          <path d="M 31 16 L 36 8 L 39 8 L 34 16 Z" fill="#eab308" />
-          <circle cx="32" cy="2" r="2.5" fill="#facc15" />
-          <circle cx="28" cy="13" r="1" fill="#ec4899" />
-          <circle cx="36" cy="11" r="1" fill="#10b981" />
-        </g>
-        <g
-          v-else-if="currentHoliday === 'lantern-festival'"
-          class="holiday-accessory lantern-festival"
+        <div
+          class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          @click="showUsageDialog = false"
+        ></div>
+
+        <div
+          class="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl"
         >
-          <!-- Red lantern hanging from the right antenna -->
-          <line x1="58" y1="18" x2="58" y2="24" stroke="#ef4444" stroke-width="1.5" />
-          <circle cx="58" cy="25" r="1.5" fill="none" stroke="#eab308" stroke-width="1" />
-          <ellipse
-            cx="58"
-            cy="30"
-            rx="5"
-            ry="5"
-            fill="#ef4444"
-            stroke="#ca8a04"
-            stroke-width="0.5"
-          />
-          <rect x="55.5" y="27" width="5" height="1" rx="0.5" fill="#eab308" />
-          <rect x="55.5" y="32.5" width="5" height="1" rx="0.5" fill="#eab308" />
-          <path d="M 56 28 Q 57 30 56 32" fill="none" stroke="#eab308" stroke-width="0.75" />
-          <path d="M 60 28 Q 59 30 60 32" fill="none" stroke="#eab308" stroke-width="0.75" />
-          <line x1="58" y1="28" x2="58" y2="32" stroke="#eab308" stroke-width="0.75" />
-          <line
-            x1="58"
-            y1="33.5"
-            x2="58"
-            y2="40"
-            stroke="#ef4444"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </g>
-        <g v-else-if="currentHoliday === 'qingming'" class="holiday-accessory qingming">
-          <!-- Willow branch tucked behind left ear/antenna joint -->
-          <path
-            d="M 16 18 Q 8 13 2 11"
-            fill="none"
-            stroke="#22c55e"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-          <path d="M 12 15 Q 10 12 12 11 Q 14 12 12 15 Z" fill="#4ade80" />
-          <path d="M 8 13 Q 5 10 7 9 Q 9 10 8 13 Z" fill="#4ade80" />
-          <path d="M 4 11.5 Q 2 8.5 4 8 Q 6 8.5 4 11.5 Z" fill="#86efac" />
-          <path d="M 14 17 Q 16 14.5 15 14 Q 13 14.5 14 17 Z" fill="#22c55e" />
-        </g>
-        <g v-else-if="currentHoliday === 'labor-day'" class="holiday-accessory labor-day">
-          <!-- Yellow construction helmet -->
-          <path
-            d="M 18 16 C 18 8, 46 8, 46 16 Z"
-            fill="#facc15"
-            stroke="#eab308"
-            stroke-width="0.5"
-          />
-          <path
-            d="M 14 16.5 L 50 16.5 C 51 16.5, 51 15, 50 15 L 14 15 C 13 15, 13 16.5, 14 16.5 Z"
-            fill="#eab308"
-          />
-          <path d="M 30 8.5 C 30 8.5, 32 7.5, 34 8.5 L 34 15 L 30 15 Z" fill="#facc15" />
-          <path d="M 30.5 11 L 33.5 11 L 33.5 13 L 32 14.5 L 30.5 13 Z" fill="#ffffff" />
-          <path d="M 31 12.5 L 33 12.5 M 32 11.5 L 32 13.5" stroke="#22c55e" stroke-width="0.75" />
-        </g>
-        <g v-else-if="currentHoliday === 'dragon-boat'" class="holiday-accessory dragon-boat">
-          <!-- Cute little zongzi sitting on the helmet -->
-          <path
-            d="M 23 16 C 23 16, 32 4, 32 4 C 32 4, 41 16, 41 16 Z"
-            fill="#16a34a"
-            stroke="#15803d"
-            stroke-width="0.5"
-          />
-          <path d="M 32 4 Q 28 10 23 16" fill="none" stroke="#15803d" stroke-width="0.75" />
-          <path d="M 32 4 Q 36 10 41 16" fill="none" stroke="#15803d" stroke-width="0.75" />
-          <line x1="32" y1="4" x2="32" y2="16" stroke="#15803d" stroke-width="0.75" />
-          <path d="M 27 12 Q 32 13.5 37 12" fill="none" stroke="#ef4444" stroke-width="1" />
-          <circle cx="37" cy="12" r="0.75" fill="#ef4444" />
-          <circle cx="30" cy="10" r="0.6" fill="#ffffff" />
-          <circle cx="30" cy="10" r="0.3" fill="#000000" />
-          <circle cx="34" cy="10" r="0.6" fill="#ffffff" />
-          <circle cx="34" cy="10" r="0.3" fill="#000000" />
-          <path d="M 31.5 11 Q 32 11.8 32.5 11" fill="none" stroke="#000000" stroke-width="0.4" />
-        </g>
-        <g v-else-if="currentHoliday === 'qixi'" class="holiday-accessory qixi">
-          <!-- Floating pink hearts -->
-          <path
-            d="M 12 10 C 10 7, 7 7, 7 10 C 7 13, 12 16, 12 16 C 12 16, 17 13, 17 10 C 17 7, 14 7, 12 10 Z"
-            fill="#ec4899"
-            opacity="0.9"
-          />
-          <path
-            d="M 52 13 C 50.5 10.5, 48 10.5, 48 12.5 C 48 14.5, 52 17, 52 17 C 52 17, 56 14.5, 56 12.5 C 56 10.5, 53.5 10.5, 52 13 Z"
-            fill="#f472b6"
-            opacity="0.8"
-            transform="rotate(15 52 13)"
-          />
-          <path
-            d="M 36 6 C 35 4, 33 4, 33 5.5 C 33 7, 36 9, 36 9 C 36 9, 39 7, 39 5.5 C 39 4, 37 4, 36 6 Z"
-            fill="#f472b6"
-            opacity="0.7"
-            transform="rotate(-10 36 6)"
-          />
-        </g>
-        <g v-else-if="currentHoliday === 'mid-autumn'" class="holiday-accessory mid-autumn">
-          <!-- Rabbit ears sticking up -->
-          <path
-            d="M 23 16 C 20 8, 19 2, 24 2 C 27 2, 26 8, 25 16 Z"
-            fill="#ffffff"
-            stroke="#cbd5e1"
-            stroke-width="0.5"
-          />
-          <path
-            d="M 23.5 13 C 21.5 8, 21 4, 24 4 C 25.5 4, 25 8, 24.5 13 Z"
-            fill="#f472b6"
-            opacity="0.85"
-          />
-          <path
-            d="M 41 16 C 44 8, 45 2, 40 2 C 37 2, 38 8, 39 16 Z"
-            fill="#ffffff"
-            stroke="#cbd5e1"
-            stroke-width="0.5"
-          />
-          <path
-            d="M 40.5 13 C 42.5 8, 43 4, 40 4 C 38.5 4, 39 8, 39.5 13 Z"
-            fill="#f472b6"
-            opacity="0.85"
-          />
-        </g>
-        <g v-else-if="currentHoliday === 'double-ninth'" class="holiday-accessory double-ninth">
-          <!-- Golden Chrysanthemum blossom on left ear joint -->
-          <circle cx="14" cy="18" r="2" fill="#ea580c" />
-          <ellipse cx="14" cy="13.5" rx="1.2" ry="3" fill="#facc15" />
-          <ellipse cx="14" cy="22.5" rx="1.2" ry="3" fill="#facc15" />
-          <ellipse cx="9.5" cy="18" rx="3" ry="1.2" fill="#facc15" />
-          <ellipse cx="18.5" cy="18" rx="3" ry="1.2" fill="#facc15" />
-          <ellipse cx="11" cy="15" rx="1.2" ry="3" fill="#eab308" transform="rotate(45 11 15)" />
-          <ellipse cx="17" cy="21" rx="1.2" ry="3" fill="#eab308" transform="rotate(45 17 21)" />
-          <ellipse cx="17" cy="15" rx="1.2" ry="3" fill="#eab308" transform="rotate(-45 17 15)" />
-          <ellipse cx="11" cy="21" rx="1.2" ry="3" fill="#eab308" transform="rotate(-45 11 21)" />
-        </g>
-        <g v-else-if="currentHoliday === 'national-day'" class="holiday-accessory national-day">
-          <!-- Red flag on the left antenna -->
-          <line
-            x1="6"
-            y1="18"
-            x2="6"
-            y2="5"
-            stroke="#cbd5e1"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-          <path d="M 6 5 L 18 5 C 18 5, 17 8, 18 11 L 6 11 Z" fill="#ef4444" />
-          <polygon
-            points="8.5,6.5 8.9,7.3 9.7,7.3 9,7.8 9.3,8.6 8.5,8.1 7.7,8.6 8,7.8 7.3,7.3 8.1,7.3"
-            fill="#facc15"
-          />
-          <circle cx="11.5" cy="6.2" r="0.4" fill="#facc15" />
-          <circle cx="12.7" cy="7.2" r="0.4" fill="#facc15" />
-          <circle cx="12.7" cy="8.5" r="0.4" fill="#facc15" />
-          <circle cx="11.5" cy="9.5" r="0.4" fill="#facc15" />
-        </g>
+          <div
+            class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4"
+          >
+            <div class="flex items-center gap-2.5">
+              <div class="ai-logo ai-logo--small">
+                <Sparkles class="h-4 w-4" />
+              </div>
+              <h3 class="text-sm font-semibold text-slate-900 dark:text-white">AI 助手使用额度</h3>
+            </div>
+            <button
+              type="button"
+              class="rounded-xl p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 transition"
+              @click="showUsageDialog = false"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
 
-        <!-- Cyber ears/antennae -->
-        <path
-          d="M 12 24 L 6 18 M 52 24 L 58 18"
-          stroke="var(--accent)"
-          stroke-width="3"
-          stroke-linecap="round"
-          class="animate-pulse"
-        />
-        <circle cx="6" cy="18" r="3" fill="var(--accent)" />
-        <circle cx="58" cy="18" r="3" fill="var(--accent)" />
+          <div v-if="loadingUsage" class="py-5">
+            <div class="flex flex-col items-center justify-center gap-2 py-4">
+              <span
+                class="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent"
+              ></span>
+              <span class="text-xs text-slate-400">正在获取额度信息...</span>
+            </div>
+          </div>
 
-        <!-- Outer Head Frame / Helmet (Glassmorphic border) -->
-        <rect
-          x="10"
-          y="16"
-          width="44"
-          height="36"
-          rx="16"
-          fill="rgba(255, 255, 255, 0.15)"
-          stroke="var(--accent)"
-          stroke-width="2.5"
-        />
+          <div v-else-if="usageError" class="py-5">
+            <div class="flex flex-col items-center justify-center gap-2.5 py-4 text-center">
+              <AlertTriangle class="h-8 w-8 text-rose-500" />
+              <span class="text-xs text-slate-600 dark:text-slate-400 px-4 leading-relaxed">
+                {{ usageError }}
+              </span>
+              <button
+                type="button"
+                class="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-all active:scale-95"
+                @click="fetchUsageLimit"
+              >
+                重新尝试
+              </button>
+            </div>
+          </div>
 
-        <!-- Headphone bands -->
-        <rect x="5" y="25" width="6" height="15" rx="3" fill="var(--accent)" />
-        <rect x="53" y="25" width="6" height="15" rx="3" fill="var(--accent)" />
+          <div v-else-if="usageData" class="py-5 space-y-5">
+            <!-- Plan Badge -->
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-medium text-slate-400">当前版本</span>
+              <span
+                class="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wider text-white shadow-xs"
+                :class="
+                  usageData.planName === 'SVIP'
+                    ? 'bg-amber-500 shadow-amber-500/20'
+                    : usageData.planName === 'VIP'
+                      ? 'bg-violet-500 shadow-violet-500/20'
+                      : 'bg-slate-500 shadow-slate-500/20'
+                "
+              >
+                {{ usageData.planDisplayName }}
+              </span>
+            </div>
 
-        <!-- Cyber Visor -->
-        <rect
-          x="14"
-          y="21"
-          width="36"
-          height="25"
-          rx="10"
-          fill="rgba(15, 23, 42, 0.88)"
-          stroke="rgba(255, 255, 255, 0.12)"
-          stroke-width="1"
-        />
+            <!-- Progress Meter -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium text-slate-700 dark:text-slate-300">今日对话额度</span>
+                <span class="font-bold text-slate-900 dark:text-white">
+                  {{ usageData.usedToday }} / {{ usageData.dailyLimit }}
+                </span>
+              </div>
 
-        <!-- Blinking Cyber Eyes -->
-        <g class="eyes">
-          <ellipse
-            cx="23"
-            cy="30"
-            rx="3"
-            ry="4.5"
-            fill="var(--accent)"
-            class="eye animate-blink"
-            :style="{ filter: 'drop-shadow(0 0 3px var(--accent))' }"
-          />
-          <ellipse
-            cx="41"
-            cy="30"
-            rx="3"
-            ry="4.5"
-            fill="var(--accent)"
-            class="eye animate-blink"
-            :style="{ filter: 'drop-shadow(0 0 3px var(--accent))' }"
-          />
-        </g>
+              <!-- Progress Bar -->
+              <div class="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="[
+                    usagePercent >= 90
+                      ? 'bg-rose-500'
+                      : usagePercent >= 75
+                        ? 'bg-amber-500'
+                        : 'bg-accent',
+                  ]"
+                  :style="{ width: usagePercent + '%' }"
+                ></div>
+              </div>
 
-        <!-- Waveform Talking Mouth or Smile -->
-        <path
-          v-if="isGenerating || isTyping"
-          d="M 24 37 C 28 35, 30 39, 34 35 C 36 37, 38 35, 40 37"
-          fill="none"
-          stroke="var(--accent)"
-          stroke-width="2"
-          stroke-linecap="round"
-          class="talking-mouth-path"
-          :style="{ filter: 'drop-shadow(0 0 3px var(--accent))' }"
-        />
-        <path
-          v-else
-          d="M 27 37 Q 32 40 37 37"
-          fill="none"
-          stroke="var(--accent)"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          :style="{ filter: 'drop-shadow(0 0 2px var(--accent))' }"
-        />
-      </svg>
+              <div class="flex justify-between text-[10px] text-slate-400">
+                <span>重置时间: 每日 00:00 (北京时间)</span>
+                <span>剩余: {{ Math.max(0, usageData.dailyLimit - usageData.usedToday) }} 次</span>
+              </div>
+            </div>
 
-      <!-- Inner glow ring -->
-      <span
-        class="absolute inset-0.5 rounded-full border border-white/5 pointer-events-none"
-      ></span>
-    </div>
+            <!-- Notice box -->
+            <div
+              class="rounded-2xl border p-3.5 text-xs leading-5 border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400"
+              :class="{
+                'border-rose-500/10 bg-rose-500/5 text-rose-500': usagePercent >= 100,
+              }"
+            >
+              <p v-if="usagePercent >= 100">
+                ⚠️ 您今天的 AI 对话次数已达上限。请明天再来，或者升级到更高版本以解锁更多额度。
+              </p>
+              <p v-else-if="usageData.planName === 'FREE'">
+                💡 免费版额度为 100
+                次/天。如需更高频地整理学习路线、分析大项目或体验深度研究，推荐升级专业版（1000次/天）或旗舰版（10000次/天）。
+              </p>
+              <p v-else-if="usageData.planName === 'VIP'">
+                🌟 专业版额度为 1000 次/天，充足的对话额度能够满足绝大多数协作和代码分析需求。
+              </p>
+              <p v-else>
+                👑 您正在使用旗舰版，享有 10000 次/天的高并发极速对话，以及全方位的专属支持。
+              </p>
+            </div>
+          </div>
+
+          <div
+            v-if="!loadingUsage"
+            class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800"
+          >
+            <button
+              v-if="usageData && usageData.planName !== 'SVIP'"
+              type="button"
+              class="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-accent/90 transition"
+              @click="handleUpgradeClick"
+            >
+              升级版本
+            </button>
+            <button
+              type="button"
+              class="ml-2 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              @click="showUsageDialog = false"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
+.ai-overlay {
+  background:
+    radial-gradient(circle at top left, rgba(244, 114, 182, 0.08), transparent 32%),
+    rgba(248, 250, 252, 0.5);
+  backdrop-filter: blur(8px);
 }
-.scrollbar-thin::-webkit-scrollbar-track {
+
+.ai-shell {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(255, 251, 248, 0.98) 58%,
+    rgba(255, 255, 255, 0.94) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(24px);
+}
+
+.dark .ai-shell {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.94) 0%,
+    rgba(30, 41, 59, 0.96) 58%,
+    rgba(17, 24, 39, 0.94) 100%
+  );
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.ai-sidebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74) 0%, rgba(255, 250, 247, 0.88) 100%);
+  backdrop-filter: blur(18px);
+}
+
+.dark .ai-sidebar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.88) 100%);
+}
+
+.ai-main {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 253, 251, 0.88) 100%);
+}
+
+.dark .ai-main {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.34) 0%, rgba(15, 23, 42, 0.7) 100%);
+}
+
+.ai-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  width: 34px;
+  border-radius: 12px;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #60a5fa 0%, var(--accent) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 8px 16px rgba(var(--accent-rgb), 0.2) !important;
+  transition: all 0.3s ease;
+}
+
+.ai-logo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 20px rgba(var(--accent-rgb), 0.3) !important;
+}
+
+.dark .ai-logo {
+  color: var(--accent) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(30, 41, 59, 0.9) 0%,
+    rgba(15, 23, 42, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.35) !important;
+  box-shadow:
+    0 8px 20px rgba(var(--accent-rgb), 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .ai-logo:hover {
+  border-color: rgba(var(--accent-rgb), 0.5) !important;
+  box-shadow:
+    0 10px 24px rgba(var(--accent-rgb), 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.ai-logo--small {
+  height: 30px;
+  width: 30px;
+  border-radius: 10px;
+}
+
+.ai-empty-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+  width: 88px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(var(--accent-rgb), 0.05));
+  border: 1px solid rgba(var(--accent-rgb), 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 22px 44px rgba(var(--accent-rgb), 0.08);
+}
+
+.dark .ai-empty-badge {
+  color: var(--accent);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 22px 44px rgba(0, 0, 0, 0.35);
+}
+
+.ai-assistant-bubble {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.dark .ai-assistant-bubble {
+  background: rgba(15, 23, 42, 0.76);
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.ai-user-bubble {
+  background: var(--accent) !important;
+  box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.15) !important;
+}
+
+.ai-user-bubble,
+.ai-user-bubble * {
+  color: #ffffff !important;
+}
+
+.ai-trigger {
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  background: linear-gradient(135deg, #60a5fa 0%, var(--accent) 100%) !important;
+  box-shadow: 0 14px 28px rgba(var(--accent-rgb), 0.25) !important;
+  transition: all 0.3s ease;
+}
+
+.ai-trigger:hover {
+  transform: translateY(-4px) scale(1.05) !important;
+  box-shadow: 0 18px 36px rgba(var(--accent-rgb), 0.35) !important;
+}
+
+.dark .ai-trigger {
+  border-color: rgba(var(--accent-rgb), 0.4) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(30, 41, 59, 0.9) 0%,
+    rgba(15, 23, 42, 0.95) 100%
+  ) !important;
+  color: var(--accent) !important;
+  box-shadow:
+    0 14px 28px rgba(var(--accent-rgb), 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .ai-trigger:hover {
+  border-color: rgba(var(--accent-rgb), 0.5) !important;
+  box-shadow:
+    0 18px 36px rgba(var(--accent-rgb), 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.ai-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: var(--border-base);
-  border-radius: 99px;
+
+.ai-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 999px;
 }
 
-/* cyber mouth audio-wave style simulation */
-.talking-mouth-path {
-  stroke-dasharray: 40;
-  stroke-dashoffset: 40;
-  animation: talking-wave 1s linear infinite;
-}
-@keyframes talking-wave {
-  to {
-    stroke-dashoffset: 0;
-  }
+.ai-preview {
+  background: transparent !important;
 }
 
-/* Blinking animations for eyes */
-.eye {
-  transition: all 0.2s ease;
-  transform-origin: center;
-}
-.animate-blink {
-  animation: eye-blink 4s infinite;
-}
-@keyframes eye-blink {
-  0%,
-  90%,
-  94%,
-  98%,
-  100% {
-    transform: scaleY(1);
-  }
-  92%,
-  96% {
-    transform: scaleY(0.15);
-  }
+.ai-preview :deep(.md-editor-preview) {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.8 !important;
 }
 
-/* Floating scanning hologram line */
-.scanner-line {
-  animation: scan-line 3s linear infinite;
-}
-@keyframes scan-line {
-  0% {
-    top: 0%;
-  }
-  50% {
-    top: 100%;
-  }
-  100% {
-    top: 0%;
-  }
+.ai-preview :deep(.md-editor-preview-wrapper) {
+  padding: 0 !important;
 }
 
-/* Animations */
-.animate-bounce-slow {
-  animation: bounce-slow 2.5s infinite;
-}
-@keyframes bounce-slow {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+.ai-preview :deep(.md-editor-preview p:first-child) {
+  margin-top: 0 !important;
 }
 
-.animate-float-sprite {
-  animation: float-sprite 3.5s ease-in-out infinite;
-}
-@keyframes float-sprite {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+.ai-preview :deep(.md-editor-preview p:last-child) {
+  margin-bottom: 0 !important;
 }
 
-/* Slide fade transition */
-.slide-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.slide-fade-leave-active {
-  transition: all 0.25s cubic-bezier(1, 0.5, 0.8, 1);
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(20px) scale(0.95);
-  opacity: 0;
+.ai-preview :deep(.md-editor-preview img) {
+  max-width: 100% !important;
+  max-height: 280px !important;
+  border-radius: 16px !important;
+  object-fit: cover !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1) !important;
 }
 
-/* Fade transition */
+.ai-preview :deep(.md-editor-code pre) {
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+  font-size: 12px !important;
+}
+
+.ai-preview :deep(.md-editor-preview blockquote) {
+  margin: 12px 0 !important;
+  border-left: 3px solid rgba(244, 114, 182, 0.5) !important;
+  background: rgba(255, 241, 242, 0.7) !important;
+  color: inherit !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+}
+
+.dark .ai-preview :deep(.md-editor-preview blockquote) {
+  background: rgba(30, 41, 59, 0.75) !important;
+}
+
+.ai-preview :deep(.md-editor-preview code) {
+  border-radius: 8px !important;
+  padding: 2px 6px !important;
+}
+
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
 }
-/* CSS Override to strictly prevent chatbox viewport overflow on mobile */
-.elf-chat-box {
-  max-width: calc(100vw - 32px) !important;
-  max-height: calc(100vh - 120px) !important;
-}
-.elf-chat-box.is-maximized {
-  max-width: 100% !important;
-  max-height: 100% !important;
+
+/* Dark mode adaptation overrides */
+.subscription-card {
+  border-color: rgba(251, 191, 36, 0.18) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 247, 237, 0.9) 100%
+  ) !important;
 }
 
-/* Deep overrides to seamlessly blend md-editor-v3 within message bubbles */
-.elf-chat-box :deep(.md-editor-preview) {
-  font-size: 12px !important;
-  line-height: 1.625 !important;
-  color: inherit !important;
-  padding: 0 !important;
+.dark .subscription-card {
+  border-color: rgba(251, 191, 36, 0.1) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.8) 0%,
+    rgba(15, 23, 42, 0.85) 100%
+  ) !important;
 }
-.elf-chat-box :deep(.md-editor-preview-wrapper) {
-  padding: 0 !important;
+
+.subscription-btn {
+  background: #0f172a !important;
+  color: #ffffff !important;
 }
-.elf-chat-box :deep(.md-editor-preview img) {
-  max-width: 240px !important;
-  max-height: 180px !important;
-  border-radius: 8px !important;
-  object-fit: cover !important;
-  margin: 6px 0 !important;
-  display: block !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-  cursor: zoom-in !important;
-  transition: transform 0.2s ease !important;
+
+.dark .subscription-btn {
+  background: #f5792a !important;
+  color: #ffffff !important;
 }
-.elf-chat-box :deep(.md-editor-preview img:hover) {
-  transform: scale(1.02) !important;
+
+.dark .subscription-btn:hover {
+  background: #e0661b !important;
 }
-.elf-chat-box :deep(.md-editor-code pre) {
-  font-size: 11px !important;
-  padding: 10px 14px !important;
-  border-radius: 10px !important;
-  background-color: var(--bg-app, #0f172a) !important;
-}
-.md-preview-custom {
-  background: transparent !important;
-  color: inherit !important;
+
+/* Override global glass input borders on chat textarea */
+html.theme-glass .ai-main textarea,
+.ai-main textarea {
+  background-color: transparent !important;
   border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-/* Override blockquote and inline code styling inside md-editor for theme compatibility */
-.elf-chat-box :deep(.md-editor-preview blockquote) {
-  background-color: var(--bg-app, rgba(0, 0, 0, 0.05)) !important;
-  border-left: 4px solid var(--accent, #6366f1) !important;
+html.theme-glass .ai-main textarea:focus,
+.ai-main textarea:focus {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Ensure clear assistant response text color */
+.ai-assistant-bubble {
   color: var(--text-primary) !important;
-  padding: 10px 16px !important;
-  border-radius: 6px !important;
-  margin: 8px 0 !important;
 }
 
-.elf-chat-box :deep(.md-editor-preview code) {
-  background-color: var(--bg-app, rgba(0, 0, 0, 0.05)) !important;
-  color: var(--accent, #6366f1) !important;
-  padding: 2px 6px !important;
-  border-radius: 4px !important;
-  font-family: monospace !important;
-  font-size: 0.9em !important;
+.dark .ai-assistant-bubble {
+  color: var(--text-primary) !important;
+}
+
+/* Override global glass input borders on transparent search input */
+html.theme-glass .ai-sidebar input[type='text'],
+.ai-sidebar input[type='text'] {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-glass .ai-sidebar input[type='text']:focus,
+.ai-sidebar input[type='text']:focus {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Custom legible text descriptions */
+.subscription-desc {
+  color: #64748b !important;
+}
+
+.dark .subscription-desc {
+  color: #cbd5e1 !important;
+}
+
+.thinking-content {
+  color: #64748b !important;
+}
+
+.dark .thinking-content {
+  color: #cbd5e1 !important;
+}
+
+/* Input placeholder colors in dark mode */
+.ai-main textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.dark .ai-main textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Accent-based Send Button */
+.ai-send-btn {
+  background: var(--accent) !important;
+  box-shadow: 0 10px 20px -5px rgba(var(--accent-rgb), 0.3) !important;
+}
+
+.ai-send-btn:hover:not(:disabled) {
+  opacity: 0.95;
+  box-shadow: 0 12px 24px -5px rgba(var(--accent-rgb), 0.45) !important;
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.45;
+  box-shadow: none !important;
+}
+
+/* Mobile compaction and drag/resize responsive overrides */
+@media (max-width: 767px) {
+  .ai-shell {
+    border-radius: 0px !important;
+  }
+  .ai-main header {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  .ai-main footer {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  .ai-main textarea {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    min-height: 50px !important;
+  }
+  .ai-chat-content {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+  .ai-preview :deep(.md-editor-preview) {
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+  }
+  .ai-preview :deep(.md-editor-code pre) {
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+  }
+  .ai-assistant-bubble,
+  .ai-user-bubble {
+    border-radius: 16px !important;
+    padding: 10px 12px !important;
+  }
+  .thinking-content {
+    font-size: 11px !important;
+    padding: 8px 10px !important;
+    border-radius: 12px !important;
+  }
 }
 </style>

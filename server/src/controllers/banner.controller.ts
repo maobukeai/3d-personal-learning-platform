@@ -7,10 +7,7 @@ export const getActiveBanners = async (req: Request, res: Response, next: NextFu
       where: {
         isActive: true,
       },
-      orderBy: [
-        { order: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
     res.json(banners);
   } catch (error) {

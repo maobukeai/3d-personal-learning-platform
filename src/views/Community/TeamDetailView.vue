@@ -24,6 +24,7 @@ import {
   Calendar,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import SafeHtml from '@/components/SafeHtml.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
@@ -213,7 +214,9 @@ const filteredPeople = computed(() => {
 const teamStats = computed(() => {
   if (!team.value) return { total: 0, admins: 0, pending: 0 };
   const total = team.value.members.length;
-  const admins = team.value.members.filter((m: DetailedMember) => m.role === 'OWNER' || m.role === 'ADMIN').length;
+  const admins = team.value.members.filter(
+    (m: DetailedMember) => m.role === 'OWNER' || m.role === 'ADMIN',
+  ).length;
   const pending = (team.value.invitations || []).length;
   return { total, admins, pending };
 });
@@ -221,12 +224,16 @@ const teamStats = computed(() => {
 // Member Management
 const handleRemoveMember = async (userId: string, name: string) => {
   try {
-    await ElMessageBox.confirm(t('teamDetail.removeConfirm', { name }), t('teamDetail.removeTitle'), {
-      confirmButtonText: t('teamDetail.removeBtn'),
-      cancelButtonText: t('teamDetail.cancelBtn'),
-      type: 'warning',
-      confirmButtonClass: 'el-button--danger',
-    });
+    await ElMessageBox.confirm(
+      t('teamDetail.removeConfirm', { name }),
+      t('teamDetail.removeTitle'),
+      {
+        confirmButtonText: t('teamDetail.removeBtn'),
+        cancelButtonText: t('teamDetail.cancelBtn'),
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      },
+    );
 
     await api.delete(`/api/teams/${teamId.value}/members/${userId}`);
     ElMessage.success(t('members.removeSuccess') || '成员已移除');
@@ -264,7 +271,9 @@ const handleRespondApplication = async (
   try {
     await api.post('/api/teams/applications/respond', { applicationId, accept: approve });
     ElMessage.success(
-      approve ? t('teamDetail.joinedSuccess', { name: applicantName }) : t('teamDetail.rejectedSuccess', { name: applicantName }),
+      approve
+        ? t('teamDetail.joinedSuccess', { name: applicantName })
+        : t('teamDetail.rejectedSuccess', { name: applicantName }),
     );
     fetchTeamDetail();
   } catch (error) {
@@ -518,7 +527,7 @@ watch(
     if (newTab) {
       activeTab.value = newTab as string;
     }
-  }
+  },
 );
 
 watch(teamId, (newId) => {
@@ -561,18 +570,30 @@ onUnmounted(() => {
       <div class="relative">
         <!-- Cover Banner Area -->
         <div class="relative h-32 lg:h-40 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden">
-          <img v-if="team.coverUrl" :src="team.coverUrl" class="w-full h-full object-cover transition-all duration-700" alt="Team Cover" />
+          <img
+            v-if="team.coverUrl"
+            :src="team.coverUrl"
+            class="w-full h-full object-cover transition-all duration-700"
+            alt="Team Cover"
+          />
           <div
             v-else
             class="w-full h-full bg-gradient-to-r from-violet-600/20 via-indigo-600/15 to-rose-600/20 backdrop-blur-3xl relative"
           >
             <!-- Aesthetic abstract blobs for background visual premium look -->
-            <div class="absolute top-4 left-1/4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse"></div>
-            <div class="absolute bottom-3 right-1/4 w-36 h-36 bg-blue-500/15 rounded-full blur-2xl animate-pulse" style="animation-duration: 4s"></div>
+            <div
+              class="absolute top-4 left-1/4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-pulse"
+            ></div>
+            <div
+              class="absolute bottom-3 right-1/4 w-36 h-36 bg-blue-500/15 rounded-full blur-2xl animate-pulse"
+              style="animation-duration: 4s"
+            ></div>
           </div>
           <!-- Cover Overlay Gradient -->
-          <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-          
+          <div
+            class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"
+          ></div>
+
           <!-- Upload Cover Button -->
           <input
             ref="coverInput"
@@ -581,15 +602,22 @@ onUnmounted(() => {
             accept="image/*"
             @change="handleCoverChange"
           />
-          <button v-if="isOwnerOrAdmin" type="button" class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10" @click="triggerCoverUpload">
+          <button
+            v-if="isOwnerOrAdmin"
+            type="button"
+            class="absolute top-3 right-3 flex items-center gap-1.5 px-3.5 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-lg text-xs font-bold transition-all shadow-md border border-white/10"
+            @click="triggerCoverUpload"
+          >
             <Camera class="w-4 h-4" />
             <span>{{ t('teamDetail.changeCover') }}</span>
           </button>
         </div>
- 
+
         <!-- Details Info Area -->
         <div class="max-w-none px-4 sm:px-6 pb-3 lg:pb-4 relative">
-          <div class="flex flex-col lg:flex-row items-start lg:items-end gap-3 lg:gap-4 -mt-8 lg:-mt-12 relative z-20">
+          <div
+            class="flex flex-col lg:flex-row items-start lg:items-end gap-3 lg:gap-4 -mt-8 lg:-mt-12 relative z-20"
+          >
             <!-- Team Avatar -->
             <div class="relative group shrink-0">
               <input
@@ -602,7 +630,12 @@ onUnmounted(() => {
               <div
                 class="w-20 h-20 lg:w-26 lg:h-26 rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-800 transition-transform group-hover:scale-105 duration-500"
               >
-                <img v-if="team.avatarUrl" alt="" :src="team.avatarUrl" class="w-full h-full object-cover" />
+                <img
+                  v-if="team.avatarUrl"
+                  alt=""
+                  :src="team.avatarUrl"
+                  class="w-full h-full object-cover"
+                />
                 <div
                   v-else
                   class="w-full h-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-2xl lg:text-4xl font-black"
@@ -610,7 +643,13 @@ onUnmounted(() => {
                   {{ team.name.charAt(0).toUpperCase() }}
                 </div>
               </div>
-              <button v-if="isOwnerOrAdmin" type="button" class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10" :title="t('teamDetail.changeAvatar')" @click="triggerAvatarUpload">
+              <button
+                v-if="isOwnerOrAdmin"
+                type="button"
+                class="absolute -bottom-1 -right-1 p-1.5 bg-accent text-white rounded-lg shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/10"
+                :title="t('teamDetail.changeAvatar')"
+                @click="triggerAvatarUpload"
+              >
                 <Camera class="w-4 h-4" />
               </button>
             </div>
@@ -618,7 +657,10 @@ onUnmounted(() => {
             <!-- Team Text Info -->
             <div class="flex-1 text-left pt-1">
               <div class="flex flex-wrap items-center gap-2 mb-1">
-                <h1 class="text-2xl lg:text-3xl font-black tracking-tight" style="color: var(--text-primary)">
+                <h1
+                  class="text-2xl lg:text-3xl font-black tracking-tight"
+                  style="color: var(--text-primary)"
+                >
                   {{ team.name }}
                 </h1>
                 <div
@@ -627,18 +669,24 @@ onUnmounted(() => {
                   {{ t('teamDetail.spaceLabel') }}
                 </div>
               </div>
-              <p class="text-slate-500 dark:text-slate-400 max-w-xl text-xs sm:text-sm leading-relaxed mb-2.5">
+              <p
+                class="text-slate-500 dark:text-slate-400 max-w-xl text-xs sm:text-sm leading-relaxed mb-2.5"
+              >
                 {{ team.description || t('teamDetail.noDescription') }}
               </p>
 
               <div class="flex flex-wrap items-center gap-3">
-                <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md">
+                <div
+                  class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md"
+                >
                   <Users class="w-3.5 h-3.5 text-slate-400" />
                   <span class="text-xs font-bold" style="color: var(--text-primary)"
                     >{{ team.members.length }} {{ t('teams.members') }}</span
                   >
                 </div>
-                <div class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md">
+                <div
+                  class="flex items-center gap-1.5 bg-slate-100/80 dark:bg-white/5 px-2.5 py-1 rounded-md"
+                >
                   <Clock class="w-3.5 h-3.5 text-slate-400" />
                   <span class="text-xs font-bold" style="color: var(--text-primary)"
                     >{{ team.invitations?.length || 0 }} {{ t('teamDetail.pendingBadge') }}</span
@@ -648,29 +696,54 @@ onUnmounted(() => {
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 shrink-0 lg:mb-1">
+            <div
+              class="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 shrink-0 lg:mb-1"
+            >
               <template v-if="canManageTeam">
-                <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer" @click="isAddModalOpen = true">
+                <button
+                  type="button"
+                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  @click="isAddModalOpen = true"
+                >
                   <UserPlus class="w-4 h-4" />
                   {{ t('teamDetail.manageMembers') }}
                 </button>
-                <button type="button" class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer" style="border-color: var(--border-base)" @click="activeTab = 'settings'">
+                <button
+                  type="button"
+                  class="hidden sm:block p-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer"
+                  style="border-color: var(--border-base)"
+                  @click="activeTab = 'settings'"
+                >
                   <Settings class="w-4 h-4 text-slate-400" />
                 </button>
               </template>
               <template v-else-if="isMember && isPersonalSpace">
-                <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer" style="border-color: var(--border-base); color: var(--text-primary)" @click="activeTab = 'settings'">
+                <button
+                  type="button"
+                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 border rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all font-bold text-xs cursor-pointer"
+                  style="border-color: var(--border-base); color: var(--text-primary)"
+                  @click="activeTab = 'settings'"
+                >
                   <Settings class="w-4 h-4 text-slate-400" />
                   {{ t('teamDetail.spaceSettings') }}
                 </button>
               </template>
               <template v-if="!isMember && team?.visibility === 'PUBLIC'">
-                <button type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer" @click="handleApplyFromDetail">
+                <button
+                  type="button"
+                  class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 bg-accent text-white rounded-xl font-bold text-xs shadow-md shadow-accent/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  @click="handleApplyFromDetail"
+                >
                   <UserPlus class="w-4 h-4" />
                   {{ t('teams.applyJoin') }}
                 </button>
               </template>
-              <button v-if="canLeaveTeam" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer" @click="handleLeaveTeam">
+              <button
+                v-if="canLeaveTeam"
+                type="button"
+                class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all cursor-pointer"
+                @click="handleLeaveTeam"
+              >
                 <LogOut class="w-4 h-4" />
                 {{ t('teamDetail.leaveBtn') }}
               </button>
@@ -682,7 +755,10 @@ onUnmounted(() => {
       <!-- Main Content Container -->
       <div class="max-w-none px-4 sm:px-6 py-4 lg:py-6">
         <!-- Modern Tabs -->
-        <div class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide" style="border-color: var(--border-base)">
+        <div
+          class="flex gap-4 lg:gap-6 mb-5 border-b overflow-x-auto scrollbar-hide"
+          style="border-color: var(--border-base)"
+        >
           <button
             v-for="tab in [
               { id: 'people', label: t('teamDetail.peopleTab'), icon: Users },
@@ -699,7 +775,14 @@ onUnmounted(() => {
                 icon: Settings,
                 hidden: !isMember || !isOwnerOrAdmin,
               },
-            ]" v-show="!tab.hidden" :key="tab.id" type="button" class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer" :class="activeTab === tab.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'" @click="activeTab = tab.id">
+            ]"
+            v-show="!tab.hidden"
+            :key="tab.id"
+            type="button"
+            class="flex items-center gap-1.5 pb-2 text-xs font-bold transition-all relative whitespace-nowrap shrink-0 cursor-pointer"
+            :class="activeTab === tab.id ? 'text-accent' : 'text-slate-400 hover:text-slate-600'"
+            @click="activeTab = tab.id"
+          >
             <component :is="tab.icon" class="w-3.5 h-3.5" />
             {{ tab.label }}
             <span
@@ -722,50 +805,87 @@ onUnmounted(() => {
           <!-- Stats Dashboard Bar -->
           <div class="flex flex-wrap gap-3">
             <!-- Total Members Card -->
-            <div class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200">
-              <div class="w-8 h-8 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
+            <div
+              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200"
+            >
+              <div
+                class="w-8 h-8 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0"
+              >
                 <Users class="w-4 h-4" />
               </div>
               <div class="flex items-baseline gap-1">
-                <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.total }}</span>
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('teamDetail.activeMembers') }}</span>
+                <span
+                  class="text-sm lg:text-base font-black tracking-tight"
+                  style="color: var(--text-primary)"
+                  >{{ teamStats.total }}</span
+                >
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{
+                  t('teamDetail.activeMembers')
+                }}</span>
               </div>
             </div>
 
             <!-- Administrators Card -->
-            <div class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200">
-              <div class="w-8 h-8 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+            <div
+              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200"
+            >
+              <div
+                class="w-8 h-8 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0"
+              >
                 <ShieldCheck class="w-4 h-4" />
               </div>
               <div class="flex items-baseline gap-1">
-                <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.admins }}</span>
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('teamDetail.admins') }}</span>
+                <span
+                  class="text-sm lg:text-base font-black tracking-tight"
+                  style="color: var(--text-primary)"
+                  >{{ teamStats.admins }}</span
+                >
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{
+                  t('teamDetail.admins')
+                }}</span>
               </div>
             </div>
 
             <!-- Pending Invitations Card -->
-            <div class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200">
-              <div class="w-8 h-8 rounded-md bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+            <div
+              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200"
+            >
+              <div
+                class="w-8 h-8 rounded-md bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0"
+              >
                 <Clock class="w-4 h-4" />
               </div>
               <div class="flex items-baseline gap-1">
-                <span class="text-sm lg:text-base font-black tracking-tight" style="color: var(--text-primary)">{{ teamStats.pending }}</span>
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{ t('teamDetail.pending') }}</span>
+                <span
+                  class="text-sm lg:text-base font-black tracking-tight"
+                  style="color: var(--text-primary)"
+                  >{{ teamStats.pending }}</span
+                >
+                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{
+                  t('teamDetail.pending')
+                }}</span>
               </div>
             </div>
           </div>
 
           <!-- Header & Actions -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5" style="borderColor: var(--border-base)">
+          <div
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5"
+            style="bordercolor: var(--border-base)"
+          >
             <div>
-              <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">{{ t('teamDetail.boardTitle') }}</h2>
+              <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">
+                {{ t('teamDetail.boardTitle') }}
+              </h2>
               <p class="text-xs text-slate-400 font-medium">
                 {{ t('teamDetail.boardSubtitle') }}
               </p>
             </div>
             <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
               <div class="relative w-full sm:w-56 md:w-64">
-                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Search
+                  class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"
+                />
                 <input
                   v-model="memberSearchQuery"
                   type="text"
@@ -774,7 +894,12 @@ onUnmounted(() => {
                   style="color: var(--text-primary)"
                 />
               </div>
-              <button v-if="canManageTeam" type="button" class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap" @click="isAddModalOpen = true">
+              <button
+                v-if="canManageTeam"
+                type="button"
+                class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap"
+                @click="isAddModalOpen = true"
+              >
                 <Plus class="w-3.5 h-3.5" />
                 {{ t('teamDetail.inviteNewMember') }}
               </button>
@@ -782,7 +907,9 @@ onUnmounted(() => {
           </div>
 
           <!-- Members Grid -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div
+            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
+          >
             <div
               v-for="person in filteredPeople"
               :key="person.id"
@@ -818,7 +945,9 @@ onUnmounted(() => {
                       {{ person.displayName }}
                     </h4>
                     <!-- Email with Mail Icon -->
-                    <div class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mt-0.5">
+                    <div
+                      class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mt-0.5"
+                    >
                       <Mail class="w-3.5 h-3.5 shrink-0" />
                       <span class="text-xs truncate font-medium">{{ person.displayEmail }}</span>
                     </div>
@@ -826,11 +955,18 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Info (Joined/Invited Date) -->
-                <div class="flex items-center gap-1.5 mt-2.5 text-xs text-slate-400 dark:text-slate-500 font-medium">
+                <div
+                  class="flex items-center gap-1.5 mt-2.5 text-xs text-slate-400 dark:text-slate-500 font-medium"
+                >
                   <Calendar class="w-3.5 h-3.5 shrink-0" />
                   <span>
                     {{ person.isMember ? t('teamDetail.joinedAt') : t('teamDetail.invitedAt') }}
-                    {{ new Date(person.joinedAt || person.createdAt).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', { year: '2-digit', month: '2-digit', day: '2-digit' }) }}
+                    {{
+                      new Date(person.joinedAt || person.createdAt).toLocaleDateString(
+                        locale === 'zh' ? 'zh-CN' : 'en-US',
+                        { year: '2-digit', month: '2-digit', day: '2-digit' },
+                      )
+                    }}
                   </span>
                 </div>
               </div>
@@ -838,17 +974,21 @@ onUnmounted(() => {
               <!-- Actions & Role Footer -->
               <div
                 class="flex items-center justify-between pt-2.5 mt-3 border-t border-dashed"
-                style="borderColor: var(--border-base)"
+                style="bordercolor: var(--border-base)"
               >
                 <!-- Role Badge -->
                 <div>
                   <span
                     class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border"
                     :class="{
-                      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20': person.role === 'OWNER',
-                      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20': person.role === 'ADMIN',
-                      'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-white/10': person.role === 'MEMBER',
-                      'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20': person.role === 'PENDING',
+                      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20':
+                        person.role === 'OWNER',
+                      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20':
+                        person.role === 'ADMIN',
+                      'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-white/10':
+                        person.role === 'MEMBER',
+                      'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20':
+                        person.role === 'PENDING',
                     }"
                   >
                     {{
@@ -866,7 +1006,13 @@ onUnmounted(() => {
                 <!-- Action Button Group -->
                 <div class="flex items-center gap-1">
                   <!-- Private Message -->
-                  <button v-if="person.isMember && person.user.id !== authStore.user?.id" type="button" class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" :title="t('teamDetail.sendPrivateMessage')" @click="handleStartChat(person.user)">
+                  <button
+                    v-if="person.isMember && person.user.id !== authStore.user?.id"
+                    type="button"
+                    class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
+                    :title="t('teamDetail.sendPrivateMessage')"
+                    @click="handleStartChat(person.user)"
+                  >
                     <MessageSquare class="w-4 h-4" />
                   </button>
 
@@ -874,7 +1020,11 @@ onUnmounted(() => {
                   <template v-if="canManageTeam && person.userId !== authStore.user?.id">
                     <template v-if="person.isMember">
                       <el-dropdown trigger="click" placement="bottom-end">
-                        <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer" :title="t('teamDetail.manageRoles')">
+                        <button
+                          type="button"
+                          class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
+                          :title="t('teamDetail.manageRoles')"
+                        >
                           <Shield class="w-4 h-4" />
                         </button>
                         <template #dropdown>
@@ -885,7 +1035,9 @@ onUnmounted(() => {
                                 class="rounded-xl my-0.5"
                                 @click="handleUpdateRole(person.user.id, 'ADMIN')"
                               >
-                                <div class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs">
+                                <div
+                                  class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs"
+                                >
                                   <ShieldCheck class="w-4 h-4" /> {{ t('teamDetail.promoteAdmin') }}
                                 </div>
                               </el-dropdown-item>
@@ -894,7 +1046,9 @@ onUnmounted(() => {
                                 class="rounded-xl my-0.5"
                                 @click="handleUpdateRole(person.user.id, 'MEMBER')"
                               >
-                                <div class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs">
+                                <div
+                                  class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs"
+                                >
                                   <Users class="w-4 h-4" /> {{ t('teamDetail.demoteMember') }}
                                 </div>
                               </el-dropdown-item>
@@ -903,7 +1057,9 @@ onUnmounted(() => {
                               class="rounded-xl my-0.5"
                               @click="handleRemoveMember(person.user.id, person.user.name)"
                             >
-                              <div class="flex items-center gap-3 py-1 text-rose-500 font-bold text-xs">
+                              <div
+                                class="flex items-center gap-3 py-1 text-rose-500 font-bold text-xs"
+                              >
                                 <Trash2 class="w-4 h-4" /> {{ t('teamDetail.removeMember') }}
                               </div>
                             </el-dropdown-item>
@@ -911,7 +1067,13 @@ onUnmounted(() => {
                         </template>
                       </el-dropdown>
                     </template>
-                    <button v-else type="button" class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer" :title="t('teamDetail.cancelInvitation')" @click="handleCancelInvitation(person.id)">
+                    <button
+                      v-else
+                      type="button"
+                      class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer"
+                      :title="t('teamDetail.cancelInvitation')"
+                      @click="handleCancelInvitation(person.id)"
+                    >
                       <X class="w-4 h-4" />
                     </button>
                   </template>
@@ -920,11 +1082,21 @@ onUnmounted(() => {
             </div>
 
             <!-- Add Person CTA Card -->
-            <button v-if="canManageTeam" type="button" class="backdrop-blur-md bg-white/30 dark:bg-slate-900/20 border border-dashed border-accent/30 dark:border-accent/20 hover:border-accent hover:bg-accent/5 rounded-xl p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all duration-300 group cursor-pointer" @click="isAddModalOpen = true">
-              <div class="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all duration-300 shadow-md shadow-accent/5">
+            <button
+              v-if="canManageTeam"
+              type="button"
+              class="backdrop-blur-md bg-white/30 dark:bg-slate-900/20 border border-dashed border-accent/30 dark:border-accent/20 hover:border-accent hover:bg-accent/5 rounded-xl p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all duration-300 group cursor-pointer"
+              @click="isAddModalOpen = true"
+            >
+              <div
+                class="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all duration-300 shadow-md shadow-accent/5"
+              >
                 <Plus class="w-5 h-5" />
               </div>
-              <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-accent">{{ t('teamDetail.inviteNewMember') }}</span>
+              <span
+                class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-accent"
+                >{{ t('teamDetail.inviteNewMember') }}</span
+              >
             </button>
           </div>
         </div>
@@ -969,14 +1141,28 @@ onUnmounted(() => {
                   "{{ app.message }}"
                 </p>
                 <p class="text-[10px] text-slate-300 mt-1">
-                  {{ t('teamDetail.appliedAt', { date: new Date(app.createdAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US') }) }}
+                  {{
+                    t('teamDetail.appliedAt', {
+                      date: new Date(app.createdAt).toLocaleString(
+                        locale === 'zh' ? 'zh-CN' : 'en-US',
+                      ),
+                    })
+                  }}
                 </p>
               </div>
               <div class="flex items-center gap-3 shrink-0">
-                <button type="button" class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all" @click="handleRespondApplication(app.id, false, app.user.name)">
+                <button
+                  type="button"
+                  class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all"
+                  @click="handleRespondApplication(app.id, false, app.user.name)"
+                >
                   <XCircle class="w-4 h-4" /> {{ t('teamDetail.reject') }}
                 </button>
-                <button type="button" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20" @click="handleRespondApplication(app.id, true, app.user.name)">
+                <button
+                  type="button"
+                  class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                  @click="handleRespondApplication(app.id, true, app.user.name)"
+                >
                   <CheckCheck class="w-4 h-4" /> {{ t('teamDetail.approve') }}
                 </button>
               </div>
@@ -1003,7 +1189,8 @@ onUnmounted(() => {
               style="border-color: var(--border-base)"
             >
               <div class="space-y-3">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
+                <label
+                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
                   >{{ t('teamDetail.teamNameLabel') }}</label
                 >
                 <input
@@ -1014,7 +1201,8 @@ onUnmounted(() => {
                 />
               </div>
               <div class="space-y-3">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
+                <label
+                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
                   >{{ t('teamDetail.teamDescLabel') }}</label
                 >
                 <textarea
@@ -1055,7 +1243,12 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="flex justify-end pt-4">
-                <button type="button" :disabled="isSaving" class="px-10 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50" @click="handleUpdateTeam">
+                <button
+                  type="button"
+                  :disabled="isSaving"
+                  class="px-10 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                  @click="handleUpdateTeam"
+                >
                   {{ isSaving ? t('teamDetail.syncing') : t('teamDetail.saveChanges') }}
                 </button>
               </div>
@@ -1069,7 +1262,9 @@ onUnmounted(() => {
           >
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
               <div class="lg:col-span-1">
-                <h3 class="text-xl font-black mb-3 text-rose-500">{{ t('teamDetail.dangerZone') }}</h3>
+                <h3 class="text-xl font-black mb-3 text-rose-500">
+                  {{ t('teamDetail.dangerZone') }}
+                </h3>
                 <p class="text-sm text-slate-500 leading-relaxed">
                   {{ t('teamDetail.dangerZoneDesc') }}
                 </p>
@@ -1078,12 +1273,19 @@ onUnmounted(() => {
                 class="lg:col-span-2 bg-rose-50/50 dark:bg-rose-500/5 p-10 rounded-[2.5rem] border border-rose-100 dark:border-rose-500/20 flex flex-col md:flex-row items-center justify-between gap-6"
               >
                 <div>
-                  <h4 class="text-lg font-black text-rose-600 mb-1">{{ t('teamDetail.dissolveTitle') }}</h4>
+                  <h4 class="text-lg font-black text-rose-600 mb-1">
+                    {{ t('teamDetail.dissolveTitle') }}
+                  </h4>
                   <p class="text-sm text-rose-500 opacity-80">
                     {{ t('teamDetail.dissolveDesc') }}
                   </p>
                 </div>
-                <button v-if="isOwner" type="button" class="px-10 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all whitespace-nowrap" @click="handleDeleteTeam">
+                <button
+                  v-if="isOwner"
+                  type="button"
+                  class="px-10 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all whitespace-nowrap"
+                  @click="handleDeleteTeam"
+                >
                   {{ t('teamDetail.dissolveBtn') }}
                 </button>
                 <div v-else class="flex items-center gap-2 text-rose-400 font-bold text-sm italic">
@@ -1106,12 +1308,18 @@ onUnmounted(() => {
       >
         <div class="flex items-center justify-between mb-8">
           <div>
-            <h3 class="text-2xl font-black" style="color: var(--text-primary)">{{ t('teamDetail.addMemberTitle') }}</h3>
+            <h3 class="text-2xl font-black" style="color: var(--text-primary)">
+              {{ t('teamDetail.addMemberTitle') }}
+            </h3>
             <p class="text-xs text-slate-400 font-medium mt-1">
               {{ t('teamDetail.addMemberSubtitle') }}
             </p>
           </div>
-          <button type="button" class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all" @click="isAddModalOpen = false">
+          <button
+            type="button"
+            class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
+            @click="isAddModalOpen = false"
+          >
             <X class="w-6 h-6 text-slate-400" />
           </button>
         </div>
@@ -1119,9 +1327,9 @@ onUnmounted(() => {
         <div class="space-y-8">
           <!-- Search Users -->
           <div class="space-y-4">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-              >{{ t('teamDetail.internalSearchLabel') }}</label
-            >
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
+              t('teamDetail.internalSearchLabel')
+            }}</label>
             <div class="relative">
               <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -1152,7 +1360,11 @@ onUnmounted(() => {
                     <p class="text-[10px] text-slate-400">{{ user.email }}</p>
                   </div>
                 </div>
-                <button type="button" class="p-2 bg-accent/10 text-accent rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent hover:text-white" @click="handleAddUser(user)">
+                <button
+                  type="button"
+                  class="p-2 bg-accent/10 text-accent rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-accent hover:text-white"
+                  @click="handleAddUser(user)"
+                >
                   <Plus class="w-4 h-4" />
                 </button>
               </div>
@@ -1177,9 +1389,9 @@ onUnmounted(() => {
 
           <!-- Email Invite -->
           <div class="space-y-4">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-              >{{ t('teamDetail.emailInviteLabel') }}</label
-            >
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
+              t('teamDetail.emailInviteLabel')
+            }}</label>
             <div class="flex gap-3">
               <div class="relative flex-1">
                 <Mail class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -1191,7 +1403,12 @@ onUnmounted(() => {
                   style="color: var(--text-primary)"
                 />
               </div>
-              <button type="button" :disabled="!inviteEmailInput" class="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50" @click="handleSendInvite">
+              <button
+                type="button"
+                :disabled="!inviteEmailInput"
+                class="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                @click="handleSendInvite"
+              >
                 {{ t('teamDetail.sendBtn') }}
               </button>
             </div>
@@ -1212,23 +1429,32 @@ onUnmounted(() => {
           <div class="p-4 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500">
             <Trash2 class="w-6 h-6" />
           </div>
-          <button type="button" class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all" @click="isDissolveModalOpen = false">
+          <button
+            type="button"
+            class="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
+            @click="isDissolveModalOpen = false"
+          >
             <X class="w-6 h-6 text-slate-400" />
           </button>
         </div>
 
         <div class="space-y-6">
           <div>
-            <h3 class="text-2xl font-black text-rose-600">{{ t('teamDetail.dissolveConfirmTitle') }}</h3>
-            <p class="text-xs text-slate-400 font-medium mt-1 leading-relaxed" v-html="t('teamDetail.dissolveWarning', { name: team?.name })">
-            </p>
+            <h3 class="text-2xl font-black text-rose-600">
+              {{ t('teamDetail.dissolveConfirmTitle') }}
+            </h3>
+            <SafeHtml
+              class="text-xs text-slate-400 font-medium mt-1 leading-relaxed"
+              tag="p"
+              :html="t('teamDetail.dissolveWarning', { name: team?.name })"
+            />
           </div>
 
           <div class="space-y-4">
             <div v-if="authStore.user?.twoFactorEnabled" class="space-y-2">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                >{{ t('teamDetail.twoFactorLabel') }}</label
-              >
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
+                t('teamDetail.twoFactorLabel')
+              }}</label>
               <input
                 v-model="dissolveCode"
                 type="text"
@@ -1239,9 +1465,9 @@ onUnmounted(() => {
               />
             </div>
             <div v-else class="space-y-2">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                >{{ t('teamDetail.emailCodeLabel') }}</label
-              >
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{{
+                t('teamDetail.emailCodeLabel')
+              }}</label>
               <div class="flex gap-3">
                 <input
                   v-model="dissolveCode"
@@ -1251,14 +1477,24 @@ onUnmounted(() => {
                   class="flex-1 px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center text-xl font-black tracking-[0.2em] focus:ring-4 focus:ring-rose-500/10 outline-none transition-all"
                   style="color: var(--text-primary)"
                 />
-                <button type="button" :disabled="dissolveCountdown > 0" class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50" @click="sendDissolveCode">
+                <button
+                  type="button"
+                  :disabled="dissolveCountdown > 0"
+                  class="px-4 py-4 bg-accent/10 text-accent rounded-2xl font-bold text-xs hover:bg-accent/20 transition-all whitespace-nowrap disabled:opacity-50"
+                  @click="sendDissolveCode"
+                >
                   {{ dissolveCountdown > 0 ? `${dissolveCountdown}s` : t('teamDetail.getCodeBtn') }}
                 </button>
               </div>
             </div>
           </div>
 
-          <button type="button" :disabled="isDissolving || dissolveCode.length !== 6" class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2" @click="confirmDeleteTeam">
+          <button
+            type="button"
+            :disabled="isDissolving || dissolveCode.length !== 6"
+            class="w-full py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            @click="confirmDeleteTeam"
+          >
             <Trash2 class="w-4 h-4" />
             {{ isDissolving ? t('teamDetail.dissolving') : t('teamDetail.confirmDissolveBtn') }}
           </button>

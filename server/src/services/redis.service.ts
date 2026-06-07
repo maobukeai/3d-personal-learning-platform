@@ -9,7 +9,7 @@ class RedisService {
 
   constructor() {
     const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-    if (process.env.NODE_ENV === 'test' && !process.env.REDIS_URL) {
+    if (process.env.NODE_ENV === 'test' && process.env.ENABLE_REDIS_IN_TESTS !== 'true') {
       return;
     }
 
@@ -38,10 +38,33 @@ class RedisService {
         logger.warn(`Redis error: ${err.message}`);
         this.isRedisEnabled = false;
       });
-    } catch (e: any) {
-      logger.error('Failed to initialize Redis client:', e.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error('Failed to initialize Redis client:', msg);
       this.isRedisEnabled = false;
       this.redisClient = null;
+    }
+  }
+
+  private pruneCache() {
+    const now = Date.now();
+    for (const [key, cached] of this.localCache.entries()) {
+      if (now >= cached.expiresAt) {
+        this.localCache.delete(key);
+      }
+    }
+
+    // Capping at 1000 items to prevent unbounded memory growth if Redis is permanently disabled
+    if (this.localCache.size > 1000) {
+      const keysToKeep = Array.from(this.localCache.keys()).slice(-1000);
+      const newCache = new Map<string, { value: any; expiresAt: number }>();
+      for (const k of keysToKeep) {
+        const item = this.localCache.get(k);
+        if (item) {
+          newCache.set(k, item);
+        }
+      }
+      this.localCache = newCache;
     }
   }
 
@@ -72,6 +95,7 @@ class RedisService {
   }
 
   async set(key: string, value: any, ttlSeconds: number): Promise<void> {
+    this.pruneCache();
     if (this.isRedisEnabled && this.redisClient) {
       try {
         const stringified = JSON.stringify(value);
@@ -102,6 +126,7 @@ class RedisService {
   }
 
   async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    this.pruneCache();
     if (this.isRedisEnabled && this.redisClient) {
       try {
         const result = await this.redisClient.set(key, 'locked', 'EX', ttlSeconds, 'NX');

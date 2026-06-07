@@ -819,7 +819,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
             {{ t('tasks.all') }}
           </button>
           <button
-            type="button" v-for="p in priorityOptions" :key="p.id" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap" :class="
+            v-for="p in priorityOptions" :key="p.id" type="button" class="px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all flex items-center gap-1 whitespace-nowrap" :class="
               priorityFilter === p.id
                 ? 'bg-white dark:bg-slate-700 shadow-sm ' + p.textColor
                 : 'text-slate-500 hover:text-slate-700'

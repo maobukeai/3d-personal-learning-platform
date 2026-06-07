@@ -177,6 +177,7 @@ const onDragMove = (e: MouseEvent) => {
 const stopDrag = () => {
   isDragging.value = false;
   document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup',   stopDrag);
 };
 
 // ── Resize ───────────────────────────────────────────────────────
@@ -215,6 +216,7 @@ const onResizeMove = (e: MouseEvent) => {
 const stopResize = () => {
   isResizing.value = false;
   document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup',   stopResize);
 };
 
 // ── Maximize ─────────────────────────────────────────────────────

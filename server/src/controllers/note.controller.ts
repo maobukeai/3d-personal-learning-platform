@@ -589,7 +589,7 @@ export const summarizeNote = async (req: AuthRequest, res: Response, next: NextF
     });
 
     res.json({ success: true, summary });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Summarize note error:', error);
     next(error);
   }
@@ -632,7 +632,7 @@ export const summarizeSharedNote = async (req: AuthRequest, res: Response, next:
     });
 
     res.json({ success: true, summary });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Summarize shared note error:', error);
     next(error);
   }

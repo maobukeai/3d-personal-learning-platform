@@ -868,12 +868,25 @@ interface ImportTask {
 const importTasks = new Map<string, ImportTask>();
 
 // Cleanup old import tasks every 30 minutes to prevent memory leaks
-setInterval(() => {
-  // Clear all tasks (for simple in-memory cache, keeping the active or recent ones is enough)
-  if (importTasks.size > 100) {
-    importTasks.clear();
+const startImportTaskCleanup = () => {
+  if (process.env.NODE_ENV === 'test') {
+    return;
   }
-}, 30 * 60 * 1000);
+
+  const cleanupTimer = setInterval(
+    () => {
+      // Clear all tasks (for simple in-memory cache, keeping the active or recent ones is enough)
+      if (importTasks.size > 100) {
+        importTasks.clear();
+      }
+    },
+    30 * 60 * 1000,
+  );
+
+  cleanupTimer.unref?.();
+};
+
+startImportTaskCleanup();
 
 export const exportSource = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
@@ -936,7 +949,8 @@ export const exportSource = async (req: AuthRequest, res: Response) => {
         contentHtml: r.contentHtml,
         resourceType: r.resourceType,
         viewCount: r.viewCount,
-        publishedAt: r.publishedAt && !isNaN(r.publishedAt.getTime()) ? r.publishedAt.toISOString() : null,
+        publishedAt:
+          r.publishedAt && !isNaN(r.publishedAt.getTime()) ? r.publishedAt.toISOString() : null,
         contentHash: r.contentHash,
       })),
     };
@@ -1015,7 +1029,7 @@ export const exportSource = async (req: AuthRequest, res: Response) => {
 
     logger.info(
       `[ExportMirror] Streamed export for source ${id} (${exportFull ? 'full' : 'lite'}) ` +
-      `- ${referencedFiles.size} image(s), ${resources.length} resource(s)`,
+        `- ${referencedFiles.size} image(s), ${resources.length} resource(s)`,
     );
   } catch (error) {
     logger.error('[ExportMirror] Failed to export mirror source:', error);
@@ -1114,7 +1128,9 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     const { source, categories = [], resources = [] } = metadata;
 
     if (!source || !source.name || !source.displayName || !source.baseUrl) {
-      throw new Error('metadata.json 缺失必要镜像源字段名称 (name)、显示名称 (displayName) 或 baseUrl');
+      throw new Error(
+        'metadata.json 缺失必要镜像源字段名称 (name)、显示名称 (displayName) 或 baseUrl',
+      );
     }
 
     const sourceName = source.name;
@@ -1130,9 +1146,10 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     );
     const totalCategories = categories.length;
     const totalResources = resources.length;
-    
+
     // Total steps calculation
-    const totalSteps = 1 + totalCategories + Math.ceil(totalResources / 100) + filesToExtract.length;
+    const totalSteps =
+      1 + totalCategories + Math.ceil(totalResources / 100) + filesToExtract.length;
     task.totalSteps = totalSteps;
     task.currentStep = 0;
 
@@ -1140,7 +1157,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     if (existingSource) {
       targetSourceId = existingSource.id;
       task.message = `正在覆盖已存在的镜像源「${sourceName}」...`;
-      
+
       // Stop and cancel scheduler
       syncEngine.cancelSync(targetSourceId);
 
@@ -1204,7 +1221,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
       }
       fs.writeFileSync(path.join(iconDestDir, iconFilename), Buffer.from(archive[iconEntry]!));
       importedIconUrl = `/uploads/mirror/${iconFilename}`;
-      
+
       await prisma.mirrorSource.update({
         where: { id: targetSourceId },
         data: { iconUrl: importedIconUrl },
@@ -1302,7 +1319,11 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
 
       const insertData = batch.map((r: any) => {
         let thumbnailUrl = r.thumbnailUrl;
-        if (thumbnailUrl && oldSourceId && thumbnailUrl.includes(`/uploads/mirror/${oldSourceId}/`)) {
+        if (
+          thumbnailUrl &&
+          oldSourceId &&
+          thumbnailUrl.includes(`/uploads/mirror/${oldSourceId}/`)
+        ) {
           thumbnailUrl = thumbnailUrl.replace(
             `/uploads/mirror/${oldSourceId}/`,
             `/uploads/mirror/${targetSourceId}/`,
@@ -1318,7 +1339,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
         return {
           sourceId: targetSourceId,
           externalId: r.externalId,
-          categoryId: r.categoryExternalId ? (categoryMap.get(r.categoryExternalId) || null) : null,
+          categoryId: r.categoryExternalId ? categoryMap.get(r.categoryExternalId) || null : null,
           title: r.title,
           description: r.description,
           thumbnailUrl,
@@ -1344,7 +1365,11 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     // Refresh synchronization source in sync scheduler
     const finalSource = await prisma.mirrorSource.findUnique({ where: { id: targetSourceId } });
     if (finalSource) {
-      syncEngine.reloadSourceScheduler(finalSource.id, finalSource.status, finalSource.syncInterval);
+      syncEngine.reloadSourceScheduler(
+        finalSource.id,
+        finalSource.status,
+        finalSource.syncInterval,
+      );
     }
 
     task.progress = 100;
@@ -1360,7 +1385,7 @@ const runImportInBackground = async (taskId: string, zipFilePath: string) => {
     task.status = 'failed';
     task.error = err instanceof Error ? err.message : '未知导入错误';
     task.message = '导入失败，请检查压缩包内容是否完整。';
-    
+
     if (fs.existsSync(zipFilePath)) {
       try {
         fs.unlinkSync(zipFilePath);

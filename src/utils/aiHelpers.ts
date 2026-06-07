@@ -1,5 +1,12 @@
+export interface ResearchSourceItem {
+  title: string;
+  link: string;
+  domain: string;
+  publishedAt?: string;
+}
+
 export interface SSEPayload {
-  event?: 'meta' | 'heartbeat' | 'done';
+  event?: 'meta' | 'heartbeat' | 'done' | 'sources';
   requestId?: string;
   provider?: string;
   model?: string;
@@ -10,6 +17,7 @@ export interface SSEPayload {
   text?: string;
   reasoning?: string;
   error?: string;
+  sources?: ResearchSourceItem[];
 }
 
 export const getCsrfToken = (): string => {
@@ -78,7 +86,8 @@ export async function parseSSEStream(
       if (done) break;
 
       sseBuffer += decoder.decode(value, { stream: true });
-      const lines = sseBuffer.split('\n');
+      // RFC 8895: SSE lines may be terminated by \r\n, \r, or \n.
+      const lines = sseBuffer.split(/\r?\n/);
       sseBuffer = lines.pop() || '';
 
       for (const line of lines) {
@@ -94,11 +103,13 @@ export async function parseSSEStream(
 }
 
 /**
- * Simple client-side Markdown-to-HTML parser for dialog chat and preview.
+ * @deprecated renderMarkdown is no longer used in AISprite.vue (replaced by
+ * the MdPreview component). Kept here only to avoid breaking any external
+ * callers. Will be removed in a future cleanup.
  */
 export function renderMarkdown(text: string): string {
   if (!text) return '';
-  let html = text
+  const html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')

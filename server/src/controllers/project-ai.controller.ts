@@ -8,6 +8,7 @@ import {
   AIChatMessage as ServiceAIChatMessage,
   callLLM,
   streamLLMChat,
+  sendSSE,
   AIServiceConfig,
 } from '../services/ai.service';
 import { getAIModelById, settingsService } from '../services/settings.service';
@@ -18,13 +19,18 @@ import {
   AI_SPRITE_CHAT_PROMPT,
   BAIDU_NETDISK_ANALYSIS_PROMPT,
   getCoPlanChatPrompt,
+  AI_SPRITE_RESEARCH_OVERRIDE_RULES,
 } from '../config/prompts';
 import { checkTeamProjectPermission } from './project.controller';
+import { formatSearchResultsAsPrompt, performWebSearch } from '../services/search.service';
+import { buildDeepResearchContext } from '../services/deep-research.service';
 
 type AiChatMessage = {
   role: 'user' | 'assistant';
   content: string;
 };
+
+type AiChatMode = 'default' | 'search' | 'research';
 
 const MAX_AI_CHAT_MESSAGES = 12;
 const MAX_AI_CHAT_MESSAGE_CHARS = 12000;
@@ -146,18 +152,20 @@ export const aiGenerateProjectText = async (
 
     const settings = await settingsService.getAll();
     const selectedModel = getAIModelById(settings, undefined);
-    
-    const overrides: Partial<AIServiceConfig> = selectedModel ? {
-      AI_IMPORT_ENABLED: true,
-      AI_PROVIDER: selectedModel.provider,
-      AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
-      AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
-      AI_MODEL_NAME: selectedModel.modelName,
-      capabilities: selectedModel.capabilities,
-      maxTokens: 16384,
-    } : {
-      maxTokens: 16384,
-    };
+
+    const overrides: Partial<AIServiceConfig> = selectedModel
+      ? {
+          AI_IMPORT_ENABLED: true,
+          AI_PROVIDER: selectedModel.provider,
+          AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+          AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+          AI_MODEL_NAME: selectedModel.modelName,
+          capabilities: selectedModel.capabilities,
+          maxTokens: 16384,
+        }
+      : {
+          maxTokens: 16384,
+        };
 
     const generatedMarkdown = await callLLM(prompt.trim(), PROJECT_GENERATION_PROMPT, overrides);
 
@@ -171,11 +179,51 @@ export const aiGenerateProjectText = async (
 };
 
 export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { messages, context, modelId } = req.body;
+  const { messages, context, modelId, sessionId, sessionTitle, searchEnabled, mode } = req.body;
   const normalizedMessages = normalizeAiChatMessages(messages);
 
   if (normalizedMessages.length === 0) {
     return next(new AppError('对话内容不能为空', 400));
+  }
+
+  if (req.userId) {
+    try {
+      const subscription = await prisma.subscription.findUnique({
+        where: { userId: req.userId },
+        include: { plan: true },
+      });
+
+      const role = req.user?.role;
+      const planName =
+        subscription && subscription.status === 'ACTIVE' ? subscription.plan.name : 'FREE';
+
+      const limit =
+        role === 'ADMIN' ? 10000 : planName === 'SVIP' ? 10000 : planName === 'VIP' ? 1000 : 100;
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const count = await prisma.aiMessage.count({
+        where: {
+          userId: req.userId,
+          role: 'user',
+          createdAt: {
+            gte: startOfDay,
+          },
+        },
+      });
+
+      if (count >= limit) {
+        return next(
+          new AppError(
+            `您的每日 AI 对话额度已用尽（今日已用: ${count}/${limit} 次）。请明天再试或升级计划。`,
+            403,
+          ),
+        );
+      }
+    } catch (err) {
+      console.error('[AI Chat] Quota verification failed:', err);
+    }
   }
 
   const lastMessage = normalizedMessages[normalizedMessages.length - 1];
@@ -198,10 +246,21 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     return next(new AppError('对话上下文过长，请清空历史或精简后再发送。', 400));
   }
 
+  const chatMode: AiChatMode =
+    mode === 'research' || mode === 'search' || mode === 'default'
+      ? mode
+      : searchEnabled
+        ? 'search'
+        : 'default';
+
   const contextPrompt = buildAiChatContextPrompt(context, req);
-  const systemPrompt = contextPrompt
+  let systemPrompt = contextPrompt
     ? `${AI_SPRITE_CHAT_PROMPT}\n\n${contextPrompt}`
     : AI_SPRITE_CHAT_PROMPT;
+
+  if (chatMode === 'search' || chatMode === 'research') {
+    systemPrompt = `${systemPrompt}\n\n${AI_SPRITE_RESEARCH_OVERRIDE_RULES}`;
+  }
 
   const settings = await settingsService.getAll();
   const selectedModel = getAIModelById(
@@ -212,6 +271,94 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
     return next(new AppError('当前没有可用的 AI 聊天模型，请联系管理员配置。', 503));
   }
 
+  if (chatMode === 'search') {
+    let searchQuery = lastMessage.content;
+    searchQuery = searchQuery.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+
+    if (searchQuery) {
+      try {
+        const results = await performWebSearch(searchQuery, {
+          maxResults: 6,
+          includePageContent: true,
+        });
+        if (results.length > 0) {
+          systemPrompt = `${systemPrompt}\n\n${formatSearchResultsAsPrompt(
+            results,
+            'You also have access to the following live web search pack. Use it for factual grounding and cite the source numbers when relevant:',
+          )}`;
+        }
+      } catch (searchErr) {
+        console.error('[AI Chat] Web search failed:', searchErr);
+      }
+    }
+  }
+
+  type ResearchSource = { title: string; link: string; domain: string; publishedAt?: string };
+  let researchSources: ResearchSource[] = [];
+
+  if (chatMode === 'research') {
+    // Establish SSE stream headers early so we can stream progressive reasoning logs
+    if (!res.headersSent) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.setHeader('Content-Encoding', 'none');
+      res.flushHeaders();
+    }
+
+    // Send meta event so client knows the model and request context
+    sendSSE(res, {
+      event: 'meta',
+      requestId: 'research-' + Date.now(),
+      provider: selectedModel.provider,
+      model: selectedModel.modelName,
+    });
+
+    let researchQuery = lastMessage.content.replace(/!\[.*?\]\((.*?)\)/g, '').trim();
+
+    if (researchQuery) {
+      try {
+        const researchContext = await buildDeepResearchContext(
+          researchQuery,
+          {
+            AI_PROVIDER: selectedModel.provider,
+            AI_API_KEY: selectedModel.apiKey || settings.AI_API_KEY,
+            AI_API_ENDPOINT: selectedModel.endpoint || settings.AI_API_ENDPOINT,
+            AI_MODEL_NAME: selectedModel.modelName,
+            capabilities: selectedModel.capabilities,
+          },
+          (update) => {
+            sendSSE(res, { reasoning: update });
+          },
+        );
+
+        if (researchContext.groundingPrompt) {
+          systemPrompt = `${systemPrompt}\n\n${researchContext.groundingPrompt}`;
+        }
+
+        if (researchContext.sources && researchContext.sources.length > 0) {
+          researchSources = researchContext.sources.map((s) => ({
+            title: s.title,
+            link: s.link,
+            domain: s.domain,
+            publishedAt: s.publishedAt,
+          }));
+
+          sendSSE(res, {
+            event: 'sources',
+            sources: researchSources,
+          });
+        }
+      } catch (researchErr) {
+        console.error('[AI Chat] Deep research failed:', researchErr);
+        sendSSE(res, {
+          reasoning: '⚠️ 深度研究引擎遇到异常，将以现有 AI 知识作为基础继续回答。\n',
+        });
+      }
+    }
+  }
+
   if (req.userId) {
     try {
       await prisma.aiMessage.create({
@@ -219,6 +366,8 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
           userId: req.userId,
           role: 'user',
           content: redactSensitiveContent(lastMessage.content),
+          sessionId: typeof sessionId === 'string' ? sessionId : 'default',
+          sessionTitle: typeof sessionTitle === 'string' ? sessionTitle : '新对话',
         },
       });
     } catch (dbErr) {
@@ -240,6 +389,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         capabilities: selectedModel.capabilities,
       },
       req.userId,
+      { sessionId, sessionTitle, sources: researchSources },
     );
   } catch (error) {
     if (res.headersSent) {
@@ -255,6 +405,15 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
 export const getAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const userId = req.userId as string;
   try {
+    // 自动清理一周（7天）以前的聊天历史记录
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    await prisma.aiMessage.deleteMany({
+      where: {
+        userId,
+        createdAt: { lt: oneWeekAgo },
+      },
+    });
+
     const history = await prisma.aiMessage.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -264,9 +423,13 @@ export const getAiChatHistory = async (req: AuthRequest, res: Response, next: Ne
     res.json({
       success: true,
       data: orderedHistory.map((h) => ({
+        id: h.id,
         role: h.role,
         content: h.content,
+        reasoning: h.reasoning,
         createdAt: h.createdAt,
+        sessionId: h.sessionId,
+        sessionTitle: h.sessionTitle,
       })),
     });
   } catch (error) {
@@ -276,13 +439,20 @@ export const getAiChatHistory = async (req: AuthRequest, res: Response, next: Ne
 
 export const clearAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const userId = req.userId as string;
+  const sessionId = req.query.sessionId as string | undefined;
   try {
-    await prisma.aiMessage.deleteMany({
-      where: { userId },
-    });
+    if (sessionId) {
+      await prisma.aiMessage.deleteMany({
+        where: { userId, sessionId },
+      });
+    } else {
+      await prisma.aiMessage.deleteMany({
+        where: { userId },
+      });
+    }
     res.json({
       success: true,
-      message: '聊天历史记录已清除',
+      message: sessionId ? '对话会话已删除' : '聊天历史记录已清除',
     });
   } catch (error) {
     next(error);
@@ -341,10 +511,10 @@ export const parseNetdiskLink = async (req: AuthRequest, res: Response, next: Ne
 
     try {
       parsedData = await parseBaiduNetdiskLink(url, password);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn(
         'Baidu Netdisk scraping failed. Falling back to LLM simulation. Reason:',
-        err.message,
+        err instanceof Error ? err.message : String(err),
       );
       isFallback = true;
 
@@ -607,6 +777,57 @@ export const importProjectFromJson = async (
       project: result.project,
       roadmap: result.roadmap,
       tasksCount: result.tasksCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAiUsage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const userId = req.userId || req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: '未登录' });
+  }
+
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId },
+      include: { plan: true },
+    });
+
+    const role = req.user?.role;
+    const planName =
+      subscription && subscription.status === 'ACTIVE' ? subscription.plan.name : 'FREE';
+
+    const displayName =
+      subscription && subscription.status === 'ACTIVE'
+        ? subscription.plan.displayName || '专业版'
+        : '免费版';
+
+    const limit =
+      role === 'ADMIN' ? 10000 : planName === 'SVIP' ? 10000 : planName === 'VIP' ? 1000 : 100;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const count = await prisma.aiMessage.count({
+      where: {
+        userId,
+        role: 'user',
+        createdAt: {
+          gte: startOfDay,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        usedToday: count,
+        dailyLimit: limit,
+        planName: planName,
+        planDisplayName: role === 'ADMIN' ? '系统管理员' : displayName,
+      },
     });
   } catch (error) {
     next(error);

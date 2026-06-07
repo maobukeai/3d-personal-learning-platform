@@ -8,10 +8,7 @@ import path from 'path';
 export const getAllBanners = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const banners = await prisma.banner.findMany({
-      orderBy: [
-        { order: 'asc' },
-        { createdAt: 'desc' }
-      ]
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
     res.json(banners);
   } catch (error) {
@@ -61,7 +58,9 @@ export const updateBanner = async (req: AuthRequest, res: Response, next: NextFu
 
     // If banner image is being updated, we optionally clean up the old file
     if (imageUrl && imageUrl !== existing.imageUrl && existing.imageUrl) {
-      const relativePath = existing.imageUrl.startsWith('/') ? existing.imageUrl.substring(1) : existing.imageUrl;
+      const relativePath = existing.imageUrl.startsWith('/')
+        ? existing.imageUrl.substring(1)
+        : existing.imageUrl;
       const oldLocalPath = path.join(process.cwd(), relativePath);
       if (existing.imageUrl.includes('/uploads/banners/') && fs.existsSync(oldLocalPath)) {
         try {
@@ -104,7 +103,9 @@ export const deleteBanner = async (req: AuthRequest, res: Response, next: NextFu
 
     // Unlink the local file if it exists
     if (existing.imageUrl) {
-      const relativePath = existing.imageUrl.startsWith('/') ? existing.imageUrl.substring(1) : existing.imageUrl;
+      const relativePath = existing.imageUrl.startsWith('/')
+        ? existing.imageUrl.substring(1)
+        : existing.imageUrl;
       const localPath = path.join(process.cwd(), relativePath);
       if (existing.imageUrl.includes('/uploads/banners/') && fs.existsSync(localPath)) {
         try {

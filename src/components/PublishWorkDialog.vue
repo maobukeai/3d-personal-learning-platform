@@ -90,7 +90,9 @@ const getTypeLabel = (type: string) => {
 const fetchMyApprovedAssets = async () => {
   try {
     const response = await api.get('/api/assets/my');
-    myApprovedAssets.value = (response.data as ApprovedAsset[]).filter((asset) => asset.status === 'APPROVED');
+    myApprovedAssets.value = (response.data as ApprovedAsset[]).filter(
+      (asset) => asset.status === 'APPROVED',
+    );
   } catch (_error) {
     console.error('Failed to fetch my assets');
   }
@@ -271,7 +273,9 @@ onUnmounted(() => {
         style="background-color: var(--bg-card)"
       >
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-xl font-bold" style="color: var(--text-primary)">{{ t('publishDialog.title') }}</h3>
+          <h3 class="text-xl font-bold" style="color: var(--text-primary)">
+            {{ t('publishDialog.title') }}
+          </h3>
           <button type="button" style="color: var(--text-secondary)" @click="closeDialog">
             <X class="w-5 h-5" />
           </button>
@@ -282,15 +286,33 @@ onUnmounted(() => {
           class="flex items-center gap-2 p-1 rounded-xl mb-6 overflow-x-auto whitespace-nowrap scrollbar-hide"
           style="background-color: var(--bg-app)"
         >
-          <button type="button" class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5" :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''" :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''" @click="publishCategory = 'model'">
+          <button
+            type="button"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''"
+            :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''"
+            @click="publishCategory = 'model'"
+          >
             <Box class="w-3.5 h-3.5" />
             {{ t('publishDialog.tabModel') }}
           </button>
-          <button type="button" class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5" :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''" :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''" @click="publishCategory = 'asset'">
+          <button
+            type="button"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''"
+            :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''"
+            @click="publishCategory = 'asset'"
+          >
             <UploadCloud class="w-3.5 h-3.5" />
             {{ t('publishDialog.tabAsset') }}
           </button>
-          <button type="button" class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5" :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''" :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''" @click="publishCategory = 'work'">
+          <button
+            type="button"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''"
+            :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''"
+            @click="publishCategory = 'work'"
+          >
             <Image class="w-3.5 h-3.5" />
             {{ t('publishDialog.tabWork') }}
           </button>
@@ -353,7 +375,9 @@ onUnmounted(() => {
                     :placeholder="t('publishDialog.tagsPlaceholder')"
                     style="color: var(--text-primary)"
                   />
-                  <p class="text-[10px] text-slate-400 mt-1 ml-1">{{ t('publishDialog.tagsTip') }}</p>
+                  <p class="text-[10px] text-slate-400 mt-1 ml-1">
+                    {{ t('publishDialog.tagsTip') }}
+                  </p>
                 </div>
               </div>
 
@@ -458,7 +482,11 @@ onUnmounted(() => {
                         style="border-color: var(--border-base)"
                       >
                         <p class="text-xs truncate px-2" style="color: var(--text-secondary)">
-                          {{ publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.uploadPreview') }}
+                          {{
+                            publishForm.thumbnail
+                              ? publishForm.thumbnail.name
+                              : t('publishDialog.uploadPreview')
+                          }}
                         </p>
                       </div>
                     </div>
@@ -505,15 +533,26 @@ onUnmounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >{{ t('publishDialog.workTypeLabel') }}</label
                 >
-                <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1">
+                <div
+                  class="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide p-1"
+                >
                   <button
-                    v-for="t in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']" :key="t" type="button" class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1" :class="publishForm.type === t ? 'bg-indigo-600 text-white shadow-md' : ''" :style="
-                      publishForm.type !== t
+                    v-for="workType in ['IMAGE', 'VIDEO', 'TEXT', 'MODEL', 'OTHER']"
+                    :key="workType"
+                    type="button"
+                    class="flex-none md:flex-1 px-4 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1"
+                    :class="
+                      publishForm.type === workType ? 'bg-indigo-600 text-white shadow-md' : ''
+                    "
+                    :style="
+                      publishForm.type !== workType
                         ? 'color: var(--text-secondary); background-color: var(--bg-app)'
                         : ''
-                    " @click="publishForm.type = t">
-                    <component :is="getTypeIcon(t)" class="w-3 h-3" />
-                    {{ getTypeLabel(t) }}
+                    "
+                    @click="publishForm.type = workType"
+                  >
+                    <component :is="getTypeIcon(workType)" class="w-3 h-3" />
+                    {{ getTypeLabel(workType) }}
                   </button>
                 </div>
               </div>
@@ -550,7 +589,11 @@ onUnmounted(() => {
                   >
                     <UploadCloud class="w-6 h-6 text-indigo-500/40" />
                     <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                      {{ publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.clickUploadThumbnail') }}
+                      {{
+                        publishForm.thumbnail
+                          ? publishForm.thumbnail.name
+                          : t('publishDialog.clickUploadThumbnail')
+                      }}
                     </p>
                   </div>
                 </div>
@@ -618,9 +661,9 @@ onUnmounted(() => {
                 class="flex items-center gap-3 py-2"
               >
                 <el-switch v-model="publishForm.isVideo" active-color="var(--accent)" />
-                <span class="text-xs font-bold" style="color: var(--text-secondary)"
-                  >{{ t('publishDialog.isVideoWorkLabel') }}</span
-                >
+                <span class="text-xs font-bold" style="color: var(--text-secondary)">{{
+                  t('publishDialog.isVideoWorkLabel')
+                }}</span>
               </div>
 
               <div v-if="publishForm.isVideo">
@@ -669,7 +712,12 @@ onUnmounted(() => {
         </template>
 
         <!-- Publish Button -->
-        <button type="button" :disabled="isPublishing" class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2" @click="handlePublish">
+        <button
+          type="button"
+          :disabled="isPublishing"
+          class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+          @click="handlePublish"
+        >
           <div
             v-if="isPublishing"
             class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"

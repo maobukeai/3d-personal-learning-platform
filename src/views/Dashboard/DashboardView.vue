@@ -452,7 +452,7 @@ onUnmounted(() => {
           <h1 class="text-xl md:text-3xl font-black tracking-tight text-white drop-shadow-sm leading-tight">
             {{ activeBanners[0].title }}
           </h1>
-          <p class="text-xs md:text-sm text-slate-300 font-medium leading-relaxed drop-shadow-sm max-w-md" v-if="activeBanners[0].subtitle">
+          <p v-if="activeBanners[0].subtitle" class="text-xs md:text-sm text-slate-300 font-medium leading-relaxed drop-shadow-sm max-w-md">
             {{ activeBanners[0].subtitle }}
           </p>
           <div class="pt-1 flex gap-3">
@@ -498,7 +498,7 @@ onUnmounted(() => {
             <h1 class="text-xl md:text-3xl font-black tracking-tight text-white drop-shadow-sm leading-tight">
               {{ slide.title }}
             </h1>
-            <p class="text-xs md:text-sm text-slate-300 font-medium leading-relaxed drop-shadow-sm max-w-md" v-if="slide.subtitle">
+            <p v-if="slide.subtitle" class="text-xs md:text-sm text-slate-300 font-medium leading-relaxed drop-shadow-sm max-w-md">
               {{ slide.subtitle }}
             </p>
             <div class="pt-1 flex gap-3">

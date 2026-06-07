@@ -281,7 +281,7 @@ onMounted(() => {
               <template #default="{ row }">
                 <div class="space-y-1">
                   <h4 class="font-bold text-xs sm:text-sm text-slate-100">{{ row.title }}</h4>
-                  <p class="text-[10px] text-slate-400 line-clamp-1" v-if="row.subtitle">{{ row.subtitle }}</p>
+                  <p v-if="row.subtitle" class="text-[10px] text-slate-400 line-clamp-1">{{ row.subtitle }}</p>
                 </div>
               </template>
             </el-table-column>
@@ -311,9 +311,9 @@ onMounted(() => {
               <template #default="{ row }">
                 <el-switch
                   :model-value="row.isActive"
-                  @change="handleToggleStatus(row)"
                   active-color="var(--accent)"
                   inactive-color="rgba(255,255,255,0.15)"
+                  @change="handleToggleStatus(row)"
                 />
               </template>
             </el-table-column>
@@ -406,8 +406,8 @@ onMounted(() => {
                 选择图片并上传
               </button>
               <input
-                type="file"
                 ref="fileInputRef"
+                type="file"
                 class="hidden"
                 accept="image/*"
                 @change="handleImageUpload"
@@ -500,7 +500,7 @@ onMounted(() => {
             :disabled="isSaving"
             @click="saveBanner"
           >
-            <RefreshCw class="w-3.5 h-3.5 animate-spin" v-if="isSaving" />
+            <RefreshCw v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
             <span>保存</span>
           </button>
         </div>

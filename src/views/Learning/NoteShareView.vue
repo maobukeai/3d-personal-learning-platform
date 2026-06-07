@@ -247,6 +247,9 @@ const isSummarizing = ref(false);
 const sessionSummary = ref('');
 const summaryProgress = ref(0);
 
+let progressInterval: ReturnType<typeof setInterval> | null = null;
+let fillInterval: ReturnType<typeof setInterval> | null = null;
+
 const currentThinkingStep = computed(() => {
   const percent = summaryProgress.value;
   if (percent < 12) return "分析段落结构";
@@ -265,7 +268,10 @@ const generateAiSummary = async () => {
   summaryProgress.value = 0;
   sessionSummary.value = '';
 
-  const progressInterval = setInterval(() => {
+  if (progressInterval) clearInterval(progressInterval);
+  if (fillInterval) clearInterval(fillInterval);
+
+  progressInterval = setInterval(() => {
     if (summaryProgress.value < 40) {
       summaryProgress.value += Math.floor(Math.random() * 3) + 2; // 2-4%
     } else if (summaryProgress.value < 70) {
@@ -284,15 +290,21 @@ const generateAiSummary = async () => {
   try {
     const res = await api.post(`/api/notes/share/${shareId}/ai-summarize`);
     if (res.data && res.data.summary) {
-      clearInterval(progressInterval);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
       // Smoothly accelerate to 100%
       const fillProgress = () => {
         return new Promise<void>((resolve) => {
-          const fillInterval = setInterval(() => {
+          fillInterval = setInterval(() => {
             if (summaryProgress.value < 100) {
               summaryProgress.value += Math.min(5, 100 - summaryProgress.value);
             } else {
-              clearInterval(fillInterval);
+              if (fillInterval) {
+                clearInterval(fillInterval);
+                fillInterval = null;
+              }
               resolve();
             }
           }, 30);
@@ -302,11 +314,17 @@ const generateAiSummary = async () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       sessionSummary.value = res.data.summary;
     } else {
-      clearInterval(progressInterval);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
       ElMessage.error('未能获取生成摘要');
     }
   } catch (err: any) {
-    clearInterval(progressInterval);
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
     ElMessage.error(getApiErrorMessage(err, '生成摘要失败，请重试'));
   } finally {
     isSummarizing.value = false;
@@ -337,6 +355,14 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('scroll', onWindowScroll);
   systemStore.updateBrowserBranding();
+  if (progressInterval) {
+    clearInterval(progressInterval);
+    progressInterval = null;
+  }
+  if (fillInterval) {
+    clearInterval(fillInterval);
+    fillInterval = null;
+  }
 });
 </script>
 

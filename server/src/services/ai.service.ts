@@ -52,7 +52,8 @@ const DEFAULT_PROVIDER_MODELS: Record<string, string> = {
 };
 
 const AI_REQUEST_TIMEOUT_MS = 60_000;
-const AI_STREAM_TIMEOUT_MS = 120_000;
+/** Generous timeout for streaming responses — deep research mode can take 60-90 s before the LLM starts generating. */
+const AI_STREAM_TIMEOUT_MS = 180_000;
 const AI_STREAM_HEARTBEAT_MS = 15_000;
 
 function createRequestId(): string {
@@ -116,25 +117,37 @@ function cleanImageEndpointUrl(url: string | undefined | null): string {
  */
 function isImageGenerationModel(modelName: string, capabilities?: string[]): boolean {
   if (capabilities && Array.isArray(capabilities)) {
-    const list = capabilities.map(c => c.toLowerCase().trim());
-    if (list.some(c => c === 'draw' || c === 'image' || c === 'image_generation' || c === 'paint' || c === 'txt2img' || c === 't2i')) {
+    const list = capabilities.map((c) => c.toLowerCase().trim());
+    if (
+      list.some(
+        (c) =>
+          c === 'draw' ||
+          c === 'image' ||
+          c === 'image_generation' ||
+          c === 'paint' ||
+          c === 'txt2img' ||
+          c === 't2i',
+      )
+    ) {
       return true;
     }
   }
   const name = modelName.toLowerCase();
-  return name.includes('flux') ||
-         name.includes('stable-diffusion') ||
-         name.includes('sdxl') ||
-         name.includes('sd-') ||
-         name.includes('dall-e') ||
-         name.includes('midjourney') ||
-         name.includes('playground') ||
-         name.includes('cogview') ||
-         name.includes('kolors') ||
-         name.includes('image') ||
-         name.includes('draw') ||
-         name.includes('paint') ||
-         name.includes('generate');
+  return (
+    name.includes('flux') ||
+    name.includes('stable-diffusion') ||
+    name.includes('sdxl') ||
+    name.includes('sd-') ||
+    name.includes('dall-e') ||
+    name.includes('midjourney') ||
+    name.includes('playground') ||
+    name.includes('cogview') ||
+    name.includes('kolors') ||
+    name.includes('image') ||
+    name.includes('draw') ||
+    name.includes('paint') ||
+    name.includes('generate')
+  );
 }
 
 /**
@@ -176,6 +189,15 @@ function toUserFacingAIError(error: unknown, provider: AIProvider): string {
     errMsg = '请求超时，请检查 API Endpoint 能否从服务器正常连接。';
   } else if (err.code === 'ERR_CANCELED') {
     errMsg = '请求已取消。';
+  } else if (
+    err.code === 'ECONNRESET' ||
+    String(err.message).toLowerCase().includes('socket hang up') ||
+    String(err.message).toLowerCase().includes('econnreset')
+  ) {
+    // The AI API server closed the connection mid-stream, usually due to its own server-side timeout
+    // or a transient network issue. Provide a clear, actionable message instead of the raw Node.js error.
+    errMsg =
+      'AI 服务连接被意外中断（socket hang up）。可能原因：本次请求耗时过长触发了服务商超时、或网络不稳定。请稍后重试，或考虑精简问题。';
   } else if (response.status === 401) {
     errMsg = '鉴权失败，请检查 API 密钥 (API Key) 是否正确。';
   } else if (response.status === 403) {
@@ -332,7 +354,7 @@ async function formatOllamaMessages(
   return [{ role: 'system', content: systemPrompt }, ...normalizedMessages];
 }
 
-function sendSSE(res: Response, payload: Record<string, unknown> | '[DONE]') {
+export function sendSSE(res: Response, payload: Record<string, unknown> | '[DONE]') {
   if (res.writableEnded) return;
   if (payload === '[DONE]') {
     res.write('data: [DONE]\n\n');
@@ -539,11 +561,12 @@ async function executeLLMRequest(
   body: unknown,
   provider: AIProvider,
   overrides?: Partial<AIServiceConfig>,
+  timeoutMs: number = AI_REQUEST_TIMEOUT_MS,
 ): Promise<string> {
   try {
     const response = await axios.post(url, body, {
       headers,
-      timeout: AI_REQUEST_TIMEOUT_MS,
+      timeout: timeoutMs,
     });
 
     if (
@@ -588,6 +611,7 @@ export async function callLLM(
   prompt: string,
   systemPrompt: string,
   overrides?: Partial<AIServiceConfig>,
+  timeoutMs: number = AI_REQUEST_TIMEOUT_MS,
 ): Promise<string> {
   const { url, headers, body, provider, modelName, requestId } = await prepareRequestConfig(
     [],
@@ -607,15 +631,19 @@ export async function callLLM(
         `[AI Service Image Test] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
       );
 
-      const response = await axios.post(imgUrl, {
-        model: modelName,
-        prompt: 'a white dot',
-        n: 1,
-        size: '256x256',
-      }, {
-        headers,
-        timeout: AI_REQUEST_TIMEOUT_MS,
-      });
+      const response = await axios.post(
+        imgUrl,
+        {
+          model: modelName,
+          prompt: 'a white dot',
+          n: 1,
+          size: '256x256',
+        },
+        {
+          headers,
+          timeout: timeoutMs,
+        },
+      );
 
       const responseData = response.data;
       const imgData = responseData.data?.[0];
@@ -633,7 +661,7 @@ export async function callLLM(
     `[AI Service] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(url)}`,
   );
 
-  return executeLLMRequest(url, headers, body, provider, overrides);
+  return executeLLMRequest(url, headers, body, provider, overrides, timeoutMs);
 }
 
 /**
@@ -689,7 +717,10 @@ export async function streamLLMChat(
         ...streamMeta,
       });
 
-      sendSSE(res, { reasoning: `正在为您使用生图模型 ${modelName} 生成图片，请稍候...\n(Please wait while generating image using model: ${modelName})`, requestId });
+      sendSSE(res, {
+        reasoning: `正在为您使用生图模型 ${modelName} 生成图片，请稍候...\n(Please wait while generating image using model: ${modelName})`,
+        requestId,
+      });
 
       try {
         const lastUserMsg = messages[messages.length - 1]?.content || '画一幅精美的3D模型渲染图';
@@ -700,22 +731,27 @@ export async function streamLLMChat(
           `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
         );
 
-        const response = await axios.post(imgUrl, {
-          model: modelName,
-          prompt: cleanPrompt,
-          n: 1,
-          size: '1024x1024',
-        }, {
-          headers,
-          timeout: AI_STREAM_TIMEOUT_MS,
-        });
+        const response = await axios.post(
+          imgUrl,
+          {
+            model: modelName,
+            prompt: cleanPrompt,
+            n: 1,
+            size: '1024x1024',
+          },
+          {
+            headers,
+            timeout: AI_STREAM_TIMEOUT_MS,
+          },
+        );
 
         const responseData = response.data;
         const imgData = responseData.data?.[0];
         let finalMarkdown = '';
 
         if (imgData) {
-          const urlOrBase64 = imgData.url || (imgData.b64_json ? `data:image/png;base64,${imgData.b64_json}` : null);
+          const urlOrBase64 =
+            imgData.url || (imgData.b64_json ? `data:image/png;base64,${imgData.b64_json}` : null);
           if (urlOrBase64) {
             finalMarkdown = `![${cleanPrompt}](${urlOrBase64})`;
           }
@@ -731,12 +767,22 @@ export async function streamLLMChat(
         // Save to database
         if (userId) {
           try {
+            const sId =
+              streamMeta && typeof streamMeta.sessionId === 'string'
+                ? streamMeta.sessionId
+                : 'default';
+            const sTitle =
+              streamMeta && typeof streamMeta.sessionTitle === 'string'
+                ? streamMeta.sessionTitle
+                : '新对话';
             await prisma.aiMessage.create({
               data: {
                 userId,
                 role: 'assistant',
                 content: finalMarkdown,
                 reasoning: `使用生图模型 ${modelName} 生成图片。`,
+                sessionId: sId,
+                sessionTitle: sTitle,
               },
             });
           } catch (dbErr) {
@@ -764,13 +810,15 @@ export async function streamLLMChat(
       }
     }
 
-    // Establish SSE stream headers ONLY after config was prepared successfully
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering in Nginx
-    res.setHeader('Content-Encoding', 'none'); // Prevent compression buffering
-    res.flushHeaders();
+    // Establish SSE stream headers ONLY after config was prepared successfully if not already sent
+    if (!res.headersSent) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering in Nginx
+      res.setHeader('Content-Encoding', 'none'); // Prevent compression buffering
+      res.flushHeaders();
+    }
 
     res.on('close', () => {
       if (!completed) {
@@ -808,7 +856,8 @@ export async function streamLLMChat(
 
     const stream = response.data;
     let lastActivityTime = Date.now();
-    const STREAM_ACTIVITY_TIMEOUT_MS = 25_000;
+    /** Longer window so deep-research mode (which can take 60-90 s before the first LLM token) doesn't self-abort. */
+    const STREAM_ACTIVITY_TIMEOUT_MS = 40_000;
 
     activityTimer = setInterval(() => {
       if (!completed) {
@@ -908,12 +957,28 @@ export async function streamLLMChat(
 
       if (userId && assistantContent) {
         try {
+          const sId =
+            streamMeta && typeof streamMeta.sessionId === 'string'
+              ? streamMeta.sessionId
+              : 'default';
+          const sTitle =
+            streamMeta && typeof streamMeta.sessionTitle === 'string'
+              ? streamMeta.sessionTitle
+              : '新对话';
+
+          let finalReasoning = assistantReasoning || '';
+          if (streamMeta && Array.isArray(streamMeta.sources) && streamMeta.sources.length > 0) {
+            finalReasoning = `${finalReasoning}\n[sources]: ${JSON.stringify(streamMeta.sources)}`;
+          }
+
           await prisma.aiMessage.create({
             data: {
               userId,
               role: 'assistant',
               content: assistantContent,
-              reasoning: assistantReasoning || null,
+              reasoning: finalReasoning || null,
+              sessionId: sId,
+              sessionTitle: sTitle,
             },
           });
         } catch (dbErr) {
@@ -961,7 +1026,9 @@ export async function streamLLMChat(
       }
       logger.error(`[AI Stream Source Error] requestId=${requestId}:`, sanitizeAIError(err));
       if (!res.writableEnded) {
-        sendSSE(res, { error: err.message, requestId });
+        // Convert raw Node.js network errors to user-friendly messages
+        const friendlyMsg = toUserFacingAIError(err, activeProvider);
+        sendSSE(res, { error: friendlyMsg, requestId });
         res.end();
       }
     });

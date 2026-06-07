@@ -821,7 +821,9 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       prisma.discussionLike.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
       prisma.commentLike.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
       prisma.showcaseLike.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
-      prisma.lessonProgress.count({ where: { userId, completed: true, completedAt: { gte: sevenDaysAgo } } }),
+      prisma.lessonProgress.count({
+        where: { userId, completed: true, completedAt: { gte: sevenDaysAgo } },
+      }),
       prisma.task.count({ where: { userId, status: 'DONE', updatedAt: { gte: sevenDaysAgo } } }),
       prisma.showcase.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
     ]);

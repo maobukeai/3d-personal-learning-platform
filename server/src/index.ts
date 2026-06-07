@@ -40,8 +40,9 @@ const gracefulShutdown = async (signal: string) => {
     await prisma.$disconnect();
     logger.info('[Shutdown] Prisma database client disconnected successfully.');
     process.exit(0);
-  } catch (err: any) {
-    logger.error(`[Shutdown] Error occurred during graceful shutdown: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[Shutdown] Error occurred during graceful shutdown: ${msg}`);
     process.exit(1);
   }
 };

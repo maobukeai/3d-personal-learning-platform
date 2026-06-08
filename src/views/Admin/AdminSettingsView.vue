@@ -2083,6 +2083,7 @@ const exportSettings = () => {
     platform: '3d-personal-learning-platform',
     settings: redactSettingsForExport(),
     aiModelConfigs: redactAiModelConfigsForExport(),
+    disabledGroupKeys: disabledGroupKeys.value,
   };
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -2128,6 +2129,9 @@ const importSettingsFile = (event: Event) => {
         aiModelConfigs.value = normalizeImportedAiModels(data.aiModelConfigs);
       } else if (data.settings?.AI_MODEL_OPTIONS) {
         aiModelConfigs.value = normalizeImportedAiModels(data.settings.AI_MODEL_OPTIONS);
+      }
+      if (Array.isArray(data.disabledGroupKeys)) {
+        disabledGroupKeys.value = data.disabledGroupKeys;
       }
 
       restoreCustomCategories();
@@ -2191,6 +2195,7 @@ const exportAiSettings = () => {
     },
     customCategories: customCategories.value,
     aiModelConfigs: redactAiModelConfigsForExport(),
+    disabledGroupKeys: disabledGroupKeys.value,
   };
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -2246,6 +2251,9 @@ const importAiSettingsFile = (event: Event) => {
         settings.value.AI_MODEL_CUSTOM_CATEGORIES = JSON.stringify(
           normalizeCustomCategories(data.customCategories),
         );
+      }
+      if (Array.isArray(data.disabledGroupKeys)) {
+        disabledGroupKeys.value = data.disabledGroupKeys;
       }
 
       restoreCustomCategories();

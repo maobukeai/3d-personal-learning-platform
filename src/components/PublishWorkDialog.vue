@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
+import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
 import { X, Box, UploadCloud, Image, Film, FileText, File, Puzzle } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
+import { useMobile } from '@/composables/useMobile';
+import FileDropZone from '@/components/FileDropZone.vue';
 
 const { t } = useI18n();
 
@@ -36,11 +38,7 @@ const publishCategory = ref<'model' | 'asset' | 'work' | 'plugin'>('work');
 const myApprovedAssets = ref<ApprovedAsset[]>([]);
 const selectedAssetId = ref('');
 const assetCategories = ref<AssetCategory[]>([]);
-const isMobile = ref(false);
-
-const handleResize = () => {
-  isMobile.value = window.innerWidth < 768;
-};
+const { isMobile } = useMobile();
 
 const publishForm = ref({
   title: '',
@@ -305,16 +303,10 @@ const closeDialog = () => {
 };
 
 onMounted(() => {
-  handleResize();
-  window.addEventListener('resize', handleResize);
   if (props.modelValue) {
     fetchMyApprovedAssets();
     fetchCategories();
   }
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
 });
 </script>
 
@@ -471,30 +463,13 @@ onUnmounted(() => {
                     class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                     >{{ t('publishDialog.assetFileLabel') }}</label
                   >
-                  <div class="relative group h-32">
-                    <input
-                      type="file"
-                      accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
-                      class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      @change="handleAssetFileChange"
-                    />
-                    <div
-                      class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5"
-                      style="border-color: var(--border-base)"
-                    >
-                      <UploadCloud class="w-6 h-6 text-indigo-500/40" />
-                      <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                        {{
-                          publishForm.assetFile
-                            ? publishForm.assetFile.name
-                            : t('publishDialog.dragAssetFile')
-                        }}
-                      </p>
-                      <p class="text-[10px]" style="color: var(--text-muted)">
-                        {{ t('publishDialog.supportedAssetFiles') }}
-                      </p>
-                    </div>
-                  </div>
+                  <FileDropZone
+                    v-model="publishForm.assetFile"
+                    accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip"
+                    :label="publishForm.assetFile ? publishForm.assetFile.name : t('publishDialog.dragAssetFile')"
+                    :sublabel="t('publishDialog.supportedAssetFiles')"
+                    @change="handleAssetFileChange"
+                  />
                 </div>
 
                 <div>
@@ -642,27 +617,12 @@ onUnmounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >{{ t('publishDialog.thumbnailRequiredLabel') }}</label
                 >
-                <div class="relative group h-32">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    @change="handleThumbnailChange"
-                  />
-                  <div
-                    class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5"
-                    style="border-color: var(--border-base)"
-                  >
-                    <UploadCloud class="w-6 h-6 text-indigo-500/40" />
-                    <p class="text-xs font-medium" style="color: var(--text-secondary)">
-                      {{
-                        publishForm.thumbnail
-                          ? publishForm.thumbnail.name
-                          : t('publishDialog.clickUploadThumbnail')
-                      }}
-                    </p>
-                  </div>
-                </div>
+                <FileDropZone
+                  v-model="publishForm.thumbnail"
+                  accept="image/*"
+                  :label="publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.clickUploadThumbnail')"
+                  @change="handleThumbnailChange"
+                />
               </div>
 
               <div v-else>
@@ -670,27 +630,13 @@ onUnmounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >{{ t('publishDialog.thumbnailOptionalLabel') }}</label
                 >
-                <div class="relative group h-24">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    @change="handleThumbnailChange"
-                  />
-                  <div
-                    class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5"
-                    style="border-color: var(--border-base)"
-                  >
-                    <UploadCloud class="w-5 h-5 text-indigo-500/40" />
-                    <p class="text-[10px] font-medium" style="color: var(--text-secondary)">
-                      {{
-                        publishForm.thumbnail
-                          ? publishForm.thumbnail.name
-                          : t('publishDialog.clickUploadThumbnailOptional')
-                      }}
-                    </p>
-                  </div>
-                </div>
+                <FileDropZone
+                  v-model="publishForm.thumbnail"
+                  accept="image/*"
+                  height-class="h-24"
+                  :label="publishForm.thumbnail ? publishForm.thumbnail.name : t('publishDialog.clickUploadThumbnailOptional')"
+                  @change="handleThumbnailChange"
+                />
               </div>
 
               <div v-if="publishForm.type !== 'TEXT'">
@@ -698,28 +644,14 @@ onUnmounted(() => {
                   class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1"
                   >{{ t('publishDialog.moreImagesLabel') }}</label
                 >
-                <div class="relative group h-20">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    @change="handleImagesChange"
-                  />
-                  <div
-                    class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-500/5"
-                    style="border-color: var(--border-base)"
-                  >
-                    <UploadCloud class="w-4 h-4 text-indigo-500/40" />
-                    <p class="text-[10px] font-medium" style="color: var(--text-secondary)">
-                      {{
-                        publishForm.images.length > 0
-                          ? t('publishDialog.selectedImagesCount', { n: publishForm.images.length })
-                          : t('publishDialog.clickUploadMoreImages')
-                      }}
-                    </p>
-                  </div>
-                </div>
+                <FileDropZone
+                  v-model="publishForm.images"
+                  accept="image/*"
+                  multiple
+                  height-class="h-20"
+                  :label="publishForm.images.length > 0 ? t('publishDialog.selectedImagesCount', { n: publishForm.images.length }) : t('publishDialog.clickUploadMoreImages')"
+                  @change="handleImagesChange"
+                />
               </div>
 
               <div
@@ -785,14 +717,16 @@ onUnmounted(() => {
               <!-- Plugin file upload -->
               <div>
                 <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件文件 *</label>
-                <div class="relative group h-28">
-                  <input type="file" accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handlePluginFileChange" />
-                  <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-violet-500 group-hover:bg-violet-500/5" style="border-color: var(--border-base)">
-                    <Puzzle class="w-6 h-6 text-violet-400/60" />
-                    <p class="text-xs font-medium" style="color: var(--text-secondary)">{{ publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件' }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted)">.zip .blend .js .ts .py 等格式</p>
-                  </div>
-                </div>
+                <FileDropZone
+                  v-model="publishForm.pluginFile"
+                  accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs"
+                  height-class="h-28"
+                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                  icon-type="puzzle"
+                  :label="publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件'"
+                  sublabel=".zip .blend .js .ts .py 等格式"
+                  @change="handlePluginFileChange"
+                />
               </div>
 
               <!-- Plugin name -->
@@ -829,12 +763,14 @@ onUnmounted(() => {
               <!-- Preview image -->
               <div>
                 <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">封面图（可选）</label>
-                <div class="relative group h-20">
-                  <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handlePluginPreviewChange" />
-                  <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-violet-500 group-hover:bg-violet-500/5" style="border-color: var(--border-base)">
-                    <p class="text-[10px] font-medium" style="color: var(--text-secondary)">{{ publishForm.pluginPreview ? publishForm.pluginPreview.name : '点击上传封面图' }}</p>
-                  </div>
-                </div>
+                <FileDropZone
+                  v-model="publishForm.pluginPreview"
+                  accept="image/*"
+                  height-class="h-20"
+                  hover-class="group-hover:border-violet-500 group-hover:bg-violet-500/5"
+                  :label="publishForm.pluginPreview ? publishForm.pluginPreview.name : '点击上传封面图'"
+                  @change="handlePluginPreviewChange"
+                />
               </div>
 
               <!-- Tags -->

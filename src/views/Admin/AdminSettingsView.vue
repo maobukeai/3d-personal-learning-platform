@@ -36,6 +36,7 @@ import {
   Cloud,
   Database,
   Copy,
+  Edit3,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
@@ -197,6 +198,12 @@ interface AiModelConfig {
 interface AiModelCategory {
   key: string;
   label: string;
+}
+
+interface AiProviderModelOption {
+  id: string;
+  name?: string;
+  ownedBy?: string;
 }
 
 const settings = ref({ ...defaultSettings });
@@ -1142,6 +1149,25 @@ const testSmtp = async () => {
 const isTestingAi = ref(false);
 const testingAiModelId = ref('');
 const expandedModelId = ref<string | null>(null);
+const isFetchingAiModels = ref(false);
+const fetchingAiModelsModelId = ref('');
+const modelFetchDialogVisible = ref(false);
+const modelFetchTarget = ref<AiModelConfig | null>(null);
+const fetchedModelOptions = ref<AiProviderModelOption[]>([]);
+const fetchedModelSearch = ref('');
+const selectedFetchedModelIds = ref<string[]>([]);
+const batchSelectedModelIds = ref<string[]>([]);
+const batchTargetFamilyKey = ref('');
+
+const filteredFetchedModelOptions = computed(() => {
+  const keyword = fetchedModelSearch.value.trim().toLowerCase();
+  if (!keyword) return fetchedModelOptions.value;
+  return fetchedModelOptions.value.filter((model) =>
+    [model.id, model.name, model.ownedBy]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(keyword)),
+  );
+});
 
 const toggleModelExpand = (id: string) => {
   expandedModelId.value = expandedModelId.value === id ? null : id;
@@ -1401,6 +1427,72 @@ const addCustomCategory = async () => {
   }
 };
 
+const renameModelFamilyGroup = async (groupKey: string, currentLabel: string) => {
+  try {
+    const { value: newLabel } = await ElMessageBox.prompt(
+      '请输入新的分组名称',
+      '重命名分组',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputValue: currentLabel,
+        inputPattern: /\S+/,
+        inputErrorMessage: '分组名称不能为空',
+      },
+    );
+    if (newLabel?.trim()) {
+      const trimmedLabel = newLabel.trim();
+      const existing = customCategories.value.find((c) => c.key === groupKey);
+      if (existing) {
+        existing.label = trimmedLabel;
+      } else {
+        customCategories.value.push({ key: groupKey, label: trimmedLabel });
+      }
+      
+      // Update any models currently referencing this category to sync label
+      aiModelConfigs.value.forEach((model) => {
+        if (model.customFamilyKey === groupKey) {
+          model.customFamilyLabel = trimmedLabel;
+        }
+      });
+      
+      syncAiModelsToSettings();
+      ElMessage.success('分组重命名成功');
+    }
+  } catch (_e) {
+    // User canceled
+  }
+};
+
+const deleteCustomCategory = async (group: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除自定义分类 "${group.label}" 吗？该分类下的模型将自动恢复为系统分类。`,
+      '删除自定义分类',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+    // Remove custom classification from models in this category
+    aiModelConfigs.value.forEach((model) => {
+      if (model.customFamilyKey === group.key) {
+        delete model.customFamilyKey;
+        delete model.customFamilyLabel;
+        markAiModelPending(model.id);
+      }
+    });
+    // Remove from customCategories list
+    customCategories.value = customCategories.value.filter((c) => c.key !== group.key);
+    syncAiModelsToSettings();
+    ElMessage.success('自定义分类删除成功');
+  } catch (_e) {
+    // User canceled
+  }
+};
+
+
 const getModelFamilyMeta = (key: string, customLabel?: string) => {
   if (modelFamilyMeta[key]) return modelFamilyMeta[key];
   const hash = Array.from(key).reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -1476,6 +1568,180 @@ const toggleModelFamilyGroup = (key: string) => {
     collapsedModelFamilyGroups.value.push(key);
   }
 };
+
+const selectedAiModels = computed(() => {
+  const selectedIds = new Set(batchSelectedModelIds.value);
+  return aiModelConfigs.value.filter((model) => selectedIds.has(model.id));
+});
+
+const selectableBatchFamilies = computed(() =>
+  modelFamilyGroups.value.map((group) => ({
+    key: group.key,
+    label: group.label,
+    count: group.models.length,
+  })),
+);
+
+const isAllAiModelsSelected = computed(
+  () =>
+    aiModelConfigs.value.length > 0 &&
+    batchSelectedModelIds.value.length === aiModelConfigs.value.length,
+);
+
+const getGroupSelectedCount = (group: ModelFamilyGroup) =>
+  group.models.filter((model) => batchSelectedModelIds.value.includes(model.id)).length;
+
+const selectAllAiModels = () => {
+  batchSelectedModelIds.value = aiModelConfigs.value.map((model) => model.id);
+};
+
+const clearSelectedAiModels = () => {
+  batchSelectedModelIds.value = [];
+};
+
+const toggleGroupModelSelection = (group: ModelFamilyGroup) => {
+  const selected = new Set(batchSelectedModelIds.value);
+  const groupIds = group.models.map((model) => model.id);
+  const allSelected = groupIds.length > 0 && groupIds.every((id) => selected.has(id));
+
+  if (allSelected) {
+    groupIds.forEach((id) => selected.delete(id));
+  } else {
+    groupIds.forEach((id) => selected.add(id));
+  }
+  batchSelectedModelIds.value = Array.from(selected);
+};
+
+const isAiModelSelected = (id: string) => batchSelectedModelIds.value.includes(id);
+
+const toggleAiModelSelection = (id: string, checked: unknown) => {
+  const selected = new Set(batchSelectedModelIds.value);
+  if (checked === true) {
+    selected.add(id);
+  } else {
+    selected.delete(id);
+  }
+  batchSelectedModelIds.value = Array.from(selected);
+};
+
+const normalizeDefaultModelAfterBatch = () => {
+  const enabledModels = aiModelConfigs.value.filter((model) => model.enabled);
+  if (enabledModels.length === 0) {
+    aiModelConfigs.value.forEach((model) => {
+      model.isDefault = false;
+    });
+    return;
+  }
+
+  const currentDefault = enabledModels.find((model) => model.isDefault);
+  aiModelConfigs.value.forEach((model) => {
+    model.isDefault = currentDefault
+      ? model.id === currentDefault.id
+      : model.id === enabledModels[0].id;
+  });
+};
+
+const batchSetAiModelsEnabled = (enabled: boolean) => {
+  if (selectedAiModels.value.length === 0) {
+    return ElMessage.warning('请先选择模型');
+  }
+
+  if (!enabled) {
+    const enabledIds = aiModelConfigs.value
+      .filter((model) => model.enabled)
+      .map((model) => model.id);
+    const selectedIds = new Set(batchSelectedModelIds.value);
+    if (enabledIds.length > 0 && enabledIds.every((id) => selectedIds.has(id))) {
+      return ElMessage.warning('至少保留一个启用模型');
+    }
+  }
+
+  selectedAiModels.value.forEach((model) => {
+    model.enabled = enabled;
+  });
+  normalizeDefaultModelAfterBatch();
+  syncAiModelsToSettings();
+  ElMessage.success(enabled ? '已批量启用模型' : '已批量停用模型');
+};
+
+const batchMoveAiModelsToFamily = () => {
+  if (selectedAiModels.value.length === 0) {
+    return ElMessage.warning('请先选择模型');
+  }
+  if (!batchTargetFamilyKey.value) {
+    return ElMessage.warning('请选择目标分类');
+  }
+
+  const targetGroup = modelFamilyGroups.value.find(
+    (group) => group.key === batchTargetFamilyKey.value,
+  );
+  const targetLabel =
+    targetGroup?.label || getModelFamilyMeta(batchTargetFamilyKey.value).label || 'Custom';
+
+  selectedAiModels.value.forEach((model) => {
+    if (batchTargetFamilyKey.value === PENDING_MODEL_FAMILY_KEY) {
+      delete model.customFamilyKey;
+      delete model.customFamilyLabel;
+      markAiModelPending(model.id);
+    } else {
+      model.customFamilyKey = batchTargetFamilyKey.value;
+      model.customFamilyLabel = targetLabel;
+      pendingModelFamilyIds.value = pendingModelFamilyIds.value.filter((id) => id !== model.id);
+    }
+  });
+
+  collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
+    (key) => key !== batchTargetFamilyKey.value,
+  );
+  syncAiModelsToSettings();
+  ElMessage.success(`已将 ${selectedAiModels.value.length} 个模型移动到 ${targetLabel}`);
+};
+
+const handleBatchMoveSelect = (val: string) => {
+  if (!val) return;
+  batchTargetFamilyKey.value = val;
+  batchMoveAiModelsToFamily();
+  batchTargetFamilyKey.value = '';
+};
+
+const batchDeleteAiModels = async () => {
+  if (selectedAiModels.value.length === 0) {
+    return ElMessage.warning('请先选择模型');
+  }
+  if (selectedAiModels.value.length >= aiModelConfigs.value.length) {
+    return ElMessage.warning(t('admin.keep_at_least_one'));
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${selectedAiModels.value.length} 个模型吗？`,
+      '批量删除模型',
+      {
+        confirmButtonText: t('admin.delete'),
+        cancelButtonText: t('admin.cancel'),
+        type: 'warning',
+      },
+    );
+
+    const selectedIds = new Set(batchSelectedModelIds.value);
+    aiModelConfigs.value = aiModelConfigs.value.filter((model) => !selectedIds.has(model.id));
+    pendingModelFamilyIds.value = pendingModelFamilyIds.value.filter((id) => !selectedIds.has(id));
+    batchSelectedModelIds.value = [];
+    normalizeDefaultModelAfterBatch();
+    syncAiModelsToSettings();
+    ElMessage.success('已批量删除模型');
+  } catch (_error) {
+    // User canceled
+  }
+};
+
+watch(
+  () => aiModelConfigs.value.map((model) => model.id).join('|'),
+  () => {
+    const validIds = new Set(aiModelConfigs.value.map((model) => model.id));
+    batchSelectedModelIds.value = batchSelectedModelIds.value.filter((id) => validIds.has(id));
+  },
+);
 
 const addAiModelToFamily = (group: ModelFamilyGroup) => {
   const source = group.models[0];
@@ -1586,6 +1852,70 @@ const testAi = async (model?: AiModelConfig) => {
     isTestingAi.value = false;
     testingAiModelId.value = '';
   }
+};
+
+const fetchAiModels = async (model: AiModelConfig) => {
+  const provider = model.provider;
+  const apiKey = model.apiKey || settings.value.AI_API_KEY;
+  const endpoint = model.endpoint || settings.value.AI_API_ENDPOINT;
+
+  if (!provider) {
+    return ElMessage.warning(t('admin.please_select_an_ai'));
+  }
+  if (!endpoint) {
+    return ElMessage.warning('请先填写 API Endpoint');
+  }
+  if (!apiKey && provider !== 'OLLAMA') {
+    return ElMessage.warning(t('admin.please_enter_api_key'));
+  }
+
+  try {
+    isFetchingAiModels.value = true;
+    fetchingAiModelsModelId.value = model.id;
+    const { data } = await api.post('/api/admin/settings/ai-models', {
+      provider,
+      endpoint,
+      apiKey,
+    });
+
+    const models: AiProviderModelOption[] = Array.isArray(data.models) ? data.models : [];
+    if (models.length === 0) {
+      return ElMessage.warning('未获取到可用模型');
+    }
+
+    fetchedModelOptions.value = models;
+    fetchedModelSearch.value = '';
+    modelFetchTarget.value = model;
+    const availableIds = new Set(models.map((item) => item.id));
+    selectedFetchedModelIds.value = parseModelNameLines(model.modelName).filter((id) =>
+      availableIds.has(id),
+    );
+    modelFetchDialogVisible.value = true;
+  } catch (error: any) {
+    console.error('Fetch AI models error:', error);
+    ElMessage.error(getApiErrorMessage(error, '获取模型列表失败'));
+  } finally {
+    isFetchingAiModels.value = false;
+    fetchingAiModelsModelId.value = '';
+  }
+};
+
+const applyFetchedModels = () => {
+  const target = modelFetchTarget.value;
+  if (!target) return;
+  if (selectedFetchedModelIds.value.length === 0) {
+    return ElMessage.warning('请选择至少一个模型');
+  }
+
+  target.modelName = selectedFetchedModelIds.value.join('\n');
+  if (!isPendingAiModel(target.id)) {
+    expandModelNameLines(target);
+  } else {
+    syncAiModelsToSettings();
+  }
+  expandedModelId.value = target.id;
+  modelFetchDialogVisible.value = false;
+  ElMessage.success(`已选择 ${selectedFetchedModelIds.value.length} 个模型`);
 };
 
 watch(
@@ -3456,7 +3786,8 @@ onUnmounted(() => {
 
             <!-- Models Panel -->
             <div v-if="settings.AI_IMPORT_ENABLED" class="space-y-4">
-              <div class="flex items-center justify-between">
+              <!-- Header -->
+              <div class="flex items-center justify-between mb-2">
                 <div>
                   <h3 class="text-sm font-black" style="color: var(--text-primary)">
                     {{ $t('admin.model_pool_configuration') }}
@@ -3480,7 +3811,7 @@ onUnmounted(() => {
                   />
                   <button
                     type="button"
-                    class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
                     style="border-color: var(--border-base); color: var(--text-secondary)"
                     title="一键导出所有 AI 相关配置"
                     @click="exportAiSettings"
@@ -3490,7 +3821,7 @@ onUnmounted(() => {
                   </button>
                   <button
                     type="button"
-                    class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
                     style="border-color: var(--border-base); color: var(--text-secondary)"
                     title="一键从文件导入 AI 配置"
                     @click="triggerAiImport"
@@ -3500,7 +3831,7 @@ onUnmounted(() => {
                   </button>
                   <button
                     type="button"
-                    class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
                     style="border-color: var(--border-base); color: var(--text-secondary)"
                     @click="addCustomCategory()"
                   >
@@ -3509,7 +3840,7 @@ onUnmounted(() => {
                   </button>
                   <button
                     type="button"
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
+                    class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0"
                     style="
                       background: linear-gradient(135deg, #6366f1, #8b5cf6);
                       color: white;
@@ -3522,6 +3853,79 @@ onUnmounted(() => {
                   </button>
                 </div>
               </div>
+
+              <!-- Batch Action Bar (Single-line, shown only when models are selected) -->
+              <transition name="el-zoom-in-top">
+                <div
+                  v-if="selectedAiModels.length > 0"
+                  class="flex items-center justify-between p-2.5 rounded-xl border text-xs gap-3"
+                  style="border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.04);"
+                >
+                  <!-- Left Side: Selection Count & Master Select All Checkbox -->
+                  <div class="flex items-center gap-3">
+                    <el-checkbox
+                      :model-value="isAllAiModelsSelected"
+                      :indeterminate="selectedAiModels.length > 0 && !isAllAiModelsSelected"
+                      class="shrink-0"
+                      @change="(val) => { if (val) { selectAllAiModels() } else { clearSelectedAiModels() } }"
+                    />
+                    <span class="font-bold shrink-0" style="color: var(--text-primary)">
+                      已选择 <span style="color: #6366f1">{{ selectedAiModels.length }}</span> / {{ aiModelConfigs.length }} 个模型
+                    </span>
+                  </div>
+
+                  <!-- Right Side: Action Buttons -->
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer shrink-0"
+                      style="border-color: var(--border-base); color: var(--text-secondary)"
+                      @click="clearSelectedAiModels()"
+                    >
+                      取消
+                    </button>
+                    <div class="h-3.5 w-[1px] shrink-0" style="background-color: var(--border-base)"></div>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
+                      style="border-color: rgba(16, 185, 129, 0.25); color: #059669; background: rgba(16, 185, 129, 0.05)"
+                      @click="batchSetAiModelsEnabled(true)"
+                    >
+                      启用
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
+                      style="border-color: rgba(100, 116, 139, 0.25); color: var(--text-secondary); background: rgba(100, 116, 139, 0.05)"
+                      @click="batchSetAiModelsEnabled(false)"
+                    >
+                      禁用
+                    </button>
+                    <el-select
+                      :model-value="batchTargetFamilyKey"
+                      size="small"
+                      placeholder="移动到分类..."
+                      class="w-36 shrink-0"
+                      @change="handleBatchMoveSelect"
+                    >
+                      <el-option
+                        v-for="family in selectableBatchFamilies"
+                        :key="family.key"
+                        :label="`${family.label} (${family.count})`"
+                        :value="family.key"
+                      />
+                    </el-select>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 cursor-pointer shrink-0"
+                      style="border-color: rgba(244, 63, 94, 0.25); color: #e11d48; background: rgba(244, 63, 94, 0.05)"
+                      @click="batchDeleteAiModels"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              </transition>
 
               <!-- Model Family Groups -->
               <div v-if="modelFamilyGroups.length > 0" class="space-y-4">
@@ -3550,8 +3954,16 @@ onUnmounted(() => {
                         </div>
                         <div class="min-w-0">
                           <div class="flex items-center gap-2 flex-wrap">
-                            <h4 class="text-sm font-black" style="color: var(--text-primary)">
-                              {{ group.label }}
+                            <h4 class="text-sm font-black flex items-center gap-1.5" style="color: var(--text-primary)">
+                              <span>{{ group.label }}</span>
+                              <button
+                                type="button"
+                                class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-slate-400 hover:text-[#6366f1] transition-colors duration-150 cursor-pointer flex items-center justify-center"
+                                title="重命名分组"
+                                @click.stop="renameModelFamilyGroup(group.key, group.label)"
+                              >
+                                <Edit3 class="w-3 h-3" />
+                              </button>
                             </h4>
                             <span
                               class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
@@ -3601,6 +4013,30 @@ onUnmounted(() => {
                       <div class="flex items-center gap-2 shrink-0">
                         <button
                           type="button"
+                          :disabled="group.models.length === 0"
+                          class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 disabled:opacity-50"
+                          :style="
+                            getGroupSelectedCount(group) > 0
+                              ? 'border-color: rgba(99, 102, 241, 0.3); color: #6366f1; background: rgba(99, 102, 241, 0.02);'
+                              : 'border-color: var(--border-base); color: var(--text-secondary); background: var(--bg-card);'
+                          "
+                          @click.stop="toggleGroupModelSelection(group)"
+                        >
+                          <span>{{
+                            getGroupSelectedCount(group) === group.models.length &&
+                            group.models.length > 0
+                              ? '取消本组'
+                              : '选择本组'
+                          }}</span>
+                          <span
+                            v-if="getGroupSelectedCount(group) > 0"
+                            class="px-1.5 py-0.5 rounded-md text-[10px]"
+                            style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
+                            >{{ getGroupSelectedCount(group) }}</span
+                          >
+                        </button>
+                        <button
+                          type="button"
                           class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
                           :style="`border-color: ${group.meta.border}; color: ${group.meta.color}; background: ${group.meta.bg};`"
                           @click="addAiModelToFamily(group)"
@@ -3609,6 +4045,21 @@ onUnmounted(() => {
                           <span>{{
                             $t('admin.ai_add_family_model', { family: group.label })
                           }}</span>
+                        </button>
+                        <button
+                          v-if="group.key.startsWith('custom_')"
+                          type="button"
+                          class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer"
+                          style="
+                            border-color: rgba(244, 63, 94, 0.25);
+                            color: #e11d48;
+                            background: var(--bg-card);
+                          "
+                          title="删除当前自定义分类"
+                          @click.stop="deleteCustomCategory(group)"
+                        >
+                          <Trash2 class="w-3.5 h-3.5" />
+                          <span>删除分类</span>
                         </button>
                         <button
                           type="button"
@@ -3656,15 +4107,17 @@ onUnmounted(() => {
                       v-for="model in group.models"
                       :key="model.id"
                       :draggable="isDraggable"
-                      class="rounded-xl border overflow-hidden transition-all duration-300"
+                      class="group rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-sm hover:border-slate-300 dark:hover:border-zinc-700"
                       :class="{
                         'opacity-50 border-indigo-400 scale-[0.99]':
                           dragIndex === aiModelConfigs.findIndex((item) => item.id === model.id),
                       }"
                       :style="
-                        model.isDefault
-                          ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
-                          : 'border-color: var(--border-base); background-color: var(--bg-card);'
+                        isAiModelSelected(model.id)
+                          ? 'border-color: rgba(99, 102, 241, 0.5); background-color: rgba(99, 102, 241, 0.03);'
+                          : model.isDefault
+                            ? 'border-color: rgba(99, 102, 241, 0.4); background-color: var(--bg-card);'
+                            : 'border-color: var(--border-base); background-color: var(--bg-card);'
                       "
                       @dragstart="
                         handleDragStart(
@@ -3697,6 +4150,14 @@ onUnmounted(() => {
                         >
                           <GripVertical class="w-3.5 h-3.5 text-slate-400" />
                         </div>
+
+                        <el-checkbox
+                          :model-value="isAiModelSelected(model.id)"
+                          class="shrink-0 transition-opacity duration-200"
+                          :class="isAiModelSelected(model.id) || selectedAiModels.length > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                          @change="toggleAiModelSelection(model.id, $event)"
+                          @click.stop
+                        />
 
                         <div
                           class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
@@ -3906,11 +4367,41 @@ onUnmounted(() => {
                               />
                             </div>
                             <div class="space-y-1.5">
-                              <label
-                                class="text-[11px] font-black uppercase tracking-wider px-1"
-                                style="color: var(--text-muted)"
-                                >{{ $t('admin.model_id') }}</label
-                              >
+                              <div class="flex items-center justify-between gap-2 px-1">
+                                <label
+                                  class="text-[11px] font-black uppercase tracking-wider"
+                                  style="color: var(--text-muted)"
+                                  >{{ $t('admin.model_id') }}</label
+                                >
+                                <button
+                                  type="button"
+                                  :disabled="
+                                    isFetchingAiModels && fetchingAiModelsModelId === model.id
+                                  "
+                                  class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-bold transition-all duration-200 disabled:opacity-50"
+                                  style="
+                                    border-color: rgba(99, 102, 241, 0.25);
+                                    color: #6366f1;
+                                    background: rgba(99, 102, 241, 0.05);
+                                  "
+                                  title="获取平台可用模型"
+                                  @click="fetchAiModels(model)"
+                                >
+                                  <RefreshCw
+                                    class="w-3 h-3"
+                                    :class="
+                                      isFetchingAiModels && fetchingAiModelsModelId === model.id
+                                        ? 'animate-spin'
+                                        : ''
+                                    "
+                                  />
+                                  <span>{{
+                                    isFetchingAiModels && fetchingAiModelsModelId === model.id
+                                      ? '获取中'
+                                      : '获取模型'
+                                  }}</span>
+                                </button>
+                              </div>
                               <textarea
                                 v-model="model.modelName"
                                 rows="2"
@@ -4278,6 +4769,100 @@ onUnmounted(() => {
       </div>
     </div>
   </div>
+
+  <el-dialog v-model="modelFetchDialogVisible" title="选择可用模型" width="680px" destroy-on-close>
+    <div class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
+            {{ modelFetchTarget?.name || modelFetchTarget?.provider || 'AI Model' }}
+          </p>
+          <p class="text-[11px] truncate" style="color: var(--text-muted)">
+            {{ fetchedModelOptions.length }} 个可用模型
+          </p>
+        </div>
+        <input
+          v-model="fetchedModelSearch"
+          type="text"
+          placeholder="搜索模型"
+          class="w-56 px-3 py-2 rounded-xl border text-xs outline-none transition-colors"
+          style="
+            background-color: var(--bg-app);
+            border-color: var(--border-base);
+            color: var(--text-primary);
+          "
+        />
+      </div>
+
+      <div
+        class="max-h-[420px] overflow-y-auto rounded-xl border"
+        style="border-color: var(--border-base); background: var(--bg-app)"
+      >
+        <el-checkbox-group v-model="selectedFetchedModelIds" class="block">
+          <div
+            v-for="option in filteredFetchedModelOptions"
+            :key="option.id"
+            class="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 transition-colors hover:bg-white/60 dark:hover:bg-white/5"
+            style="border-color: var(--border-base)"
+          >
+            <el-checkbox :value="option.id" />
+            <span class="min-w-0 flex-1">
+              <span
+                class="block text-xs font-bold font-mono truncate"
+                style="color: var(--text-primary)"
+                >{{ option.id }}</span
+              >
+              <span
+                v-if="option.name || option.ownedBy"
+                class="block text-[10px] truncate"
+                style="color: var(--text-muted)"
+              >
+                {{ [option.name, option.ownedBy].filter(Boolean).join(' / ') }}
+              </span>
+            </span>
+          </div>
+        </el-checkbox-group>
+
+        <div
+          v-if="filteredFetchedModelOptions.length === 0"
+          class="py-10 text-center text-xs"
+          style="color: var(--text-muted)"
+        >
+          未找到匹配模型
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="flex items-center justify-between gap-3">
+        <span class="text-[11px]" style="color: var(--text-muted)">
+          已选择 {{ selectedFetchedModelIds.length }} 个
+        </span>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="modelFetchDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200"
+            style="
+              background: linear-gradient(135deg, #6366f1, #8b5cf6);
+              color: white;
+              box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25);
+            "
+            @click="applyFetchedModels"
+          >
+            应用选择
+          </button>
+        </div>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>

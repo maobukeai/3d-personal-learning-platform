@@ -177,7 +177,17 @@ const createUploadMiddleware = (config: {
                 finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls', '.zip'];
               } else if (file.fieldname === 'plugin_file') {
                 // Plugin packages: zip archives, Blender scripts, JS/TS addons, Python scripts
-                finalAllowedExtensions = ['.zip', '.rar', '.7z', '.blend', '.js', '.ts', '.py', '.lua', '.mjs'];
+                finalAllowedExtensions = [
+                  '.zip',
+                  '.rar',
+                  '.7z',
+                  '.blend',
+                  '.js',
+                  '.ts',
+                  '.py',
+                  '.lua',
+                  '.mjs',
+                ];
               } else if (file.fieldname === 'plugin_preview') {
                 finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
               } else if (file.fieldname === 'message_file') {

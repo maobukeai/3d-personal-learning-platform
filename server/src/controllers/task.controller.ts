@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../utils/date';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
@@ -25,10 +26,8 @@ export const getAllTasks = async (req: AuthRequest, res: Response) => {
     };
 
     if (date) {
-      const startOfDay = new Date(date as string);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date as string);
-      endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = getShanghaiStartOfDay(date as string);
+      const endOfDay = getShanghaiEndOfDay(date as string);
 
       where.dueDate = {
         gte: startOfDay,

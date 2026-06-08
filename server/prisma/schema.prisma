@@ -90,6 +90,7 @@ model User {
   microsoftEmailAccounts MicrosoftEmailAccount[]
   aiMessages AiMessage[]
   plugins    Plugin[]
+  assetLikes AssetLike[]
 }
 
 model Conversation {
@@ -310,6 +311,7 @@ model Asset {
   showcases Showcase[]
   versions    AssetVersion[]
   annotations AssetAnnotation[]
+  likesRelation AssetLike[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -1252,4 +1254,16 @@ model Plugin {
 
   @@index([userId])
   @@index([status])
+}
+
+model AssetLike {
+  id        String   @id @default(uuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([assetId, userId])
+  @@index([userId])
 }

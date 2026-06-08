@@ -17,10 +17,7 @@ const getWorkspaceMaterial = async (
   const material = await prisma.material.findFirst({
     where: {
       id,
-      OR: [
-        { status: 'APPROVED' },
-        { teamId: req.workspaceId },
-      ],
+      OR: [{ status: 'APPROVED' }, { teamId: req.workspaceId }],
       ...(options.requireApproved ? { status: 'APPROVED' } : {}),
     },
     include: {

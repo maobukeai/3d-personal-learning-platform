@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger';
 import { Response, NextFunction } from 'express';
+import axios from 'axios';
 import dns from 'dns';
 import nodemailer from 'nodemailer';
 import { AuthRequest } from '../../middlewares/auth.middleware';
@@ -7,8 +8,12 @@ import { settingsService } from '../../services/settings.service';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
 import { callLLM } from '../../services/ai.service';
+import { configureAxiosProxy } from '../../utils/axios-proxy';
 
 import { config as envConfig } from '../../config/env';
+
+const modelListHttp = axios.create();
+configureAxiosProxy(modelListHttp, { preferAiProxy: true });
 
 /**
  * 自定义 DNS 查找：支持动态配置 DNS 服务器绕过 TUN Fake-IP 劫持
@@ -308,6 +313,146 @@ export const testSmtp = async (req: AuthRequest, res: Response, next: NextFuncti
       errorMsg = 'TLS 握手失败。请尝试切换 465 (勾选 SSL) 或 587 (取消勾选 SSL)。';
 
     next(new AppError(`SMTP 连接失败: ${errorMsg}`, 500));
+  }
+};
+
+interface ProviderModelOption {
+  id: string;
+  name?: string;
+  ownedBy?: string;
+}
+
+const normalizeProvider = (provider: unknown) =>
+  String(provider || '')
+    .trim()
+    .toUpperCase();
+
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+
+const buildOllamaModelsUrl = (endpoint: string) => {
+  const base = trimTrailingSlash(endpoint || 'http://localhost:11434/api');
+  if (base.endsWith('/api')) return `${base}/tags`;
+  if (base.endsWith('/api/chat') || base.endsWith('/api/generate')) {
+    return `${base.replace(/\/api\/(?:chat|generate)$/, '/api')}/tags`;
+  }
+  return `${base}/api/tags`;
+};
+
+const buildGeminiModelsUrl = (endpoint: string, apiKey: string) => {
+  const base = trimTrailingSlash(endpoint || 'https://generativelanguage.googleapis.com');
+  const normalizedBase = base.includes('/v1') ? base : `${base}/v1beta`;
+  const separator = normalizedBase.includes('?') ? '&' : '?';
+  return `${normalizedBase}/models${separator}key=${encodeURIComponent(apiKey)}`;
+};
+
+const buildOpenAICompatibleModelsUrl = (endpoint: string) => {
+  if (!endpoint) throw new AppError('API Endpoint 不能为空', 400);
+  const url = new URL(endpoint);
+  let pathname = url.pathname.replace(/\/+$/, '');
+
+  pathname = pathname
+    .replace(/\/chat\/completions$/i, '')
+    .replace(/\/responses$/i, '')
+    .replace(/\/completions$/i, '')
+    .replace(/\/messages$/i, '');
+
+  if (!pathname || pathname === '/') {
+    pathname = '/v1';
+  }
+  url.pathname = `${pathname.replace(/\/+$/, '')}/models`;
+  url.search = '';
+  return url.toString();
+};
+
+const parseProviderModels = (data: unknown, provider: string): ProviderModelOption[] => {
+  const raw = data as Record<string, unknown>;
+  const items =
+    provider === 'OLLAMA' && Array.isArray(raw.models)
+      ? raw.models
+      : Array.isArray(raw.data)
+        ? raw.data
+        : Array.isArray(raw.models)
+          ? raw.models
+          : Array.isArray(data)
+            ? data
+            : [];
+
+  const seen = new Set<string>();
+  return items
+    .map((item): ProviderModelOption | null => {
+      if (typeof item === 'string') return { id: item };
+      if (!item || typeof item !== 'object') return null;
+      const model = item as Record<string, unknown>;
+      const rawId = String(model.id || model.name || model.model || '').trim();
+      const id =
+        provider === 'GEMINI' && rawId.startsWith('models/')
+          ? rawId.replace(/^models\//, '')
+          : rawId;
+      if (!id || seen.has(id)) return null;
+      seen.add(id);
+      return {
+        id,
+        name: typeof model.displayName === 'string' ? model.displayName : undefined,
+        ownedBy:
+          typeof model.owned_by === 'string'
+            ? model.owned_by
+            : typeof model.provider === 'string'
+              ? model.provider
+              : undefined,
+      };
+    })
+    .filter((item): item is ProviderModelOption => Boolean(item))
+    .sort((a, b) => a.id.localeCompare(b.id));
+};
+
+export const listAiModels = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const provider = normalizeProvider(req.body.provider);
+    const endpoint = String(req.body.endpoint || '').trim();
+    const apiKey = String(req.body.apiKey || '').trim();
+
+    if (!provider) {
+      return next(new AppError('提供商不能为空', 400));
+    }
+    if (!apiKey && provider !== 'OLLAMA') {
+      return next(new AppError('API 密钥不能为空', 400));
+    }
+    if (provider === 'AZURE') {
+      return next(
+        new AppError('Azure OpenAI 需要在 Azure 门户管理部署，暂不支持自动获取模型列表', 400),
+      );
+    }
+
+    let url = '';
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (provider === 'OLLAMA') {
+      url = buildOllamaModelsUrl(endpoint);
+    } else if (provider === 'GEMINI') {
+      url = buildGeminiModelsUrl(endpoint, apiKey);
+    } else {
+      url = buildOpenAICompatibleModelsUrl(endpoint);
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    logger.info(`[Admin AI Models] Fetching models provider=${provider} url=${url}`);
+    const { data } = await modelListHttp.get(url, {
+      headers,
+      timeout: 20_000,
+    });
+    const models = parseProviderModels(data, provider);
+    res.json({ success: true, provider, models });
+  } catch (error: unknown) {
+    logger.error('[Admin AI Models Error]:', error);
+    if (error instanceof AppError) return next(error);
+    const message = axios.isAxiosError(error)
+      ? error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        error.message ||
+        '获取模型列表失败'
+      : error instanceof Error
+        ? error.message
+        : String(error);
+    next(new AppError(`获取模型列表失败: ${message}`, 500));
   }
 };
 

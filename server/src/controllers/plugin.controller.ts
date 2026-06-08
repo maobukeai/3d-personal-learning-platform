@@ -119,7 +119,15 @@ export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFu
     if (!existing) return next(new AppError('插件不存在', 404));
     if (existing.userId !== req.userId) return next(new AppError('无权修改此插件', 403));
 
-    const allowed = ['title', 'description', 'category', 'version', 'compatibility', 'tags', 'installGuide'];
+    const allowed = [
+      'title',
+      'description',
+      'category',
+      'version',
+      'compatibility',
+      'tags',
+      'installGuide',
+    ];
     const updateData: Record<string, any> = {};
     for (const field of allowed) {
       if (req.body[field] !== undefined) updateData[field] = req.body[field];
@@ -149,7 +157,11 @@ export const deletePlugin = async (req: AuthRequest, res: Response, next: NextFu
       if (!urlField) continue;
       const filePath = path.join(process.cwd(), urlField.replace(/^\//, ''));
       if (fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try {
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          logger.warn(`[Plugin] Failed to remove plugin file ${filePath}`, error);
+        }
       }
     }
 

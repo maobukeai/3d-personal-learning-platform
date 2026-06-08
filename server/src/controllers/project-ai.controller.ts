@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { getShanghaiStartOfDay } from '../utils/date';
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
@@ -200,8 +201,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
       const limit =
         role === 'ADMIN' ? 10000 : planName === 'SVIP' ? 10000 : planName === 'VIP' ? 1000 : 100;
 
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
+      const startOfDay = getShanghaiStartOfDay();
 
       const count = await prisma.aiMessage.count({
         where: {
@@ -223,6 +223,7 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
       }
     } catch (err) {
       console.error('[AI Chat] Quota verification failed:', err);
+      return next(err instanceof AppError ? err : new AppError('配额验证失败，请稍后重试', 500));
     }
   }
 
@@ -415,14 +416,18 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
 export const getAiChatHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const userId = req.userId as string;
   try {
-    // 自动清理一周（7天）以前的聊天历史记录
+    // 自动清理一周（7天）以前的聊天历史记录 (异步非阻塞)
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    await prisma.aiMessage.deleteMany({
-      where: {
-        userId,
-        createdAt: { lt: oneWeekAgo },
-      },
-    });
+    prisma.aiMessage
+      .deleteMany({
+        where: {
+          userId,
+          createdAt: { lt: oneWeekAgo },
+        },
+      })
+      .catch((err) => {
+        console.error('Failed to clean up old AI messages:', err);
+      });
 
     const history = await prisma.aiMessage.findMany({
       where: { userId },
@@ -817,8 +822,7 @@ export const getAiUsage = async (req: AuthRequest, res: Response, next: NextFunc
     const limit =
       role === 'ADMIN' ? 10000 : planName === 'SVIP' ? 10000 : planName === 'VIP' ? 1000 : 100;
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = getShanghaiStartOfDay();
 
     const count = await prisma.aiMessage.count({
       where: {

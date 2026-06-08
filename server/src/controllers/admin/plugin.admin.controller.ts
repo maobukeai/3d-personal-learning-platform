@@ -17,10 +17,7 @@ export const adminListPlugins = async (req: AuthRequest, res: Response, next: Ne
     const where: any = {};
     if (status && status !== 'ALL') where.status = status;
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
-      ];
+      where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
     }
 
     const plugins = await prisma.plugin.findMany({
@@ -45,7 +42,17 @@ export const adminUpdatePlugin = async (req: AuthRequest, res: Response, next: N
     const existing = await prisma.plugin.findUnique({ where: { id } });
     if (!existing) return next(new AppError('插件不存在', 404));
 
-    const allowed = ['title', 'description', 'category', 'version', 'compatibility', 'tags', 'installGuide', 'status', 'rejectReason'];
+    const allowed = [
+      'title',
+      'description',
+      'category',
+      'version',
+      'compatibility',
+      'tags',
+      'installGuide',
+      'status',
+      'rejectReason',
+    ];
     const updateData: Record<string, any> = {};
     for (const field of allowed) {
       if (req.body[field] !== undefined) updateData[field] = req.body[field];
@@ -53,7 +60,9 @@ export const adminUpdatePlugin = async (req: AuthRequest, res: Response, next: N
     if (updateData.status !== 'REJECTED') updateData.rejectReason = null;
 
     const plugin = await prisma.plugin.update({ where: { id }, data: updateData });
-    logger.info(`[AdminPlugin] Admin ${req.userId} updated plugin ${id} → status: ${plugin.status}`);
+    logger.info(
+      `[AdminPlugin] Admin ${req.userId} updated plugin ${id} → status: ${plugin.status}`,
+    );
     res.json(plugin);
   } catch (err) {
     next(err);
@@ -61,7 +70,11 @@ export const adminUpdatePlugin = async (req: AuthRequest, res: Response, next: N
 };
 
 // ── Batch update status (admin) ───────────────────────────────────────────────
-export const adminBatchUpdatePlugins = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminBatchUpdatePlugins = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { ids, status, rejectReason } = req.body as {
       ids: string[];
@@ -69,9 +82,12 @@ export const adminBatchUpdatePlugins = async (req: AuthRequest, res: Response, n
       rejectReason?: string;
     };
 
-    if (!Array.isArray(ids) || ids.length === 0) return next(new AppError('请选择要操作的插件', 400));
-    if (!['APPROVED', 'REJECTED', 'PENDING'].includes(status)) return next(new AppError('状态值无效', 400));
-    if (status === 'REJECTED' && !rejectReason?.trim()) return next(new AppError('拒绝时请填写原因', 400));
+    if (!Array.isArray(ids) || ids.length === 0)
+      return next(new AppError('请选择要操作的插件', 400));
+    if (!['APPROVED', 'REJECTED', 'PENDING'].includes(status))
+      return next(new AppError('状态值无效', 400));
+    if (status === 'REJECTED' && !rejectReason?.trim())
+      return next(new AppError('拒绝时请填写原因', 400));
 
     await prisma.plugin.updateMany({
       where: { id: { in: ids } },
@@ -99,7 +115,11 @@ export const adminDeletePlugin = async (req: AuthRequest, res: Response, next: N
       if (!urlField) continue;
       const filePath = path.join(process.cwd(), urlField.replace(/^\//, ''));
       if (fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try {
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          logger.warn(`[AdminPlugin] Failed to remove plugin file ${filePath}`, error);
+        }
       }
     }
 

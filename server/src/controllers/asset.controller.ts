@@ -13,6 +13,7 @@ import { deleteFileByUrl } from '../utils/file';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
+import { redisService } from '../services/redis.service';
 
 const tagSearchCounts: Record<string, number> = {};
 
@@ -80,10 +81,16 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
           if (Array.isArray(parsed)) {
             parsedTags = parsed;
           } else {
-            parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+            parsedTags = tags
+              .split(/[,，\s]+/)
+              .map((t) => t.trim())
+              .filter(Boolean);
           }
         } catch {
-          parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+          parsedTags = tags
+            .split(/[,，\s]+/)
+            .map((t) => t.trim())
+            .filter(Boolean);
         }
       } else if (Array.isArray(tags)) {
         parsedTags = tags;
@@ -125,26 +132,15 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
             logger.info(`[AssetProcessor] Background processing completed for asset: ${asset.id}`);
           } else {
             logger.error(
-              `[AssetProcessor] Background processing returned null for asset: ${asset.id}`,
+              `[AssetProcessor] Background processing returned null for asset: ${asset.id}. Keeping asset without metadata.`,
             );
-            await prisma.asset.delete({ where: { id: asset.id } }).catch(() => {});
-            deleteFileByUrl(asset.url);
-            if (asset.thumbnail) {
-              deleteFileByUrl(asset.thumbnail);
-            }
           }
         })
-        .catch(async (err) => {
-          logger.error(`[AssetProcessor] Background processing failed for asset: ${asset.id}`, err);
-          try {
-            await prisma.asset.delete({ where: { id: asset.id } }).catch(() => {});
-            deleteFileByUrl(asset.url);
-            if (asset.thumbnail) {
-              deleteFileByUrl(asset.thumbnail);
-            }
-          } catch (e) {
-            logger.error(`[AssetProcessor] Background processing cleanup failed:`, e);
-          }
+        .catch((err) => {
+          logger.error(
+            `[AssetProcessor] Background processing failed for asset: ${asset.id}. Keeping asset without metadata.`,
+            err,
+          );
         });
     }
 
@@ -207,10 +203,16 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
             if (Array.isArray(parsed)) {
               parsedTags = parsed;
             } else {
-              parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+              parsedTags = tags
+                .split(/[,，\s]+/)
+                .map((t) => t.trim())
+                .filter(Boolean);
             }
           } catch {
-            parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+            parsedTags = tags
+              .split(/[,，\s]+/)
+              .map((t) => t.trim())
+              .filter(Boolean);
           }
         } else if (Array.isArray(tags)) {
           parsedTags = tags;
@@ -254,10 +256,7 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response, next:
     const existingAsset = await prisma.asset.findFirst({
       where: {
         id,
-        OR: [
-          { userId: req.userId as string },
-          { teamId: req.workspaceId }
-        ]
+        OR: [{ userId: req.userId as string }, { teamId: req.workspaceId }],
       },
     });
 
@@ -298,10 +297,7 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
     const existingAsset = await prisma.asset.findFirst({
       where: {
         id,
-        OR: [
-          { userId: req.userId as string },
-          { teamId: req.workspaceId }
-        ]
+        OR: [{ userId: req.userId as string }, { teamId: req.workspaceId }],
       },
     });
 
@@ -462,11 +458,21 @@ export const getAssetById = async (req: AuthRequest, res: Response, next: NextFu
 
 export const recordAssetDownload = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
+  const userId = req.userId || 'anonymous';
+  const lockKey = `asset_download:${id}:${userId}`;
   try {
-    const asset = await prisma.asset.update({
-      where: { id },
-      data: { downloads: { increment: 1 } }
-    });
+    const alreadyDownloaded = await redisService.get<boolean>(lockKey);
+    let asset;
+    if (alreadyDownloaded) {
+      asset = await prisma.asset.findUnique({ where: { id } });
+      if (!asset) return next(new AppError('Asset not found', 404));
+    } else {
+      asset = await prisma.asset.update({
+        where: { id },
+        data: { downloads: { increment: 1 } },
+      });
+      await redisService.set(lockKey, true, 86400); // Lock for 24h
+    }
     res.json({ message: 'Download recorded', downloads: asset.downloads });
   } catch (error) {
     next(error);
@@ -475,12 +481,53 @@ export const recordAssetDownload = async (req: AuthRequest, res: Response, next:
 
 export const toggleAssetLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
+  const userId = req.userId;
+  if (!userId) {
+    return next(new AppError('Unauthorized', 401));
+  }
   try {
-    const asset = await prisma.asset.update({
-      where: { id },
-      data: { likes: { increment: 1 } }
+    const existingLike = await prisma.assetLike.findUnique({
+      where: {
+        assetId_userId: {
+          assetId: id,
+          userId,
+        },
+      },
     });
-    res.json({ message: 'Like recorded', likes: asset.likes });
+
+    let liked = false;
+    let asset;
+
+    if (existingLike) {
+      await prisma.assetLike.delete({
+        where: {
+          id: existingLike.id,
+        },
+      });
+      asset = await prisma.asset.update({
+        where: { id },
+        data: { likes: { decrement: 1 } },
+      });
+      liked = false;
+    } else {
+      await prisma.assetLike.create({
+        data: {
+          assetId: id,
+          userId,
+        },
+      });
+      asset = await prisma.asset.update({
+        where: { id },
+        data: { likes: { increment: 1 } },
+      });
+      liked = true;
+    }
+
+    res.json({
+      message: liked ? 'Like recorded' : 'Like removed',
+      likes: Math.max(0, asset.likes),
+      liked,
+    });
   } catch (error) {
     next(error);
   }
@@ -770,7 +817,9 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
     // Check if same type
     if (type !== existingAsset.type) {
       if (fs.existsSync(assetFile.path)) fs.unlinkSync(assetFile.path);
-      return next(new AppError(`File type must match the original asset type (${existingAsset.type})`, 400));
+      return next(
+        new AppError(`File type must match the original asset type (${existingAsset.type})`, 400),
+      );
     }
 
     // Count versions to set version tag
@@ -810,11 +859,16 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
                 ...metadata,
               },
             });
-            logger.info(`[AssetProcessor] Background processing completed for asset version: ${newVersion.id}`);
+            logger.info(
+              `[AssetProcessor] Background processing completed for asset version: ${newVersion.id}`,
+            );
           }
         })
         .catch((err) => {
-          logger.error(`[AssetProcessor] Background processing failed for asset version: ${newVersion.id}`, err);
+          logger.error(
+            `[AssetProcessor] Background processing failed for asset version: ${newVersion.id}`,
+            err,
+          );
         });
     } else {
       // Non-3D asset, just update active url and size
@@ -853,7 +907,11 @@ export const getAssetVersions = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
-export const createAssetAnnotation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createAssetAnnotation = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const id = req.params.id as string;
   const { content, x, y, z, cameraPos, cameraTarget } = req.body;
 
@@ -905,7 +963,11 @@ export const getAssetAnnotations = async (req: AuthRequest, res: Response, next:
   }
 };
 
-export const deleteAssetAnnotation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteAssetAnnotation = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const annotationId = req.params.annotationId as string;
   try {
     const annotation = await prisma.assetAnnotation.findUnique({
@@ -935,31 +997,35 @@ export const getAssetTags = async (req: AuthRequest, res: Response, next: NextFu
   try {
     const assets = await prisma.asset.findMany({
       where: { status: 'APPROVED' },
-      select: { tags: true }
+      select: { tags: true },
     });
     const tagUsageCounts: Record<string, number> = {};
-    assets.forEach(asset => {
+    assets.forEach((asset) => {
       if (asset.tags) {
         try {
           const tags = JSON.parse(asset.tags);
           if (Array.isArray(tags)) {
-            tags.forEach(tag => {
+            tags.forEach((tag) => {
               const trimmed = tag.trim();
               if (trimmed) {
                 tagUsageCounts[trimmed] = (tagUsageCounts[trimmed] || 0) + 1;
               }
             });
           }
-        } catch (e) {}
+        } catch (error) {
+          logger.warn('[Asset] Failed to parse asset tags for usage statistics', error);
+        }
       }
     });
 
-    const allTags = Array.from(new Set([...Object.keys(tagUsageCounts), ...Object.keys(tagSearchCounts)]));
-    const result = allTags.map(tag => {
+    const allTags = Array.from(
+      new Set([...Object.keys(tagUsageCounts), ...Object.keys(tagSearchCounts)]),
+    );
+    const result = allTags.map((tag) => {
       return {
         label: tag,
         count: tagUsageCounts[tag] || 0,
-        searchCount: tagSearchCounts[tag] || 0
+        searchCount: tagSearchCounts[tag] || 0,
       };
     });
 

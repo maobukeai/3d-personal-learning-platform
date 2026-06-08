@@ -58,6 +58,7 @@ const adminAiTestLimiter = rateLimit({
 
 router.post('/settings/test-smtp', settingsController.testSmtp);
 router.post('/settings/test-ai', adminAiTestLimiter, settingsController.testAi);
+router.post('/settings/ai-models', adminAiTestLimiter, settingsController.listAiModels);
 router.post('/settings/cleanup-storage', settingsController.cleanupStorage);
 
 // Users

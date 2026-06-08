@@ -229,6 +229,75 @@ html.dark.theme-glass {
 }
 .el-overlay-dialog {
   backdrop-filter: blur(6px);
+}/* Message Box (ElMessageBox) */
+.el-message-box {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-base) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 56px rgba(16, 24, 40, 0.16) !important;
+  padding: 24px !important;
+  width: 90% !important;
+  max-width: 420px !important;
+}
+
+.dark .el-message-box {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-base) !important;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.62) !important;
+}
+
+.el-message-box__header {
+  padding: 0 0 12px 0 !important;
+  border-bottom: 1px solid var(--border-base) !important;
+}
+
+.el-message-box__title {
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+  font-size: 1.125rem !important;
+}
+
+.el-message-box__content {
+  color: var(--text-secondary) !important;
+  font-size: 0.95rem !important;
+  padding: 16px 0 !important;
+}
+
+.el-message-box__input {
+  padding-top: 4px !important;
+}
+
+.el-message-box__input .el-input__wrapper {
+  background-color: var(--el-fill-color-blank) !important;
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+  border-radius: 8px !important;
+}
+
+.el-message-box__btns {
+  padding: 12px 0 0 0 !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+}
+
+.el-message-box__btns .el-button {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  padding: 8px 18px !important;
+  height: 38px !important;
+  margin-left: 0 !important; /* Reset Element Plus default margin-left */
+}
+
+/* Close button styling */
+.el-message-box__headerbtn {
+  top: 20px !important;
+  right: 20px !important;
+}
+.el-message-box__headerbtn .el-message-box__close {
+  color: var(--text-muted) !important;
+}
+.el-message-box__headerbtn:hover .el-message-box__close {
+  color: var(--accent) !important;
 }
 
 /* Message / Notification */

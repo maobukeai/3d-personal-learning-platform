@@ -128,16 +128,28 @@ export default defineConfig(({ mode }) => {
       ],
     },
     build: {
+      chunkSizeWarningLimit: 650,
       rolldownOptions: {
         output: {
           codeSplitting: {
             includeDependenciesRecursively: false,
             groups: [
               {
-                name: 'three-all',
+                name: 'three-examples',
+                priority: 4,
+                test(moduleId) {
+                  return normalizeModuleId(moduleId).includes('/node_modules/three/examples/');
+                },
+              },
+              {
+                name: 'three-core',
                 priority: 3,
                 test(moduleId) {
-                  return normalizeModuleId(moduleId).includes('/node_modules/three/');
+                  const normalizedId = normalizeModuleId(moduleId);
+                  return (
+                    normalizedId.includes('/node_modules/three/') &&
+                    !normalizedId.includes('/node_modules/three/examples/')
+                  );
                 },
               },
               {

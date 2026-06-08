@@ -300,10 +300,11 @@ html.theme-glass .glass-sidebar {
 
 /* Glass element styles - Tier 2: Dialog Modules */
 html.theme-glass .el-dialog,
+html.theme-glass .el-message-box,
 html.theme-glass .glass-dialog {
   background: var(--glass-bg) !important;
-  backdrop-filter: blur(8px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
+  backdrop-filter: blur(12px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(145%) !important;
   border: var(--glass-border) !important;
   box-shadow: var(--glass-shadow) !important;
   transform: translateZ(0);

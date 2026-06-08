@@ -9,6 +9,7 @@ import { sanitizeUser } from '../../utils/auth';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
 import { redisService } from '../../services/redis.service';
+import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
 
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { name, bio, location, website } = req.body;
@@ -454,10 +455,8 @@ export const getActivity = async (req: AuthRequest, res: Response, next: NextFun
       if (isNaN(parsedDate.getTime())) {
         return next(new AppError('无效的日期格式', 400));
       }
-      const startOfDay = new Date(parsedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(parsedDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = getShanghaiStartOfDay(parsedDate);
+      const endOfDay = getShanghaiEndOfDay(parsedDate);
       where.createdAt = {
         gte: startOfDay,
         lte: endOfDay,
@@ -763,12 +762,8 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
         ? Math.round(activeProgresses.reduce((sum, p) => sum + p, 0) / activeProgresses.length)
         : 0;
 
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    const fourteenDaysAgo = new Date(sevenDaysAgo);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 7);
+    const sevenDaysAgo = getShanghaiStartOfDay(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const fourteenDaysAgo = getShanghaiStartOfDay(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000));
 
     const [recentAssets, prevAssets] = await Promise.all([
       prisma.asset.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
@@ -889,4 +884,3 @@ export const getLeaderboard = async (req: AuthRequest, res: Response, next: Next
     next(error);
   }
 };
-

@@ -348,6 +348,14 @@ const buildGeminiModelsUrl = (endpoint: string, apiKey: string) => {
 const buildOpenAICompatibleModelsUrl = (endpoint: string) => {
   if (!endpoint) throw new AppError('API Endpoint 不能为空', 400);
   const url = new URL(endpoint);
+
+  // GitHub Models support listing models at /catalog/models
+  if (url.hostname === 'models.github.ai' || url.hostname === 'models.inference.ai.azure.com') {
+    url.pathname = '/catalog/models';
+    url.search = '';
+    return url.toString();
+  }
+
   let pathname = url.pathname.replace(/\/+$/, '');
 
   pathname = pathname
@@ -432,6 +440,18 @@ export const listAiModels = async (req: AuthRequest, res: Response, next: NextFu
     } else {
       url = buildOpenAICompatibleModelsUrl(endpoint);
       headers.Authorization = `Bearer ${apiKey}`;
+      try {
+        const parsedUrl = new URL(url);
+        if (
+          parsedUrl.hostname === 'models.github.ai' ||
+          parsedUrl.hostname === 'models.inference.ai.azure.com'
+        ) {
+          headers['X-GitHub-Api-Version'] = '2022-11-28';
+          headers['User-Agent'] = '3d-personal-learning-platform';
+        }
+      } catch (_e) {
+        // Ignored
+      }
     }
 
     logger.info(`[Admin AI Models] Fetching models provider=${provider} url=${url}`);

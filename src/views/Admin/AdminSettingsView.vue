@@ -4709,27 +4709,6 @@ onUnmounted(() => {
                         </div>
                       </div>
                     </div>
-                    <!-- Custom Category Footer / Danger Zone -->
-                    <div
-                      v-if="group.key.startsWith('custom_')"
-                      class="mt-4 pt-3 border-t flex justify-end"
-                      style="border-color: var(--border-base)"
-                    >
-                      <button
-                        type="button"
-                        class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer"
-                        style="
-                          border-color: rgba(244, 63, 94, 0.25);
-                          color: #e11d48;
-                          background: rgba(244, 63, 94, 0.05);
-                        "
-                        title="删除当前自定义分类"
-                        @click.stop="deleteCustomCategory(group)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                        <span>删除分类</span>
-                      </button>
-                    </div>
                   </div>
                 </section>
               </div>

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
@@ -17,6 +17,7 @@ import {
   Image,
   FileText,
   Upload,
+  Download,
   Clock,
   KeyRound,
   AlertTriangle,
@@ -153,6 +154,7 @@ const defaultSettings = {
   AI_API_ENDPOINT: 'https://api.deepseek.com/v1',
   AI_MODEL_NAME: 'deepseek-chat',
   AI_MODEL_OPTIONS: '[]',
+  AI_MODEL_CUSTOM_CATEGORIES: '[]',
 };
 
 type SettingValue = string | boolean;
@@ -188,6 +190,13 @@ interface AiModelConfig {
   maxTokens?: number;
   systemPrompt?: string;
   showAdvanced?: boolean;
+  customFamilyKey?: string;
+  customFamilyLabel?: string;
+}
+
+interface AiModelCategory {
+  key: string;
+  label: string;
 }
 
 const settings = ref({ ...defaultSettings });
@@ -196,12 +205,33 @@ const aiModelConfigs = ref<AiModelConfig[]>([]);
 const pendingModelFamilyIds = ref<string[]>([]);
 
 const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
-  DEEPSEEK: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat', name: 'DeepSeek Chat' },
-  OPENAI: { endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini', name: 'OpenAI GPT-4o mini' },
+  DEEPSEEK: {
+    endpoint: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    name: 'DeepSeek Chat',
+  },
+  OPENAI: {
+    endpoint: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    name: 'OpenAI GPT-4o mini',
+  },
   OLLAMA: { endpoint: 'http://localhost:11434/api', model: 'llama3', name: 'Ollama Llama3' },
-  QWEN: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', name: 'Qwen Plus' },
-  GEMINI: { endpoint: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash', name: 'Gemini Flash' },
-  AZURE: { endpoint: 'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15', model: 'gpt-4o', name: 'Azure OpenAI' },
+  QWEN: {
+    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+    name: 'Qwen Plus',
+  },
+  GEMINI: {
+    endpoint: 'https://generativelanguage.googleapis.com',
+    model: 'gemini-1.5-flash',
+    name: 'Gemini Flash',
+  },
+  AZURE: {
+    endpoint:
+      'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15',
+    model: 'gpt-4o',
+    name: 'Azure OpenAI',
+  },
   CUSTOM: { endpoint: '', model: '', name: t('admin.custom_model') },
 };
 
@@ -259,9 +289,39 @@ const normalizeAiModels = (value: unknown): AiModelConfig[] => {
         maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : 2000,
         systemPrompt: typeof model.systemPrompt === 'string' ? model.systemPrompt : '',
         showAdvanced: false,
+        customFamilyKey:
+          typeof model.customFamilyKey === 'string' ? model.customFamilyKey : undefined,
+        customFamilyLabel:
+          typeof model.customFamilyLabel === 'string' ? model.customFamilyLabel : undefined,
       };
     })
     .filter((item): item is AiModelConfig => Boolean(item));
+};
+
+const normalizeCustomCategories = (value: unknown): AiModelCategory[] => {
+  let raw = value;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return [];
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const seenKeys = new Set<string>();
+  return raw
+    .map((item): AiModelCategory | null => {
+      if (!item || typeof item !== 'object') return null;
+      const category = item as Record<string, unknown>;
+      const key = String(category.key || '').trim();
+      const label = String(category.label || '').trim();
+      if (!key || !label || seenKeys.has(key)) return null;
+      seenKeys.add(key);
+      return { key, label };
+    })
+    .filter((item): item is AiModelCategory => Boolean(item));
 };
 
 const isPendingAiModel = (id: string) => pendingModelFamilyIds.value.includes(id);
@@ -269,15 +329,19 @@ const isPendingAiModel = (id: string) => pendingModelFamilyIds.value.includes(id
 const getPersistableAiModels = () =>
   aiModelConfigs.value.filter((model) => !isPendingAiModel(model.id) && model.modelName.trim());
 
+const syncCustomCategoriesToSettings = () => {
+  settings.value.AI_MODEL_CUSTOM_CATEGORIES = JSON.stringify(customCategories.value);
+};
+
 const syncAiModelsToSettings = () => {
   const persistableModels = getPersistableAiModels();
   if (persistableModels.length > 0 && !persistableModels.some((model) => model.isDefault)) {
     persistableModels[0].isDefault = true;
   }
   settings.value.AI_MODEL_OPTIONS = JSON.stringify(persistableModels);
+  syncCustomCategoriesToSettings();
 
-  const defaultModel =
-    persistableModels.find((model) => model.isDefault) || persistableModels[0];
+  const defaultModel = persistableModels.find((model) => model.isDefault) || persistableModels[0];
   if (defaultModel) {
     settings.value.AI_PROVIDER = defaultModel.provider;
     settings.value.AI_API_ENDPOINT = defaultModel.endpoint;
@@ -297,6 +361,9 @@ const addAiModel = (provider = 'CUSTOM') => {
   aiModelConfigs.value.push(model);
   markAiModelPending(model.id);
   expandedModelId.value = model.id;
+  collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
+    (k) => k !== PENDING_MODEL_FAMILY_KEY,
+  );
   syncAiModelsToSettings();
 };
 
@@ -354,7 +421,11 @@ const expandModelNameLines = (
     added += 1;
   });
 
-  if (!originalName || originalName === model.modelName || Object.values(aiProviderDefaults).some((item) => item.name === originalName)) {
+  if (
+    !originalName ||
+    originalName === model.modelName ||
+    Object.values(aiProviderDefaults).some((item) => item.name === originalName)
+  ) {
     model.name = `${providerLabel} ${model.modelName}`;
   }
   syncAiModelsToSettings();
@@ -476,6 +547,127 @@ interface SmtpConfig {
   secure: string;
 }
 
+const SECRET_PLACEHOLDER = '__REDACTED_SECRET__';
+const SECRET_SETTING_KEYS = new Set([
+  'AI_API_KEY',
+  'SMTP_PASS',
+  'OAUTH_GOOGLE_CLIENT_SECRET',
+  'OAUTH_GITHUB_CLIENT_SECRET',
+]);
+
+const clonePlain = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const isRedactedSecret = (value: unknown) => value === SECRET_PLACEHOLDER;
+
+const normalizeSmtpConfigs = (value: unknown): SmtpConfig[] => {
+  let raw = value;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return [];
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item): SmtpConfig | null => {
+      if (!item || typeof item !== 'object') return null;
+      const config = item as Record<string, unknown>;
+      const id = String(config.id || '').trim();
+      if (!id) return null;
+      return {
+        id,
+        name: String(config.name || id),
+        host: String(config.host || ''),
+        port: String(config.port || '465'),
+        user: String(config.user || ''),
+        pass: String(config.pass || ''),
+        from: String(config.from || ''),
+        secure: String(config.secure ?? 'true'),
+      };
+    })
+    .filter((item): item is SmtpConfig => Boolean(item));
+};
+
+const redactSmtpConfigs = (value: unknown) =>
+  JSON.stringify(
+    normalizeSmtpConfigs(value).map((config) => ({
+      ...config,
+      pass: config.pass ? SECRET_PLACEHOLDER : '',
+    })),
+  );
+
+const redactSettingsForExport = () => {
+  const exported = clonePlain(settings.value) as SettingsRecord;
+  SECRET_SETTING_KEYS.forEach((key) => {
+    if (exported[key]) {
+      exported[key] = SECRET_PLACEHOLDER;
+    }
+  });
+  exported.SMTP_CONFIGS = redactSmtpConfigs(settings.value.SMTP_CONFIGS);
+  exported.AI_MODEL_OPTIONS = JSON.stringify(
+    normalizeAiModels(settings.value.AI_MODEL_OPTIONS).map((model) => ({
+      ...model,
+      apiKey: model.apiKey ? SECRET_PLACEHOLDER : '',
+    })),
+  );
+  return exported;
+};
+
+const redactAiModelConfigsForExport = () =>
+  clonePlain(aiModelConfigs.value).map((model) => ({
+    ...model,
+    apiKey: model.apiKey ? SECRET_PLACEHOLDER : '',
+  }));
+
+const findExistingAiModel = (model: AiModelConfig) =>
+  aiModelConfigs.value.find((item) => item.id === model.id) ||
+  aiModelConfigs.value.find(
+    (item) =>
+      item.provider === model.provider &&
+      item.endpoint === model.endpoint &&
+      item.modelName === model.modelName,
+  );
+
+const normalizeImportedAiModels = (value: unknown) =>
+  normalizeAiModels(value).map((model) => {
+    if (!isRedactedSecret(model.apiKey)) return model;
+    return {
+      ...model,
+      apiKey: findExistingAiModel(model)?.apiKey || '',
+    };
+  });
+
+const applyImportedSettings = (value: unknown) => {
+  if (!value || typeof value !== 'object') return;
+
+  const existingSmtpConfigs = normalizeSmtpConfigs(settings.value.SMTP_CONFIGS);
+  Object.entries(value as Record<string, unknown>).forEach(([key, incomingValue]) => {
+    if (!isKnownSettingKey(key)) return;
+    if (SECRET_SETTING_KEYS.has(key) && isRedactedSecret(incomingValue)) return;
+
+    if (key === 'SMTP_CONFIGS') {
+      const smtpValue = normalizeSmtpConfigs(incomingValue).map((config) => {
+        if (!isRedactedSecret(config.pass)) return config;
+        return {
+          ...config,
+          pass: existingSmtpConfigs.find((existing) => existing.id === config.id)?.pass || '',
+        };
+      });
+      setSettingValue(key, JSON.stringify(smtpValue));
+      return;
+    }
+
+    if (key === 'AI_MODEL_CUSTOM_CATEGORIES') {
+      setSettingValue(key, JSON.stringify(normalizeCustomCategories(incomingValue)));
+      return;
+    }
+
+    setSettingValue(key, incomingValue as SettingValue);
+  });
+};
+
 const smtpConfigs = ref<SmtpConfig[]>([]);
 const activeConfigId = ref<string>('');
 
@@ -497,12 +689,16 @@ const selectSmtpConfig = (configId: string) => {
 
 const addNewSmtpConfig = async () => {
   try {
-    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.added_email_configuration_plan'), {
-      confirmButtonText: t('admin.ok'),
-      cancelButtonText: t('admin.cancel'),
-      inputPattern: /\S+/,
-      inputErrorMessage: t('admin.scheme_name_cannot_be'),
-    });
+    const { value: name } = await ElMessageBox.prompt(
+      t('admin.please_enter_a_new'),
+      t('admin.added_email_configuration_plan'),
+      {
+        confirmButtonText: t('admin.ok'),
+        cancelButtonText: t('admin.cancel'),
+        inputPattern: /\S+/,
+        inputErrorMessage: t('admin.scheme_name_cannot_be'),
+      },
+    );
 
     const newId = 'cfg_' + Date.now();
     const newCfg: SmtpConfig = {
@@ -532,13 +728,17 @@ const renameSmtpConfig = async () => {
   if (!activeCfg) return;
 
   try {
-    const { value: name } = await ElMessageBox.prompt(t('admin.please_enter_a_new'), t('admin.rename_configuration_scheme'), {
-      confirmButtonText: t('admin.ok'),
-      cancelButtonText: t('admin.cancel'),
-      inputPattern: /\S+/,
-      inputErrorMessage: t('admin.scheme_name_cannot_be'),
-      inputValue: activeCfg.name,
-    });
+    const { value: name } = await ElMessageBox.prompt(
+      t('admin.please_enter_a_new'),
+      t('admin.rename_configuration_scheme'),
+      {
+        confirmButtonText: t('admin.ok'),
+        cancelButtonText: t('admin.cancel'),
+        inputPattern: /\S+/,
+        inputErrorMessage: t('admin.scheme_name_cannot_be'),
+        inputValue: activeCfg.name,
+      },
+    );
 
     activeCfg.name = name;
     settings.value.SMTP_CONFIGS = JSON.stringify(smtpConfigs.value);
@@ -557,11 +757,15 @@ const deleteSmtpConfig = async () => {
   if (!activeCfg) return;
 
   try {
-    await ElMessageBox.confirm(t('admin.are_you_sure_you_17', { activeCfgname: activeCfg.name }), t('admin.delete_configuration_plan'), {
-      confirmButtonText: t('admin.confirm_deletion'),
-      cancelButtonText: t('admin.cancel'),
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      t('admin.are_you_sure_you_17', { activeCfgname: activeCfg.name }),
+      t('admin.delete_configuration_plan'),
+      {
+        confirmButtonText: t('admin.confirm_deletion'),
+        cancelButtonText: t('admin.cancel'),
+        type: 'warning',
+      },
+    );
 
     const index = smtpConfigs.value.findIndex((c) => c.id === activeConfigId.value);
     if (index !== -1) {
@@ -679,7 +883,10 @@ const fetchSettings = async () => {
             setSettingValue(s.key, getDefaultSettingValue(s.key));
           }
         } else if (s.key === 'AI_MODEL_OPTIONS') {
-          setSettingValue(s.key, typeof s.value === 'string' ? s.value : JSON.stringify(s.value || []));
+          setSettingValue(
+            s.key,
+            typeof s.value === 'string' ? s.value : JSON.stringify(s.value || []),
+          );
         } else if (Object.keys(settings.value).includes(s.key)) {
           setSettingValue(s.key, typeof s.value === 'boolean' ? s.value : String(s.value ?? ''));
         }
@@ -692,9 +899,17 @@ const fetchSettings = async () => {
         } else if (typeof value === 'boolean') {
           setSettingValue(key, value);
         } else if (Array.isArray(value)) {
-          setSettingValue(key, key === 'AI_MODEL_OPTIONS' ? JSON.stringify(value) : value.join(', '));
+          setSettingValue(
+            key,
+            key === 'AI_MODEL_OPTIONS' ? JSON.stringify(value) : value.join(', '),
+          );
         } else if (Object.keys(settings.value).includes(key)) {
-          if (key !== 'SMTP_CONFIGS' && key !== 'AI_MODEL_OPTIONS' && typeof value === 'string' && value.trim().startsWith('[')) {
+          if (
+            key !== 'SMTP_CONFIGS' &&
+            key !== 'AI_MODEL_OPTIONS' &&
+            typeof value === 'string' &&
+            value.trim().startsWith('[')
+          ) {
             try {
               const parsed = JSON.parse(value);
               if (Array.isArray(parsed)) {
@@ -725,11 +940,24 @@ const fetchSettings = async () => {
         },
       ];
     }
+    restoreCustomCategories();
+
+    // Default all groups to collapsed
+    const initialKeys = Array.from(
+      new Set([
+        ...aiModelConfigs.value.map((model) =>
+          inferModelFamilyKey(model, { isPending: isPendingAiModel(model.id) }),
+        ),
+        ...customCategories.value.map((category) => category.key),
+      ]),
+    );
+    collapsedModelFamilyGroups.value = initialKeys;
+
     syncAiModelsToSettings();
 
     // Parse SMTP_CONFIGS
     try {
-      smtpConfigs.value = JSON.parse(settings.value.SMTP_CONFIGS || '[]');
+      smtpConfigs.value = normalizeSmtpConfigs(settings.value.SMTP_CONFIGS);
     } catch {
       smtpConfigs.value = [];
     }
@@ -851,15 +1079,11 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
 
 const resetToDefaults = async () => {
   try {
-    await ElMessageBox.confirm(
-      t('admin.this_action_returns_all'),
-      t('admin.reset_to_default'),
-      {
-        confirmButtonText: t('admin.confirm_reset_1'),
-        cancelButtonText: t('admin.cancel'),
-        type: 'warning',
-      },
-    );
+    await ElMessageBox.confirm(t('admin.this_action_returns_all'), t('admin.reset_to_default'), {
+      confirmButtonText: t('admin.confirm_reset_1'),
+      cancelButtonText: t('admin.cancel'),
+      type: 'warning',
+    });
     settings.value = { ...defaultSettings };
     smtpConfigs.value = [
       {
@@ -933,14 +1157,36 @@ const handleDragStart = (event: DragEvent, index: number) => {
   }
 };
 
-const handleDrop = (_event: DragEvent, toIndex: number) => {
+const handleDrop = (event: DragEvent, toIndex: number) => {
+  event.stopPropagation();
   if (dragIndex.value !== null && dragIndex.value !== toIndex) {
     const list = [...aiModelConfigs.value];
-    const draggedItem = list.splice(dragIndex.value, 1)[0];
-    list.splice(toIndex, 0, draggedItem);
-    aiModelConfigs.value = list;
-    syncAiModelsToSettings();
-    ElMessage.success(t('admin.updated_model_prioritization'));
+    const draggedItem = list[dragIndex.value];
+    const targetItem = list[toIndex];
+    if (draggedItem && targetItem) {
+      const targetFamilyKey = inferModelFamilyKey(targetItem, {
+        isPending: isPendingAiModel(targetItem.id),
+      });
+
+      if (targetFamilyKey === PENDING_MODEL_FAMILY_KEY) {
+        delete draggedItem.customFamilyKey;
+        delete draggedItem.customFamilyLabel;
+        markAiModelPending(draggedItem.id);
+      } else {
+        const targetMeta = getModelFamilyMeta(targetFamilyKey, targetItem.customFamilyLabel);
+        draggedItem.customFamilyKey = targetFamilyKey;
+        draggedItem.customFamilyLabel = targetMeta.label;
+        pendingModelFamilyIds.value = pendingModelFamilyIds.value.filter(
+          (id) => id !== draggedItem.id,
+        );
+      }
+
+      const draggedItemObject = list.splice(dragIndex.value, 1)[0];
+      list.splice(toIndex, 0, draggedItemObject);
+      aiModelConfigs.value = list;
+      syncAiModelsToSettings();
+      ElMessage.success(t('admin.updated_model_prioritization'));
+    }
   }
 };
 
@@ -949,14 +1195,59 @@ const handleDragEnd = () => {
   isDraggable.value = false;
 };
 
-const providerMeta: Record<string, { color: string; bg: string; border: string; label: string; lucideIcon: any }> = {
-  DEEPSEEK: { color: '#2563eb', bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.25)', label: 'DeepSeek', lucideIcon: Cpu },
-  OPENAI: { color: '#10a37f', bg: 'rgba(16,163,127,0.08)', border: 'rgba(16,163,127,0.25)', label: 'OpenAI', lucideIcon: Sparkles },
-  OLLAMA: { color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', label: 'Ollama', lucideIcon: Database },
-  QWEN: { color: '#ea580c', bg: 'rgba(234,88,12,0.08)', border: 'rgba(234,88,12,0.25)', label: 'Qwen', lucideIcon: Globe },
-  GEMINI: { color: '#db2777', bg: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.25)', label: 'Gemini', lucideIcon: Sparkles },
-  AZURE: { color: '#0284c7', bg: 'rgba(2,132,199,0.08)', border: 'rgba(2,132,199,0.25)', label: 'Azure', lucideIcon: Cloud },
-  CUSTOM: { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.25)', label: 'Custom', lucideIcon: Settings },
+const providerMeta: Record<
+  string,
+  { color: string; bg: string; border: string; label: string; lucideIcon: any }
+> = {
+  DEEPSEEK: {
+    color: '#2563eb',
+    bg: 'rgba(37,99,235,0.08)',
+    border: 'rgba(37,99,235,0.25)',
+    label: 'DeepSeek',
+    lucideIcon: Cpu,
+  },
+  OPENAI: {
+    color: '#10a37f',
+    bg: 'rgba(16,163,127,0.08)',
+    border: 'rgba(16,163,127,0.25)',
+    label: 'OpenAI',
+    lucideIcon: Sparkles,
+  },
+  OLLAMA: {
+    color: '#7c3aed',
+    bg: 'rgba(124,58,237,0.08)',
+    border: 'rgba(124,58,237,0.25)',
+    label: 'Ollama',
+    lucideIcon: Database,
+  },
+  QWEN: {
+    color: '#ea580c',
+    bg: 'rgba(234,88,12,0.08)',
+    border: 'rgba(234,88,12,0.25)',
+    label: 'Qwen',
+    lucideIcon: Globe,
+  },
+  GEMINI: {
+    color: '#db2777',
+    bg: 'rgba(219,39,119,0.08)',
+    border: 'rgba(219,39,119,0.25)',
+    label: 'Gemini',
+    lucideIcon: Sparkles,
+  },
+  AZURE: {
+    color: '#0284c7',
+    bg: 'rgba(2,132,199,0.08)',
+    border: 'rgba(2,132,199,0.25)',
+    label: 'Azure',
+    lucideIcon: Cloud,
+  },
+  CUSTOM: {
+    color: '#64748b',
+    bg: 'rgba(100,116,139,0.08)',
+    border: 'rgba(100,116,139,0.25)',
+    label: 'Custom',
+    lucideIcon: Settings,
+  },
 };
 
 const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
@@ -973,19 +1264,64 @@ interface ModelFamilyGroup {
   meta: { color: string; bg: string; border: string; label: string; lucideIcon: any };
 }
 
-const modelFamilyMeta: Record<string, { color: string; bg: string; border: string; label: string; lucideIcon: any }> = {
-  [PENDING_MODEL_FAMILY_KEY]: { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.25)', label: t('admin.ai_pending_configuration'), lucideIcon: Sliders },
-  agnes: { color: '#0891b2', bg: 'rgba(8,145,178,0.08)', border: 'rgba(8,145,178,0.25)', label: 'Agnes', lucideIcon: Sparkles },
+const modelFamilyMeta: Record<
+  string,
+  { color: string; bg: string; border: string; label: string; lucideIcon: any }
+> = {
+  [PENDING_MODEL_FAMILY_KEY]: {
+    color: '#64748b',
+    bg: 'rgba(100,116,139,0.08)',
+    border: 'rgba(100,116,139,0.25)',
+    label: t('admin.ai_pending_configuration'),
+    lucideIcon: Sliders,
+  },
+  agnes: {
+    color: '#0891b2',
+    bg: 'rgba(8,145,178,0.08)',
+    border: 'rgba(8,145,178,0.25)',
+    label: 'Agnes',
+    lucideIcon: Sparkles,
+  },
   gemini: providerMeta.GEMINI,
   deepseek: providerMeta.DEEPSEEK,
   qwen: providerMeta.QWEN,
   openai: providerMeta.OPENAI,
   gpt: providerMeta.OPENAI,
-  skywork: { color: '#4f46e5', bg: 'rgba(79,70,229,0.08)', border: 'rgba(79,70,229,0.25)', label: 'Skywork', lucideIcon: Cpu },
-  llama: { color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', label: 'Llama', lucideIcon: Database },
-  claude: { color: '#d97706', bg: 'rgba(217,119,6,0.08)', border: 'rgba(217,119,6,0.25)', label: 'Claude', lucideIcon: Sparkles },
-  mistral: { color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.25)', label: 'Mistral', lucideIcon: Cpu },
-  gemma: { color: '#db2777', bg: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.25)', label: 'Gemma', lucideIcon: Sparkles },
+  skywork: {
+    color: '#4f46e5',
+    bg: 'rgba(79,70,229,0.08)',
+    border: 'rgba(79,70,229,0.25)',
+    label: 'Skywork',
+    lucideIcon: Cpu,
+  },
+  llama: {
+    color: '#7c3aed',
+    bg: 'rgba(124,58,237,0.08)',
+    border: 'rgba(124,58,237,0.25)',
+    label: 'Llama',
+    lucideIcon: Database,
+  },
+  claude: {
+    color: '#d97706',
+    bg: 'rgba(217,119,6,0.08)',
+    border: 'rgba(217,119,6,0.25)',
+    label: 'Claude',
+    lucideIcon: Sparkles,
+  },
+  mistral: {
+    color: '#dc2626',
+    bg: 'rgba(220,38,38,0.08)',
+    border: 'rgba(220,38,38,0.25)',
+    label: 'Mistral',
+    lucideIcon: Cpu,
+  },
+  gemma: {
+    color: '#db2777',
+    bg: 'rgba(219,39,119,0.08)',
+    border: 'rgba(219,39,119,0.25)',
+    label: 'Gemma',
+    lucideIcon: Sparkles,
+  },
 };
 
 const modelFamilyPalette = [
@@ -1002,13 +1338,76 @@ const getDominantProvider = (models: AiModelConfig[]) => {
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'CUSTOM';
 };
 
-const getModelFamilyMeta = (key: string) => {
+const customCategories = ref<AiModelCategory[]>([]);
+
+const extractCustomCategories = () => {
+  const categories: AiModelCategory[] = [];
+  const seenKeys = new Set<string>();
+  aiModelConfigs.value.forEach((model) => {
+    if (model.customFamilyKey && model.customFamilyLabel) {
+      if (!seenKeys.has(model.customFamilyKey)) {
+        seenKeys.add(model.customFamilyKey);
+        categories.push({ key: model.customFamilyKey, label: model.customFamilyLabel });
+      }
+    }
+  });
+  return categories;
+};
+
+const mergeCustomCategories = (...sources: AiModelCategory[][]) => {
+  const merged: AiModelCategory[] = [];
+  const seenKeys = new Set<string>();
+  sources.flat().forEach((category) => {
+    if (seenKeys.has(category.key)) return;
+    seenKeys.add(category.key);
+    merged.push(category);
+  });
+  return merged;
+};
+
+const restoreCustomCategories = () => {
+  customCategories.value = mergeCustomCategories(
+    normalizeCustomCategories(settings.value.AI_MODEL_CUSTOM_CATEGORIES),
+    extractCustomCategories(),
+  );
+  syncCustomCategoriesToSettings();
+};
+
+const addCustomCategory = async () => {
+  try {
+    const { value: categoryName } = await ElMessageBox.prompt(
+      '请输入自定义分类名称',
+      '创建自定义分类',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '分类名称不能为空',
+      },
+    );
+    if (categoryName?.trim()) {
+      const key =
+        'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+      customCategories.value.push({ key, label: categoryName.trim() });
+      syncCustomCategoriesToSettings();
+      // Expand by default when created
+      collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
+        (item) => item !== key,
+      );
+      ElMessage.success('自定义分类创建成功，请将模型拖拽至此分类');
+    }
+  } catch (_e) {
+    // User canceled
+  }
+};
+
+const getModelFamilyMeta = (key: string, customLabel?: string) => {
   if (modelFamilyMeta[key]) return modelFamilyMeta[key];
   const hash = Array.from(key).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   const palette = modelFamilyPalette[hash % modelFamilyPalette.length];
   return {
     ...palette,
-    label: titleCaseModelFamily(key) || 'Custom',
+    label: customLabel || titleCaseModelFamily(key) || 'Custom',
     lucideIcon: Cpu,
   };
 };
@@ -1017,6 +1416,11 @@ const collapsedModelFamilyGroups = ref<string[]>([]);
 
 const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
   const groups = new Map<string, AiModelConfig[]>();
+
+  // Ensure any empty custom categories are included
+  customCategories.value.forEach((cat) => {
+    groups.set(cat.key, []);
+  });
 
   aiModelConfigs.value.forEach((model) => {
     const familyKey = inferModelFamilyKey(model, { isPending: isPendingAiModel(model.id) });
@@ -1029,19 +1433,29 @@ const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
       const endpoints = Array.from(new Set(models.map((model) => model.endpoint).filter(Boolean)));
       const enabledCount = models.filter((model) => model.enabled).length;
       const defaultModel = models.find((model) => model.isDefault);
-      const provider = getDominantProvider(models);
-      const providers = Array.from(new Set(models.map((model) => getProviderMeta(model.provider).label)));
-      const meta = getModelFamilyMeta(key);
+      const provider = models.length > 0 ? getDominantProvider(models) : 'CUSTOM';
+      const providers = Array.from(
+        new Set(models.map((model) => getProviderMeta(model.provider).label)),
+      );
+
+      const customCat = customCategories.value.find((c) => c.key === key);
+      const meta = getModelFamilyMeta(key, customCat?.label);
+
       return {
         key,
         label: meta.label,
         provider,
-        providerLabel: providers.join(' / '),
+        providerLabel: providers.length > 0 ? providers.join(' / ') : 'Custom',
         models,
         enabledCount,
         defaultModel,
         meta,
-        endpointLabel: endpoints.length === 0 ? t('admin.ai_endpoint_not_configured') : endpoints.length === 1 ? endpoints[0] : t('admin.ai_endpoint_count', { count: endpoints.length }),
+        endpointLabel:
+          endpoints.length === 0
+            ? t('admin.ai_endpoint_not_configured')
+            : endpoints.length === 1
+              ? endpoints[0]
+              : t('admin.ai_endpoint_count', { count: endpoints.length }),
       };
     })
     .sort((a, b) => {
@@ -1051,12 +1465,13 @@ const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
     });
 });
 
-const isModelFamilyGroupCollapsed = (key: string) =>
-  collapsedModelFamilyGroups.value.includes(key);
+const isModelFamilyGroupCollapsed = (key: string) => collapsedModelFamilyGroups.value.includes(key);
 
 const toggleModelFamilyGroup = (key: string) => {
   if (isModelFamilyGroupCollapsed(key)) {
-    collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter((item) => item !== key);
+    collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
+      (item) => item !== key,
+    );
   } else {
     collapsedModelFamilyGroups.value.push(key);
   }
@@ -1076,10 +1491,62 @@ const addAiModelToFamily = (group: ModelFamilyGroup) => {
   }
   model.name = `${group.label} Model`;
   model.modelName = '';
+
+  const customCat = customCategories.value.find((c) => c.key === group.key);
+  if (customCat) {
+    model.customFamilyKey = customCat.key;
+    model.customFamilyLabel = customCat.label;
+  }
+
   aiModelConfigs.value.push(model);
   markAiModelPending(model.id);
   expandedModelId.value = model.id;
+  collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter(
+    (k) => k !== group.key,
+  );
   syncAiModelsToSettings();
+};
+
+const handleDropOnGroup = (_event: DragEvent, group: ModelFamilyGroup) => {
+  if (dragIndex.value !== null) {
+    const list = [...aiModelConfigs.value];
+    const draggedItem = list[dragIndex.value];
+    if (draggedItem) {
+      if (group.key === PENDING_MODEL_FAMILY_KEY) {
+        delete draggedItem.customFamilyKey;
+        delete draggedItem.customFamilyLabel;
+        markAiModelPending(draggedItem.id);
+      } else {
+        draggedItem.customFamilyKey = group.key;
+        draggedItem.customFamilyLabel = group.label;
+        pendingModelFamilyIds.value = pendingModelFamilyIds.value.filter(
+          (id) => id !== draggedItem.id,
+        );
+      }
+
+      // Re-position the model in the flat list near the end of that group's models
+      const groupModels = group.models.filter((m) => m.id !== draggedItem.id);
+      let targetIndex = list.length;
+      if (groupModels.length > 0) {
+        const lastGroupModel = groupModels[groupModels.length - 1];
+        const lastIndex = list.findIndex((item) => item.id === lastGroupModel.id);
+        if (lastIndex !== -1) {
+          targetIndex = lastIndex + 1;
+        }
+      }
+
+      const draggedItemObject = list.splice(dragIndex.value, 1)[0];
+      let insertIndex = targetIndex;
+      if (dragIndex.value < targetIndex) {
+        insertIndex = targetIndex - 1;
+      }
+      list.splice(insertIndex, 0, draggedItemObject);
+
+      aiModelConfigs.value = list;
+      syncAiModelsToSettings();
+      ElMessage.success(`已将模型分类更新为: ${group.label}`);
+    }
+  }
 };
 const testAi = async (model?: AiModelConfig) => {
   const provider = model?.provider || settings.value.AI_PROVIDER;
@@ -1131,7 +1598,11 @@ watch(
       OLLAMA: { endpoint: 'http://localhost:11434/api', model: 'llama3' },
       QWEN: { endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
       GEMINI: { endpoint: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash' },
-      AZURE: { endpoint: 'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15', model: 'gpt-4o' },
+      AZURE: {
+        endpoint:
+          'https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15',
+        model: 'gpt-4o',
+      },
       CUSTOM: { endpoint: '', model: '' },
     };
 
@@ -1140,8 +1611,10 @@ watch(
       const currentEndpoint = settings.value.AI_API_ENDPOINT;
       const currentModel = settings.value.AI_MODEL_NAME;
 
-      const isEndpointDefaultOrEmpty = !currentEndpoint || Object.values(defaultsMap).some(d => d.endpoint === currentEndpoint);
-      const isModelDefaultOrEmpty = !currentModel || Object.values(defaultsMap).some(d => d.model === currentModel);
+      const isEndpointDefaultOrEmpty =
+        !currentEndpoint || Object.values(defaultsMap).some((d) => d.endpoint === currentEndpoint);
+      const isModelDefaultOrEmpty =
+        !currentModel || Object.values(defaultsMap).some((d) => d.model === currentModel);
 
       if (isEndpointDefaultOrEmpty) {
         settings.value.AI_API_ENDPOINT = newDefaults.endpoint;
@@ -1150,7 +1623,7 @@ watch(
         settings.value.AI_MODEL_NAME = newDefaults.model;
       }
     }
-  }
+  },
 );
 
 const handleCleanupStorage = async () => {
@@ -1235,6 +1708,212 @@ const microsoftPoolStats = computed(() => {
   };
 });
 
+const importFileInputRef = ref<HTMLInputElement | null>(null);
+
+const triggerImport = () => {
+  importFileInputRef.value?.click();
+};
+
+const exportSettings = () => {
+  syncAiModelsToSettings();
+  const exportData = {
+    version: '1.0',
+    timestamp: new Date().toISOString(),
+    platform: '3d-personal-learning-platform',
+    settings: redactSettingsForExport(),
+    aiModelConfigs: redactAiModelConfigsForExport(),
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `system_settings_${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success('配置导出成功，敏感密钥已脱敏。');
+};
+
+const importSettingsFile = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const text = e.target?.result as string;
+      const data = JSON.parse(text);
+
+      if (!data || typeof data !== 'object' || data.platform !== '3d-personal-learning-platform') {
+        return ElMessage.error('无效的配置文件格式！');
+      }
+
+      await ElMessageBox.confirm(
+        '导入配置将覆盖当前页面上所有未保存的配置设置。是否继续？',
+        '确认导入',
+        {
+          confirmButtonText: '确定导入',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      );
+
+      // Load settings
+      if (data.settings) {
+        applyImportedSettings(data.settings);
+      }
+      if (data.aiModelConfigs) {
+        aiModelConfigs.value = normalizeImportedAiModels(data.aiModelConfigs);
+      } else if (data.settings?.AI_MODEL_OPTIONS) {
+        aiModelConfigs.value = normalizeImportedAiModels(data.settings.AI_MODEL_OPTIONS);
+      }
+
+      restoreCustomCategories();
+
+      // Re-parse SMTP config list
+      try {
+        smtpConfigs.value = normalizeSmtpConfigs(settings.value.SMTP_CONFIGS);
+        if (smtpConfigs.value.length > 0) {
+          const activeId = settings.value.SMTP_ACTIVE_CONFIG_ID || smtpConfigs.value[0].id;
+          activeConfigId.value = activeId;
+          selectSmtpConfig(activeId);
+        }
+      } catch (_e) {
+        smtpConfigs.value = [];
+      }
+
+      // Set all collapsed
+      const initialKeys = Array.from(
+        new Set([
+          ...aiModelConfigs.value.map((model) =>
+            inferModelFamilyKey(model, { isPending: isPendingAiModel(model.id) }),
+          ),
+          ...customCategories.value.map((category) => category.key),
+        ]),
+      );
+      collapsedModelFamilyGroups.value = initialKeys;
+
+      syncAiModelsToSettings();
+      ElMessage.success('配置导入成功，请确认无误后点击“保存全局设置”保存至数据库！');
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('Import error:', error);
+        ElMessage.error('配置文件解析失败，请检查文件内容是否正确！');
+      }
+    } finally {
+      target.value = '';
+    }
+  };
+  reader.readAsText(file);
+};
+
+const importAiFileInputRef = ref<HTMLInputElement | null>(null);
+
+const triggerAiImport = () => {
+  importAiFileInputRef.value?.click();
+};
+
+const exportAiSettings = () => {
+  syncAiModelsToSettings();
+  const exportData = {
+    version: '1.0',
+    timestamp: new Date().toISOString(),
+    platform: '3d-personal-learning-platform-ai-config',
+    aiSettings: {
+      AI_IMPORT_ENABLED: settings.value.AI_IMPORT_ENABLED,
+      AI_PROVIDER: settings.value.AI_PROVIDER,
+      AI_API_ENDPOINT: settings.value.AI_API_ENDPOINT,
+      AI_API_KEY: settings.value.AI_API_KEY ? SECRET_PLACEHOLDER : '',
+      AI_MODEL_NAME: settings.value.AI_MODEL_NAME,
+      AI_MODEL_CUSTOM_CATEGORIES: settings.value.AI_MODEL_CUSTOM_CATEGORIES,
+    },
+    customCategories: customCategories.value,
+    aiModelConfigs: redactAiModelConfigsForExport(),
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `ai_settings_${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success('AI 配置导出成功，敏感密钥已脱敏。');
+};
+
+const importAiSettingsFile = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const text = e.target?.result as string;
+      const data = JSON.parse(text);
+
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        data.platform !== '3d-personal-learning-platform-ai-config'
+      ) {
+        return ElMessage.error('无效的 AI 配置文件格式！');
+      }
+
+      await ElMessageBox.confirm(
+        '导入 AI 配置将覆盖当前页面上的所有 AI 设置与模型池配置。是否继续？',
+        '确认导入 AI 配置',
+        {
+          confirmButtonText: '确定导入',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      );
+
+      // Load AI settings
+      if (data.aiSettings) {
+        Object.entries(data.aiSettings).forEach(([key, val]) => {
+          if (SECRET_SETTING_KEYS.has(key) && isRedactedSecret(val)) return;
+          setSettingValue(key, val as SettingValue);
+        });
+      }
+      if (data.aiModelConfigs) {
+        aiModelConfigs.value = normalizeImportedAiModels(data.aiModelConfigs);
+      }
+      if (data.customCategories) {
+        settings.value.AI_MODEL_CUSTOM_CATEGORIES = JSON.stringify(
+          normalizeCustomCategories(data.customCategories),
+        );
+      }
+
+      restoreCustomCategories();
+
+      // Set all collapsed
+      const initialKeys = Array.from(
+        new Set([
+          ...aiModelConfigs.value.map((model) =>
+            inferModelFamilyKey(model, { isPending: isPendingAiModel(model.id) }),
+          ),
+          ...customCategories.value.map((category) => category.key),
+        ]),
+      );
+      collapsedModelFamilyGroups.value = initialKeys;
+
+      syncAiModelsToSettings();
+      ElMessage.success('AI 配置导入成功，请确认无误后点击“保存全局设置”保存至数据库！');
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('Import AI error:', error);
+        ElMessage.error('AI 配置文件解析失败，请检查文件内容是否正确！');
+      }
+    } finally {
+      target.value = '';
+    }
+  };
+  reader.readAsText(file);
+};
+
 const handleBeforeUnload = (e: BeforeUnloadEvent) => {
   if (hasUnsavedChanges.value) {
     e.preventDefault();
@@ -1296,12 +1975,39 @@ onUnmounted(() => {
             :title="$t('admin.there_are_unsaved_changes')"
           >
             <AlertTriangle class="w-3 h-3 text-amber-500" />
-            <span class="text-[10px] font-bold whitespace-nowrap hidden md:inline"
-              >{{ $t('admin.there_are_unsaved_changes') }}</span
-            >
+            <span class="text-[10px] font-bold whitespace-nowrap hidden md:inline">{{
+              $t('admin.there_are_unsaved_changes')
+            }}</span>
           </div>
+          <input
+            ref="importFileInputRef"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="importSettingsFile"
+          />
           <button
-type="button"
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            title="一键导出所有系统配置"
+            @click="exportSettings"
+          >
+            <Download class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">导出配置</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            title="一键从文件导入配置"
+            @click="triggerImport"
+          >
+            <Upload class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">导入配置</span>
+          </button>
+          <button
+            type="button"
             class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
             style="border-color: var(--border-base); color: var(--text-secondary)"
             :title="$t('admin.restore_default')"
@@ -1319,7 +2025,9 @@ type="button"
           >
             <Save v-if="!isSaving" class="w-3.5 h-3.5" />
             <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-            <span class="hidden sm:inline">{{ isSaving ? $t('admin.saving_1') : $t('admin.save_global_settings') }}</span>
+            <span class="hidden sm:inline">{{
+              isSaving ? $t('admin.saving_1') : $t('admin.save_global_settings')
+            }}</span>
           </button>
         </div>
       </div>
@@ -1331,13 +2039,15 @@ type="button"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="px-3 mb-4 hidden lg:block">
-          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{{ $t('admin.set_categories') }}</h2>
+          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+            {{ $t('admin.set_categories') }}
+          </h2>
         </div>
         <nav
           class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden"
         >
           <button
-v-for="tab in tabs"
+            v-for="tab in tabs"
             :key="tab.id"
             type="button"
             class="flex-1 lg:flex-none w-auto lg:w-full flex items-center justify-center lg:justify-start gap-0.5 lg:gap-3 px-1 py-1 sm:px-2 lg:px-4 lg:py-3 rounded-lg lg:rounded-xl text-[8px] xs:text-[9px] lg:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
@@ -1367,14 +2077,16 @@ v-for="tab in tabs"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Globe class="w-5 h-5 text-indigo-600" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.basic_operational_configuration') }}</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.basic_operational_configuration') }}
+                </h2>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.platform_display_name') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.platform_display_name')
+                  }}</label>
                   <input
                     v-model="settings.PLATFORM_NAME"
                     type="text"
@@ -1388,9 +2100,9 @@ v-for="tab in tabs"
                 </div>
 
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.platform_subtitle') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.platform_subtitle')
+                  }}</label>
                   <input
                     v-model="settings.PLATFORM_SUBTITLE"
                     type="text"
@@ -1404,9 +2116,9 @@ v-for="tab in tabs"
                 </div>
 
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.new_user_default_role') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.new_user_default_role')
+                  }}</label>
                   <select
                     v-model="settings.DEFAULT_USER_ROLE"
                     class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all appearance-none cursor-pointer"
@@ -1429,9 +2141,9 @@ v-for="tab in tabs"
                     <div class="flex items-center gap-3">
                       <UserPlus class="w-4 h-4 text-emerald-500" />
                       <div>
-                        <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >{{ $t('admin.allow_new_users_to') }}</span
-                        >
+                        <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                          $t('admin.allow_new_users_to')
+                        }}</span>
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           关闭后仅管理员可创建新账号
                         </p>
@@ -1446,9 +2158,9 @@ v-for="tab in tabs"
                     <div class="flex items-center gap-3">
                       <Lock class="w-4 h-4 text-rose-500" />
                       <div>
-                        <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >{{ $t('admin.maintenance_mode') }}</span
-                        >
+                        <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                          $t('admin.maintenance_mode')
+                        }}</span>
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           开启后仅管理员可登入平台
                         </p>
@@ -1476,21 +2188,23 @@ v-for="tab in tabs"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Palette class="w-5 h-5 text-pink-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.platform_brand_configuration') }}</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.platform_brand_configuration') }}
+                </h2>
               </div>
 
               <div class="space-y-6">
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.platform_logo') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.platform_logo')
+                  }}</label>
                   <div class="flex items-center gap-4">
                     <div
                       class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
                       style="border-color: var(--border-base); background-color: var(--bg-app)"
                     >
                       <img
-v-if="settings.PLATFORM_LOGO_URL"
+                        v-if="settings.PLATFORM_LOGO_URL"
                         alt=""
                         :src="getAssetUrl(settings.PLATFORM_LOGO_URL)"
                         class="w-full h-full object-contain p-1"
@@ -1530,16 +2244,16 @@ v-if="settings.PLATFORM_LOGO_URL"
                 </div>
 
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.browser_favicon') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.browser_favicon')
+                  }}</label>
                   <div class="flex items-center gap-4">
                     <div
                       class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative"
                       style="border-color: var(--border-base); background-color: var(--bg-app)"
                     >
                       <img
-v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
+                        v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                         alt=""
                         :src="
                           getAssetUrl(settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL)
@@ -1581,9 +2295,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                 </div>
 
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.platform_description') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.platform_description')
+                  }}</label>
                   <textarea
                     v-model="settings.PLATFORM_DESCRIPTION"
                     rows="3"
@@ -1601,9 +2315,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                 </div>
 
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.browser_window_title') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.browser_window_title')
+                  }}</label>
                   <input
                     v-model="settings.BROWSER_TITLE"
                     type="text"
@@ -1621,9 +2335,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                 </div>
 
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.footer_text') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.footer_text')
+                  }}</label>
                   <input
                     v-model="settings.FOOTER_TEXT"
                     type="text"
@@ -1654,7 +2368,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Shield class="w-5 h-5 text-blue-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.security_policy_configuration') }}</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.security_policy_configuration') }}
+                </h2>
               </div>
 
               <div class="space-y-6">
@@ -1719,9 +2435,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                     <div class="flex items-center gap-3">
                       <Sparkles class="w-4 h-4 text-violet-500" />
                       <div>
-                        <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >{{ $t('admin.automatically_review_approved_materials') }}</span
-                        >
+                        <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                          $t('admin.automatically_review_approved_materials')
+                        }}</span>
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           开启后用户上传的材料无需人工审核即可发布
                         </p>
@@ -1736,9 +2452,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                     <div class="flex items-center gap-3">
                       <MonitorSmartphone class="w-4 h-4 text-cyan-500" />
                       <div>
-                        <span class="text-xs font-bold" style="color: var(--text-primary)"
-                          >{{ $t('admin.automatically_review_and_pass') }}</span
-                        >
+                        <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                          $t('admin.automatically_review_and_pass')
+                        }}</span>
                         <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                           开启后用户发布的作品无需人工审核即可展示
                         </p>
@@ -1762,7 +2478,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Upload class="w-5 h-5 text-emerald-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.upload_and_storage_limits') }}</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.upload_and_storage_limits') }}
+                </h2>
               </div>
 
               <div class="space-y-6">
@@ -1822,7 +2540,9 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
             >
               <div class="flex items-center gap-3 mb-8">
                 <Trash2 class="w-5 h-5 text-rose-500" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.storage_space_cleanup') }}</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.storage_space_cleanup') }}
+                </h2>
               </div>
 
               <div class="space-y-6">
@@ -1846,22 +2566,24 @@ v-if="settings.PLATFORM_FAVICON_URL || settings.PLATFORM_LOGO_URL"
                   class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-transparent"
                 >
                   <div>
-                    <span class="text-xs font-bold" style="color: var(--text-primary)"
-                      >{{ $t('admin.clean_up_orphan_files') }}</span
-                    >
+                    <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                      $t('admin.clean_up_orphan_files')
+                    }}</span>
                     <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                       安全清理无用的冗余文件资源，自动保留有效的品牌、课程与讨论资源
                     </p>
                   </div>
                   <button
-type="button"
+                    type="button"
                     :disabled="isCleaning"
                     class="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-600/50 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer"
                     @click="handleCleanupStorage"
                   >
                     <Trash2 v-if="!isCleaning" class="w-3.5 h-3.5" />
                     <RefreshCw v-else class="w-3.5 h-3.5 animate-spin" />
-                    <span>{{ isCleaning ? $t('admin.cleaning_up') : $t('admin.clean_up_now') }}</span>
+                    <span>{{
+                      isCleaning ? $t('admin.cleaning_up') : $t('admin.clean_up_now')
+                    }}</span>
                   </button>
                 </div>
               </div>
@@ -1878,7 +2600,14 @@ type="button"
               class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-2.5 text-xs font-bold animate-pulse shadow-sm"
             >
               <AlertTriangle class="w-4 h-4 text-amber-500 shrink-0" />
-              <span>{{ $t('admin.you_have_switched_the', { mode: settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL' ? $t('admin.microsoft_account_pool') : $t('admin.standard_smtp') }) }}</span>
+              <span>{{
+                $t('admin.you_have_switched_the', {
+                  mode:
+                    settings.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
+                      ? $t('admin.microsoft_account_pool')
+                      : $t('admin.standard_smtp'),
+                })
+              }}</span>
             </div>
 
             <!-- Mode selection -->
@@ -2007,12 +2736,12 @@ type="button"
                 <div
                   class="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 flex flex-col justify-between"
                 >
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
-                    >{{ $t('admin.total_account_in_the') }}</span
-                  >
-                  <span class="text-xl font-bold mt-2" style="color: var(--text-primary)"
-                    >{{ $t('admin.microsoftpoolstats_total', { count: microsoftPoolStats.total }) }}</span
-                  >
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
+                    $t('admin.total_account_in_the')
+                  }}</span>
+                  <span class="text-xl font-bold mt-2" style="color: var(--text-primary)">{{
+                    $t('admin.microsoftpoolstats_total', { count: microsoftPoolStats.total })
+                  }}</span>
                 </div>
                 <div
                   class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col justify-between"
@@ -2021,9 +2750,9 @@ type="button"
                     class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
                     >{{ $t('admin.running_healthily') }}</span
                   >
-                  <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400"
-                    >{{ $t('admin.microsoftpoolstats_active', { count: microsoftPoolStats.active }) }}</span
-                  >
+                  <span class="text-xl font-bold mt-2 text-emerald-600 dark:text-emerald-400">{{
+                    $t('admin.microsoftpoolstats_active', { count: microsoftPoolStats.active })
+                  }}</span>
                 </div>
                 <div
                   class="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex flex-col justify-between"
@@ -2044,9 +2773,11 @@ type="button"
                     class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold"
                     >{{ $t('admin.proxy_server_protection') }}</span
                   >
-                  <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400"
-                    >{{ $t('admin.microsoftpoolstats_activewithproxy', { count: microsoftPoolStats.activeWithProxy }) }}</span
-                  >
+                  <span class="text-xl font-bold mt-2 text-indigo-600 dark:text-indigo-400">{{
+                    $t('admin.microsoftpoolstats_activewithproxy', {
+                      count: microsoftPoolStats.activeWithProxy,
+                    })
+                  }}</span>
                 </div>
               </div>
 
@@ -2056,9 +2787,9 @@ type="button"
                   <div class="flex items-center gap-3">
                     <Shield class="w-4 h-4 text-indigo-600" />
                     <div>
-                      <span class="text-xs font-bold" style="color: var(--text-primary)"
-                        >{{ $t('admin.automatic_downgrade_and_disaster') }}</span
-                      >
+                      <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                        $t('admin.automatic_downgrade_and_disaster')
+                      }}</span>
                       <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                         当账号池为空、所有账号均达到每日限量，或发信异常时，系统自动切换为传统的
                         SMTP 通道发送以防漏信
@@ -2106,15 +2837,19 @@ type="button"
                       >
                         {{
                           account.status === 'ACTIVE'
-                            ? t('admin.normal') : account.status === 'EXPIRED'
-                              ? t('admin.token_expires') : $t('admin.abnormal')
+                            ? t('admin.normal')
+                            : account.status === 'EXPIRED'
+                              ? t('admin.token_expires')
+                              : $t('admin.abnormal')
                         }}
                       </span>
                     </div>
                     <div class="flex items-center gap-4 text-slate-400 text-[10px]">
-                      <span v-if="account.proxy"
-                        >{{ $t('admin.proxy_account_proxy_split', { host: account.proxy.split('@').pop() }) }}</span
-                      >
+                      <span v-if="account.proxy">{{
+                        $t('admin.proxy_account_proxy_split', {
+                          host: account.proxy.split('@').pop(),
+                        })
+                      }}</span>
                       <span
                         >今日发信:
                         <strong style="color: var(--text-secondary)">{{
@@ -2158,7 +2893,9 @@ type="button"
 
                   <!-- 一行展示：配置方案与管理按钮 -->
                   <div class="flex items-center gap-2 text-xs">
-                    <span class="font-bold text-slate-400 whitespace-nowrap">{{ $t('admin.solution') }}</span>
+                    <span class="font-bold text-slate-400 whitespace-nowrap">{{
+                      $t('admin.solution')
+                    }}</span>
                     <el-select
                       v-model="activeConfigId"
                       :placeholder="$t('admin.options')"
@@ -2201,20 +2938,22 @@ type="button"
                 </div>
 
                 <button
-type="button"
+                  type="button"
                   :disabled="isTestingSmtp"
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
                   @click="testSmtp"
                 >
-                  {{ isTestingSmtp ? t('admin.trying_to_shake_hands') : $t('admin.test_connection') }}
+                  {{
+                    isTestingSmtp ? t('admin.trying_to_shake_hands') : $t('admin.test_connection')
+                  }}
                 </button>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.server_address') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.server_address')
+                  }}</label>
                   <input
                     v-model="settings.SMTP_HOST"
                     type="text"
@@ -2228,9 +2967,9 @@ type="button"
                   />
                 </div>
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.port') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.port')
+                  }}</label>
                   <input
                     v-model="settings.SMTP_PORT"
                     type="text"
@@ -2244,9 +2983,9 @@ type="button"
                   />
                 </div>
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.account_user') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.account_user')
+                  }}</label>
                   <input
                     v-model="settings.SMTP_USER"
                     type="text"
@@ -2259,9 +2998,9 @@ type="button"
                   />
                 </div>
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.authorization_code_pass') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.authorization_code_pass')
+                  }}</label>
                   <div class="relative">
                     <input
                       v-model="settings.SMTP_PASS"
@@ -2274,7 +3013,7 @@ type="button"
                       "
                     />
                     <button
-type="button"
+                      type="button"
                       class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                       @click="showPassword = !showPassword"
                     >
@@ -2284,9 +3023,9 @@ type="button"
                   </div>
                 </div>
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.sender_name') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.sender_name')
+                  }}</label>
                   <input
                     v-model="settings.SMTP_FROM_NAME"
                     type="text"
@@ -2303,9 +3042,9 @@ type="button"
                   </p>
                 </div>
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.sender_email_from') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.sender_email_from')
+                  }}</label>
                   <input
                     v-model="settings.SMTP_FROM"
                     type="text"
@@ -2325,12 +3064,12 @@ type="button"
                     inactive-value="false"
                     active-color="#6366f1"
                   />
-                  <span class="text-xs font-bold" style="color: var(--text-primary)"
-                    >{{ $t('admin.enable_ssl_tls_connections') }}</span
-                  >
-                  <span class="text-[10px] ml-2" style="color: var(--text-muted)"
-                    >{{ $t('admin.port_465_usually_needs') }}</span
-                  >
+                  <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                    $t('admin.enable_ssl_tls_connections')
+                  }}</span>
+                  <span class="text-[10px] ml-2" style="color: var(--text-muted)">{{
+                    $t('admin.port_465_usually_needs')
+                  }}</span>
                 </div>
               </div>
             </section>
@@ -2359,9 +3098,9 @@ type="button"
                   <div class="flex items-center gap-3">
                     <Chrome class="w-4 h-4 text-accent" />
                     <div>
-                      <span class="text-xs font-bold" style="color: var(--text-primary)"
-                        >{{ $t('admin.turn_on_google_sign') }}</span
-                      >
+                      <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                        $t('admin.turn_on_google_sign')
+                      }}</span>
                       <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                         允许用户使用 Google 账号直接登录平台
                       </p>
@@ -2405,7 +3144,7 @@ type="button"
                         "
                       />
                       <button
-type="button"
+                        type="button"
                         class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                         @click="showPassword = !showPassword"
                       >
@@ -2444,9 +3183,9 @@ type="button"
                   <div class="flex items-center gap-3">
                     <Github class="w-4 h-4 text-slate-800 dark:text-white" />
                     <div>
-                      <span class="text-xs font-bold" style="color: var(--text-primary)"
-                        >{{ $t('admin.enable_github_login') }}</span
-                      >
+                      <span class="text-xs font-bold" style="color: var(--text-primary)">{{
+                        $t('admin.enable_github_login')
+                      }}</span>
                       <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                         允许用户使用 GitHub 账号直接登录平台
                       </p>
@@ -2490,7 +3229,7 @@ type="button"
                         "
                       />
                       <button
-type="button"
+                        type="button"
                         class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                         @click="showPassword = !showPassword"
                       >
@@ -2529,7 +3268,7 @@ type="button"
                   </h2>
                 </div>
                 <button
-type="button"
+                  type="button"
                   class="text-xs font-bold text-accent px-4 py-2 rounded-lg border border-accent/20 hover:bg-accent/5 transition-colors"
                   @click="showEmailPreview = !showEmailPreview"
                 >
@@ -2539,9 +3278,9 @@ type="button"
 
               <div class="space-y-6">
                 <div class="space-y-2">
-                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)"
-                    >{{ $t('admin.email_subject_subject') }}</label
-                  >
+                  <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+                    $t('admin.email_subject_subject')
+                  }}</label>
                   <input
                     v-model="settings.EMAIL_VERIFY_SUBJECT"
                     type="text"
@@ -2559,7 +3298,9 @@ type="button"
                     style="color: var(--text-secondary)"
                   >
                     <span>{{ $t('admin.text_content_html_supported') }}</span>
-                    <span v-pre class="text-[10px] opacity-60">{{ $t('admin.available_placeholders_code') }}</span>
+                    <span v-pre class="text-[10px] opacity-60">{{
+                      $t('admin.available_placeholders_code')
+                    }}</span>
                   </label>
                   <textarea
                     v-model="settings.EMAIL_VERIFY_BODY"
@@ -2582,7 +3323,9 @@ type="button"
             >
               <div class="flex items-center gap-3 mb-6">
                 <Eye class="w-5 h-5 text-accent" />
-                <h2 class="text-lg font-bold" style="color: var(--text-primary)">{{ $t('admin.email_preview') }}</h2>
+                <h2 class="text-lg font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.email_preview') }}
+                </h2>
               </div>
 
               <div
@@ -2594,7 +3337,9 @@ type="button"
                   style="background-color: var(--bg-app); border-color: var(--border-base)"
                 >
                   <div class="space-y-1">
-                    <p class="text-[10px] font-bold" style="color: var(--text-muted)">{{ $t('admin.topic') }}</p>
+                    <p class="text-[10px] font-bold" style="color: var(--text-muted)">
+                      {{ $t('admin.topic') }}
+                    </p>
                     <p class="text-xs font-medium" style="color: var(--text-primary)">
                       {{ settings.EMAIL_VERIFY_SUBJECT }}
                     </p>
@@ -2613,20 +3358,45 @@ type="button"
             <!-- Header Card -->
             <div
               class="relative overflow-hidden rounded-3xl border p-6"
-              style="background: linear-gradient(135deg, var(--bg-card) 0%, rgba(99,102,241,0.04) 100%); border-color: var(--border-base);"
+              style="
+                background: linear-gradient(
+                  135deg,
+                  var(--bg-card) 0%,
+                  rgba(99, 102, 241, 0.04) 100%
+                );
+                border-color: var(--border-base);
+              "
             >
-              <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-[0.06]" style="background: radial-gradient(circle, #6366f1 0%, transparent 70%)"></div>
-              <div class="absolute -right-2 top-10 w-20 h-20 rounded-full opacity-[0.04]" style="background: radial-gradient(circle, #8b5cf6 0%, transparent 70%)"></div>
+              <div
+                class="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-[0.06]"
+                style="background: radial-gradient(circle, #6366f1 0%, transparent 70%)"
+              ></div>
+              <div
+                class="absolute -right-2 top-10 w-20 h-20 rounded-full opacity-[0.04]"
+                style="background: radial-gradient(circle, #8b5cf6 0%, transparent 70%)"
+              ></div>
 
               <div class="relative flex items-start justify-between gap-4">
                 <div class="flex items-start gap-4">
-                  <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 4px 15px rgba(99,102,241,0.3);">
+                  <div
+                    class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style="
+                      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+                    "
+                  >
                     <Cpu class="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">{{ $t('admin.ai_intelligent_assistance_system') }}</h2>
-                    <p class="text-xs leading-relaxed max-w-lg" style="color: var(--text-secondary)">
-                      启用后，用户可以使用 AI 一键生成项目、AI 写作助手等智能功能。API Key 仅保存在服务端，不会暴露给前台用户。
+                    <h2 class="text-base font-black mb-1" style="color: var(--text-primary)">
+                      {{ $t('admin.ai_intelligent_assistance_system') }}
+                    </h2>
+                    <p
+                      class="text-xs leading-relaxed max-w-lg"
+                      style="color: var(--text-secondary)"
+                    >
+                      启用后，用户可以使用 AI 一键生成项目、AI 写作助手等智能功能。API Key
+                      仅保存在服务端，不会暴露给前台用户。
                     </p>
                   </div>
                 </div>
@@ -2637,23 +3407,50 @@ type="button"
                       inline-prompt
                       :active-text="$t('admin.opened')"
                       :inactive-text="$t('admin.closed')"
-                      style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8;"
+                      style="--el-switch-on-color: #6366f1; --el-switch-off-color: #94a3b8"
                     />
                     <span
                       class="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                      :style="settings.AI_IMPORT_ENABLED
-                        ? 'background: rgba(99,102,241,0.12); color: #6366f1;'
-                        : 'background: var(--bg-app); color: var(--text-muted);'"
-                    >{{ settings.AI_IMPORT_ENABLED ? $t('admin.function_activated') : $t('admin.feature_not_enabled') }}</span>
+                      :style="
+                        settings.AI_IMPORT_ENABLED
+                          ? 'background: rgba(99,102,241,0.12); color: #6366f1;'
+                          : 'background: var(--bg-app); color: var(--text-muted);'
+                      "
+                      >{{
+                        settings.AI_IMPORT_ENABLED
+                          ? $t('admin.function_activated')
+                          : $t('admin.feature_not_enabled')
+                      }}</span
+                    >
                   </div>
                 </div>
               </div>
 
-              <div v-if="settings.AI_IMPORT_ENABLED" class="mt-4 pt-4 border-t flex flex-wrap gap-2" style="border-color: var(--border-base)">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.one_click_generation_of') }}</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.ai_writing_assistant') }}</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.model_thinking_flow_display') }}</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.real_time_streaming_output') }}</span>
+              <div
+                v-if="settings.AI_IMPORT_ENABLED"
+                class="mt-4 pt-4 border-t flex flex-wrap gap-2"
+                style="border-color: var(--border-base)"
+              >
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
+                  style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
+                  >{{ $t('admin.one_click_generation_of') }}</span
+                >
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
+                  style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
+                  >{{ $t('admin.ai_writing_assistant') }}</span
+                >
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
+                  style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
+                  >{{ $t('admin.model_thinking_flow_display') }}</span
+                >
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
+                  style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
+                  >{{ $t('admin.real_time_streaming_output') }}</span
+                >
               </div>
             </div>
 
@@ -2661,18 +3458,69 @@ type="button"
             <div v-if="settings.AI_IMPORT_ENABLED" class="space-y-4">
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-sm font-black" style="color: var(--text-primary)">{{ $t('admin.model_pool_configuration') }}</h3>
-                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">{{ $t('admin.ai_models_status_count', { total: aiModelConfigs.length, enabled: aiModelConfigs.filter(m => m.enabled).length }) }}</p>
+                  <h3 class="text-sm font-black" style="color: var(--text-primary)">
+                    {{ $t('admin.model_pool_configuration') }}
+                  </h3>
+                  <p class="text-[11px] mt-0.5" style="color: var(--text-muted)">
+                    {{
+                      $t('admin.ai_models_status_count', {
+                        total: aiModelConfigs.length,
+                        enabled: aiModelConfigs.filter((m) => m.enabled).length,
+                      })
+                    }}
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200"
-                  style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; box-shadow: 0 2px 12px rgba(99,102,241,0.35);"
-                  @click="addAiModel()"
-                >
-                  <Plus class="w-3.5 h-3.5" />
-                  <span>{{ $t('admin.add_model') }}</span>
-                </button>
+                <div class="flex items-center gap-2">
+                  <input
+                    ref="importAiFileInputRef"
+                    type="file"
+                    accept=".json"
+                    class="hidden"
+                    @change="importAiSettingsFile"
+                  />
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                    style="border-color: var(--border-base); color: var(--text-secondary)"
+                    title="一键导出所有 AI 相关配置"
+                    @click="exportAiSettings"
+                  >
+                    <Download class="w-3.5 h-3.5" />
+                    <span>导出AI配置</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                    style="border-color: var(--border-base); color: var(--text-secondary)"
+                    title="一键从文件导入 AI 配置"
+                    @click="triggerAiImport"
+                  >
+                    <Upload class="w-3.5 h-3.5" />
+                    <span>导入AI配置</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                    style="border-color: var(--border-base); color: var(--text-secondary)"
+                    @click="addCustomCategory()"
+                  >
+                    <Plus class="w-3.5 h-3.5" />
+                    <span>新建自定义分类</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
+                    style="
+                      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                      color: white;
+                      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
+                    "
+                    @click="addAiModel()"
+                  >
+                    <Plus class="w-3.5 h-3.5" />
+                    <span>{{ $t('admin.add_model') }}</span>
+                  </button>
+                </div>
               </div>
 
               <!-- Model Family Groups -->
@@ -2682,10 +3530,18 @@ type="button"
                   :key="group.key"
                   class="rounded-2xl border overflow-hidden"
                   :style="`border-color: ${group.meta.border}; background: var(--bg-card);`"
+                  @dragover.prevent
+                  @drop="handleDropOnGroup($event, group)"
                 >
-                  <header class="px-4 py-4 border-b" style="border-color: var(--border-base); background: var(--bg-app);">
+                  <header
+                    class="px-4 py-4 border-b"
+                    style="border-color: var(--border-base); background: var(--bg-app)"
+                  >
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div class="flex items-start gap-3 min-w-0">
+                      <div
+                        class="flex items-start gap-3 min-w-0 cursor-pointer select-none"
+                        @click="toggleModelFamilyGroup(group.key)"
+                      >
                         <div
                           class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
                           :style="`background: ${group.meta.bg}; border: 1px solid ${group.meta.border}; color: ${group.meta.color};`"
@@ -2694,14 +3550,49 @@ type="button"
                         </div>
                         <div class="min-w-0">
                           <div class="flex items-center gap-2 flex-wrap">
-                            <h4 class="text-sm font-black" style="color: var(--text-primary);">{{ group.label }}</h4>
-                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold" :style="`background: ${group.meta.bg}; color: ${group.meta.color};`">{{ $t('admin.ai_model_count', { count: group.models.length }) }}</span>
-                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.ai_model_enabled_count', { count: group.enabledCount }) }}</span>
-                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold" style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-base);">{{ group.providerLabel }}</span>
+                            <h4 class="text-sm font-black" style="color: var(--text-primary)">
+                              {{ group.label }}
+                            </h4>
+                            <span
+                              class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
+                              :style="`background: ${group.meta.bg}; color: ${group.meta.color};`"
+                              >{{
+                                $t('admin.ai_model_count', { count: group.models.length })
+                              }}</span
+                            >
+                            <span
+                              class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
+                              style="background: rgba(99, 102, 241, 0.1); color: #6366f1"
+                              >{{
+                                $t('admin.ai_model_enabled_count', { count: group.enabledCount })
+                              }}</span
+                            >
+                            <span
+                              class="px-2 py-0.5 rounded-lg text-[10px] font-bold"
+                              style="
+                                background: var(--bg-card);
+                                color: var(--text-muted);
+                                border: 1px solid var(--border-base);
+                              "
+                              >{{ group.providerLabel }}</span
+                            >
                           </div>
-                          <div class="flex flex-wrap items-center gap-3 mt-1.5 text-[10px]" style="color: var(--text-muted);">
-                            <span class="font-mono truncate max-w-[360px]">{{ group.endpointLabel }}</span>
-                            <span v-if="group.defaultModel" class="font-bold text-amber-600 dark:text-amber-400">{{ $t('admin.ai_default_model_named', { name: group.defaultModel.name || group.defaultModel.modelName }) }}</span>
+                          <div
+                            class="flex flex-wrap items-center gap-3 mt-1.5 text-[10px]"
+                            style="color: var(--text-muted)"
+                          >
+                            <span class="font-mono truncate max-w-[360px]">{{
+                              group.endpointLabel
+                            }}</span>
+                            <span
+                              v-if="group.defaultModel"
+                              class="font-bold text-amber-600 dark:text-amber-400"
+                              >{{
+                                $t('admin.ai_default_model_named', {
+                                  name: group.defaultModel.name || group.defaultModel.modelName,
+                                })
+                              }}</span
+                            >
                             <span v-else>{{ $t('admin.ai_no_default_model') }}</span>
                           </div>
                         </div>
@@ -2715,13 +3606,23 @@ type="button"
                           @click="addAiModelToFamily(group)"
                         >
                           <Plus class="w-3.5 h-3.5" />
-                          <span>{{ $t('admin.ai_add_family_model', { family: group.label }) }}</span>
+                          <span>{{
+                            $t('admin.ai_add_family_model', { family: group.label })
+                          }}</span>
                         </button>
                         <button
                           type="button"
                           class="w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-200"
-                          style="border-color: var(--border-base); color: var(--text-muted); background: var(--bg-card);"
-                          :title="isModelFamilyGroupCollapsed(group.key) ? $t('admin.expand_group') : $t('admin.collapse_group')"
+                          style="
+                            border-color: var(--border-base);
+                            color: var(--text-muted);
+                            background: var(--bg-card);
+                          "
+                          :title="
+                            isModelFamilyGroupCollapsed(group.key)
+                              ? $t('admin.expand_group')
+                              : $t('admin.collapse_group')
+                          "
                           @click="toggleModelFamilyGroup(group.key)"
                         >
                           <svg
@@ -2731,7 +3632,13 @@ type="button"
                             stroke-width="2.5"
                             class="w-4 h-4 transition-transform"
                             :class="isModelFamilyGroupCollapsed(group.key) ? '-rotate-90' : ''"
-                          ><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                          >
+                            <path
+                              d="M19 9l-7 7-7-7"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
                         </button>
                       </div>
                     </div>
@@ -2739,17 +3646,39 @@ type="button"
 
                   <div v-show="!isModelFamilyGroupCollapsed(group.key)" class="space-y-2 p-3">
                     <div
+                      v-if="group.models.length === 0"
+                      class="text-center py-8 border border-dashed rounded-xl text-xs text-slate-400 select-none"
+                      style="border-color: var(--border-base)"
+                    >
+                      拖拽模型到此处以分类
+                    </div>
+                    <div
                       v-for="model in group.models"
                       :key="model.id"
                       :draggable="isDraggable"
                       class="rounded-xl border overflow-hidden transition-all duration-300"
-                      :class="{ 'opacity-50 border-indigo-400 scale-[0.99]': dragIndex === aiModelConfigs.findIndex((item) => item.id === model.id) }"
-                      :style="model.isDefault
-                        ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
-                        : 'border-color: var(--border-base); background-color: var(--bg-card);'"
-                      @dragstart="handleDragStart($event, aiModelConfigs.findIndex((item) => item.id === model.id))"
+                      :class="{
+                        'opacity-50 border-indigo-400 scale-[0.99]':
+                          dragIndex === aiModelConfigs.findIndex((item) => item.id === model.id),
+                      }"
+                      :style="
+                        model.isDefault
+                          ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
+                          : 'border-color: var(--border-base); background-color: var(--bg-card);'
+                      "
+                      @dragstart="
+                        handleDragStart(
+                          $event,
+                          aiModelConfigs.findIndex((item) => item.id === model.id),
+                        )
+                      "
                       @dragover.prevent
-                      @drop="handleDrop($event, aiModelConfigs.findIndex((item) => item.id === model.id))"
+                      @drop="
+                        handleDrop(
+                          $event,
+                          aiModelConfigs.findIndex((item) => item.id === model.id),
+                        )
+                      "
                       @dragend="handleDragEnd"
                     >
                       <!-- Card Header -->
@@ -2782,53 +3711,100 @@ type="button"
 
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ model.name || model.modelName || $t('admin.unnamed_model') }}</span>
-                            <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">{{ $t('admin.default') }}</span>
-                            <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.disabled') }}</span>
-                            <span v-if="isPendingAiModel(model.id)" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.ai_pending_configuration') }}</span>
+                            <span
+                              class="text-xs font-black truncate"
+                              style="color: var(--text-primary)"
+                              >{{
+                                model.name || model.modelName || $t('admin.unnamed_model')
+                              }}</span
+                            >
+                            <span
+                              v-if="model.isDefault"
+                              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                              style="background: rgba(251, 191, 36, 0.12); color: #d97706"
+                              >{{ $t('admin.default') }}</span
+                            >
+                            <span
+                              v-if="!model.enabled"
+                              class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                              style="background: rgba(100, 116, 139, 0.1); color: var(--text-muted)"
+                              >{{ $t('admin.disabled') }}</span
+                            >
+                            <span
+                              v-if="isPendingAiModel(model.id)"
+                              class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                              style="background: rgba(100, 116, 139, 0.1); color: var(--text-muted)"
+                              >{{ $t('admin.ai_pending_configuration') }}</span
+                            >
                           </div>
                           <div class="flex items-center gap-1.5 mt-0.5">
                             <span
                               class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                               :style="`background: ${getProviderMeta(model.provider).bg}; color: ${getProviderMeta(model.provider).color};`"
-                            >{{ getProviderMeta(model.provider).label }}</span>
-                            <span class="text-[10px] font-mono" style="color: var(--text-muted);">{{ model.modelName }}</span>
+                              >{{ getProviderMeta(model.provider).label }}</span
+                            >
+                            <span class="text-[10px] font-mono" style="color: var(--text-muted)">{{
+                              model.modelName
+                            }}</span>
                           </div>
                         </div>
 
                         <div class="flex items-center gap-2 flex-shrink-0" @click.stop>
-                          <el-switch v-model="model.enabled" size="small" style="--el-switch-on-color: #6366f1;" />
+                          <el-switch
+                            v-model="model.enabled"
+                            size="small"
+                            style="--el-switch-on-color: #6366f1"
+                          />
 
                           <button
                             type="button"
                             class="w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200"
-                            :style="model.isDefault
-                              ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
-                              : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'"
-                            :title="model.isDefault ? $t('admin.current_default_model') : $t('admin.set_as_default_model')"
+                            :style="
+                              model.isDefault
+                                ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
+                                : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'
+                            "
+                            :title="
+                              model.isDefault
+                                ? $t('admin.current_default_model')
+                                : $t('admin.set_as_default_model')
+                            "
                             @click="setDefaultAiModel(model.id)"
                           >
-                            <Star class="w-3.5 h-3.5" :class="model.isDefault ? 'fill-current' : ''" />
+                            <Star
+                              class="w-3.5 h-3.5"
+                              :class="model.isDefault ? 'fill-current' : ''"
+                            />
                           </button>
 
                           <button
                             type="button"
                             :disabled="isTestingAi && testingAiModelId === model.id"
                             class="h-7 px-2.5 rounded-lg flex items-center gap-1 text-[10px] font-bold border transition-all duration-200 disabled:opacity-50"
-                            style="border-color: rgba(99,102,241,0.25); color: #6366f1; background: rgba(99,102,241,0.05);"
+                            style="
+                              border-color: rgba(99, 102, 241, 0.25);
+                              color: #6366f1;
+                              background: rgba(99, 102, 241, 0.05);
+                            "
                             @click="testAi(model)"
                           >
                             <RefreshCw
                               class="w-3 h-3"
-                              :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
+                              :class="
+                                isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''
+                              "
                             />
-                            <span>{{ (isTestingAi && testingAiModelId === model.id) ? $t('admin.testing') : $t('admin.test_connection') }}</span>
+                            <span>{{
+                              isTestingAi && testingAiModelId === model.id
+                                ? $t('admin.testing')
+                                : $t('admin.test_connection')
+                            }}</span>
                           </button>
 
                           <button
                             type="button"
                             class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-indigo-500/10 hover:text-indigo-500"
-                            style="color: var(--text-muted);"
+                            style="color: var(--text-muted)"
                             :title="$t('admin.copy_model')"
                             @click="cloneAiModel(model)"
                           >
@@ -2838,7 +3814,7 @@ type="button"
                           <button
                             type="button"
                             class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500"
-                            style="color: var(--text-muted);"
+                            style="color: var(--text-muted)"
                             :title="$t('admin.delete_model')"
                             @click="removeAiModel(model.id)"
                           >
@@ -2848,34 +3824,62 @@ type="button"
                           <div
                             class="w-5 h-5 flex items-center justify-center transition-transform duration-300"
                             :class="expandedModelId === model.id ? 'rotate-180' : ''"
-                            style="color: var(--text-muted);"
+                            style="color: var(--text-muted)"
                           >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-4 h-4"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2.5"
+                              class="w-4 h-4"
+                            >
+                              <path
+                                d="M19 9l-7 7-7-7"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                              />
+                            </svg>
                           </div>
                         </div>
                       </div>
 
                       <!-- Expandable Body -->
                       <div v-show="expandedModelId === model.id">
-                        <div class="px-4 pb-5 pt-4 space-y-4" style="border-top: 1px solid var(--border-base);">
+                        <div
+                          class="px-4 pb-5 pt-4 space-y-4"
+                          style="border-top: 1px solid var(--border-base)"
+                        >
                           <!-- Provider chips -->
                           <div class="space-y-2">
-                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.ai_provider') }}</label>
+                            <label
+                              class="text-[11px] font-black uppercase tracking-wider px-1"
+                              style="color: var(--text-muted)"
+                              >{{ $t('admin.ai_provider') }}</label
+                            >
                             <div class="flex flex-wrap gap-2">
                               <button
                                 v-for="(meta, key) in providerMeta"
                                 :key="key"
                                 type="button"
                                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all duration-200"
-                                :style="model.provider === key
-                                  ? `background: ${meta.bg}; border-color: ${meta.border}; color: ${meta.color};`
-                                  : 'background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary);'"
-                                @click="model.provider = key; handleAiProviderChange(model)"
+                                :style="
+                                  model.provider === key
+                                    ? `background: ${meta.bg}; border-color: ${meta.border}; color: ${meta.color};`
+                                    : 'background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary);'
+                                "
+                                @click="
+                                  model.provider = key;
+                                  handleAiProviderChange(model);
+                                "
                               >
                                 <component
                                   :is="meta.lucideIcon"
                                   class="w-3.5 h-3.5"
-                                  :style="model.provider === key ? `color: ${meta.color};` : 'color: var(--text-muted);'"
+                                  :style="
+                                    model.provider === key
+                                      ? `color: ${meta.color};`
+                                      : 'color: var(--text-muted);'
+                                  "
                                 />
                                 <span>{{ meta.label }}</span>
                               </button>
@@ -2884,58 +3888,101 @@ type="button"
 
                           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div class="space-y-1.5">
-                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.display_name') }}</label>
+                              <label
+                                class="text-[11px] font-black uppercase tracking-wider px-1"
+                                style="color: var(--text-muted)"
+                                >{{ $t('admin.display_name') }}</label
+                              >
                               <input
                                 v-model="model.name"
                                 type="text"
                                 :placeholder="$t('admin.for_example_deepseek_chat_1')"
                                 class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                               />
                             </div>
                             <div class="space-y-1.5">
-                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.model_id') }}</label>
+                              <label
+                                class="text-[11px] font-black uppercase tracking-wider px-1"
+                                style="color: var(--text-muted)"
+                                >{{ $t('admin.model_id') }}</label
+                              >
                               <textarea
                                 v-model="model.modelName"
                                 rows="2"
                                 :placeholder="$t('admin.for_example_deepseek_chat')"
                                 class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors resize-y min-h-[42px]"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                                 @blur="!isPendingAiModel(model.id) && expandModelNameLines(model)"
                                 @change="!isPendingAiModel(model.id) && expandModelNameLines(model)"
                               ></textarea>
-                              <p class="text-[10px] px-1" style="color: var(--text-muted);">{{ $t('admin.ai_model_id_one_per_line') }}</p>
+                              <p class="text-[10px] px-1" style="color: var(--text-muted)">
+                                {{ $t('admin.ai_model_id_one_per_line') }}
+                              </p>
                             </div>
                           </div>
 
                           <div class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Endpoint</label>
+                            <label
+                              class="text-[11px] font-black uppercase tracking-wider px-1"
+                              style="color: var(--text-muted)"
+                              >API Endpoint</label
+                            >
                             <div class="relative">
-                              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black select-none" style="color: var(--text-muted);">URL</span>
+                              <span
+                                class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black select-none"
+                                style="color: var(--text-muted)"
+                                >URL</span
+                              >
                               <input
                                 v-model="model.endpoint"
                                 type="text"
                                 :placeholder="$t('admin.for_example_https_api')"
                                 class="w-full pl-10 pr-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                               />
                             </div>
                           </div>
 
                           <div v-if="model.provider !== 'OLLAMA'" class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Key <span class="ml-1 text-[10px] font-normal normal-case" style="color: var(--text-muted);">{{ $t('admin.only_exists_on_the') }}</span></label>
+                            <label
+                              class="text-[11px] font-black uppercase tracking-wider px-1"
+                              style="color: var(--text-muted)"
+                              >API Key
+                              <span
+                                class="ml-1 text-[10px] font-normal normal-case"
+                                style="color: var(--text-muted)"
+                                >{{ $t('admin.only_exists_on_the') }}</span
+                              ></label
+                            >
                             <div class="relative">
                               <input
                                 v-model="model.apiKey"
                                 :type="showPassword ? 'text' : 'password'"
                                 placeholder="sk-..."
                                 class="w-full px-3 py-2.5 pr-10 rounded-xl border text-xs outline-none font-mono transition-colors"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                               />
                               <button
                                 type="button"
                                 class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-indigo-500"
-                                style="color: var(--text-muted);"
+                                style="color: var(--text-muted)"
                                 @click="showPassword = !showPassword"
                               >
                                 <Eye v-if="!showPassword" class="w-4 h-4" />
@@ -2946,42 +3993,82 @@ type="button"
 
                           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div class="space-y-1.5">
-                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.capability_label') }} <span class="font-normal normal-case">{{ $t('admin.comma_separated') }}</span></label>
+                              <label
+                                class="text-[11px] font-black uppercase tracking-wider px-1"
+                                style="color: var(--text-muted)"
+                                >{{ $t('admin.capability_label') }}
+                                <span class="font-normal normal-case">{{
+                                  $t('admin.comma_separated')
+                                }}</span></label
+                              >
                               <input
                                 :value="model.capabilities.join(', ')"
                                 type="text"
                                 placeholder="chat, vision, code"
                                 class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                                 @input="updateAiModelCapabilities(model, $event)"
                               />
                             </div>
                             <div class="space-y-1.5">
-                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.description_1') }}</label>
+                              <label
+                                class="text-[11px] font-black uppercase tracking-wider px-1"
+                                style="color: var(--text-muted)"
+                                >{{ $t('admin.description_1') }}</label
+                              >
                               <input
                                 v-model="model.description"
                                 type="text"
                                 :placeholder="$t('admin.for_example_suitable_for')"
                                 class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                               />
                             </div>
                           </div>
 
-                          <div v-if="model.provider === 'OLLAMA'" class="flex items-start gap-2 p-3 rounded-xl" style="background: rgba(124,58,237,0.06); border: 1px dashed rgba(124,58,237,0.25);">
-                            <span class="text-[10px] mt-0.5 font-black px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600">LOCAL</span>
-                            <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">{{ $t('admin.ollama_local_models_do_1') }} <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code> {{ $t('admin.download') }}</p>
+                          <div
+                            v-if="model.provider === 'OLLAMA'"
+                            class="flex items-start gap-2 p-3 rounded-xl"
+                            style="
+                              background: rgba(124, 58, 237, 0.06);
+                              border: 1px dashed rgba(124, 58, 237, 0.25);
+                            "
+                          >
+                            <span
+                              class="text-[10px] mt-0.5 font-black px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600"
+                              >LOCAL</span
+                            >
+                            <p
+                              class="text-[11px] leading-relaxed"
+                              style="color: var(--text-secondary)"
+                            >
+                              {{ $t('admin.ollama_local_models_do_1') }}
+                              <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code>
+                              {{ $t('admin.download') }}
+                            </p>
                           </div>
 
                           <!-- Advanced settings toggle button -->
-                          <div class="pt-2 border-t" style="border-color: var(--border-base);">
+                          <div class="pt-2 border-t" style="border-color: var(--border-base)">
                             <button
                               type="button"
                               class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-indigo-500 hover:text-indigo-600 transition-colors"
                               @click="model.showAdvanced = !model.showAdvanced"
                             >
                               <Sliders class="w-3.5 h-3.5" />
-                              <span>{{ model.showAdvanced ? $t('admin.hide_advanced_parameters') : $t('admin.expand_advanced_parameter_settings') }}</span>
+                              <span>{{
+                                model.showAdvanced
+                                  ? $t('admin.hide_advanced_parameters')
+                                  : $t('admin.expand_advanced_parameter_settings')
+                              }}</span>
                             </button>
                           </div>
 
@@ -2989,14 +4076,24 @@ type="button"
                           <div
                             v-show="model.showAdvanced"
                             class="p-4 rounded-xl border border-dashed space-y-4 transition-all duration-300"
-                            style="border-color: var(--border-base); background: rgba(99,102,241,0.02);"
+                            style="
+                              border-color: var(--border-base);
+                              background: rgba(99, 102, 241, 0.02);
+                            "
                           >
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <!-- Temperature Slider -->
                               <div class="space-y-1.5">
-                                <label class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between" style="color: var(--text-muted);">
+                                <label
+                                  class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between"
+                                  style="color: var(--text-muted)"
+                                >
                                   <span>{{ $t('admin.temperature') }}</span>
-                                  <span class="text-[10px] font-mono text-indigo-500">{{ $t('admin.current_model_temperature_tofixed', { temp: model.temperature?.toFixed(1) ?? '0.7' }) }}</span>
+                                  <span class="text-[10px] font-mono text-indigo-500">{{
+                                    $t('admin.current_model_temperature_tofixed', {
+                                      temp: model.temperature?.toFixed(1) ?? '0.7',
+                                    })
+                                  }}</span>
                                 </label>
                                 <div class="flex items-center gap-3">
                                   <input
@@ -3009,7 +4106,11 @@ type="button"
                                   />
                                   <span
                                     class="text-xs font-mono font-bold px-2 py-0.5 rounded border select-none"
-                                    style="border-color: var(--border-base); color: var(--text-primary); background-color: var(--bg-app);"
+                                    style="
+                                      border-color: var(--border-base);
+                                      color: var(--text-primary);
+                                      background-color: var(--bg-app);
+                                    "
                                   >
                                     {{ model.temperature?.toFixed(1) ?? '0.7' }}
                                   </span>
@@ -3018,7 +4119,11 @@ type="button"
 
                               <!-- Max Tokens -->
                               <div class="space-y-1.5">
-                                <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.single_maximum_generation_max') }}</label>
+                                <label
+                                  class="text-[11px] font-black uppercase tracking-wider px-1"
+                                  style="color: var(--text-muted)"
+                                  >{{ $t('admin.single_maximum_generation_max') }}</label
+                                >
                                 <input
                                   v-model.number="model.maxTokens"
                                   type="number"
@@ -3026,29 +4131,49 @@ type="button"
                                   max="128000"
                                   :placeholder="$t('admin.default_2000')"
                                   class="w-full px-3 py-2 rounded-xl border text-xs outline-none font-mono transition-colors"
-                                  style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                  style="
+                                    background-color: var(--bg-app);
+                                    border-color: var(--border-base);
+                                    color: var(--text-primary);
+                                  "
                                 />
                               </div>
                             </div>
 
                             <!-- System Prompt -->
                             <div class="space-y-1.5">
-                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.system_prompt') }}</label>
+                              <label
+                                class="text-[11px] font-black uppercase tracking-wider px-1"
+                                style="color: var(--text-muted)"
+                                >{{ $t('admin.system_prompt') }}</label
+                              >
                               <textarea
                                 v-model="model.systemPrompt"
                                 rows="3"
                                 :placeholder="$t('admin.for_example_you_are')"
                                 class="w-full px-3 py-2 rounded-xl border text-xs outline-none transition-colors resize-none font-sans"
-                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                style="
+                                  background-color: var(--bg-app);
+                                  border-color: var(--border-base);
+                                  color: var(--text-primary);
+                                "
                               ></textarea>
                             </div>
                           </div>
 
-                          <div v-if="isPendingAiModel(model.id)" class="flex justify-end pt-2 border-t" style="border-color: var(--border-base);">
+                          <div
+                            v-if="isPendingAiModel(model.id)"
+                            class="flex justify-end pt-2 border-t"
+                            style="border-color: var(--border-base)"
+                          >
                             <button
                               type="button"
                               class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200"
-                              style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; box-shadow: 0 2px 12px rgba(99,102,241,0.25);"
+                              style="
+                                background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                                color: white;
+                                box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25);
+                              "
                               @click="confirmAiModelFamily(model)"
                             >
                               <Save class="w-3.5 h-3.5" />
@@ -3063,14 +4188,22 @@ type="button"
               </div>
 
               <!-- Empty state -->
-              <div v-if="aiModelConfigs.length === 0" class="flex flex-col items-center justify-center py-12 rounded-2xl border-2 border-dashed" style="border-color: var(--border-base);">
+              <div
+                v-if="aiModelConfigs.length === 0"
+                class="flex flex-col items-center justify-center py-12 rounded-2xl border-2 border-dashed"
+                style="border-color: var(--border-base)"
+              >
                 <div class="text-4xl mb-3">🤖</div>
-                <p class="text-sm font-bold" style="color: var(--text-primary);">{{ $t('admin.no_models_have_been') }}</p>
-                <p class="text-xs mt-1 mb-4" style="color: var(--text-muted);">{{ $t('admin.click_add_model_to') }}</p>
+                <p class="text-sm font-bold" style="color: var(--text-primary)">
+                  {{ $t('admin.no_models_have_been') }}
+                </p>
+                <p class="text-xs mt-1 mb-4" style="color: var(--text-muted)">
+                  {{ $t('admin.click_add_model_to') }}
+                </p>
                 <button
                   type="button"
                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
-                  style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;"
+                  style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white"
                   @click="addAiModel()"
                 >
                   <Plus class="w-3.5 h-3.5" />
@@ -3079,37 +4212,63 @@ type="button"
               </div>
 
               <!-- Stats + Test row -->
-              <div v-if="aiModelConfigs.length > 0" class="flex items-center justify-between p-4 rounded-2xl" style="background-color: var(--bg-app); border: 1px solid var(--border-base);">
+              <div
+                v-if="aiModelConfigs.length > 0"
+                class="flex items-center justify-between p-4 rounded-2xl"
+                style="background-color: var(--bg-app); border: 1px solid var(--border-base)"
+              >
                 <div class="flex items-center gap-4">
                   <div class="text-center">
-                    <p class="text-lg font-black" style="color: var(--text-primary);">{{ aiModelConfigs.length }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted);">{{ $t('admin.total_number_of_models') }}</p>
+                    <p class="text-lg font-black" style="color: var(--text-primary)">
+                      {{ aiModelConfigs.length }}
+                    </p>
+                    <p class="text-[10px]" style="color: var(--text-muted)">
+                      {{ $t('admin.total_number_of_models') }}
+                    </p>
                   </div>
-                  <div class="w-px h-8" style="background: var(--border-base);"></div>
+                  <div class="w-px h-8" style="background: var(--border-base)"></div>
                   <div class="text-center">
-                    <p class="text-lg font-black" style="color: #6366f1;">{{ aiModelConfigs.filter(m => m.enabled).length }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted);">{{ $t('admin.enabled') }}</p>
+                    <p class="text-lg font-black" style="color: #6366f1">
+                      {{ aiModelConfigs.filter((m) => m.enabled).length }}
+                    </p>
+                    <p class="text-[10px]" style="color: var(--text-muted)">
+                      {{ $t('admin.enabled') }}
+                    </p>
                   </div>
-                  <div class="w-px h-8" style="background: var(--border-base);"></div>
+                  <div class="w-px h-8" style="background: var(--border-base)"></div>
                   <div class="text-center">
-                    <p class="text-lg font-black" style="color: #d97706;">{{ aiModelConfigs.filter(m => m.isDefault).length }}</p>
-                    <p class="text-[10px]" style="color: var(--text-muted);">{{ $t('admin.default_model') }}</p>
+                    <p class="text-lg font-black" style="color: #d97706">
+                      {{ aiModelConfigs.filter((m) => m.isDefault).length }}
+                    </p>
+                    <p class="text-[10px]" style="color: var(--text-muted)">
+                      {{ $t('admin.default_model') }}
+                    </p>
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <p class="text-[10px] hidden sm:block" style="color: var(--text-muted);">{{ $t('admin.please_test_connectivity_before') }}</p>
+                  <p class="text-[10px] hidden sm:block" style="color: var(--text-muted)">
+                    {{ $t('admin.please_test_connectivity_before') }}
+                  </p>
                   <button
                     type="button"
                     :disabled="isTestingAi"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200 disabled:opacity-50"
-                    style="border-color: rgba(99,102,241,0.3); color: #6366f1; background: rgba(99,102,241,0.06);"
-                    @click="testAi(aiModelConfigs.find(model => model.isDefault) || aiModelConfigs[0])"
+                    style="
+                      border-color: rgba(99, 102, 241, 0.3);
+                      color: #6366f1;
+                      background: rgba(99, 102, 241, 0.06);
+                    "
+                    @click="
+                      testAi(aiModelConfigs.find((model) => model.isDefault) || aiModelConfigs[0])
+                    "
                   >
                     <RefreshCw
                       class="w-3.5 h-3.5"
                       :class="isTestingAi && testingAiModelId ? 'animate-spin' : ''"
                     />
-                    <span>{{ isTestingAi ? $t('admin.testing') : $t('admin.test_default_model_connections') }}</span>
+                    <span>{{
+                      isTestingAi ? $t('admin.testing') : $t('admin.test_default_model_connections')
+                    }}</span>
                   </button>
                 </div>
               </div>
@@ -3143,4 +4302,3 @@ type="button"
   }
 }
 </style>
-

@@ -46,6 +46,7 @@ export interface SystemSettings {
   AI_API_ENDPOINT: string;
   AI_MODEL_NAME: string;
   AI_MODEL_OPTIONS: string;
+  AI_MODEL_CUSTOM_CATEGORIES: string;
 }
 
 export interface AIModelOption {
@@ -62,6 +63,8 @@ export interface AIModelOption {
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
+  customFamilyKey?: string;
+  customFamilyLabel?: string;
 }
 
 export interface PublicAIModelOption {
@@ -186,6 +189,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   AI_API_ENDPOINT: 'https://api.deepseek.com/v1',
   AI_MODEL_NAME: 'deepseek-chat',
   AI_MODEL_OPTIONS: '[]',
+  AI_MODEL_CUSTOM_CATEGORIES: '[]',
 };
 
 const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {
@@ -236,6 +240,10 @@ const normalizeAIModelOptions = (value: unknown): AIModelOption[] => {
       temperature: typeof model.temperature === 'number' ? model.temperature : undefined,
       maxTokens: typeof model.maxTokens === 'number' ? model.maxTokens : undefined,
       systemPrompt: typeof model.systemPrompt === 'string' ? model.systemPrompt.trim() : undefined,
+      customFamilyKey:
+        typeof model.customFamilyKey === 'string' ? model.customFamilyKey.trim() : undefined,
+      customFamilyLabel:
+        typeof model.customFamilyLabel === 'string' ? model.customFamilyLabel.trim() : undefined,
     });
   });
   return normalized;

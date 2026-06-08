@@ -253,10 +253,20 @@ export const aiChat = async (req: AuthRequest, res: Response, next: NextFunction
         ? 'search'
         : 'default';
 
+  const todayStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
   const contextPrompt = buildAiChatContextPrompt(context, req);
   let systemPrompt = contextPrompt
     ? `${AI_SPRITE_CHAT_PROMPT}\n\n${contextPrompt}`
     : AI_SPRITE_CHAT_PROMPT;
+
+  // Prepend current date and time context to guide model on real-time queries
+  systemPrompt = `Current Date: ${todayStr} (Asia/Shanghai)\n\n${systemPrompt}`;
 
   if (chatMode === 'search' || chatMode === 'research') {
     systemPrompt = `${systemPrompt}\n\n${AI_SPRITE_RESEARCH_OVERRIDE_RULES}`;

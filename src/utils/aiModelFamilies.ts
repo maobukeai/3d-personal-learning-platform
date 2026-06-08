@@ -3,6 +3,8 @@ export interface AiModelFamilyCandidate {
   name?: string;
   provider?: string;
   modelName?: string;
+  customFamilyKey?: string;
+  customFamilyLabel?: string;
 }
 
 export const PENDING_MODEL_FAMILY_KEY = 'pending';
@@ -53,6 +55,7 @@ export const inferModelFamilyKey = (
   options: { isPending?: boolean } = {},
 ) => {
   if (options.isPending) return PENDING_MODEL_FAMILY_KEY;
+  if (model.customFamilyKey) return model.customFamilyKey;
 
   const firstPathPart = normalizeModelFamilySource(model);
   if (!firstPathPart) return (model.provider || 'custom').toLowerCase();
@@ -60,5 +63,7 @@ export const inferModelFamilyKey = (
   const matched = MODEL_FAMILY_RULES.find((rule) => rule.pattern.test(firstPathPart));
   if (matched) return matched.key;
 
-  return firstPathPart.split(/[-_.:]/).filter(Boolean)[0] || (model.provider || 'custom').toLowerCase();
+  return (
+    firstPathPart.split(/[-_.:]/).filter(Boolean)[0] || (model.provider || 'custom').toLowerCase()
+  );
 };

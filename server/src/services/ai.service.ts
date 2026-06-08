@@ -5,6 +5,10 @@ import { logger } from '../utils/logger';
 import prisma from './prisma';
 import path from 'path';
 import fs from 'fs';
+import { configureAxiosProxy } from '../utils/axios-proxy';
+
+const aiHttp = axios.create();
+configureAxiosProxy(aiHttp, { preferAiProxy: true });
 
 export type AIChatRole = 'system' | 'user' | 'assistant';
 export type AIChatMessage = { role: AIChatRole; content: string };
@@ -491,7 +495,7 @@ async function prepareRequestConfig(
     const model = modelName || 'gemini-1.5-flash';
     const isThinkingModel = model.toLowerCase().includes('thinking');
     const thinkingParams = isThinkingModel ? { thinkingConfig: { includeThoughts: true } } : {};
-    
+
     if (isSingleTurn) {
       url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
       const parts = await formatGeminiParts(options.promptText || '');
@@ -569,19 +573,19 @@ async function executeLLMRequest(
   timeoutMs: number = AI_REQUEST_TIMEOUT_MS,
 ): Promise<string> {
   try {
-    const response = await axios.post(url, body, {
+    const response = await aiHttp.post(url, body, {
       headers,
       timeout: timeoutMs,
     });
 
-    if (
-      provider === 'GEMINI' &&
-      url.includes('generativelanguage.googleapis.com')
-    ) {
+    if (provider === 'GEMINI' && url.includes('generativelanguage.googleapis.com')) {
       const parts = response.data?.candidates?.[0]?.content?.parts;
       let text = '';
       if (Array.isArray(parts)) {
-        const textParts = parts.filter((part: any) => !part.thought).map((part: any) => part.text).filter(Boolean);
+        const textParts = parts
+          .filter((part: any) => !part.thought)
+          .map((part: any) => part.text)
+          .filter(Boolean);
         text = textParts.join('');
       } else {
         text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -642,7 +646,7 @@ export async function callLLM(
         `[AI Service Image Test] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
       );
 
-      const response = await axios.post(
+      const response = await aiHttp.post(
         imgUrl,
         {
           model: modelName,
@@ -742,7 +746,7 @@ export async function streamLLMChat(
           `[AI Image Generation] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(imgUrl)}`,
         );
 
-        const response = await axios.post(
+        const response = await aiHttp.post(
           imgUrl,
           {
             model: modelName,
@@ -858,7 +862,7 @@ export async function streamLLMChat(
       `[AI Streaming Chat] requestId=${requestId} provider=${provider} model=${modelName} url=${maskUrlApiKey(url)}`,
     );
 
-    const response = await axios.post(url, body, {
+    const response = await aiHttp.post(url, body, {
       headers,
       responseType: 'stream',
       timeout: AI_STREAM_TIMEOUT_MS,

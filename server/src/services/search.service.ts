@@ -1,5 +1,9 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { configureAxiosProxy } from '../utils/axios-proxy';
+
+const searchHttp = axios.create();
+configureAxiosProxy(searchHttp, { preferAiProxy: true });
 
 export interface SearchResult {
   title: string;
@@ -226,7 +230,7 @@ async function fetchPageContent(
   // 1. Try Jina Reader first (bypasses Cloudflare, parses JS, returns clean text/markdown)
   try {
     const jinaUrl = `https://r.jina.ai/${encodeURIComponent(url)}`;
-    const response = await axios.get(jinaUrl, {
+    const response = await searchHttp.get(jinaUrl, {
       headers: {
         ...DEFAULT_HEADERS,
         Accept: 'text/plain, text/markdown',
@@ -251,7 +255,7 @@ async function fetchPageContent(
 
   // 2. Fallback to direct axios/cheerio scraper
   try {
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: DEFAULT_HEADERS,
       timeout: 5000,
       maxRedirects: 5,
@@ -296,7 +300,7 @@ async function performYahooSearch(query: string, maxResults: number): Promise<Se
   const fetchPage = async (start: number) => {
     try {
       const url = `https://search.yahoo.com/search?p=${encodeURIComponent(query)}${start > 1 ? `&b=${start}` : ''}`;
-      const response = await axios.get(url, {
+      const response = await searchHttp.get(url, {
         headers: DEFAULT_HEADERS,
         timeout: 8000,
       });
@@ -346,7 +350,7 @@ async function performAskSearch(query: string, maxResults: number): Promise<Sear
   const fetchPage = async (page: number) => {
     try {
       const url = `https://www.ask.com/web?q=${encodeURIComponent(query)}${page > 1 ? `&page=${page}` : ''}`;
-      const response = await axios.get(url, {
+      const response = await searchHttp.get(url, {
         headers: DEFAULT_HEADERS,
         timeout: 5000,
       });
@@ -405,7 +409,7 @@ async function performDuckDuckGoSearch(query: string, maxResults: number): Promi
   const results: SearchResult[] = [];
   try {
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: DEFAULT_HEADERS,
       timeout: 6000,
     });
@@ -443,7 +447,7 @@ async function performEcosiaSearch(query: string, maxResults: number): Promise<S
   const fetchPage = async (page: number) => {
     try {
       const url = `https://www.ecosia.org/search?q=${encodeURIComponent(query)}${page > 1 ? `&p=${page - 1}` : ''}`;
-      const response = await axios.get(url, {
+      const response = await searchHttp.get(url, {
         headers: DEFAULT_HEADERS,
         timeout: 6000,
       });
@@ -491,7 +495,7 @@ async function performBingSearch(query: string, maxResults: number): Promise<Sea
     try {
       const first = (page - 1) * 10 + 1;
       const url = `https://cn.bing.com/search?q=${encodeURIComponent(query)}&first=${first}`;
-      const response = await axios.get(url, {
+      const response = await searchHttp.get(url, {
         headers: DEFAULT_HEADERS,
         timeout: 6000,
       });
@@ -537,7 +541,7 @@ async function performBaiduSearch(query: string, maxResults: number): Promise<Se
   const results: SearchResult[] = [];
   try {
     const url = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: DEFAULT_HEADERS,
       timeout: 6000,
     });
@@ -587,7 +591,7 @@ async function performSogouSearch(query: string, maxResults: number): Promise<Se
   const results: SearchResult[] = [];
   try {
     const url = `https://www.sogou.com/web?query=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: DEFAULT_HEADERS,
       timeout: 6000,
     });
@@ -633,7 +637,7 @@ async function perform360Search(query: string, maxResults: number): Promise<Sear
   const results: SearchResult[] = [];
   try {
     const url = `https://www.so.com/s?q=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: DEFAULT_HEADERS,
       timeout: 6000,
     });
@@ -678,7 +682,7 @@ async function performBraveSearch(query: string, maxResults: number): Promise<Se
   const results: SearchResult[] = [];
   try {
     const url = `https://search.brave.com/search?q=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: DEFAULT_HEADERS,
       timeout: 6000,
     });
@@ -720,7 +724,7 @@ async function performGoogleSearch(query: string, maxResults: number): Promise<S
   const results: SearchResult[] = [];
   try {
     const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -900,7 +904,7 @@ const EASTMONEY_MAIN_INDEX_SECIDS = [
 export async function fetchAshareMarketSnapshot(): Promise<SearchResult[]> {
   try {
     const url = 'https://push2.eastmoney.com/api/qt/ulist.np/get';
-    const response = await axios.get(url, {
+    const response = await searchHttp.get(url, {
       params: {
         fltt: 2,
         secids: EASTMONEY_MAIN_INDEX_SECIDS.map((item) => item.secid).join(','),

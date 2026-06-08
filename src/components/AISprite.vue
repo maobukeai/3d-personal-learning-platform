@@ -31,6 +31,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
 import api, { getAssetUrl } from '@/utils/api';
+import { ElMessage } from 'element-plus';
 
 const MdPreview = defineAsyncComponent(() => import('md-editor-v3/lib/es/MdPreview.mjs'));
 import('md-editor-v3/lib/style.css');
@@ -127,11 +128,24 @@ const width = ref(parseInt(localStorage.getItem('ai_sprite_width') || '1000'));
 const height = ref(parseInt(localStorage.getItem('ai_sprite_height') || '720'));
 const offsetX = ref(0);
 const offsetY = ref(0);
+const savedPosX = localStorage.getItem('ai_sprite_pos_x');
+const savedPosY = localStorage.getItem('ai_sprite_pos_y');
+const spriteX = ref<number | null>(savedPosX ? parseFloat(savedPosX) : null);
+const spriteY = ref<number | null>(savedPosY ? parseFloat(savedPosY) : null);
 const showMobileSidebar = ref(false);
 const windowWidth = ref(window.innerWidth);
 
+const clampSpritePosition = () => {
+  if (spriteX.value !== null && spriteY.value !== null) {
+    const buttonSize = 62;
+    spriteX.value = Math.max(10, Math.min(window.innerWidth - buttonSize - 10, spriteX.value));
+    spriteY.value = Math.max(10, Math.min(window.innerHeight - buttonSize - 10, spriteY.value));
+  }
+};
+
 const updateWindowSize = () => {
   windowWidth.value = window.innerWidth;
+  clampSpritePosition();
 };
 
 const isMobile = computed(() => windowWidth.value < 768);
@@ -171,6 +185,111 @@ const stopDrag = () => {
   isDragging = false;
   document.removeEventListener('mousemove', handleDrag);
   document.removeEventListener('mouseup', stopDrag);
+};
+
+// Sprite Dragging Logic
+const isDraggingSprite = ref(false);
+let spriteDragStartX = 0;
+let spriteDragStartY = 0;
+let spriteDragInitialX = 0;
+let spriteDragInitialY = 0;
+let hasDraggedSprite = false;
+
+const startDragSprite = (event: MouseEvent) => {
+  if (event.button !== 0) return;
+  isDraggingSprite.value = true;
+  hasDraggedSprite = false;
+  
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  spriteDragInitialX = rect.left;
+  spriteDragInitialY = rect.top;
+  
+  spriteDragStartX = event.clientX;
+  spriteDragStartY = event.clientY;
+  
+  document.addEventListener('mousemove', handleDragSprite);
+  document.addEventListener('mouseup', stopDragSprite);
+};
+
+const handleDragSprite = (event: MouseEvent) => {
+  if (!isDraggingSprite.value) return;
+  const deltaX = event.clientX - spriteDragStartX;
+  const deltaY = event.clientY - spriteDragStartY;
+  
+  if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+    hasDraggedSprite = true;
+  }
+  
+  let newX = spriteDragInitialX + deltaX;
+  let newY = spriteDragInitialY + deltaY;
+  const buttonSize = 62;
+  newX = Math.max(10, Math.min(window.innerWidth - buttonSize - 10, newX));
+  newY = Math.max(10, Math.min(window.innerHeight - buttonSize - 10, newY));
+  
+  spriteX.value = newX;
+  spriteY.value = newY;
+};
+
+const stopDragSprite = () => {
+  isDraggingSprite.value = false;
+  document.removeEventListener('mousemove', handleDragSprite);
+  document.removeEventListener('mouseup', stopDragSprite);
+  
+  if (spriteX.value !== null && spriteY.value !== null) {
+    localStorage.setItem('ai_sprite_pos_x', spriteX.value.toString());
+    localStorage.setItem('ai_sprite_pos_y', spriteY.value.toString());
+  }
+};
+
+const startDragSpriteTouch = (event: TouchEvent) => {
+  if (event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  
+  isDraggingSprite.value = true;
+  hasDraggedSprite = false;
+  
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  spriteDragInitialX = rect.left;
+  spriteDragInitialY = rect.top;
+  
+  spriteDragStartX = touch.clientX;
+  spriteDragStartY = touch.clientY;
+  
+  document.addEventListener('touchmove', handleDragSpriteTouch, { passive: false });
+  document.addEventListener('touchend', stopDragSpriteTouch);
+};
+
+const handleDragSpriteTouch = (event: TouchEvent) => {
+  if (!isDraggingSprite.value || event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  
+  const deltaX = touch.clientX - spriteDragStartX;
+  const deltaY = touch.clientY - spriteDragStartY;
+  
+  if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+    hasDraggedSprite = true;
+    event.preventDefault(); // Prevent page scrolling while dragging
+  }
+  
+  let newX = spriteDragInitialX + deltaX;
+  let newY = spriteDragInitialY + deltaY;
+  const buttonSize = 62;
+  newX = Math.max(10, Math.min(window.innerWidth - buttonSize - 10, newX));
+  newY = Math.max(10, Math.min(window.innerHeight - buttonSize - 10, newY));
+  
+  spriteX.value = newX;
+  spriteY.value = newY;
+};
+
+const stopDragSpriteTouch = () => {
+  isDraggingSprite.value = false;
+  document.removeEventListener('touchmove', handleDragSpriteTouch);
+  document.removeEventListener('touchend', stopDragSpriteTouch);
+  
+  if (spriteX.value !== null && spriteY.value !== null) {
+    localStorage.setItem('ai_sprite_pos_x', spriteX.value.toString());
+    localStorage.setItem('ai_sprite_pos_y', spriteY.value.toString());
+  }
 };
 
 // Resize logic
@@ -365,6 +484,7 @@ const startNewChat = () => {
 
 const deleteSession = async (sessionId: string) => {
   const isDeletingActive = currentSessionId.value === sessionId;
+  const originalMessages = [...messages.value];
 
   // Remove messages of this session locally
   messages.value = messages.value.filter((msg) => (msg.sessionId || 'default') !== sessionId);
@@ -376,6 +496,10 @@ const deleteSession = async (sessionId: string) => {
       });
     } catch (error) {
       console.error('Failed to delete AI chat session on server:', error);
+      // Rollback to original state
+      messages.value = originalMessages;
+      ElMessage.error('删除会话失败，请稍后重试');
+      return;
     }
   } else {
     saveHistory();
@@ -858,6 +982,7 @@ const removeUploadedImage = (index: number) => {
 };
 
 const handleSpriteClick = () => {
+  if (hasDraggedSprite) return;
   isOpen.value = !isOpen.value;
 };
 
@@ -1152,9 +1277,11 @@ const handleSend = async () => {
     );
 
     await new Promise<void>((resolve) => {
+      let ticks = 0;
       const timer = setInterval(() => {
         const queue = typewriterQueueMap.value[sId];
-        if (!queue || queue.length === 0) {
+        ticks++;
+        if (!queue || queue.length === 0 || ticks >= 1500) {
           clearInterval(timer);
           resolve();
         }
@@ -1303,6 +1430,8 @@ onUnmounted(() => {
   // component unmounts while the user is mid-drag or mid-resize
   stopDrag();
   stopResize();
+  stopDragSprite();
+  stopDragSpriteTouch();
   window.removeEventListener('click', handleDocumentClick);
   window.removeEventListener('resize', updateWindowSize);
   if (bubbleTimer) {
@@ -1316,7 +1445,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="systemStore.settings.AI_IMPORT_ENABLED" class="fixed bottom-5 right-5 z-[99]">
+  <div
+    v-if="systemStore.settings.AI_IMPORT_ENABLED"
+    class="fixed z-[99]"
+    :class="[spriteX === null ? 'bottom-5 right-5' : '']"
+    :style="spriteX !== null ? { left: spriteX + 'px', top: spriteY + 'px' } : {}"
+  >
     <Transition name="fade">
       <div
         v-if="showBubble && !isOpen"
@@ -1895,56 +2029,77 @@ onUnmounted(() => {
                         <Transition name="fade">
                           <div
                             v-if="showModelDropdown"
-                            class="absolute bottom-[calc(100%+10px)] left-0 z-20 w-64 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl"
+                            class="absolute bottom-[calc(100%+10px)] left-0 z-20 min-w-[280px] overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-700/60 bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl"
+                            style="box-shadow: 0 20px 48px rgba(15,23,42,0.14), 0 0 0 1px rgba(148,163,184,0.08);"
                           >
-                            <div
-                              class="border-b border-slate-100 dark:border-slate-800 px-4 py-3 text-xs font-medium text-slate-400"
-                            >
-                              选择 AI 模型
+                            <!-- Header -->
+                            <div class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-4 py-2.5">
+                              <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">选择 AI 模型</span>
+                              <span class="ml-auto rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                                {{ availableAiModels.length }} 个可用
+                              </span>
                             </div>
-                            <div class="max-h-64 overflow-y-auto ai-scrollbar py-2">
+
+                            <!-- Model List -->
+                            <div class="max-h-72 overflow-y-auto py-1.5 ai-scrollbar">
                               <button
                                 v-for="model in availableAiModels"
                                 :key="model.id"
                                 type="button"
-                                class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                class="group relative flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-all duration-150"
                                 :class="
                                   model.id === selectedModelId
-                                    ? 'bg-rose-50/80 dark:bg-rose-950/30'
-                                    : ''
+                                    ? 'bg-gradient-to-r from-rose-50 to-pink-50/60 dark:from-rose-950/30 dark:to-pink-950/20'
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                                 "
                                 @click.stop="
                                   selectedModelId = model.id;
                                   showModelDropdown = false;
                                 "
                               >
-                                <component
-                                  :is="getProviderMeta(model.provider).lucideIcon"
-                                  class="mt-0.5 h-4 w-4 shrink-0"
-                                  :style="{ color: getProviderMeta(model.provider).color }"
-                                />
-                                <div class="min-w-0 flex-1">
-                                  <div class="flex items-center gap-2">
-                                    <p
-                                      class="truncate text-sm font-medium text-slate-800 dark:text-slate-200"
+                                <!-- Provider Icon with colored background -->
+                                <div
+                                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105"
+                                  :style="{
+                                    background: getProviderMeta(model.provider).bg,
+                                    border: `1px solid ${getProviderMeta(model.provider).border}`,
+                                  }"
+                                >
+                                  <component
+                                    :is="getProviderMeta(model.provider).lucideIcon"
+                                    class="h-4 w-4"
+                                    :style="{ color: getProviderMeta(model.provider).color }"
+                                  />
+                                </div>
+
+                                <!-- Model Info -->
+                                <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  <div class="flex items-center gap-1.5">
+                                    <span
+                                      class="text-[13px] font-semibold leading-tight text-slate-800 dark:text-slate-100"
+                                      :title="model.name"
                                     >
                                       {{ model.name }}
-                                    </p>
+                                    </span>
                                     <span
                                       v-if="model.isDefault"
-                                      class="rounded-full bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400"
+                                      class="shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"
                                     >
                                       默认
                                     </span>
                                   </div>
-                                  <p class="truncate text-xs text-slate-400 dark:text-slate-500">
+                                  <span class="block text-[11px] leading-tight text-slate-400 dark:text-slate-500" :title="model.modelName">
                                     {{ model.modelName }}
-                                  </p>
+                                  </span>
                                 </div>
-                                <Check
+
+                                <!-- Selected checkmark -->
+                                <div
                                   v-if="model.id === selectedModelId"
-                                  class="h-4 w-4 shrink-0 text-rose-400"
-                                />
+                                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 shadow-sm shadow-rose-200 dark:shadow-rose-900"
+                                >
+                                  <Check class="h-3 w-3 text-white" />
+                                </div>
                               </button>
                             </div>
                           </div>
@@ -2035,7 +2190,10 @@ onUnmounted(() => {
       v-if="!isOpen"
       type="button"
       class="ai-trigger group relative flex h-[62px] w-[62px] items-center justify-center overflow-hidden rounded-full border text-white shadow-[0_22px_44px_rgba(244,114,182,0.32)] transition hover:-translate-y-1"
+      :class="{ 'cursor-grabbing': isDraggingSprite, 'cursor-grab': !isDraggingSprite }"
       @click="handleSpriteClick"
+      @mousedown="startDragSprite"
+      @touchstart="startDragSpriteTouch"
     >
       <div
         class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.28),transparent_48%)]"

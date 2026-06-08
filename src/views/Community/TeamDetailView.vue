@@ -871,7 +871,7 @@ onUnmounted(() => {
           <!-- Header & Actions -->
           <div
             class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5"
-            style="bordercolor: var(--border-base)"
+            style="border-color: var(--border-base)"
           >
             <div>
               <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">
@@ -974,7 +974,7 @@ onUnmounted(() => {
               <!-- Actions & Role Footer -->
               <div
                 class="flex items-center justify-between pt-2.5 mt-3 border-t border-dashed"
-                style="bordercolor: var(--border-base)"
+                style="border-color: var(--border-base)"
               >
                 <!-- Role Badge -->
                 <div>

@@ -17,7 +17,10 @@ const getWorkspaceMaterial = async (
   const material = await prisma.material.findFirst({
     where: {
       id,
-      teamId: req.workspaceId,
+      OR: [
+        { status: 'APPROVED' },
+        { teamId: req.workspaceId },
+      ],
       ...(options.requireApproved ? { status: 'APPROVED' } : {}),
     },
     include: {
@@ -41,7 +44,6 @@ export const getAllMaterials = async (req: AuthRequest, res: Response, next: Nex
   const { category, sort, search } = req.query;
   try {
     const where: Prisma.MaterialWhereInput = {
-      teamId: req.workspaceId,
       status: 'APPROVED',
     };
     if (category && category !== '全部材料') {
@@ -104,6 +106,30 @@ export const getMaterialById = async (req: AuthRequest, res: Response, next: Nex
   }
 };
 
+export const getMyMaterials = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const materials = await prisma.material.findMany({
+      where: {
+        userId: req.userId as string,
+        teamId: req.workspaceId,
+      },
+      include: {
+        user: {
+          select: { name: true, email: true, avatarUrl: true },
+        },
+        _count: {
+          select: { favorites: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(materials.map((material) => ({ ...material, isFavorited: false })));
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const uploadMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
@@ -158,6 +184,63 @@ export const uploadMaterial = async (req: AuthRequest, res: Response, next: Next
     });
 
     res.status(201).json(material);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMaterial = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const existing = await prisma.material.findFirst({
+      where: { id, teamId: req.workspaceId },
+    });
+
+    if (!existing) return next(new AppError('Material not found', 404));
+
+    if (existing.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('Not authorized to update this material', 403));
+    }
+
+    const { title, description, category, resolution, tags, isProcedural } = req.body;
+    const updateData: Prisma.MaterialUpdateInput = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description || null;
+    if (category !== undefined) updateData.category = category;
+    if (resolution !== undefined) updateData.resolution = resolution || null;
+    if (tags !== undefined) updateData.tags = tags || null;
+    if (isProcedural !== undefined) {
+      updateData.isProcedural = isProcedural === true || isProcedural === 'true';
+    }
+    if (existing.userId === req.userId && req.user?.role !== 'ADMIN') {
+      updateData.status = 'PENDING';
+      updateData.rejectReason = null;
+    }
+
+    const material = await prisma.material.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: { name: true, email: true, avatarUrl: true },
+        },
+        _count: {
+          select: { favorites: true },
+        },
+      },
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: AuditAction.UPDATE_MATERIAL,
+      module: AuditModule.MATERIAL,
+      description: `Updated material: ${material.title}`,
+      oldValue: existing,
+      newValue: material,
+      req,
+    });
+
+    res.json(material);
   } catch (error) {
     next(error);
   }

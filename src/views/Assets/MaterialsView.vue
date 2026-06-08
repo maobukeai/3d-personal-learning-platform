@@ -55,18 +55,19 @@ const sortBy = ref('latest');
 const showFavoritesOnly = ref(false);
 
 const categories = computed(() => {
-  return (
-    systemStore.settings.MATERIAL_CATEGORIES || [
-      '全部材料',
-      '金属',
-      '木纹',
-      '石材',
-      '织物',
-      '程序化',
-      '玻璃',
-      '其他',
-    ]
-  );
+  const list = systemStore.settings.MATERIAL_CATEGORIES || [
+    '金属',
+    '木纹',
+    '石材',
+    '织物',
+    '程序化',
+    '玻璃',
+    '其他',
+  ];
+  if (!list.includes('全部材料') && !list.includes('All Materials')) {
+    return ['全部材料', ...list];
+  }
+  return list;
 });
 
 const getCategoryLabel = (category: string) => {

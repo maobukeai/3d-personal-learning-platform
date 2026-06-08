@@ -489,8 +489,11 @@ async function prepareRequestConfig(
     (!endpoint || endpoint.includes('generativelanguage.googleapis.com'))
   ) {
     const model = modelName || 'gemini-1.5-flash';
+    const isThinkingModel = model.toLowerCase().includes('thinking');
+    const thinkingParams = isThinkingModel ? { thinkingConfig: { includeThoughts: true } } : {};
+    
     if (isSingleTurn) {
-      url = `https://generativelanguage.googleapis.com/v1/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
       const parts = await formatGeminiParts(options.promptText || '');
       const textPart = parts.find(
         (part): part is { text: string } => 'text' in part && typeof part.text === 'string',
@@ -508,6 +511,7 @@ async function prepareRequestConfig(
         generationConfig: {
           temperature,
           ...(maxTokens && { maxOutputTokens: maxTokens }),
+          ...thinkingParams,
         },
       };
     } else {
@@ -517,7 +521,7 @@ async function prepareRequestConfig(
           parts: await formatGeminiParts(m.content),
         })),
       );
-      url = `https://generativelanguage.googleapis.com/v1/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?'}key=${apiKey}`;
       body = {
         contents: geminiContents,
         systemInstruction: {
@@ -526,6 +530,7 @@ async function prepareRequestConfig(
         generationConfig: {
           temperature,
           ...(maxTokens && { maxOutputTokens: maxTokens }),
+          ...thinkingParams,
         },
       };
     }
@@ -571,10 +576,16 @@ async function executeLLMRequest(
 
     if (
       provider === 'GEMINI' &&
-      !overrides?.AI_API_ENDPOINT &&
       url.includes('generativelanguage.googleapis.com')
     ) {
-      const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const parts = response.data?.candidates?.[0]?.content?.parts;
+      let text = '';
+      if (Array.isArray(parts)) {
+        const textParts = parts.filter((part: any) => !part.thought).map((part: any) => part.text).filter(Boolean);
+        text = textParts.join('');
+      } else {
+        text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      }
       if (!text) {
         throw new Error('Gemini API 返回内容为空，请检查模型名称和密钥是否正确。');
       }
@@ -857,7 +868,7 @@ export async function streamLLMChat(
     const stream = response.data;
     let lastActivityTime = Date.now();
     /** Longer window so deep-research mode (which can take 60-90 s before the first LLM token) doesn't self-abort. */
-    const STREAM_ACTIVITY_TIMEOUT_MS = 40_000;
+    const STREAM_ACTIVITY_TIMEOUT_MS = 120_000;
 
     activityTimer = setInterval(() => {
       if (!completed) {
@@ -914,9 +925,17 @@ export async function streamLLMChat(
         const parsed = JSON.parse(jsonStr);
 
         if (provider === 'GEMINI') {
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            appendAssistantChunk({ text });
+          const parts = parsed.candidates?.[0]?.content?.parts;
+          if (Array.isArray(parts)) {
+            for (const part of parts) {
+              if (part.text) {
+                if (part.thought) {
+                  appendAssistantChunk({ reasoning: part.text });
+                } else {
+                  appendAssistantChunk({ text: part.text });
+                }
+              }
+            }
           }
         } else if (provider === 'OLLAMA') {
           const text = parsed.message?.content || parsed.response;

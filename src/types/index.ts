@@ -79,6 +79,7 @@ export interface Asset {
   size?: number | null;
   viewCount?: number | null;
   downloads?: number | null;
+  likes?: number | null;
   vertices?: number | null;
   faces?: number | null;
   materials?: number | null;

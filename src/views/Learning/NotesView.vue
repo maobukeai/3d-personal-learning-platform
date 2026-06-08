@@ -149,7 +149,7 @@ const myNotebooksList = computed(() => {
 const selectNotebook = (notebookName: string) => {
   if (notebookName === 'ALL') {
     filterCategory.value = '';
-  } else if (notebookName === 'UNCATEGORIZED' || notebookName === 'UNCATEGORIZED') {
+  } else if (notebookName === 'UNCATEGORIZED') {
     filterCategory.value = '__uncategorized__';
   } else {
     filterCategory.value = notebookName;
@@ -368,8 +368,11 @@ const handleDelete = async (note: Note) => {
     await api.delete(`/api/notes/${note.id}`);
     ElMessage.success(t('notes.deleteSuccess'));
     await loadNotes();
-  } catch {
-    // Ignore error
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete note:', error);
+      ElMessage.error(t('notes.deleteFailed') || '删除笔记失败');
+    }
   }
 };
 

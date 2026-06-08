@@ -9,6 +9,7 @@ router.use(authenticate);
 
 router.get('/', materialController.getAllMaterials);
 router.get('/favorites', materialController.getMyFavorites);
+router.get('/my', materialController.getMyMaterials);
 router.get('/:id/file', materialController.downloadMaterial);
 router.get('/:id', materialController.getMaterialById);
 router.post(
@@ -20,6 +21,7 @@ router.post(
   validateFileContent,
   materialController.uploadMaterial,
 );
+router.put('/:id', materialController.updateMaterial);
 router.delete('/:id', materialController.deleteMaterial);
 router.post('/:id/download', materialController.recordDownload);
 router.post('/:id/favorite', materialController.toggleFavorite);

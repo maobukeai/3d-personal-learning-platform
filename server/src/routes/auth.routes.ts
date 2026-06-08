@@ -50,6 +50,7 @@ import {
   changeEmail,
   uploadAvatar,
   getStats,
+  getLeaderboard,
   getUserSettings,
   updateUserSettings,
   getTrustedDevices,
@@ -270,6 +271,7 @@ router.post(
   uploadAvatar,
 );
 router.get('/stats', authenticate, getStats);
+router.get('/leaderboard', authenticate, getLeaderboard);
 
 router.get('/user-settings', authenticate, getUserSettings);
 router.post('/user-settings', authenticate, updateUserSettings);

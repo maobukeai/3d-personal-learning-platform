@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
 import { ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
-import { X, Box, UploadCloud, Image, Film, FileText, File } from 'lucide-vue-next';
+import { X, Box, UploadCloud, Image, Film, FileText, File, Puzzle } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
@@ -32,7 +32,7 @@ interface AssetCategory {
 }
 
 const isPublishing = ref(false);
-const publishCategory = ref<'model' | 'asset' | 'work'>('work');
+const publishCategory = ref<'model' | 'asset' | 'work' | 'plugin'>('work');
 const myApprovedAssets = ref<ApprovedAsset[]>([]);
 const selectedAssetId = ref('');
 const assetCategories = ref<AssetCategory[]>([]);
@@ -53,6 +53,13 @@ const publishForm = ref({
   images: [] as File[],
   assetFile: null as File | null,
   assetCategory: '', // Will store categoryId
+  // Plugin-specific fields
+  pluginFile: null as File | null,
+  pluginPreview: null as File | null,
+  pluginCategory: '其他工具',
+  pluginVersion: '1.0.0',
+  pluginCompatibility: '',
+  pluginInstallGuide: '',
 });
 
 const getTypeIcon = (type: string) => {
@@ -147,6 +154,21 @@ const handleAssetFileChange = (e: Event) => {
   }
 };
 
+const handlePluginFileChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    publishForm.value.pluginFile = file;
+    if (!publishForm.value.title) {
+      publishForm.value.title = file.name.replace(/\.[^.]+$/, '');
+    }
+  }
+};
+
+const handlePluginPreviewChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) publishForm.value.pluginPreview = file;
+};
+
 const handlePublish = async () => {
   if (!publishForm.value.title.trim()) {
     ElMessage.warning(t('publishDialog.titleRequired'));
@@ -193,6 +215,32 @@ const handlePublish = async () => {
         title: publishForm.value.title,
         description: publishForm.value.description,
         tags: publishForm.value.tags,
+      });
+    } else if (publishCategory.value === 'plugin') {
+      if (!publishForm.value.pluginFile) {
+        ElMessage.warning('请上传插件文件');
+        isPublishing.value = false;
+        return;
+      }
+      if (!publishForm.value.title.trim()) {
+        ElMessage.warning('请填写插件名称');
+        isPublishing.value = false;
+        return;
+      }
+      const pluginFormData = new FormData();
+      pluginFormData.append('plugin_file', publishForm.value.pluginFile);
+      if (publishForm.value.pluginPreview) {
+        pluginFormData.append('plugin_preview', publishForm.value.pluginPreview);
+      }
+      pluginFormData.append('title', publishForm.value.title);
+      pluginFormData.append('description', publishForm.value.description);
+      pluginFormData.append('category', publishForm.value.pluginCategory);
+      pluginFormData.append('version', publishForm.value.pluginVersion);
+      pluginFormData.append('compatibility', publishForm.value.pluginCompatibility);
+      pluginFormData.append('tags', publishForm.value.tags);
+      pluginFormData.append('installGuide', publishForm.value.pluginInstallGuide);
+      await api.post('/api/plugins/upload', pluginFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
     } else {
       if (publishForm.value.type !== 'TEXT' && !publishForm.value.thumbnail) {
@@ -245,6 +293,12 @@ const closeDialog = () => {
     images: [],
     assetFile: null,
     assetCategory: '',
+    pluginFile: null,
+    pluginPreview: null,
+    pluginCategory: '其他工具',
+    pluginVersion: '1.0.0',
+    pluginCompatibility: '',
+    pluginInstallGuide: '',
   };
   selectedAssetId.value = '';
   publishCategory.value = 'work';
@@ -315,6 +369,16 @@ onUnmounted(() => {
           >
             <Image class="w-3.5 h-3.5" />
             {{ t('publishDialog.tabWork') }}
+          </button>
+          <button
+            type="button"
+            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            :class="publishCategory === 'plugin' ? 'bg-violet-600 text-white shadow-md' : ''"
+            :style="publishCategory !== 'plugin' ? 'color: var(--text-secondary)' : ''"
+            @click="publishCategory = 'plugin'"
+          >
+            <Puzzle class="w-3.5 h-3.5" />
+            上传插件
           </button>
         </div>
 
@@ -390,6 +454,7 @@ onUnmounted(() => {
                   v-model="publishForm.description"
                   :placeholder="t('publishDialog.descriptionPlaceholder')"
                   :height="isMobile ? '300px' : '350px'"
+                  simple
                 />
               </div>
             </div>
@@ -517,6 +582,7 @@ onUnmounted(() => {
                   v-model="publishForm.description"
                   :placeholder="t('publishDialog.descriptionPlaceholder')"
                   :height="isMobile ? '300px' : '350px'"
+                  simple
                 />
               </div>
             </div>
@@ -706,7 +772,88 @@ onUnmounted(() => {
                 v-model="publishForm.description"
                 :placeholder="t('publishDialog.descriptionPlaceholder')"
                 :height="isMobile ? '400px' : '500px'"
+                simple
               />
+            </div>
+          </div>
+        </template>
+
+        <!-- Plugin Category: Upload plugin file -->
+        <template v-if="publishCategory === 'plugin'">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+              <!-- Plugin file upload -->
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件文件 *</label>
+                <div class="relative group h-28">
+                  <input type="file" accept=".zip,.rar,.7z,.blend,.js,.ts,.py,.lua,.mjs" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handlePluginFileChange" />
+                  <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-violet-500 group-hover:bg-violet-500/5" style="border-color: var(--border-base)">
+                    <Puzzle class="w-6 h-6 text-violet-400/60" />
+                    <p class="text-xs font-medium" style="color: var(--text-secondary)">{{ publishForm.pluginFile ? publishForm.pluginFile.name : '点击上传插件文件' }}</p>
+                    <p class="text-[10px]" style="color: var(--text-muted)">.zip .blend .js .ts .py 等格式</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Plugin name -->
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件名称 *</label>
+                <input v-model="publishForm.title" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="如：材质批量导出工具" style="color: var(--text-primary)" />
+              </div>
+
+              <!-- Category & Version -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件分类</label>
+                  <select v-model="publishForm.pluginCategory" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border border-transparent rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20" style="color: var(--text-primary); background-color: var(--bg-app); border-color: var(--border-base)">
+                    <option value="Blender 插件">Blender 插件</option>
+                    <option value="Three.js 插件">Three.js 插件</option>
+                    <option value="Substance 工具">Substance 工具</option>
+                    <option value="游戏引擎插件">游戏引擎插件</option>
+                    <option value="Photoshop 脚本">Photoshop 脚本</option>
+                    <option value="其他工具">其他工具</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">版本号</label>
+                  <input v-model="publishForm.pluginVersion" type="text" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-white/5 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20" placeholder="1.0.0" style="color: var(--text-primary); background-color: var(--bg-app)" />
+                </div>
+              </div>
+
+              <!-- Compatibility -->
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">兼容性</label>
+                <input v-model="publishForm.pluginCompatibility" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="如 Blender 3.x / 4.x" style="color: var(--text-primary)" />
+              </div>
+
+              <!-- Preview image -->
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">封面图（可选）</label>
+                <div class="relative group h-20">
+                  <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" @change="handlePluginPreviewChange" />
+                  <div class="w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group-hover:border-violet-500 group-hover:bg-violet-500/5" style="border-color: var(--border-base)">
+                    <p class="text-[10px] font-medium" style="color: var(--text-secondary)">{{ publishForm.pluginPreview ? publishForm.pluginPreview.name : '点击上传封面图' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tags -->
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">标签</label>
+                <input v-model="publishForm.tags" type="text" class="w-full px-4 py-3 bg-slate-100 dark:bg-white/5 border-none rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all" placeholder="用逗号分隔，如：Blender, 材质, 批量" style="color: var(--text-primary)" />
+              </div>
+            </div>
+
+            <!-- Right: description + install guide -->
+            <div class="space-y-4">
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件简介</label>
+                <MarkdownEditor v-model="publishForm.description" placeholder="简单描述插件的功能和用途" :height="isMobile ? '200px' : '250px'" simple />
+              </div>
+              <div>
+                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">安装说明（Markdown）</label>
+                <MarkdownEditor v-model="publishForm.pluginInstallGuide" placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..." :height="isMobile ? '200px' : '240px'" simple />
+              </div>
             </div>
           </div>
         </template>

@@ -60,6 +60,10 @@ const storage = multer.diskStorage({
       dir = './uploads/mirror';
     } else if (file.fieldname === 'image') {
       dir = './uploads/ai';
+    } else if (file.fieldname === 'plugin_file') {
+      dir = './uploads/plugins';
+    } else if (file.fieldname === 'plugin_preview') {
+      dir = './uploads/plugins';
     } else if (file.fieldname === 'banner' || file.fieldname === 'banner_image') {
       dir = './uploads/banners';
     }
@@ -171,6 +175,11 @@ const createUploadMiddleware = (config: {
                 file.fieldname === 'files'
               ) {
                 finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls', '.zip'];
+              } else if (file.fieldname === 'plugin_file') {
+                // Plugin packages: zip archives, Blender scripts, JS/TS addons, Python scripts
+                finalAllowedExtensions = ['.zip', '.rar', '.7z', '.blend', '.js', '.ts', '.py', '.lua', '.mjs'];
+              } else if (file.fieldname === 'plugin_preview') {
+                finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
               } else if (file.fieldname === 'message_file') {
                 finalAllowedExtensions = [
                   '.png',

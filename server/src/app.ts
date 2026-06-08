@@ -27,6 +27,8 @@ import manualRoutes from './manual/routes/manual.routes';
 import adminManualRoutes from './manual/routes/admin-manual.routes';
 import aiRoutes from './routes/ai.routes';
 import bannerRoutes from './routes/banner.routes';
+import pluginRoutes from './routes/plugin.routes';
+import adminPluginRoutes from './routes/plugin.admin.routes';
 
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middlewares/error.middleware';
@@ -163,6 +165,8 @@ app.use('/api/manual', manualRoutes);
 app.use('/api/admin/manual', adminManualRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/plugins', pluginRoutes);
+app.use('/api/admin', adminPluginRoutes);
 
 app.get('/', (req, res) => {
   res.send('3D Personal Learning Platform API');

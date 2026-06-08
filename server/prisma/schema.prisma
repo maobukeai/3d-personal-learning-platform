@@ -29,6 +29,8 @@ model User {
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
   assets                     Asset[]
+  assetVersions              AssetVersion[]
+  assetAnnotations           AssetAnnotation[]
   refreshTokens              RefreshToken[]
   discussions                Discussion[]
   comments                   Comment[]
@@ -87,6 +89,7 @@ model User {
   githubId   String? @unique
   microsoftEmailAccounts MicrosoftEmailAccount[]
   aiMessages AiMessage[]
+  plugins    Plugin[]
 }
 
 model Conversation {
@@ -282,6 +285,7 @@ model Asset {
   status       String  @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
   rejectReason String?
   formats      String? @db.Text // 存储 JSON 字符串，如 ["FBX", "OBJ"]
+  tags         String? @db.Text // JSON string of tag names (e.g., ["scifi", "character"])
 
   // 3D Metadata
   vertices      Int?
@@ -291,6 +295,10 @@ model Asset {
   hasAnimations Boolean @default(false)
   size          Float? // in MB
   dimensions    String? // e.g., "10x20x15"
+  maxTextureRes Int?
+  downloads     Int     @default(0)
+  likes         Int     @default(0)
+  viewCount     Int     @default(0)
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -300,6 +308,8 @@ model Asset {
   teamId    String?
   team      Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
   showcases Showcase[]
+  versions    AssetVersion[]
+  annotations AssetAnnotation[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -1179,3 +1189,67 @@ model Banner {
   @@index([isActive, order])
 }
 
+model AssetVersion {
+  id            String   @id @default(uuid())
+  assetId       String
+  asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  version       String   
+  url           String
+  thumbnail     String?
+  size          Float?   
+  vertices      Int?
+  faces         Int?
+  materials     Int?
+  dimensions    String?
+  maxTextureRes Int?
+  changeLog     String?  @db.Text
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@index([assetId])
+  @@index([userId])
+}
+
+model AssetAnnotation {
+  id           String   @id @default(uuid())
+  assetId      String
+  asset        Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content      String   @db.Text
+  x            Float
+  y            Float
+  z            Float
+  cameraPos    String?  
+  cameraTarget String?  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([assetId])
+  @@index([userId])
+}
+
+model Plugin {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?  @db.Text
+  category      String   @default("其他") // 'Blender 插件' | 'Three.js 插件' | 'Substance 工具' | '游戏引擎插件' | 'Photoshop 脚本' | '其他工具'
+  version       String   @default("1.0.0")
+  compatibility String   @default("") // e.g. "Blender 3.x / 4.x"
+  tags          String?  @db.Text
+  fileUrl       String
+  fileSize      Float?   // in MB
+  previewUrl    String?
+  installGuide  String?  @db.Text // Markdown
+  status        String   @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
+  rejectReason  String?
+  downloads     Int      @default(0)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}

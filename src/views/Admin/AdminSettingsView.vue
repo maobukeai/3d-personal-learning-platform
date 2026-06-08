@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
@@ -34,12 +34,19 @@ import {
   Sliders,
   Cloud,
   Database,
+  Copy,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api, { getAssetUrl } from '@/utils/api';
 import { useSystemStore } from '@/stores/system';
 import SafeHtml from '@/components/SafeHtml.vue';
 import { getApiErrorMessage } from '@/utils/error';
+import {
+  PENDING_MODEL_FAMILY_KEY,
+  inferModelFamilyKey,
+  parseModelNameLines,
+  titleCaseModelFamily,
+} from '@/utils/aiModelFamilies';
 
 const systemStore = useSystemStore();
 const isLoading = ref(false);
@@ -186,6 +193,7 @@ interface AiModelConfig {
 const settings = ref({ ...defaultSettings });
 const originalSettings = ref({ ...defaultSettings });
 const aiModelConfigs = ref<AiModelConfig[]>([]);
+const pendingModelFamilyIds = ref<string[]>([]);
 
 const aiProviderDefaults: Record<string, { endpoint: string; model: string; name: string }> = {
   DEEPSEEK: { endpoint: 'https://api.deepseek.com/v1', model: 'deepseek-chat', name: 'DeepSeek Chat' },
@@ -256,14 +264,20 @@ const normalizeAiModels = (value: unknown): AiModelConfig[] => {
     .filter((item): item is AiModelConfig => Boolean(item));
 };
 
+const isPendingAiModel = (id: string) => pendingModelFamilyIds.value.includes(id);
+
+const getPersistableAiModels = () =>
+  aiModelConfigs.value.filter((model) => !isPendingAiModel(model.id) && model.modelName.trim());
+
 const syncAiModelsToSettings = () => {
-  if (aiModelConfigs.value.length > 0 && !aiModelConfigs.value.some((model) => model.isDefault)) {
-    aiModelConfigs.value[0].isDefault = true;
+  const persistableModels = getPersistableAiModels();
+  if (persistableModels.length > 0 && !persistableModels.some((model) => model.isDefault)) {
+    persistableModels[0].isDefault = true;
   }
-  settings.value.AI_MODEL_OPTIONS = JSON.stringify(aiModelConfigs.value);
+  settings.value.AI_MODEL_OPTIONS = JSON.stringify(persistableModels);
 
   const defaultModel =
-    aiModelConfigs.value.find((model) => model.isDefault) || aiModelConfigs.value[0];
+    persistableModels.find((model) => model.isDefault) || persistableModels[0];
   if (defaultModel) {
     settings.value.AI_PROVIDER = defaultModel.provider;
     settings.value.AI_API_ENDPOINT = defaultModel.endpoint;
@@ -272,9 +286,122 @@ const syncAiModelsToSettings = () => {
   }
 };
 
-const addAiModel = () => {
-  aiModelConfigs.value.push(createAiModelConfig());
+const markAiModelPending = (id: string) => {
+  if (!pendingModelFamilyIds.value.includes(id)) {
+    pendingModelFamilyIds.value.push(id);
+  }
+};
+
+const addAiModel = (provider = 'CUSTOM') => {
+  const model = createAiModelConfig(provider);
+  aiModelConfigs.value.push(model);
+  markAiModelPending(model.id);
+  expandedModelId.value = model.id;
   syncAiModelsToSettings();
+};
+
+const expandModelNameLines = (
+  model: AiModelConfig,
+  options: { markNewAsPending?: boolean; showMessage?: boolean } = {},
+) => {
+  const modelNames = parseModelNameLines(model.modelName);
+  const addedIds: string[] = [];
+  const markNewAsPending = options.markNewAsPending ?? isPendingAiModel(model.id);
+  const showMessage = options.showMessage ?? true;
+
+  if (modelNames.length <= 1) {
+    if (modelNames[0] && model.modelName !== modelNames[0]) {
+      model.modelName = modelNames[0];
+    }
+    return { added: 0, skipped: 0, addedIds };
+  }
+
+  const existing = new Set(
+    aiModelConfigs.value
+      .filter((item) => item.id !== model.id)
+      .map((item) => `${item.provider}::${item.modelName}`.toLowerCase()),
+  );
+  const providerLabel = getProviderMeta(model.provider).label;
+  const originalName = model.name;
+  let added = 0;
+  let skipped = 0;
+
+  modelNames.forEach((modelName, index) => {
+    const key = `${model.provider}::${modelName}`.toLowerCase();
+    if (index === 0) {
+      model.modelName = modelName;
+      existing.add(key);
+      return;
+    }
+    if (existing.has(key)) {
+      skipped += 1;
+      return;
+    }
+    existing.add(key);
+    const newModelId = `model_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    aiModelConfigs.value.push({
+      ...JSON.parse(JSON.stringify(model)),
+      id: newModelId,
+      name: `${providerLabel} ${modelName}`,
+      modelName,
+      isDefault: false,
+      showAdvanced: false,
+    });
+    addedIds.push(newModelId);
+    if (markNewAsPending) {
+      markAiModelPending(newModelId);
+    }
+    added += 1;
+  });
+
+  if (!originalName || originalName === model.modelName || Object.values(aiProviderDefaults).some((item) => item.name === originalName)) {
+    model.name = `${providerLabel} ${model.modelName}`;
+  }
+  syncAiModelsToSettings();
+  if (showMessage && added > 0) {
+    ElMessage.success(t('admin.ai_models_added_from_list', { count: added, skipped }));
+  } else if (showMessage && skipped > 0) {
+    ElMessage.warning(t('admin.ai_models_all_duplicates'));
+  }
+  return { added, skipped, addedIds };
+};
+
+const confirmAiModelFamily = (model: AiModelConfig, options: { silent?: boolean } = {}) => {
+  if (!model.modelName.trim()) {
+    if (!options.silent) ElMessage.warning(t('admin.ai_model_id_required'));
+    return false;
+  }
+  const result = expandModelNameLines(model, { markNewAsPending: false, showMessage: false });
+  const confirmedIds = new Set([model.id, ...result.addedIds]);
+  pendingModelFamilyIds.value = pendingModelFamilyIds.value.filter((id) => !confirmedIds.has(id));
+  syncAiModelsToSettings();
+  if (!options.silent) ElMessage.success(t('admin.ai_model_classified'));
+  return true;
+};
+
+const confirmAllPendingAiModels = () => {
+  const pendingModels = aiModelConfigs.value.filter((model) => isPendingAiModel(model.id));
+  const invalidModel = pendingModels.find((model) => !model.modelName.trim());
+  if (invalidModel) {
+    expandedModelId.value = invalidModel.id;
+    ElMessage.warning(t('admin.ai_pending_model_incomplete'));
+    return false;
+  }
+  return pendingModels.every((model) => confirmAiModelFamily(model, { silent: true }));
+};
+
+const cloneAiModel = (model: AiModelConfig) => {
+  const cloned = {
+    ...JSON.parse(JSON.stringify(model)),
+    id: 'model_' + Math.random().toString(36).substring(2, 10),
+    name: model.name + ' (Copy)',
+    isDefault: false,
+  };
+  aiModelConfigs.value.push(cloned);
+  markAiModelPending(cloned.id);
+  expandedModelId.value = cloned.id;
+  syncAiModelsToSettings();
+  ElMessage.success(t('admin.ai_model_cloned'));
 };
 
 const removeAiModel = async (id: string) => {
@@ -289,6 +416,7 @@ const removeAiModel = async (id: string) => {
     });
     const removed = aiModelConfigs.value.find((model) => model.id === id);
     aiModelConfigs.value = aiModelConfigs.value.filter((model) => model.id !== id);
+    pendingModelFamilyIds.value = pendingModelFamilyIds.value.filter((item) => item !== id);
     if (removed?.isDefault && aiModelConfigs.value[0]) {
       aiModelConfigs.value[0].isDefault = true;
     }
@@ -652,6 +780,10 @@ const saveSettings = async () => {
     return ElMessage.warning(t('admin.platform_name_cannot_be'));
   }
 
+  if (!confirmAllPendingAiModels()) {
+    return;
+  }
+
   try {
     isSaving.value = true;
     syncAiModelsToSettings();
@@ -828,6 +960,127 @@ const providerMeta: Record<string, { color: string; bg: string; border: string; 
 };
 
 const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
+
+interface ModelFamilyGroup {
+  key: string;
+  label: string;
+  provider: string;
+  providerLabel: string;
+  models: AiModelConfig[];
+  enabledCount: number;
+  defaultModel?: AiModelConfig;
+  endpointLabel: string;
+  meta: { color: string; bg: string; border: string; label: string; lucideIcon: any };
+}
+
+const modelFamilyMeta: Record<string, { color: string; bg: string; border: string; label: string; lucideIcon: any }> = {
+  [PENDING_MODEL_FAMILY_KEY]: { color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.25)', label: t('admin.ai_pending_configuration'), lucideIcon: Sliders },
+  agnes: { color: '#0891b2', bg: 'rgba(8,145,178,0.08)', border: 'rgba(8,145,178,0.25)', label: 'Agnes', lucideIcon: Sparkles },
+  gemini: providerMeta.GEMINI,
+  deepseek: providerMeta.DEEPSEEK,
+  qwen: providerMeta.QWEN,
+  openai: providerMeta.OPENAI,
+  gpt: providerMeta.OPENAI,
+  skywork: { color: '#4f46e5', bg: 'rgba(79,70,229,0.08)', border: 'rgba(79,70,229,0.25)', label: 'Skywork', lucideIcon: Cpu },
+  llama: { color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', label: 'Llama', lucideIcon: Database },
+  claude: { color: '#d97706', bg: 'rgba(217,119,6,0.08)', border: 'rgba(217,119,6,0.25)', label: 'Claude', lucideIcon: Sparkles },
+  mistral: { color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.25)', label: 'Mistral', lucideIcon: Cpu },
+  gemma: { color: '#db2777', bg: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.25)', label: 'Gemma', lucideIcon: Sparkles },
+};
+
+const modelFamilyPalette = [
+  { color: '#0f766e', bg: 'rgba(15,118,110,0.08)', border: 'rgba(15,118,110,0.25)' },
+  { color: '#4338ca', bg: 'rgba(67,56,202,0.08)', border: 'rgba(67,56,202,0.25)' },
+  { color: '#be123c', bg: 'rgba(190,18,60,0.08)', border: 'rgba(190,18,60,0.25)' },
+  { color: '#9333ea', bg: 'rgba(147,51,234,0.08)', border: 'rgba(147,51,234,0.25)' },
+  { color: '#ca8a04', bg: 'rgba(202,138,4,0.08)', border: 'rgba(202,138,4,0.25)' },
+];
+
+const getDominantProvider = (models: AiModelConfig[]) => {
+  const counts = new Map<string, number>();
+  models.forEach((model) => counts.set(model.provider, (counts.get(model.provider) || 0) + 1));
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'CUSTOM';
+};
+
+const getModelFamilyMeta = (key: string) => {
+  if (modelFamilyMeta[key]) return modelFamilyMeta[key];
+  const hash = Array.from(key).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const palette = modelFamilyPalette[hash % modelFamilyPalette.length];
+  return {
+    ...palette,
+    label: titleCaseModelFamily(key) || 'Custom',
+    lucideIcon: Cpu,
+  };
+};
+
+const collapsedModelFamilyGroups = ref<string[]>([]);
+
+const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
+  const groups = new Map<string, AiModelConfig[]>();
+
+  aiModelConfigs.value.forEach((model) => {
+    const familyKey = inferModelFamilyKey(model, { isPending: isPendingAiModel(model.id) });
+    if (!groups.has(familyKey)) groups.set(familyKey, []);
+    groups.get(familyKey)!.push(model);
+  });
+
+  return Array.from(groups.entries())
+    .map(([key, models]) => {
+      const endpoints = Array.from(new Set(models.map((model) => model.endpoint).filter(Boolean)));
+      const enabledCount = models.filter((model) => model.enabled).length;
+      const defaultModel = models.find((model) => model.isDefault);
+      const provider = getDominantProvider(models);
+      const providers = Array.from(new Set(models.map((model) => getProviderMeta(model.provider).label)));
+      const meta = getModelFamilyMeta(key);
+      return {
+        key,
+        label: meta.label,
+        provider,
+        providerLabel: providers.join(' / '),
+        models,
+        enabledCount,
+        defaultModel,
+        meta,
+        endpointLabel: endpoints.length === 0 ? t('admin.ai_endpoint_not_configured') : endpoints.length === 1 ? endpoints[0] : t('admin.ai_endpoint_count', { count: endpoints.length }),
+      };
+    })
+    .sort((a, b) => {
+      if (a.key === PENDING_MODEL_FAMILY_KEY) return -1;
+      if (b.key === PENDING_MODEL_FAMILY_KEY) return 1;
+      return a.label.localeCompare(b.label);
+    });
+});
+
+const isModelFamilyGroupCollapsed = (key: string) =>
+  collapsedModelFamilyGroups.value.includes(key);
+
+const toggleModelFamilyGroup = (key: string) => {
+  if (isModelFamilyGroupCollapsed(key)) {
+    collapsedModelFamilyGroups.value = collapsedModelFamilyGroups.value.filter((item) => item !== key);
+  } else {
+    collapsedModelFamilyGroups.value.push(key);
+  }
+};
+
+const addAiModelToFamily = (group: ModelFamilyGroup) => {
+  const source = group.models[0];
+  const model = createAiModelConfig(group.provider);
+  if (source) {
+    model.provider = source.provider;
+    model.endpoint = source.endpoint;
+    model.apiKey = source.apiKey;
+    model.capabilities = [...source.capabilities];
+    model.temperature = source.temperature;
+    model.maxTokens = source.maxTokens;
+    model.systemPrompt = source.systemPrompt;
+  }
+  model.name = `${group.label} Model`;
+  model.modelName = '';
+  aiModelConfigs.value.push(model);
+  markAiModelPending(model.id);
+  expandedModelId.value = model.id;
+  syncAiModelsToSettings();
+};
 const testAi = async (model?: AiModelConfig) => {
   const provider = model?.provider || settings.value.AI_PROVIDER;
   const apiKey = model?.apiKey || settings.value.AI_API_KEY;
@@ -2415,309 +2668,398 @@ type="button"
                   type="button"
                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200"
                   style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; box-shadow: 0 2px 12px rgba(99,102,241,0.35);"
-                  @click="addAiModel"
+                  @click="addAiModel()"
                 >
                   <Plus class="w-3.5 h-3.5" />
                   <span>{{ $t('admin.add_model') }}</span>
                 </button>
               </div>
 
-              <!-- Model Cards -->
-              <div class="space-y-3">
-                <div
-                  v-for="(model, index) in aiModelConfigs"
-                  :key="model.id"
-                  :draggable="isDraggable"
-                  class="rounded-2xl border overflow-hidden transition-all duration-300"
-                  :class="{ 'opacity-50 border-indigo-400 scale-[0.99]': dragIndex === index }"
-                  :style="model.isDefault
-                    ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
-                    : 'border-color: var(--border-base); background-color: var(--bg-card);'"
-                  @dragstart="handleDragStart($event, index)"
-                  @dragover.prevent
-                  @drop="handleDrop($event, index)"
-                  @dragend="handleDragEnd"
+              <!-- Model Family Groups -->
+              <div v-if="modelFamilyGroups.length > 0" class="space-y-4">
+                <section
+                  v-for="group in modelFamilyGroups"
+                  :key="group.key"
+                  class="rounded-2xl border overflow-hidden"
+                  :style="`border-color: ${group.meta.border}; background: var(--bg-card);`"
                 >
-                  <!-- Card Header -->
-                  <div
-                    class="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none transition-colors duration-200"
-                    :style="expandedModelId === model.id ? 'background: var(--bg-app);' : ''"
-                    @click="toggleModelExpand(model.id)"
-                  >
-                    <!-- Drag handle -->
-                    <div
-                      class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0"
-                      :title="$t('admin.drag_and_drop_to')"
-                      @mouseenter="isDraggable = true"
-                      @mouseleave="isDraggable = false"
-                      @click.stop
-                    >
-                      <GripVertical class="w-3.5 h-3.5 text-slate-400" />
-                    </div>
-
-                    <div
-                      class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
-                      :style="`background: ${getProviderMeta(model.provider).bg}; border: 1px solid ${getProviderMeta(model.provider).border};`"
-                    >
-                      <component
-                        :is="getProviderMeta(model.provider).lucideIcon"
-                        class="w-4.5 h-4.5"
-                        :style="`color: ${getProviderMeta(model.provider).color};`"
-                      />
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ model.name || model.modelName || $t('admin.unnamed_model') }}</span>
-                        <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">{{ $t('admin.default') }}</span>
-                        <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.disabled') }}</span>
-                      </div>
-                      <div class="flex items-center gap-1.5 mt-0.5">
-                        <span
-                          class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                          :style="`background: ${getProviderMeta(model.provider).bg}; color: ${getProviderMeta(model.provider).color};`"
-                        >{{ getProviderMeta(model.provider).label }}</span>
-                        <span class="text-[10px] font-mono" style="color: var(--text-muted);">{{ model.modelName }}</span>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 flex-shrink-0" @click.stop>
-                      <el-switch v-model="model.enabled" size="small" style="--el-switch-on-color: #6366f1;" />
-
-                      <button
-                        type="button"
-                        class="w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200"
-                        :style="model.isDefault
-                          ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
-                          : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'"
-                        :title="model.isDefault ? $t('admin.current_default_model') : $t('admin.set_as_default_model')"
-                        @click="setDefaultAiModel(model.id)"
-                      >
-                        <Star class="w-3.5 h-3.5" :class="model.isDefault ? 'fill-current' : ''" />
-                      </button>
-
-                      <button
-                        type="button"
-                        :disabled="isTestingAi && testingAiModelId === model.id"
-                        class="h-7 px-2.5 rounded-lg flex items-center gap-1 text-[10px] font-bold border transition-all duration-200 disabled:opacity-50"
-                        style="border-color: rgba(99,102,241,0.25); color: #6366f1; background: rgba(99,102,241,0.05);"
-                        @click="testAi(model)"
-                      >
-                        <RefreshCw
-                          class="w-3 h-3"
-                          :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
-                        />
-                        <span>{{ (isTestingAi && testingAiModelId === model.id) ? $t('admin.testing') : $t('admin.test_connection') }}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500"
-                        style="color: var(--text-muted);"
-                        :title="$t('admin.delete_model')"
-                        @click="removeAiModel(model.id)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-
-                      <div
-                        class="w-5 h-5 flex items-center justify-center transition-transform duration-300"
-                        :class="expandedModelId === model.id ? 'rotate-180' : ''"
-                        style="color: var(--text-muted);"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-4 h-4"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Expandable Body -->
-                  <div v-show="expandedModelId === model.id">
-                    <div class="px-4 pb-5 pt-4 space-y-4" style="border-top: 1px solid var(--border-base);">
-                      <!-- Provider chips -->
-                      <div class="space-y-2">
-                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.ai_provider') }}</label>
-                        <div class="flex flex-wrap gap-2">
-                          <button
-                            v-for="(meta, key) in providerMeta"
-                            :key="key"
-                            type="button"
-                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all duration-200"
-                            :style="model.provider === key
-                              ? `background: ${meta.bg}; border-color: ${meta.border}; color: ${meta.color};`
-                              : 'background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary);'"
-                            @click="model.provider = key; handleAiProviderChange(model)"
-                          >
-                            <component
-                              :is="meta.lucideIcon"
-                              class="w-3.5 h-3.5"
-                              :style="model.provider === key ? `color: ${meta.color};` : 'color: var(--text-muted);'"
-                            />
-                            <span>{{ meta.label }}</span>
-                          </button>
+                  <header class="px-4 py-4 border-b" style="border-color: var(--border-base); background: var(--bg-app);">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div class="flex items-start gap-3 min-w-0">
+                        <div
+                          class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+                          :style="`background: ${group.meta.bg}; border: 1px solid ${group.meta.border}; color: ${group.meta.color};`"
+                        >
+                          <component :is="group.meta.lucideIcon" class="w-5 h-5" />
+                        </div>
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <h4 class="text-sm font-black" style="color: var(--text-primary);">{{ group.label }}</h4>
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold" :style="`background: ${group.meta.bg}; color: ${group.meta.color};`">{{ $t('admin.ai_model_count', { count: group.models.length }) }}</span>
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold" style="background: rgba(99,102,241,0.1); color: #6366f1;">{{ $t('admin.ai_model_enabled_count', { count: group.enabledCount }) }}</span>
+                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold" style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border-base);">{{ group.providerLabel }}</span>
+                          </div>
+                          <div class="flex flex-wrap items-center gap-3 mt-1.5 text-[10px]" style="color: var(--text-muted);">
+                            <span class="font-mono truncate max-w-[360px]">{{ group.endpointLabel }}</span>
+                            <span v-if="group.defaultModel" class="font-bold text-amber-600 dark:text-amber-400">{{ $t('admin.ai_default_model_named', { name: group.defaultModel.name || group.defaultModel.modelName }) }}</span>
+                            <span v-else>{{ $t('admin.ai_no_default_model') }}</span>
+                          </div>
                         </div>
                       </div>
 
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.display_name') }}</label>
-                          <input
-                            v-model="model.name"
-                            type="text"
-                            :placeholder="$t('admin.for_example_deepseek_chat_1')"
-                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                          />
-                        </div>
-                        <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.model_id') }}</label>
-                          <input
-                            v-model="model.modelName"
-                            type="text"
-                            :placeholder="$t('admin.for_example_deepseek_chat')"
-                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                          />
-                        </div>
-                      </div>
-
-                      <div class="space-y-1.5">
-                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Endpoint</label>
-                        <div class="relative">
-                          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black select-none" style="color: var(--text-muted);">URL</span>
-                          <input
-                            v-model="model.endpoint"
-                            type="text"
-                            :placeholder="$t('admin.for_example_https_api')"
-                            class="w-full pl-10 pr-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                          />
-                        </div>
-                      </div>
-
-                      <div v-if="model.provider !== 'OLLAMA'" class="space-y-1.5">
-                        <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Key <span class="ml-1 text-[10px] font-normal normal-case" style="color: var(--text-muted);">{{ $t('admin.only_exists_on_the') }}</span></label>
-                        <div class="relative">
-                          <input
-                            v-model="model.apiKey"
-                            :type="showPassword ? 'text' : 'password'"
-                            placeholder="sk-..."
-                            class="w-full px-3 py-2.5 pr-10 rounded-xl border text-xs outline-none font-mono transition-colors"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                          />
-                          <button
-                            type="button"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-indigo-500"
-                            style="color: var(--text-muted);"
-                            @click="showPassword = !showPassword"
-                          >
-                            <Eye v-if="!showPassword" class="w-4 h-4" />
-                            <EyeOff v-else class="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.capability_label') }} <span class="font-normal normal-case">{{ $t('admin.comma_separated') }}</span></label>
-                          <input
-                            :value="model.capabilities.join(', ')"
-                            type="text"
-                            placeholder="chat, vision, code"
-                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                            @input="updateAiModelCapabilities(model, $event)"
-                          />
-                        </div>
-                        <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.description_1') }}</label>
-                          <input
-                            v-model="model.description"
-                            type="text"
-                            :placeholder="$t('admin.for_example_suitable_for')"
-                            class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                          />
-                        </div>
-                      </div>
-
-                      <div v-if="model.provider === 'OLLAMA'" class="flex items-start gap-2 p-3 rounded-xl" style="background: rgba(124,58,237,0.06); border: 1px dashed rgba(124,58,237,0.25);">
-                        <span class="text-sm mt-0.5">🦙</span>
-                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">{{ $t('admin.ollama_local_models_do_1') }} <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code> {{ $t('admin.download') }}</p>
-                      </div>
-
-                      <!-- Advanced settings toggle button -->
-                      <div class="pt-2 border-t" style="border-color: var(--border-base);">
+                      <div class="flex items-center gap-2 shrink-0">
                         <button
                           type="button"
-                          class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-indigo-500 hover:text-indigo-600 transition-colors"
-                          @click="model.showAdvanced = !model.showAdvanced"
+                          class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
+                          :style="`border-color: ${group.meta.border}; color: ${group.meta.color}; background: ${group.meta.bg};`"
+                          @click="addAiModelToFamily(group)"
                         >
-                          <Sliders class="w-3.5 h-3.5" />
-                          <span>{{ model.showAdvanced ? $t('admin.hide_advanced_parameters') : $t('admin.expand_advanced_parameter_settings') }}</span>
+                          <Plus class="w-3.5 h-3.5" />
+                          <span>{{ $t('admin.ai_add_family_model', { family: group.label }) }}</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-200"
+                          style="border-color: var(--border-base); color: var(--text-muted); background: var(--bg-card);"
+                          :title="isModelFamilyGroupCollapsed(group.key) ? $t('admin.expand_group') : $t('admin.collapse_group')"
+                          @click="toggleModelFamilyGroup(group.key)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            class="w-4 h-4 transition-transform"
+                            :class="isModelFamilyGroupCollapsed(group.key) ? '-rotate-90' : ''"
+                          ><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </button>
                       </div>
+                    </div>
+                  </header>
 
-                      <!-- Advanced parameters configuration panel -->
+                  <div v-show="!isModelFamilyGroupCollapsed(group.key)" class="space-y-2 p-3">
+                    <div
+                      v-for="model in group.models"
+                      :key="model.id"
+                      :draggable="isDraggable"
+                      class="rounded-xl border overflow-hidden transition-all duration-300"
+                      :class="{ 'opacity-50 border-indigo-400 scale-[0.99]': dragIndex === aiModelConfigs.findIndex((item) => item.id === model.id) }"
+                      :style="model.isDefault
+                        ? 'border-color: rgba(99,102,241,0.4); background-color: var(--bg-card);'
+                        : 'border-color: var(--border-base); background-color: var(--bg-card);'"
+                      @dragstart="handleDragStart($event, aiModelConfigs.findIndex((item) => item.id === model.id))"
+                      @dragover.prevent
+                      @drop="handleDrop($event, aiModelConfigs.findIndex((item) => item.id === model.id))"
+                      @dragend="handleDragEnd"
+                    >
+                      <!-- Card Header -->
                       <div
-                        v-show="model.showAdvanced"
-                        class="p-4 rounded-xl border border-dashed space-y-4 transition-all duration-300"
-                        style="border-color: var(--border-base); background: rgba(99,102,241,0.02);"
+                        class="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none transition-colors duration-200"
+                        :style="expandedModelId === model.id ? 'background: var(--bg-app);' : ''"
+                        @click="toggleModelExpand(model.id)"
                       >
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <!-- Temperature Slider -->
-                          <div class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between" style="color: var(--text-muted);">
-                              <span>{{ $t('admin.temperature') }}</span>
-                              <span class="text-[10px] font-mono text-indigo-500">{{ $t('admin.current_model_temperature_tofixed', { temp: model.temperature?.toFixed(1) ?? '0.7' }) }}</span>
-                            </label>
-                            <div class="flex items-center gap-3">
-                              <input
-                                v-model.number="model.temperature"
-                                type="range"
-                                min="0"
-                                max="2"
-                                step="0.1"
-                                class="flex-1 accent-indigo-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
-                              />
-                              <span
-                                class="text-xs font-mono font-bold px-2 py-0.5 rounded border select-none"
-                                style="border-color: var(--border-base); color: var(--text-primary); background-color: var(--bg-app);"
+                        <!-- Drag handle -->
+                        <div
+                          class="flex items-center justify-center p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors duration-150 cursor-grab active:cursor-grabbing flex-shrink-0"
+                          :title="$t('admin.drag_and_drop_to')"
+                          @mouseenter="isDraggable = true"
+                          @mouseleave="isDraggable = false"
+                          @click.stop
+                        >
+                          <GripVertical class="w-3.5 h-3.5 text-slate-400" />
+                        </div>
+
+                        <div
+                          class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                          :style="`background: ${getProviderMeta(model.provider).bg}; border: 1px solid ${getProviderMeta(model.provider).border};`"
+                        >
+                          <component
+                            :is="getProviderMeta(model.provider).lucideIcon"
+                            class="w-4.5 h-4.5"
+                            :style="`color: ${getProviderMeta(model.provider).color};`"
+                          />
+                        </div>
+
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-xs font-black truncate" style="color: var(--text-primary);">{{ model.name || model.modelName || $t('admin.unnamed_model') }}</span>
+                            <span v-if="model.isDefault" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(251,191,36,0.12); color: #d97706;">{{ $t('admin.default') }}</span>
+                            <span v-if="!model.enabled" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.disabled') }}</span>
+                            <span v-if="isPendingAiModel(model.id)" class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">{{ $t('admin.ai_pending_configuration') }}</span>
+                          </div>
+                          <div class="flex items-center gap-1.5 mt-0.5">
+                            <span
+                              class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                              :style="`background: ${getProviderMeta(model.provider).bg}; color: ${getProviderMeta(model.provider).color};`"
+                            >{{ getProviderMeta(model.provider).label }}</span>
+                            <span class="text-[10px] font-mono" style="color: var(--text-muted);">{{ model.modelName }}</span>
+                          </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 flex-shrink-0" @click.stop>
+                          <el-switch v-model="model.enabled" size="small" style="--el-switch-on-color: #6366f1;" />
+
+                          <button
+                            type="button"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200"
+                            :style="model.isDefault
+                              ? 'color: #d97706; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3);'
+                              : 'color: var(--text-muted); border-color: var(--border-base); background: transparent;'"
+                            :title="model.isDefault ? $t('admin.current_default_model') : $t('admin.set_as_default_model')"
+                            @click="setDefaultAiModel(model.id)"
+                          >
+                            <Star class="w-3.5 h-3.5" :class="model.isDefault ? 'fill-current' : ''" />
+                          </button>
+
+                          <button
+                            type="button"
+                            :disabled="isTestingAi && testingAiModelId === model.id"
+                            class="h-7 px-2.5 rounded-lg flex items-center gap-1 text-[10px] font-bold border transition-all duration-200 disabled:opacity-50"
+                            style="border-color: rgba(99,102,241,0.25); color: #6366f1; background: rgba(99,102,241,0.05);"
+                            @click="testAi(model)"
+                          >
+                            <RefreshCw
+                              class="w-3 h-3"
+                              :class="isTestingAi && testingAiModelId === model.id ? 'animate-spin' : ''"
+                            />
+                            <span>{{ (isTestingAi && testingAiModelId === model.id) ? $t('admin.testing') : $t('admin.test_connection') }}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-indigo-500/10 hover:text-indigo-500"
+                            style="color: var(--text-muted);"
+                            :title="$t('admin.copy_model')"
+                            @click="cloneAiModel(model)"
+                          >
+                            <Copy class="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500"
+                            style="color: var(--text-muted);"
+                            :title="$t('admin.delete_model')"
+                            @click="removeAiModel(model.id)"
+                          >
+                            <Trash2 class="w-3.5 h-3.5" />
+                          </button>
+
+                          <div
+                            class="w-5 h-5 flex items-center justify-center transition-transform duration-300"
+                            :class="expandedModelId === model.id ? 'rotate-180' : ''"
+                            style="color: var(--text-muted);"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-4 h-4"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Expandable Body -->
+                      <div v-show="expandedModelId === model.id">
+                        <div class="px-4 pb-5 pt-4 space-y-4" style="border-top: 1px solid var(--border-base);">
+                          <!-- Provider chips -->
+                          <div class="space-y-2">
+                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.ai_provider') }}</label>
+                            <div class="flex flex-wrap gap-2">
+                              <button
+                                v-for="(meta, key) in providerMeta"
+                                :key="key"
+                                type="button"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all duration-200"
+                                :style="model.provider === key
+                                  ? `background: ${meta.bg}; border-color: ${meta.border}; color: ${meta.color};`
+                                  : 'background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary);'"
+                                @click="model.provider = key; handleAiProviderChange(model)"
                               >
-                                {{ model.temperature?.toFixed(1) ?? '0.7' }}
-                              </span>
+                                <component
+                                  :is="meta.lucideIcon"
+                                  class="w-3.5 h-3.5"
+                                  :style="model.provider === key ? `color: ${meta.color};` : 'color: var(--text-muted);'"
+                                />
+                                <span>{{ meta.label }}</span>
+                              </button>
                             </div>
                           </div>
 
-                          <!-- Max Tokens -->
-                          <div class="space-y-1.5">
-                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.single_maximum_generation_max') }}</label>
-                            <input
-                              v-model.number="model.maxTokens"
-                              type="number"
-                              min="1"
-                              max="128000"
-                              :placeholder="$t('admin.default_2000')"
-                              class="w-full px-3 py-2 rounded-xl border text-xs outline-none font-mono transition-colors"
-                              style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                            />
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1.5">
+                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.display_name') }}</label>
+                              <input
+                                v-model="model.name"
+                                type="text"
+                                :placeholder="$t('admin.for_example_deepseek_chat_1')"
+                                class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                              />
+                            </div>
+                            <div class="space-y-1.5">
+                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.model_id') }}</label>
+                              <textarea
+                                v-model="model.modelName"
+                                rows="2"
+                                :placeholder="$t('admin.for_example_deepseek_chat')"
+                                class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors resize-y min-h-[42px]"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                @blur="!isPendingAiModel(model.id) && expandModelNameLines(model)"
+                                @change="!isPendingAiModel(model.id) && expandModelNameLines(model)"
+                              ></textarea>
+                              <p class="text-[10px] px-1" style="color: var(--text-muted);">{{ $t('admin.ai_model_id_one_per_line') }}</p>
+                            </div>
                           </div>
-                        </div>
 
-                        <!-- System Prompt -->
-                        <div class="space-y-1.5">
-                          <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.system_prompt') }}</label>
-                          <textarea
-                            v-model="model.systemPrompt"
-                            rows="3"
-                            :placeholder="$t('admin.for_example_you_are')"
-                            class="w-full px-3 py-2 rounded-xl border text-xs outline-none transition-colors resize-none font-sans"
-                            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
-                          ></textarea>
+                          <div class="space-y-1.5">
+                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Endpoint</label>
+                            <div class="relative">
+                              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black select-none" style="color: var(--text-muted);">URL</span>
+                              <input
+                                v-model="model.endpoint"
+                                type="text"
+                                :placeholder="$t('admin.for_example_https_api')"
+                                class="w-full pl-10 pr-3 py-2.5 rounded-xl border text-xs outline-none font-mono transition-colors"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                              />
+                            </div>
+                          </div>
+
+                          <div v-if="model.provider !== 'OLLAMA'" class="space-y-1.5">
+                            <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">API Key <span class="ml-1 text-[10px] font-normal normal-case" style="color: var(--text-muted);">{{ $t('admin.only_exists_on_the') }}</span></label>
+                            <div class="relative">
+                              <input
+                                v-model="model.apiKey"
+                                :type="showPassword ? 'text' : 'password'"
+                                placeholder="sk-..."
+                                class="w-full px-3 py-2.5 pr-10 rounded-xl border text-xs outline-none font-mono transition-colors"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                              />
+                              <button
+                                type="button"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-indigo-500"
+                                style="color: var(--text-muted);"
+                                @click="showPassword = !showPassword"
+                              >
+                                <Eye v-if="!showPassword" class="w-4 h-4" />
+                                <EyeOff v-else class="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1.5">
+                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.capability_label') }} <span class="font-normal normal-case">{{ $t('admin.comma_separated') }}</span></label>
+                              <input
+                                :value="model.capabilities.join(', ')"
+                                type="text"
+                                placeholder="chat, vision, code"
+                                class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                @input="updateAiModelCapabilities(model, $event)"
+                              />
+                            </div>
+                            <div class="space-y-1.5">
+                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.description_1') }}</label>
+                              <input
+                                v-model="model.description"
+                                type="text"
+                                :placeholder="$t('admin.for_example_suitable_for')"
+                                class="w-full px-3 py-2.5 rounded-xl border text-xs outline-none transition-colors"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                              />
+                            </div>
+                          </div>
+
+                          <div v-if="model.provider === 'OLLAMA'" class="flex items-start gap-2 p-3 rounded-xl" style="background: rgba(124,58,237,0.06); border: 1px dashed rgba(124,58,237,0.25);">
+                            <span class="text-[10px] mt-0.5 font-black px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600">LOCAL</span>
+                            <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">{{ $t('admin.ollama_local_models_do_1') }} <code class="font-mono bg-black/10 px-1 rounded">ollama pull</code> {{ $t('admin.download') }}</p>
+                          </div>
+
+                          <!-- Advanced settings toggle button -->
+                          <div class="pt-2 border-t" style="border-color: var(--border-base);">
+                            <button
+                              type="button"
+                              class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-indigo-500 hover:text-indigo-600 transition-colors"
+                              @click="model.showAdvanced = !model.showAdvanced"
+                            >
+                              <Sliders class="w-3.5 h-3.5" />
+                              <span>{{ model.showAdvanced ? $t('admin.hide_advanced_parameters') : $t('admin.expand_advanced_parameter_settings') }}</span>
+                            </button>
+                          </div>
+
+                          <!-- Advanced parameters configuration panel -->
+                          <div
+                            v-show="model.showAdvanced"
+                            class="p-4 rounded-xl border border-dashed space-y-4 transition-all duration-300"
+                            style="border-color: var(--border-base); background: rgba(99,102,241,0.02);"
+                          >
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <!-- Temperature Slider -->
+                              <div class="space-y-1.5">
+                                <label class="text-[11px] font-black uppercase tracking-wider px-1 flex items-center justify-between" style="color: var(--text-muted);">
+                                  <span>{{ $t('admin.temperature') }}</span>
+                                  <span class="text-[10px] font-mono text-indigo-500">{{ $t('admin.current_model_temperature_tofixed', { temp: model.temperature?.toFixed(1) ?? '0.7' }) }}</span>
+                                </label>
+                                <div class="flex items-center gap-3">
+                                  <input
+                                    v-model.number="model.temperature"
+                                    type="range"
+                                    min="0"
+                                    max="2"
+                                    step="0.1"
+                                    class="flex-1 accent-indigo-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                                  />
+                                  <span
+                                    class="text-xs font-mono font-bold px-2 py-0.5 rounded border select-none"
+                                    style="border-color: var(--border-base); color: var(--text-primary); background-color: var(--bg-app);"
+                                  >
+                                    {{ model.temperature?.toFixed(1) ?? '0.7' }}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <!-- Max Tokens -->
+                              <div class="space-y-1.5">
+                                <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.single_maximum_generation_max') }}</label>
+                                <input
+                                  v-model.number="model.maxTokens"
+                                  type="number"
+                                  min="1"
+                                  max="128000"
+                                  :placeholder="$t('admin.default_2000')"
+                                  class="w-full px-3 py-2 rounded-xl border text-xs outline-none font-mono transition-colors"
+                                  style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                                />
+                              </div>
+                            </div>
+
+                            <!-- System Prompt -->
+                            <div class="space-y-1.5">
+                              <label class="text-[11px] font-black uppercase tracking-wider px-1" style="color: var(--text-muted);">{{ $t('admin.system_prompt') }}</label>
+                              <textarea
+                                v-model="model.systemPrompt"
+                                rows="3"
+                                :placeholder="$t('admin.for_example_you_are')"
+                                class="w-full px-3 py-2 rounded-xl border text-xs outline-none transition-colors resize-none font-sans"
+                                style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-primary);"
+                              ></textarea>
+                            </div>
+                          </div>
+
+                          <div v-if="isPendingAiModel(model.id)" class="flex justify-end pt-2 border-t" style="border-color: var(--border-base);">
+                            <button
+                              type="button"
+                              class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200"
+                              style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; box-shadow: 0 2px 12px rgba(99,102,241,0.25);"
+                              @click="confirmAiModelFamily(model)"
+                            >
+                              <Save class="w-3.5 h-3.5" />
+                              <span>{{ $t('admin.ai_confirm_and_classify') }}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
               </div>
 
               <!-- Empty state -->
@@ -2729,7 +3071,7 @@ type="button"
                   type="button"
                   class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
                   style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;"
-                  @click="addAiModel"
+                  @click="addAiModel()"
                 >
                   <Plus class="w-3.5 h-3.5" />
                   <span>{{ $t('admin.add_model') }}</span>
@@ -2801,3 +3143,4 @@ type="button"
   }
 }
 </style>
+

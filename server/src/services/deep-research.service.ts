@@ -878,12 +878,13 @@ export async function buildDeepResearchContext(
     }
   }
 
-  const researchPromises = outline.sections.map(async (section, idx) => {
-    if (!section) return null;
+  for (let idx = 0; idx < outline.sections.length; idx++) {
+    const section = outline.sections[idx];
+    if (!section) continue;
 
     reportProgress(
       onProgress,
-      `[深度研究] [${idx + 1}/${outline.sections.length}] 开始并行研究章节【${section.title}】...`,
+      `[深度研究] [${idx + 1}/${outline.sections.length}] 开始研究章节【${section.title}】...`,
     );
 
     const result = await researchSection(
@@ -896,32 +897,12 @@ export async function buildDeepResearchContext(
       onProgress,
     );
 
-    return {
-      index: idx,
-      title: section.title,
-      draft: result.draft,
-      queriesUsed: result.queriesUsed,
-    };
-  });
-
-  const results = await Promise.all(researchPromises);
-  const activeResults = results.filter((r) => r !== null) as Array<{
-    index: number;
-    title: string;
-    draft: string;
-    queriesUsed: string[];
-  }>;
-
-  // Sort by original index to keep outline structure intact
-  activeResults.sort((a, b) => a.index - b.index);
-
-  for (const r of activeResults) {
-    sectionDrafts.push(`## ${r.title}\n\n${r.draft}`);
-    allQueriesUsed.push(...r.queriesUsed);
+    sectionDrafts.push(`## ${section.title}\n\n${result.draft}`);
+    allQueriesUsed.push(...result.queriesUsed);
   }
 
   // 3. Compile report
-  reportProgress(onProgress, `[深度研究] 正在汇编各章节大纲草稿，梳理全局引用引用源...`);
+  reportProgress(onProgress, `[深度研究] 正在汇编各章节大纲草稿，梳理全局引用源...`);
   const compiledDraftsText = sectionDrafts.join('\n\n');
 
   let synthesisReport: string;

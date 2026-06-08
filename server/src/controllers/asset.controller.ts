@@ -14,6 +14,8 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
 
+const tagSearchCounts: Record<string, number> = {};
+
 export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
@@ -38,7 +40,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       return next(new AppError(storageQuota.message || 'Storage quota exceeded', 403));
     }
 
-    const { title, description, categoryId, formats } = req.body;
+    const { title, description, categoryId, formats, tags } = req.body;
     if (!categoryId) {
       return next(new AppError('Category is required', 400));
     }
@@ -70,6 +72,24 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
+    let parsedTags: string[] = [];
+    if (tags) {
+      if (typeof tags === 'string') {
+        try {
+          const parsed = JSON.parse(tags);
+          if (Array.isArray(parsed)) {
+            parsedTags = parsed;
+          } else {
+            parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+          }
+        } catch {
+          parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+        }
+      } else if (Array.isArray(tags)) {
+        parsedTags = tags;
+      }
+    }
+
     const asset = await prisma.asset.create({
       data: {
         title: title || (assetFile ? assetFile.originalname : 'External Link'),
@@ -82,6 +102,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
         userId,
         teamId: workspaceId,
         formats: parsedFormats ? JSON.stringify(parsedFormats) : null,
+        tags: parsedTags.length > 0 ? JSON.stringify(parsedTags) : null,
       },
       include: { category: true },
     });
@@ -151,7 +172,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
 
 export const updateAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
-  const { title, description, categoryId, formats } = req.body;
+  const { title, description, categoryId, formats, tags } = req.body;
 
   try {
     const existingAsset = await prisma.asset.findFirst({
@@ -176,6 +197,30 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
         }
       }
       updateData.formats = parsedFormats ? JSON.stringify(parsedFormats) : null;
+    }
+    if (tags !== undefined) {
+      let parsedTags: string[] = [];
+      if (tags) {
+        if (typeof tags === 'string') {
+          try {
+            const parsed = JSON.parse(tags);
+            if (Array.isArray(parsed)) {
+              parsedTags = parsed;
+            } else {
+              parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+            }
+          } catch {
+            parsedTags = tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+          }
+        } else if (Array.isArray(tags)) {
+          parsedTags = tags;
+        }
+      }
+      updateData.tags = parsedTags.length > 0 ? JSON.stringify(parsedTags) : null;
+    }
+    if (existingAsset.userId === req.userId && req.user?.role !== 'ADMIN') {
+      updateData.status = 'PENDING';
+      updateData.rejectReason = null;
     }
 
     const asset = await prisma.asset.update({
@@ -205,9 +250,15 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response, next:
   const { vertices, faces, materials, animations, hasAnimations, dimensions } = req.body;
 
   try {
-    // Verify ownership and workspace context
+    // Verify ownership or workspace context
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string, teamId: req.workspaceId },
+      where: {
+        id,
+        OR: [
+          { userId: req.userId as string },
+          { teamId: req.workspaceId }
+        ]
+      },
     });
 
     if (!existingAsset) {
@@ -243,9 +294,15 @@ export const updateAssetThumbnail = async (req: AuthRequest, res: Response, next
   }
 
   try {
-    // Verify ownership and workspace context
+    // Verify ownership or workspace context
     const existingAsset = await prisma.asset.findFirst({
-      where: { id, userId: req.userId as string, teamId: req.workspaceId },
+      where: {
+        id,
+        OR: [
+          { userId: req.userId as string },
+          { teamId: req.workspaceId }
+        ]
+      },
     });
 
     if (!existingAsset) {
@@ -296,7 +353,15 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
       where.categoryId = categoryId;
     }
     if (search) {
-      where.OR = [{ title: { contains: search } }, { description: { contains: search } }];
+      const trimmed = search.trim();
+      if (trimmed) {
+        tagSearchCounts[trimmed] = (tagSearchCounts[trimmed] || 0) + 1;
+      }
+      where.OR = [
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { tags: { contains: search } },
+      ];
     }
 
     let assets: any[];
@@ -373,17 +438,49 @@ export const getAssetById = async (req: AuthRequest, res: Response, next: NextFu
         id,
         OR: [{ teamId: req.workspaceId }, { status: 'APPROVED' }],
       },
-      include: {
-        category: true,
-        user: { select: { name: true, avatarUrl: true } },
-      },
     });
 
     if (!asset) {
       return next(new AppError('Asset not found', 404));
     }
 
-    res.json(asset);
+    // Increment viewCount and retrieve with full relation data
+    const updatedAsset = await prisma.asset.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+      include: {
+        category: true,
+        user: { select: { name: true, avatarUrl: true } },
+      },
+    });
+
+    res.json(updatedAsset);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const recordAssetDownload = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const asset = await prisma.asset.update({
+      where: { id },
+      data: { downloads: { increment: 1 } }
+    });
+    res.json({ message: 'Download recorded', downloads: asset.downloads });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const toggleAssetLike = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const asset = await prisma.asset.update({
+      where: { id },
+      data: { likes: { increment: 1 } }
+    });
+    res.json({ message: 'Like recorded', likes: asset.likes });
   } catch (error) {
     next(error);
   }
@@ -633,6 +730,243 @@ export const adminDeleteAsset = async (req: AuthRequest, res: Response, next: Ne
     });
 
     res.json({ message: 'Asset deleted successfully by admin' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const userId = req.userId as string;
+    const workspaceId = req.workspaceId;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const assetFile = files?.asset?.[0];
+    const { changeLog } = req.body;
+
+    if (!assetFile) {
+      return next(new AppError('No asset file provided for this version', 400));
+    }
+
+    const existingAsset = await prisma.asset.findFirst({
+      where: { id, teamId: workspaceId },
+    });
+
+    if (!existingAsset) {
+      if (fs.existsSync(assetFile.path)) fs.unlinkSync(assetFile.path);
+      return next(new AppError('Asset not found or access denied', 404));
+    }
+
+    const fileSizeMB = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
+    const storageQuota = await checkStorageQuota(userId, fileSizeMB, workspaceId);
+    if (!storageQuota.allowed) {
+      if (fs.existsSync(assetFile.path)) fs.unlinkSync(assetFile.path);
+      return next(new AppError(storageQuota.message || 'Storage quota exceeded', 403));
+    }
+
+    const url = `${req.protocol}://${req.get('host')}/uploads/assets/${assetFile.filename}`;
+    const type = path.extname(assetFile.originalname).slice(1).toUpperCase();
+
+    // Check if same type
+    if (type !== existingAsset.type) {
+      if (fs.existsSync(assetFile.path)) fs.unlinkSync(assetFile.path);
+      return next(new AppError(`File type must match the original asset type (${existingAsset.type})`, 400));
+    }
+
+    // Count versions to set version tag
+    const versionCount = await prisma.assetVersion.count({ where: { assetId: id } });
+    const versionTag = `v${versionCount + 1}`;
+
+    const newVersion = await prisma.assetVersion.create({
+      data: {
+        assetId: id,
+        version: versionTag,
+        url,
+        size: fileSizeMB,
+        changeLog: changeLog || 'Uploaded new version',
+        userId,
+      },
+    });
+
+    res.status(201).json(newVersion);
+
+    // Process 3D metadata in background
+    if (type === 'GLB' || type === 'GLTF') {
+      const fullPath = path.join(__dirname, '../../uploads/assets', assetFile.filename);
+      process3DAsset(fullPath)
+        .then(async (metadata) => {
+          if (metadata) {
+            // Update version metadata
+            await prisma.assetVersion.update({
+              where: { id: newVersion.id },
+              data: { ...metadata },
+            });
+            // Update parent asset to latest version info
+            await prisma.asset.update({
+              where: { id },
+              data: {
+                url, // Update active url
+                size: fileSizeMB,
+                ...metadata,
+              },
+            });
+            logger.info(`[AssetProcessor] Background processing completed for asset version: ${newVersion.id}`);
+          }
+        })
+        .catch((err) => {
+          logger.error(`[AssetProcessor] Background processing failed for asset version: ${newVersion.id}`, err);
+        });
+    } else {
+      // Non-3D asset, just update active url and size
+      await prisma.asset.update({
+        where: { id },
+        data: { url, size: fileSizeMB },
+      });
+    }
+
+    await auditService.log({
+      userId,
+      action: AuditAction.UPDATE_ASSET,
+      module: AuditModule.ASSET,
+      description: `Uploaded version ${versionTag} for asset: ${existingAsset.title}`,
+      newValue: newVersion,
+      req,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAssetVersions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const versions = await prisma.assetVersion.findMany({
+      where: { assetId: id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true, avatarUrl: true } },
+      },
+    });
+    res.json(versions);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createAssetAnnotation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  const { content, x, y, z, cameraPos, cameraTarget } = req.body;
+
+  if (!content) {
+    return next(new AppError('Comment content is required', 400));
+  }
+
+  try {
+    const existingAsset = await prisma.asset.findUnique({ where: { id } });
+    if (!existingAsset) {
+      return next(new AppError('Asset not found', 404));
+    }
+
+    const annotation = await prisma.assetAnnotation.create({
+      data: {
+        assetId: id,
+        userId: req.userId as string,
+        content,
+        x: parseFloat(x),
+        y: parseFloat(y),
+        z: parseFloat(z),
+        cameraPos: cameraPos ? JSON.stringify(cameraPos) : null,
+        cameraTarget: cameraTarget ? JSON.stringify(cameraTarget) : null,
+      },
+      include: {
+        user: { select: { name: true, avatarUrl: true } },
+      },
+    });
+
+    res.status(201).json(annotation);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAssetAnnotations = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const annotations = await prisma.assetAnnotation.findMany({
+      where: { assetId: id },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: { select: { name: true, avatarUrl: true } },
+      },
+    });
+    res.json(annotations);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteAssetAnnotation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const annotationId = req.params.annotationId as string;
+  try {
+    const annotation = await prisma.assetAnnotation.findUnique({
+      where: { id: annotationId },
+    });
+
+    if (!annotation) {
+      return next(new AppError('Annotation not found', 404));
+    }
+
+    // Owner or admin check
+    if (annotation.userId !== req.userId && req.user?.role !== 'ADMIN') {
+      return next(new AppError('Not authorized to delete this annotation', 403));
+    }
+
+    await prisma.assetAnnotation.delete({
+      where: { id: annotationId },
+    });
+
+    res.json({ message: 'Annotation deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAssetTags = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const assets = await prisma.asset.findMany({
+      where: { status: 'APPROVED' },
+      select: { tags: true }
+    });
+    const tagUsageCounts: Record<string, number> = {};
+    assets.forEach(asset => {
+      if (asset.tags) {
+        try {
+          const tags = JSON.parse(asset.tags);
+          if (Array.isArray(tags)) {
+            tags.forEach(tag => {
+              const trimmed = tag.trim();
+              if (trimmed) {
+                tagUsageCounts[trimmed] = (tagUsageCounts[trimmed] || 0) + 1;
+              }
+            });
+          }
+        } catch (e) {}
+      }
+    });
+
+    const allTags = Array.from(new Set([...Object.keys(tagUsageCounts), ...Object.keys(tagSearchCounts)]));
+    const result = allTags.map(tag => {
+      return {
+        label: tag,
+        count: tagUsageCounts[tag] || 0,
+        searchCount: tagSearchCounts[tag] || 0
+      };
+    });
+
+    // Sort by searchCount descending, then count descending
+    result.sort((a, b) => b.searchCount - a.searchCount || b.count - a.count);
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

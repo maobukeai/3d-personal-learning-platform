@@ -25,6 +25,7 @@ import {
   Layers,
   Edit,
   FolderCog,
+  Puzzle,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
@@ -47,6 +48,7 @@ interface AuditItem {
     id: string;
     name: string;
     avatar?: string;
+    avatarUrl?: string;
     email?: string;
   };
   thumbnail?: string;
@@ -59,6 +61,9 @@ interface AuditItem {
   comments?: number;
   size?: number;
   resolution?: string;
+  // Plugin-specific
+  version?: string;
+  compatibility?: string;
 }
 
 interface PageConfigType {
@@ -83,14 +88,14 @@ const route = useRoute();
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
 
-const getValidTab = (tab: unknown): 'assets' | 'materials' | 'showcases' => {
-  if (tab === 'assets' || tab === 'materials' || tab === 'showcases') {
+const getValidTab = (tab: unknown): 'assets' | 'materials' | 'showcases' | 'plugins' => {
+  if (tab === 'assets' || tab === 'materials' || tab === 'showcases' || tab === 'plugins') {
     return tab;
   }
   return 'assets';
 };
 
-const activeTab = ref<'assets' | 'materials' | 'showcases'>(
+const activeTab = ref<'assets' | 'materials' | 'showcases' | 'plugins'>(
   getValidTab(route.query.tab || route.meta.auditType)
 );
 
@@ -126,6 +131,22 @@ const pageConfig = computed<PageConfigType>(() => {
         t('admin.there_are_obvious_seams'),
         t('admin.the_copyright_ownership_of'),
         t('admin.parameter_settings_are_unreasonable'),
+      ],
+    };
+  } else if (activeTab.value === 'plugins') {
+    return {
+      title: '插件库审核中心',
+      desc: '审核用户提交的插件资源',
+      apiPath: '/api/admin/plugins',
+      icon: Puzzle,
+      itemTypeLabel: (item: AuditItem) => item.category || '插件',
+      itemIcon: (_item: AuditItem) => Puzzle,
+      commonReasons: [
+        '插件功能描述不完整',
+        '缺少安装说明',
+        '文件格式不符合要求',
+        '版权归属不明或存在问题',
+        '插件与平台主题无关',
       ],
     };
   } else {
@@ -394,7 +415,7 @@ const handleUpdate = async () => {
     } else if (activeTab.value === 'materials') {
       payload.category = editForm.value.category;
       payload.tags = editForm.value.tags;
-    } else if (activeTab.value === 'showcases') {
+    } else if (activeTab.value === 'showcases' || activeTab.value === 'plugins') {
       payload.description = editForm.value.description;
       payload.tags = editForm.value.tags;
     }
@@ -461,6 +482,7 @@ watch(
 const moderationTabs = computed(() => [
   { id: 'assets' as const, name: t('admin.3d_asset_review'), icon: Box, badge: workspaceStore.adminStats.pendingAssets },
   { id: 'materials' as const, name: t('admin.material_material_review'), icon: Layers, badge: workspaceStore.adminStats.pendingMaterials },
+  { id: 'plugins' as const, name: '插件库审核', icon: Puzzle, badge: 0 },
   { id: 'showcases' as const, name: t('admin.work_content_review'), icon: Sparkles, badge: workspaceStore.adminStats.pendingShowcases }
 ]);
 

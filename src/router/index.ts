@@ -148,6 +148,11 @@ const router = createRouter({
               component: () => import('@/views/Assets/MaterialsView.vue'),
             },
             {
+              path: 'plugins',
+              name: 'Plugins',
+              component: () => import('@/views/Assets/PluginsView.vue'),
+            },
+            {
               path: 'messages',
               name: 'Messages',
               component: () => import('@/views/Community/MessagesView.vue'),

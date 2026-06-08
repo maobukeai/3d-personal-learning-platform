@@ -8,6 +8,8 @@ import {
   Color,
   DirectionalLight,
   EquirectangularReflectionMapping,
+  LineBasicMaterial,
+  LineSegments,
   LoadingManager,
   Mesh,
   MeshStandardMaterial,
@@ -20,6 +22,7 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  WireframeGeometry,
   type AnimationAction,
   type Material,
   type Object3D,
@@ -72,12 +75,12 @@ const emit = defineEmits(['metadata-loaded', 'screenshot-captured', 'hotspot-add
 
 const envMaps: Record<string, string> = {
   sunset:
-    'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/venice_sunset_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/venice_sunset_1k.hdr',
   studio:
-    'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/royal_esplanade_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/royal_esplanade_1k.hdr',
   forest:
-    'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/pedestrian_overpass_1k.hdr',
-  room: 'https://cdn.jsdelivr.net/gh/mrdoob/js@r140/examples/textures/equirectangular/quarry_01_1k.hdr',
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/pedestrian_overpass_1k.hdr',
+  room: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r140/examples/textures/equirectangular/quarry_01_1k.hdr',
 };
 
 const container = ref<HTMLElement | null>(null);
@@ -109,6 +112,7 @@ const stats = ref({
   materials: 0,
   animations: 0,
   dimensions: '',
+  maxTextureRes: 0,
 });
 
 let scene: Scene;
@@ -119,7 +123,6 @@ let animationId: number;
 let mixer: AnimationMixer | null = null;
 let lastTime = 0;
 let loadedModel: Object3D | null = null;
-let wireframeOverlay: Object3D | null = null;
 let currentActions: AnimationAction[] = [];
 let ambientLight: AmbientLight;
 let directionalLight: DirectionalLight;
@@ -460,11 +463,7 @@ const loadModel = async (url: string) => {
     disposeHierarchy(loadedModel);
     scene.remove(loadedModel);
     loadedModel = null;
-    if (wireframeOverlay) {
-      disposeHierarchy(wireframeOverlay);
-      scene.remove(wireframeOverlay);
-      wireframeOverlay = null;
-    }
+    removeBlenderWireOverlay();
     if (mixer) {
       mixer.stopAllAction();
       mixer = null;
@@ -598,17 +597,82 @@ const loadModel = async (url: string) => {
   }
 };
 
-const applyViewMode = () => {
-  if (wireframeOverlay) {
-    scene.remove(wireframeOverlay);
-    wireframeOverlay = null;
-  }
-  if (!loadedModel) return;
-  loadedModel.traverse((child) => {
-    if (child instanceof Mesh) {
-      child.material.wireframe = viewMode.value === 'wireframe';
+const disposeOverlayObject = (object: Object3D) => {
+  object.traverse((child) => {
+    if (child instanceof LineSegments) {
+      child.geometry.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => material.dispose());
+      } else {
+        child.material.dispose();
+      }
     }
   });
+};
+
+const removeBlenderWireOverlay = () => {
+  if (!loadedModel) return;
+
+  const overlays: Object3D[] = [];
+  loadedModel.traverse((child) => {
+    if (child.userData?.isBlenderWireOverlay) {
+      overlays.push(child);
+    }
+  });
+
+  overlays.forEach((overlay) => {
+    disposeOverlayObject(overlay);
+    overlay.parent?.remove(overlay);
+  });
+};
+
+const setMaterialWireframe = (mesh: Mesh, enabled: boolean) => {
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  materials.forEach((material) => {
+    if ('wireframe' in material) {
+      (material as MeshStandardMaterial).wireframe = enabled;
+    }
+  });
+};
+
+const createBlenderWireOverlay = () => {
+  if (!loadedModel) return;
+
+  loadedModel.traverse((child) => {
+    if (!(child instanceof Mesh) || child.userData?.isBlenderWireOverlay) return;
+    if (!child.geometry?.attributes?.position) return;
+
+    const wireGeometry = new WireframeGeometry(child.geometry);
+    const wireMaterial = new LineBasicMaterial({
+      color: 0xb8c7de,
+      transparent: true,
+      opacity: 0.68,
+      depthTest: true,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const wire = new LineSegments(wireGeometry, wireMaterial);
+    wire.name = 'BlenderStyleWireOverlay';
+    wire.userData.isBlenderWireOverlay = true;
+    wire.renderOrder = 3;
+    wire.scale.setScalar(1.0015);
+    child.add(wire);
+  });
+};
+
+const applyViewMode = () => {
+  removeBlenderWireOverlay();
+  if (!loadedModel) return;
+
+  loadedModel.traverse((child) => {
+    if (child instanceof Mesh) {
+      setMaterialWireframe(child, false);
+    }
+  });
+
+  if (viewMode.value === 'wireframe' || viewMode.value === 'solid+wireframe') {
+    createBlenderWireOverlay();
+  }
 };
 
 const setViewMode = (mode: ViewMode) => {
@@ -645,20 +709,46 @@ const toggleClayMode = () => {
 const calculateStats = (model: Object3D, animCount: number = 0) => {
   let vCount = 0;
   let fCount = 0;
+  let maxTextureRes = 0;
+  const materialIds = new Set<string>();
+
   model.traverse((child) => {
     if (child instanceof Mesh) {
       vCount += child.geometry.attributes.position.count;
       fCount += child.geometry.index
         ? child.geometry.index.count / 3
         : child.geometry.attributes.position.count / 3;
+
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        if (!material) return;
+        materialIds.add(material.uuid);
+
+        Object.keys(material).forEach((key) => {
+          const value = (material as any)[key];
+          if (value && typeof value === 'object' && value.isTexture && value.image) {
+            const width = value.image.width || value.image.videoWidth || 0;
+            const height = value.image.height || value.image.videoHeight || 0;
+            maxTextureRes = Math.max(maxTextureRes, width, height);
+          }
+        });
+      });
     }
   });
+
+  const box = new Box3().setFromObject(model);
+  const size = box.getSize(new Vector3());
+  const dimensions = [size.x, size.y, size.z]
+    .map((value) => (Number.isFinite(value) ? value.toFixed(2) : '0.00'))
+    .join(' x ');
+
   stats.value = {
     vertices: vCount,
     faces: Math.round(fCount),
-    materials: 0,
+    materials: materialIds.size,
     animations: animCount,
-    dimensions: '',
+    dimensions,
+    maxTextureRes,
   };
   emit('metadata-loaded', stats.value);
 };
@@ -776,10 +866,7 @@ onUnmounted(() => {
     disposeHierarchy(loadedModel);
     loadedModel = null;
   }
-  if (wireframeOverlay) {
-    disposeHierarchy(wireframeOverlay);
-    wireframeOverlay = null;
-  }
+  removeBlenderWireOverlay();
   if (controls) {
     controls.dispose();
   }
@@ -815,7 +902,18 @@ watch(
   { deep: true },
 );
 
-defineExpose({ getCameraState, flyTo, isFullscreen, handleCanvasClick, setViewMode, togglePause, isClayMode, toggleClayMode });
+defineExpose({
+  getCameraState,
+  flyTo,
+  isFullscreen,
+  handleCanvasClick,
+  setViewMode,
+  togglePause,
+  isClayMode,
+  toggleClayMode,
+  resetCamera,
+  takeScreenshot,
+});
 </script>
 
 <template>

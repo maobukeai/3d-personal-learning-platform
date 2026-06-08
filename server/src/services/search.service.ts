@@ -835,10 +835,7 @@ export async function performWebSearch(
     return results.slice(0, mergedOptions.maxResults);
   }
 
-  const candidateResults = results.slice(
-    0,
-    Math.max(mergedOptions.maxResults * 2, mergedOptions.maxResults),
-  );
+  const candidateResults = results.slice(0, mergedOptions.maxResults * 2);
 
   await Promise.allSettled(
     candidateResults

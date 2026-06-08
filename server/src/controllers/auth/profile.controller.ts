@@ -855,3 +855,38 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
     next(error);
   }
 };
+
+export const getLeaderboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const topUsers = await prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        points: true,
+      },
+      orderBy: {
+        points: 'desc',
+      },
+      take: 10,
+    });
+
+    const leaderboardData = topUsers.map((user, index) => ({
+      id: user.id,
+      name: user.name || user.email.split('@')[0],
+      avatarUrl: user.avatarUrl,
+      score: user.points,
+      rank: index + 1,
+    }));
+
+    res.json(leaderboardData);
+  } catch (error) {
+    logger.error('[Auth] Get leaderboard error:', error);
+    next(error);
+  }
+};
+

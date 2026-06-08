@@ -322,6 +322,9 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
     if (isVideo !== undefined) updateData.isVideo = isVideo === 'true';
     if (type !== undefined) updateData.type = type;
+    if (showcase.userId === req.userId && req.user?.role !== 'ADMIN') {
+      updateData.status = 'PENDING';
+    }
     if (thumbnailFile) {
       // Delete old thumbnail
       if (showcase.thumbnailUrl) deleteFileByUrl(showcase.thumbnailUrl);

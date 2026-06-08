@@ -12,6 +12,7 @@ export interface AssetMetadata {
   animations: number;
   hasAnimations: boolean;
   dimensions: string;
+  maxTextureRes: number;
 }
 
 // CPU-bound calculations offloaded to Worker (asynchronous read)
@@ -43,6 +44,20 @@ async function executeAssetAnalysis(filePath: string): Promise<AssetMetadata | n
     const materials = root.listMaterials().length;
     const animations = root.listAnimations().length;
 
+    let maxTextureRes = 0;
+    for (const texture of root.listTextures()) {
+      try {
+        if (typeof texture.getSize === 'function') {
+          const size = texture.getSize();
+          if (Array.isArray(size) && size.length >= 2) {
+            maxTextureRes = Math.max(maxTextureRes, size[0], size[1]);
+          }
+        }
+      } catch (_e) {
+        // Safe skip
+      }
+    }
+
     const scenes = root.listScenes();
     let dimensions = '0.00 x 0.00 x 0.00';
 
@@ -64,6 +79,7 @@ async function executeAssetAnalysis(filePath: string): Promise<AssetMetadata | n
       animations,
       hasAnimations: animations > 0,
       dimensions,
+      maxTextureRes,
     };
   } catch (error) {
     logger.error('Error in 3D asset processing helper:', error);

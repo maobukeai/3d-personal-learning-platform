@@ -448,7 +448,9 @@ const selectAndRun = (action: string) => {
   aiAction.value = action as AIAction;
   if (action === 'generate') {
     nextTick(() => chatInputRef.value?.focus());
+    return;
   }
+  nextTick(() => runSelectedAction());
 };
 
 const buildHistoryPayload = () =>
@@ -913,50 +915,51 @@ onUnmounted(() => {
               {{ cmd.icon }} {{ cmd.label }}
             </button>
           </div>
-          <button
-            type="button"
-            class="aip__run-btn"
-            :disabled="!canRunAction"
-            :title="selectedCommand ? `执行${selectedCommand.label}` : '执行'"
-            @click="runSelectedAction"
-          >
-            <Play class="w-3 h-3" />
-            <span>{{ aiAction === 'generate' ? '生成' : '执行' }}</span>
-          </button>
-          <!-- Translate language -->
-          <Transition name="fade">
-            <el-select
-              v-if="aiAction === 'translate'"
-              v-model="targetLanguage"
-              size="small"
-              style="width:130px;flex-shrink:0"
+          <div class="aip__toolbar-actions">
+            <Transition name="fade">
+              <el-select
+                v-if="aiAction === 'translate'"
+                v-model="targetLanguage"
+                size="small"
+                class="aip__translate-select"
+              >
+                <el-option label="🇺🇸 English"  value="English"  />
+                <el-option label="🇨🇳 简体中文"  value="Chinese"  />
+                <el-option label="🇯🇵 日本語"    value="Japanese" />
+                <el-option label="🇰🇷 한국어"    value="Korean"   />
+                <el-option label="🇫🇷 Français"  value="French"   />
+                <el-option label="🇩🇪 Deutsch"   value="German"   />
+              </el-select>
+            </Transition>
+            <button
+              type="button"
+              class="aip__run-btn"
+              :disabled="!canRunAction"
+              :title="selectedCommand ? `执行${selectedCommand.label}` : '执行'"
+              @click="runSelectedAction"
             >
-              <el-option label="🇺🇸 English"  value="English"  />
-              <el-option label="🇨🇳 简体中文"  value="Chinese"  />
-              <el-option label="🇯🇵 日本語"    value="Japanese" />
-              <el-option label="🇰🇷 한국어"    value="Korean"   />
-              <el-option label="🇫🇷 Français"  value="French"   />
-              <el-option label="🇩🇪 Deutsch"   value="German"   />
-            </el-select>
-          </Transition>
-          <button
-            v-if="messages.length > 0 && !isGenerating"
-            type="button"
-            class="aip__clear-btn"
-            title="清空对话"
-            @click="clearMessages"
-          >
-            清空
-          </button>
-          <button
-            type="button"
-            class="aip__ico-btn aip__settings-btn"
-            :class="{ 'aip__settings-btn--on': showSettings }"
-            title="写作参数"
-            @click="showSettings = !showSettings"
-          >
-            <SlidersHorizontal class="w-3.5 h-3.5" />
-          </button>
+              <Play class="w-3 h-3" />
+              <span>{{ aiAction === 'generate' ? '生成' : '执行' }}</span>
+            </button>
+            <button
+              v-if="messages.length > 0 && !isGenerating"
+              type="button"
+              class="aip__clear-btn"
+              title="清空对话"
+              @click="clearMessages"
+            >
+              清空
+            </button>
+            <button
+              type="button"
+              class="aip__ico-btn aip__settings-btn"
+              :class="{ 'aip__settings-btn--on': showSettings }"
+              title="写作参数"
+              @click="showSettings = !showSettings"
+            >
+              <SlidersHorizontal class="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         <section class="aip__brief">

@@ -160,7 +160,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   SMTP_SECURE: false,
   SYSTEM_EMAIL_PROVIDER: 'SMTP',
   MICROSOFT_POOL_FAILBACK: true,
-  MATERIAL_CATEGORIES: ['模型', '材质', '工程', '教程', '插件'],
+  MATERIAL_CATEGORIES: ['金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他'],
   FOOTER_TEXT: '',
   OAUTH_GOOGLE_ENABLED: false,
   OAUTH_GOOGLE_CLIENT_ID: '',

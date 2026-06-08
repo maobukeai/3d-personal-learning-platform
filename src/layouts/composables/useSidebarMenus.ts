@@ -401,6 +401,7 @@ export function useSidebarMenus() {
           { name: t('sidebar.myWorks'), icon: Box, path: '/my-works' },
           { name: t('sidebar.assets'), icon: ImageIcon, path: '/assets' },
           { name: t('sidebar.materials'), icon: Layers, path: '/materials' },
+          { name: t('sidebar.plugins'), icon: Cpu, path: '/plugins' },
         ],
       },
       {

@@ -1504,6 +1504,51 @@ const getModelFamilyMeta = (key: string, customLabel?: string) => {
   };
 };
 
+const disabledGroupKeys = ref<string[]>([]);
+const isUnenabledGroupCollapsed = ref(true);
+
+const restoreDisabledGroups = () => {
+  const stored = localStorage.getItem('ai_model_disabled_groups');
+  if (stored) {
+    try {
+      disabledGroupKeys.value = JSON.parse(stored);
+    } catch {
+      disabledGroupKeys.value = [];
+    }
+  }
+};
+
+const toggleGroupEnabled = (key: string, enabled: boolean) => {
+  if (enabled) {
+    disabledGroupKeys.value = disabledGroupKeys.value.filter((k) => k !== key);
+    const group = modelFamilyGroups.value.find((g) => g.key === key);
+    if (group) {
+      group.models.forEach((model) => {
+        model.enabled = true;
+      });
+    }
+  } else {
+    if (!disabledGroupKeys.value.includes(key)) {
+      disabledGroupKeys.value.push(key);
+    }
+    const group = modelFamilyGroups.value.find((g) => g.key === key);
+    if (group) {
+      group.models.forEach((model) => {
+        model.enabled = false;
+      });
+    }
+  }
+  syncAiModelsToSettings();
+};
+
+watch(
+  disabledGroupKeys,
+  (newKeys) => {
+    localStorage.setItem('ai_model_disabled_groups', JSON.stringify(newKeys));
+  },
+  { deep: true },
+);
+
 const collapsedModelFamilyGroups = ref<string[]>([]);
 
 const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
@@ -1555,6 +1600,14 @@ const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
       if (b.key === PENDING_MODEL_FAMILY_KEY) return 1;
       return a.label.localeCompare(b.label);
     });
+});
+
+const enabledModelFamilyGroups = computed(() => {
+  return modelFamilyGroups.value.filter((group) => !disabledGroupKeys.value.includes(group.key));
+});
+
+const disabledModelFamilyGroups = computed(() => {
+  return modelFamilyGroups.value.filter((group) => disabledGroupKeys.value.includes(group.key));
 });
 
 const isModelFamilyGroupCollapsed = (key: string) => collapsedModelFamilyGroups.value.includes(key);
@@ -2251,6 +2304,7 @@ const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 };
 
 onMounted(async () => {
+  restoreDisabledGroups();
   await fetchSettings();
   await fetchMicrosoftAccounts();
   window.addEventListener('beforeunload', handleBeforeUnload);
@@ -3928,9 +3982,9 @@ onUnmounted(() => {
               </transition>
 
               <!-- Model Family Groups -->
-              <div v-if="modelFamilyGroups.length > 0" class="space-y-4">
+              <div v-if="enabledModelFamilyGroups.length > 0" class="space-y-4">
                 <section
-                  v-for="group in modelFamilyGroups"
+                  v-for="group in enabledModelFamilyGroups"
                   :key="group.key"
                   class="rounded-2xl border overflow-hidden"
                   :style="`border-color: ${group.meta.border}; background: var(--bg-card);`"
@@ -4046,21 +4100,16 @@ onUnmounted(() => {
                             $t('admin.ai_add_family_model', { family: group.label })
                           }}</span>
                         </button>
-                        <button
-                          v-if="group.key.startsWith('custom_')"
-                          type="button"
-                          class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer"
-                          style="
-                            border-color: rgba(244, 63, 94, 0.25);
-                            color: #e11d48;
-                            background: var(--bg-card);
-                          "
-                          title="删除当前自定义分类"
-                          @click.stop="deleteCustomCategory(group)"
-                        >
-                          <Trash2 class="w-3.5 h-3.5" />
-                          <span>删除分类</span>
-                        </button>
+                        <el-switch
+                          :model-value="!disabledGroupKeys.includes(group.key)"
+                          @change="(val) => toggleGroupEnabled(group.key, val as boolean)"
+                          inline-prompt
+                          active-text="启用"
+                          inactive-text="禁用"
+                          style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8"
+                          class="mr-2"
+                          @click.stop
+                        />
                         <button
                           type="button"
                           class="w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-200"
@@ -4674,8 +4723,146 @@ onUnmounted(() => {
                         </div>
                       </div>
                     </div>
+                    <!-- Custom Category Footer / Danger Zone -->
+                    <div
+                      v-if="group.key.startsWith('custom_')"
+                      class="mt-4 pt-3 border-t flex justify-end"
+                      style="border-color: var(--border-base)"
+                    >
+                      <button
+                        type="button"
+                        class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer"
+                        style="
+                          border-color: rgba(244, 63, 94, 0.25);
+                          color: #e11d48;
+                          background: rgba(244, 63, 94, 0.05);
+                        "
+                        title="删除当前自定义分类"
+                        @click.stop="deleteCustomCategory(group)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                        <span>删除分类</span>
+                      </button>
+                    </div>
                   </div>
                 </section>
+              </div>
+
+              <!-- Disabled Groups Collapsible Panel -->
+              <div v-if="disabledModelFamilyGroups.length > 0" class="mt-6">
+                <div
+                  class="flex items-center justify-between p-4 rounded-2xl border cursor-pointer select-none transition-all duration-200"
+                  style="border-color: var(--border-base); background: var(--bg-card)"
+                  @click="isUnenabledGroupCollapsed = !isUnenabledGroupCollapsed"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <div
+                      class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                      style="background: rgba(148, 163, 184, 0.1); border: 1px solid var(--border-base); color: var(--text-muted);"
+                    >
+                      <EyeOff class="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 class="text-sm font-black" style="color: var(--text-primary)">
+                        未启用的分组 ({{ disabledModelFamilyGroups.length }})
+                      </h4>
+                      <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
+                        已禁用的模型分组，可以在此重新启用
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="w-7 h-7 rounded-lg flex items-center justify-center border transition-all duration-200"
+                      style="
+                        border-color: var(--border-base);
+                        color: var(--text-muted);
+                        background: var(--bg-app);
+                      "
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        class="w-3.5 h-3.5 transition-transform"
+                        :class="isUnenabledGroupCollapsed ? '-rotate-90' : ''"
+                      >
+                        <path
+                          d="M19 9l-7 7-7-7"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-show="!isUnenabledGroupCollapsed" class="mt-2 space-y-2">
+                  <div
+                    v-for="group in disabledModelFamilyGroups"
+                    :key="group.key"
+                    class="flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200"
+                    style="border-color: var(--border-base); background: var(--bg-card)"
+                  >
+                    <div class="flex items-center gap-3 min-w-0">
+                      <div
+                        class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        :style="`background: ${group.meta.bg}; border: 1px solid ${group.meta.border}; color: ${group.meta.color};`"
+                      >
+                        <component :is="group.meta.lucideIcon" class="w-4 h-4" />
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="text-xs font-bold" style="color: var(--text-primary)">{{ group.label }}</span>
+                          <span
+                            class="px-1.5 py-0.5 rounded-md text-[9px] font-bold"
+                            :style="`background: ${group.meta.bg}; color: ${group.meta.color};`"
+                            >{{ group.models.length }}个模型</span
+                          >
+                          <span
+                            class="px-1.5 py-0.5 rounded-md text-[9px] font-bold"
+                            style="
+                              background: var(--bg-app);
+                              color: var(--text-muted);
+                              border: 1px solid var(--border-base);
+                            "
+                            >{{ group.providerLabel }}</span
+                          >
+                        </div>
+                        <p class="text-[9px] mt-0.5 truncate max-w-[280px] lg:max-w-[480px]" style="color: var(--text-muted)">
+                          {{ group.endpointLabel }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 shrink-0">
+                      <el-switch
+                        :model-value="false"
+                        @change="(val) => toggleGroupEnabled(group.key, val as boolean)"
+                        inline-prompt
+                        active-text="启用"
+                        inactive-text="禁用"
+                        style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8"
+                      />
+                      <button
+                        v-if="group.key.startsWith('custom_')"
+                        type="button"
+                        class="flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-200 cursor-pointer"
+                        style="
+                          border-color: rgba(244, 63, 94, 0.25);
+                          color: #e11d48;
+                          background: var(--bg-app);
+                        "
+                        title="删除当前自定义分类"
+                        @click.stop="deleteCustomCategory(group)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Empty state -->

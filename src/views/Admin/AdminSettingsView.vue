@@ -597,36 +597,14 @@ const normalizeSmtpConfigs = (value: unknown): SmtpConfig[] => {
     .filter((item): item is SmtpConfig => Boolean(item));
 };
 
-const redactSmtpConfigs = (value: unknown) =>
-  JSON.stringify(
-    normalizeSmtpConfigs(value).map((config) => ({
-      ...config,
-      pass: config.pass ? SECRET_PLACEHOLDER : '',
-    })),
-  );
+
 
 const redactSettingsForExport = () => {
-  const exported = clonePlain(settings.value) as SettingsRecord;
-  SECRET_SETTING_KEYS.forEach((key) => {
-    if (exported[key]) {
-      exported[key] = SECRET_PLACEHOLDER;
-    }
-  });
-  exported.SMTP_CONFIGS = redactSmtpConfigs(settings.value.SMTP_CONFIGS);
-  exported.AI_MODEL_OPTIONS = JSON.stringify(
-    normalizeAiModels(settings.value.AI_MODEL_OPTIONS).map((model) => ({
-      ...model,
-      apiKey: model.apiKey ? SECRET_PLACEHOLDER : '',
-    })),
-  );
-  return exported;
+  return clonePlain(settings.value) as SettingsRecord;
 };
 
 const redactAiModelConfigsForExport = () =>
-  clonePlain(aiModelConfigs.value).map((model) => ({
-    ...model,
-    apiKey: model.apiKey ? SECRET_PLACEHOLDER : '',
-  }));
+  clonePlain(aiModelConfigs.value);
 
 const findExistingAiModel = (model: AiModelConfig) =>
   aiModelConfigs.value.find((item) => item.id === model.id) ||
@@ -2114,7 +2092,7 @@ const exportSettings = () => {
   link.download = `system_settings_${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
-  ElMessage.success('配置导出成功，敏感密钥已脱敏。');
+  ElMessage.success('配置导出成功。');
 };
 
 const importSettingsFile = (event: Event) => {
@@ -2207,7 +2185,7 @@ const exportAiSettings = () => {
       AI_IMPORT_ENABLED: settings.value.AI_IMPORT_ENABLED,
       AI_PROVIDER: settings.value.AI_PROVIDER,
       AI_API_ENDPOINT: settings.value.AI_API_ENDPOINT,
-      AI_API_KEY: settings.value.AI_API_KEY ? SECRET_PLACEHOLDER : '',
+      AI_API_KEY: settings.value.AI_API_KEY || '',
       AI_MODEL_NAME: settings.value.AI_MODEL_NAME,
       AI_MODEL_CUSTOM_CATEGORIES: settings.value.AI_MODEL_CUSTOM_CATEGORIES,
     },
@@ -2222,7 +2200,7 @@ const exportAiSettings = () => {
   link.download = `ai_settings_${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
-  ElMessage.success('AI 配置导出成功，敏感密钥已脱敏。');
+  ElMessage.success('AI 配置导出成功。');
 };
 
 const importAiSettingsFile = (event: Event) => {

@@ -208,6 +208,48 @@ export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+export const batchUpdateCourseStatus = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { ids, status } = req.body as { ids?: string[]; status?: string };
+  try {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return next(new AppError('Course ids are required', 400));
+    }
+    if (!['PUBLISHED', 'DRAFT'].includes(status || '')) {
+      return next(new AppError('Invalid course status', 400));
+    }
+
+    const result = await prisma.course.updateMany({
+      where: { id: { in: ids } },
+      data: { status },
+    });
+
+    res.json({ updated: result.count });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const batchDeleteCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const { ids } = req.body as { ids?: string[] };
+  try {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return next(new AppError('Course ids are required', 400));
+    }
+
+    const result = await prisma.course.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    res.json({ deleted: result.count });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createLesson = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { courseId, title, content, videoUrl, order, duration, hotspots, sceneConfig } = req.body;
   try {

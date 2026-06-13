@@ -6,6 +6,7 @@ import prisma from './prisma';
 import path from 'path';
 import fs from 'fs';
 import { configureAxiosProxy } from '../utils/axios-proxy';
+import { touchAiChatSession } from './ai-chat-session.service';
 
 const aiHttp = axios.create();
 configureAxiosProxy(aiHttp, { preferAiProxy: true });
@@ -59,9 +60,112 @@ const AI_REQUEST_TIMEOUT_MS = 60_000;
 /** Generous timeout for streaming responses — deep research mode can take 60-90 s before the LLM starts generating. */
 const AI_STREAM_TIMEOUT_MS = 180_000;
 const AI_STREAM_HEARTBEAT_MS = 15_000;
+const PERSISTENT_RUN_MAX_LIFETIME_MS = 30 * 60 * 1000; // 30 minutes
+const activePersistentAiRuns = new Map<
+  string,
+  {
+    controller: AbortController;
+    cancelled: boolean;
+    startedAt: number;
+    content?: string;
+    reasoning?: string;
+    done?: boolean;
+  }
+>();
+
+// Periodic cleanup: remove stale persistent AI runs that have been active for too long
+// This prevents memory leaks if cleanupPersistentRun() is not called due to exceptions
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, run] of activePersistentAiRuns.entries()) {
+    const age = now - run.startedAt;
+    if (age > PERSISTENT_RUN_MAX_LIFETIME_MS) {
+      if (!run.done) {
+        try {
+          run.cancelled = true;
+          run.controller.abort();
+        } catch {
+          // Ignore abort errors during cleanup
+        }
+      }
+      activePersistentAiRuns.delete(key);
+      logger.warn(`[AI Service] Cleaned up stale persistent run: ${key} (age: ${Math.round(age / 1000)}s)`);
+    }
+  }
+}, 10 * 60 * 1000); // Run every 10 minutes
 
 function createRequestId(): string {
   return `ai_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+const getPersistentRunKey = (userId: string, runId: string) => `${userId}:${runId}`;
+
+export function cancelPersistentAiRun(userId: string, runId: string): boolean {
+  const key = getPersistentRunKey(userId, runId);
+  const run = activePersistentAiRuns.get(key);
+  if (!run) return false;
+
+  run.cancelled = true;
+  run.controller.abort();
+  return true;
+}
+
+export function registerPersistentAiRun(userId: string, runId: string): AbortController {
+  // Prevent unbounded growth
+  if (activePersistentAiRuns.size > 100) {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    for (const [k, r] of activePersistentAiRuns.entries()) {
+      if (r.startedAt < oldestTime) {
+        oldestTime = r.startedAt;
+        oldestKey = k;
+      }
+    }
+    if (oldestKey) {
+      const oldRun = activePersistentAiRuns.get(oldestKey);
+      if (oldRun && !oldRun.done) {
+        oldRun.cancelled = true;
+        try { oldRun.controller.abort(); } catch { /* ignore */ }
+      }
+      activePersistentAiRuns.delete(oldestKey);
+    }
+  }
+  const key = getPersistentRunKey(userId, runId);
+  let run = activePersistentAiRuns.get(key);
+  if (!run) {
+    const controller = new AbortController();
+    run = {
+      controller,
+      cancelled: false,
+      startedAt: Date.now(),
+    };
+    activePersistentAiRuns.set(key, run);
+  }
+  return run.controller;
+}
+
+export function appendPersistentAiRunReasoning(userId: string, runId: string, text: string) {
+  const key = getPersistentRunKey(userId, runId);
+  const run = activePersistentAiRuns.get(key);
+  if (run) {
+    run.reasoning = (run.reasoning || '') + text;
+  }
+}
+
+
+export function getPersistentAiRunStatus(
+  userId: string,
+  runId: string,
+): { content: string; reasoning: string; startedAt: number; done: boolean } | null {
+  const key = getPersistentRunKey(userId, runId);
+  const run = activePersistentAiRuns.get(key);
+  if (!run) return null;
+  return {
+    content: run.content || '',
+    reasoning: run.reasoning || '',
+    startedAt: run.startedAt,
+    done: run.done === true,
+  };
 }
 
 function normalizeProvider(provider: string | undefined | null): AIProvider {
@@ -147,10 +251,11 @@ function isImageGenerationModel(modelName: string, capabilities?: string[]): boo
     name.includes('playground') ||
     name.includes('cogview') ||
     name.includes('kolors') ||
-    name.includes('image') ||
-    name.includes('draw') ||
-    name.includes('paint') ||
-    name.includes('generate')
+    name.includes('image-gen') ||
+    name.includes('generate-image') ||
+    name.includes('text-to-image') ||
+    name.includes('txt2img') ||
+    name.includes('t2i')
   );
 }
 
@@ -359,15 +464,19 @@ async function formatOllamaMessages(
 }
 
 export function sendSSE(res: Response, payload: Record<string, unknown> | '[DONE]') {
-  if (res.writableEnded) return;
-  if (payload === '[DONE]') {
-    res.write('data: [DONE]\n\n');
-  } else {
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
-  }
-  const flushableRes = res as Response & { flush?: () => void };
-  if (typeof flushableRes.flush === 'function') {
-    flushableRes.flush();
+  const streamRes = res as Response & { destroyed?: boolean; closed?: boolean; flush?: () => void };
+  if (res.writableEnded || streamRes.destroyed || streamRes.closed) return;
+  try {
+    if (payload === '[DONE]') {
+      res.write('data: [DONE]\n\n');
+    } else {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    }
+    if (typeof streamRes.flush === 'function') {
+      streamRes.flush();
+    }
+  } catch (error) {
+    logger.warn('[AI SSE] Failed to write to client stream', error);
   }
 }
 
@@ -696,11 +805,45 @@ export async function streamLLMChat(
   userId?: string,
   streamMeta?: Record<string, unknown>,
 ): Promise<void> {
-  const controller = new AbortController();
+  const clientRunId =
+    typeof streamMeta?.clientRunId === 'string' ? streamMeta.clientRunId.trim().slice(0, 120) : '';
+  const shouldPersistOnDisconnect = Boolean(
+    userId && clientRunId && streamMeta?.continueOnClientDisconnect === true,
+  );
+
+  let controller: AbortController;
+  let persistentRunKey: string | null = null;
+  
+  if (shouldPersistOnDisconnect && userId) {
+    persistentRunKey = getPersistentRunKey(userId, clientRunId);
+    const existingRun = activePersistentAiRuns.get(persistentRunKey);
+    if (existingRun) {
+      controller = existingRun.controller;
+    } else {
+      controller = new AbortController();
+      activePersistentAiRuns.set(persistentRunKey, {
+        controller,
+        cancelled: false,
+        startedAt: Date.now(),
+      });
+    }
+  } else {
+    controller = new AbortController();
+  }
+
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let activityTimer: ReturnType<typeof setInterval> | null = null;
   let completed = false;
   let activeProvider: AIProvider = normalizeProvider(overrides?.AI_PROVIDER);
+
+  const streamMetaForClient = { ...(streamMeta || {}) };
+  delete streamMetaForClient.continueOnClientDisconnect;
+  const cleanupPersistentRun = () => {
+    if (persistentRunKey) {
+      activePersistentAiRuns.delete(persistentRunKey);
+      persistentRunKey = null;
+    }
+  };
 
   try {
     const { url, headers, body, provider, modelName, requestId } = await prepareRequestConfig(
@@ -729,7 +872,7 @@ export async function streamLLMChat(
         requestId,
         provider,
         model: modelName,
-        ...streamMeta,
+        ...streamMetaForClient,
       });
 
       sendSSE(res, {
@@ -757,6 +900,7 @@ export async function streamLLMChat(
           {
             headers,
             timeout: AI_STREAM_TIMEOUT_MS,
+            signal: controller.signal,
           },
         );
 
@@ -783,12 +927,12 @@ export async function streamLLMChat(
         if (userId) {
           try {
             const sId =
-              streamMeta && typeof streamMeta.sessionId === 'string'
-                ? streamMeta.sessionId
+              typeof streamMetaForClient.sessionId === 'string'
+                ? streamMetaForClient.sessionId
                 : 'default';
             const sTitle =
-              streamMeta && typeof streamMeta.sessionTitle === 'string'
-                ? streamMeta.sessionTitle
+              typeof streamMetaForClient.sessionTitle === 'string'
+                ? streamMetaForClient.sessionTitle
                 : '新对话';
             await prisma.aiMessage.create({
               data: {
@@ -799,6 +943,12 @@ export async function streamLLMChat(
                 sessionId: sId,
                 sessionTitle: sTitle,
               },
+            });
+            await touchAiChatSession({
+              userId,
+              sessionId: sId,
+              sessionTitle: sTitle,
+              mode: streamMetaForClient.mode,
             });
           } catch (dbErr) {
             logger.error('[AI Chat] Failed to save image message to DB:', dbErr);
@@ -815,12 +965,14 @@ export async function streamLLMChat(
         });
         sendSSE(res, '[DONE]');
         res.end();
+        cleanupPersistentRun();
         return;
       } catch (err) {
         logger.error('[AI Image Generation Error]:', sanitizeAIError(err));
         const errMsg = toUserFacingAIError(err, provider);
         sendSSE(res, { error: `图片生成失败: ${errMsg}`, requestId });
         res.end();
+        cleanupPersistentRun();
         return;
       }
     }
@@ -837,6 +989,13 @@ export async function streamLLMChat(
 
     res.on('close', () => {
       if (!completed) {
+        const run = persistentRunKey ? activePersistentAiRuns.get(persistentRunKey) : null;
+        if (shouldPersistOnDisconnect && !run?.cancelled) {
+          logger.info(
+            `[AI Streaming Chat] requestId=${requestId} client connection closed. Continuing persistent run.`,
+          );
+          return;
+        }
         logger.info(
           `[AI Streaming Chat] requestId=${requestId} client connection closed. Aborting upstream request.`,
         );
@@ -849,7 +1008,7 @@ export async function streamLLMChat(
       requestId,
       provider,
       model: modelName,
-      ...streamMeta,
+      ...streamMetaForClient,
     });
 
     heartbeatTimer = setInterval(() => {
@@ -892,6 +1051,7 @@ export async function streamLLMChat(
               clearInterval(activityTimer);
               activityTimer = null;
             }
+            cleanupPersistentRun();
             if (!res.writableEnded) {
               sendSSE(res, { error: 'AI服务响应超时，已自动断开连接。请重试。', requestId });
               res.end();
@@ -913,6 +1073,13 @@ export async function streamLLMChat(
       if (payload.text) {
         assistantContent += payload.text;
         sendSSE(res, { text: payload.text, requestId });
+      }
+      if (persistentRunKey) {
+        const run = activePersistentAiRuns.get(persistentRunKey);
+        if (run) {
+          run.content = assistantContent;
+          run.reasoning = assistantReasoning;
+        }
       }
     };
 
@@ -977,21 +1144,30 @@ export async function streamLLMChat(
         clearInterval(activityTimer);
         activityTimer = null;
       }
+      // Mark the run as done BEFORE DB write so the polling client can
+      // see the final content immediately; cleanup happens AFTER DB write.
+      if (persistentRunKey) {
+        const run = activePersistentAiRuns.get(persistentRunKey);
+        if (run) run.done = true;
+      }
 
       if (userId && assistantContent) {
         try {
           const sId =
-            streamMeta && typeof streamMeta.sessionId === 'string'
-              ? streamMeta.sessionId
+            typeof streamMetaForClient.sessionId === 'string'
+              ? streamMetaForClient.sessionId
               : 'default';
           const sTitle =
-            streamMeta && typeof streamMeta.sessionTitle === 'string'
-              ? streamMeta.sessionTitle
+            typeof streamMetaForClient.sessionTitle === 'string'
+              ? streamMetaForClient.sessionTitle
               : '新对话';
 
           let finalReasoning = assistantReasoning || '';
-          if (streamMeta && Array.isArray(streamMeta.sources) && streamMeta.sources.length > 0) {
-            finalReasoning = `${finalReasoning}\n[sources]: ${JSON.stringify(streamMeta.sources)}`;
+          if (
+            Array.isArray(streamMetaForClient.sources) &&
+            streamMetaForClient.sources.length > 0
+          ) {
+            finalReasoning = `${finalReasoning}\n[sources]: ${JSON.stringify(streamMetaForClient.sources)}`;
           }
 
           await prisma.aiMessage.create({
@@ -1004,10 +1180,19 @@ export async function streamLLMChat(
               sessionTitle: sTitle,
             },
           });
+          await touchAiChatSession({
+            userId,
+            sessionId: sId,
+            sessionTitle: sTitle,
+            mode: streamMetaForClient.mode,
+          });
         } catch (dbErr) {
           logger.error('[AI Chat] Failed to save assistant message to DB:', dbErr);
         }
       }
+
+      // Now safe to remove from memory — DB write is complete
+      cleanupPersistentRun();
 
       if (!res.writableEnded) {
         sendSSE(res, {
@@ -1047,6 +1232,7 @@ export async function streamLLMChat(
         clearInterval(activityTimer);
         activityTimer = null;
       }
+      cleanupPersistentRun();
       logger.error(`[AI Stream Source Error] requestId=${requestId}:`, sanitizeAIError(err));
       if (!res.writableEnded) {
         // Convert raw Node.js network errors to user-friendly messages
@@ -1064,6 +1250,7 @@ export async function streamLLMChat(
       clearInterval(activityTimer);
       activityTimer = null;
     }
+    cleanupPersistentRun();
     completed = true;
     logger.error('[AI Streaming Request Error]:', sanitizeAIError(error));
     let errMsg = toUserFacingAIError(error, activeProvider);

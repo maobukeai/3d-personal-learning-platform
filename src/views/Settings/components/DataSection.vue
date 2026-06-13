@@ -1,64 +1,113 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Download, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-vue-next';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Download, FileJson, KeyRound, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
-import { preferences } from '@/utils/preferences';
-import { exportAccountData, deleteAccount } from '@/services/account.service';
+import { deleteAccount, exportAccountData, type AccountDataExport } from '@/services/account.service';
+import { getApiErrorMessage } from '@/utils/error';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 const deleteAccountConfirm = ref('');
+const deletePassword = ref('');
 const delete2FACode = ref('');
-const showDelete2FAStep = ref(false);
 const isDeletingAccount = ref(false);
+const isExporting = ref(false);
+const lastExport = ref<AccountDataExport | null>(null);
+
+const requires2FA = computed(() => !!authStore.user?.twoFactorEnabled);
+
+const canDelete = computed(() => {
+  if (deleteAccountConfirm.value !== 'DELETE') return false;
+  if (requires2FA.value) return delete2FACode.value.length === 6;
+  return deletePassword.value.length > 0;
+});
+
+const formatExportCount = (key: string) => {
+  if (!lastExport.value) return '-';
+  const total = lastExport.value.counts?.[key] || 0;
+  const exported = lastExport.value.exportedCounts?.[key] ?? total;
+  return exported === total ? String(total) : `${exported}/${total}`;
+};
+
+const hasTruncatedExport = computed(() =>
+  Object.values(lastExport.value?.truncated || {}).some(Boolean),
+);
+
+const exportSummary = computed(() => {
+  if (!lastExport.value) {
+    return [
+      { label: '个人资料', value: '-' },
+      { label: '团队空间', value: '-' },
+      { label: '内容资产', value: '-' },
+      { label: '作品展示', value: '-' },
+    ];
+  }
+  return [
+    { label: '个人资料', value: '1' },
+    { label: '团队空间', value: formatExportCount('teams') },
+    { label: '内容资产', value: formatExportCount('assets') },
+    { label: '作品展示', value: formatExportCount('showcases') },
+  ];
+});
+
+const downloadJson = (payload: AccountDataExport) => {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `account-export-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+};
 
 const exportData = async () => {
   try {
-    ElMessage.info('正在准备数据导出...');
-    const exportObj = await exportAccountData();
-    const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `my-data-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    ElMessage.success('数据导出成功');
+    isExporting.value = true;
+    const data = await exportAccountData();
+    lastExport.value = data;
+    downloadJson(data);
+    ElMessage.success('账号数据已导出');
   } catch {
-    ElMessage.error('数据导出失败');
+    ElMessage.error('账号数据导出失败');
+  } finally {
+    isExporting.value = false;
   }
 };
 
 const handleDeleteAccount = async () => {
-  if (deleteAccountConfirm.value !== 'DELETE') {
-    return ElMessage.warning('请输入 DELETE 以确认删除');
-  }
-
-  if (authStore.user?.twoFactorEnabled && !showDelete2FAStep.value) {
-    showDelete2FAStep.value = true;
+  if (!canDelete.value) {
+    ElMessage.warning(requires2FA.value ? '请输入 DELETE 和 6 位 2FA 验证码' : '请输入 DELETE 和当前密码');
     return;
   }
 
-  if (authStore.user?.twoFactorEnabled && !delete2FACode.value) {
-    return ElMessage.warning('请输入两步验证码');
-  }
-
   try {
+    await ElMessageBox.confirm(
+      '账号注销后，个人资料、作品、团队关系和协作记录将被永久删除。此操作不可恢复。',
+      '确认永久注销账号',
+      {
+        confirmButtonText: '永久注销',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+
     isDeletingAccount.value = true;
-    await deleteAccount(authStore.user?.twoFactorEnabled ? delete2FACode.value : undefined);
-    ElMessage.success('账号已成功注销');
-    preferences.clearLegacyAuthTokens();
+    await deleteAccount(
+      requires2FA.value
+        ? { twoFactorCode: delete2FACode.value }
+        : { password: deletePassword.value },
+    );
+    ElMessage.success('账号已注销');
+    await authStore.logout();
     router.push('/login');
   } catch (error) {
-    const errData = (error as { response?: { data?: { twoFactorRequired?: boolean; error?: string } } }).response?.data;
-    if (errData?.twoFactorRequired) {
-      showDelete2FAStep.value = true;
-      ElMessage.warning('此账号已启用两步验证，请输入验证码');
-    } else {
-      ElMessage.error(errData?.error || '注销账号失败');
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(getApiErrorMessage(error, '注销账号失败'));
     }
   } finally {
     isDeletingAccount.value = false;
@@ -67,94 +116,362 @@ const handleDeleteAccount = async () => {
 </script>
 
 <template>
-  <div class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <div class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border transition-colors duration-300" style="background-color: var(--bg-card); border-color: var(--border-base)">
-      <div class="flex items-center gap-3 mb-8">
-        <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
-          <Download class="w-5 h-5" />
-        </div>
-        <div>
-          <h3 class="text-lg font-bold" style="color: var(--text-primary)">数据导出</h3>
-          <p class="text-[10px] font-medium text-slate-400 mt-0.5">下载您的个人数据副本</p>
-        </div>
+  <div class="data-section">
+    <section class="data-overview">
+      <div>
+        <p class="section-kicker">数据与风险</p>
+        <h3>导出可追溯，注销需校验</h3>
+        <span>账号级数据操作走后端接口，并保留明确的确认流程。</span>
       </div>
-      <p class="text-xs leading-relaxed mb-6" style="color: var(--text-secondary)">
-        您可以随时导出您的个人资料、团队信息等数据。导出文件为 JSON
-        格式，包含您在平台上的所有个人数据。
-      </p>
-      <button type="button" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-2xl hover:scale-105 transition-all flex items-center gap-2" @click="exportData">
-        <Download class="w-4 h-4" />
-        导出我的数据
+      <button type="button" class="primary-action" :disabled="isExporting" @click="exportData">
+        <Download />
+        {{ isExporting ? '导出中...' : '导出账号数据' }}
       </button>
-    </div>
+    </section>
 
-    <div class="p-5 lg:p-8 rounded-2xl lg:rounded-3xl border border-rose-200 dark:border-rose-900/50 transition-colors duration-300" style="background-color: var(--bg-card)">
-      <div class="flex items-center gap-3 mb-8">
-        <div class="p-2 bg-rose-50 dark:bg-rose-900/20 rounded-lg text-rose-600">
-          <ShieldAlert class="w-5 h-5" />
-        </div>
+    <section class="export-panel">
+      <div class="panel-title">
+        <span>最近导出摘要</span>
+        <FileJson />
+      </div>
+      <div class="export-grid">
+        <article v-for="item in exportSummary" :key="item.label">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </article>
+      </div>
+      <p>
+        导出文件包含个人资料、通知偏好、外观设置、团队关系以及你的主要内容记录。敏感凭据不会出现在导出文件中。
+      </p>
+      <p v-if="hasTruncatedExport" class="export-warning">
+        部分内容数量较多，本次每类最多导出 {{ lastExport?.exportLimits?.perCollection || 200 }} 条。
+      </p>
+    </section>
+
+    <section class="danger-panel">
+      <div class="danger-heading">
         <div>
-          <h3 class="text-lg font-bold text-rose-600">危险区域</h3>
-          <p class="text-[10px] font-medium text-slate-400 mt-0.5">
-            以下操作不可逆，请谨慎操作
-          </p>
+          <ShieldAlert />
+          <span>
+            <strong>危险区域</strong>
+            <small>永久删除账号和相关数据</small>
+          </span>
         </div>
+        <em>{{ requires2FA ? '2FA 校验' : '密码校验' }}</em>
       </div>
 
-      <div class="space-y-6">
-        <div class="p-6 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-          <h4 class="text-sm font-bold text-rose-700 dark:text-rose-400 mb-2">注销账号</h4>
-          <p class="text-xs text-rose-600/70 dark:text-rose-400/70 leading-relaxed mb-4">
-            注销后，您的所有数据将被永久删除且无法恢复，包括个人资料、资产、讨论、团队关系等。此操作不可逆。
+      <div class="danger-body">
+        <div class="warning-copy">
+          <Trash2 />
+          <p>
+            注销会删除你的登录账号、个人资料、作品、讨论、笔记、通知和团队成员关系。团队或项目中的协作数据会按后端关联规则处理。
           </p>
-          <div class="space-y-3">
-            <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-rose-500 ml-1">请输入 DELETE 以确认</label>
-              <input
-                v-model="deleteAccountConfirm"
-                type="text"
-                class="w-full px-4 py-3 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                placeholder="DELETE"
-              />
+        </div>
+
+        <div class="delete-form">
+          <label>
+            <span>确认短语</span>
+            <input v-model="deleteAccountConfirm" type="text" placeholder="输入 DELETE" />
+          </label>
+
+          <label v-if="requires2FA">
+            <span>2FA 验证码</span>
+            <div class="input-shell">
+              <ShieldCheck />
+              <input v-model="delete2FACode" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
             </div>
-            <div
-              v-if="showDelete2FAStep && authStore.user?.twoFactorEnabled"
-              class="space-y-2 animate-in zoom-in-95 duration-300"
-            >
-              <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-900/30">
-                <ShieldCheck class="w-4 h-4 text-amber-600 shrink-0" />
-                <p class="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
-                  此账号已启用两步验证，请输入验证器中的动态验证码
-                </p>
-              </div>
-              <div class="flex gap-3">
-                <input
-                  v-model="delete2FACode"
-                  type="text"
-                  maxlength="6"
-                  class="flex-1 px-4 py-3 rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-rose-950/30 text-center font-black tracking-[0.5em] text-rose-700 dark:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  placeholder="000000"
-                />
-              </div>
+          </label>
+
+          <label v-else>
+            <span>当前密码</span>
+            <div class="input-shell">
+              <KeyRound />
+              <input v-model="deletePassword" type="password" autocomplete="current-password" placeholder="输入当前登录密码" />
             </div>
-            <button
-type="button" :disabled="
-                isDeletingAccount ||
-                deleteAccountConfirm !== 'DELETE' ||
-                (showDelete2FAStep && authStore.user?.twoFactorEnabled && !delete2FACode)
-              " class="px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2" @click="handleDeleteAccount">
-              <Trash2 class="w-3.5 h-3.5" />
-              {{
-                isDeletingAccount
-                  ? '正在注销...'
-                  : showDelete2FAStep
-                    ? '验证并注销账号'
-                    : '永久注销账号'
-              }}
-            </button>
-          </div>
+          </label>
+
+          <button type="button" class="danger-action" :disabled="!canDelete || isDeletingAccount" @click="handleDeleteAccount">
+            <Trash2 />
+            {{ isDeletingAccount ? '注销中...' : '永久注销账号' }}
+          </button>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.data-section {
+  display: grid;
+  gap: 12px;
+}
+
+.data-overview,
+.export-panel,
+.danger-panel {
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.data-overview {
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.section-kicker,
+.data-overview span,
+.panel-title,
+.export-grid span,
+.export-panel p,
+.danger-heading small,
+.delete-form span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.section-kicker,
+.panel-title,
+.delete-form span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+h3 {
+  margin: 2px 0 4px;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.primary-action,
+.danger-action {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.primary-action {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary-action:disabled,
+.danger-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button svg,
+.panel-title svg {
+  width: 15px;
+  height: 15px;
+}
+
+.export-panel,
+.danger-panel {
+  padding: 12px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.export-grid article {
+  min-height: 62px;
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--bg-app);
+}
+
+.export-grid strong {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.export-panel p {
+  margin: 10px 0 0;
+  line-height: 1.6;
+}
+
+.export-panel .export-warning {
+  color: #b45309;
+  font-weight: 800;
+}
+
+.danger-panel {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.danger-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.danger-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.danger-heading svg {
+  width: 20px;
+  height: 20px;
+  color: #dc2626;
+}
+
+.danger-heading span {
+  display: grid;
+  gap: 2px;
+}
+
+.danger-heading strong {
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.danger-heading em {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.danger-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1.1fr);
+  gap: 12px;
+}
+
+.warning-copy {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #991b1b;
+}
+
+.warning-copy svg {
+  width: 20px;
+  height: 20px;
+}
+
+.warning-copy p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.delete-form {
+  display: grid;
+  gap: 10px;
+}
+
+.delete-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.input-shell {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.input-shell,
+.delete-form input {
+  min-height: 40px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+}
+
+.input-shell input {
+  min-height: auto;
+  border: 0;
+  border-radius: 0;
+}
+
+.input-shell svg {
+  width: 15px;
+  height: 15px;
+  margin-left: 10px;
+  color: var(--text-muted);
+}
+
+.delete-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 11px;
+  outline: 0;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.danger-action {
+  justify-content: center;
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .data-overview,
+  .danger-body {
+    grid-template-columns: 1fr;
+  }
+
+  .data-overview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .export-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .export-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .primary-action {
+    justify-content: center;
+    width: 100%;
+  }
+}
+</style>

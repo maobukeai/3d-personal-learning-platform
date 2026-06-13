@@ -1,33 +1,8 @@
 import { defineStore } from 'pinia';
 import api from '@/utils/api';
-import { socketService } from '@/utils/socket';
 import { preferences } from '@/utils/preferences';
-
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-  avatarUrl?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  role: string;
-  points?: number;
-  emailVerified?: boolean;
-  twoFactorEnabled?: boolean;
-  language?: string;
-  createdAt: string;
-  subscription?: {
-    plan: {
-      name: string;
-      displayName?: string;
-      badgeColor?: string;
-      priority?: number;
-    };
-    status?: string;
-    interval?: string;
-  };
-}
+import { socketService } from '@/utils/socket';
+import type { User } from '@/types';
 
 interface LoginCredentials {
   email: string;
@@ -102,26 +77,18 @@ export const useAuthStore = defineStore('auth', {
       this.onlineUserIds = new Set(this.onlineUserIds);
     },
     async login(credentials: LoginCredentials) {
-      try {
-        const response = await api.post('/api/auth/login', {
-          ...credentials,
-          deviceToken: this.deviceToken,
-        });
-        if (response.data.user) {
-          this.user = response.data.user;
-          preferences.setUser(this.user);
-        }
-        return response.data;
-      } catch (error) {
-        throw error;
+      const response = await api.post('/api/auth/login', {
+        ...credentials,
+        deviceToken: this.deviceToken,
+      });
+      if (response.data.user) {
+        this.user = response.data.user;
+        preferences.setUser(this.user);
       }
+      return response.data;
     },
     async register(userData: RegisterPayload) {
-      try {
-        await api.post('/api/auth/register', userData);
-      } catch (error) {
-        throw error;
-      }
+      await api.post('/api/auth/register', userData);
     },
     async sendPublicVerificationCode(email: string) {
       await api.post('/api/auth/email/send-code-public', { email });
@@ -141,84 +108,56 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async updateProfile(profileData: Partial<User>) {
-      try {
-        const response = await api.put('/api/auth/profile', profileData);
-        this.user = response.data;
-        preferences.setUser(this.user);
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.put('/api/auth/profile', profileData);
+      this.user = response.data;
+      preferences.setUser(this.user);
+      return response.data;
     },
     async uploadAvatar(file: File) {
-      try {
-        const formData = new FormData();
-        formData.append('avatar', file);
-        const response = await api.post('/api/auth/upload-avatar', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        this.user = response.data;
-        preferences.setUser(this.user);
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const response = await api.post('/api/auth/upload-avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      this.user = response.data;
+      preferences.setUser(this.user);
+      return response.data;
     },
     async changePassword(passwordData: ChangePasswordPayload) {
-      try {
-        const response = await api.put('/api/auth/change-password', passwordData);
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.put('/api/auth/change-password', passwordData);
+      return response.data;
     },
     async setup2FA() {
-      try {
-        const response = await api.put('/api/auth/2fa/setup');
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.put('/api/auth/2fa/setup');
+      return response.data;
     },
-    async enable2FA(code: string) {
-      try {
-        const response = await api.post('/api/auth/2fa/enable', { code });
-        if (this.user) {
-          this.user.twoFactorEnabled = true;
-          preferences.setUser(this.user);
-        }
-        return response.data;
-      } catch (error) {
-        throw error;
+    async enable2FA(code: string, password: string) {
+      const response = await api.post('/api/auth/2fa/enable', { code, password });
+      if (this.user) {
+        this.user.twoFactorEnabled = true;
+        preferences.setUser(this.user);
       }
+      return response.data;
     },
-    async disable2FA() {
-      try {
-        const response = await api.post('/api/auth/2fa/disable');
-        if (this.user) {
-          this.user.twoFactorEnabled = false;
-          preferences.setUser(this.user);
-        }
-        return response.data;
-      } catch (error) {
-        throw error;
+    async disable2FA(payload: { code?: string; password?: string }) {
+      const response = await api.post('/api/auth/2fa/disable', payload);
+      if (this.user) {
+        this.user.twoFactorEnabled = false;
+        preferences.setUser(this.user);
       }
+      return response.data;
     },
     async login2FA(userId: string, code: string, rememberDevice: boolean = false) {
-      try {
-        const response = await api.post('/api/auth/login/2fa', { userId, code, rememberDevice });
-        this.user = response.data.user;
-        preferences.setUser(this.user);
-        if (response.data.deviceToken) {
-          this.deviceToken = response.data.deviceToken;
-          preferences.setDeviceToken(this.deviceToken);
-        }
-        return response.data;
-      } catch (error) {
-        throw error;
+      const response = await api.post('/api/auth/login/2fa', { userId, code, rememberDevice });
+      this.user = response.data.user;
+      preferences.setUser(this.user);
+      if (response.data.deviceToken) {
+        this.deviceToken = response.data.deviceToken;
+        preferences.setDeviceToken(this.deviceToken);
       }
+      return response.data;
     },
     async refreshAccessToken() {
       try {
@@ -230,67 +169,45 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     async forgotPasswordCheck(email: string) {
-      try {
-        const response = await api.post('/api/auth/forgot-password/check', { email });
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.post('/api/auth/forgot-password/check', { email });
+      return response.data;
     },
     async resetPasswordWith2FA(resetData: ResetPasswordWith2FAPayload) {
-      try {
-        const response = await api.post('/api/auth/forgot-password/reset-2fa', resetData);
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.post('/api/auth/forgot-password/reset-2fa', resetData);
+      return response.data;
     },
     async sendEmailVerification() {
-      try {
-        const response = await api.post('/api/auth/email/send-code');
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.post('/api/auth/email/send-code');
+      return response.data;
     },
     async verifyEmail(code: string) {
-      try {
-        const response = await api.post('/api/auth/email/verify', { code });
-        if (this.user) {
-          this.user.emailVerified = true;
-          preferences.setUser(this.user);
-        }
-        return response.data;
-      } catch (error) {
-        throw error;
+      const response = await api.post('/api/auth/email/verify', { code });
+      if (this.user) {
+        this.user.emailVerified = true;
+        preferences.setUser(this.user);
       }
+      return response.data;
     },
     async sendChangeEmailCode(newEmail: string) {
-      try {
-        const response = await api.post('/api/auth/email/send-code-new', { newEmail });
-        return response.data;
-      } catch (error) {
-        throw error;
-      }
+      const response = await api.post('/api/auth/email/send-code-new', { newEmail });
+      return response.data;
     },
     async changeEmail(newEmail: string, code: string) {
-      try {
-        const response = await api.put('/api/auth/email/change', { newEmail, code });
-        if (this.user) {
-          this.user.email = response.data.user.email;
-          this.user.emailVerified = response.data.user.emailVerified;
-          preferences.setUser(this.user);
-        }
-        return response.data;
-      } catch (error) {
-        throw error;
+      const response = await api.put('/api/auth/email/change', { newEmail, code });
+      if (this.user) {
+        this.user.email = response.data.user.email;
+        this.user.emailVerified = response.data.user.emailVerified;
+        preferences.setUser(this.user);
       }
+      return response.data;
     },
     async logout() {
       socketService.disconnect();
-      api.post('/api/auth/logout').catch(() => {});
+      api.post('/api/auth/logout').catch((err) => {
+        console.error('Logout request failed:', err);
+      });
 
-      // Reset workspace store
+      // Reset workspace store (Pinia handles cross-store circular references)
       const { useWorkspaceStore } = await import('./workspace');
       const workspaceStore = useWorkspaceStore();
       workspaceStore.reset();

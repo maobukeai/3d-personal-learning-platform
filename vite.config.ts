@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
@@ -8,6 +8,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = env.VITE_API_URL || 'http://localhost:3001';
 
   const vendorChunks: Array<[string, string[]]> = [
     ['vue-core', ['vue', '@vue', 'vue-router', 'pinia', 'vue-i18n', '@intlify']],
@@ -46,6 +47,22 @@ export default defineConfig(({ mode }) => {
     return matchedChunk?.[0];
   };
 
+  const createApiProxy = (timeout = 120000): ProxyOptions => ({
+    target: apiTarget,
+    changeOrigin: true,
+    timeout,
+    proxyTimeout: timeout,
+  });
+
+  const createStreamingProxy = (timeout: number): ProxyOptions => ({
+    ...createApiProxy(timeout),
+    configure: (proxy) => {
+      proxy.on('proxyRes', (proxyRes) => {
+        proxyRes.headers['x-accel-buffering'] = 'no';
+      });
+    },
+  });
+
   return {
     plugins: [
       vue(),
@@ -57,64 +74,13 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       proxy: {
-        // AI chat uses SSE streaming — must bypass Vite's response buffering
-        // so chunks reach the browser immediately instead of being collected first.
-        '/api/projects/ai-chat': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          timeout: 300000,
-          proxyTimeout: 300000,
-          configure: (proxy) => {
-            proxy.on('proxyRes', (proxyRes) => {
-              // Disable any internal buffering so SSE chunks flow through immediately
-              proxyRes.headers['x-accel-buffering'] = 'no';
-            });
-          },
-        },
-        '/api/projects/co-plan-chat': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          timeout: 300000,
-          proxyTimeout: 300000,
-          configure: (proxy) => {
-            proxy.on('proxyRes', (proxyRes) => {
-              // Disable any internal buffering so SSE chunks flow through immediately
-              proxyRes.headers['x-accel-buffering'] = 'no';
-            });
-          },
-        },
-        '/api/ai/write-assist': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          timeout: 300000,
-          proxyTimeout: 300000,
-          configure: (proxy) => {
-            proxy.on('proxyRes', (proxyRes) => {
-              proxyRes.headers['x-accel-buffering'] = 'no';
-            });
-          },
-        },
-        // Mirror export can be several GB — give it a very long timeout
-        '/api/admin/mirror/sources': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          timeout: 1800000,      // 30 minutes
-          proxyTimeout: 1800000, // 30 minutes
-          configure: (proxy) => {
-            proxy.on('proxyRes', (proxyRes) => {
-              // Disable buffering so ZIP chunks flow through immediately
-              proxyRes.headers['x-accel-buffering'] = 'no';
-            });
-          },
-        },
-        '/api': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
-          changeOrigin: true,
-          timeout: 120000,      // 2 minutes for regular API calls
-          proxyTimeout: 120000,
-        },
+        '/api/projects/ai-chat': createStreamingProxy(300000),
+        '/api/projects/co-plan-chat': createStreamingProxy(300000),
+        '/api/ai/write-assist': createStreamingProxy(300000),
+        '/api/admin/mirror/sources': createStreamingProxy(1800000),
+        '/api': createApiProxy(),
         '/uploads': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
+          target: apiTarget,
           changeOrigin: true,
         },
       },
@@ -128,7 +94,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     build: {
-      chunkSizeWarningLimit: 650,
+      chunkSizeWarningLimit: 500,
       rolldownOptions: {
         output: {
           codeSplitting: {

@@ -1,7 +1,18 @@
 /**
  * Crypto helper functions for string encryption/decryption
+ * Uses AES-256-GCM (v2) with backward compatibility for legacy RC4 (hex) data.
  */
+import crypto from 'crypto';
 
+const V2_PREFIX = 'enc:v2:';
+
+function deriveKey(key: string): Buffer {
+  return crypto.createHash('sha256').update(key).digest();
+}
+
+/**
+ * Legacy RC4 decryption for backward compatibility with existing data.
+ */
 function rc4(key: string, str: string): string {
   const s: number[] = Array.from({ length: 256 }, (_, index) => index);
   let j = 0;
@@ -29,15 +40,32 @@ function rc4(key: string, str: string): string {
 }
 
 export function encryptText(text: string, key: string): string {
-  const encrypted = rc4(key, text);
-  let hex = '';
-  for (let i = 0; i < encrypted.length; i++) {
-    hex += encrypted.charCodeAt(i).toString(16).padStart(2, '0');
-  }
-  return hex;
+  const derivedKey = deriveKey(key);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return `${V2_PREFIX}${iv.toString('base64url')}:${tag.toString('base64url')}:${encrypted.toString('base64url')}`;
 }
 
 export function decryptText(hex: string, key: string): string {
+  // Try AES-256-GCM v2 format first
+  if (hex.startsWith(V2_PREFIX)) {
+    const parts = hex.slice(V2_PREFIX.length).split(':');
+    const [ivRaw, tagRaw, encryptedRaw] = parts;
+    if (ivRaw && tagRaw && encryptedRaw) {
+      const derivedKey = deriveKey(key);
+      const iv = Buffer.from(ivRaw, 'base64url');
+      const tag = Buffer.from(tagRaw, 'base64url');
+      const encrypted = Buffer.from(encryptedRaw, 'base64url');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, iv);
+      decipher.setAuthTag(tag);
+      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+    }
+  }
+
+  // Fallback to legacy RC4 hex format for backward compatibility
   let str = '';
   for (let i = 0; i < hex.length; i += 2) {
     str += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));

@@ -20,7 +20,6 @@ export const setup2FA = async (req: AuthRequest, res: Response, next: NextFuncti
 
     const otpauth = secret.otpauth_url!;
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
-
     const codes = generateRecoveryCodes();
     const hashedCodes = await hashRecoveryCodes(codes);
 
@@ -33,7 +32,6 @@ export const setup2FA = async (req: AuthRequest, res: Response, next: NextFuncti
     });
 
     await redisService.invalidateUserCache(req.userId as string);
-
     res.json({ qrCodeUrl, secret: secret.base32, recoveryCodes: codes });
   } catch (error) {
     next(error);
@@ -48,7 +46,7 @@ export const getRecoveryCodes = async (req: AuthRequest, res: Response, next: Ne
     });
 
     if (!user || !user.twoFactorRecoveryCodes) {
-      return next(new AppError('Recovery codes not found', 404));
+      return next(new AppError('恢复码不存在', 404));
     }
 
     const recoveryCodes = JSON.parse(user.twoFactorRecoveryCodes) as string[];
@@ -66,7 +64,7 @@ export const regenerateRecoveryCodes = async (
   const { password, code } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
-    if (!user) return next(new AppError('User not found', 404));
+    if (!user) return next(new AppError('用户不存在', 404));
 
     if (password) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -84,7 +82,7 @@ export const regenerateRecoveryCodes = async (
         return next(new AppError('验证码错误', 400));
       }
     } else {
-      return next(new AppError('重生恢复代码需要验证密码或 2FA 验证码', 400));
+      return next(new AppError('重新生成恢复码需要验证密码或 2FA 验证码', 400));
     }
 
     const codes = generateRecoveryCodes();
@@ -105,12 +103,12 @@ export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunct
   const { code, password } = req.body;
   try {
     if (!password) {
-      return next(new AppError('启用两步验证需要验证当前密码', 400));
+      return next(new AppError('启用双重验证需要验证当前密码', 400));
     }
 
     const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
     if (!user || !user.twoFactorSecret) {
-      return next(new AppError('Invalid request', 400));
+      return next(new AppError('无效的双重验证设置请求', 400));
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -135,8 +133,7 @@ export const enable2FA = async (req: AuthRequest, res: Response, next: NextFunct
     });
 
     await redisService.invalidateUserCache(user.id);
-
-    res.json({ message: '两步验证已启用' });
+    res.json({ message: '双重验证已启用' });
   } catch (error) {
     next(error);
   }
@@ -146,15 +143,15 @@ export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunc
   const { code, password } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId as string } });
-    if (!user) return next(new AppError('User not found', 404));
+    if (!user) return next(new AppError('用户不存在', 404));
 
     if (!user.twoFactorEnabled) {
-      return next(new AppError('两步验证未启用', 400));
+      return next(new AppError('双重验证未启用', 400));
     }
 
     if (code) {
       if (!user.twoFactorSecret) {
-        return next(new AppError('配置异常，请联系管理员', 400));
+        return next(new AppError('双重验证配置异常', 400));
       }
       const isValid = speakeasy.totp.verify({
         secret: user.twoFactorSecret,
@@ -171,7 +168,7 @@ export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunc
         return next(new AppError('密码错误', 400));
       }
     } else {
-      return next(new AppError('禁用两步验证需要提供验证码或密码', 400));
+      return next(new AppError('禁用双重验证需要提供验证码或密码', 400));
     }
 
     await prisma.user.update({
@@ -180,8 +177,7 @@ export const disable2FA = async (req: AuthRequest, res: Response, next: NextFunc
     });
 
     await redisService.invalidateUserCache(req.userId as string);
-
-    res.json({ message: '两步验证已禁用' });
+    res.json({ message: '双重验证已禁用' });
   } catch (error) {
     next(error);
   }

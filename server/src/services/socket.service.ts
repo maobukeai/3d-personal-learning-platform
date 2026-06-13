@@ -50,10 +50,10 @@ export const initSocket = (server: HttpServer) => {
 
   // Authentication middleware for socket
   io.use((socket, next) => {
-    let token = socket.handshake.auth.token || socket.handshake.headers.authorization;
+    // Prefer token from cookie (more secure) over auth header/params
+    let token: string | undefined;
 
-    // Check cookies if not in auth/headers
-    if (!token && socket.handshake.headers.cookie) {
+    if (socket.handshake.headers.cookie) {
       const cookies = socket.handshake.headers.cookie.split(';').reduce(
         (acc: Record<string, string>, curr) => {
           const parts = curr.trim().split('=');
@@ -67,6 +67,14 @@ export const initSocket = (server: HttpServer) => {
         {} as Record<string, string>,
       );
       token = cookies['token'];
+    }
+
+    if (!token) {
+      token = socket.handshake.headers.authorization;
+    }
+
+    if (!token) {
+      token = socket.handshake.auth.token;
     }
 
     if (!token) {
@@ -186,6 +194,19 @@ export const emitToUser = (userId: string, event: string, data: unknown) => {
       io.to(socketId).emit(event, data);
     }
   }
+};
+
+export const isUserInConversation = (userId: string, conversationId: string) => {
+  if (!io || !userId || !conversationId) return false;
+
+  const userSocketIds = onlineUsers.get(userId);
+  const conversationSocketIds = io.sockets.adapter.rooms.get(`conversation_${conversationId}`);
+  if (!userSocketIds || !conversationSocketIds) return false;
+
+  for (const socketId of userSocketIds) {
+    if (conversationSocketIds.has(socketId)) return true;
+  }
+  return false;
 };
 
 export const emitToAll = (event: string, data: unknown) => {

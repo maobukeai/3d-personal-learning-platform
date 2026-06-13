@@ -50,11 +50,13 @@ import {
   changeEmail,
   uploadAvatar,
   getStats,
+  getWorkbench,
   getLeaderboard,
   getUserSettings,
   updateUserSettings,
   getTrustedDevices,
   revokeTrustedDevice,
+  exportAccountData,
   deleteAccount,
   forgotPasswordCheck,
   resetPasswordWith2FA,
@@ -271,12 +273,14 @@ router.post(
   uploadAvatar,
 );
 router.get('/stats', authenticate, getStats);
+router.get('/workbench', authenticate, getWorkbench);
 router.get('/leaderboard', authenticate, getLeaderboard);
 
 router.get('/user-settings', authenticate, getUserSettings);
 router.post('/user-settings', authenticate, updateUserSettings);
 router.get('/trusted-devices', authenticate, getTrustedDevices);
 router.delete('/trusted-devices/:id', authenticate, revokeTrustedDevice);
+router.get('/account/export', authenticate, exportAccountData);
 router.delete(
   '/account',
   authenticate,

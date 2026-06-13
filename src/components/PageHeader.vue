@@ -39,7 +39,7 @@ const hasIcon = computed(() => !!props.icon);
         </h1>
         <p
           v-if="subtitle"
-          class="hidden sm:block text-xs font-medium mt-0.5"
+          class="block text-[10px] sm:text-xs font-medium mt-0.5 line-clamp-1"
           style="color: var(--text-muted)"
         >
           {{ subtitle }}

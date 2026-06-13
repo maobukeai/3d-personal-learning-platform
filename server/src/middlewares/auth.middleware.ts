@@ -2,21 +2,51 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import prisma from '../services/prisma';
-import type { User, Subscription, SubscriptionPlan } from '@prisma/client';
+import type { Subscription, SubscriptionPlan } from '@prisma/client';
 import { AppError } from './error.middleware';
 import { redisService } from '../services/redis.service';
 import { logger } from '../utils/logger';
 
-const reviveUserDates = (user: any) => {
+const USER_CACHE_TTL_SECONDS = 600;
+const WORKSPACE_CACHE_TTL_SECONDS = 60;
+
+// Revive Date objects from JSON-serialized cache entries.
+// Works with partial User objects (sensitive fields excluded from cache).
+const reviveUserDates = (user: Record<string, unknown>) => {
   if (!user) return user;
-  if (user.createdAt) user.createdAt = new Date(user.createdAt);
-  if (user.updatedAt) user.updatedAt = new Date(user.updatedAt);
+  if (user.createdAt && typeof user.createdAt === 'string')
+    user.createdAt = new Date(user.createdAt as string);
+  if (user.updatedAt && typeof user.updatedAt === 'string')
+    user.updatedAt = new Date(user.updatedAt as string);
   return user;
 };
 
+// Fields to select from User for auth caching — excludes sensitive fields
+// (password, twoFactorSecret, twoFactorRecoveryCodes) so they are never stored in Redis.
+const selectFields = {
+  id: true,
+  email: true,
+  name: true,
+  avatarUrl: true,
+  bio: true,
+  location: true,
+  website: true,
+  role: true,
+  status: true,
+  points: true,
+  emailVerified: true,
+  twoFactorEnabled: true,
+  createdAt: true,
+  updatedAt: true,
+  googleId: true,
+  githubId: true,
+} as const;
+
+type SafeUser = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: string }; select: typeof selectFields }>>>>;
+
 export interface AuthRequest extends Request {
   userId?: string;
-  user?: User & {
+  user?: SafeUser & {
     subscription?: (Subscription & { plan: SubscriptionPlan }) | null;
   };
   workspaceId?: string;
@@ -34,20 +64,30 @@ const getTokenFromRequest = (req: Request) => {
     return req.cookies.token;
   }
 
-  if (req.query?.token) {
-    return req.query.token as string;
-  }
-
   return null;
 };
 
-const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => {
+const resolveWorkspaceId = async (user: SafeUser, requestedWorkspaceId?: string) => {
+  // Check workspace resolution cache for non-virtual workspaces
+  if (
+    requestedWorkspaceId &&
+    !requestedWorkspaceId.startsWith('admin-') &&
+    !requestedWorkspaceId.startsWith('mirror-') &&
+    !requestedWorkspaceId.startsWith('manual-')
+  ) {
+    const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
+    const cached = await redisService.get<string>(cacheKey);
+    if (cached) return cached;
+  }
+
   const getPersonalTeamId = async () => {
     const personalTeam = await prisma.team.findFirst({
       where: { ownerId: user.id, type: 'PERSONAL' },
       select: { id: true },
     });
     if (personalTeam) {
+      const personalCacheKey = `workspace_resolve:${user.id}:personal`;
+      await redisService.set(personalCacheKey, personalTeam.id, WORKSPACE_CACHE_TTL_SECONDS);
       return personalTeam.id;
     }
     // Create personal team on the fly if it doesn't exist
@@ -67,6 +107,8 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
       select: { id: true },
     });
     logger.info(`Auto-created personal team ${newPersonalTeam.id} for user ${user.id}`);
+    const personalCacheKey = `workspace_resolve:${user.id}:personal`;
+    await redisService.set(personalCacheKey, newPersonalTeam.id, WORKSPACE_CACHE_TTL_SECONDS);
     return newPersonalTeam.id;
   };
 
@@ -75,6 +117,9 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
     requestedWorkspaceId === 'undefined' ||
     requestedWorkspaceId === 'null'
   ) {
+    const personalCacheKey = `workspace_resolve:${user.id}:personal`;
+    const cachedPersonal = await redisService.get<string>(personalCacheKey);
+    if (cachedPersonal) return cachedPersonal;
     return await getPersonalTeamId();
   }
 
@@ -136,6 +181,9 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
   });
 
   if (membership) {
+    // Cache the resolved workspace ID for 60 seconds
+    const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
+    await redisService.set(cacheKey, requestedWorkspaceId, WORKSPACE_CACHE_TTL_SECONDS);
     return requestedWorkspaceId;
   }
 
@@ -146,6 +194,9 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
   });
 
   if (team && team.ownerId === user.id) {
+    // Cache the resolved workspace ID for 60 seconds
+    const cacheKey = `workspace_resolve:${user.id}:${requestedWorkspaceId}`;
+    await redisService.set(cacheKey, requestedWorkspaceId, WORKSPACE_CACHE_TTL_SECONDS);
     return requestedWorkspaceId;
   }
 
@@ -154,17 +205,18 @@ const resolveWorkspaceId = async (user: User, requestedWorkspaceId?: string) => 
 
 const attachAuthenticatedUser = async (req: AuthRequest, userId: string) => {
   const cacheKey = `user_auth:${userId}`;
-  let user = await redisService.get<User>(cacheKey);
+  let user: SafeUser | null = await redisService.get(cacheKey);
 
   if (user) {
     reviveUserDates(user);
   } else {
     user = await prisma.user.findUnique({
       where: { id: userId },
+      select: selectFields,
     });
 
     if (user) {
-      await redisService.set(cacheKey, user, 600); // 10 minutes cache
+      await redisService.set(cacheKey, user, USER_CACHE_TTL_SECONDS);
     }
   }
 

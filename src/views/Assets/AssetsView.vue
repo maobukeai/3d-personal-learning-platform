@@ -1,1483 +1,1280 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import {
   Activity,
+  ArrowDownToLine,
   BarChart3,
   Box,
-  ChevronDown,
+  CalendarClock,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Download,
-  Filter,
+  Eye,
+  EyeOff,
+  FileArchive,
   Grid3X3,
   Heart,
-  LayoutGrid,
-  List,
-  MoreHorizontal,
+  Layers,
+  LayoutList,
+  Loader2,
   PackageCheck,
   Search,
   SlidersHorizontal,
+  Sparkles,
+  Tags,
   UploadCloud,
   UsersRound,
   X,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
-import api from '@/utils/api';
-import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
-import type { Asset, Category } from '@/types';
+import api, { getAssetUrl } from '@/utils/api';
+import { getApiErrorMessage } from '@/utils/error';
+import type { Category } from '@/types';
+import {
+  ASSET_UPLOAD_FORMAT_OPTIONS,
+  buildActiveAssetFilterChips,
+  buildAssetCategoryOptions,
+  buildAssetFormatOptions,
+  buildAssetUploadFormData,
+  createAssetUploadForm,
+  filterVisibleAssets,
+  isAssetUploadReady,
+  type AssetInsights,
+  type AssetInsightCategory,
+  type AssetListItem,
+  type AssetSortKey as SortKey,
+  type AssetViewMode as ViewMode,
+} from './assetLibraryModel';
+import {
+  formatCompactNumber,
+  formatFileSize,
+  formatRelativeTime,
+  resolvePreviewUrl,
+} from './resourceUtils';
 
-type AssetListItem = Asset & {
-  category?: Category | null;
-  user?: {
-    name?: string | null;
-    avatarUrl?: string | null;
-  } | null;
-};
-
-type AssetCategory = Category & {
-  _count?: {
-    assets?: number;
-  };
-};
-
-type ViewMode = 'grid' | 'list';
-type SortKey = 'latest' | 'oldest' | 'popular' | 'size';
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
 const router = useRouter();
-const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
+const { locale } = useI18n();
+const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 const searchQuery = ref('');
+const isStatsExpanded = ref(false);
 const activeCategoryId = ref('all');
 const selectedFormat = ref('all');
 const selectedTag = ref('all');
-const selectedQuality = ref('all');
-const selectedLicense = ref('all');
 const sortKey = ref<SortKey>('latest');
 const viewMode = ref<ViewMode>('grid');
-const isMobile = ref(window.innerWidth < 900);
-const isFilterMenuOpen = ref(false);
-const assets = ref<AssetListItem[]>([]);
-const analyticsAssets = ref<AssetListItem[]>([]);
-const assetCategories = ref<AssetCategory[]>([]);
+const isFilterOpen = ref(false);
 const isLoading = ref(false);
 const isUploading = ref(false);
 const isUploadDialogOpen = ref(false);
-
-const isCategoryExpanded = ref(localStorage.getItem('3d_platform_category_expanded') !== 'false');
-const isFormatExpanded = ref(localStorage.getItem('3d_platform_format_expanded') === 'true');
-const isTagExpanded = ref(localStorage.getItem('3d_platform_tag_expanded') === 'true');
-
-const tagsList = ref<{ label: string; count: number; searchCount: number }[]>([]);
-const isAllTagsExpanded = ref(false);
-const tagSearchQuery = ref('');
-
-const fetchTags = async () => {
-  try {
-    const response = await api.get('/api/assets/tags');
-    tagsList.value = response.data;
-  } catch (error) {
-    console.error('Failed to fetch tags:', error);
-  }
-};
-
-const handleTagClick = (tagLabel: string) => {
-  searchQuery.value = tagLabel;
-  isAllTagsExpanded.value = false;
-  tagSearchQuery.value = '';
-  fetchAssets();
-  fetchTags();
-};
-
-const toggleAllTags = () => {
-  isAllTagsExpanded.value = !isAllTagsExpanded.value;
-  if (!isAllTagsExpanded.value) {
-    tagSearchQuery.value = '';
-  }
-};
-
-const displayedSidebarTags = computed(() => {
-  let list = tagsList.value;
-  const query = tagSearchQuery.value.trim().toLowerCase();
-  if (query) {
-    list = list.filter(t => t.label.toLowerCase().includes(query));
-  }
-  if (!isAllTagsExpanded.value && !query) {
-    return list.slice(0, 9);
-  }
-  return list;
-});
-
-const toggleCategory = () => {
-  isCategoryExpanded.value = !isCategoryExpanded.value;
-  localStorage.setItem('3d_platform_category_expanded', String(isCategoryExpanded.value));
-};
-
-const toggleFormat = () => {
-  isFormatExpanded.value = !isFormatExpanded.value;
-  localStorage.setItem('3d_platform_format_expanded', String(isFormatExpanded.value));
-};
-
-const toggleTag = () => {
-  isTagExpanded.value = !isTagExpanded.value;
-  localStorage.setItem('3d_platform_tag_expanded', String(isTagExpanded.value));
-};
+const assets = ref<AssetListItem[]>([]);
+const categories = ref<AssetInsightCategory[]>([]);
+const insights = ref<AssetInsights | null>(null);
+const searchTimer = ref<number | undefined>();
 
 const pagination = ref({
   total: 0,
   page: 1,
-  limit: 20,
+  limit: 24,
   totalPages: 0,
 });
 
-const uploadForm = ref({
-  uploadType: 'file',
-  title: '',
-  description: '',
-  categoryId: '',
-  file: null as File | null,
-  externalUrl: '',
-  thumbnail: null as File | null,
-  formats: [] as string[],
-  tags: '',
-});
+const uploadForm = ref(createAssetUploadForm());
+const uploadFormatOptions = ASSET_UPLOAD_FORMAT_OPTIONS;
 
-const availableFormats = ['FBX', 'OBJ', 'BLEND', 'MAX', 'C4D', 'MAYA', 'ZTL', 'SPP', 'Textures'];
-const formatOptions = ['all', 'GLB', 'GLTF', 'FBX', 'OBJ', 'STL', 'DAE', 'ZIP', 'LINK'];
-const tagOptions = [
-  { value: 'all', label: '全部标签' },
-  { value: 'animated', label: '含动画' },
-  { value: 'materials', label: '含材质' },
-  { value: 'large', label: '大文件' },
-];
-const qualityOptions = [
-  { value: 'all', label: '全部质量' },
-  { value: 'high', label: '高精度' },
-  { value: 'medium', label: '中精度' },
-  { value: 'light', label: '轻量' },
-];
-const licenseOptions = [
-  { value: 'all', label: '全部许可' },
-  { value: 'downloadable', label: '可下载' },
-  { value: 'link', label: '外链资源' },
-];
-
-const isZipFile = computed(() => {
-  const fileName = uploadForm.value.file?.name || '';
-  return fileName.toLowerCase().endsWith('.zip');
-});
-
-const canSubmitUpload = computed(() => {
-  const hasSource =
-    uploadForm.value.uploadType === 'file'
-      ? Boolean(uploadForm.value.file)
-      : Boolean(uploadForm.value.externalUrl.trim());
-
-  return (
-    hasSource &&
-    Boolean(uploadForm.value.title.trim()) &&
-    Boolean(uploadForm.value.categoryId) &&
-    !isUploading.value
-  );
-});
-
-watch(isZipFile, (isZip) => {
-  if (!isZip) {
-    uploadForm.value.formats = [];
-  }
-});
-
-const categories = computed(() => [
-  { id: 'all', name: '全部分类', count: pagination.value.total },
-  ...assetCategories.value.map((category) => ({
-    id: category.id,
-    name: category.name,
-    count: category._count?.assets || 0,
-  })),
-]);
-
-const normalizedAssets = computed(() => assets.value.map(normalizeAsset));
-const normalizedAnalyticsAssets = computed(() => analyticsAssets.value.map(normalizeAsset));
-
-const displayedAssets = computed(() => {
-  const filtered = normalizedAssets.value.filter((asset) => {
-    const matchesFormat = selectedFormat.value === 'all' || asset.format === selectedFormat.value;
-    const matchesTag =
-      selectedTag.value === 'all' ||
-      (selectedTag.value === 'animated' && asset.hasAnimations) ||
-      (selectedTag.value === 'materials' && (asset.materials || 0) > 0) ||
-      (selectedTag.value === 'large' && (asset.sizeMb || 0) >= 10);
-    const matchesQuality =
-      selectedQuality.value === 'all' ||
-      (selectedQuality.value === 'high' && (asset.faces || 0) >= 50000) ||
-      (selectedQuality.value === 'medium' && (asset.faces || 0) > 0 && (asset.faces || 0) < 50000) ||
-      (selectedQuality.value === 'light' && (asset.sizeMb || 0) < 3);
-    const matchesLicense =
-      selectedLicense.value === 'all' ||
-      (selectedLicense.value === 'downloadable' && asset.format !== 'LINK') ||
-      (selectedLicense.value === 'link' && asset.format === 'LINK');
-
-    return matchesFormat && matchesTag && matchesQuality && matchesLicense;
-  });
-
-  return filtered.sort((a, b) => {
-    if (sortKey.value === 'oldest') return a.createdAtTime - b.createdAtTime;
-    if (sortKey.value === 'popular') return b.popularity - a.popularity;
-    if (sortKey.value === 'size') return (b.sizeMb || 0) - (a.sizeMb || 0);
-    return b.createdAtTime - a.createdAtTime;
-  });
-});
-
-const totalSizeMb = computed(() =>
-  normalizedAnalyticsAssets.value.reduce((sum, asset) => sum + (asset.sizeMb || 0), 0),
+const categoryOptions = computed(() =>
+  buildAssetCategoryOptions(
+    categories.value,
+    insights.value,
+    pagination.value.total,
+    label('全部资源', 'All Assets'),
+  ),
 );
 
-const animatedAssetsCount = computed(() =>
-  normalizedAnalyticsAssets.value.filter((asset) => asset.hasAnimations).length,
-);
-const optimizedAssetsCount = computed(() =>
-  normalizedAnalyticsAssets.value.filter(
-    (asset) => (asset.faces || 0) > 0 && (asset.faces || 0) < 50000,
-  ).length,
-);
-const sharedUserCount = computed(() => {
-  const names = new Set(normalizedAnalyticsAssets.value.map((asset) => asset.author).filter(Boolean));
-  return Math.max(names.size, normalizedAnalyticsAssets.value.length ? 1 : 0);
-});
+const formatOptions = computed(() => buildAssetFormatOptions(insights.value));
 
 const statCards = computed(() => [
   {
-    label: '资产总数',
-    value: pagination.value.total,
-    meta: `较上月 +${Math.min(12, Math.max(0, normalizedAnalyticsAssets.value.length))}`,
+    label: label('资源总量', 'Total Assets'),
+    value: insights.value?.summary.total || pagination.value.total,
+    meta: label(
+      `${formatCompactNumber(insights.value?.summary.downloads)} 次下载`,
+      `${formatCompactNumber(insights.value?.summary.downloads)} downloads`,
+    ),
     icon: Box,
-    tone: 'indigo',
-    spark: [18, 22, 21, 28, 24, 33, 30, 38],
+    tone: 'blue',
   },
   {
-    label: '动画模型',
-    value: animatedAssetsCount.value,
-    meta: normalizedAnalyticsAssets.value.length
-      ? `${Math.round((animatedAssetsCount.value / normalizedAnalyticsAssets.value.length) * 100)}%`
-      : '0%',
-    icon: Activity,
-    tone: 'emerald',
-    spark: [14, 18, 25, 20, 28, 24, 32, 36],
-  },
-  {
-    label: '轻量网格',
-    value: optimizedAssetsCount.value,
-    meta: normalizedAnalyticsAssets.value.length
-      ? `${Math.round((optimizedAssetsCount.value / normalizedAnalyticsAssets.value.length) * 100)}%`
-      : '0%',
-    icon: PackageCheck,
-    tone: 'orange',
-    spark: [22, 24, 21, 25, 23, 27, 26, 30],
-  },
-  {
-    label: '团队共享',
-    value: sharedUserCount.value,
-    meta: '贡献者',
+    label: label('团队贡献', 'Team Contributions'),
+    value: insights.value?.summary.myUploads || 0,
+    meta: label(`${insights.value?.summary.pending || 0} 个待审核`, `${insights.value?.summary.pending || 0} pending`),
     icon: UsersRound,
-    tone: 'sky',
-    spark: [10, 14, 13, 18, 17, 23, 20, 26],
+    tone: 'green',
+  },
+  {
+    label: label('可动画模型', 'Animated Models'),
+    value: insights.value?.summary.animated || 0,
+    meta: label(`${insights.value?.summary.optimized || 0} 个轻量网格`, `${insights.value?.summary.optimized || 0} optimized`),
+    icon: Activity,
+    tone: 'orange',
+  },
+  {
+    label: label('平均体积', 'Average Size'),
+    value: formatFileSize(insights.value?.summary.averageSize || 0, '0 MB'),
+    meta: label(
+      `累计 ${formatFileSize(insights.value?.summary.totalSize || 0, '0 MB')}`,
+      `Total ${formatFileSize(insights.value?.summary.totalSize || 0, '0 MB')}`,
+    ),
+    icon: FileArchive,
+    tone: 'teal',
   },
 ]);
 
-const latestActivities = computed(() =>
-  normalizedAnalyticsAssets.value.slice(0, 5).map((asset) => ({
-    id: asset.id,
-    name: asset.author,
-    avatar: asset.avatar,
-    action: asset.format === 'LINK' ? '分享了模型' : '上传了模型',
-    target: asset.title,
-    time: formatRelativeTime(asset.createdAt),
-  })),
-);
+const visibleAssets = computed(() => {
+  return filterVisibleAssets(
+    assets.value,
+    {
+      selectedFormat: selectedFormat.value,
+      selectedTag: selectedTag.value,
+    },
+    {
+      creatorLabel: label('创作者', 'Creator'),
+      uncategorizedLabel: label('未分类', 'Uncategorized'),
+    },
+  );
+});
 
-// hotTags and filteredTags are replaced by displayedSidebarTags
+const activeFilterChips = computed(() => {
+  return buildActiveAssetFilterChips({
+    activeCategoryId: activeCategoryId.value,
+    categoryOptions: categoryOptions.value,
+    currentCategoryLabel: label('当前分类', 'Current Category'),
+    selectedFormat: selectedFormat.value,
+    selectedTag: selectedTag.value,
+    searchQuery: searchQuery.value,
+  });
+});
 
-const storagePercent = computed(() => Math.min(100, Math.round((totalSizeMb.value / 100) * 100)));
+const uploadCanSubmit = computed(() => isAssetUploadReady(uploadForm.value));
 
-watch(
-  [searchQuery, activeCategoryId],
-  () => {
+watch([activeCategoryId, sortKey], () => {
+  pagination.value.page = 1;
+  fetchAssets();
+});
+
+watch(searchQuery, () => {
+  if (searchTimer.value) window.clearTimeout(searchTimer.value);
+  searchTimer.value = window.setTimeout(() => {
     pagination.value.page = 1;
     fetchAssets();
-  },
-  { flush: 'post' },
-);
-
-const updateIsMobile = () => {
-  isMobile.value = window.innerWidth < 900;
-};
-
-const fetchCategories = async () => {
-  try {
-    const response = await api.get('/api/assets/categories');
-    assetCategories.value = response.data;
-  } catch (_error) {
-    console.error('Failed to fetch categories');
-  }
-};
+  }, 320);
+});
 
 const fetchAssets = async () => {
   isLoading.value = true;
   try {
-    const response = await api.get('/api/assets/public', {
+    const { data } = await api.get('/api/assets/public', {
       params: {
         page: pagination.value.page,
         limit: pagination.value.limit,
-        search: searchQuery.value,
+        search: searchQuery.value.trim() || undefined,
         categoryId: activeCategoryId.value,
+        sort: sortKey.value,
       },
     });
-    assets.value = response.data.assets || [];
-    pagination.value = response.data.pagination;
-  } catch (_error) {
-    ElMessage.error('获取资产失败');
+    assets.value = data.assets || [];
+    pagination.value = data.pagination || pagination.value;
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, label('资源列表加载失败', 'Failed to load assets')));
   } finally {
     isLoading.value = false;
   }
 };
 
-const fetchAnalyticsAssets = async () => {
+const fetchInsights = async () => {
   try {
-    const response = await api.get('/api/assets/public', {
-      params: {
-        page: 1,
-        limit: 50,
-        lite: true,
-      },
-    });
-    analyticsAssets.value = response.data.assets || [];
-  } catch (_error) {
-    analyticsAssets.value = [];
+    const { data } = await api.get('/api/assets/insights');
+    insights.value = data;
+    categories.value = data.categories || [];
+  } catch (error) {
+    console.error('Failed to fetch asset insights:', error);
+  }
+};
+
+const fetchCategories = async () => {
+  try {
+    const { data } = await api.get('/api/assets/categories');
+    const mapped = (data || []).map((category: Category) => ({
+      id: category.id,
+      name: category.name,
+      count: category._count?.assets || 0,
+    }));
+    if (!categories.value.length) categories.value = mapped;
+  } catch (error) {
+    console.error('Failed to fetch categories:', error);
   }
 };
 
 const handlePageChange = (page: number) => {
+  if (page < 1 || page > pagination.value.totalPages) return;
   pagination.value.page = page;
   fetchAssets();
 };
 
-const handleLimitChange = (limit: number) => {
-  pagination.value.limit = limit;
-  pagination.value.page = 1;
-  fetchAssets();
+const clearFilter = (key: string) => {
+  if (key === 'category') activeCategoryId.value = 'all';
+  if (key === 'format') selectedFormat.value = 'all';
+  if (key === 'tag') selectedTag.value = 'all';
+  if (key === 'search') searchQuery.value = '';
 };
 
-const goToDetail = (id: string) => {
-  router.push({ name: 'AssetDetail', params: { id } });
+const resetFilters = () => {
+  activeCategoryId.value = 'all';
+  selectedFormat.value = 'all';
+  selectedTag.value = 'all';
+  searchQuery.value = '';
 };
 
-const handleDirectDownload = async (asset: AssetListItem) => {
+const goToDetail = (asset: AssetListItem) => {
+  router.push({ name: 'AssetDetail', params: { id: asset.id } });
+};
+
+const handleDownload = async (asset: AssetListItem, event?: Event) => {
+  event?.stopPropagation();
   if (!asset.url) return;
   try {
-    const response = await api.post(`/api/assets/${asset.id}/download`);
-    asset.downloads = response.data.downloads;
+    const { data } = await api.post(`/api/assets/${asset.id}/download`);
+    asset.downloads = data.downloads;
   } catch (error) {
-    console.error('Failed to record download:', error);
+    console.error('Failed to record asset download:', error);
   }
-  window.open(asset.url, '_blank', 'noopener,noreferrer');
+  window.open(getAssetUrl(asset.url), '_blank', 'noopener,noreferrer');
 };
 
-const showComingSoon = (feature: string) => {
-  ElMessage.info(`${feature}功能已保留入口，可继续接入后端能力`);
-};
-
-const handleFileChange = (e: Event) => {
-  const input = e.target as HTMLInputElement | null;
-  const file = input?.files?.[0];
-  if (file) {
-    uploadForm.value.file = file;
-    if (!uploadForm.value.title) {
-      uploadForm.value.title = file.name.split('.')[0];
-    }
+const handleLike = async (asset: AssetListItem, event?: Event) => {
+  event?.stopPropagation();
+  try {
+    const { data } = await api.post(`/api/assets/${asset.id}/like`);
+    asset.likes = data.likes;
+    ElMessage.success(data.liked ? label('已收藏到喜欢列表', 'Added to favorites') : label('已取消喜欢', 'Removed from favorites'));
+    fetchInsights();
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, label('操作失败', 'Operation failed')));
   }
 };
 
-const handleThumbnailChange = (e: Event) => {
-  const input = e.target as HTMLInputElement | null;
-  const file = input?.files?.[0];
-  if (file) {
-    uploadForm.value.thumbnail = file;
+const handleFileChange = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  uploadForm.value.file = file;
+  if (!uploadForm.value.title.trim()) {
+    uploadForm.value.title = file.name.replace(/\.[^.]+$/, '');
   }
+};
+
+const handleThumbnailChange = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (file) uploadForm.value.thumbnail = file;
 };
 
 const resetUploadForm = () => {
-  uploadForm.value = {
-    uploadType: 'file',
-    title: '',
-    description: '',
-    categoryId: '',
-    file: null,
-    externalUrl: '',
-    thumbnail: null,
-    formats: [],
-    tags: '',
-  };
+  uploadForm.value = createAssetUploadForm();
 };
 
-const handleUpload = async () => {
-  if (uploadForm.value.uploadType === 'file' && !uploadForm.value.file) {
-    ElMessage.warning('请选择模型文件');
+const submitUpload = async () => {
+  if (!uploadCanSubmit.value) {
+    ElMessage.warning(label('请补全资源名称、分类和文件来源', 'Please complete asset name, category, and source'));
     return;
   }
 
-  if (uploadForm.value.uploadType === 'link' && !uploadForm.value.externalUrl) {
-    ElMessage.warning('请输入外链地址');
-    return;
-  }
-
-  if (!uploadForm.value.title.trim()) {
-    ElMessage.warning('请填写资源名称');
-    return;
-  }
-
-  if (!uploadForm.value.categoryId) {
-    ElMessage.warning('请选择资源分类');
-    return;
-  }
-
-  isUploading.value = true;
-  const formData = new FormData();
-  if (uploadForm.value.uploadType === 'file') {
-    formData.append('asset', uploadForm.value.file!);
-  } else {
-    formData.append('externalUrl', uploadForm.value.externalUrl);
-  }
-  if (uploadForm.value.thumbnail) {
-    formData.append('thumbnail', uploadForm.value.thumbnail);
-  }
-  formData.append('title', uploadForm.value.title);
-  formData.append('description', uploadForm.value.description);
-  formData.append('categoryId', uploadForm.value.categoryId);
-  if (uploadForm.value.tags) {
-    formData.append('tags', uploadForm.value.tags);
-  }
-  if (uploadForm.value.formats.length > 0) {
-    formData.append('formats', JSON.stringify(uploadForm.value.formats));
-  }
+  const formData = buildAssetUploadFormData(uploadForm.value);
 
   try {
+    isUploading.value = true;
     await api.post('/api/assets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    ElMessage.success('上传成功，请等待管理员审核');
+    ElMessage.success(label('资源已提交审核', 'Asset submitted for review'));
     isUploadDialogOpen.value = false;
     resetUploadForm();
-    fetchAssets();
-    fetchAnalyticsAssets();
-    fetchCategories();
-    fetchTags();
-  } catch (_error) {
-    ElMessage.error('上传失败');
+    await Promise.all([fetchAssets(), fetchInsights(), fetchCategories()]);
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, label('上传失败', 'Upload failed')));
   } finally {
     isUploading.value = false;
   }
 };
 
-function normalizeAsset(asset: AssetListItem) {
-  const sizeMb = Number(asset.size ?? (asset.fileSize ? asset.fileSize / 1024 / 1024 : 0)) || 0;
-  const format = (asset.type || asset.format || 'GLB').toUpperCase();
-  const downloads = asset.downloads ?? 0;
-  const likes = asset.likes ?? 0;
-  const viewCount = asset.viewCount ?? 0;
-
-  return {
-    ...asset,
-    format,
-    sizeMb,
-    author: asset.user?.name || '未知用户',
-    avatar: asset.user?.avatarUrl || '',
-    categoryName: asset.category?.name || '未分类',
-    createdAtTime: new Date(asset.createdAt).getTime(),
-    downloads,
-    likes,
-    viewCount,
-    popularity: downloads + likes + viewCount,
-  };
-}
-
-function formatSize(sizeMb?: number | null, format?: string) {
-  if (format === 'LINK') return '外部资源';
-  const value = Number(sizeMb || 0);
-  if (!value) return '未知大小';
-  if (value < 1) return `${Math.max(1, Math.round(value * 1024))} KB`;
-  if (value >= 1024) return `${(value / 1024).toFixed(1)} GB`;
-  return `${value.toFixed(1)} MB`;
-}
-
-function formatRelativeTime(date: string | Date) {
-  const diff = Date.now() - new Date(date).getTime();
-  const minutes = Math.max(1, Math.floor(diff / 60000));
-  if (minutes < 60) return `${minutes} 分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} 天前`;
-  return new Date(date).toLocaleDateString('zh-CN');
-}
-
-function sparkline(points: number[]) {
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  return points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * 100;
-      const y = 36 - ((point - min) / Math.max(1, max - min)) * 28;
-      return `${x},${y}`;
-    })
-    .join(' ');
-}
-
 onMounted(() => {
-  window.addEventListener('resize', updateIsMobile);
   fetchAssets();
-  fetchAnalyticsAssets();
+  fetchInsights();
   fetchCategories();
-  fetchTags();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateIsMobile);
+  if (searchTimer.value) window.clearTimeout(searchTimer.value);
 });
 </script>
 
 <template>
   <div class="asset-library-page">
-    <header class="asset-header-bar">
-      <div class="header-left">
-        <div class="header-icon-wrap">
-          <Box class="w-4 h-4" />
+    <header class="page-header">
+      <div class="title-block">
+        <div class="title-icon">
+          <Box class="icon-md" />
         </div>
-        <h1>模型资产库</h1>
+        <div>
+          <h1>{{ label('资源库', 'Asset Library') }}</h1>
+          <p>{{ label('模型、工程文件、贴图包与外链资产统一分发。', 'Distribute models, project files, texture packs, and external assets in one place.') }}</p>
+        </div>
       </div>
 
       <div class="header-actions">
-        <button type="button" class="ghost-action" @click="showComingSoon('资产分析')">
-          <BarChart3 class="h-3.5 w-3.5" />
-          资产分析
+        <button
+          type="button"
+          class="ghost-button"
+          @click="isStatsExpanded = !isStatsExpanded"
+        >
+          <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
+          {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
         </button>
-        <button type="button" class="ghost-action" @click="showComingSoon('批量操作')">
-          <MoreHorizontal class="h-3.5 w-3.5" />
-          批量操作
+        <button type="button" class="ghost-button" @click="fetchInsights">
+          <BarChart3 class="icon-sm" />
+          {{ label('更新统计', 'Refresh Stats') }}
         </button>
-        <button type="button" class="primary-action" @click="isUploadDialogOpen = true">
-          <UploadCloud class="h-3.5 w-3.5" />
-          上传资产
+        <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
+          <UploadCloud class="icon-sm" />
+          {{ label('上传资源', 'Upload Asset') }}
         </button>
       </div>
     </header>
 
-    <div class="asset-page-body">
-      <main class="asset-main">
+    <section v-show="isStatsExpanded" class="stats-grid">
+      <article v-for="stat in statCards" :key="stat.label" class="stat-card" :data-tone="stat.tone">
+        <div class="stat-icon">
+          <component :is="stat.icon" class="icon-sm" />
+        </div>
+        <div>
+          <span>{{ stat.label }}</span>
+          <strong>{{ stat.value }}</strong>
+          <small>{{ stat.meta }}</small>
+        </div>
+      </article>
+    </section>
 
-      <section class="stats-grid">
-        <article v-for="stat in statCards" :key="stat.label" class="stat-card" :data-tone="stat.tone">
-          <div class="stat-icon">
-            <component :is="stat.icon" class="h-5 w-5" />
+    <section class="workspace-shell">
+      <aside class="filter-panel" :class="{ open: isFilterOpen }">
+        <div class="panel-section">
+          <div class="section-title">
+            <Layers class="icon-sm" />
+            {{ label('分类', 'Categories') }}
           </div>
-          <div class="stat-content">
-            <span>{{ stat.label }}</span>
-            <strong>{{ stat.value }}</strong>
-            <small>{{ stat.meta }}</small>
-          </div>
-          <svg class="stat-spark" viewBox="0 0 100 40" preserveAspectRatio="none">
-            <polyline :points="sparkline(stat.spark)" />
-          </svg>
-        </article>
-      </section>
-
-      <section class="asset-toolbar">
-        <label class="search-box">
-          <Search class="h-4 w-4" />
-          <input v-model="searchQuery" type="text" placeholder="搜索资产名称、标签、作者..." />
-        </label>
-
-        <div class="filter-strip">
-          <select v-model="activeCategoryId">
-            <option v-for="category in categories" :key="category.id" :value="category.id">
-              {{ category.name }}
-            </option>
-          </select>
-          <select v-model="selectedFormat">
-            <option v-for="format in formatOptions" :key="format" :value="format">
-              {{ format === 'all' ? '全部格式' : format }}
-            </option>
-          </select>
-          <select v-model="selectedQuality">
-            <option v-for="quality in qualityOptions" :key="quality.value" :value="quality.value">
-              {{ quality.label }}
-            </option>
-          </select>
-          <select v-model="selectedTag">
-            <option v-for="tag in tagOptions" :key="tag.value" :value="tag.value">
-              {{ tag.label }}
-            </option>
-          </select>
-          <select v-model="selectedLicense">
-            <option v-for="license in licenseOptions" :key="license.value" :value="license.value">
-              {{ license.label }}
-            </option>
-          </select>
-          <select v-model="sortKey">
-            <option value="latest">最新上传</option>
-            <option value="oldest">最早上传</option>
-            <option value="popular">热度优先</option>
-            <option value="size">文件大小</option>
-          </select>
+          <button
+            v-for="category in categoryOptions"
+            :key="category.id"
+            type="button"
+            class="filter-button"
+            :class="{ active: activeCategoryId === category.id }"
+            @click="activeCategoryId = category.id"
+          >
+            <span>{{ category.name }}</span>
+            <strong>{{ category.count }}</strong>
+          </button>
         </div>
 
-        <div class="view-switch">
-          <button type="button" :class="{ active: viewMode === 'grid' }" title="网格视图" @click="viewMode = 'grid'">
-            <Grid3X3 class="h-4 w-4" />
-          </button>
-          <button type="button" :class="{ active: viewMode === 'list' }" title="列表视图" @click="viewMode = 'list'">
-            <List class="h-4 w-4" />
-          </button>
-          <button type="button" class="mobile-filter" title="筛选" @click="isFilterMenuOpen = !isFilterMenuOpen">
-            <Filter class="h-4 w-4" />
+        <div class="panel-section">
+          <div class="section-title">
+            <PackageCheck class="icon-sm" />
+            {{ label('格式', 'Formats') }}
+          </div>
+          <button
+            v-for="format in formatOptions"
+            :key="format.label"
+            type="button"
+            class="filter-button"
+            :class="{ active: selectedFormat === format.label }"
+            @click="selectedFormat = format.label"
+          >
+            <span>{{ format.label === 'all' ? label('全部格式', 'All Formats') : format.label }}</span>
+            <strong>{{ format.count }}</strong>
           </button>
         </div>
-      </section>
 
-      <Transition name="slide-down">
-        <section v-if="isFilterMenuOpen && isMobile" class="mobile-filter-panel">
-          <button v-for="category in categories" :key="category.id" type="button" :class="{ active: activeCategoryId === category.id }" @click="activeCategoryId = category.id; isFilterMenuOpen = false">
-            {{ category.name }} <span>{{ category.count }}</span>
-          </button>
-        </section>
-      </Transition>
-
-      <section class="content-shell">
-        <aside class="filter-sidebar">
-          <div class="sidebar-title">
-            <SlidersHorizontal class="h-4 w-4" />
-            筛选条件
-            <button type="button" @click="activeCategoryId = 'all'; selectedFormat = 'all'; selectedTag = 'all'; selectedQuality = 'all'; selectedLicense = 'all'">清空</button>
+        <div class="panel-section">
+          <div class="section-title">
+            <Tags class="icon-sm" />
+            {{ label('热标签', 'Hot Tags') }}
           </div>
-
-          <div class="filter-group">
-            <h3 @click="toggleCategory">
-              <span>分类</span>
-              <ChevronDown :class="['h-3.5 w-3.5 collapse-icon', { collapsed: !isCategoryExpanded }]" />
-            </h3>
-            <div v-show="isCategoryExpanded" class="filter-content">
-              <button v-for="category in categories" :key="category.id" type="button" :class="{ active: activeCategoryId === category.id }" @click="activeCategoryId = category.id">
-                <span>{{ category.name }}</span>
-                <small>{{ category.count }}</small>
-              </button>
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h3 @click="toggleFormat">
-              <span>格式</span>
-              <ChevronDown :class="['h-3.5 w-3.5 collapse-icon', { collapsed: !isFormatExpanded }]" />
-            </h3>
-            <div v-show="isFormatExpanded" class="filter-content">
-              <button v-for="format in formatOptions" :key="format" type="button" :class="{ active: selectedFormat === format }" @click="selectedFormat = format">
-                <span>{{ format === 'all' ? '全部格式' : `.${format.toLowerCase()}` }}</span>
-                <small>{{ format === 'all' ? pagination.total : normalizedAnalyticsAssets.filter((asset) => asset.format === format).length }}</small>
-              </button>
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h3 @click="toggleTag">
-              <span>标签</span>
-              <ChevronDown :class="['h-3.5 w-3.5 collapse-icon', { collapsed: !isTagExpanded }]" />
-            </h3>
-            <div v-show="isTagExpanded" class="filter-content">
-              <button v-for="tag in tagOptions" :key="tag.value" type="button" :class="{ active: selectedTag === tag.value }" @click="selectedTag = tag.value">
-                <span>{{ tag.label }}</span>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <div class="asset-results">
-          <div v-if="isLoading" class="loading-state">
-            <div class="loading-spinner"></div>
-            <span>正在加载资产...</span>
-          </div>
-
-          <div v-else-if="displayedAssets.length === 0" class="empty-state">
-            <PackageCheck class="h-10 w-10" />
-            <strong>没有找到匹配的资产</strong>
-            <span>调整筛选条件或上传新的 3D 资源</span>
-          </div>
-
-          <div v-else :class="['asset-grid', viewMode]">
-            <article v-for="asset in displayedAssets" :key="asset.id" class="asset-card" @click="goToDetail(asset.id)">
-              <div class="asset-preview">
-                <img :src="asset.thumbnail || getDefaultThumbnailUrl(asset.format)" :alt="asset.title" />
-                <div class="asset-badges">
-                  <span>{{ asset.format }}</span>
-                  <span>{{ asset.categoryName }}</span>
-                </div>
-              </div>
-              <div class="asset-card-body">
-                <h2>{{ asset.title }}</h2>
-                <p>{{ formatSize(asset.sizeMb, asset.format) }} · {{ asset.author }} · {{ formatRelativeTime(asset.createdAt) }}</p>
-                <div class="asset-meta-row">
-                  <span><Download class="h-3.5 w-3.5" />{{ asset.downloads }}</span>
-                  <span><Heart class="h-3.5 w-3.5" />{{ asset.likes }}</span>
-                  <button type="button" title="下载" @click.stop="handleDirectDownload(asset)">
-                    <Download class="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" title="更多" @click.stop="showComingSoon('更多操作')">
-                    <MoreHorizontal class="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          <footer v-if="pagination.totalPages > 1" class="asset-pagination">
-            <button type="button" :disabled="pagination.page <= 1" @click="handlePageChange(pagination.page - 1)">
-              <ChevronLeft class="h-4 w-4" />
+          <div class="tag-cloud">
+            <button
+              type="button"
+              :class="{ active: selectedTag === 'all' }"
+              @click="selectedTag = 'all'"
+            >
+              {{ label('全部', 'All') }}
             </button>
             <button
-              v-for="page in pagination.totalPages"
-              :key="page"
+              v-for="tag in insights?.hotTags || []"
+              :key="tag.label"
               type="button"
-              :class="{ active: pagination.page === page }"
-              class="page-number"
-              @click="handlePageChange(page)"
+              :class="{ active: selectedTag === tag.label }"
+              @click="selectedTag = tag.label"
             >
-              {{ page }}
+              {{ tag.label }}
             </button>
-            <button type="button" :disabled="pagination.page >= pagination.totalPages" @click="handlePageChange(pagination.page + 1)">
-              <ChevronRight class="h-4 w-4" />
-            </button>
-            <select :value="pagination.limit" @change="handleLimitChange(Number(($event.target as HTMLSelectElement).value))">
-              <option :value="20">20 条/页</option>
-              <option :value="40">40 条/页</option>
-              <option :value="50">50 条/页</option>
-            </select>
-          </footer>
+          </div>
         </div>
-      </section>
-    </main>
+      </aside>
 
-    <aside class="asset-aside">
-      <section class="aside-panel">
-        <div class="panel-title">
-          <strong>最近动态</strong>
-          <button type="button" @click="showComingSoon('动态中心')">查看更多</button>
-        </div>
-        <div class="activity-list">
-          <div v-for="activityItem in latestActivities" :key="activityItem.id" class="activity-item">
-            <img v-if="activityItem.avatar" :src="activityItem.avatar" :alt="activityItem.name" />
-            <div v-else class="avatar-fallback">{{ activityItem.name.slice(0, 1) }}</div>
-            <div>
-              <p><strong>{{ activityItem.name }}</strong> {{ activityItem.action }}</p>
-              <span>{{ activityItem.target }}</span>
-              <small>{{ activityItem.time }}</small>
+      <main class="content-panel">
+        <section class="toolbar">
+          <label class="search-box">
+            <Search class="icon-sm" />
+            <input v-model="searchQuery" type="search" :placeholder="label('搜索资源名称、标签、作者或描述', 'Search names, tags, authors, or descriptions')" />
+          </label>
+
+          <div class="toolbar-actions">
+            <button type="button" class="icon-button mobile-filter" @click="isFilterOpen = !isFilterOpen">
+              <SlidersHorizontal class="icon-sm" />
+            </button>
+            <select v-model="sortKey" class="select-field">
+              <option value="latest">{{ label('最新发布', 'Newest') }}</option>
+              <option value="popular">{{ label('下载最多', 'Most Downloaded') }}</option>
+              <option value="views">{{ label('浏览最多', 'Most Viewed') }}</option>
+              <option value="size">{{ label('体积最大', 'Largest') }}</option>
+              <option value="oldest">{{ label('最早发布', 'Oldest') }}</option>
+            </select>
+            <div class="view-switch">
+              <button type="button" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'">
+                <Grid3X3 class="icon-sm" />
+              </button>
+              <button type="button" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
+                <LayoutList class="icon-sm" />
+              </button>
             </div>
           </div>
-          <div v-if="latestActivities.length === 0" class="aside-empty">暂无动态</div>
-        </div>
-      </section>
+        </section>
 
-      <section class="aside-panel">
-        <div class="panel-title">
-          <strong>{{ isAllTagsExpanded ? '所有标签' : '热门标签' }}</strong>
-          <button v-if="tagsList.length > 9" type="button" @click="toggleAllTags">
-            {{ isAllTagsExpanded ? '收起' : '全部标签' }}
-          </button>
-        </div>
-        
-        <div v-if="isAllTagsExpanded" class="tag-sidebar-search">
-          <Search class="h-3.5 w-3.5 tag-search-icon" />
-          <input v-model="tagSearchQuery" type="text" placeholder="搜索标签..." />
-        </div>
-
-        <div v-if="tagsList.length > 0" class="tag-cloud">
-          <button v-for="tag in displayedSidebarTags" :key="tag.label" type="button" @click="handleTagClick(tag.label)">
-            {{ tag.label }} <span>{{ tag.count }}</span>
-          </button>
-        </div>
-        
-        <div v-if="tagsList.length === 0" class="tag-empty-text">
-          暂无标签
-        </div>
-        <div v-else-if="displayedSidebarTags.length === 0" class="tag-empty-text">
-          未找到匹配的标签
-        </div>
-      </section>
-
-      <section class="aside-panel">
-        <div class="panel-title">
-          <strong>存储空间</strong>
-          <button type="button" @click="showComingSoon('空间详情')">详情</button>
-        </div>
-        <div class="storage-box">
+        <section class="asset-filter-strip">
           <div>
-            <span>已使用</span>
-            <strong>{{ formatSize(totalSizeMb) }} / 100 MB</strong>
-            <small>{{ storagePercent }}%</small>
+            <strong>{{ visibleAssets.length }}</strong>
+            <span>/ {{ pagination.total || visibleAssets.length }} {{ label('个资源', 'assets') }}</span>
           </div>
-          <div class="storage-track">
-            <div :style="{ width: `${storagePercent}%` }"></div>
+          <div class="asset-chip-row">
+            <button
+              v-for="chip in activeFilterChips"
+              :key="chip.key"
+              type="button"
+              @click="clearFilter(chip.key)"
+            >
+              {{ chip.label }}
+              <X class="icon-xs" />
+            </button>
+            <button v-if="activeFilterChips.length" type="button" class="reset-chip" @click="resetFilters">
+              {{ label('清空筛选', 'Clear Filters') }}
+            </button>
+            <span v-else>{{ label('当前显示全部公开资源', 'Showing all public assets') }}</span>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="upgrade-panel">
-        <div>
-          <strong>升级存储空间</strong>
-          <span>开启更高资产容量、团队共享与批量处理能力</span>
-          <button type="button" @click="router.push({ name: 'Billing' })">立即升级</button>
+        <div v-if="isLoading" class="asset-grid" :class="viewMode">
+          <article v-for="index in 8" :key="index" class="asset-card skeleton-card">
+            <div class="skeleton preview"></div>
+            <div class="skeleton line wide"></div>
+            <div class="skeleton line"></div>
+          </article>
         </div>
-        <LayoutGrid class="h-16 w-16" />
-      </section>
-    </aside>
-  </div>
+
+        <div v-else-if="visibleAssets.length" class="asset-grid" :class="viewMode">
+          <article
+            v-for="asset in visibleAssets"
+            :key="asset.id"
+            class="asset-card"
+            @click="goToDetail(asset)"
+          >
+            <div class="asset-preview">
+              <img :src="asset.preview" :alt="asset.title" />
+              <div class="badge-row">
+                <span>{{ asset.format }}</span>
+                <span v-if="asset.hasAnimations">{{ label('动画', 'Animated') }}</span>
+              </div>
+            </div>
+
+            <div class="asset-body">
+              <div class="card-title">
+                <div>
+                  <h2>{{ asset.title }}</h2>
+                  <p>{{ asset.description || label('作者暂未填写资源说明。', 'No asset description yet.') }}</p>
+                </div>
+                <button type="button" class="icon-button" @click="handleLike(asset, $event)">
+                  <Heart class="icon-sm" />
+                </button>
+              </div>
+
+              <div class="asset-meta">
+                <span>{{ asset.categoryName }}</span>
+                <span>{{ formatFileSize(asset.sizeMb) }}</span>
+                <span>{{ formatRelativeTime(asset.createdAt) }}</span>
+              </div>
+
+              <div class="tag-row">
+                <span v-for="tag in asset.tags.slice(0, 4)" :key="tag">#{{ tag }}</span>
+              </div>
+
+              <footer class="card-footer">
+                <div class="metric-row">
+                  <span><ArrowDownToLine class="icon-xs" />{{ formatCompactNumber(asset.downloads) }}</span>
+                  <span><Eye class="icon-xs" />{{ formatCompactNumber(asset.views) }}</span>
+                  <span><Heart class="icon-xs" />{{ formatCompactNumber(asset.likes) }}</span>
+                </div>
+                <button type="button" class="download-button" @click="handleDownload(asset, $event)">
+                  <ArrowDownToLine class="icon-sm" />
+                  {{ label('下载', 'Download') }}
+                </button>
+              </footer>
+            </div>
+          </article>
+        </div>
+
+        <div v-else class="empty-state">
+          <Sparkles class="empty-icon" />
+          <h2>{{ label('没有匹配的资源', 'No Matching Assets') }}</h2>
+          <p>{{ label('调整筛选条件，或上传一个新的资源包。', 'Adjust filters or upload a new asset package.') }}</p>
+          <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
+            <UploadCloud class="icon-sm" />
+            {{ label('上传资源', 'Upload Asset') }}
+          </button>
+        </div>
+
+        <footer v-if="pagination.totalPages > 1" class="pagination">
+          <button type="button" :disabled="pagination.page <= 1" @click="handlePageChange(pagination.page - 1)">
+            <ChevronLeft class="icon-sm" />
+          </button>
+          <span>{{ label('第', 'Page') }} {{ pagination.page }} / {{ pagination.totalPages }} {{ label('页', '') }}</span>
+          <button
+            type="button"
+            :disabled="pagination.page >= pagination.totalPages"
+            @click="handlePageChange(pagination.page + 1)"
+          >
+            <ChevronRight class="icon-sm" />
+          </button>
+        </footer>
+      </main>
+
+      <aside class="insight-panel">
+        <section class="side-section">
+          <div class="section-title">
+            <ArrowDownToLine class="icon-sm" />
+            {{ label('下载榜', 'Top Downloads') }}
+          </div>
+          <button
+            v-for="(asset, index) in insights?.topDownloads || []"
+            :key="asset.id"
+            type="button"
+            class="rank-item"
+            @click="goToDetail(asset)"
+          >
+            <span class="rank-badge" :class="`rank-${index + 1}`">{{ index + 1 }}</span>
+            <img :src="resolvePreviewUrl(asset.thumbnail, asset.type)" :alt="asset.title" />
+            <span class="rank-title">{{ asset.title }}</span>
+            <strong class="rank-value">{{ formatCompactNumber(asset.downloads) }}</strong>
+          </button>
+        </section>
+
+        <section class="side-section">
+          <div class="section-title">
+            <CalendarClock class="icon-sm" />
+            {{ label('最近更新', 'Recently Updated') }}
+          </div>
+          <button
+            v-for="asset in insights?.latest || []"
+            :key="asset.id"
+            type="button"
+            class="activity-item"
+            @click="goToDetail(asset)"
+          >
+            <span>{{ asset.title }}</span>
+            <small>{{ formatRelativeTime(asset.createdAt) }}</small>
+          </button>
+        </section>
+      </aside>
+    </section>
 
     <Transition name="fade">
-      <div v-if="isUploadDialogOpen" class="upload-modal">
+      <div v-if="isUploadDialogOpen" class="modal-layer">
         <button type="button" class="modal-backdrop" @click="isUploadDialogOpen = false"></button>
-        <div class="upload-card-v2">
-          <header class="upload-modal-header">
+        <section class="upload-dialog">
+          <header>
             <div>
-              <span class="upload-eyebrow">Asset Submit</span>
-              <h3>上传 3D 资产</h3>
-              <p>提交后会进入管理员审核，通过后展示在资源库与我的作品中。</p>
+              <h2>{{ label('上传资源', 'Upload Asset') }}</h2>
+              <p>{{ label('提交后进入审核，通过后展示在资源库。', 'Submissions go through review before appearing in the library.') }}</p>
             </div>
-            <button type="button" class="upload-close" aria-label="关闭上传弹窗" @click="isUploadDialogOpen = false">
-              <X class="w-5 h-5" />
+            <button type="button" class="icon-button" @click="isUploadDialogOpen = false">
+              <X class="icon-sm" />
             </button>
           </header>
 
-          <div class="upload-type-switch" role="tablist" aria-label="选择上传方式">
+          <div class="upload-type-switch">
             <button
               type="button"
               :class="{ active: uploadForm.uploadType === 'file' }"
               @click="uploadForm.uploadType = 'file'"
             >
-              <Box class="w-4 h-4" />
-              <span>本地文件</span>
+              <UploadCloud class="icon-sm" />
+              {{ label('本地文件', 'Local File') }}
             </button>
             <button
               type="button"
               :class="{ active: uploadForm.uploadType === 'link' }"
               @click="uploadForm.uploadType = 'link'"
             >
-              <UploadCloud class="w-4 h-4" />
-              <span>网盘/外链</span>
+              <CheckCircle2 class="icon-sm" />
+              {{ label('外部链接', 'External Link') }}
             </button>
           </div>
 
-          <div class="upload-modal-grid">
-            <section class="upload-panel upload-source-panel">
-              <div class="upload-panel-title">
-                <strong>上传来源</strong>
-                <span>{{ uploadForm.uploadType === 'file' ? '支持常见 3D 格式' : '适合超大文件或网盘资源' }}</span>
-              </div>
-
-              <label v-if="uploadForm.uploadType === 'file'" class="upload-dropzone">
-                <input
-                  type="file"
-                  accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.zip"
-                  @change="handleFileChange"
-                />
-                <span class="upload-drop-icon"><Box class="w-6 h-6" /></span>
-                <strong>{{ uploadForm.file ? uploadForm.file.name : '点击或拖拽模型文件到这里' }}</strong>
-                <small>GLB、GLTF、FBX、OBJ、STL、DAE、3DS、ZIP</small>
+          <div class="upload-grid">
+            <div class="upload-column">
+              <label v-if="uploadForm.uploadType === 'file'" class="drop-zone">
+                <input type="file" accept=".glb,.gltf,.fbx,.obj,.stl,.dae,.3ds,.blend,.usdz,.abc,.zip" @change="handleFileChange" />
+                <UploadCloud class="drop-icon" />
+                <strong>{{ uploadForm.file?.name || label('选择模型或资源包', 'Choose a model or asset package') }}</strong>
+                <span>{{ label('支持 GLB、FBX、OBJ、STL、BLEND、ZIP 等格式', 'Supports GLB, FBX, OBJ, STL, BLEND, ZIP, and more') }}</span>
               </label>
 
-              <label v-else class="upload-field">
-                <span>外链地址</span>
-                <input
-                  v-model="uploadForm.externalUrl"
-                  type="url"
-                  placeholder="粘贴网盘、对象存储或可下载链接"
-                />
+              <label v-else class="form-field">
+                <span>{{ label('外部资源地址', 'External Asset URL') }}</span>
+                <input v-model="uploadForm.externalUrl" type="url" placeholder="https://..." />
               </label>
 
-              <div class="upload-form-stack">
-                <label class="upload-field">
-                  <span>资源名称</span>
-                  <input v-model="uploadForm.title" type="text" placeholder="给你的作品起个清晰的名字" />
+              <label class="form-field">
+                <span>{{ label('资源名称', 'Asset Name') }}</span>
+                <input v-model="uploadForm.title" type="text" :placeholder="label('例如：工业机器人机械臂', 'Example: Industrial robot arm')" />
+              </label>
+
+              <div class="two-col">
+                <label class="form-field">
+                  <span>{{ label('分类', 'Category') }}</span>
+                  <select v-model="uploadForm.categoryId">
+                    <option value="">{{ label('选择分类', 'Select category') }}</option>
+                    <option v-for="category in categories" :key="category.id" :value="category.id">
+                      {{ category.name }}
+                    </option>
+                  </select>
                 </label>
 
-                <div class="upload-two-col">
-                  <label class="upload-field">
-                    <span>资源分类</span>
-                    <el-select v-model="uploadForm.categoryId" placeholder="选择分类" class="custom-select-v2">
-                      <el-option
-                        v-for="category in assetCategories"
-                        :key="category.id"
-                        :label="category.name"
-                        :value="category.id"
-                      />
-                    </el-select>
-                  </label>
-
-                  <label class="upload-thumb-picker">
-                    <span>封面图</span>
-                    <input type="file" accept="image/*" @change="handleThumbnailChange" />
-                    <strong>{{ uploadForm.thumbnail ? uploadForm.thumbnail.name : '上传封面' }}</strong>
-                  </label>
-                </div>
-
-                <label class="upload-field">
-                  <span>自定义标签</span>
-                  <input v-model="uploadForm.tags" type="text" placeholder="用逗号或空格分隔，例如：科幻, 载具, PBR" />
+                <label class="file-picker">
+                  <span>{{ label('封面图', 'Cover Image') }}</span>
+                  <input type="file" accept="image/*" @change="handleThumbnailChange" />
+                  <strong>{{ uploadForm.thumbnail?.name || label('可选', 'Optional') }}</strong>
                 </label>
-
-                <div v-if="isZipFile" class="upload-zip-formats">
-                  <span>ZIP 包内格式</span>
-                  <div>
-                    <label v-for="format in availableFormats" :key="format">
-                      <input v-model="uploadForm.formats" type="checkbox" :value="format" />
-                      <small>{{ format }}</small>
-                    </label>
-                  </div>
-                </div>
               </div>
-            </section>
 
-            <section class="upload-panel upload-description-panel">
-              <div class="upload-panel-title">
-                <strong>资源描述</strong>
-                <span>建议说明网格质量、UV、贴图通道、授权和使用注意事项。</span>
+              <label class="form-field">
+                <span>{{ label('标签', 'Tags') }}</span>
+                <input v-model="uploadForm.tags" type="text" :placeholder="label('PBR, 低面数, 游戏资产', 'PBR, low-poly, game asset')" />
+              </label>
+
+              <div v-if="uploadForm.file?.name.toLowerCase().endsWith('.zip')" class="format-checks">
+                <span>{{ label('压缩包内格式', 'Formats inside ZIP') }}</span>
+                <label v-for="format in uploadFormatOptions" :key="format">
+                  <input v-model="uploadForm.formats" type="checkbox" :value="format" />
+                  {{ format }}
+                </label>
               </div>
-              <MarkdownEditor
-                v-model="uploadForm.description"
-                placeholder="简单介绍这个模型，说明其网格质量、UV、贴图通道及使用注意事项..."
-                :height="isMobile ? '280px' : '360px'"
-                simple
-              />
-            </section>
+            </div>
+
+            <div class="upload-column">
+              <label class="form-field editor-field">
+                <span>{{ label('资源说明', 'Asset Description') }}</span>
+                <MarkdownEditor
+                  v-model="uploadForm.description"
+                  :placeholder="label('写清楚用途、格式、面数、贴图、授权或使用注意事项', 'Describe usage, formats, poly count, textures, license, or notes')"
+                  height="360px"
+                  simple
+                />
+              </label>
+            </div>
           </div>
 
-          <footer class="upload-modal-footer">
-            <div class="upload-review-note">
-              <strong>审核提示</strong>
-              <span>发布或重新修改资源后，都需要管理员审核后才会公开展示。</span>
-            </div>
-            <button type="button" class="upload-submit-v2" :disabled="!canSubmitUpload" @click="handleUpload">
-              <div v-if="isUploading" class="button-spinner"></div>
-              {{ isUploading ? '正在上传...' : '提交审核' }}
+          <footer>
+            <button type="button" class="ghost-button" @click="isUploadDialogOpen = false">{{ label('取消', 'Cancel') }}</button>
+            <button type="button" class="primary-button" :disabled="isUploading || !uploadCanSubmit" @click="submitUpload">
+              <Loader2 v-if="isUploading" class="icon-sm spinning" />
+              {{ label('提交审核', 'Submit for Review') }}
             </button>
           </footer>
-        </div>
+        </section>
       </div>
     </Transition>
-
-    <!-- Modal tags dialog removed -->
   </div>
 </template>
 
 <style scoped>
 .asset-library-page {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  gap: 12px;
+  padding: 16px;
   background: var(--bg-app);
   color: var(--text-primary);
 }
 
-.asset-header-bar {
+.page-header,
+.title-block,
+.header-actions,
+.toolbar,
+.toolbar-actions,
+.view-switch,
+.card-title,
+.card-footer,
+.metric-row,
+.section-title,
+.upload-dialog header,
+.upload-dialog footer,
+.upload-type-switch,
+.two-col {
   display: flex;
   align-items: center;
+}
+
+.page-header {
   justify-content: space-between;
-  gap: 10px;
-  height: 52px;
-  min-height: 52px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border-base);
-  background: var(--bg-card);
-  flex-shrink: 0;
-}
-
-.asset-page-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 232px;
   gap: 12px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  padding: 12px;
+  min-height: 40px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.title-block {
+  gap: 10px;
+  min-width: 0;
 }
 
-.header-icon-wrap {
+.title-icon,
+.stat-icon {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  background: rgba(245, 121, 42, 0.1);
-  color: #f5792a;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  flex: 0 0 auto;
 }
 
-.dark .header-icon-wrap {
-  background: rgba(245, 121, 42, 0.2);
-  color: #f5792a;
-}
-
-.header-left h1 {
+h1,
+h2,
+p {
   margin: 0;
-  font-size: 15px;
+}
+
+h1 {
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
-.asset-main,
-.asset-aside {
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.asset-breadcrumb,
-.breadcrumb-current,
-.header-actions,
-.ghost-action,
-.primary-action,
-.asset-title-row,
-.asset-toolbar,
-.filter-strip,
-.view-switch,
-.sidebar-title,
-.panel-title,
-.asset-meta-row,
-.asset-pagination {
-  display: flex;
-  align-items: center;
-}
-
-.asset-breadcrumb {
-  gap: 6px;
-  color: #7c89a6;
+.title-block p,
+.upload-dialog header p,
+.empty-state p {
+  margin-top: 1px;
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 700;
 }
 
-.breadcrumb-current {
-  gap: 4px;
-  color: #5b5ff4;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
-.asset-title-row {
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.asset-title-row h1 {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.15;
-  letter-spacing: 0;
-  color: #14213d;
-}
-
-.asset-header p {
-  margin: 4px 0 0;
-  color: #64708b;
-  font-size: 12px;
-}
-
-.header-actions {
+.header-actions,
+.toolbar-actions,
+.view-switch,
+.metric-row,
+.upload-dialog footer {
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-.ghost-action,
-.primary-action {
+/* Base Buttons */
+.primary-button,
+.ghost-button,
+.download-button,
+.icon-button {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.primary-button,
+.ghost-button,
+.download-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
   height: 32px;
   padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
   border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 800;
-  cursor: pointer;
+  border: 1px solid var(--border-base);
 }
 
-.ghost-action {
-  border: 1px solid #e4e8f3;
-  background: #ffffff;
-  color: #33415f;
+.primary-button {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
 }
 
-.primary-action {
-  border: 0;
-  background: #635bff;
-  color: #ffffff;
-  box-shadow: 0 10px 22px rgba(99, 91, 255, 0.22);
+.primary-button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-0.5px);
 }
 
+.ghost-button,
+.icon-button {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.ghost-button:hover,
+.icon-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.primary-button:disabled,
+.pagination button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+}
+
+.icon-md {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-xs {
+  width: 11px;
+  height: 11px;
+}
+
+/* KPI Cards */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 14px;
 }
 
 .stat-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 72px;
+  display: flex;
   gap: 10px;
   align-items: center;
-  min-height: 68px;
+  min-height: 54px;
   border: 1px solid var(--border-base);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--bg-card);
-  padding: 10px 12px;
-  box-shadow: var(--card-shadow);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.15s ease;
 }
 
 .stat-card:hover {
-  transform: translateY(-3px);
-  border-color: transparent;
+  transform: translateY(-1.5px);
+  border-color: var(--tone-color, var(--accent));
+  box-shadow: var(--shadow-card-hover);
 }
 
-.stat-icon {
+.stat-card .stat-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  transition: transform 0.3s ease;
+  flex: 0 0 auto;
 }
 
-.stat-card:hover .stat-icon {
-  transform: scale(1.08);
+/* Stat card tones */
+.stat-card[data-tone='blue'] {
+  --tone-color: #2563eb;
+}
+.stat-card[data-tone='green'] {
+  --tone-color: #059669;
+}
+.stat-card[data-tone='orange'] {
+  --tone-color: #d97706;
+}
+.stat-card[data-tone='teal'] {
+  --tone-color: #0f766e;
 }
 
-.stat-card[data-tone='indigo'] .stat-icon {
-  color: #635bff;
-  background: rgba(99, 91, 255, 0.12);
-}
-.stat-card[data-tone='indigo']:hover {
-  box-shadow: var(--card-shadow-hover), 0 10px 24px rgba(99, 91, 255, 0.15), 0 0 0 1px rgba(99, 91, 255, 0.2);
-}
-.stat-card[data-tone='indigo'] .stat-spark polyline {
-  stroke: #635bff;
-}
+.stat-card[data-tone='blue'] .stat-icon { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
+.stat-card[data-tone='green'] .stat-icon { color: #059669; background: rgba(5, 150, 105, 0.1); }
+.stat-card[data-tone='orange'] .stat-icon { color: #d97706; background: rgba(217, 119, 6, 0.1); }
+.stat-card[data-tone='teal'] .stat-icon { color: #0f766e; background: rgba(15, 118, 110, 0.1); }
 
-.stat-card[data-tone='emerald'] .stat-icon {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-}
-.stat-card[data-tone='emerald']:hover {
-  box-shadow: var(--card-shadow-hover), 0 10px 24px rgba(16, 185, 129, 0.15), 0 0 0 1px rgba(16, 185, 129, 0.2);
-}
-.stat-card[data-tone='emerald'] .stat-spark polyline {
-  stroke: #10b981;
-}
-
-.stat-card[data-tone='orange'] .stat-icon {
-  color: #f5792a;
-  background: rgba(245, 121, 42, 0.12);
-}
-.stat-card[data-tone='orange']:hover {
-  box-shadow: var(--card-shadow-hover), 0 10px 24px rgba(245, 121, 42, 0.15), 0 0 0 1px rgba(245, 121, 42, 0.2);
-}
-.stat-card[data-tone='orange'] .stat-spark polyline {
-  stroke: #f5792a;
-}
-
-.stat-card[data-tone='sky'] .stat-icon {
-  color: #0ea5e9;
-  background: rgba(14, 165, 233, 0.12);
-}
-.stat-card[data-tone='sky']:hover {
-  box-shadow: var(--card-shadow-hover), 0 10px 24px rgba(14, 165, 233, 0.15), 0 0 0 1px rgba(14, 165, 233, 0.2);
-}
-.stat-card[data-tone='sky'] .stat-spark polyline {
-  stroke: #0ea5e9;
-}
-
-.stat-content span {
+.stat-card span {
   display: block;
   color: var(--text-muted);
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.stat-content strong {
-  display: block;
-  margin: 0px 0 2px;
-  color: var(--text-primary);
-  font-size: 21px;
-  font-weight: 800;
-  font-family: var(--font-sans);
-  line-height: 1.1;
-}
-
-.stat-content small {
-  display: block;
-  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 500;
 }
 
-.stat-spark {
-  width: 72px;
-  height: 32px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
-  transition: filter 0.3s ease;
+.stat-card strong {
+  display: block;
+  margin-top: 1px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
-.stat-card:hover .stat-spark {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+.stat-card small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 1px;
 }
 
-.stat-spark polyline {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.asset-toolbar {
+/* Shell & Layout */
+.workspace-shell {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) 280px;
   gap: 12px;
-  margin-bottom: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.filter-panel,
+.content-panel,
+.insight-panel {
+  min-width: 0;
+}
+
+.filter-panel,
+.side-section {
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.filter-panel {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-title {
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.section-title svg {
+  color: var(--accent);
+}
+
+/* Sidebar List Buttons (Remove Borders) */
+.filter-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.filter-button:hover {
+  background: var(--bg-hover);
+}
+
+.panel-section > button:not(:last-child) {
+  border-bottom: 1px dashed var(--border-base);
+  border-radius: 6px 6px 0 0;
+}
+
+.filter-button.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.filter-button strong {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.filter-button.active strong {
+  color: var(--accent);
+}
+
+/* Tag Cloud (Capsule shape) */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-cloud button {
+  height: 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.tag-cloud button:hover {
+  background: var(--bg-active);
+  color: var(--accent);
+  transform: translateY(-0.5px);
+}
+
+.tag-cloud button.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Toolbar */
+.toolbar {
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .search-box {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 9px;
-  min-width: 260px;
-  flex: 1;
-  height: 40px;
-  padding: 0 12px;
-  border: 1px solid #e3e8f3;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #8a96ad;
+  gap: 8px;
+  min-width: 200px;
+  height: 32px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  padding: 0 10px;
+  transition: all 0.15s ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
 .search-box input {
   width: 100%;
+  min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
-  color: #1e2a44;
-  font-size: 13px;
-}
-
-.filter-strip {
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.filter-strip select,
-.asset-pagination select,
-.upload-form select {
-  height: 40px;
-  min-width: 110px;
-  border: 1px solid #e3e8f3;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #33415f;
-  padding: 0 10px;
+  color: var(--text-primary);
   font-size: 12px;
-  font-weight: 700;
+}
+
+.select-field {
+  width: 96px;
+  height: 32px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-card);
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.select-field:hover {
+  border-color: var(--border-strong);
+}
+
+.select-field:focus {
+  border-color: var(--accent);
   outline: 0;
 }
 
 .view-switch {
-  gap: 6px;
-}
-
-.view-switch button,
-.asset-meta-row button,
-.asset-pagination button {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid #e3e8f3;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #65718b;
-  cursor: pointer;
-}
-
-.view-switch button.active,
-.asset-pagination button.active {
-  border-color: #635bff;
-  background: #635bff;
-  color: #ffffff;
-}
-
-.mobile-filter {
-  display: none !important;
-}
-
-.content-shell {
-  display: grid;
-  grid-template-columns: 184px minmax(0, 1fr);
-  gap: 12px;
-  min-height: 0;
-}
-
-.filter-sidebar,
-.aside-panel,
-.upgrade-panel {
-  border: 1px solid #e7ebf5;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 8px 22px rgba(25, 38, 72, 0.04);
-}
-
-.filter-sidebar {
-  align-self: start;
-  padding: 12px;
-}
-
-.sidebar-title {
-  justify-content: space-between;
-  gap: 8px;
-  color: #13223d;
-  font-size: 13px;
-  font-weight: 900;
-  margin-bottom: 12px;
-}
-
-.sidebar-title button,
-.panel-title button {
-  border: 0;
-  background: transparent;
-  color: #635bff;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.filter-group {
-  padding: 8px 0;
-  border-top: 1px solid var(--border-base);
-}
-
-.filter-group h3 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-  padding: 4px 6px;
+  border: 1px solid var(--border-base);
   border-radius: 6px;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.filter-group h3:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.collapse-icon {
-  color: var(--text-muted);
-  transition: transform 0.2s ease;
-}
-
-.collapse-icon.collapsed {
-  transform: rotate(-90deg);
-}
-
-.filter-content {
-  margin-top: 6px;
-  display: grid;
+  background: var(--bg-card);
+  padding: 2px;
+  display: flex;
   gap: 2px;
 }
 
-.filter-group button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  min-height: 28px;
+.view-switch button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
-  color: #65718b;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-switch button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.mobile-filter {
+  display: none;
+}
+
+/* Filter Strip */
+.asset-filter-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 32px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-card);
+  padding: 0 10px;
+}
+
+.asset-filter-strip > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.asset-filter-strip strong {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.asset-chip-row {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.asset-chip-row button,
+.asset-chip-row span {
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent);
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.asset-chip-row button {
   cursor: pointer;
 }
 
-.filter-group button.active {
-  background: #f0efff;
-  color: #5b55df;
-  font-weight: 900;
+.asset-chip-row .reset-chip {
+  border-color: var(--border-base);
+  background: var(--bg-app);
+  color: var(--text-secondary);
 }
 
-.asset-results {
-  min-width: 0;
-}
-
+/* Card grids and spacing */
 .asset-grid.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 12px;
-}
-
-.asset-grid.list {
-  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 10px;
 }
 
+.asset-grid.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Asset Cards */
 .asset-card {
   overflow: hidden;
-  border: 1px solid #e7ebf5;
+  border: 1px solid var(--border-base);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 8px 22px rgba(25, 38, 72, 0.04);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  transition: all 0.18s ease;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .asset-card:hover {
   transform: translateY(-2px);
-  border-color: #cfd6ff;
-  box-shadow: 0 16px 30px rgba(25, 38, 72, 0.1);
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .asset-grid.list .asset-card {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 112px minmax(0, 1fr);
 }
 
 .asset-preview {
   position: relative;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: #172339;
+  background: #172033;
 }
 
 .asset-grid.list .asset-preview {
   aspect-ratio: auto;
-  min-height: 128px;
+  min-height: 96px;
 }
 
 .asset-preview img {
@@ -1485,308 +1282,318 @@ onUnmounted(() => {
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.28s ease;
+  transition: transform 0.2s ease;
 }
 
 .asset-card:hover .asset-preview img {
-  transform: scale(1.04);
+  transform: scale(1.03);
 }
 
-.asset-badges {
+.badge-row {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  left: 6px;
+  top: 6px;
   display: flex;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 4px;
 }
 
-.asset-badges span {
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
-  background: rgba(32, 41, 61, 0.72);
-  color: #ffffff;
-  padding: 3px 7px;
-  font-size: 10px;
-  font-weight: 900;
+.badge-row span {
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  padding: 2px 5px;
+  font-size: 9px;
+  font-weight: 600;
 }
 
-.asset-card-body {
-  padding: 12px;
+.asset-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.asset-card-body h2 {
-  margin: 0 0 6px;
-  color: #182642;
-  font-size: 14px;
+.card-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.asset-card-body p {
-  margin: 0 0 12px;
-  color: #6c7892;
-  font-size: 12px;
+.card-title p {
+  margin-top: 2px;
+  min-height: 30px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  display: -webkit-box;
   overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-title .icon-button {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.asset-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.asset-meta span,
+.tag-row span {
+  border-radius: 4px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 18px;
+  margin-top: 4px;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-base);
+}
+
+.metric-row {
+  display: flex;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.metric-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.download-button {
+  height: 24px;
+  border-radius: 4px;
+  padding: 0 8px;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: transparent;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.download-button:hover {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+/* Insight panel (Right Sidebar) */
+.insight-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+/* Sidebar List Buttons (Remove Borders) */
+.rank-item,
+.activity-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 5px 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rank-item:hover,
+.activity-item:hover {
+  background: var(--bg-hover);
+}
+
+.side-section > button:not(:last-child) {
+  border-bottom: 1px dashed var(--border-base);
+  border-radius: 6px 6px 0 0;
+}
+
+.rank-item {
+  display: grid;
+  grid-template-columns: 18px 24px minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rank-badge.rank-1 {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.rank-badge.rank-2 {
+  background: #94a3b8;
+  color: #fff;
+}
+
+.rank-badge.rank-3 {
+  background: #a16207;
+  color: #fff;
+}
+
+.rank-badge:not(.rank-1):not(.rank-2):not(.rank-3) {
+  background: var(--bg-app);
+  color: var(--text-muted);
+}
+
+.rank-item img {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.rank-item span,
+.activity-item span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.asset-meta-row {
-  gap: 12px;
-  color: #64708b;
-  font-size: 12px;
-}
-
-.asset-meta-row span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.asset-meta-row button {
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-}
-
-.asset-meta-row button + button {
-  margin-left: -6px;
-}
-
-.asset-pagination {
-  justify-content: center;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.asset-pagination button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.page-number:nth-of-type(n + 9) {
-  display: none;
-}
-
-.loading-state,
-.empty-state {
-  min-height: 340px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 10px;
-  color: #79859d;
-}
-
-.loading-spinner,
-.button-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid #dbe1ef;
-  border-top-color: #635bff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.asset-aside {
-  display: grid;
-  gap: 14px;
-  align-content: start;
-}
-
-.aside-panel {
-  padding: 14px;
-}
-
-.panel-title {
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.panel-title strong {
-  color: #13223d;
-  font-size: 13px;
-}
-
-.activity-list {
-  display: grid;
-  gap: 12px;
+.rank-item strong {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .activity-item {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.activity-item img,
-.avatar-fallback {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-}
-
-.avatar-fallback {
-  display: grid;
-  place-items: center;
-  background: #15213a;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.activity-item p,
-.activity-item span,
-.activity-item small {
-  display: block;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activity-item p {
-  color: #33415f;
-  font-size: 12px;
-}
-
-.activity-item span {
-  color: #635bff;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.activity-item small,
-.aside-empty {
-  color: #8a96ad;
-  font-size: 11px;
-}
-
-.tag-cloud {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.tag-cloud button {
-  border: 1px solid #edf0f7;
-  border-radius: 6px;
-  background: #f8faff;
-  color: #51607c;
-  padding: 6px 8px;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.tag-cloud span {
-  color: #8a96ad;
-}
-
-.tag-sidebar-search {
-  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 8px;
-  margin-bottom: 10px;
-  border: 1px solid var(--border-base, #e3e8f3);
-  border-radius: 6px;
-  background: var(--bg-card, #ffffff);
 }
 
-.tag-sidebar-search input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary, #1e2a44);
-  font-size: 11px;
+.activity-item small {
+  color: var(--text-muted);
+  font-size: 10px;
 }
 
-.tag-search-icon {
-  color: var(--text-muted, #8a96ad);
-  flex-shrink: 0;
-}
-
-.tag-empty-text {
-  color: var(--text-muted, #8a96ad);
-  font-size: 11px;
-  text-align: center;
-  padding: 10px 0;
-}
-
-.storage-box span,
-.storage-box small,
-.upgrade-panel span {
-  display: block;
-  color: #7c89a6;
-  font-size: 12px;
-}
-
-.storage-box strong {
-  display: block;
-  margin: 5px 0;
-  color: #1f2d49;
-  font-size: 13px;
-}
-
-.storage-track {
-  height: 8px;
-  margin-top: 10px;
-  border-radius: 999px;
-  background: #edf0f8;
-  overflow: hidden;
-}
-
-.storage-track div {
-  height: 100%;
-  border-radius: inherit;
-  background: #635bff;
-}
-
-.upgrade-panel {
+/* Empty State */
+.empty-state {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px;
-  gap: 10px;
-  padding: 16px;
-  background: #f0efff;
-  color: #5b55df;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 260px;
+  border: 1px dashed var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  text-align: center;
 }
 
-.upgrade-panel strong {
-  display: block;
-  color: #382fa8;
-  font-size: 13px;
-  margin-bottom: 5px;
+.empty-state h2 {
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.upgrade-panel button {
-  margin-top: 12px;
+.empty-icon {
+  width: 32px;
   height: 32px;
-  border: 0;
-  border-radius: 7px;
-  background: #635bff;
-  color: #ffffff;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
+  color: var(--accent);
+  opacity: 0.5;
 }
 
-.mobile-filter-panel {
-  display: none;
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
-.upload-modal {
+.pagination button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border-base);
+  transition: all 0.15s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+/* Modals */
+.modal-layer {
   position: fixed;
   inset: 0;
   z-index: 80;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 16px;
 }
 
 .modal-backdrop {
@@ -1794,478 +1601,186 @@ onUnmounted(() => {
   inset: 0;
   border: 0;
   background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(6px);
 }
 
-.upload-card-v2 {
+.upload-dialog {
   position: relative;
   z-index: 1;
-  width: min(1040px, 96vw);
-  max-height: min(92vh, 760px);
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  border-radius: 12px;
-  background-color: var(--bg-card);
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
-  border: 1px solid var(--border-strong, var(--border-base));
-}
-
-.upload-modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 22px 24px 16px;
-  border-bottom: 1px solid var(--border-base);
-  background: linear-gradient(180deg, rgba(248, 250, 255, 0.96), rgba(255, 255, 255, 0.96));
-}
-
-.upload-eyebrow {
-  display: block;
-  margin-bottom: 5px;
-  color: #635bff;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.upload-modal-header h3 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 22px;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
-.upload-modal-header p {
-  margin: 7px 0 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.upload-close {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
-}
-
-.upload-close:hover {
-  border-color: #635bff;
-  color: #635bff;
-  transform: translateY(-1px);
-}
-
-.upload-type-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--border-base);
-  background: #fbfcff;
-}
-
-.upload-type-switch button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 42px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.upload-type-switch button.active {
-  background: #635bff;
-  color: #ffffff;
-  box-shadow: 0 12px 24px rgba(99, 91, 255, 0.22);
-}
-
-.upload-modal-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.18fr);
-  gap: 14px;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px 24px;
-  background: var(--bg-app);
-}
-
-.upload-panel {
-  min-width: 0;
-  border: 1px solid var(--border-base);
+  width: min(920px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--bg-card);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
   padding: 16px;
 }
 
-.upload-source-panel,
-.upload-description-panel {
+.upload-dialog header,
+.upload-dialog footer {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.upload-panel-title {
-  display: grid;
-  gap: 4px;
-}
-
-.upload-panel-title strong,
-.upload-field span,
-.upload-thumb-picker span,
-.upload-zip-formats > span {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.upload-panel-title span {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.upload-dropzone {
-  position: relative;
-  display: grid;
-  place-items: center;
-  gap: 7px;
-  min-height: 150px;
-  padding: 18px;
-  border: 1.5px dashed #cfd6e8;
-  border-radius: 10px;
-  background: #f8faff;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-}
-
-.upload-dropzone:hover {
-  border-color: #635bff;
-  background: #f4f3ff;
-  transform: translateY(-1px);
-}
-
-.upload-dropzone input,
-.upload-thumb-picker input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.upload-drop-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(99, 91, 255, 0.1);
-  color: #635bff;
-}
-
-.upload-dropzone strong {
-  max-width: 100%;
-  color: var(--text-primary);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.upload-dropzone small {
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.upload-form-stack {
-  display: grid;
-  gap: 13px;
-}
-
-.upload-field {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.upload-field input {
-  width: 100%;
-  height: 42px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--text-primary);
-  padding: 0 12px;
-  font-size: 13px;
-  outline: 0;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.upload-field input:focus {
-  border-color: #635bff;
-  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.12);
-}
-
-.upload-two-col {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.upload-thumb-picker {
-  position: relative;
-  display: grid;
-  gap: 8px;
-  min-width: 0;
+.upload-dialog header {
+  margin-bottom: 12px;
 }
 
-.upload-thumb-picker strong {
+.upload-dialog h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.upload-type-switch {
   display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-base);
+}
+
+.upload-type-switch button {
+  flex: 1;
+  height: 28px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 42px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--text-secondary);
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.upload-thumb-picker:hover strong {
-  border-color: #635bff;
-  color: #635bff;
-}
-
-.upload-zip-formats {
-  display: grid;
-  gap: 9px;
-}
-
-.upload-zip-formats > div {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: #fbfcff;
-}
-
-.upload-zip-formats label {
-  display: flex;
-  align-items: center;
   gap: 6px;
+  background: transparent;
   color: var(--text-secondary);
-}
-
-.upload-zip-formats small {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.15s ease;
 }
 
-.custom-select-v2 :deep(.el-input__wrapper) {
-  border-radius: 8px !important;
-  background-color: #ffffff !important;
-  box-shadow: none !important;
-  border: 1px solid var(--border-base);
-  height: 42px;
-}
-
-.upload-description-panel :deep(.markdown-editor) {
-  min-width: 0;
-}
-
-.upload-modal-footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 16px;
-  align-items: center;
-  padding: 16px 24px 20px;
-  border-top: 1px solid var(--border-base);
-  background: #ffffff;
-}
-
-.upload-review-note {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.upload-review-note strong {
+.upload-type-switch button:hover {
   color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.upload-review-note span {
-  color: var(--text-secondary);
-  font-size: 12px;
+.dark .upload-type-switch button:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.upload-submit-v2 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  height: 44px;
-  border: 0;
-  border-radius: 8px;
-  background: #635bff;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-  box-shadow: 0 14px 28px rgba(99, 91, 255, 0.24);
-  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+.upload-type-switch button.active {
+  background: var(--bg-card);
+  color: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 600;
 }
 
-.upload-submit-v2:hover:not(:disabled) {
-  background: #5148f0;
-  transform: translateY(-1px);
-}
-
-.upload-submit-v2:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.upload-card header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px;
-  border-bottom: 1px solid #edf0f7;
-}
-
-.upload-card h2 {
-  margin: 0;
-  color: #13223d;
-  font-size: 18px;
-}
-
-.upload-card header button {
+.upload-grid {
   display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e3e8f3;
-  border-radius: 8px;
-  background: #ffffff;
-  cursor: pointer;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+  margin-top: 12px;
 }
 
-.upload-form {
+.upload-column {
   display: grid;
-  gap: 14px;
-  padding: 18px;
-}
-
-.upload-form label,
-.format-checks {
-  display: grid;
-  gap: 7px;
-}
-
-.upload-form span,
-.format-checks > span {
-  color: #52607b;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.upload-form input,
-.upload-form textarea {
-  width: 100%;
-  border: 1px solid #e3e8f3;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #1e2a44;
-  padding: 10px 12px;
-  outline: 0;
-  font-size: 13px;
-  resize: vertical;
-}
-
-.upload-tabs {
-  display: flex;
-  gap: 8px;
-}
-
-.upload-tabs button {
-  height: 34px;
-  border: 1px solid #e3e8f3;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #56637d;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.upload-tabs button.active {
-  border-color: #635bff;
-  background: #635bff;
-  color: #ffffff;
+  align-content: start;
+  gap: 10px;
 }
 
 .drop-zone {
   position: relative;
+  display: grid;
   place-items: center;
+  gap: 4px;
   min-height: 118px;
-  border: 1px dashed #cfd6e8;
-  border-radius: 8px;
-  background: #f8faff;
-  color: #64708b;
+  border: 1px dashed var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
   text-align: center;
-  padding: 16px;
-  cursor: pointer;
 }
 
-.drop-zone.compact {
-  min-height: 78px;
-}
-
-.drop-zone input {
+.drop-zone input,
+.file-picker input {
   position: absolute;
   inset: 0;
   opacity: 0;
   cursor: pointer;
 }
 
-.drop-zone strong {
-  color: #33415f;
-  font-size: 13px;
+.drop-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+
+.drop-zone strong,
+.file-picker strong {
+  max-width: 90%;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drop-zone span {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.form-field,
+.file-picker,
+.format-checks {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.form-field > span,
+.file-picker > span,
+.format-checks > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field select,
+.file-picker strong {
+  height: 32px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.file-picker strong {
+  display: flex;
+  align-items: center;
+}
+
+.two-col {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.two-col > * {
+  flex: 1;
+}
+
+.editor-field :deep(.markdown-editor) {
+  min-width: 0;
 }
 
 .format-checks {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid #edf0f7;
-  border-radius: 8px;
-  padding: 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
+  padding: 8px;
 }
 
 .format-checks > span {
@@ -2275,53 +1790,54 @@ onUnmounted(() => {
 .format-checks label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #56637d;
-  font-size: 12px;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
 }
 
-.submit-upload {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: calc(100% - 36px);
-  height: 42px;
-  margin: 0 18px 18px;
-  border: 0;
-  border-radius: 8px;
-  background: #635bff;
-  color: #ffffff;
-  font-weight: 900;
-  cursor: pointer;
+.upload-dialog footer {
+  margin-top: 12px;
+  justify-content: flex-end;
 }
 
-.submit-upload:disabled {
-  opacity: 0.7;
-  cursor: wait;
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.1));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
 }
 
-.button-spinner {
-  width: 16px;
-  height: 16px;
-  border-width: 2px;
-  border-color: rgba(255, 255, 255, 0.35);
-  border-top-color: #ffffff;
+.skeleton-card {
+  padding: 10px;
+}
+
+.skeleton.preview {
+  aspect-ratio: 4 / 3;
+}
+
+.skeleton.line {
+  width: 60%;
+  height: 10px;
+  margin-top: 10px;
+}
+
+.skeleton.line.wide {
+  width: 80%;
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
 }
 
 .fade-enter-active,
-.fade-leave-active,
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+.fade-leave-active {
+  transition: opacity 0.18s ease;
 }
 
 .fade-enter-from,
-.fade-leave-to,
-.slide-down-enter-from,
-.slide-down-leave-to {
+.fade-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
 }
 
 @keyframes spin {
@@ -2330,12 +1846,18 @@ onUnmounted(() => {
   }
 }
 
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @media (max-width: 1180px) {
-  .asset-page-body {
-    grid-template-columns: 1fr;
+  .workspace-shell {
+    grid-template-columns: 190px minmax(0, 1fr);
   }
 
-  .asset-aside {
+  .insight-panel {
     display: none;
   }
 
@@ -2344,147 +1866,80 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 860px) {
   .asset-library-page {
-    overflow-y: auto;
-  }
-
-  .asset-page-body {
-    display: flex;
-    flex-direction: column;
     padding: 12px;
-    height: auto;
-    overflow: visible;
   }
 
-  .asset-header-bar {
-    flex-direction: column;
-    align-items: stretch;
-    height: auto;
-    padding: 10px 12px;
-    gap: 8px;
-  }
-
-  .asset-toolbar {
+  .page-header,
+  .toolbar,
+  .asset-filter-strip {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .header-actions {
+  .asset-chip-row {
     justify-content: flex-start;
   }
 
-  .filter-strip,
-  .filter-sidebar {
+  .header-actions,
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .workspace-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-panel {
     display: none;
+  }
+
+  .filter-panel.open {
+    display: grid;
   }
 
   .mobile-filter {
-    display: grid !important;
-  }
-
-  .content-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .mobile-filter-panel {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-    padding: 10px;
-    border: 1px solid #e7ebf5;
-    border-radius: 8px;
-    background: #ffffff;
-  }
-
-  .mobile-filter-panel button {
-    border: 1px solid #e7ebf5;
-    border-radius: 999px;
-    background: #ffffff;
-    color: #51607c;
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .mobile-filter-panel button.active {
-    border-color: #635bff;
-    background: #f0efff;
-    color: #5b55df;
-  }
-
-  .upload-modal {
-    align-items: end;
-    padding: 10px;
-  }
-
-  .upload-card-v2 {
-    width: 100%;
-    max-height: 94vh;
-    border-radius: 12px;
-  }
-
-  .upload-modal-header,
-  .upload-type-switch,
-  .upload-modal-grid,
-  .upload-modal-footer {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .upload-modal-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .upload-modal-footer {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-card {
-    grid-template-columns: 36px minmax(0, 1fr);
-  }
-
-  .stat-spark {
-    display: none;
-  }
-
-  .asset-grid.grid {
-    grid-template-columns: 1fr;
+    display: grid;
   }
 
   .asset-grid.list .asset-card {
     grid-template-columns: 1fr;
   }
 
-  .asset-pagination {
-    flex-wrap: wrap;
+  .upload-grid {
+    grid-template-columns: 1fr;
   }
+}
 
-  .upload-modal-header {
-    padding-top: 16px;
-  }
-
-  .upload-modal-header h3 {
-    font-size: 19px;
-  }
-
-  .upload-type-switch {
+@media (max-width: 620px) {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
-  .upload-two-col,
-  .upload-zip-formats > div {
+  .title-block {
+    align-items: flex-start;
+  }
+
+  .toolbar-actions,
+  .header-actions,
+  .two-col {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .select-field,
+  .primary-button,
+  .ghost-button {
+    width: 100%;
+  }
+
+  .asset-grid.grid {
     grid-template-columns: 1fr;
   }
 
-  .upload-dropzone {
-    min-height: 130px;
+  .format-checks {
+    grid-template-columns: 1fr;
   }
 }
 </style>

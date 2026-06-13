@@ -1,153 +1,571 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { MapPin, Globe, Camera } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
+import { Camera, CheckCircle2, Globe, MapPin, RotateCcw, Save, UserRound } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
 
-const { t } = useI18n();
 const authStore = useAuthStore();
 
-const profileForm = ref({
+const isSaving = ref(false);
+const isUploadingAvatar = ref(false);
+
+const createProfileForm = () => ({
   name: authStore.user?.name || '',
   bio: authStore.user?.bio || '',
   location: authStore.user?.location || '',
   website: authStore.user?.website || '',
 });
 
+const profileForm = ref(createProfileForm());
+const savedSnapshot = ref(JSON.stringify(profileForm.value));
+
 watch(
   () => authStore.user,
-  (newUser) => {
-    if (newUser) {
-      profileForm.value = {
-        name: newUser.name || '',
-        bio: newUser.bio || '',
-        location: newUser.location || '',
-        website: newUser.website || '',
-      };
-    }
+  () => {
+    profileForm.value = createProfileForm();
+    savedSnapshot.value = JSON.stringify(profileForm.value);
   },
-  { immediate: true }
+  { immediate: true },
 );
 
-const handleUpdateProfile = async () => {
+const normalizedWebsite = computed(() => {
+  const value = profileForm.value.website.trim();
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+});
+
+const isWebsiteValid = computed(() => {
+  if (!normalizedWebsite.value) return true;
   try {
-    await authStore.updateProfile(profileForm.value);
-    ElMessage.success(t('settings.successUpdate'));
+    new URL(normalizedWebsite.value);
+    return true;
   } catch {
-    ElMessage.error(t('settings.updateFailed'));
+    return false;
+  }
+});
+
+const completionItems = computed(() => [
+  { label: '昵称', done: !!profileForm.value.name.trim() },
+  { label: '头像', done: !!authStore.user?.avatarUrl },
+  { label: '简介', done: !!profileForm.value.bio.trim() },
+  { label: '所在地', done: !!profileForm.value.location.trim() },
+  { label: '作品主页', done: !!profileForm.value.website.trim() && isWebsiteValid.value },
+]);
+
+const completion = computed(() => {
+  const done = completionItems.value.filter((item) => item.done).length;
+  return Math.round((done / completionItems.value.length) * 100);
+});
+
+const hasChanges = computed(() => JSON.stringify(profileForm.value) !== savedSnapshot.value);
+
+const resetForm = () => {
+  profileForm.value = createProfileForm();
+  savedSnapshot.value = JSON.stringify(profileForm.value);
+};
+
+const handleUpdateProfile = async () => {
+  if (!profileForm.value.name.trim()) {
+    ElMessage.warning('昵称不能为空');
+    return;
+  }
+  if (!isWebsiteValid.value) {
+    ElMessage.warning('请输入有效的作品主页链接');
+    return;
+  }
+
+  try {
+    isSaving.value = true;
+    await authStore.updateProfile({
+      ...profileForm.value,
+      website: normalizedWebsite.value,
+    });
+    savedSnapshot.value = JSON.stringify({
+      ...profileForm.value,
+      website: normalizedWebsite.value,
+    });
+    profileForm.value.website = normalizedWebsite.value;
+    ElMessage.success('个人资料已保存');
+  } catch {
+    ElMessage.error('保存个人资料失败');
+  } finally {
+    isSaving.value = false;
   }
 };
 
-const handleAvatarUpload = async (e: Event) => {
-  const target = e.target as HTMLInputElement;
+const handleAvatarUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
+  target.value = '';
   if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('请上传图片文件');
+    return;
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    ElMessage.warning('头像文件不能超过 4MB');
+    return;
+  }
+
   try {
+    isUploadingAvatar.value = true;
     await authStore.uploadAvatar(file);
-    ElMessage.success(t('settings.avatarUpdated'));
+    ElMessage.success('头像已更新');
   } catch {
-    ElMessage.error(t('settings.avatarUploadFailed'));
+    ElMessage.error('头像上传失败');
+  } finally {
+    isUploadingAvatar.value = false;
   }
 };
 </script>
 
 <template>
-  <div class="space-y-8 lg:space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 lg:gap-8 text-center lg:text-left">
-      <label class="relative group/avatar-upload cursor-pointer block shrink-0">
-        <UserAvatar :user="authStore.user" size="xl" />
-        <div class="absolute inset-0 rounded-2xl bg-black/0 group-hover/avatar-upload:bg-black/40 transition-all duration-300 flex items-center justify-center z-10">
-          <div class="opacity-0 group-hover/avatar-upload:opacity-100 transition-all duration-300 transform scale-75 group-hover/avatar-upload:scale-100 flex flex-col items-center gap-1">
-            <Camera class="w-6 h-6 text-white drop-shadow-lg" />
-            <span class="text-[10px] text-white font-bold drop-shadow-lg">{{ t('settings.changeAvatar') }}</span>
+  <div class="profile-section">
+    <section class="settings-group">
+      <header class="group-header">
+        <div>
+          <p class="section-kicker">公开资料</p>
+          <h3>个人资料</h3>
+          <span>这些信息会显示在成员资料、作品页和协作空间中。</span>
+        </div>
+      </header>
+
+      <div class="setting-row avatar-row">
+        <div class="row-copy">
+          <strong>头像</strong>
+          <span>建议上传清晰方形图片，最大 4MB。</span>
+        </div>
+        <label class="avatar-control">
+          <UserAvatar :user="authStore.user" size="lg" />
+          <span class="avatar-button">
+            <Camera />
+            {{ isUploadingAvatar ? '上传中' : '更换头像' }}
+          </span>
+          <input type="file" accept="image/*" :disabled="isUploadingAvatar" @change="handleAvatarUpload" />
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="row-copy" for="profile-name">
+          <strong>昵称</strong>
+          <span>用于个人主页、评论和团队成员列表。</span>
+        </label>
+        <div class="input-shell">
+          <UserRound />
+          <input id="profile-name" v-model="profileForm.name" type="text" maxlength="50" placeholder="你的展示名称" />
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label class="row-copy" for="profile-location">
+          <strong>所在地</strong>
+          <span>可选，用于让协作者了解你的时区或城市。</span>
+        </label>
+        <div class="input-shell">
+          <MapPin />
+          <input id="profile-location" v-model="profileForm.location" type="text" maxlength="100" placeholder="城市，国家" />
+        </div>
+      </div>
+
+      <div class="setting-row text-row">
+        <label class="row-copy" for="profile-bio">
+          <strong>个人简介</strong>
+          <span>一句话说明你的方向、技能或正在学习的内容。</span>
+        </label>
+        <div class="field-stack">
+          <textarea
+            id="profile-bio"
+            v-model="profileForm.bio"
+            maxlength="500"
+            rows="4"
+            placeholder="向大家介绍一下你自己、擅长方向或正在学习的内容..."
+          ></textarea>
+          <small>{{ profileForm.bio.length }}/500</small>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label class="row-copy" for="profile-website">
+          <strong>个人主页 / 作品集</strong>
+          <span>支持自动补全 https://，保存前会校验格式。</span>
+        </label>
+        <div class="field-stack">
+          <div class="input-shell" :class="{ invalid: !isWebsiteValid }">
+            <Globe />
+            <input id="profile-website" v-model="profileForm.website" type="url" maxlength="255" placeholder="https://yourportfolio.com" />
           </div>
-        </div>
-        <input type="file" class="hidden" accept="image/*" @change="handleAvatarUpload" />
-      </label>
-      <div>
-        <h2 class="text-xl font-bold" style="color: var(--text-primary)">
-          {{ t('settings.profile') }}
-        </h2>
-        <p class="text-xs mt-1" style="color: var(--text-secondary)">
-          {{ t('settings.profileAvatarTip') }}
-        </p>
-      </div>
-    </div>
-
-    <div class="space-y-6">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileNickname') }}</label>
-          <input
-            v-model="profileForm.name"
-            type="text"
-            class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-            style="
-              background-color: var(--bg-card);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-          />
-        </div>
-        <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileLocation') }}</label>
-          <div class="relative">
-            <MapPin class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              v-model="profileForm.location"
-              type="text"
-              class="w-full pl-11 pr-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-              style="
-                background-color: var(--bg-card);
-                border-color: var(--border-base);
-                color: var(--text-primary);
-              "
-              :placeholder="t('settings.profileLocationPlaceholder')"
-            />
-          </div>
+          <small v-if="!isWebsiteValid" class="error-text">链接格式不正确</small>
         </div>
       </div>
+    </section>
 
-      <div class="space-y-2">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileBio') }}</label>
-        <textarea
-          v-model="profileForm.bio"
-          rows="4"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
-          style="
-            background-color: var(--bg-card);
-            border-color: var(--border-base);
-            color: var(--text-primary);
-          "
-          :placeholder="t('settings.profileBioPlaceholder')"
-        ></textarea>
-      </div>
+    <section class="settings-group checklist-group">
+      <header class="group-header compact">
+        <div>
+          <p class="section-kicker">资料状态</p>
+          <h3>完善清单</h3>
+        </div>
+        <div class="progress-track" :aria-label="`资料完成度 ${completion}%`">
+          <i :style="{ width: `${completion}%` }"></i>
+        </div>
+      </header>
 
-      <div class="space-y-2">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{{ t('settings.profileWebsite') }}</label>
-        <div class="relative">
-          <Globe class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            v-model="profileForm.website"
-            type="text"
-            class="w-full pl-11 pr-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20"
-            style="
-              background-color: var(--bg-card);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
-            :placeholder="t('settings.profileWebsitePlaceholder')"
-          />
+      <div class="check-grid">
+        <div v-for="item in completionItems" :key="item.label" class="check-item" :class="{ done: item.done }">
+          <CheckCircle2 />
+          <span>{{ item.label }}</span>
         </div>
       </div>
+    </section>
 
-      <div class="pt-4">
-        <button type="button" class="px-8 py-3 bg-accent text-white font-bold rounded-2xl shadow-xl shadow-accent/20 hover:scale-105 transition-all" @click="handleUpdateProfile">
-          {{ t('common.save') }}
-        </button>
-      </div>
-    </div>
+    <footer class="settings-actions">
+      <button type="button" class="secondary-action" :disabled="!hasChanges || isSaving" @click="resetForm">
+        <RotateCcw />
+        重置
+      </button>
+      <button type="button" class="primary-action" :disabled="!hasChanges || isSaving" @click="handleUpdateProfile">
+        <Save />
+        {{ isSaving ? '保存中...' : '保存资料' }}
+      </button>
+    </footer>
   </div>
 </template>
+
+<style scoped>
+.profile-section {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-group,
+.settings-actions {
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.settings-group {
+  overflow: hidden;
+}
+
+.group-header {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.group-header.compact {
+  min-height: 64px;
+}
+
+h3,
+p {
+  margin: 0;
+}
+
+h3 {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.section-kicker,
+.group-header span,
+.row-copy span,
+.field-stack small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.section-kicker {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.completion-badge {
+  min-width: 84px;
+  display: grid;
+  gap: 3px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--bg-app);
+  text-align: right;
+}
+
+.completion-badge span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.completion-badge strong {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.32fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.text-row {
+  align-items: start;
+}
+
+.row-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.row-copy strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.avatar-row {
+  align-items: center;
+}
+
+.avatar-control {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.avatar-control input {
+  display: none;
+}
+
+.avatar-button {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.avatar-control:hover .avatar-button {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-base));
+}
+
+.input-shell {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+}
+
+.field-stack {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.input-shell.invalid {
+  border-color: #ef4444;
+}
+
+.input-shell svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+input,
+textarea {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+textarea {
+  min-height: 96px;
+  padding: 11px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  resize: vertical;
+  background: var(--bg-app);
+}
+
+.error-text {
+  color: #dc2626;
+}
+
+.checklist-group {
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-app));
+}
+
+.progress-track {
+  width: min(280px, 36vw);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
+.progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #10b981);
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.check-item {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-base);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.check-item.done {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  font-weight: 600;
+}
+
+.check-item svg,
+.avatar-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.settings-actions {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.primary-action,
+.secondary-action {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 8px;
+  padding: 0 14px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.primary-action {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.secondary-action {
+  border: 1px solid var(--border-base);
+  background: var(--bg-app);
+  color: var(--text-secondary);
+}
+
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.primary-action svg,
+.secondary-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 960px) {
+  .setting-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .group-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .completion-badge {
+    width: 100%;
+    text-align: left;
+  }
+
+  .progress-track {
+    width: 100%;
+  }
+
+  .check-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+  }
+
+  .primary-action,
+  .secondary-action {
+    justify-content: center;
+    width: 100%;
+  }
+}
+</style>

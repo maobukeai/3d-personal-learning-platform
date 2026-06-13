@@ -1,25 +1,36 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  Search,
-  MessageSquare,
-  Edit3,
-  X,
-  Plus,
-  Heart,
-  Eye,
-  Pin,
-  Trash2,
+  BarChart3,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Send,
-  Tag,
-  Flame,
   Clock,
+  Edit3,
+  Eye,
+  Flame,
+  Heart,
+  Image as ImageIcon,
+  Inbox,
+  Layers,
+  LoaderCircle,
+  MessageCircle,
+  MessageSquare,
+  Pin,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  Sparkles,
+  Tag,
+  Trash2,
+  UserRound,
+  Users,
+  X,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -27,9 +38,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import DiscussionCard from '@/components/DiscussionCard.vue';
 
 const authStore = useAuthStore();
-const { t } = useI18n();
+const { t, locale } = useI18n();
+
 const currentUserId = computed(() => authStore.user?.id);
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN');
+
+type DiscussionFilter = 'all' | 'mine' | 'unanswered' | 'pinned';
 
 interface DiscussionUser {
   id: string;
@@ -41,7 +55,7 @@ interface DiscussionUser {
 interface DiscussionCounts {
   likes: number;
   comments: number;
-  replies: number;
+  replies?: number;
 }
 
 interface DiscussionComment {
@@ -62,39 +76,77 @@ interface Discussion {
   tags: string | null;
   images: string | null;
   createdAt: string;
+  updatedAt?: string;
+  lastActivityAt?: string;
   viewCount?: number;
   isPinned?: boolean;
   isLiked?: boolean;
+  latestComment?: DiscussionComment | null;
   user: DiscussionUser;
-  comments: DiscussionComment[];
+  comments?: DiscussionComment[];
   _count: DiscussionCounts;
+}
+
+interface DiscussionCardActionTarget {
+  id: string;
+  isLiked?: boolean;
+  isPinned?: boolean;
+  _count: {
+    likes: number;
+  };
+}
+
+interface TagInsight {
+  name: string;
+  count: number;
+}
+
+interface ContributorInsight {
+  user: DiscussionUser;
+  discussions: number;
+  comments: number;
+  likesReceived: number;
+}
+
+interface RecentCommentInsight {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: DiscussionUser;
+  discussion: Pick<Discussion, 'id' | 'title'>;
+}
+
+interface DiscussionInsights {
+  totals: {
+    discussions: number;
+    comments: number;
+    likes: number;
+    views: number;
+    activeAuthors: number;
+    unanswered: number;
+    pinned: number;
+  };
+  tags: TagInsight[];
+  trending: Discussion[];
+  contributors: ContributorInsight[];
+  recentComments: RecentCommentInsight[];
 }
 
 const searchQuery = ref('');
 const showCreateModal = ref(false);
 const discussions = ref<Discussion[]>([]);
+const insights = ref<DiscussionInsights | null>(null);
 const isLoading = ref(false);
-const sortBy = ref('newest');
+const isInsightsLoading = ref(false);
+const sortBy = ref('active');
+const activeFilter = ref<DiscussionFilter>('all');
 const selectedTag = ref('');
-const availableTags = ref<string[]>([]);
-
-const sortOptions = computed(() => [
-  { value: 'newest', label: t('community.discussions.sortNewest'), icon: Clock },
-  { value: 'most_commented', label: t('community.discussions.sortComments'), icon: MessageSquare },
-  { value: 'most_liked', label: t('community.discussions.sortLikes'), icon: Flame },
-  { value: 'most_viewed', label: t('community.discussions.sortViews'), icon: Eye },
-]);
 
 const pagination = ref({
   total: 0,
   page: 1,
-  limit: 10,
+  limit: 12,
   totalPages: 0,
-});
-
-watch([searchQuery, sortBy, selectedTag], () => {
-  pagination.value.page = 1;
-  fetchDiscussions();
 });
 
 const postForm = ref({
@@ -105,59 +157,211 @@ const postForm = ref({
 
 const selectedImages = ref<File[]>([]);
 const imagePreviews = ref<string[]>([]);
-
-const handleImageSelect = (e: Event) => {
-  const files = (e.target as HTMLInputElement).files;
-  if (!files) return;
-
-  if (selectedImages.value.length + files.length > 5) {
-    ElMessage.warning(t('community.discussions.maxImagesLimit', { count: 5 }));
-    return;
-  }
-
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    selectedImages.value.push(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      imagePreviews.value.push(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  }
-};
-
-const removeImage = (index: number) => {
-  selectedImages.value.splice(index, 1);
-  imagePreviews.value.splice(index, 1);
-};
-
 const selectedDiscussion = ref<Discussion | null>(null);
 const isDetailOpen = ref(false);
 const newComment = ref('');
 const isSubmittingComment = ref(false);
 const replyingTo = ref<DiscussionComment | null>(null);
 const replyContent = ref('');
+const expandedReplies = ref<Set<string>>(new Set());
 
-const parseImages = (imagesStr: string | null) => {
+let searchTimer: number | ReturnType<typeof setTimeout> | undefined;
+
+const sortOptions = computed(() => [
+  { value: 'active', label: t('community.discussions.sortActive'), icon: Sparkles },
+  { value: 'newest', label: t('community.discussions.sortNewest'), icon: Clock },
+  { value: 'most_commented', label: t('community.discussions.sortComments'), icon: MessageSquare },
+  { value: 'most_liked', label: t('community.discussions.sortLikes'), icon: Flame },
+  { value: 'most_viewed', label: t('community.discussions.sortViews'), icon: Eye },
+]);
+
+const filterOptions = computed(() => [
+  {
+    value: 'all' as DiscussionFilter,
+    label: t('community.discussions.filterAll'),
+    count: insights.value?.totals.discussions ?? pagination.value.total,
+    icon: Layers,
+  },
+  {
+    value: 'mine' as DiscussionFilter,
+    label: t('community.discussions.filterMine'),
+    count: undefined,
+    icon: UserRound,
+  },
+  {
+    value: 'unanswered' as DiscussionFilter,
+    label: t('community.discussions.filterUnanswered'),
+    count: insights.value?.totals.unanswered ?? 0,
+    icon: Inbox,
+  },
+  {
+    value: 'pinned' as DiscussionFilter,
+    label: t('community.discussions.filterPinned'),
+    count: insights.value?.totals.pinned ?? 0,
+    icon: Pin,
+  },
+]);
+
+const tagInsights = computed<TagInsight[]>(() => {
+  if (insights.value?.tags?.length) return insights.value.tags;
+
+  const counts = new Map<string, number>();
+  discussions.value.forEach((discussion) => {
+    parseTags(discussion.tags).forEach((tagName) => {
+      counts.set(tagName, (counts.get(tagName) || 0) + 1);
+    });
+  });
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+});
+
+const hotDiscussions = computed(() => {
+  if (insights.value?.trending?.length) return insights.value.trending.slice(0, 6);
+  return [...discussions.value]
+    .sort((a, b) => {
+      const scoreA = (a.viewCount || 0) + (a._count?.comments || 0) * 8 + (a._count?.likes || 0) * 5;
+      const scoreB = (b.viewCount || 0) + (b._count?.comments || 0) * 8 + (b._count?.likes || 0) * 5;
+      return scoreB - scoreA;
+    })
+    .slice(0, 6);
+});
+
+const topContributors = computed<ContributorInsight[]>(() => {
+  if (insights.value?.contributors?.length) return insights.value.contributors.slice(0, 5);
+
+  const counts: Record<string, ContributorInsight> = {};
+  discussions.value.forEach((discussion) => {
+    if (!discussion.user?.id) return;
+    if (!counts[discussion.user.id]) {
+      counts[discussion.user.id] = {
+        user: discussion.user,
+        discussions: 0,
+        comments: 0,
+        likesReceived: 0,
+      };
+    }
+    counts[discussion.user.id].discussions += 1;
+    counts[discussion.user.id].likesReceived += discussion._count?.likes || 0;
+  });
+  return Object.values(counts)
+    .sort((a, b) => b.discussions + b.likesReceived - (a.discussions + a.likesReceived))
+    .slice(0, 5);
+});
+
+const recentComments = computed(() => insights.value?.recentComments?.slice(0, 5) || []);
+
+const metricCards = computed(() => {
+  const totals = insights.value?.totals;
+  const pageLikes = discussions.value.reduce((sum, item) => sum + (item._count?.likes || 0), 0);
+  const pageViews = discussions.value.reduce((sum, item) => sum + (item.viewCount || 0), 0);
+  const pageComments = discussions.value.reduce((sum, item) => sum + (item._count?.comments || 0), 0);
+
+  return [
+    {
+      label: t('community.discussions.totalPosts'),
+      value: formatNumber(totals?.discussions ?? pagination.value.total),
+      icon: MessageSquare,
+      tone: 'blue',
+    },
+    {
+      label: t('community.discussions.totalReplies'),
+      value: formatNumber(totals?.comments ?? pageComments),
+      icon: MessageCircle,
+      tone: 'teal',
+    },
+    {
+      label: t('community.discussions.totalLikes'),
+      value: formatNumber(totals?.likes ?? pageLikes),
+      icon: Heart,
+      tone: 'rose',
+    },
+    {
+      label: t('community.discussions.totalViews'),
+      value: formatNumber(totals?.views ?? pageViews),
+      icon: BarChart3,
+      tone: 'amber',
+    },
+  ];
+});
+
+const selectedSortLabel = computed(() => {
+  return sortOptions.value.find((item) => item.value === sortBy.value)?.label || '';
+});
+
+const listSummary = computed(() => {
+  if (selectedTag.value) {
+    return t('community.discussions.resultsForTag', {
+      count: pagination.value.total,
+      tag: selectedTag.value,
+    });
+  }
+  return t('community.discussions.resultsCount', { count: pagination.value.total });
+});
+
+const hasActiveFilters = computed(() => {
+  return Boolean(searchQuery.value || selectedTag.value || activeFilter.value !== 'all' || sortBy.value !== 'active');
+});
+
+const starterPrompts = computed(() => [
+  {
+    label: t('community.discussions.templateQuestion'),
+    title: t('community.discussions.templateQuestionTitle'),
+    tags: t('community.discussions.templateQuestionTags'),
+    content: t('community.discussions.templateQuestionContent'),
+  },
+  {
+    label: t('community.discussions.templateShare'),
+    title: t('community.discussions.templateShareTitle'),
+    tags: t('community.discussions.templateShareTags'),
+    content: t('community.discussions.templateShareContent'),
+  },
+  {
+    label: t('community.discussions.templateReview'),
+    title: t('community.discussions.templateReviewTitle'),
+    tags: t('community.discussions.templateReviewTags'),
+    content: t('community.discussions.templateReviewContent'),
+  },
+]);
+
+watch(searchQuery, () => {
+  if (searchTimer) window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => {
+    resetAndFetch();
+  }, 260);
+});
+
+watch([sortBy, selectedTag, activeFilter], () => {
+  resetAndFetch();
+});
+
+const parseImages = (imagesStr: string | null | undefined): string[] => {
   try {
-    return imagesStr ? JSON.parse(imagesStr) : [];
+    const parsed = imagesStr ? JSON.parse(imagesStr) : [];
+    return Array.isArray(parsed) ? parsed.filter((img): img is string => typeof img === 'string') : [];
   } catch (_e) {
     return [];
   }
 };
 
-const parseTags = (tagsStr: string | null) => {
+const parseTags = (tagsStr: string | null | undefined): string[] => {
   try {
-    return tagsStr ? JSON.parse(tagsStr) : [];
+    const parsed = tagsStr ? JSON.parse(tagsStr) : [];
+    return Array.isArray(parsed) ? parsed.filter((tagName): tagName is string => typeof tagName === 'string') : [];
   } catch (_e) {
-    return [];
+    return tagsStr
+      ? tagsStr
+          .split(',')
+          .map((tagName) => tagName.trim())
+          .filter(Boolean)
+      : [];
   }
 };
 
 const formatTime = (dateStr: string) => {
   const date = new Date(dateStr);
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = Math.max(0, now.getTime() - date.getTime());
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
@@ -166,8 +370,20 @@ const formatTime = (dateStr: string) => {
   if (minutes < 60) return t('common.time.minutesAgo', { n: minutes });
   if (hours < 24) return t('common.time.hoursAgo', { n: hours });
   if (days < 7) return t('common.time.daysAgo', { n: days });
-  return date.toLocaleDateString(authStore.user?.language === 'en' ? 'en-US' : 'zh-CN');
+  return date.toLocaleDateString(locale.value === 'en-US' ? 'en-US' : 'zh-CN');
 };
+
+function formatNumber(value: number | undefined) {
+  const safe = value || 0;
+  if (safe >= 10000) return `${(safe / 10000).toFixed(1)}w`;
+  if (safe >= 1000) return `${(safe / 1000).toFixed(1)}k`;
+  return String(safe);
+}
+
+function resetAndFetch() {
+  pagination.value.page = 1;
+  fetchDiscussions();
+}
 
 const fetchDiscussions = async () => {
   isLoading.value = true;
@@ -176,27 +392,36 @@ const fetchDiscussions = async () => {
       params: {
         page: pagination.value.page,
         limit: pagination.value.limit,
-        search: searchQuery.value,
+        search: searchQuery.value || undefined,
         sort: sortBy.value,
         tag: selectedTag.value || undefined,
+        filter: activeFilter.value,
       },
     });
     discussions.value = response.data.discussions;
     pagination.value = response.data.pagination;
   } catch (error) {
     console.error('Fetch discussions error:', error);
+    ElMessage.error(t('common.error'));
   } finally {
     isLoading.value = false;
   }
 };
 
-const fetchTags = async () => {
+const fetchInsights = async () => {
+  isInsightsLoading.value = true;
   try {
-    const response = await api.get('/api/discussions/tags');
-    availableTags.value = response.data.tags;
+    const response = await api.get('/api/discussions/insights');
+    insights.value = response.data;
   } catch (error) {
-    console.error('Fetch tags error:', error);
+    console.error('Fetch discussion insights error:', error);
+  } finally {
+    isInsightsLoading.value = false;
   }
+};
+
+const refreshAll = async () => {
+  await Promise.all([fetchDiscussions(), fetchInsights()]);
 };
 
 const handlePageChange = (page: number) => {
@@ -204,46 +429,85 @@ const handlePageChange = (page: number) => {
   fetchDiscussions();
 };
 
-const filteredDiscussions = computed(() => {
-  return discussions.value;
-});
+const setTag = (tagName: string) => {
+  selectedTag.value = selectedTag.value === tagName ? '' : tagName;
+};
 
-const hotDiscussions = computed(() => {
-  return [...discussions.value]
-    .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
-    .slice(0, 5);
-});
+const clearFilters = () => {
+  searchQuery.value = '';
+  selectedTag.value = '';
+  activeFilter.value = 'all';
+  sortBy.value = 'active';
+  resetAndFetch();
+};
 
-const topContributors = computed(() => {
-  const counts: Record<string, { user: DiscussionUser; count: number }> = {};
-  discussions.value.forEach((d) => {
-    if (d.user) {
-      if (!counts[d.user.id]) {
-        counts[d.user.id] = { user: d.user, count: 0 };
-      }
-      counts[d.user.id].count++;
-    }
+const handleImageSelect = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const files = input.files;
+  if (!files) return;
+
+  if (selectedImages.value.length + files.length > 5) {
+    ElMessage.warning(t('community.discussions.maxImagesLimit', { count: 5 }));
+    input.value = '';
+    return;
+  }
+
+  Array.from(files).forEach((file) => {
+    selectedImages.value.push(file);
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      imagePreviews.value.push(readerEvent.target?.result as string);
+    };
+    reader.readAsDataURL(file);
   });
-  return Object.values(counts)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 4);
-});
+  input.value = '';
+};
+
+const removeImage = (index: number) => {
+  selectedImages.value.splice(index, 1);
+  imagePreviews.value.splice(index, 1);
+};
+
+const applyTemplate = (template: { title: string; tags: string; content: string }) => {
+  postForm.value = {
+    title: postForm.value.title || template.title,
+    tags: postForm.value.tags || template.tags,
+    content: postForm.value.content || template.content,
+  };
+};
+
+const addTagToDraft = (tagName: string) => {
+  const currentTags = postForm.value.tags
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!currentTags.includes(tagName)) {
+    currentTags.push(tagName);
+  }
+  postForm.value.tags = currentTags.join(', ');
+};
+
+const resetDraft = () => {
+  postForm.value = { title: '', content: '', tags: '' };
+  selectedImages.value = [];
+  imagePreviews.value = [];
+};
 
 const handleCreateDiscussion = async () => {
-  if (!postForm.value.title || !postForm.value.content) {
+  if (!postForm.value.title.trim() || !postForm.value.content.trim()) {
     ElMessage.warning(t('support.fill_all_fields'));
     return;
   }
 
   const formData = new FormData();
-  formData.append('title', postForm.value.title);
-  formData.append('content', postForm.value.content);
-  if (postForm.value.tags) {
+  formData.append('title', postForm.value.title.trim());
+  formData.append('content', postForm.value.content.trim());
+  if (postForm.value.tags.trim()) {
     const tagsArray = postForm.value.tags
       .split(',')
-      .map((t) => t.trim())
+      .map((tagName) => tagName.trim())
       .filter(Boolean);
-    formData.append('tags', JSON.stringify(tagsArray));
+    formData.append('tags', JSON.stringify(Array.from(new Set(tagsArray))));
   }
   selectedImages.value.forEach((file) => {
     formData.append('images', file);
@@ -255,11 +519,8 @@ const handleCreateDiscussion = async () => {
     });
     ElMessage.success(t('community.discussions.postSuccess'));
     showCreateModal.value = false;
-    postForm.value = { title: '', content: '', tags: '' };
-    selectedImages.value = [];
-    imagePreviews.value = [];
-    fetchDiscussions();
-    fetchTags();
+    resetDraft();
+    await refreshAll();
   } catch (_error) {
     ElMessage.error(t('community.discussions.postFailed'));
   }
@@ -272,25 +533,42 @@ const openDiscussion = async (id: string) => {
     isDetailOpen.value = true;
     replyingTo.value = null;
     replyContent.value = '';
+    newComment.value = '';
+    expandedReplies.value = new Set(
+      (response.data.comments || [])
+        .filter((comment: DiscussionComment) => comment.replies?.length > 0)
+        .map((comment: DiscussionComment) => comment.id),
+    );
+
+    const index = discussions.value.findIndex((discussion) => discussion.id === id);
+    if (index >= 0) {
+      discussions.value[index] = {
+        ...discussions.value[index],
+        viewCount: response.data.viewCount,
+        isLiked: response.data.isLiked,
+      };
+    }
   } catch (_error) {
     ElMessage.error(t('common.error'));
   }
 };
 
 const handleAddComment = async () => {
-  if (!selectedDiscussion.value) return;
-  if (!newComment.value.trim()) return;
+  if (!selectedDiscussion.value || !newComment.value.trim()) return;
   isSubmittingComment.value = true;
   try {
     const response = await api.post('/api/discussions/comments', {
       discussionId: selectedDiscussion.value.id,
-      content: newComment.value,
+      content: newComment.value.trim(),
     });
     if (!selectedDiscussion.value.comments) selectedDiscussion.value.comments = [];
     selectedDiscussion.value.comments.push(response.data);
+    selectedDiscussion.value._count.comments = (selectedDiscussion.value._count.comments || 0) + 1;
+    selectedDiscussion.value.latestComment = response.data;
+    selectedDiscussion.value.lastActivityAt = response.data.createdAt;
     newComment.value = '';
     ElMessage.success(t('community.discussions.postSuccess'));
-    fetchDiscussions();
+    await refreshAll();
   } catch (_error) {
     ElMessage.error(t('community.discussions.postFailed'));
   } finally {
@@ -299,15 +577,14 @@ const handleAddComment = async () => {
 };
 
 const handleReplyComment = async (parentId: string) => {
-  if (!selectedDiscussion.value) return;
-  if (!replyContent.value.trim()) return;
+  if (!selectedDiscussion.value || !replyContent.value.trim()) return;
   try {
     const response = await api.post('/api/discussions/comments', {
       discussionId: selectedDiscussion.value.id,
-      content: replyContent.value,
+      content: replyContent.value.trim(),
       parentId,
     });
-    const parentComment = selectedDiscussion.value.comments?.find((c) => c.id === parentId);
+    const parentComment = selectedDiscussion.value.comments?.find((comment) => comment.id === parentId);
     if (parentComment) {
       if (!parentComment.replies) parentComment.replies = [];
       parentComment.replies.push(response.data);
@@ -315,26 +592,36 @@ const handleReplyComment = async (parentId: string) => {
         ...parentComment._count,
         replies: (parentComment._count?.replies || 0) + 1,
       };
+      expandedReplies.value = new Set([...expandedReplies.value, parentId]);
     }
+    selectedDiscussion.value._count.comments = (selectedDiscussion.value._count.comments || 0) + 1;
+    selectedDiscussion.value.latestComment = response.data;
+    selectedDiscussion.value.lastActivityAt = response.data.createdAt;
     replyContent.value = '';
     replyingTo.value = null;
     ElMessage.success(t('community.discussions.postSuccess'));
-    fetchDiscussions();
+    await refreshAll();
   } catch (_error) {
     ElMessage.error(t('community.discussions.postFailed'));
   }
 };
 
-const toggleLikeDiscussion = async (discussion: Discussion, event?: Event) => {
-  if (event) event.stopPropagation();
+const toggleLikeDiscussion = async (discussion: DiscussionCardActionTarget, event?: Event) => {
+  event?.stopPropagation();
   try {
     const response = await api.post(`/api/discussions/${discussion.id}/like`);
+    const wasLiked = Boolean(discussion.isLiked);
     discussion.isLiked = response.data.isLiked;
-    if (discussion._count) {
-      discussion._count.likes = response.data.isLiked
-        ? discussion._count.likes + 1
-        : discussion._count.likes - 1;
+    discussion._count.likes = Math.max(
+      0,
+      (discussion._count.likes || 0) + (response.data.isLiked ? 1 : wasLiked ? -1 : 0),
+    );
+
+    if (selectedDiscussion.value?.id === discussion.id) {
+      selectedDiscussion.value.isLiked = discussion.isLiked;
+      selectedDiscussion.value._count.likes = discussion._count.likes;
     }
+    fetchInsights();
   } catch (_error) {
     ElMessage.error(t('community.discussions.likeFailed'));
   }
@@ -343,31 +630,35 @@ const toggleLikeDiscussion = async (discussion: Discussion, event?: Event) => {
 const toggleLikeComment = async (comment: DiscussionComment) => {
   try {
     const response = await api.post(`/api/discussions/comments/${comment.id}/like`);
+    const wasLiked = Boolean(comment.isLiked);
     comment.isLiked = response.data.isLiked;
-    if (comment._count) {
-      comment._count.likes = response.data.isLiked
-        ? comment._count.likes + 1
-        : comment._count.likes - 1;
-    }
+    comment._count.likes = Math.max(
+      0,
+      (comment._count?.likes || 0) + (response.data.isLiked ? 1 : wasLiked ? -1 : 0),
+    );
   } catch (_error) {
     ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
 
-const togglePinDiscussion = async (discussion: Discussion, event?: Event) => {
-  if (event) event.stopPropagation();
+const togglePinDiscussion = async (discussion: DiscussionCardActionTarget, event?: Event) => {
+  event?.stopPropagation();
   try {
     await api.post(`/api/discussions/${discussion.id}/pin`);
     discussion.isPinned = !discussion.isPinned;
-    ElMessage.success(discussion.isPinned ? t('community.discussions.pinSuccess') : t('community.discussions.unpinSuccess'));
-    fetchDiscussions();
+    ElMessage.success(
+      discussion.isPinned
+        ? t('community.discussions.pinSuccess')
+        : t('community.discussions.unpinSuccess'),
+    );
+    await refreshAll();
   } catch (_error) {
     ElMessage.error(t('community.discussions.likeFailed'));
   }
 };
 
-const deleteDiscussion = async (discussion: Discussion, event?: Event) => {
-  if (event) event.stopPropagation();
+const deleteDiscussion = async (discussion: DiscussionCardActionTarget, event?: Event) => {
+  event?.stopPropagation();
   try {
     await ElMessageBox.confirm(t('community.discussions.deletePostConfirm'), t('common.confirmDelete'), {
       confirmButtonText: t('common.delete'),
@@ -376,10 +667,11 @@ const deleteDiscussion = async (discussion: Discussion, event?: Event) => {
     });
     await api.delete(`/api/discussions/${discussion.id}`);
     ElMessage.success(t('community.discussions.deleteSuccess'));
-    if (isDetailOpen.value) {
+    if (selectedDiscussion.value?.id === discussion.id) {
       isDetailOpen.value = false;
+      selectedDiscussion.value = null;
     }
-    fetchDiscussions();
+    await refreshAll();
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(t('community.discussions.deleteFailed'));
@@ -396,20 +688,22 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
     });
     await api.delete(`/api/discussions/comments/${comment.id}`);
     if (parentComment) {
-      parentComment.replies = (parentComment.replies || []).filter((r) => r.id !== comment.id);
+      parentComment.replies = (parentComment.replies || []).filter((reply) => reply.id !== comment.id);
       parentComment._count = {
         ...parentComment._count,
-        replies: (parentComment._count?.replies || 1) - 1,
+        replies: Math.max(0, (parentComment._count?.replies || 1) - 1),
       };
-    } else {
-      if (selectedDiscussion.value?.comments) {
-        selectedDiscussion.value.comments = selectedDiscussion.value.comments.filter(
-          (c) => c.id !== comment.id,
-        );
-      }
+    } else if (selectedDiscussion.value?.comments) {
+      selectedDiscussion.value.comments = selectedDiscussion.value.comments.filter((item) => item.id !== comment.id);
+    }
+    if (selectedDiscussion.value) {
+      selectedDiscussion.value._count.comments = Math.max(
+        0,
+        (selectedDiscussion.value._count.comments || 1) - 1,
+      );
     }
     ElMessage.success(t('community.discussions.deleteSuccess'));
-    fetchDiscussions();
+    await refreshAll();
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(t('community.discussions.deleteFailed'));
@@ -417,671 +711,1601 @@ const deleteComment = async (comment: DiscussionComment, parentComment?: Discuss
   }
 };
 
-const expandedReplies = ref<Set<string>>(new Set());
-
 const toggleReplies = (commentId: string) => {
-  if (expandedReplies.value.has(commentId)) {
-    expandedReplies.value.delete(commentId);
+  const next = new Set(expandedReplies.value);
+  if (next.has(commentId)) {
+    next.delete(commentId);
   } else {
-    expandedReplies.value.add(commentId);
+    next.add(commentId);
   }
+  expandedReplies.value = next;
 };
 
 onMounted(() => {
-  fetchDiscussions();
-  fetchTags();
+  refreshAll();
+});
+
+onBeforeUnmount(() => {
+  if (searchTimer) window.clearTimeout(searchTimer);
 });
 </script>
 
 <template>
-  <div class="flex flex-col h-full" style="background-color: var(--bg-app)">
-    <!-- Header -->
+  <div class="discussion-page">
     <PageHeader
       :title="t('community.discussions.title')"
-      :subtitle="pagination.total + ' ' + (authStore.user?.language === 'en' ? 'posts' : '篇')"
+      :subtitle="listSummary"
       :icon="MessageSquare"
     >
-      <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
-        <div class="relative flex-1 md:flex-none">
-          <Search
-            class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2"
-            style="color: var(--text-muted)"
-          />
+      <div class="discussion-header-actions">
+        <div class="discussion-search">
+          <Search class="h-3.5 w-3.5" />
           <input
             v-model="searchQuery"
             type="text"
             :placeholder="t('community.discussions.searchPlaceholder')"
-            class="pl-9 pr-4 py-1.5 border rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 w-full md:w-48 lg:w-60 transition-all"
-            style="
-              background-color: var(--bg-app);
-              border-color: var(--border-base);
-              color: var(--text-primary);
-            "
           />
         </div>
-        <button type="button" class="hidden md:flex bg-accent hover:bg-accent text-white px-4 py-2 rounded-full text-sm font-medium items-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20" @click="showCreateModal = true">
-          <Edit3 class="w-4 h-4" /> {{ t('community.discussions.newPost') }}
+        <button type="button" class="icon-action" :title="t('community.discussions.refresh')" @click="refreshAll">
+          <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isLoading || isInsightsLoading }" />
         </button>
-        <button type="button" class="md:hidden bg-accent text-white p-2 rounded-full shadow-lg shadow-accent/20" @click="showCreateModal = true">
-          <Edit3 class="w-4 h-4" />
+        <button type="button" class="primary-action" @click="showCreateModal = true">
+          <Edit3 class="h-4 w-4" />
+          <span>{{ t('community.discussions.newPost') }}</span>
         </button>
       </div>
     </PageHeader>
 
-    <!-- Filter Bar -->
-    <div
-      class="px-4 sm:px-6 py-2.5 border-b flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- Sort Options -->
-      <div class="flex items-center gap-1 shrink-0">
-        <button
-          v-for="opt in sortOptions" :key="opt.value" type="button" class="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
-            sortBy === opt.value
-              ? 'background-color: var(--accent); color: white'
-              : 'background-color: var(--bg-app); color: var(--text-secondary)'
-          " @click="sortBy = opt.value">
-          {{ opt.label }}
-        </button>
-      </div>
-
-      <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 shrink-0 mx-1"></div>
-
-      <!-- Tags (Hidden on desktop sidebar but visible in mobile overflow bar) -->
-      <div v-if="availableTags.length > 0" class="flex lg:hidden items-center gap-1.5 shrink-0">
-        <Tag class="w-3 h-3" style="color: var(--text-muted)" />
-        <button
-          type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
-            !selectedTag
-              ? 'background-color: var(--accent); color: white'
-              : 'background-color: var(--bg-app); color: var(--text-secondary)'
-          " @click="selectedTag = ''">
-          {{ t('community.teams.allCategories') }}
-        </button>
-        <button
-          v-for="tag in availableTags" :key="tag" type="button" class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all whitespace-nowrap" :style="
-            selectedTag === tag
-              ? 'background-color: var(--accent); color: white'
-              : 'background-color: var(--bg-app); color: var(--text-secondary)'
-          " @click="selectedTag = selectedTag === tag ? '' : tag">
-          #{{ tag }}
-        </button>
-      </div>
-    </div>
-
-
-    <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto p-3 sm:p-5 scrollbar-hide">
-      <div class="max-w-none flex flex-col lg:flex-row gap-6">
-        <!-- Left: Discussions List Feed -->
-        <div class="flex-1 min-w-0 space-y-3.5">
-          <div v-if="filteredDiscussions.length > 0" class="space-y-3">
-            <DiscussionCard
-              v-for="d in filteredDiscussions"
-              :key="d.id"
-              :discussion="d"
-              :current-user-id="currentUserId"
-              :is-admin="isAdmin"
-              @click="openDiscussion"
-              @like="toggleLikeDiscussion"
-              @pin="togglePinDiscussion"
-              @delete="deleteDiscussion"
-            />
-          </div>
-
-          <!-- Empty State -->
-          <div
-            v-else
-            class="h-64 flex flex-col items-center justify-center rounded-2xl border transition-colors duration-300"
-            style="
-              background-color: var(--bg-card);
-              border-color: var(--border-base);
-              color: var(--text-muted);
-            "
-          >
-            <MessageSquare class="w-12 h-12 mb-4 opacity-10" />
-            <p class="text-sm">{{ t('common.noData') }}</p>
-            <p class="text-xs mt-1 opacity-60">{{ t('community.discussions.editorPlaceholder') }}</p>
-          </div>
-
-          <!-- Pagination Footer -->
-          <div v-if="pagination.totalPages > 1" class="py-6 flex justify-center">
-            <el-pagination
-              v-model:current-page="pagination.page"
-              :page-size="pagination.limit"
-              :total="pagination.total"
-              layout="prev, pager, next"
-              background
-              @current-change="handlePageChange"
-            />
-          </div>
-        </div>
-
-        <!-- Right Sidebar -->
-        <div class="w-full lg:w-80 shrink-0 space-y-4">
-          <!-- Quick Action Card -->
-          <div class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl flex flex-col gap-3">
-            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">{{ t('community.discussions.announcements') }}</h4>
-            <p class="text-xs leading-relaxed" style="color: var(--text-muted)">
-              {{ t('community.discussions.subtitle') }}
-            </p>
-            <button type="button" class="w-full bg-accent hover:bg-accent text-white py-2.5 rounded-xl text-xs font-bold items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-accent/20 flex cursor-pointer" @click="showCreateModal = true">
-              <Edit3 class="w-4 h-4" /> {{ t('community.discussions.newPost') }}
+    <main class="discussion-board">
+      <section class="discussion-feed">
+        <div class="discussion-composer-card">
+          <div class="composer-entry">
+            <UserAvatar :user="authStore.user" size="sm" />
+            <button type="button" class="composer-trigger" @click="showCreateModal = true">
+              <span>{{ t('community.discussions.draftMeta') }}</span>
+              <Edit3 class="h-4 w-4" />
             </button>
           </div>
 
-          <!-- Hot Discussions Card -->
-          <div v-if="hotDiscussions.length > 0" class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style="color: var(--text-secondary)">
-              <Flame class="w-3.5 h-3.5 text-orange-500 fill-orange-500" /> {{ t('community.discussions.hotPosts') }}
-            </h4>
-            <div class="space-y-2.5">
-              <div
-                v-for="(hd, idx) in hotDiscussions"
-                :key="hd.id"
-                class="flex items-start gap-2 group cursor-pointer"
-                @click="openDiscussion(hd.id)"
-              >
-                <span
-                  class="text-xs font-black w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px]"
-                  :class="[
-                    idx === 0 ? 'bg-amber-500 text-white' :
-                    idx === 1 ? 'bg-slate-400 text-white' :
-                    idx === 2 ? 'bg-amber-600 text-white' :
-                    'bg-slate-100 dark:bg-white/5 text-slate-400'
-                  ]"
-                >
-                  {{ idx + 1 }}
-                </span>
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs font-bold truncate group-hover:text-accent transition-colors" style="color: var(--text-primary)">
-                    {{ hd.title }}
-                  </p>
-                  <p class="text-[9px] flex items-center gap-2" style="color: var(--text-muted)">
-                    <span>{{ hd.user?.name || t('community.discussions.anonymous') }}</span>
-                    <span>{{ hd.viewCount || 0 }} {{ t('community.discussions.views') }}</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Top Contributors Card -->
-          <div v-if="topContributors.length > 0" class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">{{ t('community.discussions.activeCreators') }}</h4>
-            <div class="space-y-3">
-              <div v-for="c in topContributors" :key="c.user.id" class="flex items-center gap-2.5">
-                <UserAvatar :user="c.user" size="xs" />
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
-                    {{ c.user.name || t('community.discussions.anonymousCreator') }}
-                  </p>
-                  <p class="text-[9px]" style="color: var(--text-muted)">
-                    {{ t('community.discussions.publishedPosts', { count: c.count }) }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Popular Tags Card -->
-          <div v-if="availableTags.length > 0" class="p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider" style="color: var(--text-secondary)">{{ t('community.discussions.popularTags') }}</h4>
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="tag in availableTags.slice(0, 15)" :key="tag" type="button" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all hover:opacity-85" :style="
-                  selectedTag === tag
-                    ? 'background-color: var(--accent); color: white'
-                    : 'background-color: var(--bg-app); color: var(--text-secondary); border: 1px solid var(--border-base)'
-                " @click="selectedTag = selectedTag === tag ? '' : tag">
-                #{{ tag }}
-              </button>
+          <div class="composer-stats">
+            <div
+              v-for="metric in metricCards"
+              :key="metric.label"
+              class="composer-stat"
+              :class="`composer-stat--${metric.tone}`"
+            >
+              <component :is="metric.icon" class="h-3.5 w-3.5" />
+              <span>{{ metric.label }}</span>
+              <strong>{{ metric.value }}</strong>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Discussion Detail Modal -->
-    <Transition name="fade">
-      <div
-        v-if="isDetailOpen && selectedDiscussion"
-        class="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4"
-      >
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="isDetailOpen = false"
-        ></div>
-        <div
-          class="relative w-full max-w-3xl max-h-[92vh] flex flex-col bg-[var(--bg-card)] border border-[var(--border-base)] rounded-2xl shadow-2xl overflow-hidden"
-        >
-          <!-- Modal Header -->
-          <div
-            class="p-2.5 sm:p-3 border-b flex items-center justify-between shrink-0"
-            style="border-color: var(--border-base)"
-          >
-            <div class="flex items-center gap-2 sm:gap-2.5">
-              <UserAvatar :user="selectedDiscussion.user" size="sm" />
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <p class="text-[11px] sm:text-xs font-bold" style="color: var(--text-primary)">
-                    {{ selectedDiscussion.user?.name || t('community.discussions.anonymous') }}
-                  </p>
-                  <span
-                    v-if="selectedDiscussion.isPinned"
-                    class="px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-bold"
-                    style="background-color: var(--accent); color: white"
-                    >{{ t('community.discussions.pinned') }}</span
-                  >
-                </div>
-                <p class="text-[8.5px] sm:text-[9px]" style="color: var(--text-muted)">
-                  {{ formatTime(selectedDiscussion.createdAt) }}
-                </p>
-              </div>
-            </div>
-            <div class="flex items-center gap-1">
-              <button v-if="isAdmin" type="button" class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="togglePinDiscussion(selectedDiscussion)">
-                <Pin class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'text-accent': selectedDiscussion.isPinned }" />
-              </button>
-              <button v-if="currentUserId === selectedDiscussion.user?.id || isAdmin" type="button" class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="deleteDiscussion(selectedDiscussion)">
-                <Trash2 class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              </button>
-              <button type="button" class="p-1 sm:p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style="color: var(--text-secondary)" @click="isDetailOpen = false">
-                <X class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
+        <div class="control-panel">
+          <div class="filter-tabs">
+            <button
+              v-for="filter in filterOptions"
+              :key="filter.value"
+              type="button"
+              :class="{ 'is-active': activeFilter === filter.value }"
+              @click="activeFilter = filter.value"
+            >
+              <component :is="filter.icon" class="h-3.5 w-3.5" />
+              <span>{{ filter.label }}</span>
+              <b v-if="filter.count !== undefined">{{ formatNumber(filter.count) }}</b>
+            </button>
           </div>
 
-          <!-- Modal Scrollable Content -->
-          <div class="flex-1 overflow-y-auto p-3.5 sm:p-4.5 scrollbar-hide">
-            <h2 class="text-base sm:text-lg font-black mb-2 sm:mb-2.5 leading-tight" style="color: var(--text-primary)">
-              {{ selectedDiscussion.title }}
-            </h2>
-
-            <!-- Tags -->
-            <div
-              v-if="parseTags(selectedDiscussion.tags).length > 0"
-              class="flex flex-wrap gap-1 mb-2"
+          <div class="sort-strip">
+            <span>{{ selectedSortLabel }}</span>
+            <button
+              v-for="option in sortOptions"
+              :key="option.value"
+              type="button"
+              :class="{ 'is-active': sortBy === option.value }"
+              :title="option.label"
+              @click="sortBy = option.value"
             >
-              <span
-                v-for="tag in parseTags(selectedDiscussion.tags)"
-                :key="tag"
-                class="px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9.5px] font-medium"
-                style="background-color: var(--bg-app); color: var(--accent)"
-                >#{{ tag }}</span
-              >
+              <component :is="option.icon" class="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div v-if="hasActiveFilters" class="active-filter-line">
+          <div>
+            <CheckCircle2 class="h-3.5 w-3.5" />
+            <span v-if="selectedTag">{{ t('community.discussions.selectedTag', { tag: selectedTag }) }}</span>
+            <span v-else>{{ t('community.discussions.filteredView') }}</span>
+          </div>
+          <button type="button" @click="clearFilters">{{ t('community.discussions.clearFilters') }}</button>
+        </div>
+
+        <div v-if="isLoading" class="loading-list">
+          <div v-for="idx in 4" :key="idx" class="skeleton-card">
+            <span></span>
+            <div>
+              <i></i>
+              <i></i>
+              <i></i>
             </div>
+          </div>
+        </div>
 
-            <!-- Stats Bar -->
-            <div
-              class="flex items-center gap-3.5 sm:gap-4 mb-3 sm:mb-3.5 pb-2 border-b"
-              style="border-color: var(--border-base)"
+        <div v-else-if="discussions.length > 0" class="discussion-list">
+          <DiscussionCard
+            v-for="discussion in discussions"
+            :key="discussion.id"
+            :discussion="discussion"
+            :current-user-id="currentUserId"
+            :is-admin="isAdmin"
+            @click="openDiscussion"
+            @like="toggleLikeDiscussion"
+            @pin="togglePinDiscussion"
+            @delete="deleteDiscussion"
+            @tag="setTag"
+          />
+        </div>
+
+        <div v-else class="empty-state">
+          <MessageSquare class="h-12 w-12" />
+          <strong>{{ t('community.discussions.emptyTitle') }}</strong>
+          <p>{{ t('community.discussions.emptySubtitle') }}</p>
+          <button type="button" class="primary-action" @click="showCreateModal = true">
+            <Edit3 class="h-4 w-4" />
+            <span>{{ t('community.discussions.newPost') }}</span>
+          </button>
+        </div>
+
+        <div v-if="pagination.totalPages > 1" class="pagination-row">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            :page-size="pagination.limit"
+            :total="pagination.total"
+            layout="prev, pager, next"
+            background
+            @current-change="handlePageChange"
+          />
+        </div>
+      </section>
+
+      <aside class="discussion-side">
+        <section class="side-panel side-panel--compose">
+          <div>
+            <p>{{ t('community.discussions.communityHealth') }}</p>
+            <strong>{{ formatNumber(insights?.totals.activeAuthors || topContributors.length) }}</strong>
+            <span>{{ t('community.discussions.activeAuthors') }}</span>
+          </div>
+          <button type="button" class="primary-action" @click="showCreateModal = true">
+            <Plus class="h-4 w-4" />
+            <span>{{ t('community.discussions.newPost') }}</span>
+          </button>
+        </section>
+
+        <section class="side-panel">
+          <header>
+            <h2><Tag class="h-4 w-4" /> {{ t('community.discussions.popularTags') }}</h2>
+          </header>
+          <div v-if="tagInsights.length > 0" class="tag-cloud">
+            <button
+              v-for="tagItem in tagInsights.slice(0, 18)"
+              :key="tagItem.name"
+              type="button"
+              :class="{ 'is-active': selectedTag === tagItem.name }"
+              @click="setTag(tagItem.name)"
             >
-              <button type="button" class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold transition-colors cursor-pointer" :class="selectedDiscussion.isLiked ? 'text-red-500' : ''" :style="!selectedDiscussion.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeDiscussion(selectedDiscussion)">
-                <Heart class="w-3 h-3 sm:w-3.5 sm:h-3.5" :class="{ 'fill-red-500': selectedDiscussion.isLiked }" />
-                {{ selectedDiscussion._count?.likes || 0 }} <span class="hidden sm:inline">{{ t('community.discussions.likes') }}</span>
+              <span>#{{ tagItem.name }}</span>
+              <b>{{ tagItem.count }}</b>
+            </button>
+          </div>
+          <p v-else class="muted-line">{{ t('community.discussions.noTagsYet') }}</p>
+        </section>
+
+        <section class="side-panel">
+          <header>
+            <h2><Flame class="h-4 w-4" /> {{ t('community.discussions.hotPosts') }}</h2>
+          </header>
+          <div v-if="hotDiscussions.length > 0" class="rank-list">
+            <button
+              v-for="(item, index) in hotDiscussions"
+              :key="item.id"
+              type="button"
+              @click="openDiscussion(item.id)"
+            >
+              <b :class="`rank-index--${index + 1}`">{{ index + 1 }}</b>
+              <span>{{ item.title }}</span>
+              <small>{{ formatNumber(item.viewCount) }} {{ t('community.discussions.views') }}</small>
+            </button>
+          </div>
+          <p v-else class="muted-line">{{ t('community.discussions.noHotPosts') }}</p>
+        </section>
+
+        <section class="side-panel">
+          <header>
+            <h2><Users class="h-4 w-4" /> {{ t('community.discussions.activeCreators') }}</h2>
+          </header>
+          <div v-if="topContributors.length > 0" class="creator-list">
+            <div v-for="creator in topContributors" :key="creator.user.id">
+              <UserAvatar :user="creator.user" size="xs" />
+              <div>
+                <strong>{{ creator.user.name || t('community.discussions.anonymousCreator') }}</strong>
+                <span>
+                  {{ t('community.discussions.creatorStats', {
+                    posts: creator.discussions,
+                    comments: creator.comments,
+                  }) }}
+                </span>
+              </div>
+              <b>{{ formatNumber(creator.likesReceived) }}</b>
+            </div>
+          </div>
+          <p v-else class="muted-line">{{ t('community.discussions.noCreatorsYet') }}</p>
+        </section>
+
+        <section class="side-panel">
+          <header>
+            <h2><MessageCircle class="h-4 w-4" /> {{ t('community.discussions.recentActivity') }}</h2>
+          </header>
+          <div v-if="recentComments.length > 0" class="activity-list">
+            <button
+              v-for="activity in recentComments"
+              :key="activity.id"
+              type="button"
+              @click="openDiscussion(activity.discussion.id)"
+            >
+              <span>{{ activity.user.name || t('community.discussions.anonymous') }}</span>
+              <strong>{{ activity.discussion.title }}</strong>
+              <small>{{ formatTime(activity.createdAt) }}</small>
+            </button>
+          </div>
+          <p v-else class="muted-line">{{ t('community.discussions.noActivityYet') }}</p>
+        </section>
+      </aside>
+    </main>
+
+    <Transition name="fade">
+      <div v-if="isDetailOpen && selectedDiscussion" class="modal-shell">
+        <div class="modal-backdrop" @click="isDetailOpen = false"></div>
+        <section class="detail-modal">
+          <header class="detail-header">
+            <div class="detail-author">
+              <UserAvatar :user="selectedDiscussion.user" size="sm" />
+              <div>
+                <strong>{{ selectedDiscussion.user?.name || t('community.discussions.anonymous') }}</strong>
+                <span>{{ formatTime(selectedDiscussion.createdAt) }}</span>
+              </div>
+              <i v-if="selectedDiscussion.isPinned">
+                <Pin class="h-3 w-3" />
+                {{ t('community.discussions.pinned') }}
+              </i>
+            </div>
+            <div class="modal-actions">
+              <button
+                v-if="isAdmin"
+                type="button"
+                :class="{ 'is-active': selectedDiscussion.isPinned }"
+                @click="togglePinDiscussion(selectedDiscussion)"
+              >
+                <Pin class="h-4 w-4" />
               </button>
-              <div
-                class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold"
-                style="color: var(--text-muted)"
+              <button
+                v-if="currentUserId === selectedDiscussion.user?.id || isAdmin"
+                type="button"
+                class="danger"
+                @click="deleteDiscussion(selectedDiscussion)"
               >
-                <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {{ selectedDiscussion._count?.comments || 0 }} <span class="hidden sm:inline">{{ t('community.discussions.comments') }}</span>
-              </div>
-              <div
-                class="flex items-center gap-1 text-[9.5px] sm:text-[11px] font-bold"
-                style="color: var(--text-muted)"
-              >
-                <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {{ selectedDiscussion.viewCount || 0 }} <span class="hidden sm:inline">{{ t('community.discussions.views') }}</span>
-              </div>
+                <Trash2 class="h-4 w-4" />
+              </button>
+              <button type="button" @click="isDetailOpen = false">
+                <X class="h-4 w-4" />
+              </button>
             </div>
+          </header>
 
-            <div class="mb-3.5 sm:mb-4 text-xs leading-relaxed">
-              <MarkdownEditor :model-value="selectedDiscussion.content" preview-only />
-            </div>
-
-            <!-- Post Images (Dynamic Compact Grid Layout) -->
-            <div
-              v-if="parseImages(selectedDiscussion.images).length > 0"
-              class="grid gap-2 mb-4 sm:mb-5"
-              :class="[
-                parseImages(selectedDiscussion.images).length === 1 ? 'grid-cols-1 max-w-lg' :
-                parseImages(selectedDiscussion.images).length === 2 ? 'grid-cols-2' : 'grid-cols-3'
-              ]"
-            >
-              <img v-for="(img, idx) in parseImages(selectedDiscussion.images)" :key="idx" alt="" :src="img" class="w-full h-28 sm:h-36 object-cover rounded-lg shadow-sm border border-slate-100 dark:border-white/5" />
-            </div>
-
-            <!-- Comments Section -->
-            <div class="space-y-3">
-              <div
-                class="flex items-center gap-1.5 border-b pb-1.5 sm:pb-2"
-                style="border-color: var(--border-base)"
-              >
-                <MessageSquare class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
-                <h3 class="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-widest">
-                  {{ t('community.discussions.allComments', { count: selectedDiscussion.comments?.length || 0 }) }}
-                </h3>
+          <div class="detail-grid">
+            <article class="detail-content">
+              <h2>{{ selectedDiscussion.title }}</h2>
+              <div v-if="parseTags(selectedDiscussion.tags).length > 0" class="detail-tags">
+                <button
+                  v-for="tagName in parseTags(selectedDiscussion.tags)"
+                  :key="tagName"
+                  type="button"
+                  @click="setTag(tagName)"
+                >
+                  #{{ tagName }}
+                </button>
               </div>
 
-              <div
-                v-for="comment in selectedDiscussion.comments"
-                :key="comment.id"
-                class="space-y-2"
-              >
-                <!-- Main Comment -->
-                <div class="flex gap-2">
-                  <UserAvatar :user="comment.user" size="xs" class="shrink-0" />
-                  <div class="flex-1">
-                    <div class="p-2 sm:p-2.5 rounded-lg" style="background-color: var(--bg-app)">
-                      <div class="flex items-center justify-between mb-0.5">
-                        <span class="text-[11px] font-bold" style="color: var(--text-primary)">{{
-                          comment.user?.name || t('community.discussions.anonymous')
-                        }}</span>
-                        <span class="text-[8.5px]" style="color: var(--text-muted)">{{
-                          formatTime(comment.createdAt)
-                        }}</span>
+              <div class="detail-stats">
+                <button
+                  type="button"
+                  :class="{ 'is-liked': selectedDiscussion.isLiked }"
+                  @click="toggleLikeDiscussion(selectedDiscussion)"
+                >
+                  <Heart class="h-4 w-4" :class="{ 'fill-current': selectedDiscussion.isLiked }" />
+                  {{ selectedDiscussion._count?.likes || 0 }}
+                </button>
+                <span><MessageSquare class="h-4 w-4" /> {{ selectedDiscussion._count?.comments || 0 }}</span>
+                <span><Eye class="h-4 w-4" /> {{ selectedDiscussion.viewCount || 0 }}</span>
+              </div>
+
+              <MarkdownEditor
+                class="discussion-preview"
+                :model-value="selectedDiscussion.content"
+                preview-only
+              />
+
+              <div v-if="parseImages(selectedDiscussion.images).length > 0" class="detail-images">
+                <img
+                  v-for="(image, index) in parseImages(selectedDiscussion.images)"
+                  :key="`${image}-${index}`"
+                  :src="getAssetUrl(image)"
+                  alt=""
+                />
+              </div>
+            </article>
+
+            <aside class="detail-comments">
+              <div class="comments-title">
+                <h3>{{ t('community.discussions.allComments', { count: selectedDiscussion.comments?.length || 0 }) }}</h3>
+              </div>
+
+              <div class="comments-scroll">
+                <div v-if="selectedDiscussion.comments?.length" class="comment-list">
+                  <div v-for="comment in selectedDiscussion.comments" :key="comment.id" class="comment-item">
+                    <UserAvatar :user="comment.user" size="xs" />
+                    <div class="comment-body">
+                      <div class="comment-bubble">
+                        <div>
+                          <strong>{{ comment.user?.name || t('community.discussions.anonymous') }}</strong>
+                          <span>{{ formatTime(comment.createdAt) }}</span>
+                        </div>
+                        <p>{{ comment.content }}</p>
                       </div>
-                      <div class="text-[10.5px] sm:text-xs leading-relaxed whitespace-pre-wrap" style="color: var(--text-secondary)">
-                        {{ comment.content }}
+
+                      <div class="comment-actions">
+                        <button
+                          type="button"
+                          :class="{ 'is-liked': comment.isLiked }"
+                          @click="toggleLikeComment(comment)"
+                        >
+                          <Heart class="h-3 w-3" :class="{ 'fill-current': comment.isLiked }" />
+                          {{ comment._count?.likes || 0 }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="
+                            replyingTo = replyingTo?.id === comment.id ? null : comment;
+                            replyContent = '';
+                          "
+                        >
+                          <MessageSquare class="h-3 w-3" />
+                          {{ t('common.reply') }}
+                        </button>
+                        <button
+                          v-if="currentUserId === comment.user?.id || isAdmin"
+                          type="button"
+                          class="danger"
+                          @click="deleteComment(comment)"
+                        >
+                          <Trash2 class="h-3 w-3" />
+                          {{ t('common.delete') }}
+                        </button>
                       </div>
-                    </div>
-                    <!-- Comment Actions -->
-                    <div class="flex items-center gap-3.5 mt-1 ml-1.5">
-                      <button type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors cursor-pointer" :class="comment.isLiked ? 'text-red-500' : ''" :style="!comment.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeComment(comment)">
-                        <Heart class="w-2.5 h-2.5" :class="{ 'fill-red-500': comment.isLiked }" />
-                        {{ comment._count?.likes || 0 }}
-                      </button>
+
+                      <div v-if="replyingTo?.id === comment.id" class="reply-box">
+                        <textarea
+                          v-model="replyContent"
+                          rows="2"
+                          :placeholder="t('community.discussions.replyTo', {
+                            name: comment.user?.name || t('community.discussions.anonymous'),
+                          })"
+                        ></textarea>
+                        <div>
+                          <button type="button" @click="replyingTo = null">{{ t('common.cancel') }}</button>
+                          <button
+                            type="button"
+                            :disabled="!replyContent.trim()"
+                            @click="handleReplyComment(comment.id)"
+                          >
+                            <Send class="h-3 w-3" />
+                            {{ t('common.reply') }}
+                          </button>
+                        </div>
+                      </div>
+
                       <button
-                        type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-accent cursor-pointer" style="color: var(--text-muted)" @click="
-                          replyingTo = replyingTo?.id === comment.id ? null : comment;
-                          replyContent = '';
-                        ">
-                        <MessageSquare class="w-2.5 h-2.5" /> {{ t('common.reply') }}
+                        v-if="comment._count?.replies"
+                        type="button"
+                        class="reply-toggle"
+                        @click="toggleReplies(comment.id)"
+                      >
+                        <ChevronUp v-if="expandedReplies.has(comment.id)" class="h-3 w-3" />
+                        <ChevronDown v-else class="h-3 w-3" />
+                        {{
+                          expandedReplies.has(comment.id)
+                            ? t('community.discussions.collapseReplies')
+                            : t('community.discussions.showRepliesCount', { count: comment._count.replies })
+                        }}
                       </button>
-                      <button v-if="currentUserId === comment.user?.id || isAdmin" type="button" class="flex items-center gap-0.5 text-[9px] font-medium transition-colors hover:text-red-500 cursor-pointer" style="color: var(--text-muted)" @click="deleteComment(comment)">
-                        <Trash2 class="w-2.5 h-2.5" /> {{ t('common.delete') }}
-                      </button>
-                    </div>
 
-                    <!-- Reply Input -->
-                    <div v-if="replyingTo?.id === comment.id" class="mt-2 ml-1.5 space-y-1.5">
-                      <textarea
-                        v-model="replyContent"
-                        class="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"
-                        style="
-                          background-color: var(--bg-app);
-                          border-color: var(--border-base);
-                          color: var(--text-primary);
-                        "
-                        rows="2"
-                        :placeholder="t('community.discussions.replyTo', { name: comment.user?.name || t('community.discussions.anonymous') })"
-                      ></textarea>
-                      <div class="flex justify-end gap-1.5">
-                        <button type="button" class="px-2.5 py-1 rounded-xl text-[9px] transition-all font-bold cursor-pointer" style="color: var(--text-muted)" @click="replyingTo = null">
-                          {{ t('common.cancel') }}
-                        </button>
-                        <button type="button" :disabled="!replyContent" class="px-3 py-1 bg-accent text-white font-bold rounded-xl text-[9px] shadow-md shadow-accent/10 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer" @click="handleReplyComment(comment.id)">
-                          <Send class="w-2 h-2" /> {{ t('common.reply') }}
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- Show Replies Toggle -->
-                    <button
-                      v-if="
-                        comment._count?.replies > 0 &&
-                        (!comment.replies ||
-                          comment.replies.length === 0 ||
-                          !expandedReplies.has(comment.id))
-                      " type="button" class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer" @click="toggleReplies(comment.id)">
-                      <ChevronDown class="w-2.5 h-2.5" /> {{ t('community.discussions.showRepliesCount', { count: comment._count?.replies }) }}
-                    </button>
-                    <button v-if="expandedReplies.has(comment.id) && comment._count?.replies > 0" type="button" class="mt-1 ml-1.5 flex items-center gap-0.5 text-[9px] font-bold text-accent hover:underline cursor-pointer" @click="toggleReplies(comment.id)">
-                      <ChevronUp class="w-2.5 h-2.5" /> {{ t('community.discussions.collapseReplies') }}
-                    </button>
-
-                    <!-- Nested Replies -->
-                    <div
-                      v-if="expandedReplies.has(comment.id) && comment.replies?.length > 0"
-                      class="mt-2 ml-3.5 space-y-2 border-l pl-2"
-                      style="border-color: var(--border-base)"
-                    >
-                      <div v-for="reply in comment.replies" :key="reply.id" class="flex gap-2">
-                        <UserAvatar :user="reply.user" size="xs" class="shrink-0" />
-                        <div class="flex-1">
-                          <div class="p-1.5 sm:p-2 rounded-md" style="background-color: var(--bg-app)">
-                            <div class="flex items-center justify-between mb-0.5">
-                              <span
-                                class="text-[9.5px] font-bold"
-                                style="color: var(--text-primary)"
-                                >{{ reply.user?.name || t('community.discussions.anonymous') }}</span
+                      <div
+                        v-if="expandedReplies.has(comment.id) && comment.replies?.length"
+                        class="reply-list"
+                      >
+                        <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
+                          <UserAvatar :user="reply.user" size="xs" />
+                          <div>
+                            <div class="comment-bubble">
+                              <div>
+                                <strong>{{ reply.user?.name || t('community.discussions.anonymous') }}</strong>
+                                <span>{{ formatTime(reply.createdAt) }}</span>
+                              </div>
+                              <p>{{ reply.content }}</p>
+                            </div>
+                            <div class="comment-actions">
+                              <button
+                                type="button"
+                                :class="{ 'is-liked': reply.isLiked }"
+                                @click="toggleLikeComment(reply)"
                               >
-                              <span class="text-[7.5px]" style="color: var(--text-muted)">{{
-                                formatTime(reply.createdAt)
-                              }}</span>
+                                <Heart class="h-3 w-3" :class="{ 'fill-current': reply.isLiked }" />
+                                {{ reply._count?.likes || 0 }}
+                              </button>
+                              <button
+                                v-if="currentUserId === reply.user?.id || isAdmin"
+                                type="button"
+                                class="danger"
+                                @click="deleteComment(reply, comment)"
+                              >
+                                <Trash2 class="h-3 w-3" />
+                                {{ t('common.delete') }}
+                              </button>
                             </div>
-                            <div
-                              class="text-[9.5px] leading-relaxed whitespace-pre-wrap"
-                              style="color: var(--text-secondary)"
-                            >
-                              {{ reply.content }}
-                            </div>
-                          </div>
-                          <div class="flex items-center gap-2.5 mt-0.5 ml-0.5">
-                            <button type="button" class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors cursor-pointer" :class="reply.isLiked ? 'text-red-500' : ''" :style="!reply.isLiked ? 'color: var(--text-muted)' : ''" @click="toggleLikeComment(reply)">
-                              <Heart
-                                class="w-2 h-2"
-                                :class="{ 'fill-red-500': reply.isLiked }"
-                              />
-                              {{ reply._count?.likes || 0 }}
-                            </button>
-                            <button v-if="currentUserId === reply.user?.id || isAdmin" type="button" class="flex items-center gap-0.5 text-[8.5px] font-medium transition-colors hover:text-red-500 cursor-pointer" style="color: var(--text-muted)" @click="deleteComment(reply, comment)">
-                              <Trash2 class="w-2 h-2" /> {{ t('common.delete') }}
-                            </button>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
+                <div v-else class="comments-empty">
+                  <MessageCircle class="h-8 w-8" />
+                  <span>{{ t('community.discussions.noRepliesYet') }}</span>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Comment Input Footer -->
-          <div
-            class="p-2.5 border-t shrink-0"
-            style="border-color: var(--border-base); background-color: var(--bg-card)"
-          >
-            <div class="flex gap-2">
-              <UserAvatar :user="authStore.user" size="sm" class="shrink-0" />
-              <div class="flex-1 space-y-1.5">
-                <textarea
-                  v-model="newComment"
-                  class="w-full px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none"
-                  style="
-                    background-color: var(--bg-app);
-                    border-color: var(--border-base);
-                    color: var(--text-primary);
-                  "
-                  rows="3"
-                  :placeholder="t('community.discussions.editorPlaceholder')"
-                ></textarea>
-                <div class="flex justify-end">
-                  <button type="button" :disabled="!newComment || isSubmittingComment" class="px-3.5 py-1 bg-accent text-white font-bold rounded-xl text-xs shadow-lg shadow-accent/20 disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer" @click="handleAddComment">
-                    <Send class="w-3 h-3" /> {{ t('community.discussions.postComment') }}
+              <div class="comment-composer">
+                <UserAvatar :user="authStore.user" size="sm" />
+                <div>
+                  <textarea
+                    v-model="newComment"
+                    rows="3"
+                    :placeholder="t('community.discussions.commentPlaceholder')"
+                  ></textarea>
+                  <button
+                    type="button"
+                    :disabled="!newComment.trim() || isSubmittingComment"
+                    @click="handleAddComment"
+                  >
+                    <LoaderCircle v-if="isSubmittingComment" class="h-3.5 w-3.5 animate-spin" />
+                    <Send v-else class="h-3.5 w-3.5" />
+                    {{ t('community.discussions.postComment') }}
                   </button>
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
-        </div>
+        </section>
       </div>
     </Transition>
 
-    <!-- Create Post Modal -->
     <Transition name="fade">
-      <div v-if="showCreateModal" class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4">
-        <div
-          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          @click="showCreateModal = false"
-        ></div>
-        <div
-          class="relative w-full max-w-2xl lg:max-w-5xl max-h-[90vh] p-4 sm:p-6 rounded-2xl shadow-2xl space-y-4 overflow-y-auto scrollbar-hide"
-          style="background-color: var(--bg-card)"
-        >
-          <div class="flex items-center justify-between pb-1">
-            <h3 class="text-md sm:text-lg font-black" style="color: var(--text-primary)">{{ t('community.discussions.newPost') }}</h3>
-            <button type="button" class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all" style="color: var(--text-secondary)" @click="showCreateModal = false">
-              <X class="w-4 h-4 sm:w-5 h-5" />
+      <div v-if="showCreateModal" class="modal-shell">
+        <div class="modal-backdrop" @click="showCreateModal = false"></div>
+        <section class="create-modal">
+          <header class="create-header">
+            <div>
+              <h2>{{ t('community.discussions.newPost') }}</h2>
+              <p>{{ t('community.discussions.draftMeta') }}</p>
+            </div>
+            <button type="button" @click="showCreateModal = false">
+              <X class="h-4 w-4" />
             </button>
-          </div>
+          </header>
 
-          <div class="space-y-3.5">
-            <div>
-              <label
-                class="block text-[10px] font-black uppercase mb-1.5 ml-1 tracking-wider"
-                style="color: var(--text-secondary)"
-                >{{ t('community.discussions.postTitleLabel') }}</label
-              >
-              <input
-                v-model="postForm.title"
-                type="text"
-                class="w-full px-3.5 py-2 sm:py-2.5 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all font-bold"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                placeholder="..."
-              />
-            </div>
+          <div class="create-grid">
+            <section class="create-main">
+              <label>
+                <span>{{ t('community.discussions.postTitleLabel') }}</span>
+                <input
+                  v-model="postForm.title"
+                  type="text"
+                  :placeholder="t('community.discussions.titlePlaceholder')"
+                />
+              </label>
 
-            <div>
-              <label
-                class="block text-[10px] font-black uppercase mb-1.5 ml-1 tracking-wider"
-                style="color: var(--text-secondary)"
-                >{{ t('community.discussions.postContentLabel') }}</label
-              >
-              <MarkdownEditor
-                v-model="postForm.content"
-                height="400px"
-                class="h-[200px] sm:h-[400px]"
-                :placeholder="t('community.discussions.editorPlaceholder')"
-              />
-            </div>
+              <label class="editor-label">
+                <span>{{ t('community.discussions.postContentLabel') }}</span>
+                <MarkdownEditor
+                  v-model="postForm.content"
+                  height="420px"
+                  :placeholder="t('community.discussions.editorPlaceholder')"
+                />
+              </label>
+            </section>
 
-            <!-- Tags Input -->
-            <div>
-              <label
-                class="block text-[10px] font-black uppercase mb-1.5 ml-1 tracking-wider"
-                style="color: var(--text-secondary)"
-                >{{ t('community.discussions.postTagsLabel') }}</label
-              >
-              <input
-                v-model="postForm.tags"
-                type="text"
-                class="w-full px-3.5 py-2 sm:py-2.5 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
-                style="
-                  background-color: var(--bg-app);
-                  border-color: var(--border-base);
-                  color: var(--text-primary);
-                "
-                placeholder="..."
-              />
-              <div v-if="availableTags.length > 0" class="flex flex-wrap gap-1.5 mt-2">
-                <span class="text-[9px] font-bold" style="color: var(--text-muted)"
-                  >{{ t('community.discussions.popularTags') }}:</span
-                >
-                <button v-for="tag in availableTags.slice(0, 8)" :key="tag" type="button" class="px-2 py-0.5 rounded-full text-[9px] font-bold hover:opacity-80 transition-opacity" style="background-color: var(--bg-app); color: var(--accent)" @click="postForm.tags = postForm.tags ? `${postForm.tags}, ${tag}` : tag">
-                  #{{ tag }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Image Upload Section -->
-            <div>
-              <label
-                class="block text-[10px] font-black uppercase mb-2 ml-1 tracking-wider"
-                style="color: var(--text-secondary)"
-                >{{ t('community.discussions.postImagesLabel') }}</label
-              >
-              <div class="flex flex-wrap gap-2.5">
-                <div
-                  v-for="(img, idx) in imagePreviews"
-                  :key="idx"
-                  class="relative w-16 h-16 rounded-lg overflow-hidden group border"
-                  style="border-color: var(--border-base)"
-                >
-                  <img alt="" :src="img" class="w-full h-full object-cover" />
-                  <button type="button" class="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity" @click="removeImage(idx)">
-                    <X class="w-2.5 h-2.5" />
+            <aside class="create-side">
+              <section>
+                <h3><Sparkles class="h-4 w-4" /> {{ t('community.discussions.quickDraft') }}</h3>
+                <div class="template-list">
+                  <button
+                    v-for="template in starterPrompts"
+                    :key="template.label"
+                    type="button"
+                    @click="applyTemplate(template)"
+                  >
+                    {{ template.label }}
                   </button>
                 </div>
-                <label
-                  v-if="imagePreviews.length < 5"
-                  class="w-16 h-16 rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-all shrink-0"
-                  style="border-color: var(--border-base)"
-                >
-                  <Plus class="w-4 h-4" style="color: var(--text-muted)" />
-                  <span class="text-[9px] mt-0.5" style="color: var(--text-muted)">{{ t('common.save') }}</span>
-                  <input
-                    type="file"
-                    class="hidden"
-                    accept="image/*"
-                    multiple
-                    @change="handleImageSelect"
-                  />
-                </label>
-              </div>
-            </div>
+              </section>
+
+              <section>
+                <h3><Tag class="h-4 w-4" /> {{ t('community.discussions.postTagsLabel') }}</h3>
+                <input
+                  v-model="postForm.tags"
+                  type="text"
+                  :placeholder="t('community.discussions.tagsPlaceholder')"
+                />
+                <div v-if="tagInsights.length > 0" class="draft-tags">
+                  <button
+                    v-for="tagItem in tagInsights.slice(0, 10)"
+                    :key="tagItem.name"
+                    type="button"
+                    @click="addTagToDraft(tagItem.name)"
+                  >
+                    #{{ tagItem.name }}
+                  </button>
+                </div>
+              </section>
+
+              <section>
+                <h3><ImageIcon class="h-4 w-4" /> {{ t('community.discussions.postImagesLabel') }}</h3>
+                <div class="image-uploader">
+                  <div v-for="(image, index) in imagePreviews" :key="`${image}-${index}`">
+                    <img :src="image" alt="" />
+                    <button type="button" @click="removeImage(index)">
+                      <X class="h-3 w-3" />
+                    </button>
+                  </div>
+                  <label v-if="imagePreviews.length < 5">
+                    <Plus class="h-4 w-4" />
+                    <span>{{ t('community.discussions.uploadImage') }}</span>
+                    <input type="file" accept="image/*" multiple @change="handleImageSelect" />
+                  </label>
+                </div>
+              </section>
+
+              <section class="draft-preview">
+                <h3><Eye class="h-4 w-4" /> {{ t('community.discussions.preview') }}</h3>
+                <strong>{{ postForm.title || t('community.discussions.titlePlaceholder') }}</strong>
+                <p>{{ postForm.content || t('community.discussions.emptyContent') }}</p>
+              </section>
+            </aside>
           </div>
 
-          <div class="pt-2">
-            <button type="button" class="w-full py-2.5 sm:py-3 bg-accent text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 transition-all flex items-center justify-center gap-2 cursor-pointer" @click="handleCreateDiscussion">
-              <Send class="w-3.5 h-3.5" /> {{ t('community.discussions.postSubmit') }}
+          <footer class="create-footer">
+            <button type="button" class="ghost-action" @click="resetDraft">{{ t('community.discussions.resetDraft') }}</button>
+            <button type="button" class="primary-action" @click="handleCreateDiscussion">
+              <Send class="h-4 w-4" />
+              <span>{{ t('community.discussions.postSubmit') }}</span>
             </button>
-          </div>
-        </div>
+          </footer>
+        </section>
       </div>
     </Transition>
   </div>
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+.discussion-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-app);
 }
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+
+.discussion-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
-.scrollbar-hide::-webkit-scrollbar {
+
+.discussion-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: min(320px, 42vw);
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-muted);
+}
+
+.discussion-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.primary-action,
+.ghost-action,
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.primary-action {
+  padding: 0 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
+}
+
+.primary-action:hover {
+  transform: translateY(-0.5px);
+}
+
+.primary-action:disabled,
+.comment-composer button:disabled,
+.reply-box button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.ghost-action,
+.icon-action {
+  border: 1px solid var(--border-base);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.ghost-action {
+  padding: 0 10px;
+}
+
+.icon-action {
+  width: 32px;
+  flex: 0 0 auto;
+}
+
+.discussion-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.discussion-feed,
+.discussion-side {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.discussion-feed::-webkit-scrollbar,
+.discussion-side::-webkit-scrollbar,
+.comments-scroll::-webkit-scrollbar {
   display: none;
 }
 
-/* Deep overrides to compact MarkdownEditor text rendering in comments and replies */
-:deep(.comment-markdown .md-editor-preview),
-:deep(.comment-markdown .md-preview-custom) {
-  font-size: 12.5px !important;
-  line-height: 1.5 !important;
-  color: var(--text-secondary) !important;
+.discussion-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-:deep(.comment-markdown p) {
-  margin-top: 2px !important;
-  margin-bottom: 2px !important;
+
+.discussion-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-:deep(.reply-markdown .md-editor-preview),
-:deep(.reply-markdown .md-preview-custom) {
-  font-size: 11.5px !important;
-  line-height: 1.4 !important;
-  color: var(--text-secondary) !important;
+
+.discussion-composer-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(320px, 0.9fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
 }
-:deep(.reply-markdown p) {
-  margin-top: 1px !important;
-  margin-bottom: 1px !important;
+
+.composer-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.composer-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.composer-trigger:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.05);
+  color: var(--text-secondary);
+}
+
+.composer-trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-trigger svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.composer-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.composer-stat {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 1px 4px;
+  align-items: center;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-app);
+}
+
+.composer-stat svg {
+  grid-row: 1 / span 2;
+  width: 12px;
+  height: 12px;
+}
+
+.composer-stat span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.composer-stat strong {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.composer-stat--blue svg { color: #2563eb; }
+.composer-stat--teal svg { color: #0f766e; }
+.composer-stat--rose svg { color: #e11d48; }
+.composer-stat--amber svg { color: #b45309; }
+
+.control-panel,
+.active-filter-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.control-panel {
+  padding: 6px;
+  background: var(--bg-hover);
+}
+
+.filter-tabs,
+.sort-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.filter-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-tabs button,
+.sort-strip button,
+.active-filter-line button,
+.tag-cloud button,
+.draft-tags button,
+.template-list button,
+.detail-tags button {
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.filter-tabs button b {
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-left: 2px;
+}
+
+.filter-tabs button.is-active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.filter-tabs button.is-active b {
+  color: var(--accent);
+}
+
+.sort-strip {
+  flex: 0 0 auto;
+}
+
+.sort-strip span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.sort-strip button,
+.modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.sort-strip button.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.active-filter-line {
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.active-filter-line div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.active-filter-line button {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-base);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.discussion-list,
+.loading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-card {
+  display: flex;
+  gap: 12px;
+  height: 136px;
+  padding: 14px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.skeleton-card span,
+.skeleton-card i {
+  display: block;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-app),
+    color-mix(in srgb, var(--border-base) 70%, var(--bg-card)),
+    var(--bg-app)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite linear;
+}
+
+.skeleton-card span {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-card div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-card i {
+  height: 14px;
+}
+
+.skeleton-card i:nth-child(1) { width: 36%; }
+.skeleton-card i:nth-child(2) { width: 82%; }
+.skeleton-card i:nth-child(3) { width: 56%; }
+
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+
+.empty-state {
+  display: flex;
+  flex: 1;
+  min-height: 280px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-state strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.empty-state p {
+  margin: 0 0 4px;
+  font-size: 11px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 12px;
+}
+
+/* Sidebar Panels - Clean borderless rows */
+.side-panel {
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.side-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.side-panel h2,
+.create-side h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.side-panel--compose {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(20, 184, 166, 0.05)),
+    var(--bg-card);
+}
+
+.side-panel--compose p,
+.side-panel--compose span {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.side-panel--compose strong {
+  display: block;
+  margin: 1px 0;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-cloud button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  max-width: 130px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  border: 0;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.tag-cloud button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-cloud button b {
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-left: 2px;
+}
+
+/* Sidebar lists borderless & dashed */
+.rank-list,
+.creator-list,
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rank-list button,
+.creator-list > div,
+.activity-list button {
+  display: grid;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  padding: 6px 4px;
+  border-bottom: 1px dashed var(--border-base);
+  transition: all 0.15s ease;
+}
+
+.rank-list button:hover,
+.creator-list > div:hover,
+.activity-list button:hover {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.rank-list button:last-child,
+.creator-list > div:last-child,
+.activity-list button:last-child {
+  border-bottom: 0;
+}
+
+.rank-list button {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.rank-list b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rank-list b.rank-index--1 { background: #f59e0b; color: #fff; }
+.rank-list b.rank-index--2 { background: #94a3b8; color: #fff; }
+.rank-list b.rank-index--3 { background: #a16207; color: #fff; }
+.rank-list b:not(.rank-index--1):not(.rank-index--2):not(.rank-index--3) {
+  background: var(--bg-app);
+  color: var(--text-muted);
+}
+
+.rank-list span,
+.activity-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rank-list small,
+.activity-list small,
+.creator-list span,
+.muted-line {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.creator-list > div {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.creator-list strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-list b {
+  color: #e11d48;
+  font-size: 10px;
+}
+
+.activity-list button {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 6px;
+  padding: 6px;
+  background: transparent;
+}
+
+.activity-list span {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.activity-list strong {
+  grid-column: 1 / -1;
+}
+
+.muted-line {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.modal-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.detail-modal,
+.create-modal {
+  position: relative;
+  display: flex;
+  width: min(1120px, 100%);
+  max-height: min(92vh, 860px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.detail-header,
+.create-header,
+.create-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.detail-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.detail-author strong,
+.create-header h2 {
+  display: block;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.detail-author span,
+.create-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.detail-author i {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.modal-actions button,
+.create-header > button {
+  border: 1px solid var(--border-base);
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.modal-actions button.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.modal-actions button.danger,
+.comment-actions button.danger {
+  color: #ef4444;
+}
+
+.create-header > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  min-height: 0;
+}
+
+.detail-content,
+.detail-comments {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.detail-content {
+  padding: 18px;
+}
+
+.detail-content h2 {
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.detail-tags button {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 7px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.detail-stats {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.detail-stats button,
+.detail-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.detail-stats button.is-liked {
+  color: #ef4444;
+}
+
+.discussion-preview {
+  color: var(--text-primary);
+}
+
+.detail-images {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.detail-images img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+}
+
+.detail-comments {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-base);
+  background: color-mix(in srgb, var(--bg-app) 72%, var(--bg-card));
+}
+
+.comments-title {
+  padding: 13px;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.comments-title h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.comments-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 13px;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.comment-item,
+.reply-item,
+.comment-composer {
+  display: flex;
+  gap: 9px;
+}
+
+.comment-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.comment-bubble {
+  padding: 9px 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.comment-bubble > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.comment-bubble strong {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.comment-bubble span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.comment-bubble p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 0 4px;
+}
+
+.comment-actions button,
+.reply-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.comment-actions button.is-liked {
+  color: #ef4444;
+}
+
+.reply-box {
+  margin-top: 8px;
+}
+
+.reply-box textarea,
+.comment-composer textarea,
+.create-main input,
+.create-side input {
+  width: 100%;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  outline: 0;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.reply-box textarea,
+.comment-composer textarea {
+  resize: vertical;
+  min-height: 58px;
+  padding: 9px;
+  line-height: 1.55;
+}
+
+.reply-box > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.reply-box button,
+.comment-composer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 7px;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.reply-box button:last-child,
+.comment-composer button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 </style>

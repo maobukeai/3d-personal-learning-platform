@@ -102,6 +102,7 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
   const {
     emailSystemUpdates,
     emailTeamActivity,
+    emailDirectMessages,
     emailMarketing,
     pushMentions,
     pushDirectMessages,
@@ -112,6 +113,7 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
       update: {
         ...(emailSystemUpdates !== undefined && { emailSystemUpdates }),
         ...(emailTeamActivity !== undefined && { emailTeamActivity }),
+        ...(emailDirectMessages !== undefined && { emailDirectMessages }),
         ...(emailMarketing !== undefined && { emailMarketing }),
         ...(pushMentions !== undefined && { pushMentions }),
         ...(pushDirectMessages !== undefined && { pushDirectMessages }),
@@ -120,6 +122,7 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
         userId: req.userId as string,
         emailSystemUpdates: emailSystemUpdates ?? true,
         emailTeamActivity: emailTeamActivity ?? true,
+        emailDirectMessages: emailDirectMessages ?? true,
         emailMarketing: emailMarketing ?? false,
         pushMentions: pushMentions ?? true,
         pushDirectMessages: pushDirectMessages ?? true,
@@ -127,6 +130,18 @@ export const updateNotificationPreferences = async (req: AuthRequest, res: Respo
     });
     res.json(prefs);
   } catch (_error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteAllNotifications = async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.notification.deleteMany({
+      where: { userId: req.userId as string },
+    });
+    res.json({ message: 'All notifications deleted' });
+  } catch (error) {
+    logger.error('[Notification] Delete all notifications error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

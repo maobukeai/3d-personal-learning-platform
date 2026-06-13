@@ -170,6 +170,13 @@ export const sendEmail = async (to: string, subject: string, text: string, html:
   }
 
   if (!transporter) {
+    const message =
+      'No real email sender is configured. Configure SMTP or an active Microsoft account pool.';
+    if (envConfig.NODE_ENV === 'production') {
+      logger.error(`[Email Not Configured] ${message} To: ${to}, Subject: ${subject}`);
+      throw new Error(message);
+    }
+
     logger.info(`[Email Mock/Not Configured] To: ${to}, Subject: ${subject}`);
     return true;
   }

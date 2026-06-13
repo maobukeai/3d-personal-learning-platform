@@ -4,6 +4,7 @@ import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import api, { getAssetUrl } from '@/utils/api';
@@ -11,6 +12,8 @@ import api, { getAssetUrl } from '@/utils/api';
 const router = useRouter();
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
+const { locale } = useI18n();
+const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 const showPassword = ref(false);
 const isLoading = ref(false);
 const is2FARequired = ref(false);
@@ -32,7 +35,7 @@ onMounted(async () => {
   const oauth = query.oauth as string;
 
   if (error) {
-    ElMessage.error(error === 'oauth_failed' ? '社交登录失败，请重试' : '认证过程中出现错误');
+    ElMessage.error(error === 'oauth_failed' ? label('社交登录失败，请重试', 'Social login failed, please try again') : label('认证过程中出现错误', 'An authentication error occurred'));
     // Clear URL
     router.replace({ query: {} });
   } else if (oauth === 'success') {
@@ -41,10 +44,10 @@ onMounted(async () => {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       await authStore.fetchMe();
-      ElMessage.success('社交登录成功！');
+      ElMessage.success(label('社交登录成功！', 'Social login successful'));
       router.replace('/dashboard');
     } catch (_err) {
-      ElMessage.error('获取用户信息失败');
+      ElMessage.error(label('获取用户信息失败', 'Failed to load user profile'));
       router.replace({ query: {} });
     } finally {
       isLoading.value = false;
@@ -73,7 +76,7 @@ const handleLogoError = () => {
 
 const handleLogin = async () => {
   if (!loginForm.value.email || !loginForm.value.password) {
-    ElMessage.warning('请输入账号和密码');
+    ElMessage.warning(label('请输入账号和密码', 'Please enter your email and password'));
     return;
   }
 
@@ -88,9 +91,9 @@ const handleLogin = async () => {
     if (data.twoFactorRequired) {
       is2FARequired.value = true;
       tempUserId.value = data.userId;
-      ElMessage.info('请输入两步验证码');
+      ElMessage.info(label('请输入两步验证码', 'Please enter your two-factor code'));
     } else {
-      ElMessage.success('欢迎回来！');
+      ElMessage.success(label('欢迎回来！', 'Welcome back'));
       const redirect = router.currentRoute.value.query.redirect as string;
       if (router.currentRoute.value.query.onboarding === 'true') {
         router.push('/onboarding');
@@ -101,7 +104,7 @@ const handleLogin = async () => {
       }
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '登录失败，请检查账号密码'));
+    ElMessage.error(getApiErrorMessage(error, label('登录失败，请检查账号密码', 'Login failed, please check your credentials')));
   } finally {
     isLoading.value = false;
   }
@@ -112,7 +115,7 @@ const handle2FAVerify = async () => {
   isLoading.value = true;
   try {
     await authStore.login2FA(tempUserId.value, twoFactorCode.value, rememberDevice.value);
-    ElMessage.success('欢迎回来！');
+    ElMessage.success(label('欢迎回来！', 'Welcome back'));
     const redirect = router.currentRoute.value.query.redirect as string;
     if (redirect) {
       router.push(redirect);
@@ -120,7 +123,7 @@ const handle2FAVerify = async () => {
       router.push('/dashboard');
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '验证码错误'));
+    ElMessage.error(getApiErrorMessage(error, label('验证码错误', 'Invalid verification code')));
   } finally {
     isLoading.value = false;
   }
@@ -165,13 +168,13 @@ const handle2FAVerify = async () => {
 
         <div class="mb-8 text-center">
           <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">
-            {{ is2FARequired ? '两步验证' : '欢迎回来' }}
+            {{ is2FARequired ? label('两步验证', 'Two-Factor Verification') : label('欢迎回来', 'Welcome Back') }}
           </h1>
           <p style="color: var(--text-secondary)" class="text-sm">
             {{
               is2FARequired
-                ? '请输入 Google Authenticator 中的 6 位验证码'
-                : systemStore.settings.PLATFORM_DESCRIPTION || '请输入你的账号信息以登录平台'
+                ? label('请输入 Google Authenticator 中的 6 位验证码', 'Enter the 6-digit code from Google Authenticator')
+                : systemStore.settings.PLATFORM_DESCRIPTION || label('请输入你的账号信息以登录平台', 'Enter your account details to sign in')
             }}
           </p>
         </div>
@@ -222,7 +225,7 @@ const handle2FAVerify = async () => {
             <span
               class="flex-shrink mx-4 text-xs font-bold uppercase tracking-widest"
               style="color: var(--text-muted)"
-              >或者使用邮箱</span
+              >{{ label('或者使用邮箱', 'Or use email') }}</span
             >
             <div class="flex-grow border-t" style="border-color: var(--border-base)"></div>
           </div>
@@ -233,7 +236,7 @@ const handle2FAVerify = async () => {
               <label
                 class="block text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >电子邮箱</label
+                >{{ label('电子邮箱', 'Email') }}</label
               >
               <div class="relative">
                 <Mail
@@ -259,12 +262,12 @@ const handle2FAVerify = async () => {
                 <label
                   class="block text-xs font-bold uppercase"
                   style="color: var(--text-secondary)"
-                  >密码</label
+                  >{{ label('密码', 'Password') }}</label
                 >
                 <RouterLink
                   to="/forgot-password"
                   class="text-xs font-bold text-accent hover:text-accent transition-colors"
-                  >忘记密码？</RouterLink
+                  >{{ label('忘记密码？', 'Forgot password?') }}</RouterLink
                 >
               </div>
               <div class="relative">
@@ -275,7 +278,7 @@ const handle2FAVerify = async () => {
                 <input
                   v-model="loginForm.password"
                   :type="showPassword ? 'text' : 'password'"
-                  placeholder="请输入你的密码"
+                  :placeholder="label('请输入你的密码', 'Enter your password')"
                   class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                   style="
                     background-color: var(--bg-app);
@@ -298,7 +301,7 @@ const handle2FAVerify = async () => {
           </div>
 
           <div class="flex items-center">
-            <el-checkbox v-model="loginForm.remember" label="记住我的登录状态" />
+            <el-checkbox v-model="loginForm.remember" :label="label('记住我的登录状态', 'Remember my sign-in')" />
           </div>
 
           <button
@@ -307,7 +310,7 @@ const handle2FAVerify = async () => {
             class="w-full btn-premium py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
             @click="handleLogin"
           >
-            <span v-if="!isLoading">进入平台</span>
+            <span v-if="!isLoading">{{ label('进入平台', 'Sign In') }}</span>
             <span
               v-else
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -319,11 +322,11 @@ const handle2FAVerify = async () => {
           </button>
 
           <p class="text-center text-sm mt-6" style="color: var(--text-secondary)">
-            还没有账号？
+            {{ label('还没有账号？', 'No account yet?') }}
             <RouterLink
               to="/register"
               class="font-bold text-accent hover:text-accent transition-colors"
-              >立即免费注册</RouterLink
+              >{{ label('立即免费注册', 'Create one') }}</RouterLink
             >
           </p>
         </div>
@@ -340,12 +343,12 @@ const handle2FAVerify = async () => {
             <label
               class="block text-xs font-bold uppercase mb-2 ml-1 text-center"
               style="color: var(--text-secondary)"
-              >动态验证码</label
+              >{{ label('动态验证码', 'Authenticator Code') }}</label
             >
             <input
               v-model="twoFactorCode"
               type="text"
-              maxlength="6"
+              maxlength="8"
               placeholder="000000"
               autocomplete="one-time-code"
               class="w-full text-center text-2xl tracking-[0.5em] font-bold py-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
@@ -356,10 +359,13 @@ const handle2FAVerify = async () => {
               "
               @keydown.enter="handle2FAVerify"
             />
+            <p class="text-[11px] text-center mt-2" style="color: var(--text-muted)">
+              {{ label('提示：若手机丢失，在此处直接输入 8 位恢复码即可登录', 'Tip: If phone lost, enter your 8-character recovery code here to login') }}
+            </p>
           </div>
 
           <div class="flex items-center justify-center">
-            <el-checkbox v-model="rememberDevice" label="记住此浏览器 (下次登录免验证)" />
+            <el-checkbox v-model="rememberDevice" :label="label('记住此浏览器 (下次登录免验证)', 'Trust this browser next time')" />
           </div>
 
           <button
@@ -368,7 +374,7 @@ const handle2FAVerify = async () => {
             class="w-full bg-accent text-white py-3.5 rounded-lg font-bold shadow-sm hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
             @click="handle2FAVerify"
           >
-            <span v-if="!isLoading">确认验证</span>
+            <span v-if="!isLoading">{{ label('确认验证', 'Verify') }}</span>
             <span
               v-else
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -381,7 +387,7 @@ const handle2FAVerify = async () => {
             style="color: var(--text-secondary)"
             @click="is2FARequired = false"
           >
-            返回登录
+            {{ label('返回登录', 'Back to Login') }}
           </button>
         </div>
       </div>

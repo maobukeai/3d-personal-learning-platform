@@ -3,6 +3,7 @@ import { Response } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { emitToConversation, emitToUser } from '../services/socket.service';
+import { queueDirectMessageEmail } from '../services/direct-message-email.service';
 import { createNotification } from '../utils/notification';
 import { clampLimit } from '../utils/pagination';
 
@@ -404,20 +405,50 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 
     emitToConversation(conversationId, 'new_message', message);
 
+    const senderName = req.user?.name || req.user?.email || '有人';
+    const groupContext =
+      conversation.isGroup && conversation.name ? `在「${conversation.name}」中` : '';
+    const notificationTitle = '收到新私信';
+    const notificationContent = groupContext
+      ? `${senderName} ${groupContext}发送了一条消息`
+      : `${senderName} 给你发送了一条消息`;
+    const messageLink = `/messages?conversationId=${encodeURIComponent(conversationId)}`;
+
     conversation.participants.forEach((p: any) => {
       if (p.id !== senderId) {
         emitToUser(p.id, 'message_received', {
           conversationId,
           message,
         });
-        createNotification({
-          type: 'MESSAGE',
-          title: '收到新私信',
-          content: `${req.user?.name || '有人'} 给你发送了一条消息`,
-          userId: p.id,
-          link: '/messages',
-          category: 'DIRECT_MESSAGE',
-        });
+
+        void (async () => {
+          try {
+            await createNotification({
+              type: 'MESSAGE',
+              title: notificationTitle,
+              content: notificationContent,
+              userId: p.id,
+              link: messageLink,
+              category: 'DIRECT_MESSAGE',
+            });
+          } catch (error) {
+            logger.error('[Message] Failed to create in-app message notification:', error);
+          }
+
+          try {
+            await queueDirectMessageEmail({
+              recipientId: p.id,
+              conversationId,
+              senderName,
+              conversationName: conversation.name,
+              isGroup: conversation.isGroup,
+              content,
+              messageType: msgType,
+            });
+          } catch (error) {
+            logger.error('[Message] Failed to queue message email reminder:', error);
+          }
+        })();
       }
     });
 

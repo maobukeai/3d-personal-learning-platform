@@ -61,7 +61,7 @@ const handleLogoError = () => {
     </Transition>
 
     <aside
-      class="fixed inset-y-0 left-0 w-44 max-w-[75vw] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
+      class="fixed inset-y-0 left-0 w-[78vw] max-w-[280px] z-50 flex flex-col h-full shadow-2xl lg:hidden mobile-sidebar-drawer"
       :class="isOpen ? 'mobile-sidebar-open' : 'mobile-sidebar-closed'"
       :aria-hidden="!isOpen"
       :inert="!isOpen"
@@ -133,7 +133,7 @@ const handleLogoError = () => {
             <li v-for="item in group.items" :key="item.name">
               <RouterLink
                 :to="item.path"
-                class="min-h-11 flex items-center justify-between px-3 py-2 rounded-lg transition-colors duration-150"
+                class="min-h-10 flex items-center justify-between px-3 py-1.5 rounded-lg transition-colors duration-150"
                 :class="
                   route.path === item.path
                     ? workspaceStore.isAdminWorkspace
@@ -155,7 +155,7 @@ const handleLogoError = () => {
                         : 'text-slate-400'
                     "
                   />
-                  <span class="flex-1 text-sm truncate">{{ item.name }}</span>
+                  <span class="flex-1 text-xs font-semibold truncate">{{ item.name }}</span>
 
                   <!-- High-Visibility Badge -->
                   <div
@@ -180,7 +180,7 @@ const handleLogoError = () => {
       <div class="p-2 border-t space-y-0.5 shrink-0" style="border-color: var(--border-base)">
         <RouterLink
           to="/settings"
-          class="min-h-11 flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
+          class="min-h-10 flex items-center gap-2 px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
           :class="
             route.path === '/settings' ? 'bg-accent-subtle dark:bg-accent/20 text-accent' : ''
           "
@@ -194,7 +194,7 @@ const handleLogoError = () => {
         </RouterLink>
         <button
           type="button"
-          class="min-h-11 w-full flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
+          class="min-h-10 w-full flex items-center gap-2 px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg transition-colors text-sm"
           @click="
             emit('report-bug');
             closeSidebar();

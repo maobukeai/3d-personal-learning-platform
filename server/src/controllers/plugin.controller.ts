@@ -6,6 +6,43 @@ import { logger } from '../utils/logger';
 import path from 'path';
 import fs from 'fs';
 
+const PLUGIN_FAVORITES_SETTING_KEY = 'favorite_plugins';
+
+const parseFavoritePluginIds = (value?: string | null): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch (_error) {
+    // Fall back to comma-separated values for older saved settings.
+  }
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const getFavoritePluginIds = async (userId: string) => {
+  const setting = await prisma.userSetting.findUnique({
+    where: { userId_key: { userId, key: PLUGIN_FAVORITES_SETTING_KEY } },
+  });
+  return parseFavoritePluginIds(setting?.value);
+};
+
+const saveFavoritePluginIds = async (userId: string, pluginIds: string[]) => {
+  const uniqueIds = Array.from(new Set(pluginIds.filter(Boolean)));
+  await prisma.userSetting.upsert({
+    where: { userId_key: { userId, key: PLUGIN_FAVORITES_SETTING_KEY } },
+    update: { value: JSON.stringify(uniqueIds) },
+    create: {
+      userId,
+      key: PLUGIN_FAVORITES_SETTING_KEY,
+      value: JSON.stringify(uniqueIds),
+    },
+  });
+  return uniqueIds;
+};
+
 // ── Public: list approved plugins ─────────────────────────────────────────────
 export const listPlugins = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -41,6 +78,113 @@ export const listPlugins = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const getPluginById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params as { id: string };
+    const plugin = await prisma.plugin.findFirst({
+      where: {
+        id,
+        OR:
+          req.user?.role === 'ADMIN'
+            ? undefined
+            : [{ status: 'APPROVED' }, { userId: req.userId as string }],
+      },
+      include: { user: { select: { id: true, name: true, avatarUrl: true, email: true } } },
+    });
+
+    if (!plugin) return next(new AppError('插件不存在', 404));
+
+    res.json(plugin);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Plugin marketplace insights ───────────────────────────────────────────────
+export const getPluginInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const [approvedPlugins, pendingCount, favoriteIds] = await Promise.all([
+      prisma.plugin.findMany({
+        where: { status: 'APPROVED' },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          version: true,
+          compatibility: true,
+          downloads: true,
+          fileSize: true,
+          previewUrl: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
+        take: 120,
+      }),
+      prisma.plugin.count({ where: { status: 'PENDING' } }),
+      getFavoritePluginIds(userId),
+    ]);
+
+    const categoryMap = new Map<string, { name: string; count: number; downloads: number }>();
+    let totalDownloads = 0;
+    let totalFileSize = 0;
+    const tagCounts = new Map<string, number>();
+
+    const allTags = await prisma.plugin.findMany({
+      where: { status: 'APPROVED', tags: { not: null } },
+      select: { tags: true },
+      take: 500,
+    });
+
+    approvedPlugins.forEach((plugin) => {
+      totalDownloads += plugin.downloads || 0;
+      totalFileSize += plugin.fileSize || 0;
+      const current = categoryMap.get(plugin.category) || {
+        name: plugin.category,
+        count: 0,
+        downloads: 0,
+      };
+      current.count += 1;
+      current.downloads += plugin.downloads || 0;
+      categoryMap.set(plugin.category, current);
+    });
+
+    allTags.forEach((plugin) => {
+      parseTags(plugin.tags).forEach((tag) => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      });
+    });
+
+    const categories = Array.from(categoryMap.values()).sort((a, b) => b.count - a.count);
+    const hotTags = Array.from(tagCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 18);
+
+    res.json({
+      summary: {
+        total: approvedPlugins.length,
+        pending: pendingCount,
+        downloads: totalDownloads,
+        categories: categories.length,
+        favoriteCount: favoriteIds.length,
+        averageSize:
+          approvedPlugins.length > 0
+            ? Number((totalFileSize / approvedPlugins.length).toFixed(2))
+            : 0,
+      },
+      categories,
+      hotTags,
+      topDownloads: [...approvedPlugins].sort((a, b) => b.downloads - a.downloads).slice(0, 6),
+      latest: approvedPlugins.slice(0, 6),
+      favoriteIds,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── My plugins ─────────────────────────────────────────────────────────────────
 export const getMyPlugins = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -54,11 +198,60 @@ export const getMyPlugins = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
+// ── My favorite plugins ───────────────────────────────────────────────────────
+export const getMyFavoritePlugins = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const favoriteIds = await getFavoritePluginIds(req.userId as string);
+    if (favoriteIds.length === 0) {
+      res.json({ ids: [], plugins: [] });
+      return;
+    }
+
+    const plugins = await prisma.plugin.findMany({
+      where: { id: { in: favoriteIds }, status: 'APPROVED' },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    });
+
+    res.json({
+      ids: plugins.map((plugin) => plugin.id),
+      plugins,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const togglePluginFavorite = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params as { id: string };
+    const plugin = await prisma.plugin.findFirst({
+      where: { id, status: 'APPROVED' },
+      select: { id: true },
+    });
+    if (!plugin) return next(new AppError('插件不存在', 404));
+
+    const favoriteIds = await getFavoritePluginIds(req.userId as string);
+    const isFavorited = favoriteIds.includes(id);
+    const nextIds = isFavorited
+      ? favoriteIds.filter((pluginId) => pluginId !== id)
+      : [...favoriteIds, id];
+    const savedIds = await saveFavoritePluginIds(req.userId as string, nextIds);
+
+    res.json({
+      isFavorited: !isFavorited,
+      favoriteIds: savedIds,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── Upload / create plugin ─────────────────────────────────────────────────────
 export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-  const pluginFile = files?.['file']?.[0];
-  const previewFile = files?.['preview']?.[0];
+  const pluginFile = files?.plugin_file?.[0] || files?.file?.[0];
+  const previewFile = files?.plugin_preview?.[0] || files?.preview?.[0];
 
   if (!pluginFile) {
     return next(new AppError('请上传插件文件', 400));
@@ -109,6 +302,20 @@ export const uploadPlugin = async (req: AuthRequest, res: Response, next: NextFu
     next(err);
   }
 };
+
+function parseTags(tags?: string | null) {
+  if (!tags) return [];
+  try {
+    const parsed = JSON.parse(tags);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch (_error) {
+    // Fall through to delimiter parsing.
+  }
+  return tags
+    .split(/[,，\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
 
 // ── Update plugin (owner only) ─────────────────────────────────────────────────
 export const updatePlugin = async (req: AuthRequest, res: Response, next: NextFunction) => {

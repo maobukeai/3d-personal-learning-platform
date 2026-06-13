@@ -18,6 +18,8 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 interface Category {
   id: string;
@@ -106,6 +108,7 @@ const fetchSettingsCategories = async () => {
 const fetchData = async () => {
   isLoading.value = true;
   await Promise.all([fetchAssetCategories(), fetchCourseCategories(), fetchSettingsCategories()]);
+  fetchManagementInsights(true);
   isLoading.value = false;
 };
 
@@ -402,6 +405,8 @@ type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[8px] xs:text
 
     <!-- Main Content -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+      <AdminOpsPanel scope="categories" />
+
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"

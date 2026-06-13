@@ -8,77 +8,408 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 import { AppError } from '../middlewares/error.middleware';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 
-export const getAllShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { filter, type } = req.query;
+type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
+type ShowcaseScope = 'all' | 'my' | 'liked';
+type ShowcaseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+type ShowcaseBucket = 'all' | 'fresh' | 'downloadable' | 'discussed' | 'pending' | 'rejected';
 
+const APPROVED_STATUS = 'APPROVED';
+const PENDING_STATUS = 'PENDING';
+const SHOWCASE_TYPES = new Set(['IMAGE', 'VIDEO', 'MODEL', 'TEXT', 'OTHER']);
+
+const getQueryText = (value: unknown): string => {
+  if (Array.isArray(value)) return getQueryText(value[0]);
+  return typeof value === 'string' ? value.trim() : '';
+};
+
+const parsePositiveInt = (value: unknown, fallback: number, max: number) => {
+  const numeric = Number.parseInt(getQueryText(value), 10);
+  if (!Number.isFinite(numeric) || numeric < 1) return fallback;
+  return Math.min(numeric, max);
+};
+
+const normalizeSort = (value: unknown): ShowcaseSortKey => {
+  const sort = getQueryText(value).toLowerCase();
+  if (['newest', 'latest', '最新'].includes(sort)) return 'newest';
+  if (['trending', 'trend', '趋势'].includes(sort)) return 'trending';
+  if (['viewed', 'views', '浏览'].includes(sort)) return 'viewed';
+  if (['discussed', 'comments', '评论'].includes(sort)) return 'discussed';
+  if (['featured', '精选'].includes(sort)) return 'featured';
+  return 'popular';
+};
+
+const normalizeType = (value: unknown) => {
+  const type = getQueryText(value).toUpperCase();
+  return SHOWCASE_TYPES.has(type) ? type : 'all';
+};
+
+const normalizeScope = (value: unknown): ShowcaseScope => {
+  const scope = getQueryText(value).toLowerCase();
+  if (scope === 'my') return 'my';
+  if (scope === 'liked') return 'liked';
+  return 'all';
+};
+
+const normalizeBucket = (value: unknown): ShowcaseBucket => {
+  const bucket = getQueryText(value).toLowerCase();
+  if (['fresh', 'week', 'weekly', '本周'].includes(bucket)) return 'fresh';
+  if (['downloadable', 'asset', 'download', '可下载'].includes(bucket)) return 'downloadable';
+  if (['discussed', 'comments', 'commented', '有讨论'].includes(bucket)) return 'discussed';
+  if (['pending', 'review', '审核中'].includes(bucket)) return 'pending';
+  if (['rejected', '驳回'].includes(bucket)) return 'rejected';
+  return 'all';
+};
+
+const parseTags = (tags?: string | null): string[] => {
+  if (!tags) return [];
   try {
-    let orderBy: Prisma.ShowcaseOrderByWithRelationInput = { createdAt: 'desc' };
-    if ((filter as string) === '热门') {
-      orderBy = { likes: { _count: 'desc' } };
+    const parsed = JSON.parse(tags);
+    if (Array.isArray(parsed)) {
+      return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+    }
+  } catch {
+    // Fall through to comma parsing for legacy showcase tags.
+  }
+  return tags
+    .split(/[，,;；\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+};
+
+const parseImages = (images?: string | null): string[] => {
+  if (!images) return [];
+  try {
+    const parsed = JSON.parse(images);
+    return Array.isArray(parsed) ? parsed.map((url) => String(url)).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getShowcaseAccessWhere = (id: string, req: AuthRequest): Prisma.ShowcaseWhereInput => {
+  const or: Prisma.ShowcaseWhereInput[] = [{ status: APPROVED_STATUS }];
+  if (req.userId) or.push({ userId: req.userId });
+  if (req.user?.role === 'ADMIN') or.push({});
+  return { id, OR: or };
+};
+
+const getShowcaseScore = (
+  item: { views: number; likesCount: number; commentsCount: number; createdAt: Date },
+  sort: ShowcaseSortKey,
+) => {
+  const ageHours = Math.max(1, (Date.now() - item.createdAt.getTime()) / 36e5);
+  const recencyBoost = Math.max(0, 168 - ageHours) / 8;
+  const baseScore = item.likesCount * 5 + item.commentsCount * 7 + item.views * 0.35;
+  if (sort === 'featured') return baseScore + item.likesCount * 3 + item.views * 0.2;
+  return baseScore + recencyBoost;
+};
+
+const formatShowcaseListItem = (showcase: any, userId: string) => ({
+  id: showcase.id,
+  title: showcase.title,
+  description: showcase.description,
+  tags: showcase.tags,
+  type: showcase.type,
+  thumbnailUrl: showcase.thumbnailUrl,
+  images: showcase.images,
+  videoUrl: showcase.videoUrl,
+  isVideo: showcase.isVideo,
+  views: showcase.views,
+  status: showcase.status,
+  assetId: showcase.assetId,
+  asset: showcase.asset,
+  createdAt: showcase.createdAt,
+  user: showcase.user,
+  isLiked: showcase.likes?.some((like: { userId: string }) => like.userId === userId) ?? false,
+  likesCount: showcase._count?.likes ?? 0,
+  commentsCount: showcase._count?.comments ?? 0,
+});
+
+export const getAllShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const sort = normalizeSort(req.query.sort || req.query.filter);
+    const type = normalizeType(req.query.type);
+    const scope = normalizeScope(req.query.scope);
+    const bucket = normalizeBucket(req.query.bucket || req.query.segment);
+    const search = getQueryText(req.query.q || req.query.search || req.query.keyword);
+    const page = parsePositiveInt(req.query.page, 1, 500);
+    const limit = parsePositiveInt(req.query.limit, 48, 100);
+    const skip = (page - 1) * limit;
+    const withMeta = ['true', '1', 'yes'].includes(getQueryText(req.query.withMeta).toLowerCase());
+    const sinceWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    let orderBy: Prisma.ShowcaseOrderByWithRelationInput[] = [{ createdAt: 'desc' }];
+    if (sort === 'popular') {
+      orderBy = [{ likes: { _count: 'desc' } }, { views: 'desc' }, { createdAt: 'desc' }];
+    } else if (sort === 'viewed') {
+      orderBy = [{ views: 'desc' }, { createdAt: 'desc' }];
+    } else if (sort === 'discussed') {
+      orderBy = [{ comments: { _count: 'desc' } }, { createdAt: 'desc' }];
     }
 
-    const where: Prisma.ShowcaseWhereInput = {
-      status: 'APPROVED',
-    };
-    if (type && (type as string) !== '全部') {
-      where.type = type as string;
+    const where: Prisma.ShowcaseWhereInput =
+      scope === 'my' ? { userId } : { status: APPROVED_STATUS };
+    if (type !== 'all') {
+      where.type = type;
+    }
+    if (scope === 'liked') {
+      where.likes = { some: { userId } };
+    }
+    if (bucket === 'fresh') {
+      where.createdAt = { gte: sinceWeek };
+    } else if (bucket === 'downloadable') {
+      where.assetId = { not: null };
+    } else if (bucket === 'discussed') {
+      where.comments = { some: {} };
+    } else if (bucket === 'pending') {
+      where.userId = userId;
+      where.status = PENDING_STATUS;
+    } else if (bucket === 'rejected') {
+      where.userId = userId;
+      where.status = 'REJECTED';
+    }
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { tags: { contains: search } },
+        { user: { is: { name: { contains: search } } } },
+        { user: { is: { email: { contains: search } } } },
+      ];
     }
 
-    const showcases = await prisma.showcase.findMany({
-      where,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        tags: true,
-        type: true,
-        thumbnailUrl: true,
-        images: true,
-        videoUrl: true,
-        isVideo: true,
-        views: true,
-        status: true,
-        assetId: true,
-        createdAt: true,
-        user: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
+    const shouldRankInMemory = sort === 'trending' || sort === 'featured';
+    const rankedTake = Math.min(Math.max(skip + limit, 120), 500);
+    const [total, showcases] = await Promise.all([
+      prisma.showcase.count({ where }),
+      prisma.showcase.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          tags: true,
+          type: true,
+          thumbnailUrl: true,
+          images: true,
+          videoUrl: true,
+          isVideo: true,
+          views: true,
+          status: true,
+          assetId: true,
+          createdAt: true,
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
+          },
+          asset: {
+            select: { id: true, title: true, url: true, type: true, thumbnail: true },
+          },
+          _count: {
+            select: { likes: true, comments: true },
+          },
+          likes: {
+            where: { userId },
+            select: { userId: true },
+          },
         },
-        asset: {
-          select: { id: true, title: true, url: true, type: true, thumbnail: true },
-        },
-        _count: {
-          select: { likes: true, comments: true },
-        },
-        likes: {
-          where: { userId: req.userId as string },
-        },
-      },
-      orderBy,
-      take: 100,
-    });
+        orderBy,
+        skip: shouldRankInMemory ? 0 : skip,
+        take: shouldRankInMemory ? rankedTake : limit,
+      }),
+    ]);
 
-    const formatted = showcases.map((s) => ({
-      id: s.id,
-      title: s.title,
-      description: s.description,
-      tags: s.tags,
-      type: s.type,
-      thumbnailUrl: s.thumbnailUrl,
-      images: s.images,
-      videoUrl: s.videoUrl,
-      isVideo: s.isVideo,
-      views: s.views,
-      status: s.status,
-      assetId: s.assetId,
-      asset: s.asset,
-      createdAt: s.createdAt,
-      user: s.user,
-      isLiked: s.likes.length > 0,
-      likesCount: s._count.likes,
-      commentsCount: s._count.comments,
-    }));
+    let formatted = showcases.map((s) => formatShowcaseListItem(s, userId));
+    if (shouldRankInMemory) {
+      formatted = formatted
+        .sort((a, b) => getShowcaseScore(b, sort) - getShowcaseScore(a, sort))
+        .slice(skip, skip + limit);
+    }
+
+    if (withMeta) {
+      res.json({
+        items: formatted,
+        meta: {
+          page,
+          limit,
+          total,
+          hasMore: skip + formatted.length < total,
+          sort,
+          type,
+          scope,
+          bucket,
+          search,
+        },
+      });
+      return;
+    }
 
     res.json(formatted);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getShowcaseStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const now = Date.now();
+    const sinceToday = new Date(new Date().setHours(0, 0, 0, 0));
+    const sinceWeek = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    const baseWhere: Prisma.ShowcaseWhereInput = { status: APPROVED_STATUS };
+
+    const [
+      totalWorks,
+      viewAggregate,
+      totalLikes,
+      totalComments,
+      todayWorks,
+      weekWorks,
+      myWorks,
+      myLikes,
+      myStatusGroups,
+      downloadableWorks,
+      discussedWorks,
+      typeGroups,
+      tagRows,
+      creatorRows,
+      activityRows,
+    ] = await Promise.all([
+      prisma.showcase.count({ where: baseWhere }),
+      prisma.showcase.aggregate({ where: baseWhere, _sum: { views: true } }),
+      prisma.showcaseLike.count({ where: { showcase: baseWhere } }),
+      prisma.showcaseComment.count({ where: { showcase: baseWhere } }),
+      prisma.showcase.count({ where: { ...baseWhere, createdAt: { gte: sinceToday } } }),
+      prisma.showcase.count({ where: { ...baseWhere, createdAt: { gte: sinceWeek } } }),
+      prisma.showcase.count({ where: { userId } }),
+      prisma.showcaseLike.count({ where: { userId, showcase: baseWhere } }),
+      prisma.showcase.groupBy({
+        by: ['status'],
+        where: { userId },
+        _count: { _all: true },
+      }),
+      prisma.showcase.count({ where: { ...baseWhere, assetId: { not: null } } }),
+      prisma.showcase.count({ where: { ...baseWhere, comments: { some: {} } } }),
+      prisma.showcase.groupBy({
+        by: ['type'],
+        where: baseWhere,
+        _count: { _all: true },
+        _sum: { views: true },
+      }),
+      prisma.showcase.findMany({
+        where: baseWhere,
+        select: { tags: true },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      }),
+      prisma.showcase.findMany({
+        where: baseWhere,
+        select: {
+          views: true,
+          user: { select: { id: true, name: true, email: true, avatarUrl: true, bio: true } },
+          _count: { select: { likes: true, comments: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 250,
+      }),
+      prisma.showcaseComment.findMany({
+        where: { showcase: baseWhere },
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          showcase: {
+            select: { id: true, title: true, type: true, thumbnailUrl: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+      }),
+    ]);
+
+    const tagUsage = new Map<string, number>();
+    tagRows.forEach((row) => {
+      parseTags(row.tags).forEach((tag) => {
+        tagUsage.set(tag, (tagUsage.get(tag) ?? 0) + 1);
+      });
+    });
+
+    const creatorUsage = new Map<
+      string,
+      {
+        id: string;
+        name: string | null;
+        email: string;
+        avatarUrl: string | null;
+        bio: string | null;
+        works: number;
+        likes: number;
+        comments: number;
+        views: number;
+        score: number;
+      }
+    >();
+    creatorRows.forEach((row) => {
+      const existing = creatorUsage.get(row.user.id) ?? {
+        id: row.user.id,
+        name: row.user.name,
+        email: row.user.email,
+        avatarUrl: row.user.avatarUrl,
+        bio: row.user.bio,
+        works: 0,
+        likes: 0,
+        comments: 0,
+        views: 0,
+        score: 0,
+      };
+      existing.works += 1;
+      existing.likes += row._count.likes;
+      existing.comments += row._count.comments;
+      existing.views += row.views;
+      existing.score += row._count.likes * 5 + row._count.comments * 7 + row.views * 0.3;
+      creatorUsage.set(row.user.id, existing);
+    });
+
+    res.json({
+      totalWorks,
+      totalViews: viewAggregate._sum.views ?? 0,
+      totalLikes,
+      totalComments,
+      todayWorks,
+      weekWorks,
+      myWorks,
+      myLikes,
+      downloadableWorks,
+      discussedWorks,
+      myPendingWorks:
+        myStatusGroups.find((group) => group.status === PENDING_STATUS)?._count._all ?? 0,
+      myRejectedWorks:
+        myStatusGroups.find((group) => group.status === 'REJECTED')?._count._all ?? 0,
+      statusBreakdown: myStatusGroups.map((group) => ({
+        status: group.status as ShowcaseStatus,
+        count: group._count._all,
+      })),
+      typeBreakdown: typeGroups.map((group) => ({
+        type: group.type,
+        count: group._count._all,
+        views: group._sum.views ?? 0,
+      })),
+      topTags: Array.from(tagUsage.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 12),
+      topCreators: Array.from(creatorUsage.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8),
+      recentActivity: activityRows.map((activity) => ({
+        id: activity.id,
+        content: activity.content,
+        createdAt: activity.createdAt,
+        user: activity.user,
+        showcase: activity.showcase,
+      })),
+    });
   } catch (error) {
     next(error);
   }
@@ -109,6 +440,14 @@ export const getShowcaseById = async (req: AuthRequest, res: Response, next: Nex
       return next(new AppError('Work not found', 404));
     }
 
+    const canViewPrivate =
+      showcase.status === APPROVED_STATUS ||
+      showcase.userId === req.userId ||
+      req.user?.role === 'ADMIN';
+    if (!canViewPrivate) {
+      return next(new AppError('Work not found', 404));
+    }
+
     await prisma.showcase.update({
       where: { id },
       data: { views: { increment: 1 } },
@@ -121,6 +460,87 @@ export const getShowcaseById = async (req: AuthRequest, res: Response, next: Nex
       commentsCount: showcase._count.comments,
       views: showcase.views + 1,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getRelatedShowcases = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  const userId = req.userId as string;
+
+  try {
+    const source = await prisma.showcase.findUnique({
+      where: { id },
+      select: { id: true, type: true, tags: true, status: true, userId: true },
+    });
+
+    if (!source) {
+      return next(new AppError('Work not found', 404));
+    }
+
+    const canViewPrivate =
+      source.status === APPROVED_STATUS || source.userId === userId || req.user?.role === 'ADMIN';
+    if (!canViewPrivate) {
+      return next(new AppError('Work not found', 404));
+    }
+
+    const tags = parseTags(source.tags).slice(0, 8);
+    const tagConditions = tags.map((tag) => ({ tags: { contains: tag } }));
+
+    const rows = await prisma.showcase.findMany({
+      where: {
+        id: { not: id },
+        status: APPROVED_STATUS,
+        OR: [{ type: source.type }, ...tagConditions],
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        tags: true,
+        type: true,
+        thumbnailUrl: true,
+        images: true,
+        videoUrl: true,
+        isVideo: true,
+        views: true,
+        status: true,
+        assetId: true,
+        createdAt: true,
+        user: {
+          select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
+        },
+        asset: {
+          select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+        likes: {
+          where: { userId },
+          select: { userId: true },
+        },
+      },
+      orderBy: [{ views: 'desc' }, { createdAt: 'desc' }],
+      take: 18,
+    });
+
+    const formatted = rows
+      .map((item) => {
+        const itemTags = new Set(parseTags(item.tags));
+        const tagScore = tags.filter((tag) => itemTags.has(tag)).length;
+        const typeScore = item.type === source.type ? 2 : 0;
+        return {
+          item: formatShowcaseListItem(item, userId),
+          score: tagScore * 3 + typeScore + item._count.likes + item._count.comments,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map((entry) => entry.item);
+
+    res.json(formatted);
   } catch (error) {
     next(error);
   }
@@ -196,6 +616,7 @@ export const createShowcase = async (req: AuthRequest, res: Response, next: Next
         assetId: assetId || null,
         userId: req.userId as string,
         teamId: req.workspaceId,
+        status: req.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
       },
       include: {
         user: {
@@ -267,6 +688,7 @@ export const publishAssetToShowcase = async (
         isVideo: false,
         userId: req.userId as string,
         teamId: req.workspaceId || asset.teamId,
+        status: req.user?.role === 'ADMIN' ? APPROVED_STATUS : PENDING_STATUS,
       },
       include: {
         user: {
@@ -316,14 +738,25 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
     const imageFiles = files?.images || [];
 
     const updateData: Prisma.ShowcaseUpdateInput = {};
-    if (title !== undefined) updateData.title = title;
+    if (title !== undefined) {
+      if (!String(title).trim()) {
+        return next(new AppError('标题不能为空', 400));
+      }
+      updateData.title = String(title).trim();
+    }
     if (description !== undefined) updateData.description = description;
     if (tags !== undefined) updateData.tags = tags;
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
     if (isVideo !== undefined) updateData.isVideo = isVideo === 'true';
-    if (type !== undefined) updateData.type = type;
+    if (type !== undefined) {
+      const nextType = String(type).toUpperCase();
+      if (!SHOWCASE_TYPES.has(nextType)) {
+        return next(new AppError('不支持的作品类型', 400));
+      }
+      updateData.type = nextType;
+    }
     if (showcase.userId === req.userId && req.user?.role !== 'ADMIN') {
-      updateData.status = 'PENDING';
+      updateData.status = PENDING_STATUS;
     }
     if (thumbnailFile) {
       // Delete old thumbnail
@@ -334,7 +767,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
       const imageUrls = imageFiles.map(
         (f) => `${req.protocol}://${req.get('host')}/uploads/showcase/${f.filename}`,
       );
-      const existingImages = showcase.images ? JSON.parse(showcase.images) : [];
+      const existingImages = parseImages(showcase.images);
       updateData.images = JSON.stringify([...existingImages, ...imageUrls]);
     }
 
@@ -343,10 +776,17 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
       data: updateData,
       include: {
         user: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
+          select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
         },
         asset: {
           select: { id: true, title: true, url: true, type: true, thumbnail: true },
+        },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+        likes: {
+          where: { userId: req.userId as string },
+          select: { userId: true },
         },
       },
     });
@@ -361,7 +801,7 @@ export const updateShowcase = async (req: AuthRequest, res: Response, next: Next
       req,
     });
 
-    res.json(updated);
+    res.json(formatShowcaseListItem(updated, req.userId as string));
   } catch (error) {
     next(error);
   }
@@ -385,7 +825,7 @@ export const deleteShowcase = async (req: AuthRequest, res: Response, next: Next
     // Delete files
     if (showcase.thumbnailUrl) deleteFileByUrl(showcase.thumbnailUrl);
     if (showcase.images) {
-      const images = JSON.parse(showcase.images);
+      const images = parseImages(showcase.images);
       images.forEach((url: string) => deleteFileByUrl(url));
     }
 
@@ -414,6 +854,14 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
   const id = req.params.id as string;
   const userId = req.userId as string;
   try {
+    const showcase = await prisma.showcase.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!showcase || showcase.status !== APPROVED_STATUS) {
+      return next(new AppError('Work not found', 404));
+    }
+
     const existing = await prisma.showcaseLike.findUnique({
       where: { showcaseId_userId: { showcaseId: id, userId } },
     });
@@ -423,7 +871,8 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
         where: { id: existing.id },
       });
       await deductPoints(userId, PointsAction.LIKE_CONTENT);
-      res.json({ liked: false });
+      const likesCount = await prisma.showcaseLike.count({ where: { showcaseId: id } });
+      res.json({ liked: false, likesCount });
     } else {
       const like = await prisma.showcaseLike.create({
         data: { showcaseId: id, userId },
@@ -445,7 +894,8 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
 
       await awardPoints(userId, PointsAction.LIKE_CONTENT);
 
-      res.json({ liked: true });
+      const likesCount = await prisma.showcaseLike.count({ where: { showcaseId: id } });
+      res.json({ liked: true, likesCount });
     }
   } catch (error) {
     next(error);
@@ -455,10 +905,18 @@ export const toggleLike = async (req: AuthRequest, res: Response, next: NextFunc
 export const getComments = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
+    const showcase = await prisma.showcase.findFirst({
+      where: getShowcaseAccessWhere(id, req),
+      select: { id: true },
+    });
+    if (!showcase) {
+      return next(new AppError('Work not found', 404));
+    }
+
     const comments = await prisma.showcaseComment.findMany({
       where: { showcaseId: id },
       include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
+        user: { select: { id: true, name: true, email: true, avatarUrl: true, bio: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -475,6 +933,14 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
     return next(new AppError('Comment content is required', 400));
   }
   try {
+    const showcase = await prisma.showcase.findFirst({
+      where: getShowcaseAccessWhere(id, req),
+      select: { id: true, userId: true, title: true },
+    });
+    if (!showcase) {
+      return next(new AppError('Work not found', 404));
+    }
+
     const comment = await prisma.showcaseComment.create({
       data: {
         content: content.trim(),
@@ -482,17 +948,16 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
         userId: req.userId as string,
       },
       include: {
-        user: { select: { id: true, name: true, avatarUrl: true } },
-        showcase: { select: { userId: true, title: true } },
+        user: { select: { id: true, name: true, email: true, avatarUrl: true, bio: true } },
       },
     });
 
-    if (comment.showcase.userId !== req.userId) {
+    if (showcase.userId !== req.userId) {
       await createNotification({
         type: 'REPLY',
         title: '作品收到新评论',
-        content: `${req.user?.name || '有人'} 评论了你的作品: ${comment.showcase.title}`,
-        userId: comment.showcase.userId,
+        content: `${req.user?.name || '有人'} 评论了你的作品: ${showcase.title}`,
+        userId: showcase.userId,
         link: '/showcase',
         category: 'MENTION',
       });

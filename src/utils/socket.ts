@@ -14,10 +14,14 @@ class SocketService {
   private listeners: StoredListener[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect() {
     if (this.socket?.connected) return;
+
+    if (this.socket) {
+      this.socket.connect();
+      return;
+    }
 
     this.socket = io(SOCKET_URL, {
       withCredentials: true,
@@ -31,9 +35,6 @@ class SocketService {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0;
-      this.listeners.forEach(({ event, wrapped }) => {
-        this.socket?.on(event, wrapped);
-      });
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -52,10 +53,6 @@ class SocketService {
   }
 
   disconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
     this.reconnectAttempts = 0;
 
     if (this.socket) {
@@ -71,14 +68,16 @@ class SocketService {
 
   on<TArgs extends unknown[]>(event: string, callback: SocketCallback<TArgs>) {
     const storedCallback = callback as SocketCallback;
+    if (this.listeners.some((l) => l.event === event && l.callback === storedCallback)) {
+      return;
+    }
+
     const wrapped: SocketCallback = (...args) => callback(...(args as TArgs));
 
     if (this.socket) {
       this.socket.on(event, wrapped);
     }
-    if (!this.listeners.some((l) => l.event === event && l.callback === storedCallback)) {
-      this.listeners.push({ event, callback: storedCallback, wrapped });
-    }
+    this.listeners.push({ event, callback: storedCallback, wrapped });
   }
 
   off<TArgs extends unknown[]>(event: string, callback?: SocketCallback<TArgs>) {
@@ -107,21 +106,22 @@ class SocketService {
     if (this.socket?.connected) {
       this.socket.emit(event, ...args);
     } else {
-      // If not connected, attempt to connect and wait briefly
       this.connect();
-      
-      // We'll wait up to 2 seconds for a connection before giving up on this emit
-      let attempts = 0;
-      const checkInterval = setInterval(() => {
-        if (this.socket?.connected) {
-          this.socket.emit(event, ...args);
-          clearInterval(checkInterval);
-        } else if (attempts > 20) { // 2 seconds
-          console.warn(`Socket: 发送 "${event}" 失败，连接超时`);
-          clearInterval(checkInterval);
-        }
-        attempts++;
-      }, 100);
+      const socket = this.socket;
+      if (!socket) return;
+
+      let emitted = false;
+      const emitWhenConnected = () => {
+        emitted = true;
+        socket.emit(event, ...args);
+      };
+
+      socket.once('connect', emitWhenConnected);
+      setTimeout(() => {
+        if (emitted) return;
+        socket.off('connect', emitWhenConnected);
+        console.warn(`Socket: 发送 "${event}" 失败，连接超时`);
+      }, 2000);
     }
   }
 

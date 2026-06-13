@@ -1,7 +1,24 @@
 import dotenv from 'dotenv';
-import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
-dotenv.config();
+const dotenvCandidates = [
+  path.resolve(process.cwd(), 'server/.env'),
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../../../.env'),
+];
+
+const dotenvPath = dotenvCandidates.find((candidate) => fs.existsSync(candidate));
+
+if (dotenvPath) {
+  dotenv.config({
+    path: dotenvPath,
+    override: !['production', 'test'].includes(process.env.NODE_ENV || ''),
+  });
+} else {
+  dotenv.config();
+}
 
 export const config = {
   PORT: process.env.PORT || 3001,
@@ -16,8 +33,9 @@ export const config = {
         console.error('FATAL: A secure JWT_SECRET environment variable must be set in production!');
         process.exit(1);
       }
-      // In development, generate a cryptographically secure key at startup
-      return crypto.randomBytes(32).toString('hex');
+      // In development, use a stable key so tokens survive server restarts.
+      // Override via JWT_SECRET in .env or set a real key before deploying.
+      return 'dev-stable-jwt-key-6f8a2b3c-d4e5-4f6a-7b8c-9d0e1f2a3b4c';
     }
     return secret;
   })(),

@@ -1,10 +1,11 @@
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
-import { socketService } from '@/utils/socket';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type { AppNotification } from '@/services/notification.service';
+
+type SocketService = typeof import('@/utils/socket')['socketService'];
 
 interface ChatMessageEvent {
   conversationId: string;
@@ -135,43 +136,90 @@ export function useLayoutSocket(options: {
     workspaceStore.fetchWorkspaces();
   };
 
+  const onRefreshAdminStats = () => {
+    if (authStore.user?.role === 'ADMIN') {
+      workspaceStore.fetchAdminStats();
+    }
+  };
+
+  let socketService: SocketService | null = null;
   let statsInterval: ReturnType<typeof setInterval> | null = null;
+  let isRealtimeStarted = false;
+  let isStartingRealtime = false;
+  let isDisposed = false;
+
+  const stopRealtime = (disconnect = false) => {
+    if (statsInterval) clearInterval(statsInterval);
+    statsInterval = null;
+
+    if (socketService) {
+      socketService.off('new_notification', onNewNotification);
+      socketService.off('message_received', onMessageReceived);
+      socketService.off('online_users_list', onOnlineUsersList);
+      socketService.off('user_status', onUserStatus);
+      socketService.off('mirror_sync_started', onMirrorSyncStarted);
+      socketService.off('mirror_sync_finished', onMirrorSyncFinished);
+      socketService.off('refresh_admin_stats', onRefreshAdminStats);
+      if (disconnect) {
+        socketService.disconnect();
+      }
+    }
+
+    isRealtimeStarted = false;
+  };
+
+  const startRealtime = async () => {
+    if (isDisposed || isRealtimeStarted || isStartingRealtime || !authStore.isAuthenticated) {
+      return;
+    }
+
+    isStartingRealtime = true;
+    try {
+      const socketModule = await import('@/utils/socket');
+      if (isDisposed || !authStore.isAuthenticated) return;
+
+      socketService = socketModule.socketService;
+      socketService.connect();
+
+      socketService.on('new_notification', onNewNotification);
+      socketService.on('online_users_list', onOnlineUsersList);
+      socketService.on('user_status', onUserStatus);
+      socketService.on('message_received', onMessageReceived);
+      socketService.on('mirror_sync_started', onMirrorSyncStarted);
+      socketService.on('mirror_sync_finished', onMirrorSyncFinished);
+      socketService.on('refresh_admin_stats', onRefreshAdminStats);
+
+      statsInterval = setInterval(() => {
+        if (!authStore.isAuthenticated) return;
+        options.fetchNotifications();
+        if (authStore.user?.role === 'ADMIN') {
+          workspaceStore.fetchAdminStats();
+        }
+      }, 15000);
+
+      isRealtimeStarted = true;
+    } finally {
+      isStartingRealtime = false;
+    }
+  };
 
   onMounted(() => {
-    socketService.connect();
-
-    // Set up listeners
-    socketService.on('new_notification', onNewNotification);
-    socketService.on('online_users_list', onOnlineUsersList);
-    socketService.on('user_status', onUserStatus);
-    socketService.on('message_received', onMessageReceived);
-    socketService.on('mirror_sync_started', onMirrorSyncStarted);
-    socketService.on('mirror_sync_finished', onMirrorSyncFinished);
-
-    // Custom event for immediate admin stat refresh
-    socketService.on('refresh_admin_stats', () => {
-      if (authStore.user?.role === 'ADMIN') {
-        workspaceStore.fetchAdminStats();
-      }
-    });
-
-    // Real-time Sync: Polling every 15 seconds
-    statsInterval = setInterval(() => {
-      options.fetchNotifications();
-      if (authStore.user?.role === 'ADMIN') {
-        workspaceStore.fetchAdminStats();
-      }
-    }, 15000);
+    void startRealtime();
   });
 
+  watch(
+    () => authStore.isAuthenticated,
+    (isAuthenticated) => {
+      if (isAuthenticated) {
+        void startRealtime();
+      } else {
+        stopRealtime(true);
+      }
+    },
+  );
+
   onUnmounted(() => {
-    if (statsInterval) clearInterval(statsInterval);
-    socketService.off('new_notification', onNewNotification);
-    socketService.off('message_received', onMessageReceived);
-    socketService.off('online_users_list', onOnlineUsersList);
-    socketService.off('user_status', onUserStatus);
-    socketService.off('mirror_sync_started', onMirrorSyncStarted);
-    socketService.off('mirror_sync_finished', onMirrorSyncFinished);
-    socketService.off('refresh_admin_stats');
+    isDisposed = true;
+    stopRealtime();
   });
 }

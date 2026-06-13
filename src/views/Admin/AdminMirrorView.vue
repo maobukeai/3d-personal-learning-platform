@@ -30,6 +30,8 @@ import {
 import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
 import { getApiErrorMessage } from '@/utils/error';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 interface MirrorSource {
   id: string;
@@ -406,6 +408,7 @@ async function fetchSources() {
   try {
     const res = await api.get('/api/admin/mirror/sources');
     sources.value = res.data;
+    fetchManagementInsights(true);
   } catch (_e) {
     ElMessage.error('加载镜像源失败');
   } finally {
@@ -1118,6 +1121,8 @@ v-for="filter in [
     <!-- 主体内容区 -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-none">
+        <AdminOpsPanel scope="mirror" />
+
         <!-- Loading State -->
         <div v-if="isLoading" class="flex items-center justify-center py-20">
           <Loader2 class="w-6 h-6 animate-spin text-blue-500" />

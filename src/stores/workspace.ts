@@ -32,6 +32,7 @@ export const useWorkspaceStore = defineStore('workspace', {
       openFeedbacks: 0,
       pendingMaterials: 0,
       pendingShowcases: 0,
+      pendingPlugins: 0,
     },
     selectedAsset: null as Asset | null,
     isDetailDrawerOpen: false,
@@ -39,19 +40,20 @@ export const useWorkspaceStore = defineStore('workspace', {
   getters: {
     workspaces: (state): Workspace[] => {
       const authStore = useAuthStore();
-      // Ensure Pinia tracks unreadMessagesCount by accessing it explicitly
-      const unreadCount = authStore.unreadMessagesCount;
+      // Access unreadMessagesCount to establish reactive dependency for badge updates
+      const _unreadCount = authStore.unreadMessagesCount;
 
       return state.rawWorkspaces.map((ws) => {
         if (ws.type === 'personal') {
-          return { ...ws, badgeCount: unreadCount };
+          return { ...ws, badgeCount: _unreadCount };
         }
         if (ws.type === 'admin') {
           const total =
             state.adminStats.pendingAssets +
             state.adminStats.openFeedbacks +
             state.adminStats.pendingMaterials +
-            state.adminStats.pendingShowcases;
+            state.adminStats.pendingShowcases +
+            state.adminStats.pendingPlugins;
           return { ...ws, badgeCount: total };
         }
         return ws;
@@ -162,6 +164,7 @@ export const useWorkspaceStore = defineStore('workspace', {
           openFeedbacks: counts.openFeedbacks || 0,
           pendingMaterials: counts.pendingMaterials || 0,
           pendingShowcases: counts.pendingShowcases || 0,
+          pendingPlugins: counts.pendingPlugins || 0,
         };
       } catch (_error) {
         // Silently fail if not admin or error
@@ -237,6 +240,7 @@ export const useWorkspaceStore = defineStore('workspace', {
         openFeedbacks: 0,
         pendingMaterials: 0,
         pendingShowcases: 0,
+        pendingPlugins: 0,
       };
     },
   },

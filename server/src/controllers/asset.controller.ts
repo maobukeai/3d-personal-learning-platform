@@ -17,6 +17,271 @@ import { redisService } from '../services/redis.service';
 
 const tagSearchCounts: Record<string, number> = {};
 
+const splitTagText = (value: string): string[] =>
+  value
+    .split(/[,，;；\s]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+const normalizeAssetTags = (tags: unknown): string[] => {
+  if (!tags) return [];
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => String(tag).trim()).filter(Boolean);
+  }
+  if (typeof tags !== 'string') return [];
+
+  try {
+    const parsed = JSON.parse(tags);
+    if (Array.isArray(parsed)) {
+      return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+    }
+  } catch (_error) {
+    // Fall through to delimiter parsing.
+  }
+
+  return splitTagText(tags);
+};
+
+const parseAssetTags = (tags?: string | null) => normalizeAssetTags(tags);
+
+type PerformanceTone = 'pass' | 'notice' | 'warning' | 'danger';
+
+type AssetPerformanceSource = {
+  size?: number | null;
+  vertices?: number | null;
+  faces?: number | null;
+  materials?: number | null;
+  animations?: number | null;
+  hasAnimations?: boolean | null;
+  dimensions?: string | null;
+  maxTextureRes?: number | null;
+};
+
+const toFiniteNumber = (value: unknown, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const parseDimensions = (dimensions?: string | null) => {
+  if (!dimensions) return [];
+  const matches = dimensions.match(/-?\d+(?:\.\d+)?/g) || [];
+  return matches.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+};
+
+const createRiskItem = (
+  metric: string,
+  label: string,
+  value: number,
+  unit: string,
+  tone: PerformanceTone,
+  message: string,
+  recommendation: string,
+) => ({
+  metric,
+  label,
+  value,
+  unit,
+  tone,
+  message,
+  recommendation,
+});
+
+const buildAssetPerformanceReport = (asset: AssetPerformanceSource) => {
+  const faces = toFiniteNumber(asset.faces);
+  const vertices = toFiniteNumber(asset.vertices);
+  const materials = toFiniteNumber(asset.materials);
+  const size = toFiniteNumber(asset.size);
+  const maxTextureRes = toFiniteNumber(asset.maxTextureRes);
+  const dimensions = parseDimensions(asset.dimensions);
+  const maxDimension = dimensions.length ? Math.max(...dimensions) : 0;
+  const riskItems = [];
+
+  if (!faces && !vertices && !maxTextureRes) {
+    riskItems.push(
+      createRiskItem(
+        'metadata',
+        '解析完整度',
+        0,
+        '',
+        'notice',
+        '模型关键指标尚未完整解析',
+        '等待后台解析完成，或上传 GLB/GLTF 以获得更准确的检测结果。',
+      ),
+    );
+  }
+
+  let faceTone: PerformanceTone = 'pass';
+  if (faces > 250000) faceTone = 'danger';
+  else if (faces > 120000) faceTone = 'warning';
+  else if (faces > 60000) faceTone = 'notice';
+  riskItems.push(
+    createRiskItem(
+      'faces',
+      '面数',
+      faces,
+      'faces',
+      faceTone,
+      faceTone === 'pass' ? '面数适合网页实时预览' : '面数偏高，移动端和低端 GPU 压力会明显增加',
+      '保留主轮廓，使用 Decimate/LOD 拆分移动端版本。',
+    ),
+  );
+
+  let textureTone: PerformanceTone = 'pass';
+  if (maxTextureRes > 4096) textureTone = 'danger';
+  else if (maxTextureRes > 2048) textureTone = 'warning';
+  else if (maxTextureRes > 1024) textureTone = 'notice';
+  riskItems.push(
+    createRiskItem(
+      'texture',
+      '最大贴图',
+      maxTextureRes,
+      'px',
+      textureTone,
+      textureTone === 'pass' ? '贴图尺寸处于安全范围' : '贴图过大，首屏加载和显存占用风险较高',
+      '网页展示建议压缩到 2K 以内，移动端优先 1K/2K 分档。',
+    ),
+  );
+
+  let sizeTone: PerformanceTone = 'pass';
+  if (size > 250) sizeTone = 'danger';
+  else if (size > 120) sizeTone = 'warning';
+  else if (size > 60) sizeTone = 'notice';
+  riskItems.push(
+    createRiskItem(
+      'size',
+      '文件体积',
+      size,
+      'MB',
+      sizeTone,
+      sizeTone === 'pass' ? '文件体积适合在线分发' : '文件体积偏大，下载与预览等待时间会变长',
+      '压缩纹理、移除未使用材质，并开启 Draco/Meshopt 压缩。',
+    ),
+  );
+
+  let materialTone: PerformanceTone = 'pass';
+  if (materials > 80) materialTone = 'danger';
+  else if (materials > 40) materialTone = 'warning';
+  else if (materials > 20) materialTone = 'notice';
+  riskItems.push(
+    createRiskItem(
+      'materials',
+      '材质数量',
+      materials,
+      '',
+      materialTone,
+      materialTone === 'pass' ? '材质数量可控' : '材质数量偏多，Draw Call 和贴图绑定成本较高',
+      '合并相近材质，使用图集或统一 PBR 材质模板。',
+    ),
+  );
+
+  if (maxDimension > 1000) {
+    riskItems.push(
+      createRiskItem(
+        'dimensions',
+        '空间尺寸',
+        maxDimension,
+        '',
+        'notice',
+        '模型尺寸跨度较大，导入不同 DCC/引擎时可能需要单位校正',
+        '发布前确认单位制和原点位置，必要时提供厘米/米两套说明。',
+      ),
+    );
+  }
+
+  const penalties: Record<PerformanceTone, number> = {
+    pass: 0,
+    notice: 8,
+    warning: 18,
+    danger: 30,
+  };
+  const score = Math.max(
+    0,
+    100 - riskItems.reduce((total, item) => total + penalties[item.tone], 0),
+  );
+  const worstTone = riskItems.some((item) => item.tone === 'danger')
+    ? 'danger'
+    : riskItems.some((item) => item.tone === 'warning')
+      ? 'warning'
+      : riskItems.some((item) => item.tone === 'notice')
+        ? 'notice'
+        : 'pass';
+
+  return {
+    score,
+    level: worstTone,
+    mobileRisk:
+      worstTone === 'danger'
+        ? 'high'
+        : worstTone === 'warning'
+          ? 'medium'
+          : worstTone === 'notice'
+            ? 'low'
+            : 'safe',
+    summary:
+      worstTone === 'pass'
+        ? '适合网页和移动端预览'
+        : worstTone === 'notice'
+          ? '可上线，但建议准备移动端轻量版本'
+          : worstTone === 'warning'
+            ? '建议优化后再进入正式发布'
+            : '高风险资产，正式发布前需要减面和压缩贴图',
+    metrics: {
+      faces,
+      vertices,
+      materials,
+      size,
+      maxTextureRes,
+      animations: toFiniteNumber(asset.animations),
+      hasAnimations: !!asset.hasAnimations,
+      dimensions: asset.dimensions || '',
+    },
+    risks: riskItems,
+  };
+};
+
+const buildVersionComparison = (
+  current: AssetPerformanceSource,
+  previous?: AssetPerformanceSource | null,
+) => {
+  if (!previous) return null;
+  const compareMetric = (key: keyof AssetPerformanceSource) => {
+    const currentValue = toFiniteNumber(current[key]);
+    const previousValue = toFiniteNumber(previous[key]);
+    return {
+      current: currentValue,
+      previous: previousValue,
+      delta: Number((currentValue - previousValue).toFixed(2)),
+    };
+  };
+
+  return {
+    size: compareMetric('size'),
+    faces: compareMetric('faces'),
+    materials: compareMetric('materials'),
+    maxTextureRes: compareMetric('maxTextureRes'),
+  };
+};
+
+const getAssetAccessWhere = (id: string, req: AuthRequest): Prisma.AssetWhereInput => {
+  const userId = req.userId as string | undefined;
+  const workspaceId = req.workspaceId;
+  const or: Prisma.AssetWhereInput[] = [{ status: 'APPROVED' }];
+  if (workspaceId) or.push({ teamId: workspaceId });
+  if (userId) or.push({ userId });
+  if (req.user?.role === 'ADMIN') or.push({});
+  return { id, OR: or };
+};
+
+const getAssetCollaborationWhere = (id: string, req: AuthRequest): Prisma.AssetWhereInput => {
+  const userId = req.userId as string | undefined;
+  const workspaceId = req.workspaceId;
+  const or: Prisma.AssetWhereInput[] = [];
+  if (workspaceId) or.push({ teamId: workspaceId });
+  if (userId) or.push({ userId });
+  if (req.user?.role === 'ADMIN') or.push({});
+  return { id, OR: or.length > 0 ? or : [{ id: '__no_access__' }] };
+};
+
 export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
@@ -73,29 +338,7 @@ export const uploadAsset = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
-    let parsedTags: string[] = [];
-    if (tags) {
-      if (typeof tags === 'string') {
-        try {
-          const parsed = JSON.parse(tags);
-          if (Array.isArray(parsed)) {
-            parsedTags = parsed;
-          } else {
-            parsedTags = tags
-              .split(/[,，\s]+/)
-              .map((t) => t.trim())
-              .filter(Boolean);
-          }
-        } catch {
-          parsedTags = tags
-            .split(/[,，\s]+/)
-            .map((t) => t.trim())
-            .filter(Boolean);
-        }
-      } else if (Array.isArray(tags)) {
-        parsedTags = tags;
-      }
-    }
+    const parsedTags = normalizeAssetTags(tags);
 
     const asset = await prisma.asset.create({
       data: {
@@ -195,29 +438,7 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
       updateData.formats = parsedFormats ? JSON.stringify(parsedFormats) : null;
     }
     if (tags !== undefined) {
-      let parsedTags: string[] = [];
-      if (tags) {
-        if (typeof tags === 'string') {
-          try {
-            const parsed = JSON.parse(tags);
-            if (Array.isArray(parsed)) {
-              parsedTags = parsed;
-            } else {
-              parsedTags = tags
-                .split(/[,，\s]+/)
-                .map((t) => t.trim())
-                .filter(Boolean);
-            }
-          } catch {
-            parsedTags = tags
-              .split(/[,，\s]+/)
-              .map((t) => t.trim())
-              .filter(Boolean);
-          }
-        } else if (Array.isArray(tags)) {
-          parsedTags = tags;
-        }
-      }
+      const parsedTags = normalizeAssetTags(tags);
       updateData.tags = parsedTags.length > 0 ? JSON.stringify(parsedTags) : null;
     }
     if (existingAsset.userId === req.userId && req.user?.role !== 'ADMIN') {
@@ -249,7 +470,8 @@ export const updateAsset = async (req: AuthRequest, res: Response, next: NextFun
 
 export const updateAssetMetadata = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
-  const { vertices, faces, materials, animations, hasAnimations, dimensions } = req.body;
+  const { vertices, faces, materials, animations, hasAnimations, dimensions, maxTextureRes } =
+    req.body;
 
   try {
     // Verify ownership or workspace context
@@ -264,21 +486,23 @@ export const updateAssetMetadata = async (req: AuthRequest, res: Response, next:
       return next(new AppError('Asset not found or access denied in this workspace', 404));
     }
 
-    const updateData: Prisma.AssetUpdateInput = {
-      hasAnimations: hasAnimations === true || hasAnimations === 'true',
-      dimensions,
-    };
+    const updateData: Prisma.AssetUpdateInput = {};
 
     if (vertices !== undefined) updateData.vertices = parseInt(vertices, 10);
     if (faces !== undefined) updateData.faces = parseInt(faces, 10);
     if (materials !== undefined) updateData.materials = parseInt(materials, 10);
     if (animations !== undefined) updateData.animations = parseInt(animations, 10);
+    if (maxTextureRes !== undefined) updateData.maxTextureRes = parseInt(maxTextureRes, 10);
+    if (hasAnimations !== undefined) {
+      updateData.hasAnimations = hasAnimations === true || hasAnimations === 'true';
+    }
+    if (dimensions !== undefined) updateData.dimensions = dimensions;
 
     const asset = await prisma.asset.update({
       where: { id },
       data: updateData,
     });
-    res.json(asset);
+    res.json({ ...asset, performanceReport: buildAssetPerformanceReport(asset) });
   } catch (error) {
     next(error);
   }
@@ -342,6 +566,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
     const lite = req.query.lite === 'true';
     const search = req.query.search as string;
     const categoryId = req.query.categoryId as string;
+    const sort = req.query.sort as string;
     const skip = (page - 1) * limit;
 
     const where: Prisma.AssetWhereInput = { status: 'APPROVED' };
@@ -360,11 +585,17 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
       ];
     }
 
+    let orderBy: Prisma.AssetOrderByWithRelationInput = { createdAt: 'desc' };
+    if (sort === 'oldest') orderBy = { createdAt: 'asc' };
+    if (sort === 'popular') orderBy = { downloads: 'desc' };
+    if (sort === 'views') orderBy = { viewCount: 'desc' };
+    if (sort === 'size') orderBy = { size: 'desc' };
+
     let assets: any[];
     if (lite) {
       assets = await prisma.asset.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: Math.min(limit, 50),
         select: {
@@ -385,7 +616,7 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
     } else {
       assets = await prisma.asset.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: Math.min(limit, 50),
         include: {
@@ -413,10 +644,95 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
   }
 };
 
+export const getAssetInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const [assets, categories, likedCount, myUploads, pendingCount] = await Promise.all([
+      prisma.asset.findMany({
+        where: { status: 'APPROVED' },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
+        take: 500,
+      }),
+      prisma.category.findMany({
+        orderBy: { order: 'asc' },
+        include: { _count: { select: { assets: true } } },
+      }),
+      prisma.assetLike.count({
+        where: { userId, asset: { status: 'APPROVED' } },
+      }),
+      prisma.asset.count({ where: { userId, teamId: req.workspaceId } }),
+      prisma.asset.count({ where: { status: 'PENDING', teamId: req.workspaceId } }),
+    ]);
+
+    const typeCounts = new Map<string, number>();
+    const tagCounts = new Map<string, number>();
+    let totalDownloads = 0;
+    let totalViews = 0;
+    let totalLikes = 0;
+    let totalSize = 0;
+    let animated = 0;
+    let optimized = 0;
+
+    assets.forEach((asset) => {
+      totalDownloads += asset.downloads || 0;
+      totalViews += asset.viewCount || 0;
+      totalLikes += asset.likes || 0;
+      totalSize += asset.size || 0;
+      if (asset.hasAnimations) animated += 1;
+      if ((asset.faces || 0) > 0 && (asset.faces || 0) < 50000) optimized += 1;
+      const type = (asset.type || 'UNKNOWN').toUpperCase();
+      typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+      parseAssetTags(asset.tags).forEach((tag) => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      });
+    });
+
+    res.json({
+      summary: {
+        total: assets.length,
+        downloads: totalDownloads,
+        views: totalViews,
+        likes: totalLikes,
+        myLikes: likedCount,
+        myUploads,
+        pending: pendingCount,
+        animated,
+        optimized,
+        totalSize: Number(totalSize.toFixed(2)),
+        averageSize: assets.length ? Number((totalSize / assets.length).toFixed(2)) : 0,
+      },
+      categories: categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        count: category._count.assets,
+      })),
+      formats: Array.from(typeCounts.entries())
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count),
+      hotTags: Array.from(tagCounts.entries())
+        .map(([label, count]) => ({
+          label,
+          count,
+          searchCount: tagSearchCounts[label] || 0,
+        }))
+        .sort((a, b) => b.searchCount - a.searchCount || b.count - a.count)
+        .slice(0, 18),
+      topDownloads: [...assets].sort((a, b) => b.downloads - a.downloads).slice(0, 6),
+      latest: assets.slice(0, 6),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getUserAssets = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const assets = await prisma.asset.findMany({
-      where: { teamId: req.workspaceId },
+      where: { userId: req.userId as string, teamId: req.workspaceId },
       orderBy: { createdAt: 'desc' },
       include: { category: true },
     });
@@ -430,10 +746,7 @@ export const getAssetById = async (req: AuthRequest, res: Response, next: NextFu
   const id = req.params.id as string;
   try {
     const asset = await prisma.asset.findFirst({
-      where: {
-        id,
-        OR: [{ teamId: req.workspaceId }, { status: 'APPROVED' }],
-      },
+      where: getAssetAccessWhere(id, req),
     });
 
     if (!asset) {
@@ -450,7 +763,57 @@ export const getAssetById = async (req: AuthRequest, res: Response, next: NextFu
       },
     });
 
-    res.json(updatedAsset);
+    res.json({ ...updatedAsset, performanceReport: buildAssetPerformanceReport(updatedAsset) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAssetToolkit = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.params.id as string;
+  try {
+    const asset = await prisma.asset.findFirst({
+      where: getAssetAccessWhere(id, req),
+      include: {
+        category: true,
+        user: { select: { id: true, name: true, avatarUrl: true, role: true } },
+      },
+    });
+
+    if (!asset) {
+      return next(new AppError('Asset not found', 404));
+    }
+
+    const [versions, annotationCount] = await Promise.all([
+      prisma.assetVersion.findMany({
+        where: { assetId: id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { name: true, avatarUrl: true } },
+        },
+      }),
+      prisma.assetAnnotation.count({ where: { assetId: id } }),
+    ]);
+
+    const enrichedVersions = versions.map((version, index) => ({
+      ...version,
+      performanceReport: buildAssetPerformanceReport(version),
+      comparison: buildVersionComparison(version, versions[index + 1]),
+    }));
+
+    res.json({
+      asset: { ...asset, performanceReport: buildAssetPerformanceReport(asset) },
+      versions: enrichedVersions,
+      annotationCount,
+      canAnnotate: !!(await prisma.asset.findFirst({
+        where: getAssetCollaborationWhere(id, req),
+        select: { id: true },
+      })),
+      coverCandidates: [
+        asset.thumbnail,
+        ...versions.map((version) => version.thumbnail).filter(Boolean),
+      ].filter(Boolean),
+    });
   } catch (error) {
     next(error);
   }
@@ -461,19 +824,28 @@ export const recordAssetDownload = async (req: AuthRequest, res: Response, next:
   const userId = req.userId || 'anonymous';
   const lockKey = `asset_download:${id}:${userId}`;
   try {
+    const accessibleAsset = await prisma.asset.findFirst({
+      where: getAssetAccessWhere(id, req),
+      select: { id: true, downloads: true },
+    });
+    if (!accessibleAsset) {
+      return next(new AppError('Asset not found', 404));
+    }
+
     const alreadyDownloaded = await redisService.get<boolean>(lockKey);
-    let asset;
+    let downloads = accessibleAsset.downloads;
     if (alreadyDownloaded) {
-      asset = await prisma.asset.findUnique({ where: { id } });
-      if (!asset) return next(new AppError('Asset not found', 404));
+      downloads = accessibleAsset.downloads;
     } else {
-      asset = await prisma.asset.update({
+      const asset = await prisma.asset.update({
         where: { id },
         data: { downloads: { increment: 1 } },
+        select: { downloads: true },
       });
+      downloads = asset.downloads;
       await redisService.set(lockKey, true, 86400); // Lock for 24h
     }
-    res.json({ message: 'Download recorded', downloads: asset.downloads });
+    res.json({ message: 'Download recorded', downloads });
   } catch (error) {
     next(error);
   }
@@ -486,47 +858,54 @@ export const toggleAssetLike = async (req: AuthRequest, res: Response, next: Nex
     return next(new AppError('Unauthorized', 401));
   }
   try {
-    const existingLike = await prisma.assetLike.findUnique({
-      where: {
-        assetId_userId: {
-          assetId: id,
-          userId,
-        },
-      },
+    const asset = await prisma.asset.findFirst({
+      where: { id, status: 'APPROVED' },
+      select: { id: true },
     });
 
-    let liked = false;
-    let asset;
-
-    if (existingLike) {
-      await prisma.assetLike.delete({
-        where: {
-          id: existingLike.id,
-        },
-      });
-      asset = await prisma.asset.update({
-        where: { id },
-        data: { likes: { decrement: 1 } },
-      });
-      liked = false;
-    } else {
-      await prisma.assetLike.create({
-        data: {
-          assetId: id,
-          userId,
-        },
-      });
-      asset = await prisma.asset.update({
-        where: { id },
-        data: { likes: { increment: 1 } },
-      });
-      liked = true;
+    if (!asset) {
+      return next(new AppError('Asset not found', 404));
     }
 
+    const result = await prisma.$transaction(async (tx) => {
+      const existingLike = await tx.assetLike.findUnique({
+        where: {
+          assetId_userId: {
+            assetId: id,
+            userId,
+          },
+        },
+      });
+
+      const liked = !existingLike;
+      if (existingLike) {
+        await tx.assetLike.delete({
+          where: {
+            id: existingLike.id,
+          },
+        });
+      } else {
+        await tx.assetLike.create({
+          data: {
+            assetId: id,
+            userId,
+          },
+        });
+      }
+
+      const likes = await tx.assetLike.count({ where: { assetId: id } });
+      await tx.asset.update({
+        where: { id },
+        data: { likes },
+      });
+
+      return { liked, likes };
+    });
+
     res.json({
-      message: liked ? 'Like recorded' : 'Like removed',
-      likes: Math.max(0, asset.likes),
-      liked,
+      message: result.liked ? 'Like recorded' : 'Like removed',
+      likes: result.likes,
+      liked: result.liked,
     });
   } catch (error) {
     next(error);
@@ -580,18 +959,73 @@ export const deleteAsset = async (req: AuthRequest, res: Response, next: NextFun
 };
 
 export const getAllAssetsForAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { status } = req.query;
+  const { status, search, page: pageQuery, limit: limitQuery, response } = req.query;
   try {
+    const q = typeof search === 'string' ? search.trim() : '';
+    const normalizedStatus = typeof status === 'string' && status !== 'ALL' ? status : undefined;
+    const page = clampPage(pageQuery);
+    const limit = clampLimit(limitQuery, 36, 100);
+    const usePaginatedResponse = response === 'paginated' || Boolean(pageQuery || limitQuery || q);
+    const baseWhere: Prisma.AssetWhereInput = q
+      ? {
+          OR: [
+            { title: { contains: q } },
+            { description: { contains: q } },
+            { tags: { contains: q } },
+            { type: { contains: q } },
+            { user: { name: { contains: q } } },
+            { user: { email: { contains: q } } },
+            { category: { name: { contains: q } } },
+          ],
+        }
+      : {};
+    const where: Prisma.AssetWhereInput = normalizedStatus
+      ? { ...baseWhere, status: normalizedStatus }
+      : baseWhere;
     const assets = await prisma.asset.findMany({
-      where: status ? { status: status as string } : {},
+      where,
       include: {
         user: {
           select: { name: true, email: true, avatarUrl: true },
         },
+        category: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
+      ...(usePaginatedResponse ? { skip: (page - 1) * limit, take: limit } : {}),
     });
-    res.json(assets);
+
+    const normalizedAssets = assets.map(({ category, ...asset }) => ({
+      ...asset,
+      category: category?.name || null,
+    }));
+
+    if (!usePaginatedResponse) {
+      res.json(normalizedAssets);
+      return;
+    }
+
+    const [total, statusSummary] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.groupBy({ by: ['status'], where: baseWhere, _count: { _all: true } }),
+    ]);
+
+    const statusCounts = Object.fromEntries(
+      statusSummary.map((item) => [item.status, item._count._all]),
+    );
+
+    res.json({
+      items: normalizedAssets,
+      total,
+      page,
+      pageSize: limit,
+      pages: Math.max(1, Math.ceil(total / limit)),
+      stats: {
+        total: statusSummary.reduce((sum, item) => sum + item._count._all, 0),
+        pending: statusCounts.PENDING || 0,
+        approved: statusCounts.APPROVED || 0,
+        rejected: statusCounts.REJECTED || 0,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -715,7 +1149,7 @@ export const batchUpdateAssetStatus = async (
 
 export const adminUpdateAsset = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
-  const { title, description, status, categoryId, formats } = req.body;
+  const { title, description, status, categoryId, formats, tags } = req.body;
 
   try {
     const oldAsset = await prisma.asset.findUnique({ where: { id } });
@@ -728,6 +1162,9 @@ export const adminUpdateAsset = async (req: AuthRequest, res: Response, next: Ne
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (formats !== undefined) {
       updateData.formats = formats ? JSON.stringify(formats) : null;
+    }
+    if (tags !== undefined) {
+      updateData.tags = typeof tags === 'string' ? tags : JSON.stringify(tags);
     }
 
     const asset = await prisma.asset.update({
@@ -894,6 +1331,15 @@ export const uploadAssetVersion = async (req: AuthRequest, res: Response, next: 
 export const getAssetVersions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
+    const asset = await prisma.asset.findFirst({
+      where: getAssetAccessWhere(id, req),
+      select: { id: true },
+    });
+
+    if (!asset) {
+      return next(new AppError('Asset not found', 404));
+    }
+
     const versions = await prisma.assetVersion.findMany({
       where: { assetId: id },
       orderBy: { createdAt: 'desc' },
@@ -901,7 +1347,13 @@ export const getAssetVersions = async (req: AuthRequest, res: Response, next: Ne
         user: { select: { name: true, avatarUrl: true } },
       },
     });
-    res.json(versions);
+    res.json(
+      versions.map((version, index) => ({
+        ...version,
+        performanceReport: buildAssetPerformanceReport(version),
+        comparison: buildVersionComparison(version, versions[index + 1]),
+      })),
+    );
   } catch (error) {
     next(error);
   }
@@ -920,9 +1372,16 @@ export const createAssetAnnotation = async (
   }
 
   try {
-    const existingAsset = await prisma.asset.findUnique({ where: { id } });
+    const existingAsset = await prisma.asset.findFirst({
+      where: getAssetCollaborationWhere(id, req),
+    });
     if (!existingAsset) {
-      return next(new AppError('Asset not found', 404));
+      return next(new AppError('Asset not found or collaboration access denied', 403));
+    }
+
+    const coords = [x, y, z].map((value) => parseFloat(value));
+    if (coords.some((value) => !Number.isFinite(value))) {
+      return next(new AppError('Invalid annotation coordinates', 400));
     }
 
     const annotation = await prisma.assetAnnotation.create({
@@ -930,15 +1389,24 @@ export const createAssetAnnotation = async (
         assetId: id,
         userId: req.userId as string,
         content,
-        x: parseFloat(x),
-        y: parseFloat(y),
-        z: parseFloat(z),
+        x: coords[0]!,
+        y: coords[1]!,
+        z: coords[2]!,
         cameraPos: cameraPos ? JSON.stringify(cameraPos) : null,
         cameraTarget: cameraTarget ? JSON.stringify(cameraTarget) : null,
       },
       include: {
         user: { select: { name: true, avatarUrl: true } },
       },
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: 'CREATE_ASSET_ANNOTATION',
+      module: AuditModule.ASSET,
+      description: `Added annotation to asset: ${existingAsset.title}`,
+      newValue: annotation,
+      req,
     });
 
     res.status(201).json(annotation);
@@ -950,6 +1418,15 @@ export const createAssetAnnotation = async (
 export const getAssetAnnotations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.params.id as string;
   try {
+    const asset = await prisma.asset.findFirst({
+      where: getAssetAccessWhere(id, req),
+      select: { id: true },
+    });
+
+    if (!asset) {
+      return next(new AppError('Asset not found', 404));
+    }
+
     const annotations = await prisma.assetAnnotation.findMany({
       where: { assetId: id },
       orderBy: { createdAt: 'asc' },
@@ -972,19 +1449,34 @@ export const deleteAssetAnnotation = async (
   try {
     const annotation = await prisma.assetAnnotation.findUnique({
       where: { id: annotationId },
+      include: {
+        asset: { select: { id: true, title: true, userId: true, teamId: true } },
+      },
     });
 
     if (!annotation) {
       return next(new AppError('Annotation not found', 404));
     }
 
-    // Owner or admin check
-    if (annotation.userId !== req.userId && req.user?.role !== 'ADMIN') {
+    const isAnnotationOwner = annotation.userId === req.userId;
+    const isAssetOwner = annotation.asset.userId === req.userId;
+    const canDelete = isAnnotationOwner || isAssetOwner || req.user?.role === 'ADMIN';
+
+    if (!canDelete) {
       return next(new AppError('Not authorized to delete this annotation', 403));
     }
 
     await prisma.assetAnnotation.delete({
       where: { id: annotationId },
+    });
+
+    await auditService.log({
+      userId: req.userId as string,
+      action: 'DELETE_ASSET_ANNOTATION',
+      module: AuditModule.ASSET,
+      description: `Deleted annotation from asset: ${annotation.asset.title}`,
+      oldValue: annotation,
+      req,
     });
 
     res.json({ message: 'Annotation deleted successfully' });

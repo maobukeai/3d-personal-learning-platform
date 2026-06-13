@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger';
 import { Response, NextFunction } from 'express';
+import type { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import prisma from '../../services/prisma';
@@ -10,6 +11,51 @@ import { auditService, AuditModule, AuditAction } from '../../services/audit.ser
 import { AppError } from '../../middlewares/error.middleware';
 import { redisService } from '../../services/redis.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
+
+const ACCOUNT_EXPORT_ITEM_LIMIT = 200;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+type RecentDayBucket = {
+  date: Date;
+  key: string;
+  learning: number;
+  tasks: number;
+  content: number;
+  community: number;
+};
+
+const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+const formatDayKey = (date: Date) => date.toISOString().slice(0, 10);
+
+const safeJsonArrayLength = (value?: string | null) => {
+  if (!value) return 0;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return value
+      .split(/[,，;；\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean).length;
+  }
+};
+
+const buildRecentDayBuckets = (days = 14): RecentDayBucket[] => {
+  const today = getShanghaiStartOfDay(new Date());
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(today.getTime() - (days - index - 1) * MS_PER_DAY);
+    return {
+      date,
+      key: formatDayKey(date),
+      learning: 0,
+      tasks: 0,
+      content: 0,
+      community: 0,
+    };
+  });
+};
 
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { name, bio, location, website } = req.body;
@@ -26,7 +72,10 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
         location: true,
         website: true,
         role: true,
+        emailVerified: true,
         twoFactorEnabled: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -592,14 +641,30 @@ export const getUserSettings = async (req: AuthRequest, res: Response, next: Nex
 export const updateUserSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { settings } = req.body;
   try {
-    const updates = settings.map((s: { key: string; value: string }) =>
+    if (!Array.isArray(settings)) {
+      return next(new AppError('设置数据格式错误', 400));
+    }
+    const normalizedSettings = settings.map((s: { key?: unknown; value?: unknown }) => ({
+      key: typeof s.key === 'string' ? s.key.trim() : '',
+      value: typeof s.value === 'string' ? s.value : '',
+    }));
+
+    const hasInvalidSetting = normalizedSettings.some(
+      (s) => !/^[A-Za-z0-9_.:-]{1,80}$/.test(s.key) || s.value.length > 5000,
+    );
+
+    if (hasInvalidSetting) {
+      return next(new AppError('Invalid user setting key or value', 400));
+    }
+
+    const updates = normalizedSettings.map((s) =>
       prisma.userSetting.upsert({
         where: { userId_key: { userId: req.userId as string, key: s.key } },
         update: { value: s.value },
         create: { userId: req.userId as string, key: s.key, value: s.value },
       }),
     );
-    await Promise.all(updates);
+    await prisma.$transaction(updates);
     res.json({ message: '设置已成功保存' });
   } catch (error) {
     next(error);
@@ -630,6 +695,226 @@ export const revokeTrustedDevice = async (req: AuthRequest, res: Response, next:
     }
     await prisma.trustedDevice.delete({ where: { id } });
     res.json({ message: '设备已移除' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const exportAccountData = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const [
+      profile,
+      userSettings,
+      notificationPreferences,
+      teamMemberships,
+      assets,
+      projectMemberships,
+      notes,
+      discussions,
+      showcases,
+      assetCount,
+      projectCount,
+      noteCount,
+      discussionCount,
+      showcaseCount,
+    ] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          bio: true,
+          location: true,
+          website: true,
+          role: true,
+          status: true,
+          points: true,
+          emailVerified: true,
+          twoFactorEnabled: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.userSetting.findMany({
+        where: { userId },
+        select: { key: true, value: true, updatedAt: true },
+      }),
+      prisma.notificationPreference.findUnique({
+        where: { userId },
+      }),
+      prisma.teamMember.findMany({
+        where: { userId },
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              type: true,
+              visibility: true,
+              category: true,
+              ownerId: true,
+              createdAt: true,
+              updatedAt: true,
+              _count: { select: { members: true, projects: true, tasks: true } },
+            },
+          },
+        },
+      }),
+      prisma.asset.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: ACCOUNT_EXPORT_ITEM_LIMIT,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          type: true,
+          status: true,
+          url: true,
+          thumbnail: true,
+          tags: true,
+          downloads: true,
+          likes: true,
+          viewCount: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.projectMember.findMany({
+        where: { userId },
+        orderBy: { joinedAt: 'desc' },
+        take: ACCOUNT_EXPORT_ITEM_LIMIT,
+        include: {
+          project: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              progress: true,
+              status: true,
+              dueDate: true,
+              teamId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      }),
+      prisma.note.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: ACCOUNT_EXPORT_ITEM_LIMIT,
+        select: {
+          id: true,
+          title: true,
+          summary: true,
+          visibility: true,
+          tags: true,
+          category: true,
+          views: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.discussion.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: ACCOUNT_EXPORT_ITEM_LIMIT,
+        select: {
+          id: true,
+          title: true,
+          tags: true,
+          isPinned: true,
+          viewCount: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.showcase.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: ACCOUNT_EXPORT_ITEM_LIMIT,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          tags: true,
+          type: true,
+          thumbnailUrl: true,
+          status: true,
+          views: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.asset.count({ where: { userId } }),
+      prisma.projectMember.count({ where: { userId } }),
+      prisma.note.count({ where: { userId } }),
+      prisma.discussion.count({ where: { userId } }),
+      prisma.showcase.count({ where: { userId } }),
+    ]);
+
+    if (!profile) {
+      return next(new AppError('用户不存在', 404));
+    }
+
+    const settingsMap = userSettings.reduce<Record<string, string>>((acc, item) => {
+      acc[item.key] = item.value;
+      return acc;
+    }, {});
+    const teams = teamMemberships.map((membership) => ({
+      role: membership.role,
+      joinedAt: membership.joinedAt,
+      team: membership.team,
+    }));
+    const projects = projectMemberships.map((membership) => ({
+      role: membership.role,
+      joinedAt: membership.joinedAt,
+      project: membership.project,
+    }));
+
+    res.json({
+      exportDate: new Date().toISOString(),
+      profile,
+      userSettings: settingsMap,
+      notificationPreferences,
+      teams,
+      assets,
+      projects,
+      notes,
+      discussions,
+      showcases,
+      counts: {
+        teams: teams.length,
+        assets: assetCount,
+        projects: projectCount,
+        notes: noteCount,
+        discussions: discussionCount,
+        showcases: showcaseCount,
+      },
+      exportedCounts: {
+        teams: teams.length,
+        assets: assets.length,
+        projects: projects.length,
+        notes: notes.length,
+        discussions: discussions.length,
+        showcases: showcases.length,
+      },
+      exportLimits: {
+        perCollection: ACCOUNT_EXPORT_ITEM_LIMIT,
+      },
+      truncated: {
+        assets: assets.length < assetCount,
+        projects: projects.length < projectCount,
+        notes: notes.length < noteCount,
+        discussions: discussions.length < discussionCount,
+        showcases: showcases.length < showcaseCount,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -696,18 +981,144 @@ export const deleteAccount = async (req: AuthRequest, res: Response, next: NextF
 export const getStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId as string;
+    const selectedDate = typeof req.query.date === 'string' ? new Date(req.query.date) : new Date();
 
-    const assetCount = await prisma.asset.count({
-      where: { userId },
-    });
+    if (Number.isNaN(selectedDate.getTime())) {
+      return next(new AppError('无效的日期格式', 400));
+    }
 
-    const taskCount = await prisma.task.count({
-      where: { userId, status: 'TODO' },
-    });
+    const realWorkspaceId =
+      req.workspaceId &&
+      req.workspaceId !== 'admin-workspace' &&
+      !req.workspaceId.startsWith('mirror-') &&
+      !req.workspaceId.startsWith('manual-')
+        ? req.workspaceId
+        : undefined;
 
-    const feedbackCount = await prisma.feedback.count({
-      where: { userId },
-    });
+    const selectedDayStart = getShanghaiStartOfDay(selectedDate);
+    const selectedDayEnd = getShanghaiEndOfDay(selectedDate);
+    const todayStart = getShanghaiStartOfDay(new Date());
+    const todayEnd = getShanghaiEndOfDay(new Date());
+    const sevenDaysAgo = getShanghaiStartOfDay(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const fourteenDaysAgo = getShanghaiStartOfDay(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000));
+    const now = new Date();
+
+    const assetWhere: Prisma.AssetWhereInput = {
+      userId,
+      ...(realWorkspaceId ? { teamId: realWorkspaceId } : {}),
+    };
+
+    const taskAccessWhere: Prisma.TaskWhereInput = {
+      ...(realWorkspaceId ? { teamId: realWorkspaceId } : {}),
+      OR: [
+        { userId },
+        { assigneeId: userId },
+        { participants: { some: { userId } } },
+        { project: { members: { some: { userId } } } },
+      ],
+    };
+
+    const projectWhere: Prisma.ProjectWhereInput = {
+      ...(realWorkspaceId ? { teamId: realWorkspaceId } : {}),
+      members: { some: { userId } },
+    };
+
+    const [
+      assetCount,
+      taskCount,
+      totalTasks,
+      inProgressTasks,
+      doneTasks,
+      overdueTasks,
+      dueTodayTasks,
+      dueSelectedDayTasks,
+      completedTodayTasks,
+      feedbackCount,
+      assetEngagement,
+      pendingAssets,
+      approvedAssets,
+      activeProjects,
+      stalledProjects,
+      recentProjects,
+      urgentTasks,
+    ] = await Promise.all([
+      prisma.asset.count({ where: assetWhere }),
+      prisma.task.count({ where: { ...taskAccessWhere, status: 'TODO' } }),
+      prisma.task.count({ where: taskAccessWhere }),
+      prisma.task.count({ where: { ...taskAccessWhere, status: 'IN_PROGRESS' } }),
+      prisma.task.count({ where: { ...taskAccessWhere, status: 'DONE' } }),
+      prisma.task.count({
+        where: {
+          ...taskAccessWhere,
+          status: { not: 'DONE' },
+          dueDate: { lt: todayStart },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskAccessWhere,
+          status: { not: 'DONE' },
+          dueDate: { gte: todayStart, lte: todayEnd },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskAccessWhere,
+          dueDate: { gte: selectedDayStart, lte: selectedDayEnd },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskAccessWhere,
+          status: 'DONE',
+          updatedAt: { gte: todayStart, lte: todayEnd },
+        },
+      }),
+      prisma.feedback.count({ where: { userId } }),
+      prisma.asset.aggregate({
+        where: assetWhere,
+        _sum: { viewCount: true, likes: true, downloads: true },
+      }),
+      prisma.asset.count({ where: { ...assetWhere, status: 'PENDING' } }),
+      prisma.asset.count({ where: { ...assetWhere, status: 'APPROVED' } }),
+      prisma.project.count({ where: { ...projectWhere, status: { not: 'COMPLETED' } } }),
+      prisma.project.count({
+        where: {
+          ...projectWhere,
+          status: { not: 'COMPLETED' },
+          dueDate: { lt: now },
+          progress: { lt: 100 },
+        },
+      }),
+      prisma.project.findMany({
+        where: projectWhere,
+        select: {
+          id: true,
+          title: true,
+          progress: true,
+          status: true,
+          dueDate: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 4,
+      }),
+      prisma.task.findMany({
+        where: { ...taskAccessWhere, status: { not: 'DONE' } },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          project: { select: { id: true, title: true, color: true } },
+        },
+        orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }],
+        take: 5,
+      }),
+    ]);
+
+    const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
     const activeProgresses: number[] = [];
 
@@ -762,20 +1173,23 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
         ? Math.round(activeProgresses.reduce((sum, p) => sum + p, 0) / activeProgresses.length)
         : 0;
 
-    const sevenDaysAgo = getShanghaiStartOfDay(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-    const fourteenDaysAgo = getShanghaiStartOfDay(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000));
-
     const [recentAssets, prevAssets] = await Promise.all([
-      prisma.asset.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.asset.count({ where: { ...assetWhere, createdAt: { gte: sevenDaysAgo } } }),
       prisma.asset.count({
-        where: { userId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+        where: { ...assetWhere, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
       }),
     ]);
 
     const [recentTasks, prevTasks] = await Promise.all([
-      prisma.task.count({ where: { userId, status: 'TODO', createdAt: { gte: sevenDaysAgo } } }),
       prisma.task.count({
-        where: { userId, status: 'TODO', createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+        where: { ...taskAccessWhere, status: { not: 'DONE' }, createdAt: { gte: sevenDaysAgo } },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskAccessWhere,
+          status: { not: 'DONE' },
+          createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        },
       }),
     ]);
 
@@ -831,12 +1245,201 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       recentCompletedTasksCount * 20 +
       recentShowcasesCount * 50;
 
+    const userRank =
+      (await prisma.user.count({
+        where: {
+          status: 'ACTIVE',
+          points: { gt: points },
+        },
+      })) + 1;
+
+    const assetEngagementTotal =
+      (assetEngagement._sum.viewCount ?? 0) +
+      (assetEngagement._sum.likes ?? 0) +
+      (assetEngagement._sum.downloads ?? 0);
+    const activeEnrollmentCount = enrollments.filter(
+      (enrollment) => enrollment.progress < 100,
+    ).length;
+    const focusScore = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(
+          totalProgress * 0.35 +
+            completionRate * 0.35 +
+            Math.min(assetCount * 8, 30) -
+            overdueTasks * 10 -
+            stalledProjects * 8,
+        ),
+      ),
+    );
+
+    const dashboardInsights: Array<{
+      id: string;
+      tone: 'danger' | 'warning' | 'success' | 'info';
+      title: string;
+      detail: string;
+      route: string;
+      action: string;
+    }> = [];
+
+    if (overdueTasks > 0) {
+      dashboardInsights.push({
+        id: 'overdue-tasks',
+        tone: 'danger',
+        title: `有 ${overdueTasks} 个任务已经逾期`,
+        detail: '优先处理这些阻塞项，可以立刻改善项目节奏。',
+        route: '/work',
+        action: '处理任务',
+      });
+    } else if (dueTodayTasks > 0) {
+      dashboardInsights.push({
+        id: 'today-tasks',
+        tone: 'warning',
+        title: `今天有 ${dueTodayTasks} 个任务到期`,
+        detail: '建议先完成最小交付，再整理剩余任务。',
+        route: '/work',
+        action: '查看今日',
+      });
+    } else {
+      dashboardInsights.push({
+        id: 'task-health',
+        tone: 'success',
+        title: '任务节奏稳定',
+        detail:
+          completedTodayTasks > 0
+            ? `今天已完成 ${completedTodayTasks} 个任务。`
+            : '今天还没有完成记录，可以先推进一个小任务。',
+        route: '/work',
+        action: '打开看板',
+      });
+    }
+
+    if (activeEnrollmentCount === 0) {
+      dashboardInsights.push({
+        id: 'no-active-course',
+        tone: 'info',
+        title: '还没有正在推进的课程',
+        detail: '选择一条主线课程，能让作品和项目更容易持续产出。',
+        route: '/academy',
+        action: '选课程',
+      });
+    } else {
+      dashboardInsights.push({
+        id: 'course-progress',
+        tone: totalProgress >= 60 ? 'success' : 'info',
+        title: `学习综合进度 ${totalProgress}%`,
+        detail: `当前有 ${activeEnrollmentCount} 门课程仍在推进中。`,
+        route: '/academy',
+        action: '继续学',
+      });
+    }
+
+    if (pendingAssets > 0) {
+      dashboardInsights.push({
+        id: 'pending-assets',
+        tone: 'warning',
+        title: `${pendingAssets} 件作品等待审核`,
+        detail: '补全封面、标签和说明，可以提升审核与展示质量。',
+        route: '/my-works',
+        action: '管理作品',
+      });
+    } else if (assetCount === 0) {
+      dashboardInsights.push({
+        id: 'no-assets',
+        tone: 'info',
+        title: '作品库还没有沉淀',
+        detail: '上传第一个模型或展示图，让学习成果进入可复用资产库。',
+        route: '/my-works',
+        action: '上传作品',
+      });
+    } else {
+      dashboardInsights.push({
+        id: 'asset-engagement',
+        tone: 'success',
+        title: `作品累计互动 ${assetEngagementTotal}`,
+        detail: `${approvedAssets} 件作品已通过审核，可继续整理高质量封面。`,
+        route: '/my-works',
+        action: '看作品',
+      });
+    }
+
+    if (stalledProjects > 0) {
+      dashboardInsights.push({
+        id: 'stalled-projects',
+        tone: 'danger',
+        title: `${stalledProjects} 个项目存在延期风险`,
+        detail: '检查项目截止日期和任务拆分，优先恢复交付节奏。',
+        route: '/projects',
+        action: '看项目',
+      });
+    } else if (activeProjects === 0) {
+      dashboardInsights.push({
+        id: 'no-projects',
+        tone: 'info',
+        title: '还没有活跃项目',
+        detail: '把课程练习升级成项目，更适合团队协作和作品沉淀。',
+        route: '/projects',
+        action: '建项目',
+      });
+    }
+
     res.json({
       assetCount,
       taskCount,
       feedbackCount,
       learningProgress: `${totalProgress}%`,
       points,
+      focusScore,
+      selectedDate: selectedDate.toISOString(),
+      taskSummary: {
+        total: totalTasks,
+        todo: taskCount,
+        inProgress: inProgressTasks,
+        done: doneTasks,
+        overdue: overdueTasks,
+        dueToday: dueTodayTasks,
+        dueSelectedDay: dueSelectedDayTasks,
+        completedToday: completedTodayTasks,
+        completionRate,
+      },
+      assetSummary: {
+        total: assetCount,
+        pending: pendingAssets,
+        approved: approvedAssets,
+        views: assetEngagement._sum.viewCount ?? 0,
+        likes: assetEngagement._sum.likes ?? 0,
+        downloads: assetEngagement._sum.downloads ?? 0,
+        engagement: assetEngagementTotal,
+      },
+      projectSummary: {
+        active: activeProjects,
+        stalled: stalledProjects,
+        recent: recentProjects,
+      },
+      learningSummary: {
+        enrollments: enrollments.length,
+        activeEnrollments: activeEnrollmentCount,
+        completedLessonsThisWeek: recentCompletedLessonsCount,
+        progress: totalProgress,
+      },
+      communitySummary: {
+        rank: userRank,
+        points,
+        pointsThisWeek: pointsTrendValue,
+      },
+      urgentTasks,
+      insights: dashboardInsights.slice(0, 4),
+      weeklyMomentum: {
+        assets: recentAssets,
+        tasks: recentTasks,
+        discussions: recentDiscussionsCount,
+        comments: recentCommentsCount,
+        showcases: recentShowcasesCount,
+        completedLessons: recentCompletedLessonsCount,
+        completedTasks: recentCompletedTasksCount,
+        points: pointsTrendValue,
+      },
       trends: {
         assets: computeTrend(recentAssets, prevAssets),
         tasks: computeTrend(recentTasks, prevTasks),
@@ -847,6 +1450,638 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
     });
   } catch (error) {
     logger.error('[Auth] Get stats error:', error);
+    next(error);
+  }
+};
+
+export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId as string;
+    const workspaceId = req.workspaceId || null;
+    const todayStart = getShanghaiStartOfDay(new Date());
+    const todayEnd = getShanghaiEndOfDay(new Date());
+    const sevenDaysAgo = new Date(todayStart.getTime() - 7 * MS_PER_DAY);
+    const fourteenDaysAgo = new Date(todayStart.getTime() - 14 * MS_PER_DAY);
+    const nextSevenDays = new Date(todayEnd.getTime() + 7 * MS_PER_DAY);
+    const recentBuckets = buildRecentDayBuckets(14);
+    const bucketByKey = new Map(recentBuckets.map((bucket) => [bucket.key, bucket]));
+
+    const taskWhere: Prisma.TaskWhereInput = {
+      teamId: workspaceId,
+      OR: [
+        { projectId: null },
+        {
+          project: {
+            members: {
+              some: { userId },
+            },
+          },
+        },
+      ],
+    };
+
+    const projectWhere: Prisma.ProjectWhereInput = {
+      teamId: workspaceId,
+      OR: [
+        { visibility: 'PUBLIC' },
+        {
+          members: {
+            some: { userId },
+          },
+        },
+      ],
+    };
+
+    const contentWhere = {
+      teamId: workspaceId,
+    };
+
+    const [
+      user,
+      totalTasks,
+      todoTasks,
+      inProgressTasks,
+      doneTasks,
+      overdueTasks,
+      dueTodayTasks,
+      urgentTasks,
+      assignedToMeTasks,
+      recentDoneTasks,
+      prevDoneTasks,
+      recentTaskRows,
+      projects,
+      enrollments,
+      lessonProgressRows,
+      roadmaps,
+      completedRoadmapSteps,
+      assetCount,
+      approvedAssetCount,
+      pendingAssetCount,
+      rejectedAssetCount,
+      missingThumbAssetCount,
+      materialCount,
+      showcaseCount,
+      pluginCount,
+      assetTypeGroups,
+      recentAssets,
+      notesCount,
+      publicNotesCount,
+      discussionCount,
+      projectDiscussionCount,
+      unreadNotifications,
+      unreadMessages,
+      teamMemberCount,
+      aiBotCount,
+      recentLearningRows,
+      recentAssetRows,
+      recentShowcaseRows,
+      recentDiscussionRows,
+      recentProjectDiscussionRows,
+    ] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          points: true,
+          createdAt: true,
+        },
+      }),
+      prisma.task.count({ where: taskWhere }),
+      prisma.task.count({ where: { ...taskWhere, status: 'TODO' } }),
+      prisma.task.count({ where: { ...taskWhere, status: 'IN_PROGRESS' } }),
+      prisma.task.count({ where: { ...taskWhere, status: 'DONE' } }),
+      prisma.task.count({
+        where: {
+          ...taskWhere,
+          status: { not: 'DONE' },
+          dueDate: { lt: todayStart },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskWhere,
+          status: { not: 'DONE' },
+          dueDate: { gte: todayStart, lte: todayEnd },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskWhere,
+          status: { not: 'DONE' },
+          priority: { in: ['HIGH', 'URGENT'] },
+        },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskWhere,
+          status: { not: 'DONE' },
+          assigneeId: userId,
+        },
+      }),
+      prisma.task.count({
+        where: { ...taskWhere, status: 'DONE', updatedAt: { gte: sevenDaysAgo } },
+      }),
+      prisma.task.count({
+        where: {
+          ...taskWhere,
+          status: 'DONE',
+          updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        },
+      }),
+      prisma.task.findMany({
+        where: { ...taskWhere, updatedAt: { gte: fourteenDaysAgo } },
+        select: { updatedAt: true, status: true },
+        take: 1000,
+      }),
+      prisma.project.findMany({
+        where: projectWhere,
+        take: 8,
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          progress: true,
+          status: true,
+          dueDate: true,
+          color: true,
+          updatedAt: true,
+          tasks: {
+            select: { id: true, status: true, priority: true, dueDate: true, updatedAt: true },
+          },
+          members: {
+            select: {
+              id: true,
+              role: true,
+              user: { select: { id: true, name: true, avatarUrl: true } },
+            },
+          },
+          roadmap: {
+            select: {
+              id: true,
+              title: true,
+              steps: { select: { id: true } },
+            },
+          },
+        },
+      }),
+      prisma.enrollment.findMany({
+        where: { userId, teamId: workspaceId },
+        take: 6,
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          courseId: true,
+          progress: true,
+          updatedAt: true,
+          course: {
+            select: {
+              id: true,
+              title: true,
+              thumbnail: true,
+              difficulty: true,
+              _count: { select: { lessons: true, reviews: true } },
+            },
+          },
+        },
+      }),
+      prisma.lessonProgress.findMany({
+        where: { userId, completed: true },
+        select: { lessonId: true, completedAt: true, updatedAt: true },
+        take: 2000,
+      }),
+      prisma.roadmap.findMany({
+        where: {
+          OR: [{ creatorId: null }, { creatorId: userId }, { project: projectWhere }],
+        },
+        select: {
+          id: true,
+          title: true,
+          projectId: true,
+          steps: { select: { id: true } },
+        },
+        take: 20,
+      }),
+      prisma.userRoadmapProgress.findMany({
+        where: { userId, completed: true },
+        select: { roadmapStepId: true, updatedAt: true },
+        take: 2000,
+      }),
+      prisma.asset.count({ where: contentWhere }),
+      prisma.asset.count({ where: { ...contentWhere, status: 'APPROVED' } }),
+      prisma.asset.count({ where: { ...contentWhere, status: 'PENDING' } }),
+      prisma.asset.count({ where: { ...contentWhere, status: 'REJECTED' } }),
+      prisma.asset.count({
+        where: { ...contentWhere, OR: [{ thumbnail: null }, { thumbnail: '' }] },
+      }),
+      prisma.material.count({ where: contentWhere }),
+      prisma.showcase.count({ where: contentWhere }),
+      prisma.plugin.count({ where: { userId } }),
+      prisma.asset.groupBy({
+        by: ['type'],
+        where: contentWhere,
+        _count: { type: true },
+        orderBy: { _count: { type: 'desc' } },
+        take: 8,
+      }),
+      prisma.asset.findMany({
+        where: contentWhere,
+        take: 6,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          thumbnail: true,
+          status: true,
+          viewCount: true,
+          downloads: true,
+          likes: true,
+          tags: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.note.count({ where: { userId } }),
+      prisma.note.count({ where: { userId, visibility: 'PUBLIC' } }),
+      prisma.discussion.count({ where: { userId } }),
+      prisma.projectDiscussion.count({ where: { userId } }),
+      prisma.notification.count({ where: { userId, isRead: false } }),
+      prisma.message.count({
+        where: {
+          senderId: { not: userId },
+          conversation: { participants: { some: { id: userId } } },
+          readBy: { none: { userId } },
+        },
+      }),
+      workspaceId
+        ? prisma.teamMember.count({ where: { teamId: workspaceId } })
+        : Promise.resolve(0),
+      prisma.aiBotIntegration.count({ where: { userId, status: 'ACTIVE' } }),
+      prisma.lessonProgress.findMany({
+        where: { userId, completed: true, completedAt: { gte: fourteenDaysAgo } },
+        select: { completedAt: true },
+        take: 1000,
+      }),
+      prisma.asset.findMany({
+        where: { ...contentWhere, createdAt: { gte: fourteenDaysAgo } },
+        select: { createdAt: true },
+        take: 1000,
+      }),
+      prisma.showcase.findMany({
+        where: { ...contentWhere, createdAt: { gte: fourteenDaysAgo } },
+        select: { createdAt: true },
+        take: 1000,
+      }),
+      prisma.discussion.findMany({
+        where: { userId, createdAt: { gte: fourteenDaysAgo } },
+        select: { createdAt: true },
+        take: 1000,
+      }),
+      prisma.projectDiscussion.findMany({
+        where: { userId, createdAt: { gte: fourteenDaysAgo } },
+        select: { createdAt: true },
+        take: 1000,
+      }),
+    ]);
+
+    recentTaskRows.forEach((task) => {
+      const bucket = bucketByKey.get(formatDayKey(task.updatedAt));
+      if (bucket) {
+        bucket.tasks += task.status === 'DONE' ? 2 : 1;
+      }
+    });
+
+    recentLearningRows.forEach((progress) => {
+      const activityDate = progress.completedAt || new Date();
+      const bucket = bucketByKey.get(formatDayKey(activityDate));
+      if (bucket) bucket.learning += 1;
+    });
+
+    recentAssetRows.forEach((asset) => {
+      const bucket = bucketByKey.get(formatDayKey(asset.createdAt));
+      if (bucket) bucket.content += 1;
+    });
+
+    recentShowcaseRows.forEach((showcase) => {
+      const bucket = bucketByKey.get(formatDayKey(showcase.createdAt));
+      if (bucket) bucket.content += 1;
+    });
+
+    recentDiscussionRows.forEach((discussion) => {
+      const bucket = bucketByKey.get(formatDayKey(discussion.createdAt));
+      if (bucket) bucket.community += 1;
+    });
+
+    recentProjectDiscussionRows.forEach((discussion) => {
+      const bucket = bucketByKey.get(formatDayKey(discussion.createdAt));
+      if (bucket) bucket.community += 1;
+    });
+
+    const completedRoadmapStepIds = new Set(
+      completedRoadmapSteps.map((step) => step.roadmapStepId),
+    );
+    const roadmapStepCount = roadmaps.reduce((sum, roadmap) => sum + roadmap.steps.length, 0);
+    const roadmapCompletedCount = roadmaps.reduce(
+      (sum, roadmap) =>
+        sum + roadmap.steps.filter((step) => completedRoadmapStepIds.has(step.id)).length,
+      0,
+    );
+    const roadmapProgress = roadmapStepCount
+      ? clampPercent((roadmapCompletedCount / roadmapStepCount) * 100)
+      : 0;
+    const courseProgress = enrollments.length
+      ? clampPercent(
+          enrollments.reduce((sum, enrollment) => sum + Number(enrollment.progress || 0), 0) /
+            enrollments.length,
+        )
+      : 0;
+    const completedLessonCount = lessonProgressRows.length;
+    const learningProgress = clampPercent(
+      [courseProgress, roadmapProgress, totalTasks ? (doneTasks / totalTasks) * 100 : 0]
+        .filter((value) => value > 0)
+        .reduce((sum, value, _index, values) => sum + value / values.length, 0),
+    );
+
+    const activeCourse = enrollments
+      .filter((enrollment) => enrollment.progress < 100)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
+
+    const projectHealth = projects.map((project) => {
+      const projectTotalTasks = project.tasks.length;
+      const projectDoneTasks = project.tasks.filter((task) => task.status === 'DONE').length;
+      const projectOverdueTasks = project.tasks.filter(
+        (task) => task.status !== 'DONE' && task.dueDate && task.dueDate < todayStart,
+      ).length;
+      const projectUrgentTasks = project.tasks.filter(
+        (task) => task.status !== 'DONE' && ['HIGH', 'URGENT'].includes(task.priority),
+      ).length;
+      const dueSoon =
+        !!project.dueDate && project.dueDate >= todayStart && project.dueDate <= nextSevenDays;
+      const taskCompletion = projectTotalTasks
+        ? clampPercent((projectDoneTasks / projectTotalTasks) * 100)
+        : project.progress;
+      const healthScore = clampPercent(
+        Math.max(project.progress, taskCompletion) -
+          projectOverdueTasks * 18 -
+          projectUrgentTasks * 8 -
+          (dueSoon ? 6 : 0) +
+          (project.status === 'COMPLETED' ? 20 : 0),
+      );
+
+      return {
+        id: project.id,
+        title: project.title,
+        progress: project.progress,
+        status: project.status,
+        color: project.color,
+        dueDate: project.dueDate,
+        updatedAt: project.updatedAt,
+        memberCount: project.members.length,
+        taskCount: projectTotalTasks,
+        doneTaskCount: projectDoneTasks,
+        overdueTaskCount: projectOverdueTasks,
+        urgentTaskCount: projectUrgentTasks,
+        dueSoon,
+        roadmapStepCount: project.roadmap?.steps.length || 0,
+        healthScore,
+      };
+    });
+
+    const focusProjects = [...projectHealth]
+      .sort((a, b) => {
+        if (a.overdueTaskCount !== b.overdueTaskCount)
+          return b.overdueTaskCount - a.overdueTaskCount;
+        if (a.urgentTaskCount !== b.urgentTaskCount) return b.urgentTaskCount - a.urgentTaskCount;
+        return a.healthScore - b.healthScore;
+      })
+      .slice(0, 4);
+    const primaryFocusProject = focusProjects[0] || null;
+
+    const taskCompletionRate = totalTasks ? clampPercent((doneTasks / totalTasks) * 100) : 0;
+    const contentApprovalRate = assetCount
+      ? clampPercent((approvedAssetCount / assetCount) * 100)
+      : 100;
+    const contentCoverage = assetCount + materialCount + showcaseCount + pluginCount;
+    const collaborationLoad = unreadNotifications + unreadMessages + projectDiscussionCount;
+    const momentumScore = clampPercent(
+      taskCompletionRate * 0.32 +
+        learningProgress * 0.3 +
+        contentApprovalRate * 0.18 +
+        Math.min(100, recentDoneTasks * 12 + recentLearningRows.length * 8 + contentCoverage * 2) *
+          0.2 -
+        overdueTasks * 5 -
+        urgentTasks * 2,
+    );
+
+    const productivityTrend = (() => {
+      if (prevDoneTasks === 0 && recentDoneTasks === 0) return '0';
+      if (prevDoneTasks === 0) return `+${recentDoneTasks}`;
+      const diff = recentDoneTasks - prevDoneTasks;
+      const percent = Math.round((diff / prevDoneTasks) * 100);
+      return percent >= 0 ? `+${percent}%` : `${percent}%`;
+    })();
+
+    const focusQueue = [
+      overdueTasks > 0
+        ? {
+            id: 'overdue-tasks',
+            severity: 'danger',
+            title: '逾期任务',
+            detail: `${overdueTasks} 个任务已经超过截止时间`,
+            metric: overdueTasks,
+            route: '/work',
+          }
+        : null,
+      urgentTasks > 0
+        ? {
+            id: 'urgent-tasks',
+            severity: 'warning',
+            title: '高优先级任务',
+            detail: `${urgentTasks} 个高优先级任务等待推进`,
+            metric: urgentTasks,
+            route: '/work',
+          }
+        : null,
+      pendingAssetCount > 0
+        ? {
+            id: 'pending-assets',
+            severity: 'notice',
+            title: '内容审核中',
+            detail: `${pendingAssetCount} 个资产仍在等待审核`,
+            metric: pendingAssetCount,
+            route: '/assets',
+          }
+        : null,
+      missingThumbAssetCount > 0
+        ? {
+            id: 'missing-thumbnails',
+            severity: 'notice',
+            title: '资产封面缺失',
+            detail: `${missingThumbAssetCount} 个资产缺少缩略图`,
+            metric: missingThumbAssetCount,
+            route: '/assets',
+          }
+        : null,
+      unreadMessages > 0
+        ? {
+            id: 'unread-messages',
+            severity: 'info',
+            title: '未读私信',
+            detail: `${unreadMessages} 条协作消息未读`,
+            metric: unreadMessages,
+            route: '/messages',
+          }
+        : null,
+    ].filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    const smartActions = [
+      overdueTasks > 0
+        ? {
+            id: 'clear-overdue',
+            title: '先清掉逾期阻塞',
+            description: '把逾期任务切成 25 分钟以内的小动作，优先恢复项目节奏。',
+            impact: '降低交付风险',
+            route: '/work',
+          }
+        : null,
+      activeCourse
+        ? {
+            id: 'continue-course',
+            title: `继续学习：${activeCourse.course.title}`,
+            description: `当前进度 ${Math.round(activeCourse.progress)}%，继续推进可提升学习动量。`,
+            impact: '提升学习进度',
+            route: `/academy/player/${activeCourse.courseId}`,
+          }
+        : null,
+      primaryFocusProject
+        ? {
+            id: 'repair-project',
+            title: `修复项目健康度：${primaryFocusProject.title}`,
+            description: `健康分 ${primaryFocusProject.healthScore}，建议先处理任务和截止日期。`,
+            impact: '稳定项目交付',
+            route: `/project/${primaryFocusProject.id}`,
+          }
+        : null,
+      contentCoverage === 0
+        ? {
+            id: 'publish-content',
+            title: '发布第一个作品资产',
+            description: '把学习成果沉淀成可展示的资产，主页和社区都会更有生命力。',
+            impact: '建立作品档案',
+            route: '/my-works',
+          }
+        : null,
+      unreadNotifications + unreadMessages > 0
+        ? {
+            id: 'catch-up',
+            title: '处理协作收件箱',
+            description: '先读未读消息和通知，避免错过项目邀请、任务更新和团队反馈。',
+            impact: '减少协作延迟',
+            route: unreadMessages > 0 ? '/messages' : '/notifications',
+          }
+        : null,
+    ].filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      workspace: {
+        id: workspaceId,
+        memberCount: teamMemberCount,
+      },
+      profile: user,
+      command: {
+        momentumScore,
+        productivityTrend,
+        learningProgress,
+        taskCompletionRate,
+        contentApprovalRate,
+        collaborationLoad,
+      },
+      learning: {
+        activeCourse,
+        enrollmentCount: enrollments.length,
+        completedLessonCount,
+        courseProgress,
+        roadmapProgress,
+        roadmapCount: roadmaps.length,
+        roadmapStepCount,
+        roadmapCompletedCount,
+      },
+      work: {
+        total: totalTasks,
+        todo: todoTasks,
+        inProgress: inProgressTasks,
+        done: doneTasks,
+        overdue: overdueTasks,
+        dueToday: dueTodayTasks,
+        urgent: urgentTasks,
+        assignedToMe: assignedToMeTasks,
+        completionRate: taskCompletionRate,
+        recentDone: recentDoneTasks,
+      },
+      projects: {
+        total: projectHealth.length,
+        focus: focusProjects,
+        health: projectHealth,
+      },
+      content: {
+        total: contentCoverage,
+        assets: assetCount,
+        approvedAssets: approvedAssetCount,
+        pendingAssets: pendingAssetCount,
+        rejectedAssets: rejectedAssetCount,
+        missingThumbAssets: missingThumbAssetCount,
+        materials: materialCount,
+        showcases: showcaseCount,
+        plugins: pluginCount,
+        notes: notesCount,
+        publicNotes: publicNotesCount,
+        typeDistribution: assetTypeGroups.map((item) => ({
+          type: item.type || 'UNKNOWN',
+          count: item._count.type,
+        })),
+        recentAssets: recentAssets.map((asset) => ({
+          ...asset,
+          qualityScore: clampPercent(
+            52 +
+              (asset.thumbnail ? 14 : 0) +
+              Math.min(18, asset.viewCount) +
+              Math.min(10, asset.downloads * 2) +
+              Math.min(8, asset.likes * 2) -
+              (asset.status === 'REJECTED' ? 28 : 0) -
+              (asset.status === 'PENDING' ? 8 : 0),
+          ),
+        })),
+      },
+      collaboration: {
+        discussions: discussionCount,
+        projectDiscussions: projectDiscussionCount,
+        unreadNotifications,
+        unreadMessages,
+        activeAiBots: aiBotCount,
+      },
+      trend: recentBuckets.map(({ key, learning, tasks, content, community }) => ({
+        date: key,
+        learning,
+        tasks,
+        content,
+        community,
+        total: learning + tasks + content + community,
+      })),
+      focusQueue,
+      smartActions: smartActions.slice(0, 5),
+      signals: {
+        hasCourse: enrollments.length > 0,
+        hasProject: projectHealth.length > 0,
+        hasContent: contentCoverage > 0,
+        hasTeam: teamMemberCount > 1,
+        tagCoverage: recentAssets.reduce((sum, asset) => sum + safeJsonArrayLength(asset.tags), 0),
+      },
+    });
+  } catch (error) {
+    logger.error('[Auth] Get workbench error:', error);
     next(error);
   }
 };

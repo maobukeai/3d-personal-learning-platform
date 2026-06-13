@@ -87,7 +87,7 @@ const fetchProject = async () => {
     project.value = response.data;
   } catch (_error) {
     ElMessage.error('获取项目详情失败');
-    router.push('/team-tasks');
+    router.push('/projects');
   } finally {
     isLoading.value = false;
   }

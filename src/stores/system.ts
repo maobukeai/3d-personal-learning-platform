@@ -36,6 +36,8 @@ export interface PublicAIModelOption {
   capabilities: string[];
 }
 
+let pendingSettingsFetch: Promise<void> | null = null;
+
 export const useSystemStore = defineStore('system', {
   state: () => ({
     settings: {
@@ -107,9 +109,17 @@ export const useSystemStore = defineStore('system', {
       }
     },
     async fetchSettings() {
-      try {
+      if (pendingSettingsFetch) {
+        await pendingSettingsFetch;
+        return;
+      }
+
+      pendingSettingsFetch = (async () => {
+        try {
         const { data } = await api.get('/api/auth/settings');
-        
+
+        const toBool = (val: unknown): boolean => val === true || val === 'true';
+
         // Helper for safe JSON parsing
         const safeParseArray = (val: unknown, fallback: string[]) => {
           if (Array.isArray(val)) return val;
@@ -143,8 +153,8 @@ export const useSystemStore = defineStore('system', {
                 name: String(model.name || `${provider} ${modelName}`).trim(),
                 provider,
                 modelName,
-                enabled: model.enabled === true || model.enabled === 'true',
-                isDefault: model.isDefault === true || model.isDefault === 'true',
+                enabled: toBool(model.enabled),
+                isDefault: toBool(model.isDefault),
                 description: typeof model.description === 'string' ? model.description : '',
                 capabilities: Array.isArray(model.capabilities)
                   ? model.capabilities.map(String)
@@ -163,30 +173,34 @@ export const useSystemStore = defineStore('system', {
           PLATFORM_LOGO_URL: data.PLATFORM_LOGO_URL || '',
           PLATFORM_FAVICON_URL: data.PLATFORM_FAVICON_URL || '',
           PLATFORM_DESCRIPTION: data.PLATFORM_DESCRIPTION || '',
-          ALLOW_REGISTRATION:
-            data.ALLOW_REGISTRATION === true || data.ALLOW_REGISTRATION === 'true',
-          MAINTENANCE_MODE: data.MAINTENANCE_MODE === true || data.MAINTENANCE_MODE === 'true',
+          ALLOW_REGISTRATION: toBool(data.ALLOW_REGISTRATION),
+          MAINTENANCE_MODE: toBool(data.MAINTENANCE_MODE),
           MATERIAL_CATEGORIES: safeParseArray(data.MATERIAL_CATEGORIES, ['全部材料', '金属', '木纹', '石材', '织物', '程序化', '玻璃', '其他']),
           PASSWORD_MIN_LENGTH: String(data.PASSWORD_MIN_LENGTH || '6'),
           SESSION_TIMEOUT: data.SESSION_TIMEOUT || '7d',
-          AUTO_APPROVE_MATERIALS:
-            data.AUTO_APPROVE_MATERIALS === true || data.AUTO_APPROVE_MATERIALS === 'true',
-          AUTO_APPROVE_SHOWCASES:
-            data.AUTO_APPROVE_SHOWCASES === true || data.AUTO_APPROVE_SHOWCASES === 'true',
+          AUTO_APPROVE_MATERIALS: toBool(data.AUTO_APPROVE_MATERIALS),
+          AUTO_APPROVE_SHOWCASES: toBool(data.AUTO_APPROVE_SHOWCASES),
           MAX_UPLOAD_SIZE_MB: String(data.MAX_UPLOAD_SIZE_MB || '100'),
           ALLOWED_FILE_TYPES: safeParseArray(data.ALLOWED_FILE_TYPES, ['.glb', '.gltf', '.fbx', '.obj', '.stl', '.zip']),
           DEFAULT_USER_ROLE: data.DEFAULT_USER_ROLE || 'USER',
           FOOTER_TEXT: data.FOOTER_TEXT || '',
-          OAUTH_GOOGLE_ENABLED: data.OAUTH_GOOGLE_ENABLED === true || data.OAUTH_GOOGLE_ENABLED === 'true',
-          OAUTH_GITHUB_ENABLED: data.OAUTH_GITHUB_ENABLED === true || data.OAUTH_GITHUB_ENABLED === 'true',
-          AI_IMPORT_ENABLED: data.AI_IMPORT_ENABLED === true || data.AI_IMPORT_ENABLED === 'true',
+          OAUTH_GOOGLE_ENABLED: toBool(data.OAUTH_GOOGLE_ENABLED),
+          OAUTH_GITHUB_ENABLED: toBool(data.OAUTH_GITHUB_ENABLED),
+          AI_IMPORT_ENABLED: toBool(data.AI_IMPORT_ENABLED),
           AI_MODEL_OPTIONS: safeParseModels(data.AI_MODEL_OPTIONS),
         };
-      } catch (error) {
-        console.error('Failed to fetch system settings:', error);
+        } catch (error) {
+          console.error('Failed to fetch system settings:', error);
+        } finally {
+          this.isInitialized = true;
+          this.updateBrowserBranding();
+        }
+      })();
+
+      try {
+        await pendingSettingsFetch;
       } finally {
-        this.isInitialized = true;
-        this.updateBrowserBranding();
+        pendingSettingsFetch = null;
       }
     },
   },

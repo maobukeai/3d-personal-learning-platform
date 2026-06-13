@@ -1,0 +1,4 @@
+ALTER TABLE `AiBotIntegration`
+  ADD COLUMN `aiModelId` VARCHAR(191) NULL,
+  ADD COLUMN `aiTemperature` DOUBLE NULL,
+  ADD COLUMN `aiMaxTokens` INTEGER NULL;

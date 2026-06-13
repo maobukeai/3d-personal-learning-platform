@@ -895,11 +895,10 @@ watch(
   },
 );
 watch(
-  () => props.sceneConfig,
+  () => JSON.stringify(props.sceneConfig),
   () => {
     if (hasInitialized.value) void updateSceneConfig();
   },
-  { deep: true },
 );
 
 defineExpose({
@@ -911,6 +910,7 @@ defineExpose({
   togglePause,
   isClayMode,
   toggleClayMode,
+  toggleFullscreen,
   resetCamera,
   takeScreenshot,
 });

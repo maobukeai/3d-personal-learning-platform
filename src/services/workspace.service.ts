@@ -25,6 +25,7 @@ export interface AdminStatsResponse {
     openFeedbacks?: number;
     pendingMaterials?: number;
     pendingShowcases?: number;
+    pendingPlugins?: number;
   };
 }
 

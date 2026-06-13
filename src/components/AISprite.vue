@@ -108,10 +108,11 @@ const fetchUsageLimit = async () => {
     } else {
       usageError.value = response.data?.message || '获取额度数据失败，请重试';
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[AI Usage] Failed to fetch AI usage:', error);
+    const err = error as { response?: { data?: { message?: string } }; message?: string };
     const apiError =
-      error?.response?.data?.message || error?.message || '请求发送失败，请检查网络或刷新重试';
+      err?.response?.data?.message || err?.message || '请求发送失败，请检查网络或刷新重试';
     usageError.value = apiError;
   } finally {
     loadingUsage.value = false;
@@ -134,6 +135,13 @@ const spriteX = ref<number | null>(savedPosX ? parseFloat(savedPosX) : null);
 const spriteY = ref<number | null>(savedPosY ? parseFloat(savedPosY) : null);
 const showMobileSidebar = ref(false);
 const windowWidth = ref(window.innerWidth);
+
+let isUnloading = false;
+onMounted(() => {
+  window.addEventListener('beforeunload', () => {
+    isUnloading = true;
+  });
+});
 
 const clampSpritePosition = () => {
   if (spriteX.value !== null && spriteY.value !== null) {
@@ -349,6 +357,8 @@ const typewriterTargetIdMap = ref<Record<string, string>>({});
 let uploadErrorTimer: ReturnType<typeof setTimeout> | null = null;
 let bubbleTimer: ReturnType<typeof setTimeout> | null = null;
 let darkObserver: MutationObserver | null = null;
+// Tracks setInterval IDs for pending-run pollers (keyed by sessionId)
+const pendingRunPollers: Record<string, ReturnType<typeof setInterval> | null> = {};
 
 interface Message {
   id: string;
@@ -494,13 +504,12 @@ const deleteSession = async (sessionId: string) => {
       await api.delete('/api/projects/ai-chat/history', {
         params: { sessionId },
       });
-    } catch (error) {
-      console.error('Failed to delete AI chat session on server:', error);
-      // Rollback to original state
-      messages.value = originalMessages;
-      ElMessage.error('删除会话失败，请稍后重试');
-      return;
-    }
+    } catch (error: unknown) {
+    console.error('Failed to delete AI chat session on server:', error);
+    messages.value = originalMessages;
+    ElMessage.error('删除会话失败，请稍后重试');
+    return;
+  }
   } else {
     saveHistory();
   }
@@ -814,7 +823,7 @@ const loadHistory = async () => {
     const response = await api.get('/api/projects/ai-chat/history');
     const history = response.data?.data || [];
     if (response.data?.success && history.length > 0) {
-      messages.value = history
+      const dbMessages = history
         .filter((msg: any) => msg?.role === 'user' || msg?.role === 'assistant')
         .slice(-80)
         .map((msg: any) => {
@@ -829,27 +838,298 @@ const loadHistory = async () => {
             sessionTitle: msg.sessionTitle || '新对话',
           });
         });
-      const latestMsg = messages.value[messages.value.length - 1];
-      if (latestMsg && latestMsg.sessionId) {
-        currentSessionId.value = latestMsg.sessionId;
-        localStorage.setItem('ai_sprite_session_id', latestMsg.sessionId);
+
+      // Preserve local placeholder messages for sessions that currently have
+      // an active poller (i.e., a pending run is being tracked). Otherwise
+      // those placeholders would be wiped and the poller would have no target.
+      const activePollerSessions = new Set(
+        Object.keys(pendingRunPollers).filter((k) => pendingRunPollers[k] !== null),
+      );
+      if (activePollerSessions.size > 0) {
+        const localActiveMessages = messages.value.filter(
+          (m) => activePollerSessions.has(m.sessionId || 'default'),
+        );
+        // Merge: DB messages for non-active sessions + local messages for active sessions
+        messages.value = [
+          ...dbMessages.filter((m: any) => !activePollerSessions.has(m.sessionId || 'default')),
+          ...localActiveMessages,
+        ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      } else {
+        messages.value = dbMessages;
+      }
+
+      // Do not overwrite the user's active session if they already have one in localStorage.
+      // This prevents a newly created (but not yet saved) session from disappearing on refresh.
+      const storedSessId = localStorage.getItem('ai_sprite_session_id');
+      if (!storedSessId) {
+        const latestMsg = messages.value[messages.value.length - 1];
+        if (latestMsg && latestMsg.sessionId) {
+          currentSessionId.value = latestMsg.sessionId;
+          localStorage.setItem('ai_sprite_session_id', latestMsg.sessionId);
+        }
+      } else {
+        currentSessionId.value = storedSessId;
       }
     } else {
       messages.value = [createGreetingMessage()];
     }
     syncActiveHistory();
-  } catch (error: any) {
-    if (error?.response?.status !== 401) {
+  } catch (error: unknown) {
+    const err = error as { response?: { status?: number } };
+    if (err?.response?.status !== 401) {
       console.error('Failed to fetch AI chat history from server:', error);
     }
     loadGuestHistory();
   }
 };
 
+
+// ---------------------------------------------------------------------------
+// Pending-run persistence helpers
+// ---------------------------------------------------------------------------
+// localStorage key format: ai_pending_run_{sessionId}  =>  JSON string with
+// { runId, userContent, sessionTitle, mode, assistantMsgId, createdAt }
+
+const PENDING_RUN_KEY_PREFIX = 'ai_pending_run_';
+const PENDING_RUN_INDEX_KEY = 'ai_pending_run_index';
+
+const getPendingRunIndex = (): string[] => {
+  try {
+    const raw = localStorage.getItem(PENDING_RUN_INDEX_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const addToPendingRunIndex = (sessionId: string) => {
+  try {
+    const index = getPendingRunIndex();
+    if (!index.includes(sessionId)) {
+      index.push(sessionId);
+      localStorage.setItem(PENDING_RUN_INDEX_KEY, JSON.stringify(index));
+    }
+  } catch { /* ignore */ }
+};
+
+const removeFromPendingRunIndex = (sessionId: string) => {
+  try {
+    const index = getPendingRunIndex().filter((id) => id !== sessionId);
+    localStorage.setItem(PENDING_RUN_INDEX_KEY, JSON.stringify(index));
+  } catch { /* ignore */ }
+};
+
+const savePendingRun = (
+  sessionId: string,
+  runId: string,
+  userContent: string,
+  sessionTitle: string,
+  mode: string,
+  assistantMsgId: string,
+) => {
+  try {
+    localStorage.setItem(
+      PENDING_RUN_KEY_PREFIX + sessionId,
+      JSON.stringify({ runId, userContent, sessionTitle, mode, assistantMsgId, createdAt: Date.now() }),
+    );
+    addToPendingRunIndex(sessionId);
+  } catch { /* ignore */ }
+};
+
+const clearPendingRun = (sessionId: string) => {
+  try {
+    localStorage.removeItem(PENDING_RUN_KEY_PREFIX + sessionId);
+    removeFromPendingRunIndex(sessionId);
+  } catch { /* ignore */ }
+};
+
+const getAllPendingRuns = (): Array<{
+  sessionId: string;
+  runId: string;
+  userContent: string;
+  sessionTitle: string;
+  mode: string;
+  assistantMsgId: string;
+  createdAt: number;
+}> => {
+  const result = [];
+  const sessionIds = getPendingRunIndex();
+  for (const sessionId of sessionIds) {
+    const raw = localStorage.getItem(PENDING_RUN_KEY_PREFIX + sessionId);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Date.now() - parsed.createdAt < 30 * 60 * 1000) {
+          result.push({ sessionId, ...parsed });
+        } else {
+          clearPendingRun(sessionId);
+        }
+      } catch { /* ignore corrupted entry */ }
+    }
+  }
+  return result;
+};
+
+// Stop polling for a specific session (does NOT cancel the server-side run)
+const stopPendingRunPoller = (sessionId: string) => {
+  if (pendingRunPollers[sessionId]) {
+    clearTimeout(pendingRunPollers[sessionId]!);
+    pendingRunPollers[sessionId] = null;
+  }
+};
+
+// Poll /api/projects/ai-chat/runs/:runId/status and update message content in real time
+const pollPendingRun = (
+  sessionId: string,
+  runId: string,
+  assistantMsgId: string,
+) => {
+  stopPendingRunPoller(sessionId);
+
+  let lastContent = '';
+  let lastReasoning = '';
+  let consecutiveErrors = 0;
+
+  const finishPoll = async (msgObj: typeof messages.value[0] | undefined) => {
+    stopPendingRunPoller(sessionId);
+    clearPendingRun(sessionId);
+    isGeneratingMap.value[sessionId] = false;
+    isTypingMap.value[sessionId] = false;
+    if (msgObj) {
+      msgObj.isThinking = false;
+      msgObj.isThinkingExpanded = false;
+    }
+    saveHistory();
+    if (sessionId === currentSessionId.value) {
+      await scrollToBottom();
+    }
+  };
+
+  const poll = async () => {
+    // If a live SSE stream is now active for this session, stop polling to avoid conflict
+    if (activeAbortControllers[sessionId]) {
+      stopPendingRunPoller(sessionId);
+      return;
+    }
+    try {
+      const res = await api.get(`/api/projects/ai-chat/runs/${encodeURIComponent(runId)}/status`);
+      const data = res.data?.data;
+      if (!data) return;
+
+      consecutiveErrors = 0;
+
+      const msgObj = messages.value.find((m) => m.id === assistantMsgId);
+      if (msgObj) {
+        // Server returns full accumulated content each time — just overwrite
+        if (data.content && data.content !== lastContent) {
+          msgObj.content = data.content;
+          lastContent = data.content;
+          msgObj.isThinking = false;
+        }
+        if (data.reasoning && data.reasoning !== lastReasoning) {
+          msgObj.reasoning = data.reasoning;
+          lastReasoning = data.reasoning;
+        }
+        // Scroll while content is streaming in
+        if (sessionId === currentSessionId.value && (data.content || data.reasoning)) {
+          scrollToBottom();
+        }
+      }
+
+      if (data.completed) {
+        // done=true means: stream finished AND DB write is complete
+        // We already have the full content from the last poll above, so just finalize
+        await finishPoll(msgObj);
+
+        // Edge case: run was already cleaned from memory before our first poll
+        // (data.done=true, no content from server) — reload from DB
+        if (!lastContent && !lastReasoning) {
+          await loadHistory();
+        }
+      } else {
+        // Schedule next poll if not completed
+        pendingRunPollers[sessionId] = setTimeout(poll, 500) as any;
+      }
+    } catch (err: any) {
+      consecutiveErrors++;
+      if (consecutiveErrors >= 5) {
+        const msgObj = messages.value.find((m) => m.id === assistantMsgId);
+        if (msgObj && !msgObj.content) {
+          msgObj.content = 'AI 服务暂时不可用，请重新提问。';
+          msgObj.isThinking = false;
+        }
+        await finishPoll(msgObj);
+      } else {
+        // Retry on error
+        pendingRunPollers[sessionId] = setTimeout(poll, 1000) as any;
+      }
+    }
+  };
+
+  // Trigger immediately
+  poll();
+};
+
+// Called after loadHistory to resume any interrupted runs
+const resumePendingRuns = () => {
+  if (!authStore.isAuthenticated) return;
+  const pendingRuns = getAllPendingRuns();
+  if (pendingRuns.length === 0) return;
+
+  for (const run of pendingRuns) {
+    const { sessionId, runId, userContent, sessionTitle, assistantMsgId } = run;
+
+    // Check if assistant message already exists (history may have included it)
+    const existingMsg = messages.value.find((m) => m.id === assistantMsgId);
+
+    if (existingMsg && existingMsg.content) {
+      // Already finished and loaded from DB — clean up
+      clearPendingRun(sessionId);
+      continue;
+    }
+
+    // Ensure the user message is present
+    const userMsgExists = messages.value.some(
+      (m) => m.role === 'user' && (m.sessionId || 'default') === sessionId && m.content === userContent,
+    );
+    if (!userMsgExists) {
+      messages.value.push(
+        createMessage('user', userContent, { sessionId, sessionTitle }),
+      );
+    }
+
+    // Ensure the assistant placeholder exists
+    if (!existingMsg) {
+      messages.value.push(
+        createMessage('assistant', '', {
+          id: assistantMsgId,
+          isThinking: true,
+          isThinkingExpanded: true,
+          sessionId,
+          sessionTitle,
+        }),
+      );
+    }
+
+    // Mark session as generating so the UI shows a spinner
+    isGeneratingMap.value[sessionId] = true;
+
+    // Switch to that session if it is the most recent one
+    const storedSessId = localStorage.getItem('ai_sprite_session_id');
+    if (!storedSessId || storedSessId === sessionId) {
+      currentSessionId.value = sessionId;
+    }
+
+    // Start polling
+    pollPendingRun(sessionId, runId, assistantMsgId);
+  }
+};
+
 watch(
   () => authStore.isAuthenticated,
-  () => {
-    loadHistory();
+  async () => {
+    await loadHistory();
+    resumePendingRuns();
   },
   { immediate: true },
 );
@@ -1102,6 +1382,10 @@ const handleStop = (sId: string = currentSessionId.value) => {
     activeReaders[sId] = null;
   }
 
+  // Stop any background poll for this session and clear localStorage state
+  stopPendingRunPoller(sId);
+  clearPendingRun(sId);
+
   const targetId = typewriterTargetIdMap.value[sId];
   if (targetId) {
     flushTypewriterQueue(targetId, sId);
@@ -1186,6 +1470,14 @@ const handleSend = async () => {
   activeAbortControllers[sId] = controller;
   const signal = controller.signal;
 
+  // Generate a clientRunId so the backend keeps running even if the page is refreshed
+  const clientRunId = `run_${sId}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+  // Persist the pending run to localStorage so resumePendingRuns can pick it up on reload
+  if (authStore.isAuthenticated) {
+    savePendingRun(sId, clientRunId, userContent, sessionTitle, chatMode.value, assistantMessage.id);
+  }
+
   await nextTick();
   await scrollToBottom();
 
@@ -1204,6 +1496,7 @@ const handleSend = async () => {
         sessionId: sId,
         sessionTitle,
         mode: chatMode.value,
+        clientRunId,
       }),
     });
 
@@ -1292,16 +1585,17 @@ const handleSend = async () => {
     if (msgObj) {
       msgObj.isThinkingExpanded = false;
     }
-  } catch (error: any) {
-    if (error.name !== 'AbortError') {
+  } catch (error: unknown) {
+    const err = error as Error & { response?: { status?: number } };
+    if (err.name !== 'AbortError') {
       console.error('AI streaming chat error in session:', sId, error);
     }
     isGeneratingMap.value[sId] = false;
     flushTypewriterQueue(assistantMessage.id, sId);
-    const message = error?.message || '连接失败';
+    const message = err?.message || '连接失败';
     const msgObj = messages.value.find((m) => m.id === assistantMessage.id);
     if (msgObj) {
-      msgObj.content = error.name === 'AbortError' ? '生成已终止' : `AI 服务暂时不可用：${message}`;
+      msgObj.content = err.name === 'AbortError' ? '生成已终止' : `AI 服务暂时不可用：${message}`;
       msgObj.isThinking = false;
       msgObj.isThinkingExpanded = false;
     }
@@ -1310,6 +1604,15 @@ const handleSend = async () => {
     isTypingMap.value[sId] = false;
     activeReaders[sId] = null;
     activeAbortControllers[sId] = null;
+    
+    // Only clear the pending run if the page is NOT unloading.
+    // If it is unloading (refreshing/closing), we must keep the run in localStorage
+    // so that resumePendingRuns can pick it up when the page reloads.
+    if (!isUnloading) {
+      clearPendingRun(sId);
+      stopPendingRunPoller(sId);
+    }
+    
     saveHistory();
     if (sId === currentSessionId.value) {
       await scrollToBottom();
@@ -1550,17 +1853,20 @@ onUnmounted(() => {
             <div class="min-h-0 flex-1 px-3 pb-3 pt-4">
               <div class="mb-2 px-2 text-xs font-medium text-slate-400">历史会话</div>
               <div class="h-full space-y-1 overflow-y-auto pr-1 ai-scrollbar">
-                <button
+                <div
                   v-for="item in recentPrompts"
                   :key="item.id"
-                  type="button"
-                  class="group relative w-full rounded-2xl px-3 py-3 text-left transition border focus:outline-none"
+                  role="button"
+                  tabindex="0"
+                  class="group relative w-full rounded-2xl px-3 py-3 text-left transition border focus:outline-none cursor-pointer"
                   :class="
                     currentSessionId === item.id
                       ? 'bg-white dark:bg-white/10 border-slate-200/50 dark:border-white/10 shadow-[0_16px_38px_rgba(244,114,182,0.06)]'
                       : 'border-transparent hover:bg-white/60 dark:hover:bg-white/5'
                   "
                   @click="selectSession(item.id)"
+                  @keydown.enter="selectSession(item.id)"
+                  @keydown.space.prevent="selectSession(item.id)"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <p class="line-clamp-1 text-sm font-medium text-slate-800 dark:text-slate-200">
@@ -1583,7 +1889,7 @@ onUnmounted(() => {
                   >
                     <Trash2 class="h-3.5 w-3.5" />
                   </button>
-                </button>
+                </div>
 
                 <div
                   v-if="chatSessions.length === 0"

@@ -38,6 +38,8 @@ export interface Project extends TaskProject {
   maxMembers?: number;
   members: ProjectMember[];
   roadmap?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Team {

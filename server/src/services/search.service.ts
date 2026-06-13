@@ -14,6 +14,19 @@ export interface SearchResult {
   publishedAt?: string;
 }
 
+export type SearchEvidenceTier = 'primary' | 'strong' | 'context' | 'weak';
+
+export interface SearchQualitySignal {
+  evidenceTier: SearchEvidenceTier;
+  evidenceType: string;
+  credibilityScore: number;
+  freshnessLabel: string;
+  ageDays: number | null;
+  dateConfidence: 'known' | 'unknown';
+  contentLength: number;
+  signals: string[];
+}
+
 export interface WebSearchOptions {
   includePageContent?: boolean;
   maxResults?: number;
@@ -27,7 +40,7 @@ export interface WebSearchOptions {
 }
 
 /** Maximum number of top results to fetch full page content for. */
-const PAGE_CONTENT_FETCH_LIMIT = 8;
+const PAGE_CONTENT_FETCH_LIMIT = 10;
 
 const DEFAULT_SEARCH_OPTIONS: Required<WebSearchOptions> = {
   includePageContent: true,
@@ -170,6 +183,18 @@ function inferPublishedAt(...values: Array<string | undefined>): string | undefi
   for (const value of values) {
     if (!value) continue;
 
+    const chineseDateMatch = value.match(/\b(20\d{2})年(\d{1,2})月(\d{1,2})日\b/);
+    if (chineseDateMatch) {
+      const year = chineseDateMatch[1];
+      const month = chineseDateMatch[2];
+      const day = chineseDateMatch[3];
+      if (!year || !month || !day) continue;
+      const parsed = parseDateCandidate(
+        `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
+      );
+      if (parsed) return parsed;
+    }
+
     const isoMatch = value.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
     if (isoMatch) {
       const year = isoMatch[1];
@@ -194,6 +219,35 @@ function inferPublishedAt(...values: Array<string | undefined>): string | undefi
   return undefined;
 }
 
+function inferJsonLdPublishedAt($: cheerio.CheerioAPI): string | undefined {
+  let publishedAt: string | undefined;
+
+  $('script[type="application/ld+json"]').each((_, element) => {
+    if (publishedAt) return false;
+    const raw = $(element).contents().text().trim();
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const nodes = Array.isArray(parsed) ? parsed : [parsed];
+      for (const node of nodes) {
+        if (!node || typeof node !== 'object') continue;
+        const record = node as Record<string, unknown>;
+        const candidate =
+          record.datePublished || record.dateModified || record.uploadDate || record.dateCreated;
+        if (typeof candidate === 'string') {
+          publishedAt = parseDateCandidate(candidate) || inferPublishedAt(candidate);
+          if (publishedAt) break;
+        }
+      }
+    } catch {
+      // Ignore malformed JSON-LD; pages often ship multiple incompatible snippets.
+    }
+  });
+
+  return publishedAt;
+}
+
 function isTrustedFreshDomain(domain: string, trustedFreshDomains: string[]): boolean {
   const normalizedDomain = domain.toLowerCase();
   return trustedFreshDomains.some((trustedDomain) => {
@@ -202,6 +256,241 @@ function isTrustedFreshDomain(domain: string, trustedFreshDomains: string[]): bo
       normalizedDomain === normalizedTrusted || normalizedDomain.endsWith(`.${normalizedTrusted}`)
     );
   });
+}
+
+function getSearchResultAgeDays(result: SearchResult, today?: string): number | null {
+  if (!result.publishedAt) return null;
+
+  const publishedTime = new Date(result.publishedAt).getTime();
+  const referenceTime = today ? new Date(`${today}T23:59:59+08:00`).getTime() : Date.now();
+
+  if (Number.isNaN(publishedTime) || Number.isNaN(referenceTime)) return null;
+  return Math.floor((referenceTime - publishedTime) / (24 * 60 * 60 * 1000));
+}
+
+function classifySearchResultEvidence(result: SearchResult): {
+  evidenceTier: SearchEvidenceTier;
+  evidenceType: string;
+  scoreBoost: number;
+  signals: string[];
+} {
+  const domain = (result.domain || '').toLowerCase();
+  const link = (result.link || '').toLowerCase();
+  const title = (result.title || '').toLowerCase();
+  const signals: string[] = [];
+
+  if (
+    domain.endsWith('.gov') ||
+    domain.includes('.gov.') ||
+    domain.endsWith('gov.cn') ||
+    domain.endsWith('.edu') ||
+    domain.includes('.edu.') ||
+    domain.endsWith('edu.cn') ||
+    domain.includes('arxiv.org') ||
+    domain.includes('ietf.org') ||
+    domain.includes('w3.org')
+  ) {
+    signals.push('官方/学术域名');
+    return {
+      evidenceTier: 'primary',
+      evidenceType: '官方/学术/标准来源',
+      scoreBoost: 26,
+      signals,
+    };
+  }
+
+  if (
+    domain.includes('github.com') ||
+    domain.includes('gitlab.com') ||
+    domain.includes('npmjs.com') ||
+    domain.includes('pypi.org') ||
+    domain.includes('crates.io') ||
+    title.includes('release') ||
+    title.includes('changelog') ||
+    link.includes('/releases') ||
+    link.includes('/issues') ||
+    link.includes('/pull/')
+  ) {
+    signals.push('仓库/版本信号');
+    return {
+      evidenceTier: 'primary',
+      evidenceType: '仓库/版本/议题来源',
+      scoreBoost: 23,
+      signals,
+    };
+  }
+
+  if (
+    domain.includes('docs.') ||
+    domain.includes('developer.') ||
+    domain.includes('learn.microsoft.com') ||
+    domain.includes('openai.com') ||
+    domain.includes('anthropic.com') ||
+    domain.includes('google.com') ||
+    domain.includes('cloudflare.com') ||
+    domain.includes('vercel.com') ||
+    domain.includes('vuejs.org') ||
+    domain.includes('vitejs.dev') ||
+    domain.includes('typescriptlang.org') ||
+    title.includes('official') ||
+    title.includes('documentation')
+  ) {
+    signals.push('官方文档信号');
+    return {
+      evidenceTier: 'primary',
+      evidenceType: '官方文档来源',
+      scoreBoost: 22,
+      signals,
+    };
+  }
+
+  if (
+    domain.includes('reuters.com') ||
+    domain.includes('bloomberg.com') ||
+    domain.includes('cnbc.com') ||
+    domain.includes('eastmoney.com') ||
+    domain.includes('sina.com.cn') ||
+    domain.includes('stcn.com') ||
+    domain.includes('cnstock.com') ||
+    domain.includes('cs.com.cn') ||
+    domain.includes('zqrb.cn') ||
+    domain.includes('tradingeconomics.com')
+  ) {
+    signals.push('新闻/数据媒体');
+    return {
+      evidenceTier: 'strong',
+      evidenceType: '新闻/数据媒体来源',
+      scoreBoost: 13,
+      signals,
+    };
+  }
+
+  if (
+    domain.includes('reddit.com') ||
+    domain.includes('zhihu.com') ||
+    domain.includes('x.com') ||
+    domain.includes('twitter.com') ||
+    domain.includes('medium.com') ||
+    domain.includes('youtube.com') ||
+    domain.includes('bilibili.com')
+  ) {
+    signals.push('社区/社媒信号');
+    return {
+      evidenceTier: 'weak',
+      evidenceType: '社区/社媒补充来源',
+      scoreBoost: -16,
+      signals,
+    };
+  }
+
+  return {
+    evidenceTier: 'context',
+    evidenceType: '背景资料来源',
+    scoreBoost: 0,
+    signals,
+  };
+}
+
+function getSearchResultFreshnessLabel(
+  result: SearchResult,
+  recencyDays = 0,
+  today?: string,
+): string {
+  const ageDays = getSearchResultAgeDays(result, today);
+  if (ageDays === null) return recencyDays > 0 ? '日期未知' : '背景资料';
+  if (ageDays < 0) return '未来日期';
+  if (ageDays === 0) return '今日';
+  if (ageDays <= 7) return `${ageDays} 天内`;
+  if (recencyDays && ageDays <= recencyDays) return `${ageDays} 天内`;
+  return `${ageDays} 天前`;
+}
+
+export function assessSearchResultQuality(
+  result: SearchResult,
+  options: Pick<WebSearchOptions, 'recencyDays' | 'requireFreshness' | 'trustedFreshDomains'> & {
+    today?: string;
+  } = {},
+): SearchQualitySignal {
+  const evidence = classifySearchResultEvidence(result);
+  const ageDays = getSearchResultAgeDays(result, options.today);
+  const contentLength = (result.content || result.snippet || '').length;
+  const signals = [...evidence.signals];
+  let score = 45 + evidence.scoreBoost;
+
+  if (result.title) score += 3;
+  if (result.snippet) score += 3;
+  if (result.content) {
+    score += 7;
+    signals.push('已抓取正文');
+  }
+  if (contentLength > 900) score += 4;
+  if (contentLength > 2400) score += 4;
+
+  if (result.publishedAt) {
+    score += 4;
+    signals.push('日期可识别');
+  } else if (options.requireFreshness) {
+    score -= 8;
+    signals.push('日期未知');
+  }
+
+  if (options.recencyDays && ageDays !== null) {
+    if (ageDays < 0) {
+      score -= 6;
+      signals.push('未来日期需核验');
+    } else if (ageDays <= 2) {
+      score += 10;
+      signals.push('近 2 天');
+    } else if (ageDays <= options.recencyDays) {
+      score += 6;
+      signals.push('满足时效窗口');
+    } else {
+      score -= options.requireFreshness ? 24 : 10;
+      signals.push('超出时效窗口');
+    }
+  }
+
+  if (isTrustedFreshDomain(result.domain || '', options.trustedFreshDomains || [])) {
+    score += 8;
+    signals.push('可信实时域名');
+  }
+
+  if (!result.domain) score -= 8;
+  if (result.link.startsWith('http://')) score -= 4;
+
+  return {
+    evidenceTier: evidence.evidenceTier,
+    evidenceType: evidence.evidenceType,
+    credibilityScore: Math.max(0, Math.min(100, Math.round(score))),
+    freshnessLabel: getSearchResultFreshnessLabel(result, options.recencyDays || 0, options.today),
+    ageDays,
+    dateConfidence: result.publishedAt ? 'known' : 'unknown',
+    contentLength,
+    signals: [...new Set(signals)].slice(0, 6),
+  };
+}
+
+function tokenizeQuery(query: string): string[] {
+  return [
+    ...query
+      .toLowerCase()
+      .split(/[^a-z0-9\u4e00-\u9fa5]+/i)
+      .map((term) => term.trim())
+      .filter((term) => term.length >= 2),
+  ].slice(0, 16);
+}
+
+function scoreCandidateForFetch(
+  result: SearchResult,
+  query: string,
+  options: Required<WebSearchOptions>,
+): number {
+  const quality = assessSearchResultQuality(result, options);
+  const haystack = `${result.title} ${result.snippet} ${result.domain}`.toLowerCase();
+  const terms = tokenizeQuery(query);
+  const overlap = terms.filter((term) => haystack.includes(term.toLowerCase())).length;
+
+  return quality.credibilityScore + overlap * 3 + (result.snippet ? 2 : 0);
 }
 
 function isFreshEnough(
@@ -269,11 +558,19 @@ async function fetchPageContent(
     const $ = cheerio.load(response.data);
     const publishedAt = inferPublishedAt(
       $('meta[property="article:published_time"]').attr('content'),
+      $('meta[property="article:modified_time"]').attr('content'),
+      $('meta[property="og:updated_time"]').attr('content'),
       $('meta[name="pubdate"]').attr('content'),
       $('meta[name="publishdate"]').attr('content'),
+      $('meta[name="datePublished"]').attr('content'),
+      $('meta[name="dateModified"]').attr('content'),
       $('meta[name="date"]').attr('content'),
+      $('meta[name="lastmod"]').attr('content'),
+      $('[itemprop="datePublished"]').first().attr('content'),
+      $('[itemprop="dateModified"]').first().attr('content'),
       $('time[datetime]').first().attr('datetime'),
       $('time').first().text(),
+      inferJsonLdPublishedAt($),
     );
 
     $('script, style, nav, footer, iframe, header, noscript').remove();
@@ -835,11 +1132,26 @@ export async function performWebSearch(
     results = dedupeResults(results);
   }
 
-  if (!mergedOptions.includePageContent || results.length === 0) {
-    return results.slice(0, mergedOptions.maxResults);
+  const rankedResults = [...results].sort(
+    (a, b) =>
+      scoreCandidateForFetch(b, query, mergedOptions) -
+      scoreCandidateForFetch(a, query, mergedOptions),
+  );
+
+  if (!mergedOptions.includePageContent || rankedResults.length === 0) {
+    return rankedResults
+      .filter((result) =>
+        isFreshEnough(
+          result,
+          mergedOptions.recencyDays,
+          mergedOptions.requireFreshness,
+          mergedOptions.trustedFreshDomains,
+        ),
+      )
+      .slice(0, mergedOptions.maxResults);
   }
 
-  const candidateResults = results.slice(0, mergedOptions.maxResults * 2);
+  const candidateResults = rankedResults.slice(0, mergedOptions.maxResults * 3);
 
   await Promise.allSettled(
     candidateResults
@@ -864,6 +1176,11 @@ export async function performWebSearch(
         mergedOptions.trustedFreshDomains,
       ),
     )
+    .sort(
+      (a, b) =>
+        assessSearchResultQuality(b, mergedOptions).credibilityScore -
+        assessSearchResultQuality(a, mergedOptions).credibilityScore,
+    )
     .slice(0, mergedOptions.maxResults);
 }
 
@@ -875,10 +1192,14 @@ export function formatSearchResultsAsPrompt(results: SearchResult[], title: stri
   const lines = [`${title}`];
 
   results.forEach((result, index) => {
+    const quality = assessSearchResultQuality(result);
     lines.push(
       `[${index + 1}] ${result.title}`,
       `URL: ${result.link}`,
       `Domain: ${result.domain || 'unknown'}`,
+      `Evidence: ${quality.evidenceTier} / ${quality.evidenceType}`,
+      `Quality: ${quality.credibilityScore}/100; Freshness: ${quality.freshnessLabel}; Date: ${quality.dateConfidence}`,
+      quality.signals.length > 0 ? `Signals: ${quality.signals.join(', ')}` : 'Signals: none',
       result.publishedAt ? `Published: ${result.publishedAt.slice(0, 10)}` : 'Published: unknown',
       `Summary: ${result.snippet || 'No summary available.'}`,
     );

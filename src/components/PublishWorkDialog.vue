@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
-import { X, Box, UploadCloud, Image, Film, FileText, File, Puzzle } from 'lucide-vue-next';
+import { computed, ref, onMounted, watch, defineAsyncComponent } from 'vue';
+import { X, Box, UploadCloud, Image, Film, FileText, File, Puzzle, Check } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { useI18n } from 'vue-i18n';
@@ -12,8 +12,11 @@ const { t } = useI18n();
 
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
 
+type PublishCategory = 'model' | 'asset' | 'work' | 'plugin';
+
 const props = defineProps<{
   modelValue: boolean;
+  defaultCategory?: PublishCategory;
 }>();
 
 const emit = defineEmits<{
@@ -34,11 +37,50 @@ interface AssetCategory {
 }
 
 const isPublishing = ref(false);
-const publishCategory = ref<'model' | 'asset' | 'work' | 'plugin'>('work');
+const publishCategory = ref<PublishCategory>('work');
 const myApprovedAssets = ref<ApprovedAsset[]>([]);
 const selectedAssetId = ref('');
 const assetCategories = ref<AssetCategory[]>([]);
 const { isMobile } = useMobile();
+
+const activeCategoryLabel = computed(() => {
+  switch (publishCategory.value) {
+    case 'model':
+      return '关联模型作品';
+    case 'asset':
+      return '上传模型资产';
+    case 'plugin':
+      return '上传创作插件';
+    default:
+      return '发布作品展示';
+  }
+});
+
+const publishReadiness = computed(() => {
+  const checks = [
+    { label: '标题', done: !!publishForm.value.title.trim() },
+    {
+      label: '内容说明',
+      done:
+        !!publishForm.value.description.trim() ||
+        (publishCategory.value === 'plugin' && !!publishForm.value.pluginInstallGuide.trim()),
+    },
+    {
+      label: '素材',
+      done:
+        (publishCategory.value === 'model' && !!selectedAssetId.value) ||
+        (publishCategory.value === 'asset' && !!publishForm.value.assetFile) ||
+        (publishCategory.value === 'plugin' && !!publishForm.value.pluginFile) ||
+        (publishCategory.value === 'work' &&
+          (publishForm.value.type === 'TEXT' || !!publishForm.value.thumbnail)),
+    },
+  ];
+  const doneCount = checks.filter((item) => item.done).length;
+  return {
+    checks,
+    percent: Math.round((doneCount / checks.length) * 100),
+  };
+});
 
 const publishForm = ref({
   title: '',
@@ -116,7 +158,17 @@ watch(
   () => props.modelValue,
   async (val) => {
     if (val) {
+      publishCategory.value = props.defaultCategory || 'work';
       await Promise.all([fetchMyApprovedAssets(), fetchCategories()]);
+    }
+  },
+);
+
+watch(
+  () => props.defaultCategory,
+  (category) => {
+    if (props.modelValue && category) {
+      publishCategory.value = category;
     }
   },
 );
@@ -304,6 +356,7 @@ const closeDialog = () => {
 
 onMounted(() => {
   if (props.modelValue) {
+    publishCategory.value = props.defaultCategory || 'work';
     fetchMyApprovedAssets();
     fetchCategories();
   }
@@ -315,26 +368,47 @@ onMounted(() => {
     <div v-if="modelValue" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeDialog"></div>
       <div
-        class="relative w-full max-w-[95vw] md:max-w-[80vw] max-h-[90vh] overflow-y-auto p-5 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl scrollbar-hide"
+        class="relative w-full max-w-[95vw] md:max-w-[1180px] max-h-[90vh] overflow-y-auto p-4 md:p-5 rounded-xl shadow-2xl scrollbar-hide publish-dialog-shell"
         style="background-color: var(--bg-card)"
       >
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-xl font-bold" style="color: var(--text-primary)">
-            {{ t('publishDialog.title') }}
-          </h3>
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-lg font-black leading-tight" style="color: var(--text-primary)">
+              {{ t('publishDialog.title') }}
+            </h3>
+            <p class="text-xs mt-1" style="color: var(--text-muted)">
+              {{ activeCategoryLabel }} · 完成度 {{ publishReadiness.percent }}%
+            </p>
+          </div>
           <button type="button" style="color: var(--text-secondary)" @click="closeDialog">
             <X class="w-5 h-5" />
           </button>
         </div>
 
+        <div class="publish-progress-panel">
+          <div class="publish-progress-track">
+            <span :style="{ width: `${publishReadiness.percent}%` }"></span>
+          </div>
+          <div class="publish-checks">
+            <span
+              v-for="check in publishReadiness.checks"
+              :key="check.label"
+              :class="{ done: check.done }"
+            >
+              <Check class="w-3 h-3" />
+              {{ check.label }}
+            </span>
+          </div>
+        </div>
+
         <!-- Category Tabs -->
         <div
-          class="flex items-center gap-2 p-1 rounded-xl mb-6 overflow-x-auto whitespace-nowrap scrollbar-hide"
+          class="flex items-center gap-2 p-1 rounded-lg mb-4 overflow-x-auto whitespace-nowrap scrollbar-hide"
           style="background-color: var(--bg-app)"
         >
           <button
             type="button"
-            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'model' ? 'bg-indigo-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'model' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'model'"
@@ -344,7 +418,7 @@ onMounted(() => {
           </button>
           <button
             type="button"
-            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'asset' ? 'bg-indigo-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'asset' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'asset'"
@@ -354,7 +428,7 @@ onMounted(() => {
           </button>
           <button
             type="button"
-            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'work' ? 'bg-indigo-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'work' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'work'"
@@ -364,7 +438,7 @@ onMounted(() => {
           </button>
           <button
             type="button"
-            class="flex-none md:flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            class="flex-none md:flex-1 px-3 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5"
             :class="publishCategory === 'plugin' ? 'bg-violet-600 text-white shadow-md' : ''"
             :style="publishCategory !== 'plugin' ? 'color: var(--text-secondary)' : ''"
             @click="publishCategory = 'plugin'"
@@ -445,7 +519,7 @@ onMounted(() => {
                 <MarkdownEditor
                   v-model="publishForm.description"
                   :placeholder="t('publishDialog.descriptionPlaceholder')"
-                  :height="isMobile ? '300px' : '350px'"
+                  :height="isMobile ? '280px' : '300px'"
                   simple
                 />
               </div>
@@ -556,7 +630,7 @@ onMounted(() => {
                 <MarkdownEditor
                   v-model="publishForm.description"
                   :placeholder="t('publishDialog.descriptionPlaceholder')"
-                  :height="isMobile ? '300px' : '350px'"
+                  :height="isMobile ? '280px' : '300px'"
                   simple
                 />
               </div>
@@ -703,7 +777,7 @@ onMounted(() => {
               <MarkdownEditor
                 v-model="publishForm.description"
                 :placeholder="t('publishDialog.descriptionPlaceholder')"
-                :height="isMobile ? '400px' : '500px'"
+                :height="isMobile ? '320px' : '360px'"
                 simple
               />
             </div>
@@ -784,11 +858,11 @@ onMounted(() => {
             <div class="space-y-4">
               <div>
                 <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">插件简介</label>
-                <MarkdownEditor v-model="publishForm.description" placeholder="简单描述插件的功能和用途" :height="isMobile ? '200px' : '250px'" simple />
+                <MarkdownEditor v-model="publishForm.description" placeholder="简单描述插件的功能和用途" :height="isMobile ? '180px' : '210px'" simple />
               </div>
               <div>
                 <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">安装说明（Markdown）</label>
-                <MarkdownEditor v-model="publishForm.pluginInstallGuide" placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..." :height="isMobile ? '200px' : '240px'" simple />
+                <MarkdownEditor v-model="publishForm.pluginInstallGuide" placeholder="步骤 1: 解压 zip 文件&#10;步骤 2: 在 Blender 首选项中安装..." :height="isMobile ? '180px' : '210px'" simple />
               </div>
             </div>
           </div>
@@ -798,7 +872,7 @@ onMounted(() => {
         <button
           type="button"
           :disabled="isPublishing"
-          class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+          class="sticky bottom-0 z-10 w-full py-3 mt-4 bg-indigo-600 text-white rounded-lg font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 publish-submit"
           @click="handlePublish"
         >
           <div
@@ -834,5 +908,61 @@ onMounted(() => {
   box-shadow: none !important;
   border: 1px solid var(--border-base);
   height: 44px;
+}
+.publish-dialog-shell {
+  border: 1px solid var(--border-base);
+}
+.publish-progress-panel {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+}
+.publish-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+}
+.publish-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #059669);
+  transition: width 0.2s ease;
+}
+.publish-checks {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.publish-checks span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  font-size: 11px;
+  font-weight: 800;
+}
+.publish-checks span.done {
+  color: #059669;
+}
+.publish-submit {
+  box-shadow: 0 -8px 20px color-mix(in srgb, var(--bg-card) 86%, transparent);
+}
+@media (max-width: 768px) {
+  .publish-progress-panel {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

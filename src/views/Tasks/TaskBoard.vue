@@ -689,7 +689,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
           </button>
         </div>
 
-        <button type="button" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all" @click="router.push({ path: '/team-tasks', query: { openCreate: 'true' } })">
+        <button type="button" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200/50 dark:hover:bg-white/10 transition-all" @click="router.push({ path: '/projects', query: { openCreate: 'true' } })">
           <FolderPlus class="w-3.5 h-3.5 text-slate-500" /> {{ t('tasks.newProject') }}
         </button>
 
@@ -1042,7 +1042,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
     <!-- Global Empty State -->
     <div
       v-if="tasks.length === 0"
-      class="py-20 flex flex-col items-center justify-center bg-card rounded-2xl border"
+      class="task-empty-state py-20 flex flex-col items-center justify-center bg-card rounded-2xl border"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div
@@ -1060,7 +1060,7 @@ type="button" class="p-1 rounded-md transition-all" :class="
     <!-- Filtered Empty State -->
     <div
       v-if="tasks.length > 0 && filteredTasks.length === 0"
-      class="py-20 flex flex-col items-center justify-center bg-card rounded-2xl border text-center"
+      class="task-empty-state py-20 flex flex-col items-center justify-center bg-card rounded-2xl border text-center"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
       <div
@@ -1213,23 +1213,34 @@ type="button" class="p-1 rounded-md transition-all" :class="
 
 @media (max-width: 767px) {
   .task-filter-bar {
-    align-items: stretch;
-    gap: 0.75rem;
-    padding-top: 0.625rem;
-    padding-bottom: 0.625rem;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.75rem;
   }
 
   .task-filter-bar button {
-    min-height: 2.25rem;
-    padding: 0.375rem 0.625rem;
-    font-size: 0.6875rem;
-    line-height: 1rem;
+    min-height: 1.75rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.625rem;
+    line-height: 0.875rem;
   }
 
   .task-filter-bar input,
   .task-filter-bar :deep(.el-input__wrapper),
   .task-filter-bar :deep(.el-select__wrapper) {
-    min-height: 2.5rem;
+    min-height: 2rem;
+  }
+
+  .task-empty-state {
+    margin: 0 0.75rem 0.75rem;
+    padding: 1.5rem 0.75rem !important;
+    border-radius: 12px;
+  }
+
+  .task-empty-state > div:first-child {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-bottom: 0.75rem;
   }
 }
 </style>

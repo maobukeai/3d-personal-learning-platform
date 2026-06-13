@@ -6,6 +6,7 @@ import { sendEmail } from '../../utils/email';
 import { sanitizeUser } from '../../utils/auth';
 import { auditService, AuditModule, AuditAction } from '../../services/audit.service';
 import { AppError } from '../../middlewares/error.middleware';
+import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   const { email, password, name, verificationCode } = req.body;
@@ -38,7 +39,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 使用事务同时创建用户、个人团队和加入公共团队
+    // 使用事务同时创建用户和个人工作区
     await prisma.$transaction(
       async (tx) => {
         const user = await tx.user.create({
@@ -50,21 +51,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           },
         });
 
-        // 1. 创建个人工作区（PERSONAL 类型团队）
-        const personalTeam = await tx.team.create({
-          data: {
-            name: `${name || user.email} 的个人空间`,
-            description: '个人专属创作与协作空间',
-            type: 'PERSONAL',
-            visibility: 'PRIVATE',
-            ownerId: user.id,
-            members: {
-              create: {
-                userId: user.id,
-                role: 'OWNER',
-              },
-            },
-          },
+        const { personalTeam } = await provisionUserWorkspaces(tx, {
+          userId: user.id,
+          displayName: name || user.email,
         });
 
         await auditService.log({

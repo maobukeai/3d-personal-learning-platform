@@ -13,10 +13,13 @@ import {
   EyeOff,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { locale } = useI18n();
+const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 
 const email = ref('');
 const isLoading = ref(false);
@@ -32,7 +35,7 @@ const forgotForm = ref({
 
 const handleCheckEmail = async () => {
   if (!email.value) {
-    ElMessage.warning('请输入你的注册邮箱');
+    ElMessage.warning(label('请输入你的注册邮箱', 'Please enter your registered email'));
     return;
   }
 
@@ -41,12 +44,12 @@ const handleCheckEmail = async () => {
     const data = await authStore.forgotPasswordCheck(email.value);
     if (data.twoFactorEnabled) {
       step.value = 2;
-      ElMessage.info('验证码已发送，请同时输入邮箱验证码和 2FA 验证码');
+      ElMessage.info(label('验证码已发送，请同时输入邮箱验证码和 2FA 验证码', 'Code sent. Enter both the email code and 2FA code.'));
     } else {
-      ElMessage.warning('该账户未启用两步验证，邮箱验证功能开发中，请联系管理员');
+      ElMessage.warning(label('该账户未启用两步验证，邮箱验证功能开发中，请联系管理员', 'This account has no 2FA. Email-only recovery is not ready; please contact an administrator.'));
     }
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '无法验证邮箱'));
+    ElMessage.error(getApiErrorMessage(error, label('无法验证邮箱', 'Unable to verify email')));
   } finally {
     isLoading.value = false;
   }
@@ -54,12 +57,12 @@ const handleCheckEmail = async () => {
 
 const handleResetWith2FA = async () => {
   if (!forgotForm.value.resetCode || !forgotForm.value.twoFactorCode || !forgotForm.value.newPassword) {
-    ElMessage.warning('请填写所有必填项');
+    ElMessage.warning(label('请填写所有必填项', 'Please complete all required fields'));
     return;
   }
 
   if (forgotForm.value.newPassword !== forgotForm.value.confirmPassword) {
-    ElMessage.error('两次输入的密码不一致');
+    ElMessage.error(label('两次输入的密码不一致', 'Passwords do not match'));
     return;
   }
 
@@ -72,9 +75,9 @@ const handleResetWith2FA = async () => {
       newPassword: forgotForm.value.newPassword,
     });
     step.value = 3;
-    ElMessage.success('密码已成功重置');
+    ElMessage.success(label('密码已成功重置', 'Password reset successfully'));
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '重置失败，验证码可能不正确'));
+    ElMessage.error(getApiErrorMessage(error, label('重置失败，验证码可能不正确', 'Reset failed. The code may be incorrect.')));
   } finally {
     isLoading.value = false;
   }
@@ -101,10 +104,11 @@ const handleResetWith2FA = async () => {
 
           <!-- Step 1: Input Email -->
           <div v-if="step === 1" class="w-full">
-            <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">忘记密码了？</h1>
+            <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">{{ label('忘记密码了？', 'Forgot Password?') }}</h1>
             <p class="text-sm mb-8 leading-relaxed" style="color: var(--text-secondary)">
-              请输入你的注册邮箱。目前支持通过
-              <span class="text-accent font-bold">两步验证 (2FA)</span> 找回密码。
+              {{ label('请输入你的注册邮箱。目前支持通过', 'Enter your registered email. Recovery currently uses') }}
+              <span class="text-accent font-bold">{{ label('两步验证 (2FA)', 'two-factor verification (2FA)') }}</span>
+              {{ label('找回密码。', 'to reset your password.') }}
             </p>
 
             <div class="w-full space-y-6">
@@ -112,7 +116,7 @@ const handleResetWith2FA = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >注册邮箱</label
+                  >{{ label('注册邮箱', 'Registered Email') }}</label
                 >
                 <div class="relative">
                   <Mail
@@ -135,7 +139,7 @@ const handleResetWith2FA = async () => {
               </div>
 
               <button type="button" :disabled="isLoading" class="w-full bg-accent text-white py-4 rounded-lg font-bold shadow-sm hover:bg-accent-hover transition-colors flex items-center justify-center gap-2" @click="handleCheckEmail">
-                <span v-if="!isLoading">继续</span>
+                <span v-if="!isLoading">{{ label('继续', 'Continue') }}</span>
                 <span
                   v-else
                   class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -147,9 +151,9 @@ const handleResetWith2FA = async () => {
 
           <!-- Step 2: 2FA and New Password -->
           <div v-else-if="step === 2" class="w-full">
-            <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">身份验证</h1>
+            <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">{{ label('身份验证', 'Verify Identity') }}</h1>
             <p class="text-sm mb-8 leading-relaxed" style="color: var(--text-secondary)">
-              请输入身份验证器中的 6 位动态验证码，并设置你的新密码。
+              {{ label('请输入身份验证器中的 6 位动态验证码，并设置你的新密码。', 'Enter the 6-digit authenticator code and set your new password.') }}
             </p>
 
             <div class="w-full space-y-5">
@@ -157,7 +161,7 @@ const handleResetWith2FA = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >邮箱验证码</label
+                  >{{ label('邮箱验证码', 'Email Code') }}</label
                 >
                 <div class="relative">
                   <Shield
@@ -184,7 +188,7 @@ const handleResetWith2FA = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >2FA 验证码</label
+                  >{{ label('2FA 验证码', '2FA Code') }}</label
                 >
                 <div class="relative">
                   <Shield
@@ -211,7 +215,7 @@ const handleResetWith2FA = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >新密码</label
+                  >{{ label('新密码', 'New Password') }}</label
                 >
                 <div class="relative">
                   <Lock
@@ -221,7 +225,7 @@ const handleResetWith2FA = async () => {
                   <input
                     v-model="forgotForm.newPassword"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="至少 8 位字符"
+                    :placeholder="label('至少 8 位字符', 'At least 8 characters')"
                     class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
                       background-color: var(--bg-app);
@@ -240,7 +244,7 @@ const handleResetWith2FA = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >确认新密码</label
+                  >{{ label('确认新密码', 'Confirm Password') }}</label
                 >
                 <div class="relative">
                   <Lock
@@ -250,7 +254,7 @@ const handleResetWith2FA = async () => {
                   <input
                     v-model="forgotForm.confirmPassword"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="再次输入新密码"
+                    :placeholder="label('再次输入新密码', 'Enter new password again')"
                     class="w-full pl-11 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
                       background-color: var(--bg-app);
@@ -262,7 +266,7 @@ const handleResetWith2FA = async () => {
               </div>
 
               <button type="button" :disabled="isLoading" class="w-full bg-accent text-white py-4 rounded-lg font-bold shadow-sm hover:bg-accent-hover transition-colors flex items-center justify-center gap-2" @click="handleResetWith2FA">
-                <span v-if="!isLoading">重置密码</span>
+                <span v-if="!isLoading">{{ label('重置密码', 'Reset Password') }}</span>
                 <span
                   v-else
                   class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -270,19 +274,19 @@ const handleResetWith2FA = async () => {
               </button>
 
               <button type="button" class="w-full py-2 text-xs font-bold hover:text-accent transition-colors" style="color: var(--text-secondary)" @click="step = 1">
-                返回修改邮箱
+                {{ label('返回修改邮箱', 'Change Email') }}
               </button>
             </div>
           </div>
 
           <!-- Step 3: Success State -->
           <div v-else class="w-full">
-            <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">重置成功！</h1>
+            <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">{{ label('重置成功！', 'Reset Complete') }}</h1>
             <p class="text-sm mb-8 leading-relaxed" style="color: var(--text-secondary)">
-              你的账号密码已成功更新。现在你可以使用新密码重新登录平台了。
+              {{ label('你的账号密码已成功更新。现在你可以使用新密码重新登录平台了。', 'Your password has been updated. You can now sign in with the new password.') }}
             </p>
             <button type="button" class="w-full bg-accent text-white py-4 rounded-lg font-bold shadow-sm hover:bg-accent-hover transition-colors flex items-center justify-center gap-2" @click="router.push('/login')">
-              前往登录
+              {{ label('前往登录', 'Go to Login') }}
               <ArrowRight class="w-4 h-4" />
             </button>
           </div>
@@ -294,14 +298,14 @@ const handleResetWith2FA = async () => {
               style="color: var(--text-secondary)"
             >
               <ArrowLeft class="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-              返回登录页面
+              {{ label('返回登录页面', 'Back to Login') }}
             </RouterLink>
           </div>
         </div>
       </div>
 
       <p class="text-center mt-8 text-xs" style="color: var(--text-secondary)">
-        需要更多帮助？<a href="#" class="text-accent hover:underline">联系技术支持</a>
+        {{ label('需要更多帮助？', 'Need more help?') }}<a href="#" class="text-accent hover:underline">{{ label('联系技术支持', 'Contact support') }}</a>
       </p>
     </div>
   </div>

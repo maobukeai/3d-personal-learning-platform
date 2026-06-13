@@ -44,6 +44,11 @@ router.post(
 router.use(authenticate);
 
 router.get('/ai-chat/usage', projectAiController.getAiUsage);
+router.post('/ai-chat/runs/:runId/stop', projectAiController.stopAiChatRun);
+router.get('/ai-chat/runs/:runId/status', projectAiController.getAiChatRunStatus);
+router.get('/ai-chat/sessions', projectAiController.getAiChatSessions);
+router.patch('/ai-chat/sessions/:sessionId', projectAiController.updateAiChatSession);
+router.post('/ai-chat/sessions/:sessionId/summary', projectAiController.summarizeAiChatSession);
 router.get('/ai-chat/history', projectAiController.getAiChatHistory);
 router.delete('/ai-chat/history', projectAiController.clearAiChatHistory);
 
@@ -54,6 +59,18 @@ router.post('/ai-generate', aiRateLimiter, projectAiController.aiGenerateProject
 router.post('/parse-netdisk', aiRateLimiter, projectAiController.parseNetdiskLink);
 router.post('/co-plan-chat', aiRateLimiter, projectAiController.coPlanChatStream);
 router.post('/import-json', projectAiController.importProjectFromJson);
+router.post(
+  '/discussion-image-uploads',
+  upload.single('images'),
+  validateFileContent,
+  projectController.uploadDiscussionAttachment,
+);
+router.post(
+  '/discussion-file-uploads',
+  upload.single('message_file'),
+  validateFileContent,
+  projectController.uploadDiscussionAttachment,
+);
 router.get('/:id', projectController.getProjectById);
 router.put('/:id', projectController.updateProject);
 router.delete('/:id', projectController.deleteProject);

@@ -43,7 +43,7 @@ const openMemberProfile = (member: ProjectMember) => {
   >
     <!-- Back & Title -->
     <div class="p-8 pb-4">
-      <button type="button" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-accent hover:scale-110 transition-all mb-8 cursor-pointer" @click="router.push('/team-tasks')">
+      <button type="button" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-accent hover:scale-110 transition-all mb-8 cursor-pointer" @click="router.push('/projects')">
         <ArrowLeft class="w-5 h-5" />
       </button>
 

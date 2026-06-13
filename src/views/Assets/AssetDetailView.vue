@@ -2,16 +2,18 @@
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
+  AlertTriangle,
   Box,
   Calendar,
   Camera,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   Cuboid,
   Download,
   ExternalLink,
   Eye,
+  Gauge,
+  GitCompare,
   Grid2X2,
   History,
   Image as ImageIcon,
@@ -20,7 +22,6 @@ import {
   Maximize2,
   MessageSquare,
   MoreHorizontal,
-  MousePointer2,
   Move3D,
   PackageCheck,
   Plus,
@@ -29,18 +30,29 @@ import {
   Settings,
   Share2,
   ShieldCheck,
+  Smartphone,
   Star,
   Trash2,
   UploadCloud,
   User,
+  Wand2,
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
 import type { Asset } from '@/types';
 
-type ViewMode = 'solid' | 'wireframe';
-type PanelId = 'overview' | 'preview' | 'textures' | 'usage' | 'versions' | 'comments';
+type ViewMode = 'solid' | 'wireframe' | 'solid+wireframe';
+type CameraPresetKey = 'iso' | 'front' | 'side' | 'top';
+type PanelId =
+  | 'overview'
+  | 'preview'
+  | 'textures'
+  | 'usage'
+  | 'versions'
+  | 'compare'
+  | 'performance'
+  | 'comments';
 
 type ModelViewerExpose = {
   setViewMode?: (mode: ViewMode) => void;
@@ -48,6 +60,7 @@ type ModelViewerExpose = {
   isClayMode?: boolean;
   resetCamera?: () => void;
   takeScreenshot?: (download?: boolean) => string | null;
+  toggleFullscreen?: () => void;
   getCameraState?: () => {
     position: { x: number; y: number; z: number };
     target: { x: number; y: number; z: number };
@@ -67,9 +80,38 @@ type ModelStats = {
   maxTextureRes?: number;
 };
 
+type PerformanceTone = 'pass' | 'notice' | 'warning' | 'danger';
+
+type PerformanceReport = {
+  score: number;
+  level: PerformanceTone;
+  mobileRisk: 'safe' | 'low' | 'medium' | 'high';
+  summary: string;
+  metrics: {
+    faces: number;
+    vertices: number;
+    materials: number;
+    size: number;
+    maxTextureRes: number;
+    animations: number;
+    hasAnimations: boolean;
+    dimensions: string;
+  };
+  risks: Array<{
+    metric: string;
+    label: string;
+    value: number;
+    unit: string;
+    tone: PerformanceTone;
+    message: string;
+    recommendation: string;
+  }>;
+};
+
 type AssetDetail = Asset & {
   formats?: string[] | string | null;
   maxTextureRes?: number | null;
+  performanceReport?: PerformanceReport | null;
 };
 
 type AssetVersion = {
@@ -85,6 +127,8 @@ type AssetVersion = {
   changeLog: string | null;
   createdAt: string;
   user?: { name: string; avatarUrl: string | null };
+  performanceReport?: PerformanceReport | null;
+  comparison?: Record<string, { current: number; previous: number; delta: number }> | null;
 };
 
 type AssetAnnotation = {
@@ -114,14 +158,18 @@ const currentUserId = ref('');
 const activePanel = ref<PanelId>('overview');
 const versions = ref<AssetVersion[]>([]);
 const annotations = ref<AssetAnnotation[]>([]);
+const canAnnotate = ref(false);
+const performanceReport = ref<PerformanceReport | null>(null);
 const isAddingAnnotation = ref(false);
 const annotationCoords = ref<{ x: number; y: number; z: number } | null>(null);
 const newAnnotationText = ref('');
 const newVersionFile = ref<File | null>(null);
 const newVersionChangeLog = ref('');
 const isUploadingVersion = ref(false);
-const selectedPreview = ref('model');
+const isSavingCover = ref(false);
 const isClayMode = ref(false);
+const compareBaseId = ref('current');
+const compareTargetId = ref('');
 
 const viewerConfig = ref({
   autoRotate: false,
@@ -134,8 +182,12 @@ const modelTypes = ['GLB', 'GLTF', 'FBX', 'OBJ', 'STL'];
 
 const fetchAsset = async () => {
   try {
-    const response = await api.get(`/api/assets/${assetId}`);
-    asset.value = response.data;
+    const response = await api.get(`/api/assets/${assetId}/toolkit`);
+    const payload = response.data || {};
+    asset.value = payload.asset;
+    versions.value = payload.versions || [];
+    canAnnotate.value = !!payload.canAnnotate;
+    performanceReport.value = payload.asset?.performanceReport || null;
     if (asset.value) {
       modelStats.value = {
         vertices: asset.value.vertices || 0,
@@ -146,20 +198,14 @@ const fetchAsset = async () => {
         maxTextureRes: asset.value.maxTextureRes || 0,
       };
     }
+    if (!compareTargetId.value && versions.value.length > 0) {
+      compareTargetId.value = versions.value[0].id;
+    }
   } catch {
     ElMessage.error('资产详情加载失败');
     router.replace('/assets');
   } finally {
     isLoading.value = false;
-  }
-};
-
-const fetchVersions = async () => {
-  try {
-    const response = await api.get(`/api/assets/${assetId}/versions`);
-    versions.value = response.data || [];
-  } catch (error) {
-    console.error('Failed to fetch versions:', error);
   }
 };
 
@@ -183,7 +229,6 @@ const fetchCurrentUser = async () => {
 
 onMounted(() => {
   fetchAsset();
-  fetchVersions();
   fetchAnnotations();
   fetchCurrentUser();
 });
@@ -215,6 +260,98 @@ const reviewStatus = computed(() => {
   if (status === 'APPROVED') return { label: '已通过', tone: 'success' };
   if (status === 'REJECTED') return { label: '已拒绝', tone: 'danger' };
   return { label: '待审核', tone: 'warning' };
+});
+
+const buildLocalPerformanceReport = (): PerformanceReport => {
+  const faces = modelStats.value?.faces || 0;
+  const vertices = modelStats.value?.vertices || 0;
+  const materials = modelStats.value?.materials || 0;
+  const size = asset.value?.size || 0;
+  const maxTextureRes = modelStats.value?.maxTextureRes || 0;
+  const risks: PerformanceReport['risks'] = [];
+
+  const riskTone = (value: number, notice: number, warning: number, danger: number): PerformanceTone => {
+    if (value > danger) return 'danger';
+    if (value > warning) return 'warning';
+    if (value > notice) return 'notice';
+    return 'pass';
+  };
+
+  risks.push({
+    metric: 'faces',
+    label: '面数',
+    value: faces,
+    unit: 'faces',
+    tone: riskTone(faces, 60000, 120000, 250000),
+    message: faces > 120000 ? '面数偏高，实时预览压力较大' : '面数处于可控范围',
+    recommendation: '高面数模型建议拆分 LOD，并准备移动端轻量版本。',
+  });
+  risks.push({
+    metric: 'texture',
+    label: '最大贴图',
+    value: maxTextureRes,
+    unit: 'px',
+    tone: riskTone(maxTextureRes, 1024, 2048, 4096),
+    message: maxTextureRes > 2048 ? '贴图分辨率偏高，移动端显存风险增加' : '贴图尺寸适合网页预览',
+    recommendation: '网页封面与移动端预览建议压缩到 1K/2K 分档。',
+  });
+  risks.push({
+    metric: 'size',
+    label: '文件体积',
+    value: size,
+    unit: 'MB',
+    tone: riskTone(size, 60, 120, 250),
+    message: size > 120 ? '文件体积偏大，下载与首屏加载较慢' : '文件体积处于可分发范围',
+    recommendation: '启用 Draco/Meshopt 压缩，并清理未使用贴图。',
+  });
+
+  const penalties: Record<PerformanceTone, number> = { pass: 0, notice: 8, warning: 18, danger: 30 };
+  const score = Math.max(0, 100 - risks.reduce((total, risk) => total + penalties[risk.tone], 0));
+  const level = risks.some((risk) => risk.tone === 'danger')
+    ? 'danger'
+    : risks.some((risk) => risk.tone === 'warning')
+      ? 'warning'
+      : risks.some((risk) => risk.tone === 'notice')
+        ? 'notice'
+        : 'pass';
+
+  return {
+    score,
+    level,
+    mobileRisk: level === 'danger' ? 'high' : level === 'warning' ? 'medium' : level === 'notice' ? 'low' : 'safe',
+    summary: level === 'pass' ? '适合网页和移动端预览' : '存在可优化项，建议发布前处理',
+    metrics: {
+      faces,
+      vertices,
+      materials,
+      size,
+      maxTextureRes,
+      animations: modelStats.value?.animations || 0,
+      hasAnimations: !!asset.value?.hasAnimations,
+      dimensions: modelStats.value?.dimensions || '',
+    },
+    risks,
+  };
+};
+
+const activePerformanceReport = computed(() =>
+  performanceReport.value || asset.value?.performanceReport || buildLocalPerformanceReport(),
+);
+
+const performanceToneLabel = computed(() => {
+  const tone = activePerformanceReport.value.level;
+  if (tone === 'danger') return '高风险';
+  if (tone === 'warning') return '需优化';
+  if (tone === 'notice') return '可改进';
+  return '健康';
+});
+
+const mobileRiskLabel = computed(() => {
+  const risk = activePerformanceReport.value.mobileRisk;
+  if (risk === 'high') return '移动端高风险';
+  if (risk === 'medium') return '移动端需优化';
+  if (risk === 'low') return '移动端轻微风险';
+  return '移动端安全';
 });
 
 const viewerHotspots = computed(() =>
@@ -257,13 +394,29 @@ const fileInfo = computed(() => [
 ]);
 
 const panels = computed(() => [
-  { id: 'overview', label: '资源概览', desc: '资源基础信息与展示', icon: Cuboid },
-  { id: 'preview', label: '预览图', desc: '多视角缩略图', icon: ImageIcon },
-  { id: 'textures', label: '贴图通道', desc: 'BaseColor / Normal 等', icon: Layers3 },
-  { id: 'usage', label: '使用说明', desc: '使用建议与注意事项', icon: Info },
-  { id: 'versions', label: '版本历史', desc: `${versions.value.length || 1} 个历史版本`, icon: History },
-  { id: 'comments', label: `评论 (${annotations.value.length})`, desc: '用户交流与反馈', icon: MessageSquare },
+  { id: 'overview', label: '模型档案', desc: '资产说明与发布信息', icon: Cuboid },
+  { id: 'preview', label: '视图快照', desc: '封面 / 白模 / 线框', icon: ImageIcon },
+  { id: 'textures', label: '材质贴图', desc: 'PBR 通道与贴图规模', icon: Layers3 },
+  { id: 'usage', label: '制作说明', desc: '软件链路与使用建议', icon: Info },
+  { id: 'versions', label: '版本库', desc: `${versions.value.length || 1} 个历史版本`, icon: History },
+  { id: 'compare', label: '拓扑对比', desc: '版本指标差异', icon: GitCompare },
+  { id: 'performance', label: '实时体检', desc: performanceToneLabel.value, icon: Gauge },
+  { id: 'comments', label: `空间批注 (${annotations.value.length})`, desc: '坐标评论与反馈', icon: MessageSquare },
 ] as const);
+
+const viewerTelemetry = computed(() => [
+  { label: '面数', value: formatNumber(modelStats.value?.faces) },
+  { label: '材质', value: formatNumber(modelStats.value?.materials) },
+  { label: '动画', value: `${formatNumber(modelStats.value?.animations)} 段` },
+  { label: '贴图', value: modelStats.value?.maxTextureRes ? `${modelStats.value.maxTextureRes}px` : '未解析' },
+]);
+
+const cameraPresets: Array<{ key: CameraPresetKey; label: string; value: string }> = [
+  { key: 'iso', label: '等轴', value: 'ISO' },
+  { key: 'front', label: '正视', value: 'FRONT' },
+  { key: 'side', label: '侧视', value: 'SIDE' },
+  { key: 'top', label: '俯视', value: 'TOP' },
+];
 
 const previewItems = computed(() => [
   { id: 'model', label: '模型', url: asset.value?.thumbnail || getDefaultThumbnailUrl(displayFormat.value) },
@@ -279,9 +432,102 @@ const tags = computed(() => [
   ...(parsedFormats.value.length > 1 ? parsedFormats.value.slice(0, 2) : []),
 ]);
 
+const compareSources = computed(() => [
+  {
+    id: 'current',
+    label: `当前版本（${versions.value[0]?.version || 'v1'}）`,
+    source: {
+      size: asset.value?.size || 0,
+      faces: modelStats.value?.faces || 0,
+      vertices: modelStats.value?.vertices || 0,
+      materials: modelStats.value?.materials || 0,
+      maxTextureRes: modelStats.value?.maxTextureRes || 0,
+      dimensions: modelStats.value?.dimensions || '',
+      createdAt: asset.value?.updatedAt,
+      changeLog: '当前线上可下载版本',
+      reviewStatus: reviewStatus.value.label,
+    },
+  },
+  ...versions.value.map((version) => ({
+    id: version.id,
+    label: `${version.version}（${formatDate(version.createdAt)}）`,
+    source: {
+      size: version.size || 0,
+      faces: version.faces || 0,
+      vertices: version.vertices || 0,
+      materials: version.materials || 0,
+      maxTextureRes: version.maxTextureRes || 0,
+      dimensions: version.dimensions || '',
+      createdAt: version.createdAt,
+      changeLog: version.changeLog || '未填写修改记录',
+      reviewStatus: reviewStatus.value.label,
+    },
+  })),
+]);
+
+const selectedBaseSource = computed(
+  () => compareSources.value.find((item) => item.id === compareBaseId.value) || compareSources.value[0],
+);
+const selectedTargetSource = computed(
+  () =>
+    compareSources.value.find((item) => item.id === compareTargetId.value) ||
+    compareSources.value.find((item) => item.id !== compareBaseId.value) ||
+    compareSources.value[0],
+);
+
+const compareRows = computed(() => {
+  const base = selectedBaseSource.value?.source;
+  const target = selectedTargetSource.value?.source;
+  if (!base || !target) return [];
+
+  const rows = [
+    { key: 'faces', label: '面数', unit: '' },
+    { key: 'vertices', label: '顶点', unit: '' },
+    { key: 'materials', label: '材质', unit: '' },
+    { key: 'maxTextureRes', label: '最大贴图', unit: 'px' },
+    { key: 'size', label: '文件体积', unit: 'MB' },
+  ] as const;
+
+  return rows.map((row) => {
+    const baseValue = Number(base[row.key] || 0);
+    const targetValue = Number(target[row.key] || 0);
+    const delta = Number((baseValue - targetValue).toFixed(2));
+    return {
+      ...row,
+      baseValue,
+      targetValue,
+      delta,
+      improved: row.key === 'size' || row.key === 'faces' || row.key === 'vertices' || row.key === 'maxTextureRes'
+        ? delta < 0
+        : delta <= 0,
+    };
+  });
+});
+
 const formatNumber = (value?: number | null) => {
   if (value === undefined || value === null || Number.isNaN(value)) return '未解析';
   return value.toLocaleString('zh-CN');
+};
+
+const formatMetricValue = (value: number, unit = '') => {
+  if (unit === 'MB') return `${value.toFixed(2)} MB`;
+  if (unit === 'px') return `${formatNumber(value)} px`;
+  if (!unit) return formatNumber(value);
+  return `${formatNumber(value)} ${unit}`;
+};
+
+const formatDelta = (value: number, unit = '') => {
+  const sign = value > 0 ? '+' : '';
+  if (unit === 'MB') return `${sign}${value.toFixed(2)} MB`;
+  if (unit === 'px') return `${sign}${formatNumber(value)} px`;
+  return `${sign}${formatNumber(value)}`;
+};
+
+const riskToneText = (tone: PerformanceTone) => {
+  if (tone === 'danger') return '高风险';
+  if (tone === 'warning') return '需优化';
+  if (tone === 'notice') return '关注';
+  return '通过';
 };
 
 const formatDate = (dateStr?: string) => {
@@ -338,12 +584,38 @@ const openInBlender = () => {
   if (!asset.value?.url) return;
   ElMessage.info('\u5df2\u4e3a Blender \u6253\u5f00\u4fdd\u7559\u5165\u53e3\uff0c\u8bf7\u5728\u672c\u5730\u63d2\u4ef6\u4e2d\u63a5\u5165\u8be5\u8d44\u6e90\u94fe\u63a5');
 };
-const handleMetadataLoaded = (stats: ModelStats) => {
+const handleMetadataLoaded = async (stats: ModelStats) => {
   modelStats.value = {
     ...modelStats.value,
     ...stats,
     maxTextureRes: stats.maxTextureRes || modelStats.value?.maxTextureRes || 0,
   };
+  try {
+    const response = await api.patch(`/api/assets/${assetId}/metadata`, {
+      vertices: stats.vertices,
+      faces: stats.faces,
+      materials: stats.materials,
+      animations: stats.animations,
+      hasAnimations: !!stats.animations,
+      dimensions: stats.dimensions,
+      maxTextureRes: stats.maxTextureRes,
+    });
+    performanceReport.value = response.data?.performanceReport || performanceReport.value;
+    if (asset.value && response.data) {
+      asset.value = {
+        ...asset.value,
+        vertices: response.data.vertices ?? asset.value.vertices,
+        faces: response.data.faces ?? asset.value.faces,
+        materials: response.data.materials ?? asset.value.materials,
+        animations: response.data.animations ?? asset.value.animations,
+        hasAnimations: response.data.hasAnimations ?? asset.value.hasAnimations,
+        dimensions: response.data.dimensions ?? asset.value.dimensions,
+        maxTextureRes: response.data.maxTextureRes ?? asset.value.maxTextureRes,
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to sync asset metadata:', error);
+  }
 };
 
 const handleScreenshotCaptured = async (dataUrl: string) => {
@@ -360,13 +632,45 @@ const resetCamera = () => {
   modelViewerRef.value?.resetCamera?.();
 };
 
+const focusCameraPreset = (preset: CameraPresetKey) => {
+  const target = { x: 0, y: 0, z: 0 };
+  const positions: Record<CameraPresetKey, { x: number; y: number; z: number }> = {
+    iso: { x: 5, y: 5, z: 5 },
+    front: { x: 0, y: 0, z: 6 },
+    side: { x: 6, y: 0, z: 0 },
+    top: { x: 0, y: 6, z: 0.01 },
+  };
+  modelViewerRef.value?.flyTo?.(positions[preset], target);
+};
+
 const takeScreenshot = () => {
   const result = modelViewerRef.value?.takeScreenshot?.(true);
   if (!result) ElMessage.info('当前资源暂不支持截图');
 };
 
+const saveCurrentViewAsCover = async () => {
+  const dataUrl = modelViewerRef.value?.takeScreenshot?.(false);
+  if (!dataUrl) {
+    ElMessage.info('当前资源暂不支持生成封面');
+    return;
+  }
+
+  isSavingCover.value = true;
+  try {
+    const response = await api.patch(`/api/assets/${assetId}/thumbnail`, { thumbnail: dataUrl });
+    if (asset.value) {
+      asset.value.thumbnail = response.data.thumbnail;
+    }
+    ElMessage.success('当前视角已设为封面');
+  } catch {
+    ElMessage.error('封面保存失败，请确认你有编辑权限');
+  } finally {
+    isSavingCover.value = false;
+  }
+};
+
 const toggleViewMode = () => {
-  const nextMode = viewerConfig.value.viewMode === 'solid' ? 'wireframe' : 'solid';
+  const nextMode = viewerConfig.value.viewMode === 'solid' ? 'solid+wireframe' : 'solid';
   viewerConfig.value.viewMode = nextMode;
   modelViewerRef.value?.setViewMode?.(nextMode);
 };
@@ -383,6 +687,11 @@ const handleHotspotAdded = (coords: { x: number; y: number; z: number }) => {
 };
 
 const saveAnnotation = async () => {
+  if (!canAnnotate.value) {
+    ElMessage.warning('当前资产仅允许团队成员、所有者或管理员批注');
+    return;
+  }
+
   if (!annotationCoords.value || !newAnnotationText.value.trim()) {
     ElMessage.warning('请先在模型上选择位置并填写内容');
     return;
@@ -501,32 +810,49 @@ const uploadNewVersion = async () => {
       </header>
 
       <section class="viewer-shell">
+        <div class="viewport-grid-overlay" aria-hidden="true"></div>
         <div v-if="isLoading" class="loading-state">
           <div class="spinner"></div>
           <span>正在加载资产...</span>
+        </div>
+
+        <div class="viewer-statusbar">
+          <div>
+            <span class="viewer-kicker">MODEL WORKBENCH</span>
+            <strong>{{ displayFormat }} 模型工作台</strong>
+          </div>
+          <span class="viewer-dimension">{{ modelStats?.dimensions || '等待尺寸解析' }}</span>
         </div>
 
         <div class="top-viewer-tools">
           <button type="button" title="实体模式" :class="{ active: viewerConfig.viewMode === 'solid' && !isClayMode }" @click="viewerConfig.viewMode = 'solid'; modelViewerRef?.setViewMode?.('solid')">
             <Box class="h-4 w-4" />
           </button>
-          <button type="button" title="线框模式" :class="{ active: viewerConfig.viewMode === 'wireframe' }" @click="toggleViewMode">
+          <button type="button" title="拓扑叠线" :class="{ active: viewerConfig.viewMode === 'solid+wireframe' }" @click="toggleViewMode">
             <Grid2X2 class="h-4 w-4" />
           </button>
           <button type="button" title="白模模式" :class="{ active: isClayMode }" @click="toggleClayMode">
             <Settings class="h-4 w-4" />
           </button>
-          <button type="button" title="全屏" @click="modelViewerRef?.takeScreenshot?.(false) || ElMessage.info('全屏可使用预览器右上角控件')">
+          <button type="button" title="设为封面" :disabled="isSavingCover" @click="saveCurrentViewAsCover">
+            <Wand2 class="h-4 w-4" />
+          </button>
+          <button type="button" title="全屏" @click="modelViewerRef?.toggleFullscreen?.()">
             <Maximize2 class="h-4 w-4" />
           </button>
         </div>
 
-        <button type="button" class="viewer-arrow left">
-          <ChevronLeft class="h-5 w-5" />
-        </button>
-        <button type="button" class="viewer-arrow right">
-          <ChevronRight class="h-5 w-5" />
-        </button>
+        <div class="view-preset-rail">
+          <button
+            v-for="preset in cameraPresets"
+            :key="preset.key"
+            type="button"
+            :title="preset.label"
+            @click="focusCameraPreset(preset.key)"
+          >
+            {{ preset.value }}
+          </button>
+        </div>
 
         <div class="axis-widget">
           <span class="axis-y">Y</span>
@@ -542,7 +868,7 @@ const uploadNewVersion = async () => {
           :auto-rotate="viewerConfig.autoRotate"
           :scene-config="{ environment: viewerConfig.environment, exposure: viewerConfig.exposure }"
           :hotspots="viewerHotspots"
-          :editable="activePanel === 'comments'"
+          :editable="activePanel === 'comments' && canAnnotate"
           class="viewer-canvas"
           @metadata-loaded="handleMetadataLoaded"
           @screenshot-captured="handleScreenshotCaptured"
@@ -560,23 +886,11 @@ const uploadNewVersion = async () => {
           <button type="button" title="重置视角" @click="resetCamera">
             <RefreshCw class="h-4 w-4" />
           </button>
-          <button type="button" title="拖拽浏览">
-            <MousePointer2 class="h-4 w-4" />
-          </button>
-          <button type="button" title="放大查看">
-            <Maximize2 class="h-4 w-4" />
-          </button>
           <button type="button" title="自动旋转" :class="{ active: viewerConfig.autoRotate }" @click="viewerConfig.autoRotate = !viewerConfig.autoRotate">
             <RefreshCw class="h-4 w-4" />
           </button>
-          <button type="button" title="设置">
-            <Settings class="h-4 w-4" />
-          </button>
-          <button type="button" title="布局">
-            <Grid2X2 class="h-4 w-4" />
-          </button>
           <select v-model="viewerConfig.environment">
-            <option value="studio">高清</option>
+            <option value="studio">影棚</option>
             <option value="sunset">日落</option>
             <option value="forest">森林</option>
             <option value="room">室内</option>
@@ -586,17 +900,17 @@ const uploadNewVersion = async () => {
           </button>
         </div>
 
-        <div class="preview-strip">
-          <button
-            v-for="item in previewItems"
-            :key="item.id"
-            type="button"
-            :class="{ active: selectedPreview === item.id }"
-            @click="selectedPreview = item.id"
-          >
-            <img :src="item.url" :alt="item.label" />
-          </button>
-          <button type="button" class="more-preview">+{{ Math.max(1, parsedFormats.length + versions.length) }}</button>
+        <div class="viewer-telemetry">
+          <article v-for="item in viewerTelemetry" :key="item.label">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </article>
+        </div>
+
+        <div class="format-dock">
+          <span>包含格式</span>
+          <strong v-for="format in parsedFormats.slice(0, 5)" :key="format">{{ format }}</strong>
+          <strong v-if="parsedFormats.length > 5">+{{ parsedFormats.length - 5 }}</strong>
         </div>
       </section>
 
@@ -656,17 +970,98 @@ const uploadNewVersion = async () => {
             </button>
           </div>
           <article v-for="version in versions" :key="version.id" class="version-card">
-            <strong>{{ version.version }}</strong>
-            <span>{{ formatDate(version.createdAt) }}</span>
+            <div>
+              <strong>{{ version.version }}</strong>
+              <span>{{ formatDate(version.createdAt) }}</span>
+            </div>
+            <div class="version-metrics">
+              <span>{{ formatMetricValue(version.faces || 0) }} 面</span>
+              <span>{{ formatMetricValue(version.maxTextureRes || 0, 'px') }}</span>
+              <span>{{ formatMetricValue(version.size || 0, 'MB') }}</span>
+            </div>
             <p>{{ version.changeLog || '初始版本提交' }}</p>
           </article>
           <div v-if="versions.length === 0" class="empty-panel">暂无版本记录</div>
         </div>
 
+        <div v-if="activePanel === 'compare'" class="compare-panel">
+          <div class="compare-toolbar">
+            <label>
+              <span>版本 A</span>
+              <select v-model="compareBaseId">
+                <option v-for="item in compareSources" :key="item.id" :value="item.id">{{ item.label }}</option>
+              </select>
+            </label>
+            <label>
+              <span>版本 B</span>
+              <select v-model="compareTargetId">
+                <option v-for="item in compareSources" :key="item.id" :value="item.id">{{ item.label }}</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="compare-summary">
+            <article>
+              <strong>{{ selectedBaseSource?.label }}</strong>
+              <span>{{ selectedBaseSource?.source.reviewStatus }}</span>
+              <p>{{ selectedBaseSource?.source.changeLog }}</p>
+            </article>
+            <article>
+              <strong>{{ selectedTargetSource?.label }}</strong>
+              <span>{{ selectedTargetSource?.source.reviewStatus }}</span>
+              <p>{{ selectedTargetSource?.source.changeLog }}</p>
+            </article>
+          </div>
+
+          <div class="compare-table">
+            <div class="compare-row header">
+              <span>指标</span>
+              <span>版本 A</span>
+              <span>版本 B</span>
+              <span>差异</span>
+            </div>
+            <div v-for="row in compareRows" :key="row.key" class="compare-row">
+              <strong>{{ row.label }}</strong>
+              <span>{{ formatMetricValue(row.baseValue, row.unit) }}</span>
+              <span>{{ formatMetricValue(row.targetValue, row.unit) }}</span>
+              <em :class="{ improved: row.improved, regressed: !row.improved && row.delta !== 0 }">
+                {{ formatDelta(row.delta, row.unit) }}
+              </em>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="activePanel === 'performance'" class="performance-panel">
+          <div class="performance-hero" :data-tone="activePerformanceReport.level">
+            <Gauge class="h-7 w-7" />
+            <div>
+              <strong>{{ activePerformanceReport.score }}</strong>
+              <span>{{ activePerformanceReport.summary }}</span>
+            </div>
+            <small>{{ mobileRiskLabel }}</small>
+          </div>
+
+          <div class="risk-grid">
+            <article v-for="risk in activePerformanceReport.risks" :key="risk.metric" :data-tone="risk.tone">
+              <div>
+                <CheckCircle2 v-if="risk.tone === 'pass'" class="h-4 w-4" />
+                <AlertTriangle v-else class="h-4 w-4" />
+                <strong>{{ risk.label }}</strong>
+                <span>{{ riskToneText(risk.tone) }}</span>
+              </div>
+              <b>{{ formatMetricValue(risk.value, risk.unit) }}</b>
+              <p>{{ risk.message }}</p>
+              <small>{{ risk.recommendation }}</small>
+            </article>
+          </div>
+        </div>
+
         <div v-if="activePanel === 'comments'" class="comments-panel">
-          <div class="comment-tip">
+          <div class="comment-tip" :data-disabled="!canAnnotate">
             <MessageSquare class="h-5 w-5" />
-            <span>点击模型表面可添加空间评论，评论会绑定当前视角。</span>
+            <span>
+              {{ canAnnotate ? '点击模型表面可添加空间评论，评论会绑定当前视角。' : '你可以查看批注；新增批注需要团队、所有者或管理员权限。' }}
+            </span>
           </div>
           <div v-if="isAddingAnnotation && annotationCoords" class="comment-editor">
             <span>X {{ annotationCoords.x.toFixed(2) }} · Y {{ annotationCoords.y.toFixed(2) }} · Z {{ annotationCoords.z.toFixed(2) }}</span>
@@ -696,6 +1091,16 @@ const uploadNewVersion = async () => {
     </main>
 
     <aside class="detail-aside">
+      <section class="side-card identity-card">
+        <span>MODEL INSPECTOR</span>
+        <h2>{{ displayFormat }} / {{ assetSize }}</h2>
+        <p>{{ asset?.description || '暂无模型说明，可在模型档案中补充拓扑、贴图、授权和使用场景。' }}</p>
+        <div>
+          <strong>{{ reviewStatus.label }}</strong>
+          <strong>{{ parsedFormats.length || 1 }} 种格式</strong>
+        </div>
+      </section>
+
       <section class="side-card summary-card">
         <h2>概览</h2>
         <div class="summary-grid">
@@ -726,6 +1131,19 @@ const uploadNewVersion = async () => {
         </div>
       </section>
 
+      <section class="side-card performance-card" :data-tone="activePerformanceReport.level">
+        <h2>性能检测</h2>
+        <div class="score-ring">
+          <strong>{{ activePerformanceReport.score }}</strong>
+          <span>{{ performanceToneLabel }}</span>
+        </div>
+        <p><Smartphone class="h-4 w-4" />{{ mobileRiskLabel }}</p>
+        <button type="button" @click="activePanel = 'performance'">
+          <Gauge class="h-4 w-4" />
+          查看检测报告
+        </button>
+      </section>
+
       <section class="side-card tags-card">
         <h2>标签</h2>
         <div>
@@ -750,13 +1168,15 @@ const uploadNewVersion = async () => {
 <style scoped>
 .asset-detail-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: 18px;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 20px;
-  background: #fbfcff;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.035), transparent 180px),
+    #f4f6f8;
   color: #17213a;
 }
 
@@ -866,16 +1286,87 @@ const uploadNewVersion = async () => {
 
 .viewer-shell {
   position: relative;
-  height: min(54vh, 560px);
-  min-height: 420px;
+  height: min(64vh, 680px);
+  min-height: 500px;
   overflow: hidden;
   border-radius: 8px;
-  background: radial-gradient(circle at center, #f4f6fb 0%, #eef2f8 58%, #e9edf5 100%);
+  border: 1px solid #202938;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(59, 130, 246, 0.18), transparent 34%),
+    radial-gradient(circle at 74% 24%, rgba(245, 121, 42, 0.12), transparent 28%),
+    linear-gradient(145deg, #151b24 0%, #0c1118 62%, #070b10 100%);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
 }
 
 .viewer-canvas {
   width: 100%;
   height: 100%;
+}
+
+.viewport-grid-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.55), transparent 72%);
+}
+
+.viewer-statusbar,
+.viewer-telemetry,
+.format-dock,
+.view-preset-rail {
+  position: absolute;
+  z-index: 14;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(11, 16, 24, 0.72);
+  color: #e5edf7;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
+}
+
+.viewer-statusbar {
+  left: 18px;
+  top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(460px, calc(100% - 210px));
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.viewer-statusbar > div {
+  display: grid;
+  gap: 2px;
+}
+
+.viewer-kicker {
+  color: #8fb7ff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.viewer-statusbar strong {
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer-dimension {
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #b8c4d7;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .loading-state,
@@ -916,19 +1407,19 @@ const uploadNewVersion = async () => {
 .top-viewer-tools,
 .bottom-viewer-tools {
   position: absolute;
-  z-index: 12;
+  z-index: 15;
   gap: 8px;
-  border: 1px solid #e7ecf5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(11, 16, 24, 0.72);
   padding: 8px;
   backdrop-filter: blur(14px);
-  box-shadow: 0 10px 28px rgba(31, 42, 68, 0.08);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
 }
 
 .top-viewer-tools {
-  left: 20px;
-  top: 20px;
+  right: 18px;
+  top: 18px;
 }
 
 .bottom-viewer-tools {
@@ -946,55 +1437,68 @@ const uploadNewVersion = async () => {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #53617c;
+  color: #b8c4d7;
   cursor: pointer;
+}
+
+.top-viewer-tools button:disabled,
+.bottom-viewer-tools button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .top-viewer-tools button.active,
 .bottom-viewer-tools button.active {
-  background: #f0efff;
-  color: #6757ff;
+  background: rgba(245, 121, 42, 0.18);
+  color: #ffb071;
 }
 
 .bottom-viewer-tools select {
   height: 30px;
   border: 0;
   border-radius: 7px;
-  background: #f7f8fc;
-  color: #40506e;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fbff;
   padding: 0 8px;
   font-size: 12px;
   font-weight: 900;
   outline: 0;
 }
 
-.viewer-arrow {
-  position: absolute;
-  z-index: 12;
-  top: 50%;
+.view-preset-rail {
+  left: 18px;
+  top: 86px;
   display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 7px;
+}
+
+.view-preset-rail button {
+  width: 48px;
+  height: 28px;
   border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #53617c;
-  transform: translateY(-50%);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 900;
   cursor: pointer;
 }
 
-.viewer-arrow.left { left: 22px; }
-.viewer-arrow.right { right: 22px; }
+.view-preset-rail button:hover {
+  background: rgba(96, 165, 250, 0.18);
+  color: #ffffff;
+}
 
 .axis-widget {
   position: absolute;
   z-index: 12;
   right: 30px;
-  top: 36px;
+  top: 86px;
   display: grid;
   place-items: center;
-  color: #9aa6ba;
+  color: rgba(226, 232, 240, 0.72);
   font-size: 11px;
   font-weight: 900;
 }
@@ -1003,66 +1507,83 @@ const uploadNewVersion = async () => {
 .axis-z { color: #3b82f6; transform: translate(-22px, 16px); }
 .axis-x { color: #f05252; transform: translate(24px, -16px); }
 
-.preview-strip {
-  position: absolute;
-  z-index: 13;
-  right: 20px;
+.viewer-telemetry {
+  left: 18px;
+  bottom: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap: 8px;
+  max-width: min(520px, calc(100% - 420px));
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.viewer-telemetry article {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 8px 10px;
+}
+
+.viewer-telemetry span,
+.format-dock span {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.viewer-telemetry strong {
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.format-dock {
+  right: 18px;
   bottom: 18px;
   display: flex;
-  gap: 9px;
-  border: 1px solid #e7ecf5;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 280px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  padding: 8px;
-  backdrop-filter: blur(14px);
+  padding: 9px;
 }
 
-.preview-strip button {
-  width: 48px;
-  height: 48px;
-  overflow: hidden;
-  border: 2px solid transparent;
-  border-radius: 7px;
-  background: #f1f4fa;
-  color: #68758f;
-  font-size: 12px;
+.format-dock strong {
+  border-radius: 6px;
+  background: rgba(96, 165, 250, 0.16);
+  color: #dbeafe;
+  padding: 4px 7px;
+  font-size: 10px;
   font-weight: 900;
-  cursor: pointer;
-}
-
-.preview-strip button.active {
-  border-color: #6757ff;
-}
-
-.preview-strip img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.more-preview {
-  display: grid;
-  place-items: center;
 }
 
 .panel-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
   border: 1px solid #e6ebf5;
   border-radius: 8px;
-  background: #fff;
-  padding: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 10px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
 }
 
 .panel-grid button {
   min-width: 0;
-  gap: 12px;
+  gap: 9px;
   border: 1px solid #e8edf6;
   border-radius: 8px;
   background: #fff;
-  padding: 14px 12px;
+  padding: 10px;
   text-align: left;
   cursor: pointer;
 }
@@ -1075,10 +1596,10 @@ const uploadNewVersion = async () => {
 .panel-grid button span {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   flex: 0 0 auto;
-  border-radius: 50%;
+  border-radius: 7px;
   background: #f0efff;
   color: #6757ff;
 }
@@ -1219,6 +1740,29 @@ const uploadNewVersion = async () => {
   margin-top: 10px;
 }
 
+.version-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.version-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.version-metrics span {
+  margin: 0;
+  border-radius: 7px;
+  background: #eef3fb;
+  padding: 4px 7px;
+  color: #53617c;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .version-card strong,
 .comment-card strong {
   color: #192640;
@@ -1262,6 +1806,201 @@ const uploadNewVersion = async () => {
   background: #fbfaff;
 }
 
+.comment-tip[data-disabled='true'] {
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.compare-panel,
+.performance-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.compare-toolbar,
+.compare-summary,
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.compare-toolbar label {
+  display: grid;
+  gap: 7px;
+  color: #65718b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.compare-toolbar select {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #e2e8f2;
+  border-radius: 8px;
+  background: #fff;
+  color: #17213a;
+  padding: 0 10px;
+  outline: 0;
+}
+
+.compare-summary article,
+.risk-grid article {
+  border: 1px solid #e8edf6;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 14px;
+}
+
+.compare-summary strong {
+  display: block;
+  color: #17213a;
+  font-size: 14px;
+}
+
+.compare-summary span {
+  display: inline-flex;
+  margin-top: 8px;
+  border-radius: 7px;
+  background: #eefcf4;
+  color: #0f9f6e;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.compare-summary p {
+  margin: 10px 0 0;
+  color: #65718b;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.compare-table {
+  overflow: hidden;
+  border: 1px solid #e8edf6;
+  border-radius: 8px;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr));
+  align-items: center;
+  min-height: 44px;
+  border-top: 1px solid #eef2f7;
+  padding: 0 14px;
+  color: #53617c;
+  font-size: 12px;
+}
+
+.compare-row:first-child {
+  border-top: 0;
+}
+
+.compare-row.header {
+  background: #f8faff;
+  color: #7b879d;
+  font-weight: 900;
+}
+
+.compare-row strong {
+  color: #17213a;
+}
+
+.compare-row em {
+  justify-self: start;
+  border-radius: 7px;
+  padding: 4px 7px;
+  color: #64748b;
+  background: #f1f5f9;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.compare-row em.improved {
+  color: #0f9f6e;
+  background: #e8fbf1;
+}
+
+.compare-row em.regressed {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.performance-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #dbe7ff;
+  border-radius: 8px;
+  background: #f7fbff;
+  padding: 16px;
+  color: #2563eb;
+}
+
+.performance-hero[data-tone='warning'] { border-color: #ffe2a9; background: #fffaf0; color: #c27000; }
+.performance-hero[data-tone='danger'] { border-color: #fecaca; background: #fff7f7; color: #dc2626; }
+.performance-hero[data-tone='pass'] { border-color: #bbf7d0; background: #f4fff8; color: #0f9f6e; }
+
+.performance-hero strong {
+  display: block;
+  color: #17213a;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.performance-hero span,
+.performance-hero small {
+  color: #53617c;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.risk-grid article {
+  display: grid;
+  gap: 10px;
+}
+
+.risk-grid article > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-grid article strong {
+  color: #17213a;
+  font-size: 14px;
+}
+
+.risk-grid article span {
+  margin-left: auto;
+  border-radius: 7px;
+  background: #eef3fb;
+  padding: 4px 7px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.risk-grid article[data-tone='pass'] span { color: #0f9f6e; background: #e8fbf1; }
+.risk-grid article[data-tone='notice'] span { color: #2563eb; background: #eaf2ff; }
+.risk-grid article[data-tone='warning'] span { color: #c27000; background: #fff4dd; }
+.risk-grid article[data-tone='danger'] span { color: #dc2626; background: #fee2e2; }
+
+.risk-grid b {
+  color: #17213a;
+  font-size: 20px;
+}
+
+.risk-grid p,
+.risk-grid small {
+  margin: 0;
+  color: #65718b;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .empty-panel {
   display: grid;
   place-items: center;
@@ -1281,6 +2020,55 @@ const uploadNewVersion = async () => {
   border-radius: 8px;
   background: #fff;
   padding: 16px;
+}
+
+.identity-card {
+  display: grid;
+  gap: 11px;
+  overflow: hidden;
+  border-color: #263244;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(245, 121, 42, 0.22), transparent 34%),
+    linear-gradient(145deg, #17202d, #0c1118);
+  color: #eef4fb;
+}
+
+.identity-card > span {
+  color: #93c5fd;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.side-card.identity-card h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.identity-card p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: #b9c5d4;
+  font-size: 12px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.identity-card div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.identity-card strong {
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .side-card h2 {
@@ -1367,6 +2155,63 @@ const uploadNewVersion = async () => {
   color: #17213a;
   font-size: 12px;
   text-align: right;
+}
+
+.performance-card {
+  display: grid;
+  gap: 12px;
+}
+
+.score-ring {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border: 7px solid #dbe7ff;
+  border-radius: 50%;
+  background: #f7fbff;
+}
+
+.performance-card[data-tone='pass'] .score-ring { border-color: #bbf7d0; background: #f4fff8; }
+.performance-card[data-tone='warning'] .score-ring { border-color: #ffe2a9; background: #fffaf0; }
+.performance-card[data-tone='danger'] .score-ring { border-color: #fecaca; background: #fff7f7; }
+
+.score-ring strong {
+  color: #17213a;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.score-ring span {
+  color: #65718b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.performance-card p,
+.performance-card button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.performance-card p {
+  margin: 0;
+  color: #53617c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.performance-card button {
+  justify-content: center;
+  height: 34px;
+  border: 1px solid #e2e8f2;
+  border-radius: 8px;
+  background: #fff;
+  color: #17213a;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .tags-card div {
@@ -1460,15 +2305,49 @@ const uploadNewVersion = async () => {
     transform: none;
   }
 
-  .preview-strip {
+  .viewer-statusbar {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+
+  .top-viewer-tools {
+    top: 78px;
+    right: 12px;
+  }
+
+  .view-preset-rail,
+  .axis-widget,
+  .format-dock {
     display: none;
+  }
+
+  .viewer-telemetry {
+    left: 12px;
+    right: 12px;
+    bottom: 70px;
+    max-width: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .panel-grid,
   .detail-aside,
   .overview-stats,
   .preview-panel,
-  .texture-panel {
+  .texture-panel,
+  .compare-toolbar,
+  .compare-summary,
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .performance-hero {
     grid-template-columns: 1fr;
   }
 }

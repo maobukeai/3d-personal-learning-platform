@@ -4,6 +4,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, User, Eye, EyeOff, Chrome, Github, ArrowRight } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import api, { getAssetUrl } from '@/utils/api';
@@ -11,6 +12,8 @@ import api, { getAssetUrl } from '@/utils/api';
 const router = useRouter();
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
+const { locale } = useI18n();
+const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 const showPassword = ref(false);
 const isLoading = ref(false);
 const verificationCode = ref('');
@@ -61,17 +64,17 @@ const startCountdown = () => {
 
 const sendVerificationCode = async () => {
   if (!registerForm.value.email) {
-    return ElMessage.warning('请输入邮箱地址');
+    return ElMessage.warning(label('请输入邮箱地址', 'Please enter your email'));
   }
   if (countdown.value > 0) return;
 
   try {
     isSendingCode.value = true;
     await authStore.sendPublicVerificationCode(registerForm.value.email);
-    ElMessage.success('验证码已发送');
+    ElMessage.success(label('验证码已发送', 'Verification code sent'));
     startCountdown();
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '发送失败'));
+    ElMessage.error(getApiErrorMessage(error, label('发送失败', 'Failed to send code')));
   } finally {
     isSendingCode.value = false;
   }
@@ -92,17 +95,17 @@ const handleRegister = async () => {
     !registerForm.value.password ||
     !verificationCode.value
   ) {
-    ElMessage.warning('请填写所有字段，包括验证码');
+    ElMessage.warning(label('请填写所有字段，包括验证码', 'Please complete all fields, including the code'));
     return;
   }
 
   if (registerForm.value.password !== registerForm.value.confirmPassword) {
-    ElMessage.error('两次输入的密码不一致');
+    ElMessage.error(label('两次输入的密码不一致', 'Passwords do not match'));
     return;
   }
 
   if (!registerForm.value.terms) {
-    ElMessage.warning('请阅读并同意服务条款');
+    ElMessage.warning(label('请阅读并同意服务条款', 'Please read and agree to the terms'));
     return;
   }
 
@@ -116,10 +119,10 @@ const handleRegister = async () => {
       password: registerForm.value.password,
       verificationCode: verificationCode.value,
     });
-    ElMessage.success('账号创建成功，请登录！');
+    ElMessage.success(label('账号创建成功，请登录！', 'Account created. Please sign in.'));
     router.push({ path: '/login', query: { onboarding: 'true' } });
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '注册失败，验证码可能错误或已过期'));
+    ElMessage.error(getApiErrorMessage(error, label('注册失败，验证码可能错误或已过期', 'Registration failed. The code may be invalid or expired.')));
   } finally {
     isLoading.value = false;
   }
@@ -166,9 +169,9 @@ const handleRegister = async () => {
         </div>
 
         <div class="mb-8 text-center">
-          <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">创建新账号</h1>
+          <h1 class="text-2xl font-bold mb-2" style="color: var(--text-primary)">{{ label('创建新账号', 'Create Account') }}</h1>
           <p style="color: var(--text-secondary)" class="text-sm">
-            {{ systemStore.settings.PLATFORM_DESCRIPTION || '立即开始你的设计师成长之路' }}
+            {{ systemStore.settings.PLATFORM_DESCRIPTION || label('立即开始你的设计师成长之路', 'Start your designer growth path today') }}
           </p>
         </div>
 
@@ -183,9 +186,9 @@ const handleRegister = async () => {
             <Lock class="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 class="text-sm font-bold text-rose-600">注册已暂停</h3>
+            <h3 class="text-sm font-bold text-rose-600">{{ label('注册已暂停', 'Registration Paused') }}</h3>
             <p class="text-xs text-rose-400 font-medium">
-              抱歉，目前平台已关闭新用户注册，请联系管理员或稍后再试。
+              {{ label('抱歉，目前平台已关闭新用户注册，请联系管理员或稍后再试。', 'New registrations are currently closed. Please contact an administrator or try again later.') }}
             </p>
           </div>
         </div>
@@ -197,7 +200,7 @@ const handleRegister = async () => {
               <label
                 class="block text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >显示名称</label
+                >{{ label('显示名称', 'Display Name') }}</label
               >
               <div class="relative">
                 <User
@@ -207,7 +210,7 @@ const handleRegister = async () => {
                 <input
                   v-model="registerForm.name"
                   type="text"
-                  placeholder="设计师小王"
+                  :placeholder="label('设计师小王', 'Designer Alex')"
                   autocomplete="off"
                   class="w-full pl-11 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                   style="
@@ -223,7 +226,7 @@ const handleRegister = async () => {
               <label
                 class="block text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >电子邮箱</label
+                >{{ label('电子邮箱', 'Email') }}</label
               >
               <div class="flex gap-3">
                 <div class="relative flex-1">
@@ -250,7 +253,7 @@ const handleRegister = async () => {
                   class="px-4 py-3 bg-accent/10 text-accent font-bold rounded-lg text-xs hover:bg-accent hover:text-white transition-colors disabled:opacity-50 shrink-0"
                   @click="sendVerificationCode"
                 >
-                  {{ isSendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                  {{ isSendingCode ? label('发送中...', 'Sending...') : countdown > 0 ? `${countdown}s` : label('获取验证码', 'Get Code') }}
                 </button>
               </div>
             </div>
@@ -259,13 +262,13 @@ const handleRegister = async () => {
               <label
                 class="block text-xs font-bold uppercase mb-2 ml-1"
                 style="color: var(--text-secondary)"
-                >验证码</label
+                >{{ label('验证码', 'Code') }}</label
               >
               <input
                 v-model="verificationCode"
                 type="text"
                 maxlength="6"
-                placeholder="请输入 6 位验证码"
+                :placeholder="label('请输入 6 位验证码', 'Enter 6-digit code')"
                 autocomplete="one-time-code"
                 class="w-full px-4 py-3 border rounded-lg text-sm text-center font-black tracking-widest focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                 style="
@@ -281,7 +284,7 @@ const handleRegister = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >密码</label
+                  >{{ label('密码', 'Password') }}</label
                 >
                 <div class="relative">
                   <Lock
@@ -291,7 +294,7 @@ const handleRegister = async () => {
                   <input
                     v-model="registerForm.password"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="请输入密码"
+                    :placeholder="label('请输入密码', 'Enter password')"
                     autocomplete="new-password"
                     class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
@@ -315,7 +318,7 @@ const handleRegister = async () => {
                 <label
                   class="block text-xs font-bold uppercase mb-2 ml-1"
                   style="color: var(--text-secondary)"
-                  >确认密码</label
+                  >{{ label('确认密码', 'Confirm Password') }}</label
                 >
                 <div class="relative">
                   <Lock
@@ -325,7 +328,7 @@ const handleRegister = async () => {
                   <input
                     v-model="registerForm.confirmPassword"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="请再次输入"
+                    :placeholder="label('请再次输入', 'Enter again')"
                     autocomplete="new-password"
                     class="w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                     style="
@@ -351,9 +354,10 @@ const handleRegister = async () => {
           <div class="flex items-start gap-2 pt-2">
             <el-checkbox v-model="registerForm.terms" class="mt-0.5" />
             <span class="text-xs leading-relaxed" style="color: var(--text-secondary)">
-              我已阅读并同意平台
-              <a href="#" class="text-accent font-bold hover:underline">服务协议</a> 与
-              <a href="#" class="text-accent font-bold hover:underline">隐私政策</a>
+              {{ label('我已阅读并同意平台', 'I have read and agree to the') }}
+              <a href="#" class="text-accent font-bold hover:underline">{{ label('服务协议', 'Terms') }}</a>
+              {{ label('与', 'and') }}
+              <a href="#" class="text-accent font-bold hover:underline">{{ label('隐私政策', 'Privacy Policy') }}</a>
             </span>
           </div>
 
@@ -363,7 +367,7 @@ const handleRegister = async () => {
             class="w-full btn-premium py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
             @click="handleRegister"
           >
-            <span v-if="!isLoading">立即注册</span>
+            <span v-if="!isLoading">{{ label('立即注册', 'Create Account') }}</span>
             <span
               v-else
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
@@ -384,7 +388,7 @@ const handleRegister = async () => {
             <span
               class="flex-shrink mx-4 text-[10px] font-bold uppercase tracking-widest"
               style="color: var(--text-muted)"
-              >或者使用</span
+              >{{ label('或者使用', 'Or use') }}</span
             >
             <div class="flex-grow border-t" style="border-color: var(--border-base)"></div>
           </div>
@@ -424,11 +428,11 @@ const handleRegister = async () => {
           </div>
 
           <p class="text-center text-sm mt-4" style="color: var(--text-secondary)">
-            已有账号？
+            {{ label('已有账号？', 'Already have an account?') }}
             <RouterLink
               to="/login"
               class="font-bold text-accent hover:text-accent transition-colors"
-              >点此登录</RouterLink
+              >{{ label('点此登录', 'Sign in') }}</RouterLink
             >
           </p>
         </div>

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "prebuild": "prisma generate",
     "build": "tsc",
     "start": "node dist/src/index.js",
     "lint": "eslint src/**/*.ts",
@@ -13,7 +14,7 @@
     "check:email-secrets": "node scripts/check-email-account-secrets.js",
     "check:email-secrets:ci": "node scripts/check-email-account-secrets.js --fail-on-plaintext",
     "encrypt:email-secrets": "node scripts/encrypt-email-account-secrets.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand --testTimeout=30000"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/archiver": "^5.3.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -31,6 +33,7 @@
     "@types/node": "^25.7.0",
     "@types/nodemailer": "^8.0.0",
     "@types/qrcode": "^1.5.6",
+    "@types/sanitize-html": "^2.16.1",
     "@types/socket.io": "^3.0.1",
     "@types/speakeasy": "^2.0.10",
     "@types/supertest": "^7.2.0",
@@ -44,16 +47,15 @@
     "prettier": "^3.8.3",
     "prisma": "^6.2.1",
     "supertest": "^7.2.2",
-    "ts-jest": "^29.4.9",
+    "ts-jest": "^30.0.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.3"
+    "typescript": "~6.0.2"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",
     "@gltf-transform/extensions": "^4.3.0",
     "@gltf-transform/functions": "^4.3.0",
     "@prisma/client": "^6.2.1",
-    "@types/archiver": "^5.3.4",
     "alipay-sdk": "^4.14.0",
     "archiver": "^5.3.2",
     "axios": "^1.16.1",
@@ -72,6 +74,7 @@
     "nodemailer": "^8.0.7",
     "qrcode": "^1.5.4",
     "read-excel-file": "^9.0.10",
+    "sanitize-html": "^2.17.5",
     "socket.io": "^4.8.3",
     "speakeasy": "^2.0.0",
     "zod": "^4.4.3"

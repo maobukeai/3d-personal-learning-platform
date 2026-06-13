@@ -28,6 +28,7 @@ server/uploads/
 releases/
 
 # Local review artifacts and ad-hoc scratch files
+.codex-chrome-*/
 .codex-review-screens/
 scratch/
 server/scratch/

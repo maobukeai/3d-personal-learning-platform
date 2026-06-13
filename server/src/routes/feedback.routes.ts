@@ -14,6 +14,9 @@ router.post(
   feedbackController.uploadAttachment,
 );
 router.post('/', feedbackController.submitFeedback);
+router.get('/stats', feedbackController.getMyFeedbackStats);
 router.get('/my', feedbackController.getMyFeedback);
+router.get('/:id', feedbackController.getMyFeedbackDetail);
+router.put('/:id/status', feedbackController.updateMyFeedbackStatus);
 
 export default router;

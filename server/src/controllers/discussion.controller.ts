@@ -9,10 +9,40 @@ import { clampLimit, clampPage } from '../utils/pagination';
 import { sanitizeHtml } from '../utils/sanitize';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 
+const userSelect = { id: true, name: true, avatarUrl: true } satisfies Prisma.UserSelect;
+
+const parseTagList = (value: string | null): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+      : [];
+  } catch (_error) {
+    return value
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+};
+
+const buildTagInsights = (rows: { tags: string | null }[]) => {
+  const counts = new Map<string, number>();
+  rows.forEach((row) => {
+    parseTagList(row.tags).forEach((tag) => {
+      counts.set(tag, (counts.get(tag) || 0) + 1);
+    });
+  });
+
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+};
+
 export const getAllDiscussions = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const { courseId, tag, sort } = req.query;
+  const { courseId, tag, sort, filter } = req.query;
   const page = clampPage(req.query.page);
-  const limit = clampLimit(req.query.limit, 10, 50);
+  const limit = clampLimit(req.query.limit, 12, 50);
   const search = req.query.search as string;
   const skip = (page - 1) * limit;
 
@@ -25,25 +55,45 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response, next: N
     if (search) {
       where.OR = [{ title: { contains: search } }, { content: { contains: search } }];
     }
+    if (filter === 'mine') {
+      where.userId = req.userId || '';
+    } else if (filter === 'unanswered') {
+      where.comments = { none: {} };
+    } else if (filter === 'pinned') {
+      where.isPinned = true;
+    }
 
     let orderBy: Prisma.DiscussionOrderByWithRelationInput[] = [
       { isPinned: 'desc' },
+      { updatedAt: 'desc' },
       { createdAt: 'desc' },
     ];
     if (sort === 'most_commented') {
-      orderBy = [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }];
+      orderBy = [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { updatedAt: 'desc' }];
     } else if (sort === 'most_liked') {
-      orderBy = [{ isPinned: 'desc' }, { likes: { _count: 'desc' } }];
+      orderBy = [{ isPinned: 'desc' }, { likes: { _count: 'desc' } }, { updatedAt: 'desc' }];
     } else if (sort === 'most_viewed') {
-      orderBy = [{ isPinned: 'desc' }, { viewCount: 'desc' }];
+      orderBy = [{ isPinned: 'desc' }, { viewCount: 'desc' }, { updatedAt: 'desc' }];
+    } else if (sort === 'newest') {
+      orderBy = [{ isPinned: 'desc' }, { createdAt: 'desc' }];
     }
 
     const [discussions, total] = await Promise.all([
       prisma.discussion.findMany({
         where,
         include: {
-          user: {
-            select: { id: true, name: true, avatarUrl: true },
+          user: { select: userSelect },
+          comments: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              parentId: true,
+              user: { select: userSelect },
+              _count: { select: { likes: true, replies: true } },
+            },
           },
           _count: {
             select: { comments: true, likes: true },
@@ -60,11 +110,16 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response, next: N
       prisma.discussion.count({ where }),
     ]);
 
-    const discussionsWithLiked = discussions.map((d) => ({
-      ...d,
-      isLiked: d.likes.length > 0,
-      likes: undefined,
-    }));
+    const discussionsWithLiked = discussions.map((discussion) => {
+      const latestComment = discussion.comments[0] || null;
+      const { comments: _comments, likes, ...discussionData } = discussion;
+      return {
+        ...discussionData,
+        latestComment: latestComment ? { ...latestComment, replies: [] } : null,
+        lastActivityAt: latestComment?.createdAt || discussion.updatedAt || discussion.createdAt,
+        isLiked: likes.length > 0,
+      };
+    });
 
     res.json({
       discussions: discussionsWithLiked,
@@ -72,8 +127,161 @@ export const getAllDiscussions = async (req: AuthRequest, res: Response, next: N
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.max(1, Math.ceil(total / limit)),
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDiscussionInsights = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const [
+      discussionTotal,
+      commentTotal,
+      likeTotal,
+      viewAggregate,
+      activeAuthors,
+      unansweredTotal,
+      pinnedTotal,
+      tagRows,
+      trendingRows,
+      recentComments,
+      contributionDiscussions,
+      contributionComments,
+    ] = await Promise.all([
+      prisma.discussion.count(),
+      prisma.comment.count(),
+      prisma.discussionLike.count(),
+      prisma.discussion.aggregate({ _sum: { viewCount: true } }),
+      prisma.discussion.findMany({ distinct: ['userId'], select: { userId: true } }),
+      prisma.discussion.count({ where: { comments: { none: {} } } }),
+      prisma.discussion.count({ where: { isPinned: true } }),
+      prisma.discussion.findMany({
+        where: { tags: { not: null } },
+        select: { tags: true },
+      }),
+      prisma.discussion.findMany({
+        include: {
+          user: { select: userSelect },
+          comments: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              parentId: true,
+              user: { select: userSelect },
+              _count: { select: { likes: true, replies: true } },
+            },
+          },
+          _count: { select: { comments: true, likes: true } },
+          likes: {
+            where: { userId: req.userId || '' },
+            select: { id: true },
+          },
+        },
+        orderBy: [{ isPinned: 'desc' }, { viewCount: 'desc' }, { updatedAt: 'desc' }],
+        take: 6,
+      }),
+      prisma.comment.findMany({
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          user: { select: userSelect },
+          discussion: { select: { id: true, title: true } },
+        },
+      }),
+      prisma.discussion.findMany({
+        take: 500,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          user: { select: userSelect },
+          _count: { select: { likes: true, comments: true } },
+        },
+      }),
+      prisma.comment.findMany({
+        take: 500,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          user: { select: userSelect },
+        },
+      }),
+    ]);
+
+    const trending = trendingRows.map((discussion) => {
+      const latestComment = discussion.comments[0] || null;
+      const { comments: _comments, likes, ...discussionData } = discussion;
+      return {
+        ...discussionData,
+        latestComment: latestComment ? { ...latestComment, replies: [] } : null,
+        lastActivityAt: latestComment?.createdAt || discussion.updatedAt || discussion.createdAt,
+        isLiked: likes.length > 0,
+      };
+    });
+
+    type Contributor = {
+      user: { id: string; name: string | null; avatarUrl: string | null };
+      discussions: number;
+      comments: number;
+      likesReceived: number;
+    };
+    const contributorMap = new Map<string, Contributor>();
+
+    contributionDiscussions.forEach((discussion) => {
+      const current = contributorMap.get(discussion.user.id) || {
+        user: discussion.user,
+        discussions: 0,
+        comments: 0,
+        likesReceived: 0,
+      };
+      current.discussions += 1;
+      current.likesReceived += discussion._count.likes;
+      contributorMap.set(discussion.user.id, current);
+    });
+
+    contributionComments.forEach((comment) => {
+      const current = contributorMap.get(comment.user.id) || {
+        user: comment.user,
+        discussions: 0,
+        comments: 0,
+        likesReceived: 0,
+      };
+      current.comments += 1;
+      contributorMap.set(comment.user.id, current);
+    });
+
+    const contributors = Array.from(contributorMap.values())
+      .sort((a, b) => {
+        const scoreA = a.discussions * 4 + a.comments + a.likesReceived * 2;
+        const scoreB = b.discussions * 4 + b.comments + b.likesReceived * 2;
+        return scoreB - scoreA;
+      })
+      .slice(0, 6);
+
+    res.json({
+      totals: {
+        discussions: discussionTotal,
+        comments: commentTotal,
+        likes: likeTotal,
+        views: viewAggregate._sum.viewCount || 0,
+        activeAuthors: activeAuthors.length,
+        unanswered: unansweredTotal,
+        pinned: pinnedTotal,
+      },
+      tags: buildTagInsights(tagRows),
+      trending,
+      contributors,
+      recentComments,
     });
   } catch (error) {
     next(error);
@@ -338,6 +546,11 @@ export const addComment = async (req: AuthRequest, res: Response, next: NextFunc
           select: { likes: true, replies: true },
         },
       },
+    });
+
+    await prisma.discussion.update({
+      where: { id: discussionId },
+      data: { updatedAt: new Date() },
     });
 
     await awardPoints(req.userId as string, PointsAction.CREATE_COMMENT);

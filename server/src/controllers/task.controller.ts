@@ -8,6 +8,19 @@ import { createNotification, createNotificationBatch } from '../utils/notificati
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import logger from '../utils/logger';
 
+interface BatchCreateTaskInput {
+  title?: string;
+  description?: string | null;
+  status?: string;
+  priority?: string;
+  tags?: string | null;
+  subtasks?: string | null;
+  dueDate?: string | null;
+  assigneeId?: string | null;
+  projectId?: string | null;
+  participantIds?: string[];
+}
+
 export const getAllTasks = async (req: AuthRequest, res: Response) => {
   const { date, status, priority, projectId, assigneeId } = req.query;
   try {
@@ -235,6 +248,231 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(task);
   } catch (_error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const batchCreateTasks = async (req: AuthRequest, res: Response) => {
+  const { tasks } = req.body as { tasks?: BatchCreateTaskInput[] };
+
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return res.status(400).json({ error: 'tasks must be a non-empty array' });
+  }
+
+  if (tasks.length > 50) {
+    return res.status(400).json({ error: 'Batch task creation is limited to 50 tasks' });
+  }
+
+  const invalidTitleIndex = tasks.findIndex((task) => !task.title || !task.title.trim());
+  if (invalidTitleIndex >= 0) {
+    return res.status(400).json({ error: 'Each task needs a title', index: invalidTitleIndex });
+  }
+
+  const normalizedTasks = tasks.map((task) => {
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+
+    return {
+      title: task.title!.trim(),
+      description: task.description || null,
+      status: task.status || 'TODO',
+      priority: task.priority || 'MEDIUM',
+      tags: task.tags || null,
+      subtasks: task.subtasks || null,
+      dueDate,
+      assigneeId: task.assigneeId || null,
+      projectId: task.projectId || null,
+      participantIds: Array.isArray(task.participantIds) ? task.participantIds : [],
+    };
+  });
+
+  const invalidDueDateIndex = normalizedTasks.findIndex(
+    (task) => task.dueDate && Number.isNaN(task.dueDate.getTime()),
+  );
+  if (invalidDueDateIndex >= 0) {
+    return res.status(400).json({ error: 'Invalid dueDate', index: invalidDueDateIndex });
+  }
+
+  try {
+    const effectiveTeamId = req.workspaceId || null;
+    const projectIds = Array.from(
+      new Set(normalizedTasks.map((task) => task.projectId).filter(Boolean)),
+    ) as string[];
+
+    if (projectIds.length > 0) {
+      const projects = await prisma.project.findMany({
+        where: { id: { in: projectIds }, teamId: effectiveTeamId },
+        include: {
+          members: {
+            where: { userId: req.userId },
+          },
+        },
+      });
+      const projectById = new Map(projects.map((project) => [project.id, project]));
+      const missingProjectId = projectIds.find((id) => !projectById.has(id));
+
+      if (missingProjectId) {
+        return res.status(404).json({ error: 'Project not found', projectId: missingProjectId });
+      }
+
+      const unauthorizedProjectId = projects.find((project) => project.members.length === 0)?.id;
+      if (unauthorizedProjectId) {
+        return res.status(403).json({
+          error: 'Not authorized to create tasks in this project',
+          projectId: unauthorizedProjectId,
+        });
+      }
+    }
+
+    if (effectiveTeamId) {
+      const referencedUserIds = Array.from(
+        new Set(
+          normalizedTasks
+            .flatMap((task) => [task.assigneeId, ...task.participantIds])
+            .filter(Boolean),
+        ),
+      ) as string[];
+
+      if (referencedUserIds.length > 0) {
+        const teamMembers = await prisma.teamMember.findMany({
+          where: { teamId: effectiveTeamId, userId: { in: referencedUserIds } },
+          select: { userId: true },
+        });
+        const memberIds = new Set(teamMembers.map((member) => member.userId));
+        const invalidUserIds = referencedUserIds.filter((id) => !memberIds.has(id));
+
+        if (invalidUserIds.length > 0) {
+          return res.status(400).json({
+            error: '部分指定人员不在该团队中',
+            invalidUserIds,
+          });
+        }
+      }
+    }
+
+    const createdTasks = await prisma.$transaction(
+      normalizedTasks.map((task) =>
+        prisma.task.create({
+          data: {
+            title: task.title,
+            description: task.description,
+            status: task.status,
+            priority: task.priority,
+            tags: task.tags,
+            subtasks: task.subtasks,
+            dueDate: task.dueDate,
+            assigneeId: task.assigneeId,
+            projectId: task.projectId,
+            userId: req.userId as string,
+            teamId: effectiveTeamId,
+            participants:
+              task.participantIds.length > 0
+                ? {
+                    create: task.participantIds.map((userId) => ({ userId })),
+                  }
+                : undefined,
+          },
+          include: {
+            assignee: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
+            project: {
+              select: { id: true, title: true, color: true },
+            },
+            team: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
+            participants: {
+              select: {
+                id: true,
+                userId: true,
+                user: { select: { id: true, name: true, avatarUrl: true } },
+              },
+            },
+          },
+        }),
+      ),
+    );
+
+    await Promise.all(
+      projectIds.map(async (projectId) => {
+        const projectTasks = await prisma.task.findMany({
+          where: { projectId },
+          select: { status: true },
+        });
+        const total = projectTasks.length;
+        const done = projectTasks.filter((task) => task.status === 'DONE').length;
+        const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { progress },
+        });
+      }),
+    );
+
+    await Promise.all(
+      createdTasks
+        .filter((task) => task.status === 'DONE')
+        .map((task) => awardPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK)),
+    );
+
+    await Promise.all(
+      createdTasks
+        .filter((task) => task.assigneeId && task.assigneeId !== req.userId)
+        .map((task) =>
+          createNotification({
+            type: 'TASK',
+            title: '新任务指派',
+            content: `${req.user?.name || '有人'} 给您指派了任务: ${task.title}`,
+            userId: task.assigneeId as string,
+            link: `/tasks?id=${task.id}`,
+            category: 'TASK_UPDATE',
+          }),
+        ),
+    );
+
+    for (const projectId of projectIds) {
+      try {
+        const projectTasks = createdTasks.filter((task) => task.projectId === projectId);
+        const projectMembers = await prisma.projectMember.findMany({
+          where: { projectId },
+          select: { userId: true },
+        });
+        const targetUserIds = projectMembers
+          .map((member) => member.userId)
+          .filter((userId) => userId !== req.userId);
+
+        if (targetUserIds.length > 0 && projectTasks.length > 0) {
+          await createNotificationBatch(
+            targetUserIds.map((userId) => ({
+              type: 'TASK',
+              title: '项目任务批量更新',
+              content: `项目看板新增了 ${projectTasks.length} 个任务。`,
+              userId,
+              link: `/projects/${projectId}`,
+              category: 'TEAM_ACTIVITY' as const,
+            })),
+          );
+        }
+      } catch (notifErr) {
+        logger.error('Failed to send batch task creation notifications:', notifErr);
+      }
+    }
+
+    await auditService.log({
+      userId: req.userId,
+      action: AuditAction.CREATE_TASK,
+      module: AuditModule.TASK,
+      description: `Batch created ${createdTasks.length} tasks`,
+      newValue: {
+        count: createdTasks.length,
+        taskIds: createdTasks.map((task) => task.id),
+      },
+      req,
+    });
+
+    res.status(201).json({ count: createdTasks.length, tasks: createdTasks });
+  } catch (error) {
+    logger.error('Failed to batch create tasks:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

@@ -49,7 +49,10 @@ const handleJWTError = (err: Error): AppError => {
   return new AppError('认证失败', 401, 'AUTHENTICATION_FAILED');
 };
 
-const handleMulterError = (err: any): AppError => {
+interface MulterError extends Error {
+  code?: string;
+}
+const handleMulterError = (err: MulterError): AppError => {
   switch (err.code) {
     case 'LIMIT_FILE_SIZE':
       return new AppError('文件大小超出限制', 400, 'FILE_TOO_LARGE');
@@ -62,8 +65,13 @@ const handleMulterError = (err: any): AppError => {
   }
 };
 
-export const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
-  let error = err;
+export const errorHandler = (
+  err: Error | AppError,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+) => {
+  let error: AppError | Error = err;
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     error = handlePrismaError(err);
@@ -78,19 +86,27 @@ export const errorHandler = (err: any, req: Request, res: Response, _next: NextF
   ) {
     error = handleJWTError(err);
   } else if (err.name === 'MulterError') {
-    error = handleMulterError(err);
-  } else if (err.name === 'SyntaxError' && (err as any).status === 400 && 'body' in err) {
+    error = handleMulterError(err as MulterError);
+  } else if (
+    err.name === 'SyntaxError' &&
+    (err as { status?: number }).status === 400 &&
+    'body' in err
+  ) {
     error = new AppError('请求体格式错误：无效的 JSON', 400, 'INVALID_JSON');
   } else if (err.message === 'Not allowed by CORS') {
     error = new AppError('当前来源不允许访问 API', 403, 'CORS_NOT_ALLOWED');
   }
 
+  const appError = error instanceof AppError ? error : undefined;
   const statusCode =
-    Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode < 600
-      ? error.statusCode
+    appError &&
+    Number.isInteger(appError.statusCode) &&
+    appError.statusCode >= 400 &&
+    appError.statusCode < 600
+      ? appError.statusCode
       : 500;
   const message = error.message || 'Internal Server Error';
-  const code = error.code || (statusCode === 500 ? 'INTERNAL_ERROR' : 'REQUEST_ERROR');
+  const code = appError?.code || (statusCode === 500 ? 'INTERNAL_ERROR' : 'REQUEST_ERROR');
   const requestId = (req as Request & { requestId?: string }).requestId;
 
   if (statusCode === 500) {
@@ -115,7 +131,11 @@ export const errorHandler = (err: any, req: Request, res: Response, _next: NextF
       }
 
       const logMsg = `\n\n[${new Date().toISOString()}] ${req.method} ${req.url}${requestId ? ` requestId=${requestId}` : ''}\nError: ${message}\nStack: ${err?.stack || err}\n`;
-      fs.appendFileSync(logPath, logMsg);
+      fs.appendFile(logPath, logMsg, (writeErr) => {
+        if (writeErr) {
+          logger.error('Failed to write debug log:', writeErr);
+        }
+      });
     } catch (e) {
       logger.error('Failed to write debug log:', e);
     }
@@ -126,7 +146,7 @@ export const errorHandler = (err: any, req: Request, res: Response, _next: NextF
     message,
   );
   if (process.env.NODE_ENV === 'development') {
-    logger.error(err.stack);
+    logger.error(err.stack ?? String(err));
   }
 
   res.status(statusCode).json({
@@ -135,7 +155,7 @@ export const errorHandler = (err: any, req: Request, res: Response, _next: NextF
     message,
     code,
     ...(requestId && { requestId }),
-    ...(error.details !== undefined && { details: error.details }),
+    ...(appError?.details !== undefined && { details: appError.details }),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

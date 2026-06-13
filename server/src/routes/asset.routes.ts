@@ -21,9 +21,11 @@ router.post(
 );
 router.get('/my', assetController.getUserAssets);
 router.get('/public', assetController.getPublicAssets);
+router.get('/insights', assetController.getAssetInsights);
 router.get('/tags', assetController.getAssetTags);
 router.post('/:id/download', assetController.recordAssetDownload);
 router.post('/:id/like', assetController.toggleAssetLike);
+router.get('/:id/toolkit', assetController.getAssetToolkit);
 router.get('/:id', assetController.getAssetById);
 router.patch('/:id', assetController.updateAsset);
 router.patch('/:id/metadata', assetController.updateAssetMetadata);

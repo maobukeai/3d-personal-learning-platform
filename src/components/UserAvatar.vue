@@ -16,7 +16,7 @@ const props = defineProps<{
       };
       status?: string;
       interval?: string;
-    };
+    } | null;
   } | null;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }>();
@@ -75,12 +75,12 @@ const frameConfig = computed(() => {
       tier: 'admin' as const,
       badgeText: '管理员',
       badgeIcon: '',
-      color: '#ff2d55', // Vibrant neon pink/red from image
-      borderWidth: '2px',
-      glowIntensity: 1,
-      animation: 'admin-breathe',
+      color: '#8b5cf6', // Elegant purple matching the theme
+      borderWidth: '1.5px',
+      glowIntensity: 0.2, // Very subtle glow
+      animation: 'none', // Removed busy breathing animations
       hasShimmer: true,
-      innerBorder: 'rgba(0,0,0,0.8)',
+      innerBorder: 'var(--bg-card)', // No harsh black background ring
     };
   }
 
@@ -90,7 +90,7 @@ const frameConfig = computed(() => {
       badgeText: '已过期',
       badgeIcon: '',
       color: '#94a3b8',
-      borderWidth: '1.5px',
+      borderWidth: '1px',
       glowIntensity: 0,
       animation: 'none',
       hasShimmer: false,
@@ -104,11 +104,11 @@ const frameConfig = computed(() => {
       badgeText: '超级会员',
       badgeIcon: '',
       color: '#fbbf24',
-      borderWidth: '2px',
-      glowIntensity: 0.8,
-      animation: 'svip-breathe',
+      borderWidth: '1.5px',
+      glowIntensity: 0.25,
+      animation: 'none',
       hasShimmer: true,
-      innerBorder: 'rgba(0,0,0,0.6)',
+      innerBorder: 'var(--bg-card)',
     };
   }
 
@@ -117,12 +117,12 @@ const frameConfig = computed(() => {
       tier: 'vip' as const,
       badgeText: '会员',
       badgeIcon: '',
-      color: '#8b5cf6',
-      borderWidth: '1.5px',
-      glowIntensity: 0.6,
-      animation: 'vip-breathe',
+      color: '#a78bfa',
+      borderWidth: '1.2px',
+      glowIntensity: 0.15,
+      animation: 'none',
       hasShimmer: true,
-      innerBorder: 'rgba(0,0,0,0.4)',
+      innerBorder: 'var(--bg-card)',
     };
   }
 
@@ -182,11 +182,11 @@ const fallbackBgColor = computed(() => {
       ]"
       :style="{
         backgroundColor: frameConfig.innerBorder,
-        boxShadow: `0 0 ${15 * frameConfig.glowIntensity}px ${frameConfig.color}${Math.round(
+        boxShadow: frameConfig.glowIntensity > 0 ? `0 2px ${8 * frameConfig.glowIntensity}px ${frameConfig.color}${Math.round(
           frameConfig.glowIntensity * 255,
         )
           .toString(16)
-          .padStart(2, '0')}`,
+          .padStart(2, '0')}` : 'none',
         padding: frameConfig.borderWidth,
         backgroundClip: 'content-box',
         border: `${frameConfig.borderWidth} solid ${frameConfig.color}`,

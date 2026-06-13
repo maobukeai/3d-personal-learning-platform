@@ -10,6 +10,8 @@ import {
 } from 'lucide-vue-next';
 import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 interface Banner {
   id: string;
@@ -66,6 +68,7 @@ const fetchBanners = async () => {
     isLoading.value = true;
     const { data } = await api.get('/api/admin/banners');
     banners.value = data;
+    fetchManagementInsights(true);
   } catch (error) {
     console.error('Failed to fetch banners:', error);
     ElMessage.error('获取轮播图列表失败');
@@ -244,6 +247,8 @@ onMounted(() => {
 
     <!-- Main List content -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+      <AdminOpsPanel scope="banners" />
+
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
         <div class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
       </div>

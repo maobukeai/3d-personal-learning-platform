@@ -149,7 +149,8 @@ export const updateRoadmap = async (req: AuthRequest, res: Response) => {
     if (!existing) {
       return res.status(404).json({ error: '学习路径不存在' });
     }
-    if (existing.creatorId !== req.userId) {
+    const userRole = req.user?.role;
+    if (existing.creatorId !== req.userId && userRole !== 'ADMIN') {
       return res.status(403).json({ error: '权限不足，您无法编辑此学习路径' });
     }
 
@@ -236,7 +237,8 @@ export const deleteRoadmap = async (req: AuthRequest, res: Response) => {
     if (!existing) {
       return res.status(404).json({ error: '学习路径不存在' });
     }
-    if (existing.creatorId !== req.userId) {
+    const userRole = req.user?.role;
+    if (existing.creatorId !== req.userId && userRole !== 'ADMIN') {
       return res.status(403).json({ error: '权限不足，您无法删除此学习路径' });
     }
 

@@ -9,6 +9,8 @@ router.use(authenticate);
 
 router.get('/', showcaseController.getAllShowcases);
 router.get('/my', showcaseController.getMyShowcases);
+router.get('/stats', showcaseController.getShowcaseStats);
+router.get('/:id/related', showcaseController.getRelatedShowcases);
 router.get('/:id', showcaseController.getShowcaseById);
 router.post(
   '/',

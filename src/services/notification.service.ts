@@ -13,6 +13,7 @@ export interface AppNotification {
 export interface NotificationPreferences {
   emailSystemUpdates: boolean;
   emailTeamActivity: boolean;
+  emailDirectMessages: boolean;
   emailMarketing: boolean;
   pushMentions: boolean;
   pushDirectMessages: boolean;
@@ -21,6 +22,7 @@ export interface NotificationPreferences {
 export const defaultNotificationPreferences = (): NotificationPreferences => ({
   emailSystemUpdates: true,
   emailTeamActivity: true,
+  emailDirectMessages: true,
   emailMarketing: false,
   pushMentions: true,
   pushDirectMessages: true,
@@ -40,6 +42,7 @@ export const fetchNotificationPreferences = async (): Promise<NotificationPrefer
   return {
     emailSystemUpdates: data.emailSystemUpdates ?? true,
     emailTeamActivity: data.emailTeamActivity ?? true,
+    emailDirectMessages: data.emailDirectMessages ?? true,
     emailMarketing: data.emailMarketing ?? false,
     pushMentions: data.pushMentions ?? true,
     pushDirectMessages: data.pushDirectMessages ?? true,

@@ -148,14 +148,13 @@ const handleDeleteAll = async () => {
       cancelButtonText: t('notifications.clear_cancel_btn'),
       type: 'warning',
     });
-    // Assuming there's an endpoint for this, or we do it one by one if not.
-    // For now, let's just clear locally if backend doesn't support it yet
-    // await api.delete('/api/notifications/all')
+    await api.delete('/api/notifications');
     notifications.value = [];
     ElMessage.success(t('notifications.clear_all_success'));
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Delete all error:', error);
+      ElMessage.error(t('notifications.mark_all_failed'));
     }
   }
 };

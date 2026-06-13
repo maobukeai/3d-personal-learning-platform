@@ -7,6 +7,7 @@ import { generateAccessToken, generateRefreshToken } from '../../utils/auth';
 import { settingsService } from '../../services/settings.service';
 import { OAuthService } from '../../services/oauth.service';
 import { AppError } from '../../middlewares/error.middleware';
+import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 
 const frontendLoginUrl = (query: string) =>
   `${config.FRONTEND_URL.replace(/\/$/, '')}/login?${query}`;
@@ -91,15 +92,9 @@ export const googleCallback = async (req: Request, res: Response) => {
               emailVerified: true,
             },
           });
-          // Initial setup (teams etc)
-          await tx.team.create({
-            data: {
-              name: `${oauthUser.name} 的个人空间`,
-              type: 'PERSONAL',
-              visibility: 'PRIVATE',
-              ownerId: newUser.id,
-              members: { create: { userId: newUser.id, role: 'OWNER' } },
-            },
+          await provisionUserWorkspaces(tx, {
+            userId: newUser.id,
+            displayName: oauthUser.name || oauthUser.email,
           });
           return newUser;
         });
@@ -171,14 +166,9 @@ export const githubCallback = async (req: Request, res: Response) => {
               emailVerified: true,
             },
           });
-          await tx.team.create({
-            data: {
-              name: `${oauthUser.name} 的个人空间`,
-              type: 'PERSONAL',
-              visibility: 'PRIVATE',
-              ownerId: newUser.id,
-              members: { create: { userId: newUser.id, role: 'OWNER' } },
-            },
+          await provisionUserWorkspaces(tx, {
+            userId: newUser.id,
+            displayName: oauthUser.name || oauthUser.email,
           });
           return newUser;
         });

@@ -88,6 +88,11 @@ const router = createRouter({
               component: () => import('@/views/Dashboard/DashboardView.vue'),
             },
             {
+              path: 'resources',
+              name: 'ResourceCenter',
+              component: () => import('@/views/Assets/ResourceCenterView.vue'),
+            },
+            {
               path: 'assets',
               name: 'Assets',
               component: () => import('@/views/Assets/AssetsView.vue'),
@@ -109,8 +114,7 @@ const router = createRouter({
             },
             {
               path: 'team-tasks',
-              name: 'TeamTasks',
-              component: () => import('@/views/Tasks/TeamTasksView.vue'),
+              redirect: '/projects',
             },
             {
               path: 'discussions',
@@ -122,15 +126,11 @@ const router = createRouter({
               name: 'Roadmaps',
               component: () => import('@/views/Learning/RoadmapsView.vue'),
             },
-            {
-              path: 'members',
-              name: 'Members',
-              component: () => import('@/views/Community/MembersView.vue'),
-            },
+
             {
               path: 'projects',
               name: 'Projects',
-              component: () => import('@/views/Assets/ProjectsView.vue'),
+              component: () => import('@/views/Tasks/ProjectsView.vue'),
             },
             {
               path: 'project/:id',
@@ -201,25 +201,43 @@ const router = createRouter({
               path: 'tools/email',
               name: 'EmailSystem',
               component: () => import('@/views/Tools/EmailSystemView.vue'),
-              meta: { requiresAuth: true },
+            },
+            {
+              path: 'tools/ai-robots',
+              name: 'AiRobotAccess',
+              component: () => import('@/views/Tools/AiRobotAccessView.vue'),
+            },
+            {
+              path: 'tools/google-warming',
+              name: 'GoogleWarming',
+              component: () => import('@/views/Tools/GoogleWarmingView.vue'),
+            },
+            {
+              path: 'tools/two-factor',
+              name: 'TwoFactorAuth',
+              component: () => import('@/views/Tools/TwoFactorView.vue'),
             },
             {
               path: 'manual/station/:id',
               name: 'ManualStation',
               component: () => import('@/views/Manual/ManualStationView.vue'),
-              meta: { requiresAuth: true },
             },
             {
               path: 'manual/resource/:id',
               name: 'ManualResourceDetail',
               component: () => import('@/views/Manual/ManualResourceDetail.vue'),
-              meta: { requiresAuth: true },
             },
             // Admin Routes
             {
               path: 'admin/dashboard',
               name: 'AdminDashboard',
               component: () => import('@/views/Admin/AdminDashboardView.vue'),
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'admin/command-center',
+              name: 'AdminCommandCenter',
+              component: () => import('@/views/Admin/AdminCommandCenterView.vue'),
               meta: { requiresAdmin: true },
             },
             {
@@ -332,15 +350,20 @@ router.beforeEach(async (to) => {
   if (!authStore.user && to.meta.requiresAuth) {
     try {
       await authStore.fetchMe();
-    } catch (_e) {
-      // fetchMe handles logout/redirect if it fails
+    } catch (e) {
+      console.debug('Router: fetchMe failed, user may not be logged in', e);
     }
-  } else if (!authStore.user && systemStore.settings.MAINTENANCE_MODE && to.name !== 'Maintenance' && to.name !== 'Login') {
+  } else if (
+    !authStore.user &&
+    systemStore.settings.MAINTENANCE_MODE &&
+    to.name !== 'Maintenance' &&
+    to.name !== 'Login'
+  ) {
     // If in maintenance mode and no user in state, try fetching to see if it's an admin
     try {
       await authStore.fetchMe();
-    } catch (_e) {
-      // If it fails, they are likely not logged in or not an admin
+    } catch (e) {
+      console.debug('Router: fetchMe failed during maintenance check', e);
     }
   }
 

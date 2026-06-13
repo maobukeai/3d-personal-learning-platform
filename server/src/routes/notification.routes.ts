@@ -11,6 +11,7 @@ router.put('/preferences', notificationController.updateNotificationPreferences)
 router.get('/', notificationController.getMyNotifications);
 router.put('/read-all', notificationController.markAllAsRead);
 router.put('/:id/read', notificationController.markAsRead);
+router.delete('/', notificationController.deleteAllNotifications);
 router.delete('/:id', notificationController.deleteNotification);
 
 export default router;

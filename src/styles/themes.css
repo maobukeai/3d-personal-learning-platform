@@ -5,29 +5,34 @@
 html.theme-glass {
   color-scheme: light;
 
-  /* Layout backgrounds – transparent/translucent frosted white */
+  /* Layout backgrounds – translucent frosted white */
   --bg-app: #f1f5f9;
   --bg-card: rgba(255, 255, 255, 0.9);
   --bg-card-rgb: 255, 255, 255;
-  --bg-sidebar: rgba(248, 250, 252, 0.92);
+  --bg-sidebar: rgba(248, 250, 252, 0.95);
+  --bg-elevated: rgba(255, 255, 255, 0.95);
+  --bg-subtle: #f8fafc;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(37, 99, 235, 0.08);
 
   /* Text */
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #64748b;
 
-  /* Borders – very subtle semi-transparent white/slate */
-  --border-base: rgba(255, 255, 255, 0.4);
-  --border-strong: rgba(255, 255, 255, 0.6);
+  /* Borders – visible light gray (not transparent white) */
+  --border-base: rgba(203, 213, 225, 0.8);
+  --border-strong: rgba(148, 163, 184, 0.7);
+  --border-card: rgba(203, 213, 225, 0.6);
 
   /* Accent subtle - light */
-  --accent-subtle: color-mix(in srgb, var(--accent) 15%, rgba(255, 255, 255, 0.45));
+  --accent-subtle: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.8));
 
   /* Glass specifics */
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: 1px solid rgba(223, 227, 232, 0.9);
-  --glass-border-color: rgba(223, 227, 232, 0.9);
-  --glass-shadow: var(--shadow-enterprise);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: 1px solid rgba(203, 213, 225, 0.8);
+  --glass-border-color: rgba(203, 213, 225, 0.8);
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 /* Dark Glassmorphism Override Definition */
@@ -69,10 +74,10 @@ html.dark.theme-glass {
 
 /* Glass performance budget values */
 html.theme-glass {
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: 1px solid rgba(223, 227, 232, 0.9);
-  --glass-border-color: rgba(223, 227, 232, 0.9);
-  --glass-shadow: var(--shadow-enterprise);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: 1px solid rgba(203, 213, 225, 0.8);
+  --glass-border-color: rgba(203, 213, 225, 0.8);
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 html.dark.theme-glass {

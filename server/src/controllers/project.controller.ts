@@ -49,6 +49,36 @@ export const checkTeamProjectPermission = async (
   return !!member && (member.role === 'OWNER' || member.role === 'ADMIN');
 };
 
+type DiscussionUploadFiles = Partial<Record<'images' | 'message_file', Express.Multer.File[]>>;
+
+const getDiscussionUploadUrl = (file: Express.Multer.File) => {
+  if (file.fieldname === 'images') {
+    return `/uploads/discussions/${file.filename}`;
+  }
+
+  return `/uploads/messages/${file.filename}`;
+};
+
+export const uploadDiscussionAttachment = (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const files = req.files as DiscussionUploadFiles | undefined;
+    const file = req.file ?? files?.images?.[0] ?? files?.message_file?.[0];
+
+    if (!file) {
+      return next(new AppError('No file uploaded', 400));
+    }
+
+    res.status(201).json({
+      url: getDiscussionUploadUrl(file),
+      fileName: file.originalname,
+      fileSize: file.size / (1024 * 1024),
+      type: file.fieldname === 'images' ? 'IMAGE' : 'FILE',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAllProjects = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const where: Prisma.ProjectWhereInput = {
@@ -279,7 +309,7 @@ export const updateProject = async (req: AuthRequest, res: Response, next: NextF
         );
       }
     } catch (notifErr) {
-      console.error('Failed to send project update notifications:', notifErr);
+      logger.error('Failed to send project update notifications:', notifErr);
     }
 
     res.json(updated);
@@ -401,7 +431,7 @@ export const joinProject = async (req: AuthRequest, res: Response, next: NextFun
         });
       }
     } catch (notifErr) {
-      console.error('Failed to send project join notification:', notifErr);
+      logger.error('Failed to send project join notification:', notifErr);
     }
 
     res.status(201).json(member);
@@ -542,7 +572,7 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
         );
       }
     } catch (notifErr) {
-      console.error('Failed to send task creation notifications:', notifErr);
+      logger.error('Failed to send task creation notifications:', notifErr);
     }
 
     res.status(201).json(task);
@@ -582,41 +612,43 @@ export const batchCreateProjectTasks = async (
       return next(new AppError('Not authorized to create tasks in this project', 403));
     }
 
-    const createdTasks = [];
-    for (const t of tasks) {
-      if (!t.title) continue;
+    const tasksData = tasks
+      .filter((t: { title?: string }) => t.title)
+      .map((t: { title: string; description?: string; priority?: string; dueDate?: string; assigneeId?: string; participantIds?: string[] }) => ({
+        title: t.title,
+        description: t.description || null,
+        status: 'TODO' as const,
+        priority: t.priority || 'MEDIUM',
+        dueDate: t.dueDate ? new Date(t.dueDate) : null,
+        projectId: id,
+        assigneeId: t.assigneeId || null,
+        userId: req.userId as string,
+        teamId: req.workspaceId || null,
+        subtasks: null,
+      }));
 
-      const task = await prisma.task.create({
-        data: {
-          title: t.title,
-          description: t.description || null,
-          status: 'TODO',
-          priority: t.priority || 'MEDIUM',
-          dueDate: t.dueDate ? new Date(t.dueDate) : null,
-          projectId: id,
-          assigneeId: t.assigneeId || null,
-          userId: req.userId as string,
-          teamId: req.workspaceId || null,
-          participants:
-            t.participantIds && Array.isArray(t.participantIds) && t.participantIds.length > 0
-              ? {
-                  create: t.participantIds.map((userId: string) => ({ userId })),
-                }
-              : undefined,
-        },
-        include: {
-          assignee: { select: { id: true, name: true, avatarUrl: true } },
-          participants: {
-            select: {
-              id: true,
-              userId: true,
-              user: { select: { id: true, name: true, avatarUrl: true } },
-            },
+    await prisma.task.createMany({ data: tasksData });
+
+    // Fetch the created tasks with relations for the response
+    const createdTasks = await prisma.task.findMany({
+      where: {
+        projectId: id,
+        userId: req.userId as string,
+        status: 'TODO',
+      },
+      include: {
+        assignee: { select: { id: true, name: true, avatarUrl: true } },
+        participants: {
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { id: true, name: true, avatarUrl: true } },
           },
         },
-      });
-      createdTasks.push(task);
-    }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: tasksData.length,
+    });
 
     await recalcProjectProgress(id);
 
@@ -641,7 +673,7 @@ export const batchCreateProjectTasks = async (
         );
       }
     } catch (notifErr) {
-      console.error('Failed to send batch task creation notifications:', notifErr);
+      logger.error('Failed to send batch task creation notifications:', notifErr);
     }
 
     res.status(201).json(createdTasks);
@@ -735,7 +767,7 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
           );
         }
       } catch (notifErr) {
-        console.error('Failed to send task update notifications:', notifErr);
+        logger.error('Failed to send task update notifications:', notifErr);
       }
     }
 
@@ -841,7 +873,7 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
         );
       }
     } catch (notifErr) {
-      console.error('Failed to send project deletion notifications:', notifErr);
+      logger.error('Failed to send project deletion notifications:', notifErr);
     }
 
     res.json({ message: 'Project deleted successfully' });
@@ -1138,7 +1170,7 @@ export const removeProjectMember = async (req: AuthRequest, res: Response, next:
         category: 'TEAM_ACTIVITY' as const,
       });
     } catch (notifErr) {
-      console.error('Failed to send project removal notification:', notifErr);
+      logger.error('Failed to send project removal notification:', notifErr);
     }
 
     res.json({ message: 'Member removed' });

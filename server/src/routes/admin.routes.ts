@@ -4,6 +4,7 @@ import * as settingsController from '../controllers/admin/settings.controller';
 import * as userController from '../controllers/admin/user.controller';
 import * as courseController from '../controllers/admin/course.controller';
 import * as contentController from '../controllers/admin/content.controller';
+import * as managementController from '../controllers/admin/management.controller';
 import * as teamController from '../controllers/admin/team.controller';
 import * as subscriptionController from '../controllers/admin/subscription.controller';
 import * as bannerController from '../controllers/admin/banner.controller';
@@ -23,6 +24,7 @@ router.get('/audit-logs', dashboardController.getAuditLogs);
 router.get('/broadcasts', dashboardController.getBroadcasts);
 router.post('/broadcast', dashboardController.sendBroadcast);
 router.delete('/broadcasts/:id', dashboardController.deleteBroadcast);
+router.get('/management-insights', managementController.getManagementInsights);
 
 // Settings
 router.get('/settings', settingsController.getSettings);
@@ -62,15 +64,21 @@ router.post('/settings/ai-models', adminAiTestLimiter, settingsController.listAi
 router.post('/settings/cleanup-storage', settingsController.cleanupStorage);
 
 // Users
+router.get('/users/overview', userController.getUserOverview);
 router.get('/users', userController.getUsers);
 router.post('/users', userController.createUser);
+router.put('/users/batch', userController.batchUpdateUsers);
+router.post('/users/batch/revoke-sessions', userController.batchRevokeUserSessions);
 router.put('/users/:id', userController.updateUser);
 router.post('/users/:id/reset-password', userController.resetUserPassword);
+router.post('/users/:id/revoke-sessions', userController.revokeUserSessions);
 router.put('/users/:id/role', userController.updateUserRole);
 router.delete('/users/:id', userController.deleteUser);
 
 // Feedback
 router.get('/feedback', contentController.getAllFeedback);
+router.put('/feedback/batch-status', contentController.batchUpdateFeedbackStatus);
+router.delete('/feedback/batch', contentController.batchDeleteFeedback);
 router.put('/feedback/:id/status', contentController.updateFeedbackStatus);
 router.delete('/feedback/:id', contentController.deleteFeedback);
 
@@ -94,6 +102,8 @@ router.get('/courses', courseController.getAllCourses);
 router.post('/courses', courseController.createCourse);
 router.post('/courses/batch', courseController.createCourseWithLessons);
 router.post('/courses/parse-external', courseController.parseExternalLink);
+router.put('/courses/batch-status', courseController.batchUpdateCourseStatus);
+router.delete('/courses/batch', courseController.batchDeleteCourses);
 router.put('/courses/:id', courseController.updateCourse);
 router.delete('/courses/:id', courseController.deleteCourse);
 router.post('/courses/lessons', courseController.createLesson);
@@ -103,8 +113,14 @@ router.delete('/courses/lessons/:id', courseController.deleteLesson);
 // Team management
 router.get('/teams', teamController.getAllTeams);
 router.post('/teams', teamController.createTeam);
+router.put('/teams/batch', teamController.batchUpdateTeams);
+router.delete('/teams/batch', teamController.batchDeleteTeams);
+router.put('/teams/applications/:applicationId', teamController.respondToTeamApplication);
+router.delete('/teams/invitations/:invitationId', teamController.cancelTeamInvitation);
+router.get('/teams/:id/detail', teamController.getTeamDetail);
 router.put('/teams/:id', teamController.updateTeam);
 router.delete('/teams/:id', teamController.deleteTeam);
+router.post('/teams/:teamId/members', teamController.addTeamMember);
 router.put('/teams/:teamId/members/:userId/role', teamController.updateTeamMemberRole);
 router.delete('/teams/:teamId/members/:userId', teamController.removeTeamMember);
 
@@ -125,6 +141,7 @@ router.delete('/materials/:id', contentController.adminDeleteMaterial);
 router.get('/showcases', contentController.getAllShowcasesForAdmin);
 router.put('/showcases/batch-status', contentController.batchUpdateShowcaseStatus);
 router.put('/showcases/:id/status', contentController.updateShowcaseStatus);
+router.put('/showcases/:id', contentController.adminUpdateShowcase);
 router.delete('/showcases/:id', contentController.adminDeleteShowcase);
 
 // Asset management

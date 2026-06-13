@@ -120,6 +120,74 @@ const createUploadMiddleware = (config: {
           fileSize: maxFileSize,
           files: 100,
         },
+        fileFilter: (req, file, cb) => {
+          const ext = path.extname(file.originalname).toLowerCase();
+          let finalAllowedExtensions = allowedExtensions;
+
+          if (isImageField(file.fieldname)) {
+            finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
+          } else if (
+            file.fieldname === 'file' ||
+            file.fieldname === 'excel' ||
+            file.fieldname === 'files'
+          ) {
+            finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls', '.zip'];
+          } else if (file.fieldname === 'plugin_file') {
+            finalAllowedExtensions = [
+              '.zip',
+              '.rar',
+              '.7z',
+              '.blend',
+              '.js',
+              '.ts',
+              '.py',
+              '.lua',
+              '.mjs',
+            ];
+          } else if (file.fieldname === 'plugin_preview') {
+            finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+          } else if (file.fieldname === 'message_file') {
+            finalAllowedExtensions = [
+              '.png',
+              '.jpg',
+              '.jpeg',
+              '.gif',
+              '.webp',
+              '.svg',
+              '.webm',
+              '.wav',
+              '.mp3',
+              '.ogg',
+              '.m4a',
+              '.mp4',
+              '.aac',
+              '.pdf',
+              '.doc',
+              '.docx',
+              '.xls',
+              '.xlsx',
+              '.ppt',
+              '.pptx',
+              '.txt',
+              '.zip',
+              '.rar',
+              '.7z',
+              '.glb',
+              '.gltf',
+              '.fbx',
+              '.obj',
+              '.stl',
+            ];
+          }
+
+          if (!finalAllowedExtensions.includes(ext)) {
+            logger.error(
+              `[UploadError] Extension not allowed: ${ext} for field ${file.fieldname}. Allowed: ${finalAllowedExtensions.join(', ')}`,
+            );
+            return cb(new Error(`不支持的文件类型: ${ext}`));
+          }
+          cb(null, true);
+        },
       });
 
       let multerAction;
@@ -149,7 +217,7 @@ const createUploadMiddleware = (config: {
             .json({ error: err instanceof Error ? err.message : 'An error occurred' });
         }
 
-        // Manual extension check for dynamic settings
+        // Manual size check for dynamic settings
         const files = req.file
           ? { [req.file.fieldname]: [req.file] }
           : (req.files as { [fieldname: string]: Express.Multer.File[] });
@@ -161,76 +229,12 @@ const createUploadMiddleware = (config: {
               : [files[fieldname]];
             for (const file of fileList) {
               if (!file) continue;
-              const ext = path.extname(file.originalname).toLowerCase();
 
-              // 针对系统 Logo、Favicon 和用户头像等特定用途的图片，使用专属安全后缀白名单而非全局用户上传类型限制
-              let finalAllowedExtensions = allowedExtensions;
               let finalMaxFileSize = maxFileSize;
-
               if (isImageField(file.fieldname)) {
-                finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
-              } else if (
-                file.fieldname === 'file' ||
-                file.fieldname === 'excel' ||
-                file.fieldname === 'files'
-              ) {
-                finalAllowedExtensions = [...allowedExtensions, '.xlsx', '.xls', '.zip'];
-              } else if (file.fieldname === 'plugin_file') {
-                // Plugin packages: zip archives, Blender scripts, JS/TS addons, Python scripts
-                finalAllowedExtensions = [
-                  '.zip',
-                  '.rar',
-                  '.7z',
-                  '.blend',
-                  '.js',
-                  '.ts',
-                  '.py',
-                  '.lua',
-                  '.mjs',
-                ];
-              } else if (file.fieldname === 'plugin_preview') {
-                finalAllowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
-              } else if (file.fieldname === 'message_file') {
-                finalAllowedExtensions = [
-                  '.png',
-                  '.jpg',
-                  '.jpeg',
-                  '.gif',
-                  '.webp',
-                  '.svg',
-                  '.webm',
-                  '.wav',
-                  '.mp3',
-                  '.ogg',
-                  '.m4a',
-                  '.mp4',
-                  '.aac',
-                  '.pdf',
-                  '.doc',
-                  '.docx',
-                  '.xls',
-                  '.xlsx',
-                  '.ppt',
-                  '.pptx',
-                  '.txt',
-                  '.zip',
-                  '.rar',
-                  '.7z',
-                  '.glb',
-                  '.gltf',
-                  '.fbx',
-                  '.obj',
-                  '.stl',
-                ];
+                finalMaxFileSize = 5 * 1024 * 1024;
               }
 
-              if (!finalAllowedExtensions.includes(ext)) {
-                logger.error(
-                  `[UploadError] Extension not allowed: ${ext} for field ${file.fieldname}. Allowed: ${finalAllowedExtensions.join(', ')}`,
-                );
-                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-                return res.status(400).json({ error: `不支持的文件类型: ${ext}` });
-              }
               if (file.size > finalMaxFileSize) {
                 if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 const displayLimit = isImageField(file.fieldname) ? '5' : settings.MAX_FILE_SIZE;

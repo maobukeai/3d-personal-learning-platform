@@ -310,8 +310,10 @@ const handleExportBilling = () => {
   const link = document.createElement('a');
   link.href = url;
   link.download = `billing_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
   ElMessage.success('账单已导出');
 };
 

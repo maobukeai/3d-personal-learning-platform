@@ -31,6 +31,8 @@ import CourseEditDialog from './components/CourseEditDialog.vue';
 import CategoryEditDialog from './components/CategoryEditDialog.vue';
 import CourseImportDialog from './components/CourseImportDialog.vue';
 import LessonEditDialog from './components/LessonEditDialog.vue';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 const router = useRouter();
 
@@ -92,6 +94,11 @@ const fetchCourses = async () => {
     isLoading.value = true;
     const { data } = await api.get('/api/admin/courses');
     courses.value = data;
+    const existingIds = new Set(courses.value.map((course) => course.id));
+    selectedCourseIds.value = new Set(
+      Array.from(selectedCourseIds.value).filter((id) => existingIds.has(id)),
+    );
+    fetchManagementInsights(true);
   } catch (error) {
     console.error('Fetch courses error:', error);
   } finally {
@@ -131,6 +138,93 @@ const filteredCourses = computed(() => {
       return list;
   }
 });
+
+const selectedCourseIds = ref<Set<string>>(new Set());
+const selectedCourseCount = computed(() => selectedCourseIds.value.size);
+const selectedCourseIdList = computed(() => Array.from(selectedCourseIds.value));
+const allFilteredSelected = computed(
+  () =>
+    filteredCourses.value.length > 0 &&
+    filteredCourses.value.every((course) => selectedCourseIds.value.has(course.id)),
+);
+
+const isCourseSelected = (courseId: string) => selectedCourseIds.value.has(courseId);
+
+const toggleCourseSelection = (courseId: string) => {
+  const next = new Set(selectedCourseIds.value);
+  if (next.has(courseId)) {
+    next.delete(courseId);
+  } else {
+    next.add(courseId);
+  }
+  selectedCourseIds.value = next;
+};
+
+const toggleAllFilteredCourses = () => {
+  const next = new Set(selectedCourseIds.value);
+  if (allFilteredSelected.value) {
+    filteredCourses.value.forEach((course) => next.delete(course.id));
+  } else {
+    filteredCourses.value.forEach((course) => next.add(course.id));
+  }
+  selectedCourseIds.value = next;
+};
+
+const clearCourseSelection = () => {
+  selectedCourseIds.value = new Set();
+};
+
+const batchUpdateCourseStatus = async (status: 'PUBLISHED' | 'DRAFT') => {
+  if (selectedCourseCount.value === 0) {
+    ElMessage.warning('请先选择课程');
+    return;
+  }
+  try {
+    await api.put('/api/admin/courses/batch-status', {
+      ids: selectedCourseIdList.value,
+      status,
+    });
+    ElMessage.success(status === 'PUBLISHED' ? '已批量发布课程' : '已批量转为草稿');
+    clearCourseSelection();
+    await fetchCourses();
+  } catch (error) {
+    console.error('Batch update course status error:', error);
+    ElMessage.error('批量更新课程状态失败');
+  }
+};
+
+const batchDeleteCourses = async () => {
+  if (selectedCourseCount.value === 0) {
+    ElMessage.warning('请先选择课程');
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${selectedCourseCount.value} 门课程吗？关联课时也会一并删除。`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+  } catch {
+    return;
+  }
+
+  try {
+    await api.delete('/api/admin/courses/batch', {
+      data: { ids: selectedCourseIdList.value },
+    });
+    ElMessage.success('已批量删除课程');
+    clearCourseSelection();
+    await fetchCourses();
+  } catch (error) {
+    console.error('Batch delete courses error:', error);
+    ElMessage.error('批量删除课程失败');
+  }
+};
 
 const handleDeleteCategory = async (id: string) => {
   try {
@@ -384,6 +478,59 @@ v-for="filter in [
 
     <!-- Main Content -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+      <AdminOpsPanel scope="courses" />
+
+      <div
+        v-if="activeTab === 'courses'"
+        class="mb-4 rounded-lg border border-[var(--border-base)] bg-[var(--bg-card)] px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <label class="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)]">
+          <input
+            type="checkbox"
+            class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            :checked="allFilteredSelected"
+            :disabled="filteredCourses.length === 0"
+            @change="toggleAllFilteredCourses"
+          />
+          <span>选择当前筛选结果</span>
+          <span class="text-[var(--text-muted)]">已选 {{ selectedCourseCount }}</span>
+        </label>
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 text-[11px] font-black disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="selectedCourseCount === 0"
+            @click="batchUpdateCourseStatus('PUBLISHED')"
+          >
+            批量发布
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-600 text-[11px] font-black disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="selectedCourseCount === 0"
+            @click="batchUpdateCourseStatus('DRAFT')"
+          >
+            转为草稿
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10 text-rose-600 text-[11px] font-black disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="selectedCourseCount === 0"
+            @click="batchDeleteCourses"
+          >
+            批量删除
+          </button>
+          <button
+            v-if="selectedCourseCount > 0"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border border-[var(--border-base)] text-[var(--text-muted)] text-[11px] font-black hover:text-[var(--text-primary)]"
+            @click="clearCourseSelection"
+          >
+            清空选择
+          </button>
+        </div>
+      </div>
+
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24">
         <div
           class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"
@@ -400,6 +547,13 @@ v-for="filter in [
             style="background-color: var(--bg-card); border-color: var(--border-base)"
           >
             <div class="p-3.5 sm:p-6 flex items-center gap-3 sm:gap-6">
+              <input
+                type="checkbox"
+                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+                :checked="isCourseSelected(course.id)"
+                @click.stop
+                @change="toggleCourseSelection(course.id)"
+              />
               <!-- Thumbnail -->
               <div
                 class="w-16 sm:w-40 aspect-video rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-white/5 overflow-hidden shrink-0 relative"

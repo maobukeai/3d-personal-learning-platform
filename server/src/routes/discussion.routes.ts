@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/', authenticate, discussionController.getAllDiscussions);
 router.get('/tags', authenticate, discussionController.getDiscussionTags);
+router.get('/insights', authenticate, discussionController.getDiscussionInsights);
 router.get('/:id', authenticate, discussionController.getDiscussionById);
 router.post(
   '/',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
   MessageSquare,
@@ -47,6 +47,15 @@ type DiscussionPayload = {
   fileSize?: number;
 };
 
+type DiscussionUploadField = 'images' | 'message_file';
+
+interface DiscussionUploadResponse {
+  url: string;
+  fileName: string;
+  fileSize: number;
+  type: 'IMAGE' | 'FILE';
+}
+
 const props = defineProps<{
   project: CollaborationProject;
   projectId: string;
@@ -71,6 +80,50 @@ const selectedFile = ref<File | null>(null);
 const imagePreviewUrls = ref<string[]>([]);
 const quickEmojis = ['👍', '❤️', '😂', '🚀', '🔥', '✅', '❌', '🎉', '💪', '👀'];
 
+const revokePreviewUrl = (url: string | undefined) => {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url);
+  }
+};
+
+const clearSelectedImages = () => {
+  imagePreviewUrls.value.forEach(revokePreviewUrl);
+  imagePreviewUrls.value = [];
+  selectedImages.value = [];
+};
+
+const resetComposer = () => {
+  newComment.value = '';
+  clearSelectedImages();
+  selectedFile.value = null;
+  showEmojiPicker.value = false;
+};
+
+const uploadDiscussionAttachment = async (
+  file: File,
+  field: DiscussionUploadField,
+): Promise<DiscussionUploadResponse> => {
+  const formData = new FormData();
+  formData.append(field, file);
+  const endpoint =
+    field === 'images'
+      ? '/api/projects/discussion-image-uploads'
+      : '/api/projects/discussion-file-uploads';
+
+  const uploadRes = await api.post<DiscussionUploadResponse>(
+    endpoint,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    },
+  );
+
+  return uploadRes.data;
+};
+
+void resetComposer;
+void uploadDiscussionAttachment;
+
 const scrollToBottom = () => {
   nextTick(() => {
     if (chatScroll.value) {
@@ -87,6 +140,10 @@ onMounted(() => {
   scrollToBottom();
 });
 
+onUnmounted(() => {
+  clearSelectedImages();
+});
+
 const handleSendComment = async () => {
   if (!newComment.value.trim() && selectedImages.value.length === 0 && !selectedFile.value) return;
   isSendingComment.value = true;
@@ -97,46 +154,25 @@ const handleSendComment = async () => {
     };
 
     if (selectedImages.value.length > 0) {
-      const imageUrls: string[] = [];
-      for (const img of selectedImages.value) {
-        const formData = new FormData();
-        formData.append('file', img);
-        try {
-          const uploadRes = await api.post('/api/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          imageUrls.push(uploadRes.data.url);
-        } catch {
-          imageUrls.push(URL.createObjectURL(img));
-        }
-      }
+      const uploads = await Promise.all(
+        selectedImages.value.map((img) => uploadDiscussionAttachment(img, 'images')),
+      );
+      const imageUrls = uploads.map((upload) => upload.url);
       payload.images = JSON.stringify(imageUrls);
       payload.type = 'IMAGE';
       if (newComment.value.trim()) payload.type = 'TEXT';
     }
 
     if (selectedFile.value) {
-      const formData = new FormData();
-      formData.append('file', selectedFile.value);
-      try {
-        const uploadRes = await api.post('/api/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        payload.fileUrl = uploadRes.data.url;
-      } catch {
-        payload.fileUrl = URL.createObjectURL(selectedFile.value);
-      }
-      payload.fileName = selectedFile.value.name;
-      payload.fileSize = selectedFile.value.size / (1024 * 1024);
+      const upload = await uploadDiscussionAttachment(selectedFile.value, 'message_file');
+      payload.fileUrl = upload.url;
+      payload.fileName = upload.fileName || selectedFile.value.name;
+      payload.fileSize = upload.fileSize || selectedFile.value.size / (1024 * 1024);
       if (payload.type === 'TEXT' && !newComment.value.trim()) payload.type = 'FILE';
     }
 
     await api.post(`/api/projects/${props.projectId}/discussions`, payload);
-    newComment.value = '';
-    selectedImages.value = [];
-    selectedFile.value = null;
-    imagePreviewUrls.value = [];
-    showEmojiPicker.value = false;
+    resetComposer();
     emit('refresh');
   } catch (_error) {
     ElMessage.error('发表留言失败');
@@ -164,6 +200,7 @@ const handleFileSelect = (event: Event) => {
 };
 
 const removeImage = (index: number) => {
+  revokePreviewUrl(imagePreviewUrls.value[index]);
   selectedImages.value.splice(index, 1);
   imagePreviewUrls.value.splice(index, 1);
 };

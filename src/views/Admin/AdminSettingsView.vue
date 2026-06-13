@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, type Component } from 'vue';
 import {
   Settings,
   Mail,
@@ -31,6 +31,7 @@ import {
   Cpu,
   Plus,
   Star,
+  CheckCircle,
   GripVertical,
   Sliders,
   Cloud,
@@ -800,6 +801,118 @@ const tabs = [
   { id: 'template', label: t('admin.email_template'), icon: Layout },
   { id: 'ai', label: t('admin.ai_intelligent_assistance'), icon: Cpu },
 ];
+
+type SettingsSignalTone = 'emerald' | 'sky' | 'amber' | 'rose' | 'violet';
+
+interface SettingsSignalCard {
+  label: string;
+  value: string;
+  detail: string;
+  icon: Component;
+  tone: SettingsSignalTone;
+}
+
+const activeTabMeta = computed(() => tabs.find((tab) => tab.id === activeTab.value) || tabs[0]);
+
+const enabledAiModelCount = computed(
+  () => aiModelConfigs.value.filter((model) => model.enabled).length,
+);
+
+const defaultAiModelLabel = computed(() => {
+  const defaultModel =
+    aiModelConfigs.value.find((model) => model.enabled && model.isDefault) ||
+    aiModelConfigs.value.find((model) => model.enabled);
+  return defaultModel?.name || defaultModel?.modelName || '未配置';
+});
+
+const configuredSmtpCount = computed(
+  () => smtpConfigs.value.filter((config) => config.host && config.user).length,
+);
+
+const configurationCompleteness = computed(() => {
+  const checks = [
+    Boolean(String(settings.value.PLATFORM_NAME || '').trim()),
+    Boolean(String(settings.value.PLATFORM_SUBTITLE || '').trim()),
+    Boolean(String(settings.value.DEFAULT_USER_ROLE || '').trim()),
+    Number(settings.value.PASSWORD_MIN_LENGTH || 0) >= 6,
+    Boolean(String(settings.value.MAX_UPLOAD_SIZE_MB || '').trim()),
+    settings.value.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL' || configuredSmtpCount.value > 0,
+    !settings.value.AI_IMPORT_ENABLED || enabledAiModelCount.value > 0,
+  ];
+
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+});
+
+const settingsSignalCards = computed<SettingsSignalCard[]>(() => [
+  {
+    label: '配置完整度',
+    value: `${configurationCompleteness.value}%`,
+    detail: configurationCompleteness.value >= 85 ? '核心项已就绪' : '还有关键项待完善',
+    icon: CheckCircle,
+    tone: configurationCompleteness.value >= 85 ? 'emerald' : 'amber',
+  },
+  {
+    label: '发信通道',
+    value:
+      settings.value.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
+        ? '账号池'
+        : `${configuredSmtpCount.value}/${smtpConfigs.value.length || 1}`,
+    detail:
+      settings.value.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
+        ? 'Microsoft 账号池'
+        : 'SMTP 配置方案',
+    icon: Mail,
+    tone:
+      settings.value.SYSTEM_EMAIL_PROVIDER === 'MICROSOFT_POOL'
+        ? 'sky'
+        : configuredSmtpCount.value > 0
+          ? 'sky'
+          : 'amber',
+  },
+  {
+    label: 'AI 模型池',
+    value: `${enabledAiModelCount.value}/${aiModelConfigs.value.length}`,
+    detail: defaultAiModelLabel.value,
+    icon: Cpu,
+    tone: settings.value.AI_IMPORT_ENABLED ? 'violet' : 'amber',
+  },
+  {
+    label: '安全状态',
+    value: settings.value.MAINTENANCE_MODE ? '维护中' : '在线',
+    detail: `密码不少于 ${settings.value.PASSWORD_MIN_LENGTH || 6} 位`,
+    icon: Shield,
+    tone: settings.value.MAINTENANCE_MODE ? 'rose' : 'emerald',
+  },
+]);
+
+const settingsRiskItems = computed(() =>
+  [
+    {
+      label: '平台处于维护模式',
+      detail: '普通用户将无法进入平台',
+      active: settings.value.MAINTENANCE_MODE,
+      tone: 'rose' as SettingsSignalTone,
+    },
+    {
+      label: '允许新用户自助注册',
+      detail: '需要确认安全策略和默认角色',
+      active: settings.value.ALLOW_REGISTRATION,
+      tone: 'sky' as SettingsSignalTone,
+    },
+    {
+      label: 'AI 功能已开启但模型池为空',
+      detail: '前台 AI 能力会缺少可用模型',
+      active: settings.value.AI_IMPORT_ENABLED && enabledAiModelCount.value === 0,
+      tone: 'amber' as SettingsSignalTone,
+    },
+    {
+      label: 'SMTP 未配置完整',
+      detail: '验证码和系统通知可能无法发出',
+      active: settings.value.SYSTEM_EMAIL_PROVIDER === 'SMTP' && configuredSmtpCount.value === 0,
+      tone: 'amber' as SettingsSignalTone,
+    },
+  ].filter((item) => item.active),
+);
 
 const sessionTimeoutOptions = [
   { label: t('admin.1_day'), value: '1d' },
@@ -2003,17 +2116,18 @@ const handleCleanupStorage = async () => {
     isCleaning.value = true;
     const { data } = await api.post('/api/admin/settings/cleanup-storage');
     const stats = data.stats || { scanned: 0, deleted: 0, errors: 0 };
+    const cleanupHtml = `<div class="space-y-2">
+        <p class="text-sm font-bold text-emerald-600">${t('admin.storage_space_cleared_successfully')}</p>
+        <div class="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-3 rounded-lg border border-slate-100 dark:border-white/10 font-mono">
+          <p>${t('admin.number_of_scanned_files')} <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
+          <p>${t('admin.number_of_files_to')} <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
+          <p>${t('admin.failed_or_skipped')} <span class="font-bold text-rose-500">${stats.errors}</span></p>
+        </div>
+        <p class="text-[10px] text-slate-400">${t('admin.local_disk_space_has')}</p>
+      </div>`;
 
     await ElMessageBox.alert(
-      `<div class="space-y-2">
-        <p class="text-sm font-bold text-emerald-600">{{ $t('admin.storage_space_cleared_successfully') }}</p>
-        <div class="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-3 rounded-lg border border-slate-100 dark:border-white/10 font-mono">
-          <p>{{ $t('admin.number_of_scanned_files') }} <span class="font-bold text-slate-800 dark:text-slate-200">${stats.scanned}</span></p>
-          <p>{{ $t('admin.number_of_files_to') }} <span class="font-bold text-emerald-600">${stats.deleted}</span></p>
-          <p>{{ $t('admin.failed_or_skipped') }} <span class="font-bold text-rose-500">${stats.errors}</span></p>
-        </div>
-        <p class="text-[10px] text-slate-400">{{ $t('admin.local_disk_space_has') }}</p>
-      </div>`,
+      cleanupHtml,
       t('admin.clean_results'),
       {
         dangerouslyUseHTMLString: true,
@@ -2311,11 +2425,6 @@ onUnmounted(() => {
       class="relative shrink-0 border-b overflow-hidden"
       style="background-color: var(--bg-card); border-color: var(--border-base)"
     >
-      <!-- 极光背景装饰 -->
-      <div
-        class="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-slate-500/10 via-zinc-500/5 to-transparent pointer-events-none"
-      ></div>
-
       <div
         class="px-4 sm:px-8 py-2.5 sm:py-3 flex flex-row items-center justify-between gap-3 relative z-10"
       >
@@ -2403,39 +2512,69 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+    <div class="flex-1 grid grid-cols-1 xl:grid-cols-[13.5rem_minmax(0,1fr)] overflow-hidden">
       <div
-        class="w-full lg:w-56 border-b lg:border-b-0 lg:border-r shrink-0 overflow-y-auto p-4 transition-colors duration-300"
+        class="w-full border-b xl:border-b-0 xl:border-r shrink-0 overflow-y-auto p-3 transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
-        <div class="px-3 mb-4 hidden lg:block">
-          <h2 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+        <div class="px-2 mb-3 hidden xl:block">
+          <h2 class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
             {{ $t('admin.set_categories') }}
           </h2>
+          <p class="mt-1 text-[10px] font-semibold" style="color: var(--text-muted)">
+            {{ activeTabMeta.label }} / {{ configurationCompleteness }}%
+          </p>
         </div>
         <nav
-          class="flex flex-row flex-nowrap lg:flex-col gap-0.5 lg:gap-1 pb-2 lg:pb-0 overflow-hidden"
+          class="flex flex-row flex-nowrap xl:flex-col gap-1 pb-2 xl:pb-0 overflow-x-auto xl:overflow-visible scrollbar-hide"
         >
           <button
             v-for="tab in tabs"
             :key="tab.id"
             type="button"
-            class="flex-1 lg:flex-none w-auto lg:w-full flex items-center justify-center lg:justify-start gap-0.5 lg:gap-3 px-1 py-1 sm:px-2 lg:px-4 lg:py-3 rounded-lg lg:rounded-xl text-[8px] xs:text-[9px] lg:text-sm font-bold transition-all shrink-0 whitespace-nowrap"
+            class="flex-none w-auto xl:w-full flex items-center justify-center xl:justify-start gap-2 px-3 py-2 xl:px-3 xl:py-2.5 rounded-lg text-[11px] xl:text-xs font-black transition-all shrink-0 whitespace-nowrap"
             :class="
               activeTab === tab.id
-                ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                ? 'bg-accent text-white shadow-md shadow-accent/15'
                 : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-white/5'
             "
             @click="activeTab = tab.id"
           >
-            <component :is="tab.icon" class="w-3 h-3 lg:w-4 lg:h-4 shrink-0" />
+            <component :is="tab.icon" class="w-3.5 h-3.5 shrink-0" />
             <span>{{ tab.label }}</span>
           </button>
         </nav>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
-        <div class="max-w-6xl mx-auto space-y-8 pb-12">
+      <div class="min-w-0 overflow-y-auto p-3 sm:p-4 lg:p-5 scrollbar-hide">
+        <div class="w-full max-w-none space-y-4 pb-8">
+          <section class="settings-command-center">
+            <div class="settings-command-copy">
+              <span class="settings-eyebrow">SYSTEM CONTROL</span>
+              <h2>{{ activeTabMeta.label }}</h2>
+              <p>
+                当前配置完整度 {{ configurationCompleteness }}%，修改会先在页面暂存，保存后同步到服务端配置中心。
+              </p>
+            </div>
+            <div class="settings-signal-grid">
+              <article
+                v-for="card in settingsSignalCards"
+                :key="card.label"
+                class="settings-signal-card"
+                :data-tone="card.tone"
+              >
+                <component :is="card.icon" class="settings-signal-icon" />
+                <div class="min-w-0">
+                  <span>{{ card.label }}</span>
+                  <strong>{{ card.value }}</strong>
+                  <small>{{ card.detail }}</small>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <div class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_19rem] gap-4 items-start">
+            <main class="settings-main-column min-w-0 space-y-4">
           <!-- General Settings -->
           <div
             v-if="activeTab === 'general'"
@@ -3375,6 +3514,7 @@ onUnmounted(() => {
                     <input
                       v-model="settings.SMTP_PASS"
                       :type="showPassword ? 'text' : 'password'"
+                      autocomplete="new-password"
                       class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                       style="
                         background-color: var(--bg-app);
@@ -3506,6 +3646,7 @@ onUnmounted(() => {
                       <input
                         v-model="settings.OAUTH_GOOGLE_CLIENT_SECRET"
                         :type="showPassword ? 'text' : 'password'"
+                        autocomplete="new-password"
                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                         style="
                           background-color: var(--bg-app);
@@ -3591,6 +3732,7 @@ onUnmounted(() => {
                       <input
                         v-model="settings.OAUTH_GITHUB_CLIENT_SECRET"
                         :type="showPassword ? 'text' : 'password'"
+                        autocomplete="new-password"
                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
                         style="
                           background-color: var(--bg-app);
@@ -3737,15 +3879,6 @@ onUnmounted(() => {
                 border-color: var(--border-base);
               "
             >
-              <div
-                class="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-[0.06]"
-                style="background: radial-gradient(circle, #6366f1 0%, transparent 70%)"
-              ></div>
-              <div
-                class="absolute -right-2 top-10 w-20 h-20 rounded-full opacity-[0.04]"
-                style="background: radial-gradient(circle, #8b5cf6 0%, transparent 70%)"
-              ></div>
-
               <div class="relative flex items-start justify-between gap-4">
                 <div class="flex items-start gap-4">
                   <div
@@ -3907,7 +4040,7 @@ onUnmounted(() => {
                       :model-value="isAllAiModelsSelected"
                       :indeterminate="selectedAiModels.length > 0 && !isAllAiModelsSelected"
                       class="shrink-0"
-                      @change="(val) => { if (val) { selectAllAiModels() } else { clearSelectedAiModels() } }"
+                      @change="(val: unknown) => { if (val) { selectAllAiModels() } else { clearSelectedAiModels() } }"
                     />
                     <span class="font-bold shrink-0" style="color: var(--text-primary)">
                       已选择 <span style="color: #6366f1">{{ selectedAiModels.length }}</span> / {{ aiModelConfigs.length }} 个模型
@@ -4088,12 +4221,12 @@ onUnmounted(() => {
                         </button>
                         <el-switch
                           :model-value="!disabledGroupKeys.includes(group.key)"
-                          @change="(val) => toggleGroupEnabled(group.key, val as boolean)"
                           inline-prompt
                           active-text="启用"
                           inactive-text="禁用"
                           style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8"
                           class="mr-2"
+                          @change="(val: boolean | string | number) => toggleGroupEnabled(group.key, Boolean(val))"
                           @click.stop
                         />
                         <button
@@ -4497,6 +4630,7 @@ onUnmounted(() => {
                               <input
                                 v-model="model.apiKey"
                                 :type="showPassword ? 'text' : 'password'"
+                                autocomplete="new-password"
                                 placeholder="sk-..."
                                 class="w-full px-3 py-2.5 pr-10 rounded-xl border text-xs outline-none font-mono transition-colors"
                                 style="
@@ -4805,11 +4939,11 @@ onUnmounted(() => {
                     <div class="flex items-center gap-3 shrink-0">
                       <el-switch
                         :model-value="false"
-                        @change="(val) => toggleGroupEnabled(group.key, val as boolean)"
                         inline-prompt
                         active-text="启用"
                         inactive-text="禁用"
                         style="--el-switch-on-color: #10b981; --el-switch-off-color: #94a3b8"
+                        @change="(val: boolean | string | number) => toggleGroupEnabled(group.key, Boolean(val))"
                       />
                       <button
                         v-if="group.key.startsWith('custom_')"
@@ -4917,6 +5051,81 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+            </main>
+
+            <aside class="settings-ops-rail">
+              <section class="settings-rail-panel">
+                <div class="settings-rail-title">
+                  <Sliders class="w-4 h-4 text-indigo-500" />
+                  <span>配置状态</span>
+                </div>
+                <div class="settings-progress-track">
+                  <i :style="{ width: configurationCompleteness + '%' }"></i>
+                </div>
+                <div class="settings-rail-metrics">
+                  <div>
+                    <span>注册</span>
+                    <strong>{{ settings.ALLOW_REGISTRATION ? '开放' : '关闭' }}</strong>
+                  </div>
+                  <div>
+                    <span>维护</span>
+                    <strong>{{ settings.MAINTENANCE_MODE ? '开启' : '关闭' }}</strong>
+                  </div>
+                  <div>
+                    <span>发信</span>
+                    <strong>{{ settings.SYSTEM_EMAIL_PROVIDER }}</strong>
+                  </div>
+                  <div>
+                    <span>AI</span>
+                    <strong>{{ settings.AI_IMPORT_ENABLED ? '启用' : '关闭' }}</strong>
+                  </div>
+                </div>
+              </section>
+
+              <section class="settings-rail-panel">
+                <div class="settings-rail-title">
+                  <AlertTriangle class="w-4 h-4 text-amber-500" />
+                  <span>需要关注</span>
+                  <strong>{{ settingsRiskItems.length }}</strong>
+                </div>
+                <div v-if="settingsRiskItems.length" class="settings-risk-list">
+                  <div v-for="item in settingsRiskItems" :key="item.label" :data-tone="item.tone">
+                    <span>{{ item.label }}</span>
+                    <small>{{ item.detail }}</small>
+                  </div>
+                </div>
+                <div v-else class="settings-empty-risk">
+                  <CheckCircle class="w-4 h-4" />
+                  <span>核心配置没有明显风险</span>
+                </div>
+              </section>
+
+              <section class="settings-rail-panel">
+                <div class="settings-rail-title">
+                  <Clock class="w-4 h-4 text-sky-500" />
+                  <span>快捷操作</span>
+                </div>
+                <div class="settings-rail-actions">
+                  <button type="button" :disabled="isSaving" @click="saveSettings">
+                    <Save class="w-3.5 h-3.5" />
+                    <span>{{ isSaving ? $t('admin.saving_1') : $t('admin.save_global_settings') }}</span>
+                  </button>
+                  <button type="button" @click="exportSettings">
+                    <Download class="w-3.5 h-3.5" />
+                    <span>导出配置</span>
+                  </button>
+                  <button type="button" @click="triggerImport">
+                    <Upload class="w-3.5 h-3.5" />
+                    <span>导入配置</span>
+                  </button>
+                  <button type="button" @click="resetToDefaults">
+                    <RotateCcw class="w-3.5 h-3.5" />
+                    <span>{{ $t('admin.restore_default') }}</span>
+                  </button>
+                </div>
+              </section>
+            </aside>
+          </div>
         </div>
       </div>
     </div>
@@ -5018,6 +5227,280 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.settings-command-center {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(26rem, 1.45fr);
+  gap: 12px;
+  align-items: stretch;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 12px;
+}
+
+.settings-command-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.settings-eyebrow {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.settings-command-copy h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.settings-command-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.settings-signal-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-signal-card {
+  --settings-tone: #2563eb;
+  min-width: 0;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--settings-tone) 22%, var(--border-base));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--settings-tone) 7%, var(--bg-card));
+  padding: 9px;
+}
+
+.settings-signal-card[data-tone='emerald'] {
+  --settings-tone: #059669;
+}
+
+.settings-signal-card[data-tone='sky'] {
+  --settings-tone: #0284c7;
+}
+
+.settings-signal-card[data-tone='amber'] {
+  --settings-tone: #d97706;
+}
+
+.settings-signal-card[data-tone='rose'] {
+  --settings-tone: #e11d48;
+}
+
+.settings-signal-card[data-tone='violet'] {
+  --settings-tone: #7c3aed;
+}
+
+.settings-signal-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--settings-tone);
+}
+
+.settings-signal-card span,
+.settings-signal-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-signal-card strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-main-column .rounded-3xl,
+.settings-main-column .rounded-2xl,
+.settings-main-column .rounded-xl {
+  border-radius: 8px !important;
+}
+
+.settings-main-column > div > section {
+  padding: 18px !important;
+}
+
+.settings-main-column > div {
+  gap: 12px !important;
+}
+
+.settings-ops-rail {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.settings-rail-panel {
+  min-width: 0;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 12px;
+}
+
+.settings-rail-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.settings-rail-title strong {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.settings-progress-track {
+  height: 7px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-app);
+}
+
+.settings-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.settings-rail-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-rail-metrics div {
+  min-width: 0;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+  padding: 8px;
+}
+
+.settings-rail-metrics span,
+.settings-risk-list small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.settings-rail-metrics strong,
+.settings-risk-list span {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-risk-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.settings-risk-list div {
+  --risk-tone: #d97706;
+  border: 1px solid color-mix(in srgb, var(--risk-tone) 26%, var(--border-base));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--risk-tone) 7%, var(--bg-card));
+  padding: 8px;
+}
+
+.settings-risk-list div[data-tone='rose'] {
+  --risk-tone: #e11d48;
+}
+
+.settings-risk-list div[data-tone='sky'] {
+  --risk-tone: #0284c7;
+}
+
+.settings-empty-risk {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  border: 1px solid rgba(5, 150, 105, 0.24);
+  border-radius: 8px;
+  background: rgba(5, 150, 105, 0.08);
+  color: #059669;
+  padding: 9px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.settings-rail-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.settings-rail-actions button {
+  min-width: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 900;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.settings-rail-actions button:hover {
+  border-color: rgba(37, 99, 235, 0.36);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.settings-rail-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -5036,6 +5519,31 @@ onUnmounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 1535px) {
+  .settings-ops-rail {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1120px) {
+  .settings-command-center {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-signal-grid,
+  .settings-ops-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-signal-grid,
+  .settings-ops-rail {
+    grid-template-columns: 1fr;
   }
 }
 </style>

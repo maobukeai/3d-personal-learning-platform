@@ -32,6 +32,8 @@ import {
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 const previewMode = ref<'edit' | 'live' | 'preview'>('edit');
 
@@ -171,6 +173,7 @@ async function fetchStations() {
   try {
     const res = await api.get('/api/manual/stations');
     stations.value = res.data;
+    fetchManagementInsights(true);
   } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, t('admin.failed_to_pull_data')));
   } finally {
@@ -818,6 +821,8 @@ v-for="filter in [
     <!-- 主体内容区 -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-none">
+        <AdminOpsPanel scope="manual" />
+
         <!-- Loading State -->
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 gap-4">
           <Loader2 class="w-10 h-10 text-cyan-500 animate-spin" />

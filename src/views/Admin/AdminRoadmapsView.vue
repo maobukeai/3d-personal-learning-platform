@@ -24,6 +24,8 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 interface RoadmapStep {
   id?: string;
@@ -82,6 +84,7 @@ const fetchRoadmaps = async () => {
     isLoading.value = true;
     const { data } = await api.get('/api/admin/roadmaps', { params: { page: 1, limit: 100 } });
     roadmaps.value = Array.isArray(data) ? data : data.data;
+    fetchManagementInsights(true);
   } catch (error) {
     console.error('Fetch roadmaps error:', error);
   } finally {
@@ -374,6 +377,8 @@ onMounted(() => {
 
     <!-- Main Content -->
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
+      <AdminOpsPanel scope="roadmaps" />
+
       <!-- Loading State -->
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-32 text-slate-400">
         <div class="relative w-16 h-16 flex items-center justify-center">

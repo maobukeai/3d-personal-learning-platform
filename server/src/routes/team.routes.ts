@@ -27,6 +27,8 @@ router.post('/applications/respond', teamController.respondToApplication);
 router.post('/members', teamController.addMemberDirectly);
 
 // Param routes last
+router.get('/:teamId/overview', teamController.getTeamOverview);
+router.get('/:teamId/collaboration-insights', teamController.getTeamCollaborationInsights);
 router.get('/:teamId', teamController.getTeamById);
 router.patch('/:teamId', teamController.updateTeam);
 router.post(
@@ -43,6 +45,7 @@ router.post(
 );
 router.delete('/:teamId', sanitizeInput, teamController.deleteTeam);
 router.get('/:teamId/members', teamController.getTeamMembers);
+router.get('/:teamId/members/:userId/insight', teamController.getTeamMemberInsight);
 router.delete('/:teamId/members/:userId', teamController.removeMember);
 router.patch('/:teamId/members/:userId/role', teamController.updateMemberRole);
 

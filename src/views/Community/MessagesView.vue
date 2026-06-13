@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Trash2, Users } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -7,6 +7,7 @@ import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { socketService } from '@/utils/socket';
+import { useRoute } from 'vue-router';
 
 // Subcomponents
 import ChatSidebar from './components/ChatSidebar.vue';
@@ -17,6 +18,7 @@ import GroupChatDialog from './components/GroupChatDialog.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
+const route = useRoute();
 
 interface ChatUser {
   id: string;
@@ -146,7 +148,12 @@ const fetchConversations = async () => {
     }
     conversations.value = Array.from(seen.values());
     if (conversations.value.length > 0 && !activeConversation.value) {
-      selectConversation(conversations.value[0]);
+      const requestedId =
+        typeof route.query.conversationId === 'string' ? route.query.conversationId : '';
+      const requestedConversation = requestedId
+        ? conversations.value.find((conversation) => conversation.id === requestedId)
+        : null;
+      selectConversation(requestedConversation || conversations.value[0]);
     }
   } catch (error) {
     console.error('Fetch conversations error:', error);
@@ -168,6 +175,14 @@ const selectConversation = async (conv: Conversation) => {
   if (conv.unreadCount && conv.unreadCount > 0) {
     api.patch(`/api/messages/conversations/${conv.id}/read`);
     conv.unreadCount = 0;
+  }
+};
+
+const selectConversationById = (conversationId?: string) => {
+  if (!conversationId || activeConversation.value?.id === conversationId) return;
+  const conversation = conversations.value.find((item) => item.id === conversationId);
+  if (conversation) {
+    selectConversation(conversation);
   }
 };
 
@@ -442,6 +457,15 @@ onMounted(() => {
     }
   });
 });
+
+watch(
+  () => route.query.conversationId,
+  (conversationId) => {
+    if (typeof conversationId === 'string') {
+      selectConversationById(conversationId);
+    }
+  },
+);
 
 onUnmounted(() => {
   socketService.off('new_message');

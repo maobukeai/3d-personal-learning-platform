@@ -20,8 +20,17 @@ import {
   ClipboardList,
   CheckCheck,
   XCircle,
-  MessageSquare,
-  Calendar,
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  Ban,
+  BarChart3,
+  Circle,
+  ClipboardCheck,
+  Crown,
+  RefreshCw,
+  UserCog,
+  Briefcase,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SafeHtml from '@/components/SafeHtml.vue';
@@ -79,6 +88,200 @@ interface DetailedTeam {
   applications?: DetailedApplication[];
 }
 
+type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+type MemberFilter = 'all' | 'admins' | 'members' | 'busy' | 'risk' | 'pending';
+type RecommendationSeverity = 'critical' | 'high' | 'medium' | 'low';
+
+interface MemberMetrics {
+  projects: number;
+  assignedTasks: number;
+  activeTasks: number;
+  doneTasks: number;
+  dueSoonTasks: number;
+  overdueTasks: number;
+  recentlyCompleted: number;
+  completionRate: number;
+  lastTaskAt?: string | null;
+}
+
+interface OverviewMember {
+  userId: string;
+  role: TeamRole;
+  metrics: MemberMetrics;
+}
+
+interface TeamOverview {
+  currentUserRole: TeamRole | 'ADMIN' | null;
+  capabilities: {
+    canManage: boolean;
+    canInvite: boolean;
+    canUpdateRoles: boolean;
+    canRemoveMembers: boolean;
+    canLeave: boolean;
+  };
+  counts: {
+    members: number;
+    admins: number;
+    pendingInvitations: number;
+    pendingApplications: number;
+    projects: number;
+    activeProjects: number;
+    tasks: number;
+    overdueTasks: number;
+    dueSoonTasks: number;
+    completedThisWeek: number;
+  };
+  members: OverviewMember[];
+  invitations: DetailedInvitation[];
+  applications: DetailedApplication[];
+}
+
+interface InsightUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+}
+
+interface InsightActionItem {
+  id: string;
+  type: string;
+  severity: 'critical' | 'high' | 'medium';
+  title: string;
+  description: string;
+  dueDate?: string | null;
+  projectId?: string | null;
+  assignee?: InsightUser | null;
+  targetRoute: string;
+}
+
+interface InsightActivityItem {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  actor?: InsightUser | null;
+  createdAt: string;
+  targetRoute: string;
+}
+
+interface InsightProjectHealth {
+  id: string;
+  title: string;
+  healthScore: number;
+  riskLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  reasons: string[];
+}
+
+interface InsightMemberCapacity {
+  userId: string;
+  focus: string;
+  capacityScore: number;
+  activeTasks: number;
+  overdueTasks: number;
+  completedThisWeek: number;
+}
+
+interface TeamCollaborationInsights {
+  summary: {
+    healthScore: number;
+    completedThisWeek: number;
+    overdueTasks: number;
+    dueSoonTasks: number;
+    unassignedTasks: number;
+    highRiskProjects: number;
+    pendingApplications: number;
+  };
+  projectHealth: InsightProjectHealth[];
+  memberCapacity: InsightMemberCapacity[];
+  actionItems: InsightActionItem[];
+  activity: InsightActivityItem[];
+}
+
+interface MemberRow extends DetailedMember {
+  metrics: MemberMetrics;
+}
+
+interface MemberInsightTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate?: string | null;
+  updatedAt: string;
+  project?: {
+    id: string;
+    title: string;
+    color?: string | null;
+  } | null;
+  targetRoute: string;
+}
+
+interface MemberInsightProject {
+  id: string;
+  title: string;
+  progress: number;
+  status: string;
+  dueDate?: string | null;
+  role: string;
+  taskCount: number;
+  projectTaskCount: number;
+  activeTasks: number;
+  overdueTasks: number;
+  completionRate: number;
+  updatedAt: string;
+  targetRoute: string;
+}
+
+interface MemberInsightDetail {
+  member: DetailedMember;
+  stats: {
+    projects: number;
+    assignedTasks: number;
+    createdTasks: number;
+    activeTasks: number;
+    doneTasks: number;
+    overdueTasks: number;
+    dueSoonTasks: number;
+    completedThisWeek: number;
+    completionRate: number;
+    capacityScore: number;
+    lastActiveAt?: string | null;
+  };
+  tasks: {
+    active: MemberInsightTask[];
+    overdue: MemberInsightTask[];
+    dueSoon: MemberInsightTask[];
+    recent: MemberInsightTask[];
+  };
+  projects: MemberInsightProject[];
+  recommendations: {
+    id: string;
+    severity: RecommendationSeverity;
+    title: string;
+    description: string;
+    targetRoute: string;
+  }[];
+}
+
+type PendingItem =
+  | {
+      id: string;
+      kind: 'invite';
+      title: string;
+      subtitle: string;
+      createdAt: string;
+      invitation: DetailedInvitation;
+    }
+  | {
+      id: string;
+      kind: 'application';
+      title: string;
+      subtitle: string;
+      createdAt: string;
+      application: DetailedApplication;
+    };
+
 const { t: i18nT, locale } = useI18n();
 const t = (key: string, ...args: any[]) => {
   const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
@@ -94,12 +297,23 @@ const workspaceStore = useWorkspaceStore();
 const teamId = computed(() => route.params.id as string);
 
 const team = ref<DetailedTeam | null>(null);
+const overview = ref<TeamOverview | null>(null);
+const insights = ref<TeamCollaborationInsights | null>(null);
 const isLoading = ref(false);
-const activeTab = ref('people'); // 'people', 'applications', 'settings'
+const activeTab = ref('people'); // 'people', 'insights', 'applications', 'settings'
 const memberSearchQuery = ref('');
 
 const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
+
+const activeFilter = ref<MemberFilter>('all');
+const isRefreshing = ref(false);
+const lastSyncedAt = ref<Date | null>(null);
+
+const selectedPanelUserId = ref<string | null>(null);
+const isMemberPanelOpen = ref(false);
+const isMemberInsightLoading = ref(false);
+const memberInsight = ref<MemberInsightDetail | null>(null);
 
 const openUserProfile = (userId: string) => {
   selectedUserId.value = userId;
@@ -114,15 +328,29 @@ const handleStartChat = async (user: TeamUser) => {
     });
     router.push('/messages');
   } catch {
-    ElMessage.error(t('members.chatInitFailed'));
+    ElMessage.error(t('members.chatInitFailed') || '会话创建失败');
   }
 };
 
-const fetchTeamDetail = async () => {
-  isLoading.value = true;
+const fetchTeamDetail = async (options: { silent?: boolean } = {}) => {
+  if (!teamId.value) return;
+  if (!options.silent) isLoading.value = true;
   try {
     const response = await api.get(`/api/teams/${teamId.value}`);
     team.value = response.data;
+
+    if (team.value && team.value.type === 'TEAM') {
+      const [overviewResponse, insightsResponse] = await Promise.all([
+        api.get(`/api/teams/${teamId.value}/overview`),
+        api.get(`/api/teams/${teamId.value}/collaboration-insights`),
+      ]);
+      overview.value = overviewResponse.data;
+      insights.value = insightsResponse.data;
+    } else {
+      overview.value = null;
+      insights.value = null;
+    }
+    lastSyncedAt.value = new Date();
   } catch (error) {
     console.error('Fetch team detail error:', error);
     if (getApiErrorStatus(error) === 403) {
@@ -132,7 +360,7 @@ const fetchTeamDetail = async () => {
     }
     router.push('/dashboard');
   } finally {
-    isLoading.value = false;
+    if (!options.silent) isLoading.value = false;
   }
 };
 
@@ -171,57 +399,279 @@ const canLeaveTeam = computed(() => {
 
 const pendingApplications = computed(() => team.value?.applications || []);
 
-// Unified Member & Invitation List
-const filteredPeople = computed(() => {
-  if (!team.value) return [];
+const filters = [
+  { value: 'all', label: '全部', icon: Users },
+  { value: 'admins', label: '管理组', icon: ShieldCheck },
+  { value: 'members', label: '成员', icon: UserCog },
+  { value: 'busy', label: '高负载', icon: Briefcase },
+  { value: 'risk', label: '有风险', icon: AlertTriangle },
+  { value: 'pending', label: '待处理', icon: Clock },
+] as const;
 
-  const members = team.value.members.map((m: DetailedMember) => ({
-    id: m.id,
-    userId: m.userId,
-    role: m.role,
-    isMember: true,
-    displayName: m.user.name,
-    displayEmail: m.user.email,
-    displayAvatar: m.user.avatarUrl,
-    joinedAt: m.joinedAt || team.value?.createdAt || '',
-    user: m.user,
-    createdAt: m.joinedAt || team.value?.createdAt || '',
-  }));
-
-  const invitations = (team.value.invitations || []).map((i: DetailedInvitation) => ({
-    id: i.id,
-    userId: '',
-    role: 'PENDING',
-    isMember: false,
-    displayName: i.inviteeEmail,
-    displayEmail: i.inviteeEmail,
-    displayAvatar: null,
-    joinedAt: i.createdAt,
-    user: { id: '', name: i.inviteeEmail, email: i.inviteeEmail } as TeamUser,
-    createdAt: i.createdAt,
-  }));
-
-  const all = [...members, ...invitations];
-
-  if (!memberSearchQuery.value) return all;
-  const query = memberSearchQuery.value.toLowerCase();
-  return all.filter(
-    (p) =>
-      p.displayName?.toLowerCase().includes(query) || p.displayEmail?.toLowerCase().includes(query),
-  );
+const defaultMetrics = (): MemberMetrics => ({
+  projects: 0,
+  assignedTasks: 0,
+  activeTasks: 0,
+  doneTasks: 0,
+  dueSoonTasks: 0,
+  overdueTasks: 0,
+  recentlyCompleted: 0,
+  completionRate: 0,
+  lastTaskAt: null,
 });
 
-const teamStats = computed(() => {
-  if (!team.value) return { total: 0, admins: 0, pending: 0 };
-  const total = team.value.members.length;
-  const admins = team.value.members.filter(
-    (m: DetailedMember) => m.role === 'OWNER' || m.role === 'ADMIN',
-  ).length;
-  const pending = (team.value.invitations || []).length;
-  return { total, admins, pending };
+const metricsByUserId = computed(() => {
+  const map = new Map<string, MemberMetrics>();
+  for (const member of overview.value?.members || []) {
+    map.set(member.userId, member.metrics);
+  }
+  return map;
 });
 
-// Member Management
+const memberRows = computed<MemberRow[]>(() => {
+  return (team.value?.members || []).map((member) => ({
+    ...member,
+    metrics: metricsByUserId.value.get(member.userId) || defaultMetrics(),
+  }));
+});
+
+const pendingInvitationsList = computed(() => overview.value?.invitations || team.value?.invitations || []);
+const pendingApplicationsList = computed(() => overview.value?.applications || team.value?.applications || []);
+const pendingTotal = computed(() => pendingInvitationsList.value.length + pendingApplicationsList.value.length);
+const insightSummary = computed(() => insights.value?.summary || null);
+const healthScore = computed(() => insightSummary.value?.healthScore ?? 100);
+const actionItems = computed(() => insights.value?.actionItems || []);
+const activityItems = computed(() => insights.value?.activity || []);
+const highRiskProjects = computed(
+  () => insights.value?.projectHealth.filter((project) => project.riskLevel !== 'LOW') || [],
+);
+
+const capacityByUserId = computed(() => {
+  const map = new Map<string, InsightMemberCapacity>();
+  for (const member of insights.value?.memberCapacity || []) {
+    map.set(member.userId, member);
+  }
+  return map;
+});
+
+const teamOverviewStats = computed(() => {
+  const rows = memberRows.value;
+  const activeTasks = rows.reduce((sum, row) => sum + row.metrics.activeTasks, 0);
+  const overdueTasks = rows.reduce((sum, row) => sum + row.metrics.overdueTasks, 0);
+  const doneTasks = rows.reduce((sum, row) => sum + row.metrics.doneTasks, 0);
+  const assignedTasks = rows.reduce((sum, row) => sum + row.metrics.assignedTasks, 0);
+
+  return {
+    members: overview.value?.counts.members ?? rows.length,
+    admins: overview.value?.counts.admins ?? rows.filter((row) => row.role !== 'MEMBER').length,
+    pending: pendingTotal.value,
+    activeTasks,
+    overdueTasks,
+    doneTasks,
+    completionRate: assignedTasks ? Math.round((doneTasks / assignedTasks) * 100) : 0,
+  };
+});
+
+const healthLabel = computed(() => {
+  if (healthScore.value >= 82) return '健康';
+  if (healthScore.value >= 64) return '观察';
+  return '高风险';
+});
+
+const healthToneClass = computed(() => {
+  if (healthScore.value >= 82) return 'tone-emerald';
+  if (healthScore.value >= 64) return 'tone-amber';
+  return 'tone-rose';
+});
+
+const opsKpis = computed(() => [
+  {
+    key: 'members',
+    label: '成员',
+    value: teamOverviewStats.value.members,
+    helper: `${teamOverviewStats.value.admins} 管理`,
+    icon: Users,
+    tone: 'tone-sky',
+  },
+  {
+    key: 'tasks',
+    label: '任务总量',
+    value: overview.value?.counts.tasks ?? (teamOverviewStats.value.activeTasks + teamOverviewStats.value.doneTasks),
+    helper: `${insightSummary.value?.dueSoonTasks ?? 0} 近到期`,
+    icon: Briefcase,
+    tone: 'tone-purple',
+  },
+  {
+    key: 'done',
+    label: '完成度',
+    value: `${teamOverviewStats.value.completionRate}%`,
+    helper: `本周 ${insightSummary.value?.completedThisWeek ?? 0}`,
+    icon: ClipboardCheck,
+    tone: 'tone-emerald',
+  },
+  {
+    key: 'overdue',
+    label: '逾期任务',
+    value: insightSummary.value?.overdueTasks ?? teamOverviewStats.value.overdueTasks,
+    helper: '需尽快处理',
+    icon: AlertTriangle,
+    tone: 'tone-rose',
+  },
+  {
+    key: 'unassigned',
+    label: '未指派任务',
+    value: insightSummary.value?.unassignedTasks ?? 0,
+    helper: '待分配池',
+    icon: Circle,
+    tone: 'tone-amber',
+  },
+  {
+    key: 'risk',
+    label: '风险项目',
+    value: insightSummary.value?.highRiskProjects ?? highRiskProjects.value.length,
+    helper: '健康度偏低',
+    icon: Ban,
+    tone: 'tone-rose',
+  },
+]);
+
+const filterCount = (val: MemberFilter) => {
+  if (val === 'all') return memberRows.value.length;
+  if (val === 'admins') return memberRows.value.filter((row) => row.role !== 'MEMBER').length;
+  if (val === 'members') return memberRows.value.filter((row) => row.role === 'MEMBER').length;
+  if (val === 'busy') {
+    return memberRows.value.filter(
+      (row) => (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 80,
+    ).length;
+  }
+  if (val === 'risk') {
+    return memberRows.value.filter(
+      (row) =>
+        row.metrics.overdueTasks > 0 ||
+        (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 90,
+    ).length;
+  }
+  if (val === 'pending') {
+    return visiblePendingItems.value.length;
+  }
+  return 0;
+};
+
+const visiblePendingItems = computed<PendingItem[]>(() => {
+  const invites = pendingInvitationsList.value.map((inv) => ({
+    id: inv.id,
+    kind: 'invite' as const,
+    title: inv.inviteeEmail,
+    subtitle: '受邀加入空间',
+    createdAt: inv.createdAt,
+    invitation: inv,
+  }));
+  const apps = pendingApplicationsList.value.map((app) => ({
+    id: app.id,
+    kind: 'application' as const,
+    title: app.user.name || app.user.email || '申请人',
+    subtitle: app.message || '申请加入空间',
+    createdAt: app.createdAt,
+    application: app,
+  }));
+  return [...invites, ...apps];
+});
+
+const filteredRows = computed(() => {
+  let list = memberRows.value;
+  if (memberSearchQuery.value) {
+    const query = memberSearchQuery.value.toLowerCase();
+    list = list.filter(
+      (row) =>
+        row.user.name?.toLowerCase().includes(query) ||
+        row.user.email?.toLowerCase().includes(query),
+    );
+  }
+
+  if (activeFilter.value === 'admins') {
+    return list.filter((row) => row.role !== 'MEMBER');
+  }
+  if (activeFilter.value === 'members') {
+    return list.filter((row) => row.role === 'MEMBER');
+  }
+  if (activeFilter.value === 'busy') {
+    return list.filter(
+      (row) => (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 80,
+    );
+  }
+  if (activeFilter.value === 'risk') {
+    return list.filter(
+      (row) =>
+        row.metrics.overdueTasks > 0 ||
+        (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 90,
+    );
+  }
+  return list;
+});
+
+const selectedMember = computed(() => {
+  const uid = selectedPanelUserId.value;
+  if (!uid) return null;
+  return team.value?.members.find((m) => m.userId === uid) || null;
+});
+
+const selectedMemberCapacity = computed(() => {
+  const uid = selectedPanelUserId.value;
+  if (!uid) return null;
+  return capacityByUserId.value.get(uid) || null;
+});
+
+const drawerTasks = computed(() => {
+  if (!memberInsight.value) return [];
+  if (memberInsight.value.tasks.overdue.length > 0) return memberInsight.value.tasks.overdue;
+  if (memberInsight.value.tasks.active.length > 0) return memberInsight.value.tasks.active;
+  return memberInsight.value.tasks.recent;
+});
+
+const drawerTaskTitle = computed(() => {
+  if (!memberInsight.value) return '任务流';
+  if (memberInsight.value.tasks.overdue.length > 0) return '逾期任务';
+  if (memberInsight.value.tasks.active.length > 0) return '进行中任务';
+  return '最近完成任务';
+});
+
+const closeMemberPanel = () => {
+  isMemberPanelOpen.value = false;
+  selectedPanelUserId.value = null;
+  memberInsight.value = null;
+};
+
+const openMemberWorkbench = (userId: string) => {
+  selectedPanelUserId.value = userId;
+  isMemberPanelOpen.value = true;
+  void fetchMemberInsight(userId);
+};
+
+const fetchMemberInsight = async (userId: string) => {
+  isMemberInsightLoading.value = true;
+  memberInsight.value = null;
+  try {
+    const response = await api.get(`/api/teams/${teamId.value}/members/${userId}/insight`);
+    if (selectedPanelUserId.value === userId) {
+      memberInsight.value = response.data;
+    }
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '获取画像失败'));
+  } finally {
+    isMemberInsightLoading.value = false;
+  }
+};
+
+const handleManualRefresh = async () => {
+  isRefreshing.value = true;
+  try {
+    await fetchTeamDetail({ silent: true });
+    ElMessage.success('空间数据已同步');
+  } finally {
+    isRefreshing.value = false;
+  }
+};
+
 const handleRemoveMember = async (userId: string, name: string) => {
   try {
     await ElMessageBox.confirm(
@@ -514,6 +964,113 @@ const confirmDeleteTeam = async () => {
   }
 };
 
+// Formatting helpers (Members details)
+const memberNameStr = (member: MemberRow) => {
+  return member.user.name || member.user.email || '未命名';
+};
+
+const progressWidthStr = (activeTasks: number) => {
+  return `${Math.min(100, activeTasks * 16)}%`;
+};
+
+const capacityLabel = (userId: string) => {
+  return capacityByUserId.value.get(userId)?.focus || '稳定推进';
+};
+
+const roleLabel = (role?: string) => {
+  if (role === 'OWNER') return '所有者';
+  if (role === 'ADMIN') return '管理员';
+  return '成员';
+};
+
+const roleBadgeClass = (role?: string) => {
+  if (role === 'OWNER') return 'bg-amber-500/10 text-amber-500 border border-amber-500/25';
+  if (role === 'ADMIN') return 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25';
+  return 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-white/10';
+};
+
+const navigateInsight = (targetRoute?: string) => {
+  if (targetRoute) {
+    router.push(targetRoute);
+  }
+};
+
+const severityClass = (severity: InsightActionItem['severity'] | RecommendationSeverity) => {
+  if (severity === 'critical') return 'bg-rose-500/10 text-rose-500';
+  if (severity === 'high') return 'bg-orange-500/10 text-orange-500';
+  return 'bg-amber-500/10 text-amber-500';
+};
+
+const severityLabel = (severity: InsightActionItem['severity'] | RecommendationSeverity) => {
+  if (severity === 'critical') return '紧急';
+  if (severity === 'high') return '高';
+  return '中';
+};
+
+const capacityClass = (score?: number) => {
+  if (score === undefined || score < 60) return 'bg-emerald-500/10 text-emerald-500';
+  if (score < 80) return 'bg-sky-500/10 text-sky-500';
+  if (score < 90) return 'bg-amber-500/10 text-amber-500';
+  return 'bg-rose-500/10 text-rose-500';
+};
+
+const priorityClass = (p?: string) => {
+  if (p === 'HIGH') return 'bg-rose-500/10 text-rose-500';
+  if (p === 'MEDIUM') return 'bg-amber-500/10 text-amber-500';
+  return 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400';
+};
+
+const taskStatusLabel = (status?: string) => {
+  if (status === 'TODO') return '待办';
+  if (status === 'IN_PROGRESS') return '进行中';
+  if (status === 'DONE') return '已完成';
+  return '未指派';
+};
+
+const progressWidth = (percent: number) => {
+  return `${Math.min(100, Math.max(0, percent))}%`;
+};
+
+const handleChatWithUser = async (user: TeamUser) => {
+  try {
+    await api.post('/api/messages/conversations', {
+      participantIds: [user.id],
+      isGroup: false,
+    });
+    router.push('/messages');
+  } catch {
+    ElMessage.error('会话创建失败');
+  }
+};
+
+const formatRelativeTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return '刚刚';
+  if (mins < 60) return `${mins}分钟前`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}小时前`;
+  return `${Math.floor(hours / 24)}天前`;
+};
+
+const activityDotClass = (type: string) => {
+  if (type.startsWith('task')) return 'bg-accent';
+  if (type.startsWith('project')) return 'bg-emerald-500';
+  if (type.startsWith('team')) return 'bg-purple-500';
+  return 'bg-slate-400';
+};
+
+const formatDate = (dateStr?: string | null) => {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 onMounted(() => {
   fetchTeamDetail();
   if (route.query.tab) {
@@ -763,6 +1320,12 @@ onUnmounted(() => {
             v-for="tab in [
               { id: 'people', label: t('teamDetail.peopleTab'), icon: Users },
               {
+                id: 'insights',
+                label: '协作洞察',
+                icon: Activity,
+                hidden: isPersonalSpace,
+              },
+              {
                 id: 'applications',
                 label: t('teamDetail.applicationsTab'),
                 icon: ClipboardList,
@@ -802,68 +1365,23 @@ onUnmounted(() => {
           v-if="activeTab === 'people'"
           class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
-          <!-- Stats Dashboard Bar -->
-          <div class="flex flex-wrap gap-3">
-            <!-- Total Members Card -->
+          <!-- KPIs Stats Dashboard Bar for TEAM type -->
+          <div v-if="team.type === 'TEAM'" class="grid grid-cols-2 lg:grid-cols-6 gap-3">
             <div
-              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200"
+              v-for="kpi in opsKpis"
+              :key="kpi.key"
+              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl p-3 shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-left"
             >
               <div
-                class="w-8 h-8 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0"
+                class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                :class="kpi.tone"
               >
-                <Users class="w-4 h-4" />
+                <component :is="kpi.icon" class="w-4 h-4" />
               </div>
-              <div class="flex items-baseline gap-1">
-                <span
-                  class="text-sm lg:text-base font-black tracking-tight"
-                  style="color: var(--text-primary)"
-                  >{{ teamStats.total }}</span
-                >
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{
-                  t('teamDetail.activeMembers')
-                }}</span>
-              </div>
-            </div>
-
-            <!-- Administrators Card -->
-            <div
-              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200"
-            >
-              <div
-                class="w-8 h-8 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0"
-              >
-                <ShieldCheck class="w-4 h-4" />
-              </div>
-              <div class="flex items-baseline gap-1">
-                <span
-                  class="text-sm lg:text-base font-black tracking-tight"
-                  style="color: var(--text-primary)"
-                  >{{ teamStats.admins }}</span
-                >
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{
-                  t('teamDetail.admins')
-                }}</span>
-              </div>
-            </div>
-
-            <!-- Pending Invitations Card -->
-            <div
-              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl py-1.5 px-3 shadow-sm transition-all duration-200"
-            >
-              <div
-                class="w-8 h-8 rounded-md bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0"
-              >
-                <Clock class="w-4 h-4" />
-              </div>
-              <div class="flex items-baseline gap-1">
-                <span
-                  class="text-sm lg:text-base font-black tracking-tight"
-                  style="color: var(--text-primary)"
-                  >{{ teamStats.pending }}</span
-                >
-                <span class="text-[10px] sm:text-xs text-slate-400 font-bold">{{
-                  t('teamDetail.pending')
-                }}</span>
+              <div class="min-w-0">
+                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{{ kpi.label }}</span>
+                <strong class="block text-base lg:text-lg font-black tracking-tight mt-1 leading-none" style="color: var(--text-primary)">{{ kpi.value }}</strong>
+                <span class="block text-[9px] font-bold text-slate-400 mt-1 leading-none">{{ kpi.helper }}</span>
               </div>
             </div>
           </div>
@@ -873,13 +1391,20 @@ onUnmounted(() => {
             class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5"
             style="border-color: var(--border-base)"
           >
-            <div>
-              <h2 class="text-base sm:text-lg font-black mb-0.5" style="color: var(--text-primary)">
+            <div class="flex items-center gap-3">
+              <h2 class="text-base sm:text-lg font-black" style="color: var(--text-primary)">
                 {{ t('teamDetail.boardTitle') }}
               </h2>
-              <p class="text-xs text-slate-400 font-medium">
-                {{ t('teamDetail.boardSubtitle') }}
-              </p>
+              <button
+                v-if="team.type === 'TEAM'"
+                type="button"
+                class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 transition-all cursor-pointer"
+                :class="isRefreshing ? 'animate-spin' : ''"
+                title="同步数据"
+                @click="handleManualRefresh"
+              >
+                <RefreshCw class="w-3.5 h-3.5" />
+              </button>
             </div>
             <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
               <div class="relative w-full sm:w-56 md:w-64">
@@ -906,198 +1431,407 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Members Grid -->
+          <!-- Filter Chips for TEAM type -->
           <div
-            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
+            v-if="team.type === 'TEAM'"
+            class="flex items-center justify-between border-b py-2 px-1"
+            style="border-color: var(--border-base)"
           >
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide min-w-0">
+              <button
+                v-for="filter in filters"
+                :key="filter.value"
+                type="button"
+                class="filter-chip"
+                :class="activeFilter === filter.value ? 'is-active' : ''"
+                @click="activeFilter = filter.value"
+              >
+                <component :is="filter.icon" class="w-3.5 h-3.5" />
+                <span>{{ filter.label }}</span>
+                <b>{{ filterCount(filter.value) }}</b>
+              </button>
+            </div>
+            <div class="hidden lg:flex items-center gap-2 text-[10px] font-black text-slate-400 shrink-0">
+              <span>{{ activeFilter === 'pending' ? visiblePendingItems.length : filteredRows.length }} 条结果</span>
+              <span>·</span>
+              <span>容量按风险优先排序</span>
+            </div>
+          </div>
+
+          <!-- Pending invitations / applications content list -->
+          <div v-if="activeFilter === 'pending'" class="space-y-3">
+            <div v-if="visiblePendingItems.length === 0" class="text-center py-12 text-slate-400 text-xs italic font-bold">
+              无待处理邀请或申请
+            </div>
             <div
-              v-for="person in filteredPeople"
-              :key="person.id"
-              class="group relative backdrop-blur-md bg-white/60 dark:bg-slate-900/40 border border-white/20 dark:border-slate-800/80 rounded-xl p-4 transition-all duration-300 hover:shadow-[0_8px_20px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5 flex flex-col justify-between"
+              v-for="item in visiblePendingItems"
+              :key="item.id"
+              class="flex items-center justify-between p-4 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-xl"
             >
-              <!-- Pending Floating Badge -->
-              <div
-                v-if="!person.isMember"
-                class="absolute -top-2 left-3 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] sm:text-[10px] font-black rounded uppercase tracking-wider shadow-sm z-10"
-              >
-                {{ t('teamDetail.pendingBadge') }}
-              </div>
-
-              <div>
-                <!-- User Profile Header -->
-                <div class="flex items-center gap-2.5">
-                  <UserAvatar
-                    :user="
-                      person.isMember
-                        ? person.user
-                        : { name: person.displayName, email: person.displayEmail }
-                    "
-                    size="md"
-                    class="cursor-pointer hover:ring-2 hover:ring-accent transition-all duration-300"
-                    @click="person.isMember && openUserProfile(person.user.id)"
-                  />
-                  <div class="min-w-0 flex-1">
-                    <h4
-                      class="font-black text-sm tracking-tight truncate cursor-pointer hover:text-accent transition-colors duration-200"
-                      style="color: var(--text-primary)"
-                      @click="person.isMember && openUserProfile(person.user.id)"
-                    >
-                      {{ person.displayName }}
-                    </h4>
-                    <!-- Email with Mail Icon -->
-                    <div
-                      class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mt-0.5"
-                    >
-                      <Mail class="w-3.5 h-3.5 shrink-0" />
-                      <span class="text-xs truncate font-medium">{{ person.displayEmail }}</span>
-                    </div>
-                  </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-amber-500/10 text-amber-500 shrink-0">
+                  <Clock class="w-4 h-4" />
                 </div>
-
-                <!-- Info (Joined/Invited Date) -->
-                <div
-                  class="flex items-center gap-1.5 mt-2.5 text-xs text-slate-400 dark:text-slate-500 font-medium"
-                >
-                  <Calendar class="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    {{ person.isMember ? t('teamDetail.joinedAt') : t('teamDetail.invitedAt') }}
-                    {{
-                      new Date(person.joinedAt || person.createdAt).toLocaleDateString(
-                        locale === 'zh' ? 'zh-CN' : 'en-US',
-                        { year: '2-digit', month: '2-digit', day: '2-digit' },
-                      )
-                    }}
-                  </span>
+                <div class="text-left">
+                  <p class="text-xs font-black" style="color: var(--text-primary)">{{ item.title }}</p>
+                  <p class="text-[10px] text-slate-400">{{ item.subtitle }} · {{ formatDate(item.createdAt) }}</p>
                 </div>
               </div>
-
-              <!-- Actions & Role Footer -->
-              <div
-                class="flex items-center justify-between pt-2.5 mt-3 border-t border-dashed"
-                style="border-color: var(--border-base)"
-              >
-                <!-- Role Badge -->
-                <div>
-                  <span
-                    class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border"
-                    :class="{
-                      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20':
-                        person.role === 'OWNER',
-                      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20':
-                        person.role === 'ADMIN',
-                      'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-white/10':
-                        person.role === 'MEMBER',
-                      'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20':
-                        person.role === 'PENDING',
-                    }"
-                  >
-                    {{
-                      person.role === 'OWNER'
-                        ? t('teamDetail.roleOwner')
-                        : person.role === 'ADMIN'
-                          ? t('teamDetail.roleAdmin')
-                          : person.role === 'PENDING'
-                            ? t('teamDetail.rolePending')
-                            : t('teamDetail.roleMember')
-                    }}
-                  </span>
-                </div>
-
-                <!-- Action Button Group -->
-                <div class="flex items-center gap-1">
-                  <!-- Private Message -->
+              <div class="flex items-center gap-2 shrink-0">
+                <template v-if="item.kind === 'invite'">
                   <button
-                    v-if="person.isMember && person.user.id !== authStore.user?.id"
+                    v-if="canManageTeam"
                     type="button"
-                    class="p-1 hover:bg-accent/10 hover:text-accent rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
-                    :title="t('teamDetail.sendPrivateMessage')"
-                    @click="handleStartChat(person.user)"
+                    class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg text-[10px] font-black transition-all cursor-pointer"
+                    @click="handleCancelInvitation(item.id)"
                   >
-                    <MessageSquare class="w-4 h-4" />
+                    撤销邀请
                   </button>
+                </template>
+                <template v-else>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500 hover:text-white rounded-lg text-[10px] font-black transition-all cursor-pointer"
+                      @click="handleRespondApplication(item.id, false, item.title)"
+                    >
+                      拒绝
+                    </button>
+                    <button
+                      type="button"
+                      class="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all cursor-pointer"
+                      @click="handleRespondApplication(item.id, true, item.title)"
+                    >
+                      同意
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
 
-                  <!-- Manage Button / Dropdown -->
-                  <template v-if="canManageTeam && person.userId !== authStore.user?.id">
-                    <template v-if="person.isMember">
-                      <el-dropdown trigger="click" placement="bottom-end">
+          <!-- Active Members Table View -->
+          <div v-else class="overflow-x-auto scrollbar-hide">
+            <table class="member-table">
+              <thead>
+                <tr>
+                  <th>成员</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th v-if="team.type === 'TEAM'">负载</th>
+                  <th v-if="team.type === 'TEAM'">项目</th>
+                  <th>最近协作</th>
+                  <th class="text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="member in filteredRows" :key="member.id">
+                  <td>
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <UserAvatar
+                        :user="member.user"
+                        size="sm"
+                        class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
+                        @click="openUserProfile(member.userId)"
+                      />
+                      <div class="min-w-0 text-left">
                         <button
                           type="button"
-                          class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer"
-                          :title="t('teamDetail.manageRoles')"
+                          class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent max-w-[190px] text-left outline-none"
+                          style="color: var(--text-primary)"
+                          @click="team.type === 'TEAM' ? openMemberWorkbench(member.userId) : openUserProfile(member.userId)"
                         >
-                          <Shield class="w-4 h-4" />
+                          {{ memberNameStr(member) }}
+                        </button>
+                        <p class="text-[10px] text-slate-400 truncate max-w-[210px]">{{ member.user.email }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <el-select
+                      v-if="canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'"
+                      :model-value="member.role"
+                      class="role-select"
+                      @change="(role: unknown) => handleUpdateRole(member.userId, String(role))"
+                    >
+                      <el-option label="管理员" value="ADMIN" />
+                      <el-option label="成员" value="MEMBER" />
+                    </el-select>
+                    <span v-else class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black" :class="roleBadgeClass(member.role)">
+                      <Crown v-if="member.role === 'OWNER'" class="w-3 h-3" />
+                      <ShieldCheck v-else-if="member.role === 'ADMIN'" class="w-3 h-3" />
+                      {{ roleLabel(member.role) }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="space-y-1 text-left">
+                      <div class="flex items-center gap-1.5">
+                        <Circle
+                          class="w-2 h-2 fill-current"
+                          :class="authStore.isUserOnline(member.userId) ? 'text-emerald-500' : 'text-slate-300'"
+                        />
+                        <span class="text-[10px] font-black text-slate-500">
+                          {{ authStore.isUserOnline(member.userId) ? '在线' : '离线' }}
+                        </span>
+                      </div>
+                      <span
+                        v-if="team.type === 'TEAM'"
+                        class="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black"
+                        :class="capacityClass(capacityByUserId.get(member.userId)?.capacityScore)"
+                      >
+                        {{ capacityLabel(member.userId) }}
+                      </span>
+                    </div>
+                  </td>
+                  <td v-if="team.type === 'TEAM'">
+                    <div class="w-36 text-left">
+                      <div class="flex justify-between text-[10px] font-black mb-1">
+                        <span class="text-slate-400">进行 {{ member.metrics.activeTasks }}</span>
+                        <span :class="member.metrics.overdueTasks > 0 ? 'text-rose-500' : 'text-accent'">
+                          {{ member.metrics.completionRate }}%
+                        </span>
+                      </div>
+                      <div class="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          class="h-full rounded-full"
+                          :class="member.metrics.overdueTasks > 0 ? 'bg-rose-500' : member.metrics.activeTasks >= 5 ? 'bg-amber-500' : 'bg-accent'"
+                          :style="{ width: progressWidthStr(member.metrics.activeTasks) }"
+                        ></div>
+                      </div>
+                      <p class="mt-1 text-[9px] font-bold text-slate-400">
+                        已完 {{ member.metrics.doneTasks }} · 本周 {{ capacityByUserId.get(member.userId)?.completedThisWeek ?? member.metrics.recentlyCompleted }} · 逾期 {{ member.metrics.overdueTasks }}
+                      </p>
+                    </div>
+                  </td>
+                  <td v-if="team.type === 'TEAM'" class="text-xs font-black text-slate-500 text-left">
+                    {{ member.metrics.projects }}
+                  </td>
+                  <td class="text-xs font-bold text-slate-500 text-left">
+                    {{ formatDate(member.metrics.lastTaskAt || member.joinedAt) }}
+                  </td>
+                  <td class="text-right">
+                    <div class="inline-flex items-center gap-1.5">
+                      <button
+                        v-if="team.type === 'TEAM'"
+                        type="button"
+                        class="h-7 px-2 rounded-lg bg-accent/10 text-accent text-[10px] font-black border-none cursor-pointer hover:bg-accent hover:text-white transition-colors"
+                        @click="openMemberWorkbench(member.userId)"
+                      >
+                        画像
+                      </button>
+                      <el-dropdown trigger="click" placement="bottom-end">
+                        <button type="button" class="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border-none cursor-pointer text-slate-400 hover:text-accent transition-colors" style="color: var(--text-secondary)">
+                          <MoreHorizontal class="w-4 h-4" />
                         </button>
                         <template #dropdown>
-                          <el-dropdown-menu class="w-48 p-2 rounded-2xl shadow-2xl border-none">
-                            <template v-if="isOwner">
+                          <el-dropdown-menu class="!rounded-xl !p-2">
+                            <el-dropdown-item v-if="team.type === 'TEAM'" class="!rounded-lg !font-bold" @click="openMemberWorkbench(member.userId)">
+                              打开画像
+                            </el-dropdown-item>
+                            <el-dropdown-item class="!rounded-lg !font-bold" @click="openUserProfile(member.userId)">
+                              查看资料
+                            </el-dropdown-item>
+                            <el-dropdown-item
+                              v-if="member.userId !== authStore.user?.id"
+                              class="!rounded-lg !font-bold"
+                              @click="handleStartChat(member.user)"
+                            >
+                              发起私聊
+                            </el-dropdown-item>
+                            <template v-if="canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'">
+                              <el-divider class="!my-1" />
                               <el-dropdown-item
-                                v-if="person.role === 'MEMBER'"
-                                class="rounded-xl my-0.5"
-                                @click="handleUpdateRole(person.user.id, 'ADMIN')"
+                                class="!rounded-lg !font-bold !text-rose-500"
+                                @click="handleRemoveMember(member.userId, member.user.name)"
                               >
-                                <div
-                                  class="flex items-center gap-3 py-1 text-emerald-600 font-bold text-xs"
-                                >
-                                  <ShieldCheck class="w-4 h-4" /> {{ t('teamDetail.promoteAdmin') }}
-                                </div>
-                              </el-dropdown-item>
-                              <el-dropdown-item
-                                v-if="person.role === 'ADMIN'"
-                                class="rounded-xl my-0.5"
-                                @click="handleUpdateRole(person.user.id, 'MEMBER')"
-                              >
-                                <div
-                                  class="flex items-center gap-3 py-1 text-slate-600 font-bold text-xs"
-                                >
-                                  <Users class="w-4 h-4" /> {{ t('teamDetail.demoteMember') }}
-                                </div>
+                                移出空间
                               </el-dropdown-item>
                             </template>
-                            <el-dropdown-item
-                              class="rounded-xl my-0.5"
-                              @click="handleRemoveMember(person.user.id, person.user.name)"
-                            >
-                              <div
-                                class="flex items-center gap-3 py-1 text-rose-500 font-bold text-xs"
-                              >
-                                <Trash2 class="w-4 h-4" /> {{ t('teamDetail.removeMember') }}
-                              </div>
-                            </el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
                       </el-dropdown>
-                    </template>
-                    <button
-                      v-else
-                      type="button"
-                      class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 rounded-md transition-all duration-200 cursor-pointer"
-                      :title="t('teamDetail.cancelInvitation')"
-                      @click="handleCancelInvitation(person.id)"
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Collaboration Insights Tab -->
+        <div
+          v-if="activeTab === 'insights' && !isPersonalSpace"
+          class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+        >
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Panel: Health Gauge & KPI Summary -->
+            <div class="space-y-6">
+              <section class="rail-card flex flex-col items-center py-6 text-center">
+                <h3 class="rail-title mb-4">空间健康度</h3>
+                <div class="relative w-36 h-36 flex items-center justify-center">
+                  <!-- Circular Gauge Indicator -->
+                  <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      stroke="var(--border-base)"
+                      stroke-width="8"
+                      fill="transparent"
+                      class="text-slate-200 dark:text-slate-800"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      stroke="currentColor"
+                      stroke-width="8"
+                      fill="transparent"
+                      stroke-dasharray="251.2"
+                      :stroke-dashoffset="251.2 - (251.2 * healthScore) / 100"
+                      :class="healthToneClass"
+                    />
+                  </svg>
+                  <div class="absolute flex flex-col items-center">
+                    <span class="text-3xl font-black" style="color: var(--text-primary)">{{ healthScore }}</span>
+                    <span
+                      class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mt-1"
+                      :class="healthToneClass"
                     >
-                      <X class="w-4 h-4" />
-                    </button>
-                  </template>
+                      {{ healthLabel }}
+                    </span>
+                  </div>
                 </div>
-              </div>
+                <p class="text-xs text-slate-400 mt-4 px-6">
+                  该得分基于任务逾期率、成员高负载比例以及项目风险综合计算。
+                </p>
+              </section>
+
+              <!-- Capacity load list -->
+              <section class="rail-card">
+                <div class="rail-title">
+                  <span>成员容量排行</span>
+                  <span class="text-[9px] text-slate-400 font-bold">工作负荷百分比</span>
+                </div>
+                <div v-if="!insights || insights.memberCapacity.length === 0" class="compact-empty">暂无负荷记录</div>
+                <div v-else class="space-y-3 mt-2">
+                  <div
+                    v-for="cap in insights.memberCapacity.slice(0, 5)"
+                    :key="cap.userId"
+                    class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-white/5"
+                  >
+                    <div class="flex items-center gap-2 min-w-0">
+                      <UserAvatar
+                        v-if="team?.members.find(m => m.userId === cap.userId)"
+                        :user="team.members.find(m => m.userId === cap.userId)!.user"
+                        size="xs"
+                      />
+                      <span class="text-xs font-black truncate text-slate-700 dark:text-slate-200">
+                        {{ team?.members.find(m => m.userId === cap.userId)?.user.name || '团队成员' }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="text-[10px] font-black" :class="capacityClass(cap.capacityScore)">
+                        {{ cap.capacityScore }}%
+                      </span>
+                      <span
+                        class="px-1.5 py-0.2 rounded text-[8px] font-bold"
+                        :class="capacityClass(cap.capacityScore)"
+                      >
+                        {{ cap.focus }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
 
-            <!-- Add Person CTA Card -->
-            <button
-              v-if="canManageTeam"
-              type="button"
-              class="backdrop-blur-md bg-white/30 dark:bg-slate-900/20 border border-dashed border-accent/30 dark:border-accent/20 hover:border-accent hover:bg-accent/5 rounded-xl p-4 min-h-[120px] flex flex-col items-center justify-center gap-2 transition-all duration-300 group cursor-pointer"
-              @click="isAddModalOpen = true"
-            >
-              <div
-                class="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:bg-accent group-hover:text-white transition-all duration-300 shadow-md shadow-accent/5"
-              >
-                <Plus class="w-5 h-5" />
-              </div>
-              <span
-                class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-accent"
-                >{{ t('teamDetail.inviteNewMember') }}</span
-              >
-            </button>
+            <!-- Middle Panel: Project Health Risk & Action Items -->
+            <div class="space-y-6 lg:col-span-2">
+              <section class="rail-card">
+                <h3 class="rail-title">高风险项目</h3>
+                <div v-if="highRiskProjects.length === 0" class="compact-empty">暂无风险项目，运行良好</div>
+                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                  <div
+                    v-for="proj in highRiskProjects"
+                    :key="proj.id"
+                    class="p-3 bg-rose-500/5 border border-rose-500/15 rounded-xl flex flex-col justify-between text-left"
+                  >
+                    <div>
+                      <div class="flex items-center justify-between mb-1.5">
+                        <strong class="text-xs font-black text-rose-500 truncate">{{ proj.title }}</strong>
+                        <span class="text-[10px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded">
+                          {{ proj.healthScore }}分
+                        </span>
+                      </div>
+                      <ul class="space-y-1">
+                        <li
+                          v-for="(reason, idx) in proj.reasons"
+                          :key="idx"
+                          class="text-[9px] font-bold text-slate-500 flex items-start gap-1 text-left"
+                        >
+                          <span class="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1 shrink-0"></span>
+                          <span>{{ reason }}</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <button
+                      type="button"
+                      class="mt-3 w-full py-1 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg text-[10px] font-black transition-colors cursor-pointer"
+                      @click="navigateInsight(`/project/${proj.id}`)"
+                    >
+                      处理项目风险
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Action items list -->
+              <section class="rail-card">
+                <h3 class="rail-title">建议处理动作</h3>
+                <div v-if="actionItems.length === 0" class="compact-empty">当前无待办建议</div>
+                <div v-else class="space-y-2 mt-2">
+                  <button
+                    v-for="item in actionItems.slice(0, 6)"
+                    :key="item.id"
+                    type="button"
+                    class="drawer-action hover:bg-accent/5"
+                    @click="navigateInsight(item.targetRoute)"
+                  >
+                    <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black shrink-0" :class="severityClass(item.severity)">
+                      {{ severityLabel(item.severity) }}
+                    </span>
+                    <span class="min-w-0 flex-1 text-left">
+                      <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ item.title }}</span>
+                      <span class="block text-[9px] font-bold text-slate-400 truncate">{{ item.description }}</span>
+                    </span>
+                    <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  </button>
+                </div>
+              </section>
+
+              <!-- Activity Feed Timeline -->
+              <section class="rail-card">
+                <h3 class="rail-title">团队活动记录</h3>
+                <div v-if="activityItems.length === 0" class="compact-empty">暂无新动态</div>
+                <div v-else class="space-y-2.5 mt-2">
+                  <button
+                    v-for="item in activityItems.slice(0, 6)"
+                    :key="item.id"
+                    type="button"
+                    class="activity-row"
+                    @click="navigateInsight(item.targetRoute)"
+                  >
+                    <span class="w-2 h-2 rounded-full mt-1.5 shrink-0" :class="activityDotClass(item.type)"></span>
+                    <span class="min-w-0 flex-1 text-left">
+                      <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ item.title }}</span>
+                      <span class="block text-[9px] font-bold text-slate-400 truncate">{{ item.description }}</span>
+                    </span>
+                    <span class="text-[9px] font-black text-slate-400 shrink-0">{{ formatRelativeTime(item.createdAt) }}</span>
+                  </button>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
 
@@ -1502,6 +2236,164 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- Member Workload Portrait Drawer -->
+    <div
+      v-if="isMemberPanelOpen"
+      class="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[2px]"
+      @click.self="closeMemberPanel"
+    >
+      <aside class="member-drawer flex flex-col h-full bg-slate-900 border-l border-white/10 shadow-2xl relative">
+        <div class="drawer-head flex items-center justify-between p-4 border-b" style="border-color: var(--border-base)">
+          <div class="flex items-center gap-3 min-w-0">
+            <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />
+            <div class="min-w-0 text-left">
+              <p class="text-sm font-black truncate" style="color: var(--text-primary)">
+                {{ selectedMember?.user.name || memberInsight?.member.user.name || '未命名成员' }}
+              </p>
+              <p class="text-[10px] font-bold text-slate-400 truncate">
+                {{ selectedMember?.user.email || memberInsight?.member.user.email || '成员画像' }}
+              </p>
+            </div>
+          </div>
+          <button type="button" class="drawer-close" @click="closeMemberPanel">
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <div v-if="isMemberInsightLoading" class="flex-1 flex flex-col items-center justify-center text-slate-400 p-6">
+          <div class="w-9 h-9 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p class="text-xs font-black">正在生成成员画像</p>
+        </div>
+
+        <div v-else-if="memberInsight" class="drawer-body flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
+          <section class="drawer-section p-3 rounded-xl border animate-in fade-in duration-300" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
+            <div class="drawer-score flex justify-between items-center">
+              <div class="text-left">
+                <p class="text-[10px] font-black text-slate-400 leading-none">容量分</p>
+                <strong class="text-3xl font-black mt-1 block leading-none" style="color: var(--text-primary)">
+                  {{ memberInsight.stats.capacityScore }}
+                </strong>
+              </div>
+              <span class="px-2.5 py-1 rounded-md text-[10px] font-black" :class="capacityClass(memberInsight.stats.capacityScore)">
+                {{ selectedMemberCapacity?.focus || '工作节奏' }}
+              </span>
+            </div>
+            <div class="drawer-stat-grid grid grid-cols-4 gap-2 mt-3 text-center">
+              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">项目</span>
+                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.projects }}</strong>
+              </div>
+              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">进行</span>
+                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.activeTasks }}</strong>
+              </div>
+              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">逾期</span>
+                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.overdueTasks }}</strong>
+              </div>
+              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">完成率</span>
+                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.completionRate }}%</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="drawer-section p-3 rounded-xl border text-left" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
+            <div class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200">
+              <ClipboardCheck class="w-4 h-4 text-amber-500" />
+              <span>建议动作</span>
+            </div>
+            <div v-if="memberInsight.recommendations.length === 0" class="text-center py-4 text-slate-400 text-xs italic">
+              无特别建议动作
+            </div>
+            <div v-else class="space-y-2">
+              <button
+                v-for="item in memberInsight.recommendations"
+                :key="item.id"
+                type="button"
+                class="drawer-action hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center gap-2 w-full text-left cursor-pointer"
+                style="border-color: var(--border-base)"
+                @click="navigateInsight(item.targetRoute)"
+              >
+                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0" :class="severityClass(item.severity)">
+                  {{ severityLabel(item.severity) }}
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ item.title }}</span>
+                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{ item.description }}</span>
+                </span>
+                <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              </button>
+            </div>
+          </section>
+
+          <section class="drawer-section p-3 rounded-xl border text-left" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
+            <div class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200">
+              <Briefcase class="w-4 h-4 text-accent" />
+              <span>{{ drawerTaskTitle }}</span>
+            </div>
+            <div v-if="drawerTasks.length === 0" class="text-center py-4 text-slate-400 text-xs italic">暂无任务记录</div>
+            <div v-else class="space-y-2">
+              <button
+                v-for="task in drawerTasks"
+                :key="task.id"
+                type="button"
+                class="drawer-task hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
+                style="border-color: var(--border-base)"
+                @click="navigateInsight(task.targetRoute)"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ task.title }}</span>
+                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
+                    {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} · {{ formatDate(task.dueDate || task.updatedAt) }}
+                  </span>
+                </span>
+                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2" :class="priorityClass(task.priority)">
+                  {{ task.priority || 'NONE' }}
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section class="drawer-section p-3 rounded-xl border text-left" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
+            <div class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200">
+              <BarChart3 class="w-4 h-4 text-emerald-500" />
+              <span>参与项目</span>
+            </div>
+            <div v-if="memberInsight.projects.length === 0" class="text-center py-4 text-slate-400 text-xs italic">暂未参与项目</div>
+            <div v-else class="space-y-2">
+              <button
+                v-for="project in memberInsight.projects.slice(0, 6)"
+                :key="project.id"
+                type="button"
+                class="drawer-project hover:bg-accent/5 p-2 bg-white/5 rounded-lg border flex items-center justify-between w-full text-left cursor-pointer"
+                style="border-color: var(--border-base)"
+                @click="navigateInsight(project.targetRoute)"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ project.title }}</span>
+                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
+                    {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 · {{ project.overdueTasks }} 逾期
+                  </span>
+                </span>
+                <span class="w-14 shrink-0 ml-2">
+                  <span class="block text-right text-[9px] font-black text-slate-400">{{ project.progress }}%</span>
+                  <span class="block h-1 mt-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <span class="block h-full rounded-full bg-accent" :style="{ width: progressWidth(project.progress) }"></span>
+                  </span>
+                </span>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div v-if="memberInsight" class="drawer-foot p-4 border-t grid grid-cols-2 gap-3 shrink-0" style="border-color: var(--border-base)">
+          <button type="button" class="drawer-secondary cursor-pointer" @click="openUserProfile(memberInsight.member.userId)">查看资料</button>
+          <button type="button" class="drawer-primary cursor-pointer" @click="handleChatWithUser(memberInsight.member.user)">发起私聊</button>
+        </div>
+      </aside>
+    </div>
+
     <UserProfileDialog
       v-model="isProfileDialogOpen"
       :user-id="selectedUserId"
@@ -1532,6 +2424,347 @@ onUnmounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Consolidated Styles from Members Dashboard */
+.rail-card {
+  border: 1px solid var(--border-base);
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.rail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.kpi-tile {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  background: var(--bg-card);
+  text-align: left;
+}
+
+.tone-sky {
+  background: rgb(14 165 233 / 0.1);
+  color: rgb(2 132 199);
+}
+
+.tone-purple {
+  background: rgb(168 85 247 / 0.1);
+  color: rgb(147 51 234);
+}
+
+.tone-emerald {
+  background: rgb(16 185 129 / 0.1);
+  color: rgb(5 150 105);
+}
+
+.tone-rose {
+  background: rgb(244 63 94 / 0.1);
+  color: rgb(225 29 72);
+}
+
+.tone-amber {
+  background: rgb(245 158 11 / 0.12);
+  color: rgb(217 119 6);
+}
+
+.tone-slate {
+  background: rgb(100 116 139 / 0.1);
+  color: rgb(71 85 105);
+}
+
+.action-row,
+.rail-member,
+.risk-project,
+.activity-row,
+.drawer-action,
+.drawer-task,
+.drawer-project {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(148 163 184 / 0.08);
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.action-row:hover,
+.rail-member:hover,
+.risk-project:hover,
+.activity-row:hover,
+.drawer-action:hover,
+.drawer-task:hover,
+.drawer-project:hover {
+  background: rgb(99 102 241 / 0.08);
+}
+
+.filter-chip {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgb(148 163 184 / 0.08);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-chip b {
+  min-width: 17px;
+  height: 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 0.14);
+  font-size: 9px;
+}
+
+.filter-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 8px 18px rgb(99 102 241 / 0.18);
+}
+
+.filter-chip.is-active b {
+  background: rgb(255 255 255 / 0.22);
+}
+
+.member-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.member-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-base);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.member-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-base);
+  vertical-align: middle;
+}
+
+.member-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.member-table tbody tr:hover {
+  background: rgb(148 163 184 / 0.07);
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+}
+
+.compact-empty {
+  padding: 24px 8px;
+  text-align: center;
+  color: rgb(148 163 184);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Member Portrait Side Drawer Styles */
+.member-drawer {
+  width: min(460px, 100vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  box-shadow: -24px 0 60px rgb(15 23 42 / 0.22);
+  background: var(--bg-card);
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-head {
+  min-height: 62px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-base);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.drawer-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 0;
+  background: rgb(148 163 184 / 0.12);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.drawer-close:hover {
+  background: rgb(148 163 184 / 0.2);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawer-section {
+  border: 1px solid var(--border-base);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgb(148 163 184 / 0.04);
+}
+
+.drawer-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.drawer-stat-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drawer-stat-grid div {
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  padding: 8px;
+}
+
+.drawer-stat-grid span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.drawer-stat-grid strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.drawer-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+}
+
+.drawer-primary,
+.drawer-secondary {
+  height: 40px;
+  border-radius: 8px;
+  border: 0;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.drawer-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.drawer-primary:hover {
+  opacity: 0.9;
+}
+
+.drawer-secondary {
+  background: rgb(148 163 184 / 0.14);
+  color: var(--text-primary);
+}
+
+.drawer-secondary:hover {
+  background: rgb(148 163 184 / 0.2);
+}
+
+.role-select :deep(.el-select__wrapper) {
+  min-height: 28px;
+  height: 28px;
+  width: 90px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--border-base) inset;
+  background: var(--bg-app);
+}
+
+@media (max-width: 1024px) {
+  .member-table {
+    min-width: 720px;
   }
 }
 </style>

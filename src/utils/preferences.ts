@@ -1,5 +1,6 @@
 export type ThemePreference = 'glass-light' | 'glass-dark' | 'glass-auto';
 export type LocalePreference = 'zh-CN' | 'en-US';
+export type SidebarMode = 'rail' | 'expanded';
 
 const storageKeys = {
   activeWorkspaceId: 'activeWorkspaceId',
@@ -9,6 +10,8 @@ const storageKeys = {
   lastBaseTheme: 'lastBaseTheme',
   refreshToken: 'refreshToken',
   searchHistory: 'searchHistory',
+  sidebarExpandedGroups: 'layoutSidebarExpandedGroups',
+  sidebarMode: 'layoutSidebarMode',
   theme: 'theme',
   token: 'token',
   user: 'user',
@@ -63,6 +66,9 @@ const isThemePreference = (value: string | null): value is ThemePreference =>
 const isLocalePreference = (value: string | null): value is LocalePreference =>
   value === 'zh-CN' || value === 'en-US';
 
+const isSidebarMode = (value: string | null): value is SidebarMode =>
+  value === 'rail' || value === 'expanded';
+
 export const preferences = {
   keys: storageKeys,
 
@@ -95,6 +101,20 @@ export const preferences = {
   setSearchHistory: (history: string[]) =>
     setItem(storageKeys.searchHistory, JSON.stringify(history.slice(0, 5))),
   clearSearchHistory: () => removeItem(storageKeys.searchHistory),
+
+  hasSidebarMode: () => isSidebarMode(getItem(storageKeys.sidebarMode)),
+  getSidebarMode: (): SidebarMode => {
+    const mode = getItem(storageKeys.sidebarMode);
+    return isSidebarMode(mode) ? mode : 'expanded';
+  },
+  setSidebarMode: (mode: SidebarMode) => setItem(storageKeys.sidebarMode, mode),
+
+  getSidebarExpandedGroups: () =>
+    parseJson<string[]>(getItem(storageKeys.sidebarExpandedGroups), []).filter(
+      (key) => typeof key === 'string' && key.length > 0,
+    ),
+  setSidebarExpandedGroups: (groups: string[]) =>
+    setItem(storageKeys.sidebarExpandedGroups, JSON.stringify([...new Set(groups)])),
 
   getUser: <T>() => parseJson<T | null>(getItem(storageKeys.user), null),
   setUser: (user: unknown) => setItem(storageKeys.user, JSON.stringify(user)),

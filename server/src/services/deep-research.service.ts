@@ -1,10 +1,12 @@
 import { callLLM, type AIServiceConfig } from './ai.service';
 import { DEEP_RESEARCH_REPORTING_RULES } from '../config/prompts';
 import {
+  assessSearchResultQuality,
   fetchAshareMarketSnapshot,
   formatSearchResultsAsPrompt,
   performWebSearch,
   type SearchResult,
+  type SearchEvidenceTier,
   type WebSearchOptions,
 } from './search.service';
 
@@ -28,6 +30,7 @@ interface TemporalContext {
   nextWeekRange: string;
   isTimeSensitive: boolean;
   isMarketForecast: boolean;
+  isTechnicalTooling: boolean;
   recencyDays: number;
   answerRules: string;
   trustedFreshDomains: string[];
@@ -37,6 +40,8 @@ interface RankedSearchResult extends SearchResult {
   score: number;
   ageDays: number | null;
   usable: boolean;
+  evidenceTier: EvidenceTier;
+  evidenceType: string;
 }
 
 interface ResearchSourceRef {
@@ -45,9 +50,10 @@ interface ResearchSourceRef {
 }
 
 type ProgressReporter = (update: string) => void;
+type EvidenceTier = SearchEvidenceTier;
 
-const EVIDENCE_SOURCE_LIMIT = 20;
-const MARKET_EVIDENCE_SOURCE_LIMIT = 24;
+const EVIDENCE_SOURCE_LIMIT = 28;
+const MARKET_EVIDENCE_SOURCE_LIMIT = 32;
 const MAX_FUTURE_SOURCE_DAYS = 7;
 
 function readBoundedInt(name: string, fallback: number, min: number, max: number): number {
@@ -56,9 +62,9 @@ function readBoundedInt(name: string, fallback: number, min: number, max: number
   return Math.min(max, Math.max(min, parsed));
 }
 
-const MAX_RESEARCH_SECTIONS = readBoundedInt('DEEP_RESEARCH_MAX_SECTIONS', 4, 1, 6);
+const MAX_RESEARCH_SECTIONS = readBoundedInt('DEEP_RESEARCH_MAX_SECTIONS', 5, 1, 6);
 const RESEARCH_MAX_DEPTH = readBoundedInt('DEEP_RESEARCH_MAX_DEPTH', 2, 1, 4);
-const QUERIES_PER_DEPTH = readBoundedInt('DEEP_RESEARCH_QUERIES_PER_DEPTH', 2, 1, 4);
+const QUERIES_PER_DEPTH = readBoundedInt('DEEP_RESEARCH_QUERIES_PER_DEPTH', 3, 1, 4);
 const MARKET_QUERIES_PER_DEPTH = readBoundedInt('DEEP_RESEARCH_MARKET_QUERIES_PER_DEPTH', 5, 2, 8);
 
 const TRUSTED_MARKET_DOMAINS = [
@@ -100,9 +106,9 @@ const TRUSTED_MARKET_DOMAINS = [
 ];
 
 const ROUND1_SEARCH_OPTIONS: WebSearchOptions = {
-  maxResults: 12,
+  maxResults: 14,
   includePageContent: true,
-  pageContentLength: 3200,
+  pageContentLength: 4200,
   maxSearchEngines: 7,
   enableFallbackSearch: true,
   alwaysRunFallbackSearch: true,
@@ -159,6 +165,10 @@ function detectTemporalContext(userPrompt: string): TemporalContext {
     /(股市|股票|a股|港股|美股|纳指|纳斯达克|标普|道指|沪深|大盘|指数|行情|走势|财报|降息|加息|market|stock|nasdaq|s&p|dow|equity|earnings|fomc|fed)/i.test(
       userPrompt,
     );
+  const isTechnicalTooling =
+    /(工具|开源|项目|框架|库|插件|agent|github|开源项目|技术选型|竞品|benchmark|open source|tool|framework|library|plugin|sdk|api|implementation|architecture)/i.test(
+      userPrompt,
+    );
   const recencyDays = isMarketForecast ? 10 : isTimeSensitive ? 30 : 0;
 
   const answerRules = [
@@ -175,6 +185,13 @@ function detectTemporalContext(userPrompt: string): TemporalContext {
           'Avoid personalized investment advice and guaranteed predictions.',
         ].join(' ')
       : '',
+    isTechnicalTooling
+      ? [
+          'This request involves technical tooling, open-source projects, or implementation decisions.',
+          'Prefer official docs, source repositories, release notes, benchmarks, issue trackers, and credible engineering writeups.',
+          'When recommending adoption, include integration cost, maintenance risk, license/hosting concerns, and a practical rollout plan.',
+        ].join(' ')
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -184,6 +201,7 @@ function detectTemporalContext(userPrompt: string): TemporalContext {
     nextWeekRange,
     isTimeSensitive,
     isMarketForecast,
+    isTechnicalTooling,
     recencyDays,
     answerRules,
     trustedFreshDomains: isMarketForecast ? TRUSTED_MARKET_DOMAINS : [],
@@ -274,6 +292,16 @@ function buildDeterministicSectionQueries(
     );
   }
 
+  if (temporalContext.isTechnicalTooling) {
+    queries.push(
+      `${base} open source GitHub comparison`,
+      `${base} architecture implementation best practices`,
+      `${base} alternatives benchmarks limitations`,
+      `site:github.com ${base}`,
+      `site:docs.github.com OR site:github.com ${base} release notes`,
+    );
+  }
+
   return dedupeQueries(queries);
 }
 
@@ -341,6 +369,28 @@ function isSupplementalSource(source: SearchResult): boolean {
   ]);
 }
 
+function classifyEvidenceSource(source: SearchResult): {
+  evidenceTier: EvidenceTier;
+  evidenceType: string;
+  scoreBoost: number;
+} {
+  const quality = assessSearchResultQuality(source);
+  const scoreBoost =
+    quality.evidenceTier === 'primary'
+      ? 8
+      : quality.evidenceTier === 'strong'
+        ? 4
+        : quality.evidenceTier === 'weak'
+          ? -5
+          : 0;
+
+  return {
+    evidenceTier: quality.evidenceTier,
+    evidenceType: quality.evidenceType,
+    scoreBoost,
+  };
+}
+
 function isUsableEvidenceSource(source: SearchResult, temporalContext: TemporalContext): boolean {
   if (!source.title || !source.link) return false;
   if (!temporalContext.isTimeSensitive) return true;
@@ -360,15 +410,27 @@ function isUsableEvidenceSource(source: SearchResult, temporalContext: TemporalC
 
 function scoreSource(source: SearchResult, temporalContext: TemporalContext): RankedSearchResult {
   const domain = (source.domain || '').toLowerCase();
-  const ageDays = getSourceAgeDays(source, temporalContext.today);
+  const quality = assessSearchResultQuality(source, {
+    today: temporalContext.today,
+    recencyDays: temporalContext.recencyDays,
+    requireFreshness: temporalContext.isTimeSensitive,
+    trustedFreshDomains: temporalContext.trustedFreshDomains,
+  });
+  const ageDays = quality.ageDays;
   const textLength = (source.content || source.snippet || '').length;
   const usable = isUsableEvidenceSource(source, temporalContext);
-  let score = usable ? 20 : -20;
+  const evidence = {
+    evidenceTier: quality.evidenceTier,
+    evidenceType: quality.evidenceType,
+    scoreBoost: quality.evidenceTier === 'primary' ? 8 : quality.evidenceTier === 'strong' ? 4 : 0,
+  };
+  let score = usable ? quality.credibilityScore : quality.credibilityScore - 55;
 
   if (source.title) score += 2;
   if (source.snippet) score += 2;
   if (source.content) score += 4;
   if (textLength > 700) score += 2;
+  score += evidence.scoreBoost;
   if (isTrustedMarketSource(source)) score += 6;
   if (domain.includes('gov') || domain.includes('edu')) score += 3;
   if (isSupplementalSource(source)) score -= temporalContext.isMarketForecast ? 8 : 4;
@@ -380,7 +442,7 @@ function scoreSource(source: SearchResult, temporalContext: TemporalContext): Ra
     else score -= 25;
   }
 
-  return { ...source, score, ageDays, usable };
+  return { ...source, score, ageDays, usable, ...evidence };
 }
 
 function rankSources(
@@ -440,11 +502,19 @@ function selectEvidenceSources(
   return selected;
 }
 
-const OUTLINE_PLANNER_PROMPT = `You are a lead research director. Your task is to analyze the user's research question and outline a structured research plan.
-Divide the research topic into 3 to {{MAX_SECTIONS}} distinct, logical sections/sub-topics.
+const OUTLINE_PLANNER_PROMPT = `You are a lead research director designing a premium deep-research workflow.
+Analyze the user's research question and outline a structured research plan.
+Divide the topic into 4 to {{MAX_SECTIONS}} distinct, logical sections/sub-topics when the topic is broad. For narrow questions, use fewer sections only if it improves precision.
 
 Current Date: {{TODAY}}
 User Question: {{USER_PROMPT}}
+
+Planning principles:
+1. Cover the direct answer, background/definitions, latest evidence, competing viewpoints, risks/limitations, and practical implications.
+2. Prefer sections that can be independently verified by web evidence.
+3. For technical/tooling questions, include ecosystem comparison, implementation feasibility, and adoption risks.
+4. For time-sensitive questions, make recency and source credibility explicit.
+5. For product/tool improvement questions, include market-standard patterns, open-source projects worth learning from, integration architecture, and measurable upgrade outcomes.
 
 Return the plan strictly as a JSON object matching this TypeScript interface:
 {
@@ -464,10 +534,11 @@ Section Goal: {{SECTION_DESC}}
 Already Gathered Findings for this section so far:
 {{GATHERED_INFO}}
 
-Based on the goal and what has already been found, propose 2 short, highly specific search queries (in English or Chinese as appropriate) to find missing details or verify facts for this section.
+Based on the goal and what has already been found, propose 3 short, highly specific search queries (in English or Chinese as appropriate) to find missing details, primary sources, opposing views, implementation evidence, or verification evidence for this section.
+For technical/open-source research, include queries that can surface GitHub repositories, official docs, release notes, benchmarks, architecture writeups, license constraints, and real adoption concerns.
 Return the result strictly as a JSON object matching:
 {
-  "queries": ["query 1", "query 2"]
+  "queries": ["query 1", "query 2", "query 3"]
 }
 Do not return any extra explanations or Markdown code fences. Output ONLY valid JSON.`;
 
@@ -485,13 +556,16 @@ Already Gathered Findings:
 Your tasks:
 1. Extract new facts, statistics, dates, and evidence relevant to the section goal from the scraped text.
 2. Synthesize these new facts with the Already Gathered Findings.
-3. Identify any remaining information gaps or unanswered questions for this section.
-4. When stating a fact derived from a source, you MUST cite it using only the global citation id shown in the evidence block, like [1], [2], etc.
-5. Do not cite a source id that is not present in the evidence blocks. Do not invent citations.
+3. Separate strong evidence from weak/dated/ambiguous evidence.
+4. Identify any remaining information gaps or unanswered questions for this section.
+5. When stating a fact derived from a source, you MUST cite it using only the global citation id shown in the evidence block, like [1], [2], etc.
+6. Do not cite a source id that is not present in the evidence blocks. Do not invent citations.
+7. Preserve concrete numbers, dates, names, limitations, and contrasting viewpoints.
+8. For tools, products, libraries, or open-source projects, extract adoption signals, integration paths, maturity risks, license/deployment constraints, and UX/product ideas that can be translated into this platform.
 
 Return the result strictly as a JSON object matching this format:
 {
-  "findings": "A detailed synthesis of all findings so far for this section, incorporating inline citations [1], [2] where appropriate.",
+  "findings": "A detailed synthesis of all findings so far for this section, incorporating inline citations [1], [2] where appropriate. Include evidence strength, concrete facts, implementation details, decision implications, and any disagreement between sources.",
   "gaps": "Any remaining unresolved questions or gaps in information that still need to be researched. If everything is answered or no new queries are useful, return an empty string."
 }
 Do not return any extra explanations or Markdown code fences. Output ONLY valid JSON.`;
@@ -508,11 +582,26 @@ Temporal Context rules:
 Compile these drafts into a single, cohesive, highly detailed research report.
 Rules:
 1. Do not lose any factual details, dates, statistics, or citations. Keep the inline citations like [1], [2] exactly as they are.
-2. Structure the report with clear headings matching the research outline.
+2. Structure the report with a premium analyst format:
+   - 一句话结论 / One-line Answer
+   - 结论摘要 / Executive Summary
+   - 证据地图 / Evidence Map
+   - 分章节深度分析 / Detailed Analysis
+   - 标杆工具/开源项目借鉴清单 / Benchmark Tools and Open-Source Inspirations
+   - 对比矩阵 / Comparison Matrix
+   - 落地蓝图 / Implementation Blueprint
+   - 争议、反例与不确定性 / Counterpoints and Uncertainty
+   - 行动建议 / Recommended Actions
+   - 参考来源 / Sources Used
 3. Ensure the tone is objective, analytical, and professional.
 4. Do not invent any new facts or citations.
 5. Do not output citation-only paragraphs, bare numbers, or orphaned source ids. Each citation must support a nearby factual sentence.
-6. If the research user question is in Chinese, write the entire report in Chinese.`;
+6. If the research user question is in Chinese, write the entire report in Chinese.
+7. The Evidence Map should be compact and useful: list 5-10 strongest evidence points, their source ids, and what they prove.
+8. Recommended Actions must be specific, prioritized, and acknowledge constraints revealed by the evidence.
+9. For technical/tooling/product upgrade questions, the Comparison Matrix must compare practical options by capability, integration cost, maturity, risk, and expected user value.
+10. For product/tool improvement questions, the Benchmark Tools and Open-Source Inspirations section must list each project/tool, what capability is worth learning from, how it could be adapted into this platform, what cannot be copied directly, and what validation is needed.
+11. The Implementation Blueprint must translate the research into a staged product/engineering plan: quick wins, core upgrade, validation metrics, and follow-up experiments.`;
 
 async function planResearchOutline(
   userPrompt: string,
@@ -596,6 +685,74 @@ function buildFreshnessAudit(
   return `Freshness audit:\n${lines.join('\n') || 'No sources.'}`;
 }
 
+function buildEvidenceSelectionSummary(
+  selectedEvidence: SearchResult[],
+  rankedSources: RankedSearchResult[],
+  temporalContext: TemporalContext,
+): string {
+  const qualities = selectedEvidence.map((source) =>
+    assessSearchResultQuality(source, {
+      today: temporalContext.today,
+      recencyDays: temporalContext.recencyDays,
+      requireFreshness: temporalContext.isTimeSensitive,
+      trustedFreshDomains: temporalContext.trustedFreshDomains,
+    }),
+  );
+  const domains = new Set(selectedEvidence.map((source) => source.domain).filter(Boolean));
+  const strongEvidence = qualities.filter(
+    (quality) => quality.evidenceTier === 'primary' || quality.evidenceTier === 'strong',
+  ).length;
+  const dated = qualities.filter((quality) => quality.dateConfidence === 'known').length;
+  const averageScore =
+    qualities.length > 0
+      ? Math.round(
+          qualities.reduce((sum, quality) => sum + quality.credibilityScore, 0) / qualities.length,
+        )
+      : 0;
+  const rejected = rankedSources.filter((source) => !source.usable).length;
+
+  return `证据审计：${strongEvidence} 条一手/强证据，${domains.size} 个独立域名，${dated} 条日期可识别，平均可信度 ${averageScore}/100，过滤 ${rejected} 条低时效或低可用来源。`;
+}
+
+function buildResearchQualityAudit(
+  sources: SearchResult[],
+  temporalContext: TemporalContext,
+): string {
+  const qualities = sources.map((source) =>
+    assessSearchResultQuality(source, {
+      today: temporalContext.today,
+      recencyDays: temporalContext.recencyDays,
+      requireFreshness: temporalContext.isTimeSensitive,
+      trustedFreshDomains: temporalContext.trustedFreshDomains,
+    }),
+  );
+  const domains = new Set(sources.map((source) => source.domain).filter(Boolean));
+  const primary = qualities.filter((quality) => quality.evidenceTier === 'primary').length;
+  const strong = qualities.filter((quality) => quality.evidenceTier === 'strong').length;
+  const weak = qualities.filter((quality) => quality.evidenceTier === 'weak').length;
+  const dated = qualities.filter((quality) => quality.dateConfidence === 'known').length;
+  const averageScore =
+    qualities.length > 0
+      ? Math.round(
+          qualities.reduce((sum, quality) => sum + quality.credibilityScore, 0) / qualities.length,
+        )
+      : 0;
+
+  return `【研究质量审计】
+来源总数：${sources.length}
+独立域名：${domains.size}
+一手/官方来源：${primary}
+强证据来源：${strong}
+弱证据/社区补充：${weak}
+已识别日期：${dated}
+平均可信度：${averageScore}/100
+时效要求：${
+    temporalContext.isTimeSensitive
+      ? `必须优先使用最近 ${temporalContext.recencyDays} 天内或可信实时来源`
+      : '不强制最新，但需要优先权威来源、完整正文和交叉验证'
+  }`;
+}
+
 function registerEvidenceSources(
   selectedEvidence: SearchResult[],
   globalSources: SearchResult[],
@@ -621,10 +778,12 @@ function formatEvidenceBlocks(sourceRefs: ResearchSourceRef[]): string {
 
   return sourceRefs
     .map(({ index, source }) => {
+      const evidence = classifyEvidenceSource(source);
       const lines = [
         `[${index}] ${source.title}`,
         `URL: ${source.link}`,
         `Domain: ${source.domain || 'unknown'}`,
+        `Evidence: ${evidence.evidenceTier} / ${evidence.evidenceType}`,
         source.publishedAt ? `Published: ${source.publishedAt.slice(0, 10)}` : 'Published: unknown',
         `Summary: ${source.snippet || 'No summary available.'}`,
       ];
@@ -671,7 +830,8 @@ function buildTraceSection(
     .map((source, index) => {
       const ageDays = getSourceAgeDays(source, temporalContext.today);
       const freshness = ageDays === null ? 'date unknown' : `${ageDays} days old`;
-      return `[${index + 1}] ${source.title} - ${source.link} (${freshness})`;
+      const evidence = classifyEvidenceSource(source);
+      return `[${index + 1}] ${source.title} - ${source.link} (${freshness}; ${evidence.evidenceTier}; ${evidence.evidenceType})`;
     })
     .join('\n');
 
@@ -757,6 +917,11 @@ async function researchSection(
     const searchResults = await runSearchBatch(currentQueries, searchOptions);
     const rankedResults = rankSources(searchResults, temporalContext);
     const selectedEvidence = selectEvidenceSources(rankedResults, temporalContext);
+    const evidenceSelectionSummary = buildEvidenceSelectionSummary(
+      selectedEvidence,
+      rankedResults,
+      temporalContext,
+    );
 
     // 3. Register crawled sources to the global registry before extraction so
     // section findings cite stable final source ids instead of local batch ids.
@@ -768,7 +933,7 @@ async function researchSection(
 
     reportProgress(
       onProgress,
-      `  [Depth ${depth}] 抓取成功，共分析 ${selectedEvidence.length} 个参考页。正在整合提取知识...`,
+      `  [Depth ${depth}] 抓取成功，共分析 ${selectedEvidence.length} 个参考页。${evidenceSelectionSummary} 正在整合提取知识...`,
     );
 
     // 4. Extract and Synthesize findings
@@ -935,6 +1100,7 @@ export async function buildDeepResearchContext(
     `【强制时效与引用规则】\n${temporalContext.answerRules}\n\n只能引用“最终证据源”中的来源；不要引用候选源、旧预测、无日期普通帖子。`,
     `【研究底稿】\n${synthesisReport}`,
     buildCitationIntegrityAudit(synthesisReport, globalSources.length),
+    buildResearchQualityAudit(globalSources, temporalContext),
     buildFreshnessAudit(
       globalSources.map((s) => scoreSource(s, temporalContext)),
       temporalContext,

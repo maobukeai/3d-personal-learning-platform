@@ -8,6 +8,8 @@ import api from '@/utils/api';
 import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
 import UserSubscriptionsTab from './components/UserSubscriptionsTab.vue';
 import ActivationCodesTab from './components/ActivationCodesTab.vue';
+import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import { fetchManagementInsights } from './adminManagementInsights';
 
 interface SubscriptionPlan {
   id: string;
@@ -74,6 +76,7 @@ const fetchData = async () => {
     plans.value = plansRes.data;
     subscriptions.value = subsRes.data;
     activationCodes.value = Array.isArray(codesRes.data) ? codesRes.data : codesRes.data.data;
+    fetchManagementInsights(true);
   } catch (_error) {
     ElMessage.error(t('admin.failed_to_get_data'));
   } finally {
@@ -190,6 +193,8 @@ type="button" class="px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[9px] sm:text
 
     <div class="flex-1 overflow-y-auto p-4 sm:p-8 scrollbar-hide">
       <div class="max-w-none">
+        <AdminOpsPanel scope="subscriptions" />
+
         <!-- Plans Tab -->
         <SubscriptionPlansTab
           v-if="activeTab === 'plans'"

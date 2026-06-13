@@ -4,6 +4,9 @@ import { logger } from '../utils/logger';
 class RedisService {
   private redisClient: Redis | null = null;
   private isRedisEnabled = false;
+  private static readonly PRUNE_INTERVAL_MS = 60_000;
+  private static readonly LOCAL_CACHE_MAX_SIZE = 1000;
+  private lastPruneTime = 0;
   // Local fallback cache with TTL
   private localCache = new Map<string, { value: any; expiresAt: number }>();
 
@@ -48,15 +51,19 @@ class RedisService {
 
   private pruneCache() {
     const now = Date.now();
+    // Only prune if at least 1 minute has passed since last prune
+    if (now - this.lastPruneTime < RedisService.PRUNE_INTERVAL_MS) return;
+    this.lastPruneTime = now;
+
     for (const [key, cached] of this.localCache.entries()) {
       if (now >= cached.expiresAt) {
         this.localCache.delete(key);
       }
     }
 
-    // Capping at 1000 items to prevent unbounded memory growth if Redis is permanently disabled
-    if (this.localCache.size > 1000) {
-      const keysToKeep = Array.from(this.localCache.keys()).slice(-1000);
+    // Capping at 1000 items to prevent unbounded memory growth
+    if (this.localCache.size > RedisService.LOCAL_CACHE_MAX_SIZE) {
+      const keysToKeep = Array.from(this.localCache.keys()).slice(-RedisService.LOCAL_CACHE_MAX_SIZE);
       const newCache = new Map<string, { value: any; expiresAt: number }>();
       for (const k of keysToKeep) {
         const item = this.localCache.get(k);
@@ -126,7 +133,6 @@ class RedisService {
   }
 
   async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
-    this.pruneCache();
     if (this.isRedisEnabled && this.redisClient) {
       try {
         const result = await this.redisClient.set(key, 'locked', 'EX', ttlSeconds, 'NX');

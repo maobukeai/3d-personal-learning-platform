@@ -1376,13 +1376,13 @@ onUnmounted(() => {
 
 /* ── Toolbar ────────────────────────────────────── */
 .aip__toolbar {
-  display:         flex;
-  align-items:     center;
-  gap:             6px;
-  padding:         7px 10px;
+  display:         grid;
+  grid-template-columns: 1fr;
+  gap:             7px;
+  padding:         7px 10px 9px;
   border-bottom:   1px solid var(--border-base);
   flex-shrink:     0;
-  overflow-x:      auto;
+  overflow:        visible;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -1391,8 +1391,13 @@ onUnmounted(() => {
 .aip__chips {
   display:  flex;
   gap:      5px;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
+.aip__chips::-webkit-scrollbar { display: none; }
 .aip__chip {
   display:      inline-flex;
   align-items:  center;
@@ -1412,6 +1417,13 @@ onUnmounted(() => {
 .aip__chip:hover:not(.aip__chip--disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
 .aip__chip--active   { border-color: var(--accent) !important; background: var(--accent-subtle) !important; color: var(--accent) !important; font-weight: 600; }
 .aip__chip--disabled { opacity: .4; cursor: not-allowed; }
+
+.aip__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 
 .aip__run-btn {
   display: inline-flex;
@@ -1440,7 +1452,6 @@ onUnmounted(() => {
 }
 
 .aip__clear-btn {
-  margin-left:   auto;
   flex-shrink:   0;
   font-size:     10.5px;
   color:         var(--text-muted);
@@ -1453,12 +1464,18 @@ onUnmounted(() => {
 }
 .aip__clear-btn:hover { color: #ef4444; background: rgba(239,68,68,.07); }
 .aip__settings-btn {
+  margin-left: auto;
   border: 1px solid var(--border-base);
   background: var(--bg-app);
 }
 .aip__settings-btn--on {
   color: var(--accent);
   background: var(--accent-subtle);
+}
+
+.aip__translate-select {
+  width: 130px;
+  flex-shrink: 0;
 }
 
 .aip__brief {

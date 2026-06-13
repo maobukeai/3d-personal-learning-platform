@@ -25,7 +25,7 @@ model User {
   emailVerified              Boolean                     @default(false)
   twoFactorEnabled           Boolean                     @default(false)
   twoFactorSecret            String?
-  twoFactorRecoveryCodes     String? // Hashed JSON string of recovery codes
+  twoFactorRecoveryCodes     String? @db.Text // Hashed JSON string of recovery codes
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
   assets                     Asset[]
@@ -88,7 +88,14 @@ model User {
   googleId   String? @unique
   githubId   String? @unique
   microsoftEmailAccounts MicrosoftEmailAccount[]
-  aiMessages AiMessage[]
+  googleWarmingAccounts GoogleWarmingAccount[]
+  twoFactorAccounts     TwoFactorAccount[]
+  aiBotIntegrations        AiBotIntegration[]
+  aiBotMessages            AiBotMessage[]
+  aiChatSessions           AiChatSession[]
+  aiBotKnowledgeSources     AiBotKnowledgeSource[]
+  directMessageEmailBatches DirectMessageEmailBatch[]
+  aiMessages    AiMessage[]
   plugins    Plugin[]
   assetLikes AssetLike[]
 }
@@ -223,6 +230,7 @@ model NotificationPreference {
   emailMarketing     Boolean  @default(false)
   pushMentions       Boolean  @default(true)
   pushDirectMessages Boolean  @default(true)
+  emailDirectMessages Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -320,6 +328,7 @@ model Asset {
   @@index([teamId])
   @@index([status, type, createdAt])
   @@index([size])
+  @@index([type])
 }
 
 model Category {
@@ -347,6 +356,9 @@ model Course {
   category    CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([status])
+  @@index([categoryId])
 }
 
 model CourseCategory {
@@ -523,6 +535,8 @@ model Feedback {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model VerificationCode {
@@ -675,6 +689,8 @@ model Material {
   favorites    MaterialFavorite[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
+
+  @@index([userId])
 }
 
 model MaterialFavorite {
@@ -714,6 +730,7 @@ model Showcase {
   @@index([assetId])
   @@index([userId])
   @@index([teamId])
+  @@index([status])
 }
 
 model ShowcaseLike {
@@ -882,6 +899,7 @@ model Note {
   updatedAt  DateTime      @updatedAt
 
   @@index([userId])
+  @@index([category])
 }
 
 model NoteLike {
@@ -1157,6 +1175,7 @@ model AiMessage {
 
   @@index([userId, createdAt])
   @@index([userId, sessionId, createdAt])
+  @@index([sessionId])
 }
 
 model NoteShare {
@@ -1267,3 +1286,152 @@ model AssetLike {
   @@unique([assetId, userId])
   @@index([userId])
 }
+
+model TwoFactorAccount {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String   // e.g. "Github", "Google"
+  email     String?  // e.g. "user@example.com"
+  secret    String   // Base32 encoded secret key
+  note      String?  // Optional remarks
+  category  String?  // e.g. "Personal", "Work"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model GoogleWarmingAccount {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email          String
+  password       String
+  recoveryEmail  String?
+  twoFASecret    String?
+  country        String?
+  note           String?
+  status         String    @default("warming") // "warming", "completed", "paused"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  startDate      DateTime  @default(now())
+  currentDay     Int       @default(1)
+  lastWarmedAt   DateTime?
+
+  @@index([userId])
+}
+
+model AiBotIntegration {
+  id              String                 @id @default(uuid())
+  userId          String
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  platform        String
+  status          String                 @default("ACTIVE")
+  webhookUrl      String?                @db.Text
+  secret          String?                @db.Text
+  publicToken     String                 @unique
+  triggerKeywords String?                @db.Text
+  systemPrompt    String?                @db.Text
+  responseMode    String                 @default("CALLBACK_AND_WEBHOOK")
+  aiModelId       String?
+  aiTemperature   Float?
+  aiMaxTokens     Int?
+  lastUsedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  messages        AiBotMessage[]
+  knowledgeSources AiBotKnowledgeSource[]
+
+  @@index([userId])
+  @@index([platform, status])
+}
+
+model AiBotMessage {
+  id                     String           @id @default(uuid())
+  userId                 String
+  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationId          String
+  integration            AiBotIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  platform               String
+  externalUserId         String?
+  externalConversationId String?
+  inboundText            String           @db.Text
+  outboundText           String?          @db.Text
+  status                 String           @default("SUCCESS")
+  error                  String?          @db.Text
+  inputChars             Int              @default(0)
+  outputChars            Int              @default(0)
+  createdAt              DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([integrationId, createdAt])
+  @@index([platform, status])
+}
+
+model AiChatSession {
+  id            String   @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String   @default("新对话")
+  summary       String?  @db.Text
+  tags          String?  @db.Text
+  mode          String   @default("default")
+  pinned        Boolean  @default(false)
+  archived      Boolean  @default(false)
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@id([userId, id])
+  @@index([userId, pinned, archived, lastMessageAt])
+}
+
+model AiBotKnowledgeSource {
+  id            String           @id @default(uuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationId String
+  integration   AiBotIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  title         String
+  sourceType    String           @default("FAQ")
+  status        String           @default("ACTIVE")
+  visibility    String           @default("PRIVATE")
+  content       String           @db.Text
+  url           String?          @db.Text
+  tags          String?          @db.Text
+  priority      Int              @default(50)
+  tokenEstimate Int              @default(0)
+  lastIndexedAt DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([integrationId, status, priority])
+}
+
+model DirectMessageEmailBatch {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId   String
+  pendingCount     Int       @default(0)
+  previewItems     String    @db.Text
+  lastSenderName   String?
+  conversationName String?
+  isGroup          Boolean   @default(false)
+  firstQueuedAt    DateTime?
+  lastQueuedAt     DateTime?
+  scheduledFor     DateTime?
+  processingAt     DateTime?
+  lastSentAt       DateTime?
+  lastError        String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, conversationId])
+  @@index([scheduledFor])
+  @@index([userId])
+}
+

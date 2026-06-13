@@ -216,4 +216,39 @@ defineExpose({ open });
   border: 1px solid var(--border-base);
   height: 52px;
 }
+
+@media (max-width: 768px) {
+  :deep(.custom-drawer) {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  :deep(.el-drawer__header) {
+    padding: 0.875rem !important;
+  }
+
+  :deep(.el-drawer__body) {
+    padding: 0.875rem !important;
+  }
+
+  :deep(.el-drawer__footer > div) {
+    gap: 0.5rem !important;
+    padding: 0.625rem !important;
+  }
+
+  :deep(.el-drawer__footer button) {
+    min-height: 2.25rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    border-radius: 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .custom-date-picker :deep(.el-input__wrapper),
+  .custom-select :deep(.el-input__wrapper) {
+    height: 38px !important;
+    padding: 0.45rem 0.7rem !important;
+    border-radius: 0.75rem !important;
+  }
+}
 </style>

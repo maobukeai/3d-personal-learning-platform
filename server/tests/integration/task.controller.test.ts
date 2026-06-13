@@ -19,6 +19,7 @@ describe('Task Controller Integration', () => {
 
   let authCookies: string[] = [];
   let testTaskId: string;
+  let testBatchTaskIds: string[] = [];
 
   beforeAll(async () => {
     // Clean up any stale test user
@@ -46,6 +47,9 @@ describe('Task Controller Integration', () => {
     // Cleanup created task data if exists
     if (testTaskId) {
       await prisma.task.deleteMany({ where: { id: testTaskId } });
+    }
+    if (testBatchTaskIds.length > 0) {
+      await prisma.task.deleteMany({ where: { id: { in: testBatchTaskIds } } });
     }
     await prisma.user.deleteMany({ where: { email: testUser.email } });
     await prisma.$disconnect();
@@ -79,6 +83,36 @@ describe('Task Controller Integration', () => {
         });
 
       expect(res.status).toBe(401);
+    });
+  });
+
+  describe('POST /api/tasks/batch', () => {
+    it('should create multiple tasks in one request when authenticated', async () => {
+      const res = await request(app)
+        .post('/api/tasks/batch')
+        .set('Cookie', authCookies)
+        .send({
+          tasks: [
+            {
+              title: 'Batch Integration Task A',
+              priority: 'MEDIUM',
+              dueDate: new Date(Date.now() + 86400000).toISOString(),
+            },
+            {
+              title: 'Batch Integration Task B',
+              priority: 'HIGH',
+            },
+          ],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.count).toBe(2);
+      expect(res.body.tasks).toHaveLength(2);
+      expect(res.body.tasks.map((task: any) => task.title)).toEqual([
+        'Batch Integration Task A',
+        'Batch Integration Task B',
+      ]);
+      testBatchTaskIds = res.body.tasks.map((task: any) => task.id);
     });
   });
 

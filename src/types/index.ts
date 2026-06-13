@@ -1,3 +1,14 @@
+export interface UserSubscription {
+  plan: {
+    name: string;
+    displayName?: string;
+    badgeColor?: string;
+    priority?: number;
+  };
+  status?: string;
+  interval?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -6,10 +17,15 @@ export interface User {
   bio?: string | null;
   location?: string | null;
   website?: string | null;
-  role: 'USER' | 'ADMIN';
-  status: 'ACTIVE' | 'BANNED';
+  role: string;
+  status?: 'ACTIVE' | 'BANNED';
+  points?: number;
+  emailVerified?: boolean;
+  twoFactorEnabled?: boolean;
+  language?: string;
+  subscription?: UserSubscription;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Category {
@@ -73,6 +89,7 @@ export interface Asset {
   type: string;
   format?: string | null;
   formats?: string[] | string | null;
+  tags?: string | string[] | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectReason?: string | null;
   fileSize?: number | null;

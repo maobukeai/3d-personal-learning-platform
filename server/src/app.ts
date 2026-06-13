@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
@@ -15,17 +15,21 @@ import notificationRoutes from './routes/notification.routes';
 import roadmapRoutes from './routes/roadmap.routes';
 import projectRoutes from './routes/project.routes';
 import materialRoutes from './routes/material.routes';
+import resourceRoutes from './routes/resource.routes';
 import showcaseRoutes from './routes/showcase.routes';
 import messageRoutes from './routes/message.routes';
 import teamRoutes from './routes/team.routes';
 import subscriptionRoutes from './routes/subscription.routes';
 import noteRoutes from './routes/note.routes';
 import emailRoutes from './routes/email.routes';
+import googleWarmingRoutes from './routes/google-warming.routes';
+import twoFactorRoutes from './routes/two-factor.routes';
 import mirrorRoutes from './mirror/routes/mirror.routes';
 import adminMirrorRoutes from './mirror/routes/admin-mirror.routes';
 import manualRoutes from './manual/routes/manual.routes';
 import adminManualRoutes from './manual/routes/admin-manual.routes';
 import aiRoutes from './routes/ai.routes';
+import aiBotRoutes from './routes/ai-bot.routes';
 import bannerRoutes from './routes/banner.routes';
 import pluginRoutes from './routes/plugin.routes';
 import adminPluginRoutes from './routes/plugin.admin.routes';
@@ -66,9 +70,8 @@ app.use(
 );
 
 const allowedOrigins = [
-  'http://localhost:5173', // Vite default
-  'http://localhost:3000',
   process.env.FRONTEND_URL,
+  ...(process.env.CORS_EXTRA_ORIGINS?.split(',').map((o) => o.trim()) ?? []),
 ].filter(Boolean) as string[];
 
 app.use(
@@ -91,8 +94,27 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ limit: '2mb', extended: true }));
+
+type BodyVerifyCallback = NonNullable<NonNullable<Parameters<typeof express.json>[0]>['verify']>;
+
+const captureAiBotCallbackRawBody: BodyVerifyCallback = (req, _res, buf) => {
+  const requestUrl = (req as Request).originalUrl || req.url || '';
+  const requestPath = requestUrl.split('?')[0] || '';
+  if (/^\/api\/ai-bots\/callback\/[^/]+$/.test(requestPath)) {
+    (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+  }
+};
+
+app.use(express.json({ limit: '2mb', verify: captureAiBotCallbackRawBody }));
+app.use(express.urlencoded({ limit: '2mb', extended: true, verify: captureAiBotCallbackRawBody }));
+app.use(
+  '/api/ai-bots/callback',
+  express.text({
+    limit: '2mb',
+    type: ['text/*', 'application/xml'],
+    verify: captureAiBotCallbackRawBody,
+  }),
+);
 app.use(csrfProtection);
 
 // Serve uploads folder statically using process.cwd() to resolve correctly in both dev (src/) and prod (dist/src/)
@@ -152,6 +174,7 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/resources', resourceRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/showcase', showcaseRoutes);
 app.use('/api/messages', messageRoutes);
@@ -159,11 +182,14 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/google-warming', googleWarmingRoutes);
+app.use('/api/two-factor', twoFactorRoutes);
 app.use('/api/mirror', mirrorRoutes);
 app.use('/api/admin/mirror', adminMirrorRoutes);
 app.use('/api/manual', manualRoutes);
 app.use('/api/admin/manual', adminManualRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai-bots', aiBotRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/plugins', pluginRoutes);
 app.use('/api/admin', adminPluginRoutes);

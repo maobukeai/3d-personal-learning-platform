@@ -6,6 +6,10 @@ import { initSocket } from './services/socket.service';
 import { syncEngine } from './mirror/services/sync-engine.service';
 import { runManualStationMigration } from './manual/services/migration.service';
 import { startCleanupJob } from './services/cleanup.service';
+import {
+  startDirectMessageEmailScheduler,
+  stopDirectMessageEmailScheduler,
+} from './services/direct-message-email.service';
 import './services/redis.service';
 import prisma from './services/prisma';
 
@@ -17,6 +21,7 @@ initSocket(server);
 
 syncEngine.startScheduler();
 startCleanupJob(); // Clean up expired data hourly
+startDirectMessageEmailScheduler();
 
 // Run legacy manual station migration asynchronously on startup
 runManualStationMigration().catch((err) => {
@@ -32,6 +37,7 @@ const gracefulShutdown = async (signal: string) => {
   logger.info(`[Shutdown] Received system signal: ${signal}. Initiating graceful shutdown...`);
   try {
     syncEngine.stopScheduler();
+    stopDirectMessageEmailScheduler();
 
     server.close(() => {
       logger.info('[Shutdown] HTTP server closed.');

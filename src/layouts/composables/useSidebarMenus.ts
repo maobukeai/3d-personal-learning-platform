@@ -1,42 +1,44 @@
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
-  LayoutDashboard,
-  Box,
-  Layers,
-  MapPin,
-  Image as ImageIcon,
-  Users,
-  MonitorPlay,
-  MessageSquare,
-  Briefcase,
-  GraduationCap,
-  Settings,
   BarChart3,
-  Database,
-  MessageCircle,
-  Notebook,
-  Terminal,
-  FolderTree,
-  Globe,
-  Video,
-  Palette,
-  Cpu,
-  Sparkles,
+  Bot,
+  Box,
+  Briefcase,
   Camera,
-  Tv,
   Compass,
-  Folder,
-  Mail,
-  ShieldCheck,
+  Cpu,
   CreditCard,
+  Database,
+  Folder,
+  FolderTree,
+  Gauge,
+  Globe,
+  GraduationCap,
+  Image as ImageIcon,
+  Layers,
+  LayoutDashboard,
+  Mail,
+  MapPin,
+  MessageCircle,
+  MessageSquare,
+  MonitorPlay,
+  Notebook,
+  Palette,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
+  Tv,
+  Users,
+  Video,
+  KeyRound,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useMirrorStore, type MirrorCategory } from '@/stores/mirror';
 import { useManualStore, type ManualCategory } from '@/stores/manual';
-import type { Component } from 'vue';
 
 export interface SidebarMenuItem {
   name: string;
@@ -58,103 +60,50 @@ export interface MobileNavItem {
   active: (path: string) => boolean;
 }
 
-// Dynamic icon mapper for categories to make sidebar look premium and diverse
 export function getCategoryIcon(name: string) {
   const lowercaseName = name.toLowerCase();
 
-  if (
-    lowercaseName.includes('视频') ||
-    lowercaseName.includes('剪辑') ||
-    lowercaseName.includes('播放') ||
-    lowercaseName.includes('影视')
-  ) {
-    return Video;
-  }
-  if (
-    lowercaseName.includes('建模') ||
-    lowercaseName.includes('模型') ||
-    lowercaseName.includes('渲染') ||
-    lowercaseName.includes('室内') ||
-    lowercaseName.includes('3d')
-  ) {
-    return Box;
-  }
-  if (
-    lowercaseName.includes('绘画') ||
-    lowercaseName.includes('插画') ||
-    lowercaseName.includes('设计') ||
-    lowercaseName.includes('平面') ||
-    lowercaseName.includes('ui') ||
-    lowercaseName.includes('美术')
-  ) {
-    return Palette;
-  }
-  if (
-    lowercaseName.includes('摄影') ||
-    lowercaseName.includes('拍照') ||
-    lowercaseName.includes('相机') ||
-    lowercaseName.includes('特效')
-  ) {
-    return Camera;
-  }
-  if (
-    lowercaseName.includes('场景') ||
-    lowercaseName.includes('环境') ||
-    lowercaseName.includes('地图') ||
-    lowercaseName.includes('关卡')
-  ) {
-    return Compass;
-  }
-  if (
-    lowercaseName.includes('软件') ||
-    lowercaseName.includes('工具') ||
-    lowercaseName.includes('系统') ||
-    lowercaseName.includes('引擎')
-  ) {
-    return Cpu;
-  }
-  if (
-    lowercaseName.includes('aigc') ||
-    lowercaseName.includes('ai') ||
-    lowercaseName.includes('智能') ||
-    lowercaseName.includes('生成')
-  ) {
-    return Sparkles;
-  }
+  if (/(视频|剪辑|播放|影视|video|movie|film)/i.test(lowercaseName)) return Video;
+  if (/(建模|模型|渲染|室内|3d|model|render)/i.test(lowercaseName)) return Box;
+  if (/(绘画|插画|设计|平面|美术|ui|art|design)/i.test(lowercaseName)) return Palette;
+  if (/(摄影|拍照|相机|特效|camera|photo|vfx)/i.test(lowercaseName)) return Camera;
+  if (/(场景|环境|地图|关卡|scene|environment|level)/i.test(lowercaseName)) return Compass;
+  if (/(软件|工具|系统|引擎|tool|engine|software)/i.test(lowercaseName)) return Cpu;
+  if (/(aigc|ai|智能|生成)/i.test(lowercaseName)) return Sparkles;
 
-  // Deterministic fallback hash to keep it consistent
   const icons = [Folder, Layers, Database, MonitorPlay, Tv];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % icons.length;
-  return icons[index];
+  return icons[Math.abs(hash) % icons.length];
 }
 
 export function useSidebarMenus() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const route = useRoute();
   const authStore = useAuthStore();
   const workspaceStore = useWorkspaceStore();
   const mirrorStore = useMirrorStore();
   const manualStore = useManualStore();
+  const label = (zh: string, en: string) => (locale.value === 'en-US' ? en : zh);
 
   const adminGroups = computed<SidebarMenuGroup[]>(() => [
     {
-      title: '系统概览',
+      title: label('系统概览', 'System'),
       items: [
-        { name: '平台概览', icon: BarChart3, path: '/admin/dashboard' },
-        { name: '审计日志', icon: Terminal, path: '/admin/audit-logs' },
+        { name: label('平台概览', 'Overview'), icon: BarChart3, path: '/admin/dashboard' },
+        { name: label('指挥中心', 'Command Center'), icon: Gauge, path: '/admin/command-center' },
+        { name: label('审计日志', 'Audit Logs'), icon: Terminal, path: '/admin/audit-logs' },
       ],
     },
     {
-      title: '用户与团队',
+      title: label('用户与团队', 'Users & Teams'),
       items: [
-        { name: '用户管理', icon: Users, path: '/admin/users' },
-        { name: '团队管理', icon: Briefcase, path: '/admin/teams' },
+        { name: label('用户管理', 'Users'), icon: Users, path: '/admin/users' },
+        { name: label('团队管理', 'Teams'), icon: Briefcase, path: '/admin/teams' },
         {
-          name: '用户反馈',
+          name: label('用户反馈', 'Feedback'),
           icon: MessageCircle,
           path: '/admin/feedback',
           badge: workspaceStore.adminStats.openFeedbacks,
@@ -162,35 +111,40 @@ export function useSidebarMenus() {
       ],
     },
     {
-      title: '内容审核',
+      title: label('内容审核', 'Review'),
       items: [
         {
-          name: '审核中心',
+          name: label('审核中心', 'Review Center'),
           icon: ShieldCheck,
           path: '/admin/audits',
           badge:
             workspaceStore.adminStats.pendingAssets +
             workspaceStore.adminStats.pendingMaterials +
-            workspaceStore.adminStats.pendingShowcases,
+            workspaceStore.adminStats.pendingShowcases +
+            workspaceStore.adminStats.pendingPlugins,
         },
       ],
     },
     {
-      title: '教学管理',
+      title: label('教学管理', 'Learning'),
       items: [
-        { name: '课程管理', icon: GraduationCap, path: '/admin/courses' },
-        { name: '路线管理', icon: MapPin, path: '/admin/roadmaps' },
-        { name: '分类管理', icon: FolderTree, path: '/admin/categories' },
+        { name: label('课程管理', 'Courses'), icon: GraduationCap, path: '/admin/courses' },
+        { name: label('路线管理', 'Roadmaps'), icon: MapPin, path: '/admin/roadmaps' },
+        { name: label('分类管理', 'Categories'), icon: FolderTree, path: '/admin/categories' },
       ],
     },
     {
-      title: '运营管理',
+      title: label('运营管理', 'Operations'),
       items: [
-        { name: '轮播管理', icon: ImageIcon, path: '/admin/banners' },
-        { name: '订阅管理', icon: CreditCard, path: '/admin/subscriptions' },
-        { name: '镜像源管理', icon: Globe, path: '/admin/mirror' },
-        { name: '资源站管理', icon: Database, path: '/admin/manual' },
-        { name: '系统设置', icon: Settings, path: '/admin/settings' },
+        { name: label('轮播管理', 'Banners'), icon: ImageIcon, path: '/admin/banners' },
+        {
+          name: label('订阅管理', 'Subscriptions'),
+          icon: CreditCard,
+          path: '/admin/subscriptions',
+        },
+        { name: label('镜像源管理', 'Mirror Sources'), icon: Globe, path: '/admin/mirror' },
+        { name: label('资源站管理', 'Resource Stations'), icon: Database, path: '/admin/manual' },
+        { name: label('系统设置', 'Settings'), icon: Settings, path: '/admin/settings' },
       ],
     },
   ]);
@@ -200,10 +154,10 @@ export function useSidebarMenus() {
     if (!currentSourceId) return [];
 
     const mainGroup: SidebarMenuGroup = {
-      title: workspaceStore.currentWorkspace?.name || '镜像资源',
+      title: workspaceStore.currentWorkspace?.name || label('镜像资源', 'Mirror Resources'),
       items: [
         {
-          name: '全部资源',
+          name: label('全部资源', 'All Resources'),
           icon: Database,
           path: `/mirror/source/${currentSourceId}`,
         },
@@ -211,70 +165,57 @@ export function useSidebarMenus() {
     };
 
     const groups: SidebarMenuGroup[] = [mainGroup];
-
     const categories = mirrorStore.categories || [];
-    if (categories.length) {
-      // 1. Group categories by parentExternalId
-      const parentMap = new Map<string, MirrorCategory[]>();
-      categories.forEach((cat) => {
-        if (cat.parentExternalId) {
-          if (!parentMap.has(cat.parentExternalId)) {
-            parentMap.set(cat.parentExternalId, []);
-          }
-          parentMap.get(cat.parentExternalId)!.push(cat);
-        }
-      });
+    if (!categories.length) return groups;
 
-      // 2. Identify top level and check if they have children
-      const topLevel: MirrorCategory[] = [];
-      categories.forEach((cat) => {
+    const parentMap = new Map<string, MirrorCategory[]>();
+    categories.forEach((category) => {
+      if (!category.parentExternalId) return;
+      if (!parentMap.has(category.parentExternalId)) {
+        parentMap.set(category.parentExternalId, []);
+      }
+      parentMap.get(category.parentExternalId)!.push(category);
+    });
+
+    const topLevel = categories
+      .filter((category) => {
         const hasParent =
-          cat.parentExternalId && categories.some((p) => p.externalId === cat.parentExternalId);
-        if (!hasParent) {
-          topLevel.push(cat);
-        }
-      });
+          category.parentExternalId &&
+          categories.some((parent) => parent.externalId === category.parentExternalId);
+        return !hasParent;
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-      // Sort top level by order
-      topLevel.sort((a, b) => (a.order || 0) - (b.order || 0));
+    topLevel.forEach((parent) => {
+      const children = (parentMap.get(parent.externalId) || []).sort(
+        (a, b) => (a.order || 0) - (b.order || 0),
+      );
 
-      topLevel.forEach((parent) => {
-        const children = parentMap.get(parent.externalId) || [];
-        if (children.length > 0) {
-          // Create a new sidebar group
-          const childItems = children
-            .map((child) => ({
-              name: child.name,
-              icon: getCategoryIcon(child.name),
-              path: `/mirror/source/${currentSourceId}?categoryId=${child.id}`,
-            }))
-            .sort((a, b) => {
-              const childA = children.find((c) => c.name === a.name);
-              const childB = children.find((c) => c.name === b.name);
-              return (childA?.order || 0) - (childB?.order || 0);
-            });
+      if (!children.length) {
+        mainGroup.items.push({
+          name: parent.name,
+          icon: getCategoryIcon(parent.name),
+          path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
+        });
+        return;
+      }
 
-          groups.push({
-            title: parent.name,
-            items: [
-              {
-                name: `全部 ${parent.name}`,
-                icon: getCategoryIcon(parent.name),
-                path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
-              },
-              ...childItems,
-            ],
-          });
-        } else {
-          // Childless parent category stays in main group
-          mainGroup.items.push({
-            name: parent.name,
+      groups.push({
+        title: parent.name,
+        items: [
+          {
+            name: `${label('全部', 'All')} ${parent.name}`,
             icon: getCategoryIcon(parent.name),
             path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
-          });
-        }
+          },
+          ...children.map((child) => ({
+            name: child.name,
+            icon: getCategoryIcon(child.name),
+            path: `/mirror/source/${currentSourceId}?categoryId=${child.id}`,
+          })),
+        ],
       });
-    }
+    });
 
     return groups;
   });
@@ -284,10 +225,10 @@ export function useSidebarMenus() {
     if (!currentStationId) return [];
 
     const mainGroup: SidebarMenuGroup = {
-      title: workspaceStore.currentWorkspace?.name || '手动资源站',
+      title: workspaceStore.currentWorkspace?.name || label('手动资源站', 'Manual Station'),
       items: [
         {
-          name: '全部资源',
+          name: label('全部资源', 'All Resources'),
           icon: Database,
           path: `/manual/station/${currentStationId}`,
         },
@@ -295,83 +236,64 @@ export function useSidebarMenus() {
     };
 
     const groups: SidebarMenuGroup[] = [mainGroup];
-
     const categories = manualStore.categories || [];
-    if (categories.length) {
-      // 1. Group categories by parentId
-      const parentMap = new Map<string, ManualCategory[]>();
-      categories.forEach((cat) => {
-        if (cat.parentId) {
-          if (!parentMap.has(cat.parentId)) {
-            parentMap.set(cat.parentId, []);
-          }
-          parentMap.get(cat.parentId)!.push(cat);
-        }
-      });
+    if (!categories.length) return groups;
 
-      // 2. Identify top level and check if they have children
-      const topLevel: ManualCategory[] = [];
-      categories.forEach((cat) => {
-        const hasParent = cat.parentId && categories.some((p) => p.id === cat.parentId);
-        if (!hasParent) {
-          topLevel.push(cat);
-        }
-      });
+    const parentMap = new Map<string, ManualCategory[]>();
+    categories.forEach((category) => {
+      if (!category.parentId) return;
+      if (!parentMap.has(category.parentId)) {
+        parentMap.set(category.parentId, []);
+      }
+      parentMap.get(category.parentId)!.push(category);
+    });
 
-      // Sort top level by order
-      topLevel.sort((a, b) => (a.order || 0) - (b.order || 0));
+    const topLevel = categories
+      .filter((category) => {
+        const hasParent =
+          category.parentId && categories.some((parent) => parent.id === category.parentId);
+        return !hasParent;
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-      topLevel.forEach((parent) => {
-        const children = parentMap.get(parent.id) || [];
-        if (children.length > 0) {
-          // Create a new sidebar group
-          const childItems = children
-            .map((child) => ({
-              name: child.name,
-              icon: getCategoryIcon(child.name),
-              path: `/manual/station/${currentStationId}?categoryId=${child.id}`,
-            }))
-            .sort((a, b) => {
-              const childA = children.find((c) => c.name === a.name);
-              const childB = children.find((c) => c.name === b.name);
-              return (childA?.order || 0) - (childB?.order || 0);
-            });
+    topLevel.forEach((parent) => {
+      const children = (parentMap.get(parent.id) || []).sort(
+        (a, b) => (a.order || 0) - (b.order || 0),
+      );
 
-          groups.push({
-            title: parent.name,
-            items: [
-              {
-                name: `全部 ${parent.name}`,
-                icon: getCategoryIcon(parent.name),
-                path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
-              },
-              ...childItems,
-            ],
-          });
-        } else {
-          // Childless parent category stays in main group
-          mainGroup.items.push({
-            name: parent.name,
+      if (!children.length) {
+        mainGroup.items.push({
+          name: parent.name,
+          icon: getCategoryIcon(parent.name),
+          path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
+        });
+        return;
+      }
+
+      groups.push({
+        title: parent.name,
+        items: [
+          {
+            name: `${label('全部', 'All')} ${parent.name}`,
             icon: getCategoryIcon(parent.name),
             path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
-          });
-        }
+          },
+          ...children.map((child) => ({
+            name: child.name,
+            icon: getCategoryIcon(child.name),
+            path: `/manual/station/${currentStationId}?categoryId=${child.id}`,
+          })),
+        ],
       });
-    }
+    });
 
     return groups;
   });
 
   const menuGroups = computed<SidebarMenuGroup[]>(() => {
-    if (workspaceStore.isAdminWorkspace) {
-      return adminGroups.value;
-    }
-    if (workspaceStore.currentWorkspace?.type === 'mirror') {
-      return mirrorGroups.value;
-    }
-    if (workspaceStore.currentWorkspace?.type === 'manual') {
-      return manualGroups.value;
-    }
+    if (workspaceStore.isAdminWorkspace) return adminGroups.value;
+    if (workspaceStore.currentWorkspace?.type === 'mirror') return mirrorGroups.value;
+    if (workspaceStore.currentWorkspace?.type === 'manual') return manualGroups.value;
 
     return [
       {
@@ -387,17 +309,25 @@ export function useSidebarMenus() {
       {
         title: t('sidebar.groups.collaboration'),
         items: [
-          { name: t('sidebar.teamTasks'), icon: Briefcase, path: '/team-tasks' },
-          {
-            name: t('sidebar.members'),
-            icon: Users,
-            path: workspaceStore.activeTeamId ? `/team/${workspaceStore.activeTeamId}` : '/members',
-          },
+          ...((workspaceStore.currentWorkspace?.type === 'team' || workspaceStore.currentWorkspace?.type === 'personal') && workspaceStore.currentWorkspace?.id
+            ? [
+                {
+                  name: workspaceStore.currentWorkspace.type === 'personal'
+                    ? t('sidebar.personalSpace')
+                    : t('sidebar.teamSpace'),
+                  icon: Users,
+                  path: `/team/${workspaceStore.currentWorkspace.id}`,
+                },
+              ]
+            : []),
+          { name: t('sidebar.exploreTeams'), icon: Globe, path: '/explore-teams' },
+          { name: t('sidebar.projects'), icon: FolderTree, path: '/projects' },
         ],
       },
       {
         title: t('sidebar.groups.resources'),
         items: [
+          { name: t('sidebar.resourceCenter'), icon: Database, path: '/resources' },
           { name: t('sidebar.myWorks'), icon: Box, path: '/my-works' },
           { name: t('sidebar.assets'), icon: ImageIcon, path: '/assets' },
           { name: t('sidebar.materials'), icon: Layers, path: '/materials' },
@@ -419,7 +349,12 @@ export function useSidebarMenus() {
       },
       {
         title: t('sidebar.groups.tools'),
-        items: [{ name: t('sidebar.emailSystem'), icon: Mail, path: '/tools/email' }],
+        items: [
+          { name: t('sidebar.aiRobotAccess'), icon: Bot, path: '/tools/ai-robots' },
+          { name: t('sidebar.emailSystem'), icon: Mail, path: '/tools/email' },
+          { name: t('sidebar.googleWarming'), icon: ShieldCheck, path: '/tools/google-warming' },
+          { name: t('sidebar.twoFactorAuth'), icon: KeyRound, path: '/tools/two-factor' },
+        ],
       },
     ];
   });
@@ -428,32 +363,33 @@ export function useSidebarMenus() {
     if (route.path.startsWith('/admin')) {
       return [
         {
-          name: '概览',
-          icon: BarChart3,
-          path: '/admin/dashboard',
-          active: (path) => path === '/admin/dashboard',
+          name: label('指挥', 'Command'),
+          icon: Gauge,
+          path: '/admin/command-center',
+          active: (path) => path === '/admin/command-center' || path === '/admin/dashboard',
         },
         {
-          name: '用户',
+          name: label('用户', 'Users'),
           icon: Users,
           path: '/admin/users',
           active: (path) => path.startsWith('/admin/users'),
         },
         {
-          name: '审核',
+          name: label('审核', 'Review'),
           icon: ShieldCheck,
           path: '/admin/audits',
           badge:
             workspaceStore.adminStats.pendingAssets +
             workspaceStore.adminStats.pendingMaterials +
-            workspaceStore.adminStats.pendingShowcases,
+            workspaceStore.adminStats.pendingShowcases +
+            workspaceStore.adminStats.pendingPlugins,
           active: (path) =>
             path.startsWith('/admin/audits') ||
             path.startsWith('/admin/assets') ||
             path.startsWith('/admin/materials'),
         },
         {
-          name: '课程',
+          name: label('课程', 'Courses'),
           icon: GraduationCap,
           path: '/admin/courses',
           active: (path) =>
@@ -462,7 +398,7 @@ export function useSidebarMenus() {
             path.startsWith('/admin/categories'),
         },
         {
-          name: '设置',
+          name: label('设置', 'Settings'),
           icon: Settings,
           path: '/admin/settings',
           active: (path) => path.startsWith('/admin/settings'),
@@ -472,32 +408,34 @@ export function useSidebarMenus() {
 
     return [
       {
-        name: t('sidebar.dashboard'),
+        name: label('工作台', 'Home'),
         icon: LayoutDashboard,
         path: '/dashboard',
         active: (path) => path === '/dashboard' || path.startsWith('/dashboard'),
       },
       {
-        name: t('sidebar.academy'),
+        name: label('学院', 'Learn'),
         icon: GraduationCap,
         path: '/academy',
         active: (path) => path.startsWith('/academy') || path.startsWith('/roadmaps'),
       },
       {
-        name: t('sidebar.showcase'),
+        name: label('展示', 'Works'),
         icon: MonitorPlay,
         path: '/showcase',
         active: (path) =>
-          path.startsWith('/showcase') || path.startsWith('/assets') || path.startsWith('/my-works'),
+          path.startsWith('/showcase') ||
+          path.startsWith('/assets') ||
+          path.startsWith('/my-works'),
       },
       {
-        name: t('sidebar.discussions'),
+        name: label('社区', 'Community'),
         icon: MessageSquare,
         path: '/discussions',
-        active: (path) => path.startsWith('/discussions') || path.startsWith('/members'),
+        active: (path) => path.startsWith('/discussions'),
       },
       {
-        name: t('sidebar.messages'),
+        name: label('消息', 'Messages'),
         icon: MessageCircle,
         path: '/messages',
         badge: authStore.unreadMessagesCount,

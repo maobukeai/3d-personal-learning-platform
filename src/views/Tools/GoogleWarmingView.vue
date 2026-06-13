@@ -54,6 +54,25 @@ const activeMobileView = ref<'list' | 'detail'>('list');
 // Import form state
 const importText = ref<string>('');
 const parsedAccounts = ref<Array<Partial<GoogleAccount>>>([]);
+const importDefaultCategory = ref<string>('未分类');
+const autoTranslateCountry = ref<boolean>(true);
+
+// Watch default category change to update parsed accounts in preview in real-time
+watch(importDefaultCategory, (newVal) => {
+  if (newVal && parsedAccounts.value.length > 0) {
+    parsedAccounts.value.forEach(acc => {
+      acc.category = newVal;
+    });
+  }
+});
+
+const openImportDialog = () => {
+  importText.value = '';
+  parsedAccounts.value = [];
+  importDefaultCategory.value = '未分类';
+  autoTranslateCountry.value = true;
+  isImporting.value = true;
+};
 
 // Edit account modal
 const isEditDialogVisible = ref<boolean>(false);
@@ -473,13 +492,16 @@ const handleStandardParse = () => {
     if (parts.length < 2) continue;
 
     const isSevenParts = parts.length >= 7;
+    const parsedCategory = isSevenParts ? (parts[5] || '未分类') : '未分类';
     tempParsed.push({
       email: parts[0] || '',
       password: parts[1] || '',
       recoveryEmail: parts[2] || '',
       twoFASecret: parts[3] || '',
       country: parts[4] || '',
-      category: isSevenParts ? (parts[5] || '未分类') : '未分类',
+      category: (importDefaultCategory.value && importDefaultCategory.value !== '未分类')
+        ? importDefaultCategory.value
+        : parsedCategory,
       note: isSevenParts ? (parts[6] || '') : (parts[5] || ''),
       status: 'warming',
       currentDay: 1
@@ -503,11 +525,16 @@ const handleAiParse = async () => {
 
   isAiParsing.value = true;
   try {
-    const res = await api.post('/api/google-warming/accounts/ai-parse', { text: importText.value });
+    const res = await api.post('/api/google-warming/accounts/ai-parse', { 
+      text: importText.value,
+      translateCountry: autoTranslateCountry.value
+    });
     if (res.data && res.data.accounts) {
       parsedAccounts.value = res.data.accounts.map((acc: any) => ({
         ...acc,
-        category: acc.category || '未分类',
+        category: (importDefaultCategory.value && importDefaultCategory.value !== '未分类')
+          ? importDefaultCategory.value
+          : (acc.category || '未分类'),
         status: acc.status || 'warming',
         currentDay: 1
       }));
@@ -1158,7 +1185,7 @@ async function handleImportFile(event: Event) {
 
             <!-- Add account -->
             <button
-              @click="isImporting = true"
+              @click="openImportDialog"
               class="bg-violet-600 hover:bg-violet-500 border-none font-semibold px-2.5 py-1.5 rounded transition-all flex items-center gap-0.5 cursor-pointer text-[11px] text-white"
             >
               <Plus class="w-3 h-3" />
@@ -1836,6 +1863,40 @@ async function handleImportFile(event: Event) {
             placeholder="粘贴账号数据，每行一个..."
             class="gw-textarea"
           ></textarea>
+
+          <!-- Import settings for Category and AI Translation -->
+          <div class="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {{ t('tools.googleWarming.importDefaultCategory') }}:
+              </span>
+              <el-select
+                v-model="importDefaultCategory"
+                filterable
+                allow-create
+                default-first-option
+                :placeholder="t('tools.googleWarming.defaultCategoryPlaceholder')"
+                size="small"
+                style="width: 160px"
+              >
+                <el-option
+                  v-for="cat in categoriesList.filter(c => c !== 'all')"
+                  :key="cat"
+                  :label="cat === '未分类' ? '未分类 (无分类)' : cat"
+                  :value="cat"
+                />
+              </el-select>
+              <span class="text-[11px] text-slate-400 dark:text-slate-500">
+                {{ t('tools.googleWarming.realtimeApplyTip') }}
+              </span>
+            </div>
+            
+            <div class="flex items-center">
+              <el-checkbox v-model="autoTranslateCountry" size="small">
+                {{ t('tools.googleWarming.autoTranslateCountry') }}
+              </el-checkbox>
+            </div>
+          </div>
 
           <div class="flex justify-between items-center gap-3">
             <div class="flex items-center gap-2">

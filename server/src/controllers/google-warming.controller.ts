@@ -65,12 +65,16 @@ export class GoogleWarmingController {
    * Parses raw account text using AI LLM
    */
   public static async aiParse(req: AuthRequest, res: Response): Promise<void> {
-    const { text } = req.body;
+    const { text, translateCountry } = req.body;
 
     if (!text || typeof text !== 'string' || !text.trim()) {
       res.status(400).json({ error: '请提供待解析的文本内容' });
       return;
     }
+
+    const countryInstruction = translateCountry !== false
+      ? '- country: The country or region associated with the account (if present). You MUST translate this country/region name into Chinese (e.g., "US" or "United States" -> "美国", "HK" or "Hong Kong" -> "中国香港", "TW" or "Taiwan" -> "中国台湾", "SG" or "Singapore" -> "新加坡", "JP" or "Japan" -> "日本", etc.).'
+      : '- country: The country or region associated with the account (if present).';
 
     const systemPrompt = `You are a professional Google account data parsing assistant.
 Your task is to parse a list of Google accounts from unstructured or semi-structured text.
@@ -79,7 +83,7 @@ For each account, extract the following fields:
 - password: The password for the account.
 - recoveryEmail: The recovery/auxiliary/recovery email address (if present).
 - twoFASecret: The 2FA secret key/code used for generating two-factor authentication tokens (if present, e.g. a string of 16-32 characters, sometimes with spaces).
-- country: The country or region associated with the account (if present).
+${countryInstruction}
 - category: A category or group label (if present, e.g. "GCP", "AdSense", "Normal").
 - note: Any additional labels, tags, or notes.
 

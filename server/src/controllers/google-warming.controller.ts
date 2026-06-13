@@ -47,7 +47,8 @@ export class GoogleWarmingController {
             twoFASecret: account.twoFASecret ? account.twoFASecret.trim() : null,
             country: account.country ? account.country.trim() : null,
             note: account.note ? account.note.trim() : null,
-            status: 'warming',
+            category: account.category ? account.category.trim() : '未分类',
+            status: account.status || 'warming',
             currentDay: Number(account.currentDay) || 1,
           },
         });
@@ -79,7 +80,8 @@ For each account, extract the following fields:
 - recoveryEmail: The recovery/auxiliary/recovery email address (if present).
 - twoFASecret: The 2FA secret key/code used for generating two-factor authentication tokens (if present, e.g. a string of 16-32 characters, sometimes with spaces).
 - country: The country or region associated with the account (if present).
-- note: Any additional labels, tags, categories, or notes (e.g. "gcp").
+- category: A category or group label (if present, e.g. "GCP", "AdSense", "Normal").
+- note: Any additional labels, tags, or notes.
 
 Respond ONLY with a valid JSON array of objects. Do NOT wrap the JSON in markdown code blocks, do NOT write any introductory or concluding text, and do NOT explain the output.
 Format:
@@ -90,6 +92,7 @@ Format:
     "recoveryEmail": "...",
     "twoFASecret": "...",
     "country": "...",
+    "category": "...",
     "note": "..."
   }
 ]
@@ -122,7 +125,7 @@ If any field is missing or not found, set it to null.`;
   public static async updateAccount(req: AuthRequest, res: Response): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
-    const { email, password, recoveryEmail, twoFASecret, country, note, status, currentDay } = req.body;
+    const { email, password, recoveryEmail, twoFASecret, country, note, category, status, currentDay } = req.body;
 
     try {
       const existing = await prisma.googleWarmingAccount.findFirst({
@@ -143,6 +146,7 @@ If any field is missing or not found, set it to null.`;
           twoFASecret: twoFASecret !== undefined ? (twoFASecret ? twoFASecret.trim() : null) : existing.twoFASecret,
           country: country !== undefined ? (country ? country.trim() : null) : existing.country,
           note: note !== undefined ? (note ? note.trim() : null) : existing.note,
+          category: category !== undefined ? (category ? category.trim() : '未分类') : existing.category,
           status: status !== undefined ? status : existing.status,
           currentDay: currentDay !== undefined ? Number(currentDay) : existing.currentDay,
         },
@@ -314,5 +318,197 @@ If any field is missing or not found, set it to null.`;
       logger.error('[GoogleWarmingController.batchStatusAccounts] error:', e);
       res.status(500).json({ error: '批量修改状态失败' });
     }
+  }
+
+  /**
+   * Batch updates category for multiple accounts
+   */
+  public static async batchCategoryAccounts(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const { ids, category } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: '请提供账号 ID 列表' });
+      return;
+    }
+
+    try {
+      const result = await prisma.googleWarmingAccount.updateMany({
+        where: { id: { in: ids }, userId },
+        data: { category: category || '未分类' },
+      });
+
+      res.json({ success: true, count: result.count });
+    } catch (e: unknown) {
+      logger.error('[GoogleWarmingController.batchCategoryAccounts] error:', e);
+      res.status(500).json({ error: '批量修改分类失败' });
+    }
+  }
+
+  /**
+   * Rename a category for all user's accounts
+   */
+  public static async renameCategory(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const { oldCategory, newCategory } = req.body;
+
+    if (!oldCategory) {
+      res.status(400).json({ error: '请提供原分类名称' });
+      return;
+    }
+
+    const targetCategory = newCategory ? newCategory.trim() : '未分类';
+
+    try {
+      // 1. Update accounts
+      const result = await prisma.googleWarmingAccount.updateMany({
+        where: { userId, category: oldCategory },
+        data: { category: targetCategory },
+      });
+
+      // 2. Update user settings
+      const current = await GoogleWarmingController.getUserCategories(userId);
+      const updated = current.map(c => c === oldCategory ? targetCategory : c).filter(c => c !== '未分类');
+      await GoogleWarmingController.saveUserCategories(userId, updated);
+
+      res.json({ success: true, count: result.count });
+    } catch (e: unknown) {
+      logger.error('[GoogleWarmingController.renameCategory] error:', e);
+      res.status(500).json({ error: '重命名分类失败' });
+    }
+  }
+
+  /**
+   * Delete a category (resets accounts to '未分类')
+   */
+  public static async deleteCategory(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const { category } = req.body;
+
+    if (!category) {
+      res.status(400).json({ error: '请提供要删除的分类名称' });
+      return;
+    }
+
+    try {
+      // 1. Update accounts
+      const result = await prisma.googleWarmingAccount.updateMany({
+        where: { userId, category },
+        data: { category: '未分类' },
+      });
+
+      // 2. Update user settings
+      const current = await GoogleWarmingController.getUserCategories(userId);
+      const updated = current.filter(c => c !== category);
+      await GoogleWarmingController.saveUserCategories(userId, updated);
+
+      res.json({ success: true, count: result.count });
+    } catch (e: unknown) {
+      logger.error('[GoogleWarmingController.deleteCategory] error:', e);
+      res.status(500).json({ error: '删除分类失败' });
+    }
+  }
+
+  /**
+   * Get all categories saved in settings + actual database categories
+   */
+  public static async getCategories(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    try {
+      const settingsCats = await GoogleWarmingController.getUserCategories(userId);
+
+      const dbCatsResult = await prisma.googleWarmingAccount.findMany({
+        where: { userId },
+        select: { category: true },
+        distinct: ['category']
+      });
+      const dbCats = dbCatsResult
+        .map(a => a.category)
+        .filter((c): c is string => !!c && c !== '未分类');
+
+      const merged = Array.from(new Set([...settingsCats, ...dbCats]));
+      
+      if (merged.length !== settingsCats.length) {
+        await GoogleWarmingController.saveUserCategories(userId, merged);
+      }
+
+      res.json({ success: true, categories: merged });
+    } catch (e: unknown) {
+      logger.error('[GoogleWarmingController.getCategories] error:', e);
+      res.status(500).json({ error: '获取分类列表失败' });
+    }
+  }
+
+  /**
+   * Add a new category to settings
+   */
+  public static async addCategory(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const { category } = req.body;
+
+    if (!category || !category.trim()) {
+      res.status(400).json({ error: '分类名称不能为空' });
+      return;
+    }
+
+    const catName = category.trim();
+    if (catName === '未分类' || catName === 'all') {
+      res.status(400).json({ error: '无效的分类名称' });
+      return;
+    }
+
+    try {
+      const current = await GoogleWarmingController.getUserCategories(userId);
+      if (current.includes(catName)) {
+        res.status(400).json({ error: '分类已存在' });
+        return;
+      }
+
+      current.push(catName);
+      await GoogleWarmingController.saveUserCategories(userId, current);
+
+      res.json({ success: true, categories: current });
+    } catch (e: unknown) {
+      logger.error('[GoogleWarmingController.addCategory] error:', e);
+      res.status(500).json({ error: '添加分类失败' });
+    }
+  }
+
+  // Helper methods for category settings
+  private static async getUserCategories(userId: string): Promise<string[]> {
+    const setting = await prisma.userSetting.findUnique({
+      where: {
+        userId_key: {
+          userId,
+          key: 'google_warming_categories'
+        }
+      }
+    });
+    if (!setting) return [];
+    try {
+      return JSON.parse(setting.value);
+    } catch {
+      return [];
+    }
+  }
+
+  private static async saveUserCategories(userId: string, categories: string[]): Promise<void> {
+    const uniqueCategories = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+    await prisma.userSetting.upsert({
+      where: {
+        userId_key: {
+          userId,
+          key: 'google_warming_categories'
+        }
+      },
+      update: {
+        value: JSON.stringify(uniqueCategories)
+      },
+      create: {
+        userId,
+        key: 'google_warming_categories',
+        value: JSON.stringify(uniqueCategories)
+      }
+    });
   }
 }

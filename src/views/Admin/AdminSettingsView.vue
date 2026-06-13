@@ -885,34 +885,6 @@ const settingsSignalCards = computed<SettingsSignalCard[]>(() => [
   },
 ]);
 
-const settingsRiskItems = computed(() =>
-  [
-    {
-      label: '平台处于维护模式',
-      detail: '普通用户将无法进入平台',
-      active: settings.value.MAINTENANCE_MODE,
-      tone: 'rose' as SettingsSignalTone,
-    },
-    {
-      label: '允许新用户自助注册',
-      detail: '需要确认安全策略和默认角色',
-      active: settings.value.ALLOW_REGISTRATION,
-      tone: 'sky' as SettingsSignalTone,
-    },
-    {
-      label: 'AI 功能已开启但模型池为空',
-      detail: '前台 AI 能力会缺少可用模型',
-      active: settings.value.AI_IMPORT_ENABLED && enabledAiModelCount.value === 0,
-      tone: 'amber' as SettingsSignalTone,
-    },
-    {
-      label: 'SMTP 未配置完整',
-      detail: '验证码和系统通知可能无法发出',
-      active: settings.value.SYSTEM_EMAIL_PROVIDER === 'SMTP' && configuredSmtpCount.value === 0,
-      tone: 'amber' as SettingsSignalTone,
-    },
-  ].filter((item) => item.active),
-);
 
 const sessionTimeoutOptions = [
   { label: t('admin.1_day'), value: '1d' },
@@ -2564,16 +2536,18 @@ onUnmounted(() => {
                 :data-tone="card.tone"
               >
                 <component :is="card.icon" class="settings-signal-icon" />
-                <div class="min-w-0">
-                  <span>{{ card.label }}</span>
-                  <strong>{{ card.value }}</strong>
-                  <small>{{ card.detail }}</small>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline gap-1.5 leading-none mb-0.5">
+                    <strong class="settings-signal-value">{{ card.value }}</strong>
+                    <span class="settings-signal-label">{{ card.label }}</span>
+                  </div>
+                  <small class="settings-signal-detail">{{ card.detail }}</small>
                 </div>
               </article>
             </div>
           </section>
 
-          <div class="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_19rem] gap-4 items-start">
+          <div class="w-full">
             <main class="settings-main-column min-w-0 space-y-4">
           <!-- General Settings -->
           <div
@@ -5052,79 +5026,6 @@ onUnmounted(() => {
             </div>
           </div>
             </main>
-
-            <aside class="settings-ops-rail">
-              <section class="settings-rail-panel">
-                <div class="settings-rail-title">
-                  <Sliders class="w-4 h-4 text-indigo-500" />
-                  <span>配置状态</span>
-                </div>
-                <div class="settings-progress-track">
-                  <i :style="{ width: configurationCompleteness + '%' }"></i>
-                </div>
-                <div class="settings-rail-metrics">
-                  <div>
-                    <span>注册</span>
-                    <strong>{{ settings.ALLOW_REGISTRATION ? '开放' : '关闭' }}</strong>
-                  </div>
-                  <div>
-                    <span>维护</span>
-                    <strong>{{ settings.MAINTENANCE_MODE ? '开启' : '关闭' }}</strong>
-                  </div>
-                  <div>
-                    <span>发信</span>
-                    <strong>{{ settings.SYSTEM_EMAIL_PROVIDER }}</strong>
-                  </div>
-                  <div>
-                    <span>AI</span>
-                    <strong>{{ settings.AI_IMPORT_ENABLED ? '启用' : '关闭' }}</strong>
-                  </div>
-                </div>
-              </section>
-
-              <section class="settings-rail-panel">
-                <div class="settings-rail-title">
-                  <AlertTriangle class="w-4 h-4 text-amber-500" />
-                  <span>需要关注</span>
-                  <strong>{{ settingsRiskItems.length }}</strong>
-                </div>
-                <div v-if="settingsRiskItems.length" class="settings-risk-list">
-                  <div v-for="item in settingsRiskItems" :key="item.label" :data-tone="item.tone">
-                    <span>{{ item.label }}</span>
-                    <small>{{ item.detail }}</small>
-                  </div>
-                </div>
-                <div v-else class="settings-empty-risk">
-                  <CheckCircle class="w-4 h-4" />
-                  <span>核心配置没有明显风险</span>
-                </div>
-              </section>
-
-              <section class="settings-rail-panel">
-                <div class="settings-rail-title">
-                  <Clock class="w-4 h-4 text-sky-500" />
-                  <span>快捷操作</span>
-                </div>
-                <div class="settings-rail-actions">
-                  <button type="button" :disabled="isSaving" @click="saveSettings">
-                    <Save class="w-3.5 h-3.5" />
-                    <span>{{ isSaving ? $t('admin.saving_1') : $t('admin.save_global_settings') }}</span>
-                  </button>
-                  <button type="button" @click="exportSettings">
-                    <Download class="w-3.5 h-3.5" />
-                    <span>导出配置</span>
-                  </button>
-                  <button type="button" @click="triggerImport">
-                    <Upload class="w-3.5 h-3.5" />
-                    <span>导入配置</span>
-                  </button>
-                  <button type="button" @click="resetToDefaults">
-                    <RotateCcw class="w-3.5 h-3.5" />
-                    <span>{{ $t('admin.restore_default') }}</span>
-                  </button>
-                </div>
-              </section>
-            </aside>
           </div>
         </div>
       </div>
@@ -5228,34 +5129,37 @@ onUnmounted(() => {
 
 <style scoped>
 .settings-command-center {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(26rem, 1.45fr);
-  gap: 12px;
-  align-items: stretch;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--bg-card);
-  padding: 12px;
+  padding: 8px 12px;
 }
 
 .settings-command-copy {
+  flex: 1;
   min-width: 0;
-  display: grid;
-  align-content: center;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .settings-eyebrow {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .settings-command-copy h2 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   line-height: 1.2;
 }
@@ -5263,29 +5167,30 @@ onUnmounted(() => {
 .settings-command-copy p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.6;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .settings-signal-grid {
-  min-width: 0;
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  width: 100%;
+  max-width: 48rem;
 }
 
 .settings-signal-card {
   --settings-tone: #2563eb;
   min-width: 0;
-  min-height: 68px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 1px solid color-mix(in srgb, var(--settings-tone) 22%, var(--border-base));
-  border-radius: 8px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--settings-tone) 7%, var(--bg-card));
-  padding: 9px;
+  padding: 6px 10px;
 }
 
 .settings-signal-card[data-tone='emerald'] {
@@ -5309,30 +5214,30 @@ onUnmounted(() => {
 }
 
 .settings-signal-icon {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   flex: 0 0 auto;
   color: var(--settings-tone);
 }
 
-.settings-signal-card span,
-.settings-signal-card small {
+.settings-signal-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.settings-signal-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.settings-signal-detail {
   display: block;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-signal-card strong {
-  display: block;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1.25;
+  font-size: 9px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5351,154 +5256,12 @@ onUnmounted(() => {
   gap: 12px !important;
 }
 
-.settings-ops-rail {
-  position: sticky;
-  top: 0;
-  display: grid;
-  gap: 10px;
+.settings-main-column section .grid {
+  gap: 12px !important;
 }
 
-.settings-rail-panel {
-  min-width: 0;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  padding: 12px;
-}
-
-.settings-rail-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.settings-rail-title strong {
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.settings-progress-track {
-  height: 7px;
-  margin-top: 12px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--bg-app);
-}
-
-.settings-progress-track i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #2563eb;
-}
-
-.settings-rail-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.settings-rail-metrics div {
-  min-width: 0;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  padding: 8px;
-}
-
-.settings-rail-metrics span,
-.settings-risk-list small {
-  display: block;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.settings-rail-metrics strong,
-.settings-risk-list span {
-  display: block;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-risk-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.settings-risk-list div {
-  --risk-tone: #d97706;
-  border: 1px solid color-mix(in srgb, var(--risk-tone) 26%, var(--border-base));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--risk-tone) 7%, var(--bg-card));
-  padding: 8px;
-}
-
-.settings-risk-list div[data-tone='rose'] {
-  --risk-tone: #e11d48;
-}
-
-.settings-risk-list div[data-tone='sky'] {
-  --risk-tone: #0284c7;
-}
-
-.settings-empty-risk {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 10px;
-  border: 1px solid rgba(5, 150, 105, 0.24);
-  border-radius: 8px;
-  background: rgba(5, 150, 105, 0.08);
-  color: #059669;
-  padding: 9px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.settings-rail-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.settings-rail-actions button {
-  min-width: 0;
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-app);
-  color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 900;
-  transition:
-    border-color 0.16s ease,
-    background-color 0.16s ease;
-}
-
-.settings-rail-actions button:hover {
-  border-color: rgba(37, 99, 235, 0.36);
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.settings-rail-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+.settings-main-column section > div:first-child.flex {
+  margin-bottom: 12px !important;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -5522,28 +5285,59 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 1535px) {
-  .settings-ops-rail {
-    position: static;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 1120px) {
   .settings-command-center {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 
-  .settings-signal-grid,
-  .settings-ops-rail {
+  .settings-signal-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
   }
 }
 
 @media (max-width: 720px) {
-  .settings-signal-grid,
-  .settings-ops-rail {
-    grid-template-columns: 1fr;
+  .settings-command-copy p {
+    display: none;
+  }
+
+  .settings-signal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-command-center {
+    padding: 6px 10px;
+  }
+  
+  .settings-signal-grid {
+    gap: 4px;
+  }
+
+  .settings-signal-card {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .settings-signal-icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .settings-signal-value {
+    font-size: 11px;
+  }
+
+  .settings-signal-label {
+    font-size: 8px;
+  }
+
+  .settings-signal-detail {
+    font-size: 8px;
   }
 }
 </style>

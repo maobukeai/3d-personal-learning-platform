@@ -14,7 +14,6 @@ import {
   Eye,
   Filter,
   Flame,
-  Grid3X3,
   Heart,
   Image,
   Layers3,
@@ -25,7 +24,6 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Rows3,
   Save,
   Search,
   Send,
@@ -328,16 +326,7 @@ const smartFilterOptions = computed<
   },
 ]);
 
-const activeFilterLabel = computed(() => {
-  const bucket = smartFilterOptions.value.find((option) => option.value === activeBucket.value);
-  const parts = [
-    scopeOptions.find((option) => option.value === activeScope.value)?.label,
-    typeOptions.find((option) => option.value === activeType.value)?.label,
-    activeBucket.value !== 'all' ? bucket?.label : null,
-    sortOptions.find((option) => option.value === activeSort.value)?.label,
-  ].filter(Boolean);
-  return parts.join(' / ');
-});
+
 
 const canManageDetail = computed(() => {
   if (!detailItem.value) return false;
@@ -857,46 +846,48 @@ onMounted(() => {
       <main class="showcase-main">
 
         <section class="showcase-controls">
-          <!-- Row 1: Scope & Smart Filters -->
+          <!-- Row 1: Scope & Smart Filters (Scrollable on mobile) -->
           <div class="controls-row controls-row--primary">
-            <div class="scope-strip" aria-label="范围">
-              <button
-                v-for="option in scopeOptions"
-                :key="option.value"
-                type="button"
-                :class="{ active: activeScope === option.value }"
-                @click="activeScope = option.value"
-              >
-                <component :is="option.icon" class="w-3.5 h-3.5" />
-                {{ option.label }}
-              </button>
-            </div>
+            <div class="flex flex-row lg:justify-between items-center overflow-x-auto lg:overflow-x-visible no-scrollbar gap-2 flex-1 w-full pb-0.5 lg:pb-0 select-none">
+              <div class="scope-strip shrink-0" aria-label="范围">
+                <button
+                  v-for="option in scopeOptions"
+                  :key="option.value"
+                  type="button"
+                  :class="{ active: activeScope === option.value }"
+                  @click="activeScope = option.value"
+                >
+                  <component :is="option.icon" class="w-3.5 h-3.5" />
+                  {{ option.label }}
+                </button>
+              </div>
 
-            <div class="divider-v"></div>
+              <div class="divider-v block lg:hidden"></div>
 
-            <div class="smart-filter-strip" aria-label="智能筛选">
-              <button
-                v-for="filter in smartFilterOptions"
-                :key="filter.value"
-                type="button"
-                :class="{ active: activeBucket === filter.value }"
-                @click="setBucket(filter.value)"
-              >
-                <component :is="filter.icon" class="w-3.5 h-3.5" />
-                <span>{{ filter.label }}</span>
-                <b>{{ filter.metric }}</b>
-              </button>
+              <div class="smart-filter-strip shrink-0" aria-label="智能筛选">
+                <button
+                  v-for="filter in smartFilterOptions"
+                  :key="filter.value"
+                  type="button"
+                  :class="{ active: activeBucket === filter.value }"
+                  @click="setBucket(filter.value)"
+                >
+                  <component :is="filter.icon" class="w-3.5 h-3.5" />
+                  <span>{{ filter.label }}</span>
+                  <b class="ml-0.5">{{ filter.metric }}</b>
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Row 2: Types & Sorting/View -->
           <div class="controls-row controls-row--secondary">
-            <div class="type-strip-container">
-              <span class="control-label">
+            <div class="type-strip-container w-full lg:w-auto">
+              <span class="control-label hidden md:inline-flex">
                 <Filter class="w-3.5 h-3.5" />
                 类型
               </span>
-              <div class="type-strip" aria-label="类型筛选">
+              <div class="type-strip w-full lg:w-auto" aria-label="类型筛选">
                 <button
                   v-for="option in typeOptions"
                   :key="option.value"
@@ -910,13 +901,40 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="right-actions-group">
-              <div class="sort-strip-container">
-                <span class="control-label">
+            <div class="right-actions-group w-full lg:w-auto">
+              <!-- Review Pill -->
+              <button
+                v-if="pendingReviewCount"
+                type="button"
+                class="review-pill flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-semibold cursor-pointer shrink-0"
+                @click="setBucket('pending')"
+              >
+                <ShieldCheck class="w-3.5 h-3.5" />
+                <span>{{ pendingReviewCount }} 个待审核</span>
+              </button>
+
+              <!-- Clear Filters Pill -->
+              <button
+                v-if="
+                  searchQuery ||
+                  activeType !== 'all' ||
+                  activeBucket !== 'all' ||
+                  activeScope !== 'all' ||
+                  activeSort !== 'trending'
+                "
+                type="button"
+                class="clear-search flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-semibold cursor-pointer hover:text-red-500 transition-colors shrink-0"
+                @click="resetFilters"
+              >
+                <span>清除筛选</span>
+              </button>
+
+              <div class="sort-strip-container flex-1 lg:flex-initial">
+                <span class="control-label hidden md:inline-flex">
                   <SlidersHorizontal class="w-3.5 h-3.5" />
                   排序
                 </span>
-                <div class="sort-strip" aria-label="排序">
+                <div class="sort-strip w-full lg:w-auto" aria-label="排序">
                   <button
                     v-for="option in sortOptions"
                     :key="option.value"
@@ -931,61 +949,9 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div class="view-switch" aria-label="视图">
-                <button
-                  type="button"
-                  :class="{ active: viewMode === 'grid' }"
-                  title="网格视图"
-                  @click="viewMode = 'grid'"
-                >
-                  <Grid3X3 class="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  :class="{ active: viewMode === 'dense' }"
-                  title="紧凑视图"
-                  @click="viewMode = 'dense'"
-                >
-                  <Rows3 class="w-4 h-4" />
-                </button>
-              </div>
+              <!-- Compact Result Summary -->
+              <span class="text-[10px] text-slate-550 dark:text-slate-400 font-semibold hidden sm:inline select-none">{{ resultSummary }}</span>
             </div>
-          </div>
-        </section>
-
-        <section class="results-head">
-          <div>
-            <h2>{{ activeFilterLabel }}</h2>
-            <p>{{ resultSummary }}</p>
-          </div>
-          <div class="results-actions">
-            <button
-              v-if="pendingReviewCount"
-              type="button"
-              class="review-pill"
-              @click="setBucket('pending')"
-            >
-              <ShieldCheck class="w-3.5 h-3.5" />
-              {{ pendingReviewCount }} 个待审核
-            </button>
-            <button
-              v-if="
-                searchQuery ||
-                activeType !== 'all' ||
-                activeBucket !== 'all' ||
-                activeScope !== 'all' ||
-                activeSort !== 'trending'
-              "
-              type="button"
-              class="clear-search"
-              @click="resetFilters"
-            >
-              清除筛选
-            </button>
-            <button type="button" class="clear-search" @click="showInsights = !showInsights">
-              <component :is="showInsights ? PanelRightClose : PanelRightOpen" class="w-3.5 h-3.5" />
-              {{ showInsights ? '收起洞察' : '打开洞察' }}
-            </button>
           </div>
         </section>
 
@@ -1792,6 +1758,16 @@ onMounted(() => {
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 .showcase-controls {
@@ -3154,10 +3130,16 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .showcase-controls {
+    padding: 8px !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+
   .controls-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 6px !important;
   }
 
   .controls-row--primary {
@@ -3172,6 +3154,16 @@ onMounted(() => {
   .right-actions-group {
     justify-content: space-between;
     flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  .type-strip button,
+  .sort-strip button,
+  .scope-strip button,
+  .smart-filter-strip button {
+    height: 24px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
   }
 
   .detail-drawer {
@@ -3249,6 +3241,8 @@ onMounted(() => {
   .results-head {
     align-items: stretch;
     flex-direction: column;
+    margin-top: 8px !important;
+    padding: 6px 10px !important;
   }
 
   .results-actions {

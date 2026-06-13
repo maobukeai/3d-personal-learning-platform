@@ -286,7 +286,7 @@ onUnmounted(() => {
 
     <!-- Top Navigation Bar -->
     <header
-      class="topbar h-14 flex items-center justify-between px-3 md:px-4 shrink-0 z-30 glass-header"
+      class="topbar h-12 lg:h-14 flex items-center justify-between px-3 md:px-4 shrink-0 z-30 glass-header"
     >
       <!-- Left: Brand Logo + Brand Name & Workspace Switcher -->
       <div class="flex items-center gap-2.5 min-w-0 lg:w-[260px] xl:w-[280px] shrink-0">
@@ -613,10 +613,10 @@ onUnmounted(() => {
 
 @media (max-width: 1023px) {
   .mobile-main-content {
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(3.25rem + env(safe-area-inset-bottom)) !important;
   }
   .mobile-bottom-nav {
-    height: calc(4rem + env(safe-area-inset-bottom)) !important;
+    height: calc(3.25rem + env(safe-area-inset-bottom)) !important;
     padding-bottom: env(safe-area-inset-bottom) !important;
   }
 }

@@ -20,7 +20,9 @@ import {
   Search,
   Download,
   Upload,
-  ArrowLeft
+  ArrowLeft,
+  Settings,
+  GripVertical
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -33,6 +35,7 @@ interface GoogleAccount {
   twoFASecret?: string;
   country?: string;
   note?: string;
+  category?: string;
   status: 'warming' | 'completed' | 'paused';
   currentDay: number;
   lastWarmedAt?: string;
@@ -55,6 +58,7 @@ const parsedAccounts = ref<Array<Partial<GoogleAccount>>>([]);
 // Edit account modal
 const isEditDialogVisible = ref<boolean>(false);
 const editingAccount = ref<Partial<GoogleAccount>>({});
+const isCategoryManagerVisible = ref<boolean>(false);
 
 // Search and status filters
 const searchQuery = ref<string>('');
@@ -62,6 +66,155 @@ const statusFilter = ref<'all' | 'warming' | 'completed' | 'paused'>('all');
 
 // Batch selection
 const selectedAccountIds = ref<string[]>([]);
+
+// Tabs & Categories
+const activeTab = ref<'warming' | 'manage'>('warming');
+const selectedCategory = ref<string>('all');
+const categoriesListBackend = ref<string[]>([]);
+const newCategoryName = ref<string>('');
+
+// Compute categories list dynamically
+const categoriesList = computed(() => {
+  const cats = new Set<string>(categoriesListBackend.value);
+  accounts.value.forEach(a => {
+    if (a.category && a.category !== '未分类') {
+      cats.add(a.category);
+    }
+  });
+  const list = Array.from(cats).filter(c => c !== '未分类' && c.trim() !== '');
+  return ['all', '未分类', ...list];
+});
+
+const fetchCategories = async () => {
+  try {
+    const res = await api.get('/api/google-warming/accounts/categories');
+    if (res.data && res.data.categories) {
+      categoriesListBackend.value = res.data.categories;
+    }
+  } catch (e: any) {
+    console.error('获取分类列表失败:', e);
+  }
+};
+
+const handleAddCategory = async () => {
+  if (!newCategoryName.value.trim()) {
+    ElMessage.warning('请输入分类名称');
+    return;
+  }
+  const cat = newCategoryName.value.trim();
+  if (cat === '未分类' || cat === 'all') {
+    ElMessage.warning('无效的分类名称');
+    return;
+  }
+  if (categoriesList.value.includes(cat)) {
+    ElMessage.warning('分类已存在');
+    return;
+  }
+  try {
+    isLoading.value = true;
+    const res = await api.post('/api/google-warming/accounts/categories/add', {
+      category: cat
+    });
+    if (res.data && res.data.success) {
+      ElMessage.success(`添加分类「${cat}」成功！`);
+      newCategoryName.value = '';
+      await fetchCategories();
+    }
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '添加分类失败'));
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Category count helper
+const getCategoryCount = (category: string) => {
+  if (category === 'all') return accounts.value.length;
+  if (category === '未分类') {
+    return accounts.value.filter(a => !a.category || a.category === '未分类').length;
+  }
+  return accounts.value.filter(a => a.category === category).length;
+};
+
+// Filtered and categorized accounts for the management table
+const filteredAndCategorizedAccounts = computed(() => {
+  return accounts.value.filter(acc => {
+    // Search query filter
+    const query = searchQuery.value.trim().toLowerCase();
+    const matchQuery = !query ||
+      acc.email.toLowerCase().includes(query) ||
+      (acc.note && acc.note.toLowerCase().includes(query)) ||
+      (acc.country && acc.country.toLowerCase().includes(query)) ||
+      (acc.category && acc.category.toLowerCase().includes(query));
+
+    // Category filter
+    let matchCategory = true;
+    if (selectedCategory.value === '未分类') {
+      matchCategory = !acc.category || acc.category === '未分类';
+    } else if (selectedCategory.value !== 'all') {
+      matchCategory = acc.category === selectedCategory.value;
+    }
+
+    return matchQuery && matchCategory;
+  });
+});
+
+// selection handler for el-table
+const handleSelectionChange = (selection: GoogleAccount[]) => {
+  selectedAccountIds.value = selection.map(item => item.id);
+};
+
+// Drag & Drop account categorization
+const draggedAccount = ref<GoogleAccount | null>(null);
+const draggingOverCategory = ref<string | null>(null);
+
+const handleDragStart = (event: DragEvent, row: GoogleAccount) => {
+  draggedAccount.value = row;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', row.id);
+  }
+};
+
+const handleDragEnter = (category: string) => {
+  draggingOverCategory.value = category;
+};
+
+const handleDragLeave = () => {
+  draggingOverCategory.value = null;
+};
+
+const handleDrop = async (event: DragEvent, targetCategory: string) => {
+  event.preventDefault();
+  draggingOverCategory.value = null;
+
+  const row = draggedAccount.value;
+  if (!row) return;
+
+  const actualCategory = targetCategory === 'all' ? '未分类' : targetCategory;
+
+  // Determine if we should perform a batch drop or single drop
+  const isBatch = selectedAccountIds.value.includes(row.id);
+  const targetIds = isBatch ? selectedAccountIds.value : [row.id];
+
+  try {
+    isLoading.value = true;
+    const res = await api.post('/api/google-warming/accounts/batch-category', {
+      ids: targetIds,
+      category: actualCategory
+    });
+    if (res.data && res.data.success) {
+      ElMessage.success(`成功移动 ${isBatch ? targetIds.length : 1} 个账号至分类「${actualCategory}」`);
+      selectedAccountIds.value = [];
+      await fetchAccounts();
+    }
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '移动账号分类失败'));
+  } finally {
+    isLoading.value = false;
+    draggedAccount.value = null;
+  }
+};
 
 // Compute selected account
 const selectedAccount = computed(() => {
@@ -112,10 +265,12 @@ const dayChecklist = ref<{ [key: string]: boolean }>({
 
 // Fetch accounts on mount
 onMounted(async () => {
+  await fetchCategories();
   await fetchAccounts();
   if (filteredAccounts.value.length > 0) {
     selectAccount(filteredAccounts.value[0].id);
   }
+  startTotpTimer();
 });
 
 const fetchAccounts = async () => {
@@ -123,6 +278,7 @@ const fetchAccounts = async () => {
   try {
     const res = await api.get('/api/google-warming/accounts');
     accounts.value = res.data || [];
+    await fetchCategories();
   } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, t('tools.googleWarming.fetch_accounts_failed')));
   } finally {
@@ -316,13 +472,16 @@ const handleStandardParse = () => {
     const parts = line.split(bestDelimiter).map(p => p.trim());
     if (parts.length < 2) continue;
 
+    const isSevenParts = parts.length >= 7;
     tempParsed.push({
       email: parts[0] || '',
       password: parts[1] || '',
       recoveryEmail: parts[2] || '',
       twoFASecret: parts[3] || '',
       country: parts[4] || '',
-      note: parts[5] || '',
+      category: isSevenParts ? (parts[5] || '未分类') : '未分类',
+      note: isSevenParts ? (parts[6] || '') : (parts[5] || ''),
+      status: 'warming',
       currentDay: 1
     });
   }
@@ -348,6 +507,8 @@ const handleAiParse = async () => {
     if (res.data && res.data.accounts) {
       parsedAccounts.value = res.data.accounts.map((acc: any) => ({
         ...acc,
+        category: acc.category || '未分类',
+        status: acc.status || 'warming',
         currentDay: 1
       }));
       ElMessage.success(`AI 智能解析成功，提取出 ${parsedAccounts.value.length} 个账号`);
@@ -440,6 +601,107 @@ const saveAccountEdit = async () => {
   } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, '保存失败'));
   }
+};
+
+// Inline category editing helpers
+const handleInlineCategory = async (row: GoogleAccount, cmd: string) => {
+  if (cmd === 'custom-new-category') {
+    ElMessageBox.prompt('请输入新的分类名称', '修改分类', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请输入新分类名称...',
+      customClass: 'dark:bg-slate-900 border-none'
+    }).then(async ({ value }) => {
+      const newCat = value ? value.trim() : '未分类';
+      await updateAccountCategory(row, newCat);
+    }).catch(() => {});
+  } else {
+    await updateAccountCategory(row, cmd);
+  }
+};
+
+const updateAccountCategory = async (row: GoogleAccount, category: string) => {
+  try {
+    isLoading.value = true;
+    const res = await api.put(`/api/google-warming/accounts/${row.id}`, {
+      ...row,
+      category
+    });
+    if (res.data) {
+      const idx = accounts.value.findIndex(a => a.id === row.id);
+      if (idx > -1) {
+        accounts.value[idx] = res.data;
+      }
+      ElMessage.success(`已将该账号分类修改为「${category}」`);
+    }
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '修改分类失败'));
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Category Management (Rename & Delete)
+const handleRenameCategory = async (oldCat: string) => {
+  ElMessageBox.prompt(`请输入「${oldCat}」的新分类名称`, '重命名分类', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPlaceholder: '新分类名称...',
+    inputValue: oldCat,
+    customClass: 'dark:bg-slate-900 border-none'
+  }).then(async ({ value }) => {
+    const newCat = value ? value.trim() : '未分类';
+    if (newCat === oldCat) return;
+    try {
+      isLoading.value = true;
+      const res = await api.post('/api/google-warming/accounts/category/rename', {
+        oldCategory: oldCat,
+        newCategory: newCat
+      });
+      if (res.data && res.data.success) {
+        ElMessage.success(`重命名分类成功！已更新 ${res.data.count} 个账号。`);
+        if (selectedCategory.value === oldCat) {
+          selectedCategory.value = newCat;
+        }
+        await fetchAccounts();
+      }
+    } catch (e: any) {
+      ElMessage.error(getApiErrorMessage(e, '重命名分类失败'));
+    } finally {
+      isLoading.value = false;
+    }
+  }).catch(() => {});
+};
+
+const handleDeleteCategory = async (cat: string) => {
+  ElMessageBox.confirm(
+    `确定要删除分类「${cat}」吗？该分类下的所有账号将变回「未分类」。`,
+    '删除分类',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+      customClass: 'dark:bg-slate-900 border-none'
+    }
+  ).then(async () => {
+    try {
+      isLoading.value = true;
+      const res = await api.post('/api/google-warming/accounts/category/delete', {
+        category: cat
+      });
+      if (res.data && res.data.success) {
+        ElMessage.success(`删除分类成功！已重置 ${res.data.count} 个账号至「未分类」。`);
+        if (selectedCategory.value === cat) {
+          selectedCategory.value = 'all';
+        }
+        await fetchAccounts();
+      }
+    } catch (e: any) {
+      ElMessage.error(getApiErrorMessage(e, '删除分类失败'));
+    } finally {
+      isLoading.value = false;
+    }
+  }).catch(() => {});
 };
 
 // Delete account
@@ -832,83 +1094,106 @@ async function handleImportFile(event: Event) {
     <div class="w-full space-y-3">
       
       <!-- Top header (compact) -->
-      <div class="gw-header !py-2">
-        <div class="flex flex-col gap-1">
-          <div>
-            <h1 class="gw-title !text-base">
+      <div class="gw-header !py-2 !mb-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 border-b border-slate-200 dark:border-slate-800/80">
+        <div class="flex flex-col gap-0.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="gw-title !text-sm sm:!text-base font-bold">
               {{ t('tools.googleWarming.title') }}
             </h1>
-            <p class="gw-subtitle !text-[11px] !mt-0.5 line-clamp-1">
+            <span class="hidden sm:inline text-slate-300 dark:text-slate-700">|</span>
+            <p class="hidden sm:inline text-[10.5px] text-slate-500 max-w-md line-clamp-1">
               {{ t('tools.googleWarming.description') }}
             </p>
           </div>
           <!-- Integrated Recommended IP Checker Sites -->
-          <div class="flex flex-wrap items-center gap-1.5 text-[10px] mt-1">
-            <span class="text-slate-400 flex items-center gap-0.5 shrink-0">
-              <Shield class="w-3 h-3 text-violet-400" />
-              {{ t('tools.googleWarming.recommendedIpSites') }}：
+          <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] mt-0.5 text-slate-500">
+            <span class="flex items-center gap-0.5 shrink-0">
+              <Shield class="w-3 h-3 text-violet-500 dark:text-violet-400" />
+              <span>IP 检测:</span>
             </span>
-            <div class="flex flex-wrap items-center gap-1">
+            <template v-for="(site, idx) in ipSites" :key="site.name">
               <a
-                v-for="site in ipSites"
-                :key="site.name"
                 :href="site.url"
                 target="_blank"
                 :title="t(site.descKey)"
-                class="flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-slate-700/50 hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-400 transition-all text-slate-300"
+                class="hover:text-violet-500 dark:hover:text-violet-400 transition-all font-medium text-slate-650 dark:text-slate-300 flex items-center gap-0.5"
                 style="text-decoration: none"
               >
                 <span>{{ site.name }}</span>
                 <ExternalLink class="w-2.5 h-2.5 opacity-60" />
               </a>
-            </div>
+              <span v-if="idx < ipSites.length - 1" class="text-slate-300 dark:text-slate-700">•</span>
+            </template>
           </div>
         </div>
         
-        <div class="flex items-center gap-2 self-start md:self-center">
+        <div class="flex items-center justify-between sm:justify-end gap-1.5 w-full md:w-auto shrink-0 flex-wrap">
           <!-- Dev Test Mode toggle -->
-          <div class="gw-testmode-badge !text-[10px] !px-2 !py-1">
-            <span>测试连续打卡</span>
-            <input type="checkbox" v-model="testMode" class="w-3.5 h-3.5 accent-violet-500 cursor-pointer" />
+          <label class="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/40 text-[10px] font-semibold text-slate-600 dark:text-slate-350 cursor-pointer select-none">
+            <input type="checkbox" v-model="testMode" class="w-3 h-3 rounded accent-violet-500 cursor-pointer" />
+            <span>测试打卡</span>
+          </label>
+
+          <div class="flex items-center gap-1.5">
+            <!-- Export -->
+            <button
+              @click="handleExportAccounts"
+              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="导出全部账号为 JSON（包含密码、辅助邮箱、地区、状态等完整信息）"
+            >
+              <Download class="w-3 h-3" />
+              <span>导出</span>
+            </button>
+
+            <!-- Import -->
+            <button
+              @click="triggerImportFile"
+              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="从 JSON 备份文件导入，完整还原所有字段"
+            >
+              <Upload class="w-3 h-3" />
+              <span>导入</span>
+            </button>
+            <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="handleImportFile" />
+
+            <!-- Add account -->
+            <button
+              @click="isImporting = true"
+              class="bg-violet-600 hover:bg-violet-500 border-none font-semibold px-2.5 py-1.5 rounded transition-all flex items-center gap-0.5 cursor-pointer text-[11px] text-white"
+            >
+              <Plus class="w-3 h-3" />
+              <span>{{ t('tools.googleWarming.addAccount') }}</span>
+            </button>
           </div>
-
-          <!-- Export -->
-          <button
-            @click="handleExportAccounts"
-            class="gw-btn-secondary !py-1.5 !px-2.5 !text-[11px] flex items-center gap-1 cursor-pointer"
-            title="导出全部账号为 JSON（包含密码、辅助邮箱、地区、状态等完整信息）"
-          >
-            <Download class="w-3.5 h-3.5" />
-            <span>导出数据 (JSON)</span>
-          </button>
-
-          <!-- Import -->
-          <button
-            @click="triggerImportFile"
-            class="gw-btn-secondary !py-1.5 !px-2.5 !text-[11px] flex items-center gap-1 cursor-pointer"
-            title="从 JSON 备份文件导入，完整还原所有字段"
-          >
-            <Upload class="w-3.5 h-3.5" />
-            <span>导入数据</span>
-          </button>
-          <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="handleImportFile" />
-
-          <!-- Add account -->
-          <button
-            @click="isImporting = true"
-            class="gw-btn-primary !py-1.5 !px-3 !text-[11px]"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            {{ t('tools.googleWarming.addAccount') }}
-          </button>
         </div>
       </div>
 
-
-
+      <!-- Tab Switcher -->
+      <div class="flex border-b border-slate-200 dark:border-slate-800/80 mb-2 gap-1">
+        <button
+          @click="activeTab = 'warming'"
+          :class="[
+            'px-3 py-1.5 border-b-2 font-medium text-xs transition-all cursor-pointer flex items-center gap-1.5',
+            activeTab === 'warming' ? 'border-violet-500 text-violet-600 dark:text-violet-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          ]"
+        >
+          <Calendar class="w-3.5 h-3.5" />
+          <span>{{ t('tools.googleWarming.tabWarmingWorkspace') }}</span>
+        </button>
+        <button
+          @click="activeTab = 'manage'"
+          :class="[
+            'px-3 py-1.5 border-b-2 font-medium text-xs transition-all cursor-pointer flex items-center gap-1.5',
+            activeTab === 'manage' ? 'border-violet-500 text-violet-600 dark:text-violet-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          ]"
+        >
+          <Shield class="w-3.5 h-3.5" />
+          <span>{{ t('tools.googleWarming.tabAccountManage') }}</span>
+        </button>
+      </div>
 
       <!-- Main Section: Left list, Right tracker -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
+      <div v-if="activeTab === 'warming'" class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
         
         <!-- Left: Account List -->
         <div
@@ -947,7 +1232,7 @@ async function handleImportFile(event: Event) {
                 'flex-1 py-1 rounded-md font-medium transition-all text-center cursor-pointer',
                 statusFilter === status
                   ? 'bg-violet-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               ]"
             >
               {{ status === 'all' ? t('tools.googleWarming.statusAll') : getStatusLabel(status) }}
@@ -956,7 +1241,7 @@ async function handleImportFile(event: Event) {
 
           <!-- Batch toolbar -->
           <div v-if="filteredAccounts.length > 0" class="flex items-center justify-between text-[11px]">
-            <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 select-none">
+            <label class="flex items-center gap-1.5 cursor-pointer text-slate-500 dark:text-slate-400 select-none">
               <input
                 type="checkbox"
                 :checked="isAllSelected"
@@ -971,19 +1256,19 @@ async function handleImportFile(event: Event) {
                 :class="[
                   'px-2 py-1 rounded border font-medium transition-all flex items-center gap-1 text-[10px] cursor-pointer',
                   selectedAccountIds.length > 0
-                    ? 'bg-violet-600/10 border-violet-500/30 text-violet-400 hover:bg-violet-600/20'
-                    : 'border-slate-800 text-slate-500 cursor-not-allowed'
+                    ? 'bg-violet-600/10 border-violet-500/30 text-violet-700 dark:text-violet-400 hover:bg-violet-600/20'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-500 cursor-not-allowed'
                 ]"
               >
                 {{ t('tools.googleWarming.batchActions') }}
               </button>
               <template #dropdown>
                 <el-dropdown-menu class="dark:bg-slate-900 border-none">
-                  <el-dropdown-item command="warm" class="hover:bg-slate-800 text-slate-200">一键打卡</el-dropdown-item>
-                  <el-dropdown-item command="status-warming" class="hover:bg-slate-800 text-slate-200">设为 养号中</el-dropdown-item>
-                  <el-dropdown-item command="status-paused" class="hover:bg-slate-800 text-slate-200">设为 已暂停</el-dropdown-item>
-                  <el-dropdown-item command="status-completed" class="hover:bg-slate-800 text-slate-200">设为 已毕业</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided class="hover:bg-slate-800 text-red-400">批量删除</el-dropdown-item>
+                  <el-dropdown-item command="warm" class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">一键打卡</el-dropdown-item>
+                  <el-dropdown-item command="status-warming" class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 养号中</el-dropdown-item>
+                  <el-dropdown-item command="status-paused" class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 已暂停</el-dropdown-item>
+                  <el-dropdown-item command="status-completed" class="text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 已毕业</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided class="text-red-650 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800">批量删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -1034,11 +1319,11 @@ async function handleImportFile(event: Event) {
                 <div class="flex-1"></div>
                 <!-- 2FA pill -->
                 <span v-if="acc.twoFASecret && listTotpCodes[acc.id]" class="flex items-center gap-1 shrink-0">
-                  <span class="font-mono text-[11px] text-violet-400 font-bold tracking-widest">{{ listTotpCodes[acc.id].code.slice(0, 3) }} {{ listTotpCodes[acc.id].code.slice(3) }}</span>
+                  <span class="font-mono text-[11px] text-violet-600 dark:text-violet-400 font-bold tracking-widest">{{ listTotpCodes[acc.id].code.slice(0, 3) }} {{ listTotpCodes[acc.id].code.slice(3) }}</span>
                   <span class="text-[9px] font-mono" style="color: var(--text-muted)">{{ listTotpCodes[acc.id].timeLeft }}s</span>
                   <button
                     @click.stop="copyText(listTotpCodes[acc.id].code, '验证码已复制')"
-                    class="opacity-0 group-hover/item:opacity-100 hover:text-violet-400 p-0.5 transition-all text-slate-400 cursor-pointer"
+                    class="opacity-0 group-hover/item:opacity-100 hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-all text-slate-500 dark:text-slate-400 cursor-pointer"
                     title="复制验证码"
                   >
                     <Copy class="w-2.5 h-2.5" />
@@ -1072,7 +1357,7 @@ async function handleImportFile(event: Event) {
             <!-- Mobile back button in empty state -->
             <button
               @click="activeMobileView = 'list'"
-              class="lg:hidden flex items-center gap-1 text-xs font-semibold text-violet-400 py-1.5 px-3 rounded-lg border border-violet-500/20 bg-violet-500/5 mb-4 cursor-pointer"
+              class="lg:hidden flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-400 py-1.5 px-3 rounded-lg border border-violet-500/30 dark:border-violet-500/20 bg-violet-500/10 dark:bg-violet-500/5 mb-4 cursor-pointer"
             >
               <ArrowLeft class="w-3.5 h-3.5" />
               返回账号列表
@@ -1088,7 +1373,7 @@ async function handleImportFile(event: Event) {
             <div class="lg:hidden flex items-center justify-between mb-2">
               <button
                 @click="activeMobileView = 'list'"
-                class="flex items-center gap-1 text-xs font-semibold text-violet-400 hover:text-violet-300 py-1 px-2.5 rounded-lg border border-violet-500/20 bg-violet-500/5 transition-all cursor-pointer"
+                class="flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 py-1 px-2.5 rounded-lg border border-violet-500/30 dark:border-violet-500/20 bg-violet-500/10 dark:bg-violet-500/5 transition-all cursor-pointer"
               >
                 <ArrowLeft class="w-3.5 h-3.5" />
                 返回账号列表
@@ -1110,29 +1395,29 @@ async function handleImportFile(event: Event) {
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]" style="color: var(--text-secondary)">
                   <span v-if="selectedAccount.password" class="flex items-center gap-1">
                     密码: <code class="gw-code">{{ selectedAccount.password }}</code>
-                    <button @click="copyText(selectedAccount.password, '密码已复制')" class="hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制密码"><Copy class="w-3 h-3" /></button>
+                    <button @click="copyText(selectedAccount.password, '密码已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制密码"><Copy class="w-3 h-3" /></button>
                   </span>
                   <span v-if="selectedAccount.recoveryEmail" class="flex items-center gap-1">
                     辅助邮箱: <code class="gw-code">{{ selectedAccount.recoveryEmail }}</code>
-                    <button @click="copyText(selectedAccount.recoveryEmail, '辅助邮箱已复制')" class="hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制辅助邮箱"><Copy class="w-3 h-3" /></button>
+                    <button @click="copyText(selectedAccount.recoveryEmail, '辅助邮箱已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制辅助邮箱"><Copy class="w-3 h-3" /></button>
                   </span>
                   <span v-if="selectedAccount.country">地区: {{ selectedAccount.country }}</span>
                   <span v-if="selectedAccount.twoFASecret" class="flex items-center gap-1">
                     2FA密钥: <code class="gw-code truncate max-w-[100px]" :title="selectedAccount.twoFASecret">{{ selectedAccount.twoFASecret }}</code>
-                    <button @click="copyText(selectedAccount.twoFASecret, '2FA密钥已复制')" class="hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制2FA密钥"><Copy class="w-3 h-3" /></button>
+                    <button @click="copyText(selectedAccount.twoFASecret, '2FA密钥已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制2FA密钥"><Copy class="w-3 h-3" /></button>
                   </span>
                 </div>
               </div>
 
               <!-- Middle: 2FA live code (if present) -->
               <div v-if="selectedAccount.twoFASecret && currentTotpCode" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl shrink-0" style="background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.15)">
-                <Key class="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                <Key class="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 shrink-0" />
                 <div class="flex items-baseline gap-1.5">
-                  <span class="text-base font-mono font-bold tracking-widest text-violet-400">{{ currentTotpCode.slice(0, 3) }} {{ currentTotpCode.slice(3) }}</span>
-                  <button @click="copyText(currentTotpCode, '验证码已复制')" class="p-0.5 hover:text-violet-400 text-slate-400 transition-colors cursor-pointer" title="复制验证码"><Copy class="w-3 h-3" /></button>
+                  <span class="text-base font-mono font-bold tracking-widest text-violet-700 dark:text-violet-400">{{ currentTotpCode.slice(0, 3) }} {{ currentTotpCode.slice(3) }}</span>
+                  <button @click="copyText(currentTotpCode, '验证码已复制')" class="p-0.5 text-slate-500 hover:text-violet-600 dark:text-slate-400 dark:hover:text-violet-400 transition-colors cursor-pointer" title="复制验证码"><Copy class="w-3 h-3" /></button>
                 </div>
                 <div class="flex items-center gap-1.5 border-l border-violet-500/20 pl-2.5">
-                  <span class="text-[10px] font-mono text-violet-400 font-semibold">{{ totpTimeLeft }}s</span>
+                  <span class="text-[10px] font-mono text-violet-600 dark:text-violet-400 font-semibold">{{ totpTimeLeft }}s</span>
                   <div class="w-5 h-5 rounded-full relative" style="border: 1.5px solid rgba(139,92,246,0.3)">
                     <svg class="w-full h-full transform -rotate-90 absolute inset-0">
                       <circle cx="10" cy="10" r="8" stroke="currentColor" class="text-violet-500" stroke-width="2" fill="transparent"
@@ -1268,6 +1553,269 @@ async function handleImportFile(event: Event) {
 
       </div>
 
+      <!-- Account Management View -->
+      <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-6 items-start">
+        <!-- Sidebar: Categories -->
+        <div class="lg:col-span-3 gw-card !p-2 sm:!p-3 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch justify-between lg:justify-start gap-2.5 max-h-[800px] w-full">
+          <div class="flex flex-row lg:flex-row items-center lg:justify-between justify-start pb-0 lg:pb-2 border-b-0 lg:border-b border-slate-200 dark:border-slate-800 shrink-0 gap-1.5 lg:w-full">
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+              <Shield class="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+              <span class="hidden sm:inline lg:inline">{{ t('tools.googleWarming.category') }}</span>
+            </span>
+            <button 
+              @click="isCategoryManagerVisible = true" 
+              class="text-[10px] text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-1"
+              title="管理分类"
+            >
+              <Settings class="w-3 h-3" />
+              <span>管理</span>
+            </button>
+          </div>
+
+          <div class="flex lg:flex-col flex-row overflow-x-auto lg:overflow-x-visible no-scrollbar lg:overflow-y-auto gap-1.5 flex-1 w-full pb-0.5 lg:pb-0 select-none">
+            <button
+              v-for="cat in categoriesList"
+              :key="cat"
+              @click="selectedCategory = cat"
+              @dragover.prevent
+              @dragenter="handleDragEnter(cat)"
+              @dragleave="handleDragLeave"
+              @drop="handleDrop($event, cat)"
+              :class="[
+                'flex items-center justify-between px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer border w-auto lg:w-full shrink-0 lg:shrink',
+                selectedCategory === cat
+                  ? 'bg-violet-600/10 dark:bg-violet-600/15 border-violet-500/30 dark:border-violet-500/40 text-violet-700 dark:text-violet-300 font-semibold shadow-sm'
+                  : (draggingOverCategory === cat
+                     ? 'bg-indigo-600/15 border-indigo-500 text-indigo-600 dark:text-indigo-300 scale-[1.02] shadow-sm font-semibold'
+                     : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/40')
+              ]"
+            >
+              <span class="truncate max-w-[100px] lg:max-w-none">{{ cat === 'all' ? t('tools.googleWarming.allCategories') : (cat === '未分类' ? t('tools.googleWarming.uncategorized') : cat) }}</span>
+              <span 
+                :class="[
+                  'px-1.5 py-0.5 rounded text-[10px] transition-all font-mono ml-1.5 lg:ml-0',
+                  selectedCategory === cat 
+                    ? 'bg-violet-500/20 dark:bg-violet-500/30 text-violet-850 dark:text-violet-200' 
+                    : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                ]"
+              >
+                {{ getCategoryCount(cat) }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Account Table -->
+        <div class="lg:col-span-9 gw-card !p-3 sm:!p-4 flex flex-col gap-3 min-h-[500px]">
+          <!-- Actions & Search -->
+          <div class="flex flex-wrap gap-2 items-center justify-between min-h-[32px]">
+            <!-- Batch Actions (visible only when selectedAccountIds.length > 0) -->
+            <transition name="el-zoom-in-top">
+              <div v-if="selectedAccountIds.length > 0" class="flex flex-wrap gap-1.5 items-center">
+                <span class="text-[11px] text-slate-500 dark:text-slate-400 mr-1">已选择 {{ selectedAccountIds.length }} 个:</span>
+                
+                <!-- Batch change status dropdown -->
+                <el-dropdown trigger="click" @command="handleBatchStatus">
+                  <button
+                    class="gw-btn-secondary !py-1 !px-2 !text-[10.5px] flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <span>修改状态</span>
+                    <ExternalLink class="w-3 h-3 opacity-60" />
+                  </button>
+                  <template #dropdown>
+                    <el-dropdown-menu class="dark:bg-slate-900 dark:border-slate-800">
+                      <el-dropdown-item command="warming" class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 养号中</el-dropdown-item>
+                      <el-dropdown-item command="paused" class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 已暂停</el-dropdown-item>
+                      <el-dropdown-item command="completed" class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 已毕业</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+
+                <!-- Batch delete button -->
+                <button
+                  @click="handleBatchDelete"
+                  class="gw-btn-secondary !py-1 !px-2 !text-[10.5px] !border-red-500/20 flex items-center gap-0.5 cursor-pointer hover:!bg-red-500/10 hover:!text-red-400"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                  <span>删除</span>
+                </button>
+              </div>
+            </transition>
+
+            <!-- Search (always visible) -->
+            <div class="relative w-full sm:w-64" :class="{ 'sm:ml-auto': selectedAccountIds.length === 0 }">
+              <input
+                v-model="searchQuery"
+                type="text"
+                :placeholder="t('tools.googleWarming.searchPlaceholder')"
+                class="gw-input !py-1 !text-xs !pl-8"
+              />
+              <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <!-- Table Wrapper -->
+          <div class="overflow-x-auto border rounded-xl" style="border-color: var(--border-base); background: var(--bg-card)">
+            <el-table
+              v-loading="isLoading"
+              :data="filteredAndCategorizedAccounts"
+              @selection-change="handleSelectionChange"
+              style="width: 100%;"
+              class="custom-el-table !text-xs"
+            >
+              <el-table-column type="selection" width="45" align="center" />
+              
+              <!-- Email -->
+              <el-table-column label="邮箱账号" min-width="210">
+                <template #default="{ row }">
+                  <div 
+                    draggable="true" 
+                    @dragstart="handleDragStart($event, row)"
+                    class="flex items-center gap-1.5 cursor-grab active:cursor-grabbing hover:bg-slate-500/5 p-1 rounded transition-all"
+                    title="可拖拽该账号至左侧分类"
+                  >
+                    <GripVertical class="w-3.5 h-3.5 opacity-40 shrink-0 cursor-grab active:cursor-grabbing" style="color: var(--text-muted)" />
+                    <span class="font-medium truncate max-w-[160px]" style="color: var(--text-primary)" :title="row.email">{{ row.email }}</span>
+                    <button @click.stop="copyText(row.email)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制邮箱">
+                      <Copy class="w-3.5 h-3.5" />
+                    </button>
+                    <!-- 2FA indicator if present -->
+                    <el-popover v-if="row.twoFASecret" trigger="click" width="220" placement="top" class="dark:bg-slate-900">
+                      <template #reference>
+                        <button @click.stop class="text-indigo-500 hover:text-indigo-400 p-0.5" title="点击获取2FA验证码">
+                          <Key class="w-3.5 h-3.5" />
+                        </button>
+                      </template>
+                      <div class="p-2 space-y-2 text-xs">
+                        <p class="font-bold text-slate-700 dark:text-slate-200">2FA 实时动态密码</p>
+                        <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-950/50 p-2 rounded border border-slate-200 dark:border-slate-800">
+                          <span class="font-mono text-base font-bold text-indigo-400">
+                            {{ listTotpCodes[row.id]?.code || '------' }}
+                          </span>
+                          <span class="text-[10px] text-slate-500">
+                            {{ listTotpCodes[row.id]?.timeLeft || 30 }}s
+                          </span>
+                        </div>
+                      </div>
+                    </el-popover>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- Password -->
+              <el-table-column label="密码" width="100">
+                <template #default="{ row }">
+                  <div class="flex items-center gap-1 justify-between">
+                    <span class="font-mono truncate max-w-[70px]" style="color: var(--text-muted)">******</span>
+                    <button @click="copyText(row.password)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制密码">
+                      <Copy class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- Recovery Email -->
+              <el-table-column label="辅助邮箱" width="160">
+                <template #default="{ row }">
+                  <div v-if="row.recoveryEmail" class="flex items-center gap-1 justify-between">
+                    <span class="truncate max-w-[120px]" style="color: var(--text-secondary)" :title="row.recoveryEmail">{{ row.recoveryEmail }}</span>
+                    <button @click="copyText(row.recoveryEmail)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制辅助邮箱">
+                      <Copy class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span v-else style="color: var(--text-muted)">-</span>
+                </template>
+              </el-table-column>
+
+              <!-- Region/Country -->
+              <el-table-column label="地区" width="110" align="center">
+                <template #default="{ row }">
+                  <span style="color: var(--text-primary)">{{ row.country || '-' }}</span>
+                </template>
+              </el-table-column>
+
+              <!-- Status -->
+              <el-table-column label="状态" width="120" align="center">
+                <template #default="{ row }">
+                  <span
+                    v-if="row.status === 'warming'"
+                    class="px-1.5 py-0.5 rounded text-[10px] bg-violet-500/10 text-violet-500 border border-violet-500/20"
+                  >
+                    {{ t('tools.googleWarming.statusWarming') }} (D{{ row.currentDay }})
+                  </span>
+                  <span
+                    v-else-if="row.status === 'completed'"
+                    class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                  >
+                    {{ t('tools.googleWarming.statusCompleted') }}
+                  </span>
+                  <span
+                    v-else
+                    class="px-1.5 py-0.5 rounded text-[10px] bg-slate-500/10 text-slate-500 border border-slate-500/20"
+                  >
+                    {{ t('tools.googleWarming.statusPaused') }}
+                  </span>
+                </template>
+              </el-table-column>
+
+              <!-- Category -->
+              <el-table-column label="分类" width="100">
+                <template #default="{ row }">
+                  <el-dropdown trigger="click" @command="(cmd) => handleInlineCategory(row, cmd)">
+                    <span
+                      class="px-2 py-0.5 rounded text-[10px] font-medium inline-block max-w-[90px] truncate border cursor-pointer hover:opacity-80 transition-opacity"
+                      :style="row.category && row.category !== '未分类' 
+                        ? 'background: rgba(99, 102, 241, 0.1); color: #6366f1; border-color: rgba(99, 102, 241, 0.2);' 
+                        : 'background: var(--bg-app); color: var(--text-muted); border-color: var(--border-base);'"
+                      :title="row.category || '未分类'"
+                    >
+                      {{ row.category || '未分类' }}
+                    </span>
+                    <template #dropdown>
+                      <el-dropdown-menu class="dark:bg-slate-900 dark:border-slate-800">
+                        <el-dropdown-item 
+                          v-for="cat in categoriesList.filter(c => c !== 'all')" 
+                          :key="cat" 
+                          :command="cat"
+                          class="text-xs hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                          :disabled="row.category === cat || (!row.category && cat === '未分类')"
+                        >
+                          {{ cat === '未分类' ? t('tools.googleWarming.uncategorized') : cat }}
+                        </el-dropdown-item>
+                        <el-dropdown-item divided command="custom-new-category" class="text-xs hover:bg-slate-800 text-slate-700 dark:text-slate-200">
+                          自定义新分类...
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </template>
+              </el-table-column>
+
+              <!-- Note -->
+              <el-table-column label="备注" min-width="110">
+                <template #default="{ row }">
+                  <span class="truncate max-w-[150px] inline-block" style="color: var(--text-muted)" :title="row.note">{{ row.note || '-' }}</span>
+                </template>
+              </el-table-column>
+
+              <!-- Actions -->
+              <el-table-column label="操作" width="90" align="right">
+                <template #default="{ row }">
+                  <div class="flex items-center justify-end gap-1">
+                    <button @click="startEditAccount(row)" class="hover:text-violet-600 dark:hover:text-violet-400 p-1 transition-colors cursor-pointer" style="color: var(--text-muted)">
+                      <Edit class="w-3.5 h-3.5" />
+                    </button>
+                    <button @click="deleteAccount(row)" class="hover:text-red-600 dark:hover:text-red-400 p-1 transition-colors cursor-pointer" style="color: var(--text-muted)">
+                      <Trash2 class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
       <!-- Bulk Import dialog -->
       <el-dialog
         v-model="isImporting"
@@ -1300,7 +1848,7 @@ async function handleImportFile(event: Event) {
               <button
                 @click="handleAiParse"
                 :disabled="isAiParsing"
-                class="flex items-center gap-1.5 bg-gradient-to-r from-violet-600/30 to-indigo-600/30 hover:from-violet-600/50 hover:to-indigo-600/50 text-violet-400 text-xs px-3.5 py-2 rounded-lg border border-violet-500/20 transition-all cursor-pointer"
+                class="flex items-center gap-1.5 bg-gradient-to-r from-violet-600/10 to-indigo-600/10 dark:from-violet-600/30 dark:to-indigo-600/30 hover:from-violet-600/20 hover:to-indigo-600/20 dark:hover:from-violet-600/50 dark:hover:to-indigo-600/50 text-violet-700 dark:text-violet-400 text-xs px-3.5 py-2 rounded-lg border border-violet-500/30 dark:border-violet-500/20 transition-all cursor-pointer"
               >
                 <Sparkles class="w-3.5 h-3.5" :class="{'animate-pulse': isAiParsing}" />
                 {{ t('tools.googleWarming.aiParseBtn') }}
@@ -1329,6 +1877,8 @@ async function handleImportFile(event: Event) {
                     <th class="p-3">辅助邮箱</th>
                     <th class="p-3">2FA密钥</th>
                     <th class="p-3">国家</th>
+                    <th class="p-3">分类</th>
+                    <th class="p-3">状态</th>
                     <th class="p-3">备注</th>
                     <th class="p-3 text-right">操作</th>
                   </tr>
@@ -1340,6 +1890,14 @@ async function handleImportFile(event: Event) {
                     <td class="p-2"><input v-model="acc.recoveryEmail" class="gw-table-input" /></td>
                     <td class="p-2"><input v-model="acc.twoFASecret" class="gw-table-input" /></td>
                     <td class="p-2"><input v-model="acc.country" class="gw-table-input" /></td>
+                    <td class="p-2"><input v-model="acc.category" class="gw-table-input" placeholder="未分类" /></td>
+                    <td class="p-2">
+                      <select v-model="acc.status" class="gw-table-input cursor-pointer" style="background: var(--bg-app); border: 1px solid var(--border-base); border-radius: 4px; padding: 2px 4px; font-size: 11px;">
+                        <option value="warming">养号中</option>
+                        <option value="completed">已毕业</option>
+                        <option value="paused">已暂停</option>
+                      </select>
+                    </td>
                     <td class="p-2"><input v-model="acc.note" class="gw-table-input" /></td>
                     <td class="p-2 text-right">
                       <button @click="parsedAccounts.splice(idx, 1)" class="text-red-400 hover:text-red-300 p-1 transition-colors cursor-pointer">
@@ -1403,7 +1961,7 @@ async function handleImportFile(event: Event) {
             <input v-model="editingAccount.twoFASecret" type="text" class="gw-input !py-1.5 !text-xs font-mono" />
           </div>
 
-          <!-- Country + CurrentDay + Status + Note (2×2 grid) -->
+          <!-- Country + CurrentDay + Status + Note + Category (grid) -->
           <div class="grid grid-cols-2 gap-2.5">
             <div class="gw-field !gap-1">
               <label class="gw-field-label !text-[10px]">国家地区</label>
@@ -1414,6 +1972,10 @@ async function handleImportFile(event: Event) {
               <input v-model.number="editingAccount.currentDay" type="number" min="1" max="15" class="gw-input !py-1.5 !text-xs" />
             </div>
             <div class="gw-field !gap-1">
+              <label class="gw-field-label !text-[10px]">分类</label>
+              <input v-model="editingAccount.category" type="text" placeholder="例如: GCP, AdSense" class="gw-input !py-1.5 !text-xs" />
+            </div>
+            <div class="gw-field !gap-1">
               <label class="gw-field-label !text-[10px]">状态</label>
               <select v-model="editingAccount.status" class="gw-input !py-1.5 !text-xs">
                 <option value="warming">养号中</option>
@@ -1421,7 +1983,7 @@ async function handleImportFile(event: Event) {
                 <option value="paused">已暂停</option>
               </select>
             </div>
-            <div class="gw-field !gap-1">
+            <div class="gw-field col-span-2 !gap-1">
               <label class="gw-field-label !text-[10px]">备注/描述</label>
               <input v-model="editingAccount.note" type="text" class="gw-input !py-1.5 !text-xs" />
             </div>
@@ -1442,6 +2004,96 @@ async function handleImportFile(event: Event) {
             </button>
           </div>
         </div>
+      </el-dialog>
+
+      <!-- Category Manager Dialog -->
+      <el-dialog
+        v-model="isCategoryManagerVisible"
+        title="分类管理"
+        width="90%"
+        style="max-width: 460px"
+        align-center
+        class="gw-dialog"
+      >
+        <div class="space-y-3">
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">
+            在此处管理您的自定义分类。重命名会批量更新所有属于该分类的账号；删除分类会将该分类下的账号重置为“未分类”。
+          </p>
+
+          <!-- Add category section -->
+          <div class="flex items-center gap-2 pb-1">
+            <input 
+              v-model="newCategoryName" 
+              type="text" 
+              placeholder="新增分类名称，例如: GCP" 
+              class="gw-input flex-1 !py-1.5 !text-xs"
+              @keyup.enter="handleAddCategory"
+            />
+            <button 
+              @click="handleAddCategory"
+              class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs px-3.5 py-1.5 rounded-lg transition-all font-semibold cursor-pointer flex items-center gap-1"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              <span>新增</span>
+            </button>
+          </div>
+
+          <div class="border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto" style="border-color: var(--border-base)">
+            <table class="w-full text-xs text-left">
+              <thead class="text-xs border-b font-medium" style="background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)">
+                <tr>
+                  <th class="p-2.5">分类名称</th>
+                  <th class="p-2.5 text-center" width="80">账号数量</th>
+                  <th class="p-2.5 text-right" width="120">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y" style="border-color: var(--border-base); background: var(--bg-card)">
+                <tr 
+                  v-for="cat in categoriesList.filter(c => c !== 'all' && c !== '未分类')" 
+                  :key="cat"
+                  class="hover:bg-slate-500/5"
+                  style="border-color: var(--border-base)"
+                >
+                  <td class="p-2.5 font-medium truncate max-w-[180px]" style="color: var(--text-primary)" :title="cat">
+                    {{ cat }}
+                  </td>
+                  <td class="p-2.5 text-center font-semibold font-mono" style="color: var(--text-muted)">
+                    {{ getCategoryCount(cat) }}
+                  </td>
+                  <td class="p-2.5 text-right space-x-2.5">
+                    <button 
+                      @click="handleRenameCategory(cat)"
+                      class="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer font-medium bg-transparent border-none p-0"
+                    >
+                      重命名
+                    </button>
+                    <button 
+                      @click="handleDeleteCategory(cat)"
+                      class="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 cursor-pointer font-medium bg-transparent border-none p-0"
+                    >
+                      删除
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="categoriesList.filter(c => c !== 'all' && c !== '未分类').length === 0">
+                  <td colspan="3" class="p-6 text-center italic" style="color: var(--text-muted)">
+                    暂无自定义分类，可以在账号列表的“分类”标签直接创建。
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <template #footer>
+          <div class="flex justify-end pt-1">
+            <button
+              @click="isCategoryManagerVisible = false"
+              class="gw-btn-secondary text-xs cursor-pointer"
+            >
+              关闭
+            </button>
+          </div>
+        </template>
       </el-dialog>
 
 
@@ -2004,5 +2656,25 @@ async function handleImportFile(event: Event) {
     min-height: 250px !important;
     padding: 24px !important;
   }
+}
+
+:deep(.custom-el-table) {
+  --el-table-bg-color: transparent !important;
+  --el-table-tr-bg-color: transparent !important;
+  --el-table-row-hover-bg-color: var(--bg-hover) !important;
+  --el-table-border-color: var(--border-base) !important;
+  --el-table-header-text-color: var(--text-secondary) !important;
+  --el-table-text-color: var(--text-primary) !important;
+  background-color: transparent !important;
+}
+:deep(.custom-el-table th.el-table__cell) {
+  background-color: var(--bg-app) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid var(--border-base) !important;
+}
+:deep(.custom-el-table td.el-table__cell) {
+  border-bottom: 1px solid var(--border-base) !important;
+  color: var(--text-primary) !important;
 }
 </style>

@@ -1198,114 +1198,93 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="two-fa-container min-h-screen p-6" style="background-color: var(--bg-app); color: var(--text-primary)">
-    <!-- Header banner -->
-    <div class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-4 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style="border-color: var(--border-base)">
-      <div class="flex items-center gap-3">
-        <div class="p-2 rounded-lg shrink-0" style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent, #6366f1)">
-          <KeyRound class="h-5 w-5" />
+  <div class="two-fa-container min-h-screen p-4 sm:p-6" style="background-color: var(--bg-app); color: var(--text-primary)">
+    <!-- Unified Compact Header -->
+    <div class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-3 mb-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 animate-fade-in" style="border-color: var(--border-base)">
+      <div class="flex items-center gap-2.5 w-full lg:w-auto">
+        <div class="p-1.5 rounded-lg shrink-0" style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent, #6366f1)">
+          <KeyRound class="h-4 w-4" />
         </div>
-        <div>
-          <h1 class="text-base font-bold tracking-tight" style="color: var(--text-primary)">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
+          <h1 class="text-sm font-bold tracking-tight shrink-0" style="color: var(--text-primary)">
             2FA 验证码管理器
           </h1>
-          <p class="text-[11px] max-w-xl mt-0.5" style="color: var(--text-secondary)">
-            实时本地计算 6 位 2FA 动态码与倒计时，支持扫码和手动导入/导出备份。
-          </p>
+          <!-- Compact Stats Capsule -->
+          <div class="flex items-center gap-1.5 text-[10.5px] bg-slate-100 dark:bg-slate-800/60 border px-2 py-0.5 rounded-full select-none w-max max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="border-color: var(--border-base)">
+            <span class="text-slate-600 dark:text-slate-350">账号 <b class="text-indigo-600 dark:text-indigo-300 font-bold ml-0.5">{{ accounts.length }}</b></span>
+            <span class="text-slate-350 dark:text-slate-650">|</span>
+            <span class="text-slate-600 dark:text-slate-350">分组 <b class="text-emerald-600 dark:text-emerald-300 font-bold ml-0.5">{{ allCategories.length }}</b></span>
+            <span class="text-slate-350 dark:text-slate-650">|</span>
+            <span v-if="lastBackupTime" class="text-emerald-600 dark:text-emerald-300 font-semibold flex items-center gap-0.5 animate-fade-in" :title="'上次备份时间: ' + new Date(lastBackupTime).toLocaleString()">
+              <Clock class="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-400" />
+              <span>{{ new Date(lastBackupTime).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) }}</span>
+            </span>
+            <span v-else class="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-0.5" title="尚未进行数据备份">
+              <ShieldAlert class="h-2.5 w-2.5 text-amber-500 dark:text-amber-400" />
+              <span>未备份</span>
+            </span>
+          </div>
         </div>
       </div>
       
-      <div class="flex items-center gap-2 flex-wrap shrink-0">
+      <!-- Actions Group -->
+      <div class="flex items-center justify-between sm:justify-end gap-1.5 w-full lg:w-auto shrink-0 flex-wrap">
         <!-- Time Sync status check -->
         <button
-          class="hover:bg-slate-700/40 border font-semibold px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer text-[11px] bg-transparent"
+          class="hover:bg-slate-700/40 border font-semibold px-2 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer text-[10px] bg-transparent"
           style="border-color: var(--border-base)"
           @click="checkClockSync"
           title="点击校对本地时钟与服务器时间"
         >
-          <span class="relative flex h-2 w-2">
+          <span class="relative flex h-1.5 w-1.5">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="clockSyncStatus.status === 'perfect' ? 'bg-emerald-400' : clockSyncStatus.status === 'warning' ? 'bg-amber-400' : 'bg-rose-400'"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2" :class="clockSyncStatus.status === 'perfect' ? 'bg-emerald-500' : clockSyncStatus.status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'"></span>
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5" :class="clockSyncStatus.status === 'perfect' ? 'bg-emerald-500' : clockSyncStatus.status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'"></span>
           </span>
-          <span :class="clockSyncStatus.color">{{ clockSyncStatus.text }}</span>
+          <span :class="clockSyncStatus.color" class="text-[10px]">{{ clockSyncStatus.text }}</span>
         </button>
 
-        <el-button
-          type="primary"
-          class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer text-xs"
-          @click="isAddDialogVisible = true"
-        >
-          <Plus class="h-3.5 w-3.5" />
-          添加账号
-        </el-button>
+        <div class="flex items-center gap-1.5">
+          <!-- Export button -->
+          <button
+            class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:text-indigo-400"
+            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
+            title="导出全部数据（账号 + 分组 + 备注），支持密码加密"
+            @click="openExportModal"
+          >
+            <Download class="h-3 w-3" />
+            <span>导出</span>
+          </button>
+
+          <!-- Import button -->
+          <button
+            class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-emerald-550/10 hover:border-emerald-550/40 hover:text-emerald-450"
+            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
+            title="从备份 JSON 文件导入，自动还原账号与分组"
+            @click="triggerImport"
+          >
+            <Upload class="h-3 w-3" />
+            <span>导入</span>
+          </button>
+
+          <el-button
+            type="primary"
+            class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-2.5 py-1 rounded-lg transition-all flex items-center gap-0.5 cursor-pointer text-[11px]"
+            @click="isAddDialogVisible = true"
+          >
+            <Plus class="h-3.5 w-3.5" />
+            <span>添加</span>
+          </el-button>
+        </div>
       </div>
     </div>
 
     <!-- hidden file input for import -->
     <input type="file" ref="fileInput" @change="handleImportFile" accept=".json" class="hidden" />
 
-
-
-    <!-- Import / Export compact bar -->
-    <div
-      class="backup-bar border rounded-xl mb-4 flex items-center gap-3 px-3 py-2"
-      style="background-color: var(--bg-card); border-color: var(--border-base)"
-    >
-      <!-- Left: icon + title -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <FileText class="h-3.5 w-3.5 text-indigo-400" />
-        <span class="text-xs font-bold" style="color: var(--text-primary)">数据备份</span>
-      </div>
-
-      <div class="w-px h-4 bg-slate-700/60 shrink-0"></div>
-
-      <!-- Stats pills -->
-      <div class="flex items-center gap-2 text-[10px] shrink-0">
-        <span class="text-slate-500">账号 <b class="text-indigo-400">{{ accounts.length }}</b></span>
-        <span class="text-slate-500">分组 <b class="text-emerald-400">{{ allCategories.length }}</b></span>
-        <span v-if="uncategorizedCount > 0" class="text-slate-500">未分类 <b class="text-amber-400">{{ uncategorizedCount }}</b></span>
-      </div>
-
-      <div class="w-px h-4 bg-slate-700/60 shrink-0"></div>
-
-      <!-- Last backup -->
-      <div class="flex items-center gap-1 text-[10px] shrink-0">
-        <Clock class="h-3 w-3" :class="lastBackupTime ? 'text-emerald-400' : 'text-slate-500'" />
-        <span v-if="lastBackupTime" class="text-emerald-400 font-semibold">{{ new Date(lastBackupTime).toLocaleDateString('zh-CN') }}</span>
-        <span v-else class="text-amber-400 font-semibold">暂未备份</span>
-      </div>
-
-      <!-- Spacer -->
-      <div class="flex-1"></div>
-
-      <!-- Export button -->
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:text-indigo-400"
-        style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
-        title="导出全部数据（账号 + 分组 + 备注），支持 AES-256 密码加密"
-        @click="openExportModal"
-      >
-        <Download class="h-3.5 w-3.5" />
-        导出
-      </button>
-
-      <!-- Import button -->
-      <button
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-400"
-        style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
-        title="从备份 JSON 文件导入，自动还原账号、分组和备注，支持加密备份"
-        @click="triggerImport"
-      >
-        <Upload class="h-3.5 w-3.5" />
-        导入
-      </button>
-    </div>
-
-
     <!-- Filters & Search Toolbar -->
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4 w-full">
-      <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-        <div class="w-full md:w-72">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2 w-full">
+      <div class="flex items-center gap-2 w-full sm:w-auto flex-1 sm:flex-initial">
+        <div class="relative flex-1 sm:w-60 md:w-72">
           <el-input
             v-model="searchQuery"
             placeholder="搜索标签、邮箱或备注..."
@@ -1313,142 +1292,148 @@ onUnmounted(() => {
             class="custom-search-input"
           >
             <template #prefix>
-              <Search class="h-4 w-4 text-slate-400" />
+              <Search class="h-3.5 w-3.5 text-slate-400" />
             </template>
           </el-input>
+          
+          <!-- Floating Filter Result Badge (compact & only visible when filtered) -->
+          <transition name="el-fade-in-linear">
+            <span 
+              v-if="filteredAccounts.length !== accounts.length" 
+              class="absolute -top-2 -right-1.5 px-1.5 py-0.5 text-[8.5px] font-bold rounded bg-indigo-650 text-white border border-slate-900 shadow-md select-none shrink-0"
+            >
+              已过滤 {{ filteredAccounts.length }}
+            </span>
+          </transition>
         </div>
 
-        <div class="shrink-0">
+        <div class="shrink-0 w-24 sm:w-28">
           <el-select
             v-model="sortBy"
             placeholder="排序方式"
             class="custom-sort-select"
-            style="width: 105px;"
           >
             <el-option label="默认排序" value="pinned_first" />
             <el-option label="名称 A-Z" value="label_asc" />
             <el-option label="最新添加" value="created_desc" />
           </el-select>
         </div>
-
-        <!-- Layout Switcher & Privacy Buttons -->
-        <div class="flex items-center gap-1 bg-slate-800/20 border border-slate-700/60 p-1 rounded-xl shrink-0" style="border-color: var(--border-base)">
-          <button
-            type="button"
-            @click="changeLayoutMode('grid')"
-            class="p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-            :class="layoutMode === 'grid' ? '!bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'"
-            title="网格视图"
-          >
-            <LayoutGrid class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">网格</span>
-          </button>
-          
-          <button
-            type="button"
-            @click="changeLayoutMode('list')"
-            class="p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-            :class="layoutMode === 'list' ? '!bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'"
-            title="列表排布"
-          >
-            <List class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">列表</span>
-          </button>
-
-          <div class="w-px h-4 bg-slate-700/60 mx-1"></div>
-
-          <button
-            type="button"
-            @click="isPrivacyMode = !isPrivacyMode"
-            class="p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-            :class="isPrivacyMode ? '!bg-amber-600/25 !text-amber-400 border border-amber-500/20' : 'text-slate-400 hover:text-slate-200'"
-            :title="isPrivacyMode ? '关闭隐私遮罩' : '开启隐私遮罩'"
-          >
-            <ShieldAlert v-if="isPrivacyMode" class="h-3.5 w-3.5 text-amber-400" />
-            <ShieldCheck v-else class="h-3.5 w-3.5 text-emerald-400" />
-            <span class="hidden sm:inline">隐私模糊</span>
-          </button>
-        </div>
       </div>
 
-      <div class="text-xs flex items-center gap-1.5 border px-3 py-1.5 rounded-lg shrink-0" style="background-color: var(--bg-card); border-color: var(--border-base); color: var(--text-secondary)">
-        <Info class="h-3.5 w-3.5" style="color: var(--accent, #6366f1)" />
-        当前过滤有 {{ filteredAccounts.length }} 个 2FA 账号
+      <!-- Layout Switcher & Privacy Buttons -->
+      <div class="flex items-center gap-1 bg-slate-800/20 border border-slate-700/60 p-0.5 rounded-lg shrink-0" style="border-color: var(--border-base)">
+        <button
+          type="button"
+          @click="changeLayoutMode('grid')"
+          class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
+          :class="layoutMode === 'grid' ? '!bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+          title="网格视图"
+        >
+          <LayoutGrid class="h-3.5 w-3.5" />
+          <span class="hidden md:inline">网格</span>
+        </button>
+        
+        <button
+          type="button"
+          @click="changeLayoutMode('list')"
+          class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
+          :class="layoutMode === 'list' ? '!bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+          title="列表排布"
+        >
+          <List class="h-3.5 w-3.5" />
+          <span class="hidden md:inline">列表</span>
+        </button>
+
+        <div class="w-px h-3 bg-slate-700/60 mx-0.5"></div>
+
+        <button
+          type="button"
+          @click="isPrivacyMode = !isPrivacyMode"
+          class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
+          :class="isPrivacyMode ? '!bg-amber-600/25 !text-amber-400 border border-amber-500/20' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+          :title="isPrivacyMode ? '关闭隐私遮罩' : '开启隐私遮罩'"
+        >
+          <ShieldAlert v-if="isPrivacyMode" class="h-3.5 w-3.5 text-amber-400" />
+          <ShieldCheck v-else class="h-3.5 w-3.5 text-emerald-400" />
+          <span class="hidden md:inline">隐私模糊</span>
+        </button>
       </div>
     </div>
 
     <!-- Droppable Category Tabs Filter Bar -->
-    <div class="flex flex-wrap items-center gap-1.5 mb-5 px-1 animate-fade-in">
-      <span class="text-[10px] uppercase font-bold tracking-wider mr-1.5 text-slate-500 flex items-center gap-1 shrink-0">
-        <Tag class="h-3 w-3" style="color: var(--accent, #6366f1)" />
-        <span>分组:</span>
-      </span>
-      
-      <!-- All accounts pill -->
-      <button
-        @click="selectedCategory = 'all'"
-        class="px-3 py-1 text-xs rounded-full cursor-pointer transition-all border font-semibold"
-        :style="{
-          backgroundColor: selectedCategory === 'all' ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
-          borderColor: selectedCategory === 'all' ? 'transparent' : 'transparent',
-          color: selectedCategory === 'all' ? '#fff' : 'var(--text-secondary)'
-        }"
-      >
-        全部 ({{ accounts.length }})
-      </button>
+    <div class="flex items-center justify-between gap-2 mb-3 px-1 border-b pb-2 animate-fade-in" style="border-color: var(--border-base)">
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 -mr-2 pr-2 py-0.5 select-none">
+        <span class="text-[10px] uppercase font-bold tracking-wider mr-1 text-slate-500 flex items-center gap-1 shrink-0">
+          <Tag class="h-3 w-3" style="color: var(--accent, #6366f1)" />
+          <span>分组:</span>
+        </span>
+        
+        <!-- All accounts pill -->
+        <button
+          @click="selectedCategory = 'all'"
+          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold shrink-0"
+          :style="{
+            backgroundColor: selectedCategory === 'all' ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
+            borderColor: selectedCategory === 'all' ? 'transparent' : 'transparent',
+            color: selectedCategory === 'all' ? '#fff' : 'var(--text-secondary)'
+          }"
+        >
+          全部 ({{ accounts.length }})
+        </button>
 
-      <!-- Real category pills (with drag-drop target) -->
-      <button
-        v-for="cat in allCategories"
-        :key="cat"
-        @click="selectedCategory = cat"
-        @dragover.prevent="onDragOver($event, cat)"
-        @dragleave="onDragLeave"
-        @drop="onDrop($event, cat)"
-        class="px-3 py-1 text-xs rounded-full cursor-pointer transition-all border font-semibold relative"
-        :class="{ 'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === cat }"
-        :style="{
-          backgroundColor: selectedCategory === cat ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
-          borderColor: selectedCategory === cat ? 'transparent' : 'transparent',
-          color: selectedCategory === cat ? '#fff' : 'var(--text-secondary)'
-        }"
-      >
-        {{ cat }}
-        <span class="ml-1 opacity-70">{{ accounts.filter(a => a.category === cat).length }}</span>
-        <!-- indicator that category is empty/pending -->
-        <span
-          v-if="pendingCategories.includes(cat) && accounts.filter(a => a.category === cat).length === 0"
-          class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-slate-900"
-          title="空分组（可拖入账号激活）"
-        ></span>
-      </button>
+        <!-- Real category pills (with drag-drop target) -->
+        <button
+          v-for="cat in allCategories"
+          :key="cat"
+          @click="selectedCategory = cat"
+          @dragover.prevent="onDragOver($event, cat)"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, cat)"
+          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold relative shrink-0"
+          :class="{ 'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === cat }"
+          :style="{
+            backgroundColor: selectedCategory === cat ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
+            borderColor: selectedCategory === cat ? 'transparent' : 'transparent',
+            color: selectedCategory === cat ? '#fff' : 'var(--text-secondary)'
+          }"
+        >
+          {{ cat }}
+          <span class="ml-0.5 opacity-70">{{ accounts.filter(a => a.category === cat).length }}</span>
+          <!-- indicator that category is empty/pending -->
+          <span
+            v-if="pendingCategories.includes(cat) && accounts.filter(a => a.category === cat).length === 0"
+            class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 border border-slate-900"
+            title="空分组（可拖入账号激活）"
+          ></span>
+        </button>
 
-      <!-- Uncategorized pill -->
-      <button
-        v-if="uncategorizedCount > 0"
-        @click="selectedCategory = 'uncategorized'"
-        @dragover.prevent="onDragOver($event, 'uncategorized')"
-        @dragleave="onDragLeave"
-        @drop="onDrop($event, 'uncategorized')"
-        class="px-3 py-1 text-xs rounded-full cursor-pointer transition-all border font-semibold"
-        :class="{ 'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === 'uncategorized' }"
-        :style="{
-          backgroundColor: selectedCategory === 'uncategorized' ? '#f59e0b' : 'rgba(245,158,11,0.10)',
-          borderColor: 'transparent',
-          color: selectedCategory === 'uncategorized' ? '#fff' : '#f59e0b'
-        }"
-      >
-        未分类 ({{ uncategorizedCount }})
-      </button>
+        <!-- Uncategorized pill -->
+        <button
+          v-if="uncategorizedCount > 0"
+          @click="selectedCategory = 'uncategorized'"
+          @dragover.prevent="onDragOver($event, 'uncategorized')"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, 'uncategorized')"
+          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold shrink-0"
+          :class="{ 'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === 'uncategorized' }"
+          :style="{
+            backgroundColor: selectedCategory === 'uncategorized' ? '#f59e0b' : 'rgba(245,158,11,0.10)',
+            borderColor: 'transparent',
+            color: selectedCategory === 'uncategorized' ? '#fff' : '#f59e0b'
+          }"
+        >
+          未分类 ({{ uncategorizedCount }})
+        </button>
+      </div>
 
       <!-- Manage groups button -->
       <button
         @click="isCategoryManagerVisible = true"
-        class="px-2.5 py-1 text-xs rounded-full cursor-pointer transition-all border border-dashed border-slate-600 bg-transparent text-slate-400 hover:text-slate-200 hover:border-slate-400 font-semibold flex items-center gap-1 ml-auto"
+        class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border border-dashed border-slate-300 dark:border-slate-600 bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-400 font-semibold flex items-center gap-0.5 shrink-0 ml-2"
         title="新建分组 / 重命名 / 删除"
       >
         <Edit class="h-3 w-3" />
-        <span>管理分组</span>
+        <span>管理</span>
       </button>
     </div>
 
@@ -1975,7 +1960,7 @@ onUnmounted(() => {
             >
               <div class="flex items-center gap-2 min-w-0">
                 <div class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></div>
-                <span class="font-bold text-slate-200 truncate">{{ cat }}</span>
+                <span class="font-bold text-slate-800 dark:text-slate-200 truncate">{{ cat }}</span>
                 <span
                   v-if="pendingCategories.includes(cat) && accounts.filter(a => a.category === cat).length === 0"
                   class="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full font-bold shrink-0"
@@ -2414,74 +2399,35 @@ onUnmounted(() => {
 /* =====================================================
    Mobile Responsive Adjustments
    ===================================================== */
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 @media (max-width: 640px) {
   .two-fa-container {
     padding: 10px 12px !important;
   }
   .two-fa-header {
-    padding: 12px !important;
-    gap: 10px !important;
-  }
-  .backup-bar {
-    flex-wrap: wrap !important;
-    gap: 8px !important;
     padding: 10px !important;
-  }
-  .backup-bar > .w-px,
-  .backup-bar > .spacer {
-    display: none !important;
-  }
-  .backup-bar > button {
-    flex: 1 1 40%;
-    justify-content: center;
-    font-size: 11px !important;
-    padding: 6px 8px !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
   }
   
   /* Filters & search adjustments */
-  .two-fa-container .flex-col.md\:flex-row {
-    gap: 8px !important;
-    margin-bottom: 8px !important;
-  }
-  .two-fa-container .flex-col.md\:flex-row > div:first-child {
-    gap: 8px !important;
-    width: 100%;
-  }
   .two-fa-container .custom-search-input {
     width: 100% !important;
   }
   .two-fa-container .custom-sort-select {
-    flex: 1;
-    width: auto !important;
+    width: 90px !important;
   }
   .two-fa-container .custom-sort-select .el-input__inner {
     font-size: 11px !important;
-  }
-  .two-fa-container .flex.items-center.gap-1.bg-slate-800\/20 {
-    flex: 1.5;
-    justify-content: space-around;
-  }
-  .two-fa-container .text-xs.flex.items-center.gap-1\.5.border {
-    width: 100%;
-    justify-content: center;
-    padding: 4px 8px !important;
-  }
-
-  /* Group categories pills */
-  .two-fa-container .flex-wrap.items-center.gap-1\.5 {
-    gap: 6px !important;
-    margin-bottom: 10px !important;
-  }
-  .two-fa-container .flex-wrap.items-center.gap-1\.5 > button {
-    padding: 2px 8px !important;
-    font-size: 10px !important;
-  }
-  .two-fa-container .flex-wrap.items-center.gap-1\.5 > button.ml-auto {
-    margin-left: 0 !important;
-    width: 100%;
-    justify-content: center;
-    border-style: solid !important;
-    margin-top: 4px;
   }
 
   /* Grid card adjustments */

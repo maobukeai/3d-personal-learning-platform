@@ -133,7 +133,7 @@ const handleLogoError = () => {
             <li v-for="item in group.items" :key="item.name">
               <RouterLink
                 :to="item.path"
-                class="min-h-10 flex items-center justify-between px-3 py-1.5 rounded-lg transition-colors duration-150"
+                class="min-h-8 flex items-center justify-between px-2 py-1 rounded-lg transition-colors duration-150"
                 :class="
                   route.path === item.path
                     ? workspaceStore.isAdminWorkspace
@@ -143,10 +143,10 @@ const handleLogoError = () => {
                 "
                 @click="closeSidebar"
               >
-                <div class="flex items-center gap-2 min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 min-w-0 flex-1">
                   <component
                     :is="item.icon"
-                    class="w-4 h-4 shrink-0"
+                    class="w-3.5 h-3.5 shrink-0"
                     :class="
                       route.path === item.path
                         ? workspaceStore.isAdminWorkspace
@@ -155,12 +155,12 @@ const handleLogoError = () => {
                         : 'text-slate-400'
                     "
                   />
-                  <span class="flex-1 text-xs font-semibold truncate">{{ item.name }}</span>
+                  <span class="flex-1 text-[11.5px] font-semibold truncate">{{ item.name }}</span>
 
                   <!-- High-Visibility Badge -->
                   <div
                     v-if="item.badge && item.badge > 0"
-                    class="px-1.5 py-0.5 min-w-[18px] h-4 rounded-full text-[9px] font-black flex items-center justify-center transition-all duration-300 shrink-0"
+                    class="px-1.5 py-0.5 min-w-[16px] h-3.5 rounded-full text-[8.5px] font-black flex items-center justify-center transition-all duration-300 shrink-0"
                     :class="
                       route.path === item.path
                         ? 'bg-white text-rose-600 shadow-sm'

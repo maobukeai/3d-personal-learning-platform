@@ -18,7 +18,8 @@ import {
   Eye,
   FileText,
   ChevronRight,
-  Globe
+  Globe,
+  Edit
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -124,6 +125,19 @@ const importDailyLimit = ref<number>(50);
 
 // Single account form state
 const singleAccount = ref({
+  email: '',
+  password: '',
+  clientId: '',
+  refreshToken: '',
+  proxy: '',
+  minDelay: 5,
+  maxDelay: 15,
+  dailyLimit: 50,
+});
+
+const isEditDialogVisible = ref<boolean>(false);
+const editingAccount = ref({
+  id: '',
   email: '',
   password: '',
   clientId: '',
@@ -274,6 +288,58 @@ const deleteAccount = async (account: EmailAccount) => {
     }
   } catch (_e) {
     // cancelled
+  }
+};
+
+const startEditAccount = (account: EmailAccount) => {
+  editingAccount.value = {
+    id: account.id,
+    email: account.email,
+    password: '',
+    clientId: account.clientId,
+    refreshToken: '',
+    proxy: account.proxy || '',
+    minDelay: account.minDelay,
+    maxDelay: account.maxDelay,
+    dailyLimit: account.dailyLimit,
+  };
+  isEditDialogVisible.value = true;
+};
+
+const handleSaveEdit = async () => {
+  const { id, password, clientId, refreshToken, proxy, dailyLimit, minDelay, maxDelay } = editingAccount.value;
+  if (!clientId) {
+    ElMessage.warning('Client ID 不能为空');
+    return;
+  }
+
+  isAccountsLoading.value = true;
+  try {
+    const payload: any = {
+      clientId,
+      proxy: proxy || '',
+      dailyLimit,
+      minDelay,
+      maxDelay,
+    };
+    if (password) {
+      payload.password = password;
+    }
+    if (refreshToken) {
+      payload.refreshToken = refreshToken;
+    }
+
+    await api.put(`/api/email/accounts/${id}`, payload);
+    ElMessage.success('更新账号成功！');
+    isEditDialogVisible.value = false;
+    await fetchAccounts();
+    if (selectedAccountId.value === id) {
+      await fetchMessages();
+    }
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '更新账号失败'));
+  } finally {
+    isAccountsLoading.value = false;
   }
 };
 
@@ -687,6 +753,9 @@ const formatDate = (dateStr: string) => {
                   <div v-if="!isMultiSelectMode" class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button type="button" class="p-0.5 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/50 text-indigo-500 rounded transition-colors" :title="$t('tools.email.verify_token_tooltip')" @click.stop="testConnection(acc)">
                       <CheckCircle class="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" class="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors" title="编辑账号 / 更新 Token" @click.stop="startEditAccount(acc)">
+                      <Edit class="w-3.5 h-3.5" />
                     </button>
                     <button type="button" class="p-0.5 hover:bg-rose-100/50 dark:hover:bg-rose-950/50 text-rose-500 rounded transition-colors" :title="$t('tools.email.unbind_token_tooltip')" @click.stop="deleteAccount(acc)">
                       <Trash2 class="w-3.5 h-3.5" />
@@ -1177,6 +1246,89 @@ example2@hotmail.com----00000000-0000-0000-0000-000000000000----MC...9a"
         <div class="flex justify-end gap-2">
           <el-button size="small" @click="isAddDialogVisible = false">取消</el-button>
           <el-button type="primary" :loading="isAccountsLoading" size="small" @click="handleAddSingle">{{ $t('tools.email.save_activate_btn') }}</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- EDIT ACCOUNT DIALOG -->
+    <el-dialog
+      v-model="isEditDialogVisible"
+      title="编辑/更新微软邮箱账号"
+      width="500px"
+      append-to-body
+      custom-class="dark:bg-slate-950 dark:border-slate-900"
+    >
+      <div class="flex flex-col gap-4 text-left">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-400">微软账号邮箱 (不可更改)</label>
+          <input
+            :value="editingAccount.email"
+            type="email"
+            disabled
+            class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-100 dark:bg-slate-900/50 text-slate-400 cursor-not-allowed focus:outline-none transition-all duration-200"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-400">{{ $t('tools.email.email_pass_label') }} (留空表示不修改)</label>
+          <input
+            v-model="editingAccount.password"
+            type="password"
+            placeholder="留空表示不修改密码"
+            class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-400">OAuth Client ID</label>
+          <input
+            v-model="editingAccount.clientId"
+            type="text"
+            placeholder="输入 Client ID"
+            class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-400">刷新令牌 (Refresh Token) (留空表示不修改)</label>
+          <input
+            v-model="editingAccount.refreshToken"
+            type="text"
+            placeholder="留空表示不更新令牌，若已失效请输入新令牌"
+            class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-slate-400">{{ $t('tools.email.single_proxy_label') }}</label>
+          <input
+            v-model="editingAccount.proxy"
+            type="text"
+            :placeholder="$t('tools.email.proxy_placeholder')"
+            class="text-xs px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-semibold text-slate-400">{{ $t('tools.email.daily_limit_cap') }}</label>
+            <el-input-number v-model="editingAccount.dailyLimit" :min="1" :max="500" size="small" controls-position="right" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-semibold text-slate-400">{{ $t('tools.email.min_delay_sec') }}</label>
+            <el-input-number v-model="editingAccount.minDelay" :min="1" :max="60" size="small" controls-position="right" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-semibold text-slate-400">{{ $t('tools.email.max_delay_sec') }}</label>
+            <el-input-number v-model="editingAccount.maxDelay" :min="2" :max="300" size="small" controls-position="right" />
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <el-button size="small" @click="isEditDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="isAccountsLoading" size="small" @click="handleSaveEdit">保存更改</el-button>
         </div>
       </template>
     </el-dialog>

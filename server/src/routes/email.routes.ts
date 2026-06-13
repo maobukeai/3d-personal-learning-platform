@@ -11,6 +11,7 @@ router.use(authenticate);
 router.post('/accounts/import', EmailController.importAccounts);
 router.get('/accounts', EmailController.getAccounts);
 router.delete('/accounts/:id', EmailController.deleteAccount);
+router.put('/accounts/:id', EmailController.updateAccount);
 router.post('/accounts/:id/test', EmailController.testAccount);
 
 // Folder & message syncing

@@ -442,4 +442,71 @@ export class EmailController {
         .json({ error: '邮件发送失败', details: e instanceof Error ? e.message : String(e) });
     }
   }
+
+  /**
+   * Updates credentials or configurations of a Microsoft Email Account
+   */
+  public static async updateAccount(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.userId as string;
+    const id = req.params.id as string;
+    const { password, clientId, refreshToken, proxy, dailyLimit, minDelay, maxDelay } = req.body;
+
+    try {
+      const account = await prisma.microsoftEmailAccount.findFirst({
+        where: { id, userId },
+      });
+
+      if (!account) {
+        res.status(404).json({ error: '账号不存在' });
+        return;
+      }
+
+      const updateData: any = {};
+      if (password !== undefined) {
+        updateData.password = password ? encryptSecret(password) : null;
+      }
+      if (clientId !== undefined) {
+        updateData.clientId = clientId;
+      }
+      if (refreshToken !== undefined) {
+        updateData.refreshToken = encryptSecret(refreshToken) || refreshToken;
+        // Reset status to ACTIVE to clear error state for user to test connection
+        updateData.status = 'ACTIVE';
+        updateData.statusMessage = 'Credentials updated';
+      }
+      if (proxy !== undefined) {
+        updateData.proxy = proxy ? encryptSecret(proxy) : null;
+      }
+      if (dailyLimit !== undefined) {
+        updateData.dailyLimit = parseInt(dailyLimit, 10);
+      }
+      if (minDelay !== undefined) {
+        updateData.minDelay = parseInt(minDelay, 10);
+      }
+      if (maxDelay !== undefined) {
+        updateData.maxDelay = parseInt(maxDelay, 10);
+      }
+
+      const updated = await prisma.microsoftEmailAccount.update({
+        where: { id },
+        data: updateData,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: '账号更新成功',
+        account: {
+          id: updated.id,
+          email: updated.email,
+          status: updated.status,
+        },
+      });
+    } catch (e) {
+      logger.error('EmailController: Update error', e);
+      res.status(500).json({
+        error: '更新账号失败',
+        details: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
 }

@@ -1013,6 +1013,109 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
     ElMessage.error('复制失败');
   });
 };
+
+// ── Password Generator ────────────────────────────────────────────────────────
+const generatedPassword = ref<string>('');
+const passwordLength = ref<number>(12);
+
+const generateRandomPassword = (targetRef?: any) => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
+  let password = '';
+  const poolLower = 'abcdefghijklmnopqrstuvwxyz';
+  const poolUpper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const poolDigit = '0123456789';
+  const poolSymbol = '!@#$%^&*()_+';
+  
+  // Ensure we get at least one of each class
+  password += poolLower[Math.floor(Math.random() * poolLower.length)];
+  password += poolUpper[Math.floor(Math.random() * poolUpper.length)];
+  password += poolDigit[Math.floor(Math.random() * poolDigit.length)];
+  password += poolSymbol[Math.floor(Math.random() * poolSymbol.length)];
+  
+  // Fill the rest up to length
+  const len = targetRef ? 12 : passwordLength.value; // For quick generate in edit dialog, default to 12 chars
+  for (let i = 4; i < len; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  
+  // Shuffle
+  const shuffled = password.split('').sort(() => 0.5 - Math.random()).join('');
+  if (targetRef) {
+    targetRef.password = shuffled;
+    ElMessage.success('已自动生成并填充复杂密码！');
+  } else {
+    generatedPassword.value = shuffled;
+  }
+};
+
+// ── Password Generator Dialog States ──────────────────────────────────────────
+const isPasswordGenVisible = ref(false);
+const passGenLength = ref(16);
+const passGenUpper = ref(true);
+const passGenLower = ref(true);
+const passGenNumbers = ref(true);
+const passGenSymbols = ref(false);
+const passGenResult = ref('');
+
+const generateDialogPassword = () => {
+  const poolLower = 'abcdefghijklmnopqrstuvwxyz';
+  const poolUpper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const poolDigit = '0123456789';
+  const poolSymbol = '!@#$%^&*()_+~[]{}:;.,?';
+
+  let allowedPool = '';
+  let guaranteed: string[] = [];
+
+  if (passGenLower.value) {
+    allowedPool += poolLower;
+    guaranteed.push(poolLower[Math.floor(Math.random() * poolLower.length)]);
+  }
+  if (passGenUpper.value) {
+    allowedPool += poolUpper;
+    guaranteed.push(poolUpper[Math.floor(Math.random() * poolUpper.length)]);
+  }
+  if (passGenNumbers.value) {
+    allowedPool += poolDigit;
+    guaranteed.push(poolDigit[Math.floor(Math.random() * poolDigit.length)]);
+  }
+  if (passGenSymbols.value) {
+    allowedPool += poolSymbol;
+    guaranteed.push(poolSymbol[Math.floor(Math.random() * poolSymbol.length)]);
+  }
+
+  // If nothing is selected, alert and default to lower + upper + numbers
+  if (allowedPool.length === 0) {
+    passGenLower.value = true;
+    passGenUpper.value = true;
+    passGenNumbers.value = true;
+    allowedPool = poolLower + poolUpper + poolDigit;
+    guaranteed.push(poolLower[Math.floor(Math.random() * poolLower.length)]);
+    guaranteed.push(poolUpper[Math.floor(Math.random() * poolUpper.length)]);
+    guaranteed.push(poolDigit[Math.floor(Math.random() * poolDigit.length)]);
+  }
+
+  let password = guaranteed.join('');
+  const remainingLength = passGenLength.value - password.length;
+
+  for (let i = 0; i < remainingLength; i++) {
+    password += allowedPool[Math.floor(Math.random() * allowedPool.length)];
+  }
+
+  // Shuffle
+  passGenResult.value = password.split('').sort(() => 0.5 - Math.random()).join('');
+};
+
+const openPasswordGenerator = () => {
+  isPasswordGenVisible.value = true;
+  generateDialogPassword();
+};
+
+watch([passGenLength, passGenUpper, passGenLower, passGenNumbers, passGenSymbols], () => {
+  if (isPasswordGenVisible.value) {
+    generateDialogPassword();
+  }
+});
+
 // ── Export / Import ──────────────────────────────────────────────────────────
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
@@ -1182,6 +1285,16 @@ async function handleImportFile(event: Event) {
               <span>导入</span>
             </button>
             <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="handleImportFile" />
+
+            <!-- Password Generator -->
+            <button
+              @click="openPasswordGenerator"
+              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
+              title="生成随机复杂密码"
+            >
+              <Key class="w-3 h-3" />
+              <span>密码生成</span>
+            </button>
 
             <!-- Add account -->
             <button
@@ -1415,6 +1528,9 @@ async function handleImportFile(event: Event) {
                   <span class="text-sm font-bold truncate" style="color: var(--text-primary)" :title="selectedAccount.email">
                     {{ selectedAccount.email }}
                   </span>
+                  <button @click="copyText(selectedAccount.email, '账号已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制账号">
+                    <Copy class="w-3.5 h-3.5" />
+                  </button>
                   <span :class="['text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0', getStatusBadgeClass(selectedAccount.status)]">
                     {{ getStatusLabel(selectedAccount.status) }}
                   </span>
@@ -2007,7 +2123,16 @@ async function handleImportFile(event: Event) {
           <!-- Password + Recovery Email (2 columns) -->
           <div class="grid grid-cols-2 gap-2.5">
             <div class="gw-field !gap-1">
-              <label class="gw-field-label !text-[10px]">密码</label>
+              <div class="flex items-center justify-between w-full">
+                <label class="gw-field-label !text-[10px]">密码</label>
+                <button
+                  type="button"
+                  @click="generateRandomPassword(editingAccount)"
+                  class="text-[9px] text-violet-600 dark:text-violet-400 hover:text-violet-500 font-semibold cursor-pointer border-none bg-transparent"
+                >
+                  一键生成复杂密码
+                </button>
+              </div>
               <input v-model="editingAccount.password" type="text" class="gw-input !py-1.5 !text-xs" />
             </div>
             <div class="gw-field !gap-1">
@@ -2153,6 +2278,109 @@ async function handleImportFile(event: Event) {
             >
               关闭
             </button>
+          </div>
+        </template>
+      </el-dialog>
+
+      <!-- Password Generator Dialog -->
+      <el-dialog
+        v-model="isPasswordGenVisible"
+        title="密码生成器"
+        width="90%"
+        style="max-width: 440px"
+        align-center
+        class="gw-dialog"
+      >
+        <div class="space-y-4">
+          <!-- Password Output Area -->
+          <div class="flex items-center gap-2 p-3 rounded-xl border relative group" style="border-color: var(--border-base); background: var(--bg-app)">
+            <input
+              type="text"
+              readonly
+              :value="passGenResult"
+              class="w-full bg-transparent border-none outline-none font-mono text-base font-semibold tracking-wider text-violet-650 dark:text-violet-400 select-all pr-12"
+            />
+            <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <button
+                @click="copyText(passGenResult, '密码已复制')"
+                class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all cursor-pointer"
+                title="复制密码"
+              >
+                <Copy class="w-4 h-4" />
+              </button>
+              <button
+                @click="generateDialogPassword"
+                class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all cursor-pointer"
+                title="重新生成"
+              >
+                <RefreshCw class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Configuration -->
+          <div class="space-y-3.5">
+            <!-- Length -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs font-semibold">
+                <span class="text-slate-650 dark:text-slate-300">密码长度 ({{ passGenLength }}位)</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="6"
+                  max="32"
+                  v-model.number="passGenLength"
+                  class="flex-1 accent-violet-600 dark:accent-violet-500 cursor-pointer h-1.5 rounded-lg bg-slate-250 dark:bg-slate-800"
+                />
+                <span class="font-mono text-xs font-bold w-6 text-right text-slate-700 dark:text-slate-350">{{ passGenLength }}</span>
+              </div>
+            </div>
+
+            <!-- Options (Checkboxes) -->
+            <div class="grid grid-cols-2 gap-2 text-xs font-medium">
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer" style="border-color: var(--border-base)">
+                <input type="checkbox" v-model="passGenLower" class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer" />
+                <span style="color: var(--text-primary)">小写字母 (a-z)</span>
+              </label>
+
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer" style="border-color: var(--border-base)">
+                <input type="checkbox" v-model="passGenUpper" class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer" />
+                <span style="color: var(--text-primary)">大写字母 (A-Z)</span>
+              </label>
+
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer" style="border-color: var(--border-base)">
+                <input type="checkbox" v-model="passGenNumbers" class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer" />
+                <span style="color: var(--text-primary)">数字字符 (0-9)</span>
+              </label>
+
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer" style="border-color: var(--border-base)">
+                <input type="checkbox" v-model="passGenSymbols" class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer" />
+                <span style="color: var(--text-primary)">特殊符号 (!@#$)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <template #footer>
+          <div class="flex justify-between items-center pt-1.5">
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">
+              安全提示：请妥善保存您的密码
+            </span>
+            <div class="flex gap-2">
+              <button
+                @click="isPasswordGenVisible = false"
+                class="gw-btn-secondary text-xs cursor-pointer"
+              >
+                关闭
+              </button>
+              <button
+                @click="generateDialogPassword"
+                class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+              >
+                <Sparkles class="w-3.5 h-3.5" />
+                <span>重新生成</span>
+              </button>
+            </div>
           </div>
         </template>
       </el-dialog>

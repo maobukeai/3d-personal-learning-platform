@@ -95,19 +95,34 @@ export class MicrosoftGraphService {
 
       return data.access_token;
     } catch (error) {
+      const responseStatus = (error as any).response?.status;
+      const responseData = (error as any).response?.data;
       const errorMsg =
-        (error as any).response?.data?.error_description ||
+        responseData?.error_description ||
         (error instanceof Error ? error.message : String(error)) ||
         'Unknown error refreshing token';
       logger.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
 
-      await prisma.microsoftEmailAccount.update({
-        where: { id: accountId },
-        data: {
-          status: 'EXPIRED',
-          statusMessage: errorMsg,
-        },
-      });
+      const isOAuthError = responseStatus >= 400 && responseStatus < 500;
+
+      if (isOAuthError) {
+        // Real credential/OAuth expiration: mark as EXPIRED
+        await prisma.microsoftEmailAccount.update({
+          where: { id: accountId },
+          data: {
+            status: 'EXPIRED',
+            statusMessage: `OAuth Error: ${errorMsg}`,
+          },
+        });
+      } else {
+        // Temporary network timeout, proxy issue, or 5xx server error: keep ACTIVE to auto-retry
+        await prisma.microsoftEmailAccount.update({
+          where: { id: accountId },
+          data: {
+            statusMessage: `Temporary network error: ${errorMsg}`,
+          },
+        });
+      }
       throw new Error(`Token refresh failed: ${errorMsg}`);
     }
   }

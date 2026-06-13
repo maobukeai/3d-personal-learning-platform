@@ -4,7 +4,7 @@ import type { MicrosoftEmailAccount } from '@prisma/client';
 import { Response } from 'express';
 import prisma from '../services/prisma';
 import { MicrosoftGraphService } from '../services/microsoftGraph.service';
-import { encryptSecret, maskProxyUrl } from '../utils/secret-field';
+import { encryptSecret, decryptSecret, maskProxyUrl } from '../utils/secret-field';
 
 const toPublicEmailAccount = (account: MicrosoftEmailAccount) => ({
   id: account.id,
@@ -59,19 +59,52 @@ export class EmailController {
       if (!line) continue;
       const parts = line.split('----').map((part) => part.trim());
 
-      // We need at least email, client_id, and refresh_token
-      // Standard: 邮箱----密码----client_id----令牌
-      if (parts.length < 3) {
+      let email = '';
+      let password = '';
+      let clientId = '';
+      let token = '';
+
+      if (parts.length === 2) {
+        // Supported format for updating existing accounts: email----new_refresh_token
+        email = parts[0] || '';
+        token = parts[1] || '';
+
+        // Query DB for existing clientId
+        const existing = await prisma.microsoftEmailAccount.findUnique({
+          where: { email },
+          select: { clientId: true, password: true, userId: true },
+        });
+
+        if (existing) {
+          if (existing.userId !== userId) {
+            errors.push(`第 ${i + 1} 行：邮箱 ${email} 归属于其他用户，无权更新`);
+            continue;
+          }
+          clientId = existing.clientId;
+          password = existing.password ? decryptSecret(existing.password) || '' : '';
+        } else {
+          errors.push(
+            `第 ${i + 1} 行：账号 ${email} 在系统中不存在。首次导入账号需要提供 Client ID，请使用完整格式：邮箱----密码----client_id----令牌`,
+          );
+          continue;
+        }
+      } else if (parts.length === 3) {
+        // Format: email----client_id----refresh_token
+        email = parts[0] || '';
+        clientId = parts[1] || '';
+        token = parts[2] || '';
+      } else if (parts.length >= 4) {
+        // Format: email----password----client_id----refresh_token
+        email = parts[0] || '';
+        password = parts[1] || '';
+        clientId = parts[2] || '';
+        token = parts[3] || '';
+      } else {
         errors.push(
           `第 ${i + 1} 行格式不正确，缺少字段。要求格式: 邮箱----密码----client_id----令牌`,
         );
         continue;
       }
-
-      const [email, password, clientId, token] =
-        parts.length === 3
-          ? [parts[0] || '', '', parts[1] || '', parts[2] || '']
-          : [parts[0] || '', parts[1] || '', parts[2] || '', parts[3] || ''];
 
       if (!email.includes('@') || !clientId || !token) {
         errors.push(`第 ${i + 1} 行数据内容无效。请确保邮箱、Client ID及令牌完整且有效`);

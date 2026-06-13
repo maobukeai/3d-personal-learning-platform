@@ -390,13 +390,14 @@ export const getAuditLogs = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     const insightWindowStart = fromDate || daysAgo(14);
+    const createdAtFilter = where.createdAt as { gte?: Date; lte?: Date } | undefined;
     const insightWhere = {
       ...where,
       createdAt: {
-        ...(where.createdAt || {}),
+        ...(createdAtFilter || {}),
         gte:
-          where.createdAt?.gte && where.createdAt.gte > insightWindowStart
-            ? where.createdAt.gte
+          createdAtFilter?.gte && createdAtFilter.gte > insightWindowStart
+            ? createdAtFilter.gte
             : insightWindowStart,
       },
     };

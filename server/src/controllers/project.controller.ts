@@ -6,6 +6,7 @@ import { createNotification, createNotificationBatch } from '../utils/notificati
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
+import { logger } from '../utils/logger';
 
 export const checkTeamProjectPermission = async (
   userId: string,

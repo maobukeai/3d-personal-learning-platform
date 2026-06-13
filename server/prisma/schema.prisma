@@ -1312,6 +1312,7 @@ model GoogleWarmingAccount {
   twoFASecret    String?
   country        String?
   note           String?
+  backupCodes    String?
   category       String?   @default("未分类")
   status         String    @default("warming") // "warming", "completed", "paused"
   createdAt      DateTime  @default(now())

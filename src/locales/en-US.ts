@@ -1691,7 +1691,7 @@ export default {
       accountsList: 'Warming Accounts List',
       addAccount: 'Import Accounts',
       bulkImport: 'Batch Import Google Accounts',
-      importPlaceholder: 'Format: email----password----recoveryEmail----2FASecret----country----note\nOne account per line. Missing fields can be left blank between separators (----).',
+      importPlaceholder: 'Format: email----password----recoveryEmail----2FASecret----country----backupCodes----note\nOne account per line. Missing fields can be left blank between separators (----).',
       aiParseBtn: 'AI Smart Parse',
       standardParseBtn: 'Quick Parse',
       importConfirm: 'Import Selected Accounts ({count})',

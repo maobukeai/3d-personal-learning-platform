@@ -35,6 +35,7 @@ interface GoogleAccount {
   twoFASecret?: string;
   country?: string;
   note?: string;
+  backupCodes?: string;
   category?: string;
   status: 'warming' | 'completed' | 'paused';
   currentDay: number;
@@ -491,18 +492,37 @@ const handleStandardParse = () => {
     const parts = line.split(bestDelimiter).map(p => p.trim());
     if (parts.length < 2) continue;
 
-    const isSevenParts = parts.length >= 7;
-    const parsedCategory = isSevenParts ? (parts[5] || '未分类') : '未分类';
+    const email = parts[0] || '';
+    const password = parts[1] || '';
+    const recoveryEmail = parts[2] || '';
+    const twoFASecret = parts[3] || '';
+    const country = parts[4] || '';
+    let backupCodes = '';
+    let note = '';
+    let parsedCategory = '未分类';
+
+    if (parts.length >= 8) {
+      backupCodes = parts[5] || '';
+      parsedCategory = parts[6] || '未分类';
+      note = parts[7] || '';
+    } else if (parts.length === 7) {
+      backupCodes = parts[5] || '';
+      note = parts[6] || '';
+    } else if (parts.length === 6) {
+      note = parts[5] || '';
+    }
+
     tempParsed.push({
-      email: parts[0] || '',
-      password: parts[1] || '',
-      recoveryEmail: parts[2] || '',
-      twoFASecret: parts[3] || '',
-      country: parts[4] || '',
+      email,
+      password,
+      recoveryEmail,
+      twoFASecret,
+      country,
+      backupCodes,
       category: (importDefaultCategory.value && importDefaultCategory.value !== '未分类')
         ? importDefaultCategory.value
         : parsedCategory,
-      note: isSevenParts ? (parts[6] || '') : (parts[5] || ''),
+      note,
       status: 'warming',
       currentDay: 1
     });
@@ -529,7 +549,7 @@ const handleAiParse = async () => {
       text: importText.value,
       translateCountry: autoTranslateCountry.value
     });
-    if (res.data && res.data.accounts) {
+    if (res.data && res.data.success && Array.isArray(res.data.accounts)) {
       parsedAccounts.value = res.data.accounts.map((acc: any) => ({
         ...acc,
         category: (importDefaultCategory.value && importDefaultCategory.value !== '未分类')
@@ -1549,6 +1569,10 @@ async function handleImportFile(event: Event) {
                     2FA密钥: <code class="gw-code truncate max-w-[100px]" :title="selectedAccount.twoFASecret">{{ selectedAccount.twoFASecret }}</code>
                     <button @click="copyText(selectedAccount.twoFASecret, '2FA密钥已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制2FA密钥"><Copy class="w-3 h-3" /></button>
                   </span>
+                  <span v-if="selectedAccount.backupCodes" class="flex items-center gap-1">
+                    备用密码: <code class="gw-code truncate max-w-[120px]" :title="selectedAccount.backupCodes">{{ selectedAccount.backupCodes }}</code>
+                    <button @click="copyText(selectedAccount.backupCodes, '备用密码已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制备用密码"><Copy class="w-3 h-3" /></button>
+                  </span>
                 </div>
               </div>
 
@@ -1870,6 +1894,19 @@ async function handleImportFile(event: Event) {
                 </template>
               </el-table-column>
 
+              <!-- Backup Codes -->
+              <el-table-column label="备用密码" width="160">
+                <template #default="{ row }">
+                  <div v-if="row.backupCodes" class="flex items-center gap-1 justify-between">
+                    <span class="truncate max-w-[120px]" style="color: var(--text-secondary)" :title="row.backupCodes">{{ row.backupCodes }}</span>
+                    <button @click="copyText(row.backupCodes)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制备用密码">
+                      <Copy class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span v-else style="color: var(--text-muted)">-</span>
+                </template>
+              </el-table-column>
+
               <!-- Region/Country -->
               <el-table-column label="地区" width="110" align="center">
                 <template #default="{ row }">
@@ -2054,6 +2091,7 @@ async function handleImportFile(event: Event) {
                     <th class="p-3">辅助邮箱</th>
                     <th class="p-3">2FA密钥</th>
                     <th class="p-3">国家</th>
+                    <th class="p-3">备用密码</th>
                     <th class="p-3">分类</th>
                     <th class="p-3">状态</th>
                     <th class="p-3">备注</th>
@@ -2067,6 +2105,7 @@ async function handleImportFile(event: Event) {
                     <td class="p-2"><input v-model="acc.recoveryEmail" class="gw-table-input" /></td>
                     <td class="p-2"><input v-model="acc.twoFASecret" class="gw-table-input" /></td>
                     <td class="p-2"><input v-model="acc.country" class="gw-table-input" /></td>
+                    <td class="p-2"><input v-model="acc.backupCodes" class="gw-table-input" placeholder="备用密码" /></td>
                     <td class="p-2"><input v-model="acc.category" class="gw-table-input" placeholder="未分类" /></td>
                     <td class="p-2">
                       <select v-model="acc.status" class="gw-table-input cursor-pointer" style="background: var(--bg-app); border: 1px solid var(--border-base); border-radius: 4px; padding: 2px 4px; font-size: 11px;">
@@ -2145,6 +2184,12 @@ async function handleImportFile(event: Event) {
           <div class="gw-field !gap-1">
             <label class="gw-field-label !text-[10px]">2FA 密钥</label>
             <input v-model="editingAccount.twoFASecret" type="text" class="gw-input !py-1.5 !text-xs font-mono" />
+          </div>
+
+          <!-- Backup Codes (full width) -->
+          <div class="gw-field !gap-1">
+            <label class="gw-field-label !text-[10px]">备用密码 (空格分隔的8位验证码)</label>
+            <input v-model="editingAccount.backupCodes" type="text" class="gw-input !py-1.5 !text-xs font-mono" placeholder="例如: 3191 6344 6829 7625..." />
           </div>
 
           <!-- Country + CurrentDay + Status + Note + Category (grid) -->

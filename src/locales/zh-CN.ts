@@ -1688,7 +1688,7 @@ export default {
       accountsList: '养号账号列表',
       addAccount: '导入账号',
       bulkImport: '批量导入谷歌账号',
-      importPlaceholder: '输入数据格式：邮箱----密码----辅助邮箱----2FA密钥----国家----备注\n支持一行一条，若字段缺失可保留分隔符 ----',
+      importPlaceholder: '输入数据格式：邮箱----密码----辅助邮箱----2FA密钥----国家----备用密码----备注\n支持一行一条，若字段缺失可保留分隔符 ----',
       aiParseBtn: 'AI 智能解析',
       standardParseBtn: '快速解析',
       importConfirm: '确认导入所选账号 ({count})',

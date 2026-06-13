@@ -47,6 +47,7 @@ export class GoogleWarmingController {
             twoFASecret: account.twoFASecret ? account.twoFASecret.trim() : null,
             country: account.country ? account.country.trim() : null,
             note: account.note ? account.note.trim() : null,
+            backupCodes: account.backupCodes ? account.backupCodes.trim() : null,
             category: account.category ? account.category.trim() : '未分类',
             status: account.status || 'warming',
             currentDay: Number(account.currentDay) || 1,
@@ -84,6 +85,7 @@ For each account, extract the following fields:
 - recoveryEmail: The recovery/auxiliary/recovery email address (if present).
 - twoFASecret: The 2FA secret key/code used for generating two-factor authentication tokens (if present, e.g. a string of 16-32 characters, sometimes with spaces).
 ${countryInstruction}
+- backupCodes: Google account 2FA backup codes/passwords (if present). Google backup codes are typically a set of multiple 8-digit numbers (often 10 codes in total, e.g. "3191 6344", "6829 7625", etc., and they might span multiple lines). Format them as a single space-separated string of 8-digit codes.
 - category: A category or group label (if present, e.g. "GCP", "AdSense", "Normal").
 - note: Any additional labels, tags, or notes.
 
@@ -96,6 +98,7 @@ Format:
     "recoveryEmail": "...",
     "twoFASecret": "...",
     "country": "...",
+    "backupCodes": "...",
     "category": "...",
     "note": "..."
   }
@@ -129,7 +132,7 @@ If any field is missing or not found, set it to null.`;
   public static async updateAccount(req: AuthRequest, res: Response): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
-    const { email, password, recoveryEmail, twoFASecret, country, note, category, status, currentDay } = req.body;
+    const { email, password, recoveryEmail, twoFASecret, country, note, backupCodes, category, status, currentDay } = req.body;
 
     try {
       const existing = await prisma.googleWarmingAccount.findFirst({
@@ -150,6 +153,7 @@ If any field is missing or not found, set it to null.`;
           twoFASecret: twoFASecret !== undefined ? (twoFASecret ? twoFASecret.trim() : null) : existing.twoFASecret,
           country: country !== undefined ? (country ? country.trim() : null) : existing.country,
           note: note !== undefined ? (note ? note.trim() : null) : existing.note,
+          backupCodes: backupCodes !== undefined ? (backupCodes ? backupCodes.trim() : null) : existing.backupCodes,
           category: category !== undefined ? (category ? category.trim() : '未分类') : existing.category,
           status: status !== undefined ? status : existing.status,
           currentDay: currentDay !== undefined ? Number(currentDay) : existing.currentDay,

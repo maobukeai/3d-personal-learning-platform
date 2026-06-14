@@ -32,6 +32,8 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { useAuthStore } from '@/stores/auth';
 import UserAvatar from '@/components/UserAvatar.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import FileDropZone from '@/components/FileDropZone.vue';
 import {
   formatCompactNumber,
   formatDate,
@@ -758,36 +760,28 @@ onUnmounted(() => {
 
 <template>
   <div class="materials-page">
-    <section class="command-bar">
-      <div class="page-title">
-        <div class="title-icon">
-          <Layers class="icon-md" />
-        </div>
-        <div>
-          <h1>{{ label('材质库', 'Material Library') }}</h1>
-          <p>{{ label('PBR 贴图、程序化材质、纹理包', 'PBR maps, procedural materials, and texture packs') }}</p>
-        </div>
-      </div>
-
-      <div class="command-actions">
-        <button
-          type="button"
-          class="ghost-button icon-text"
-          @click="isStatsExpanded = !isStatsExpanded"
-        >
-          <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
-          {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
-        </button>
-        <button type="button" class="ghost-button icon-text" @click="activeTab = 'favorites'">
-          <Heart class="icon-sm" />
-          {{ label('收藏', 'Favorites') }}
-        </button>
-        <button type="button" class="primary-button icon-text" @click="openCreateDialog">
-          <UploadCloud class="icon-sm" />
-          {{ label('上传', 'Upload') }}
-        </button>
-      </div>
-    </section>
+    <PageHeader
+      :title="label('材质库', 'Material Library')"
+      :subtitle="label('PBR 贴图、程序化材质、纹理包', 'PBR maps, procedural materials, and texture packs')"
+      :icon="Layers"
+    >
+      <button
+        type="button"
+        class="ghost-button icon-text"
+        @click="isStatsExpanded = !isStatsExpanded"
+      >
+        <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
+        {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
+      </button>
+      <button type="button" class="ghost-button icon-text" @click="activeTab = 'favorites'">
+        <Heart class="icon-sm" />
+        {{ label('收藏', 'Favorites') }}
+      </button>
+      <button type="button" class="primary-button icon-text" @click="openCreateDialog">
+        <UploadCloud class="icon-sm" />
+        {{ label('上传', 'Upload') }}
+      </button>
+    </PageHeader>
 
     <div v-show="isStatsExpanded" class="metric-strip">
       <article v-for="stat in statCards" :key="stat.label" class="metric-tile" :data-tone="stat.tone">
@@ -1226,19 +1220,27 @@ onUnmounted(() => {
           <div class="dialog-grid">
             <div class="dialog-column">
               <template v-if="!isEditingMaterial">
-                <label class="drop-zone">
-                  <input type="file" accept=".zip,.sbsar" @change="handleFileChange" />
-                  <UploadCloud class="drop-icon" />
-                  <strong>{{ materialForm.file?.name || label('选择材料包', 'Choose Material Pack') }}</strong>
-                  <span>ZIP / SBSAR</span>
-                </label>
+                <div class="mb-4 w-full">
+                  <FileDropZone
+                    v-model="materialForm.file"
+                    accept=".zip,.sbsar"
+                    :label="materialForm.file?.name || label('选择材料包', 'Choose Material Pack')"
+                    sublabel="ZIP / SBSAR"
+                    heightClass="h-28"
+                    @change="handleFileChange"
+                  />
+                </div>
 
-                <label class="drop-zone compact">
-                  <input type="file" accept="image/*" @change="handlePreviewChange" />
-                  <Eye class="drop-icon" />
-                  <strong>{{ materialForm.preview?.name || label('上传预览图', 'Upload Preview') }}</strong>
-                  <span>{{ label('方形或 16:10 封面', 'Square or 16:10 cover') }}</span>
-                </label>
+                <div class="mb-4 w-full">
+                  <FileDropZone
+                    v-model="materialForm.preview"
+                    accept="image/*"
+                    :label="materialForm.preview?.name || label('上传预览图', 'Upload Preview')"
+                    :sublabel="label('方形或 16:10 封面', 'Square or 16:10 cover')"
+                    heightClass="h-28"
+                    @change="handlePreviewChange"
+                  />
+                </div>
               </template>
 
               <label class="form-field">

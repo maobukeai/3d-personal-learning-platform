@@ -6,27 +6,23 @@ import {
   Shield,
   Plus,
   Trash2,
-  Check,
-  ExternalLink,
-  Edit,
-  FileText,
   Calendar,
   Sparkles,
-  Info,
-  CheckCircle,
   RefreshCw,
   Copy,
-  Key,
-  Search,
   Download,
   Upload,
-  ArrowLeft,
-  Settings,
-  GripVertical
+  Key,
+  Search,
+  FileText
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { createJsonHeaders, parseSSEStream } from '@/utils/aiHelpers';
+
+// Subcomponents
+import GoogleWarmingConsoleTab from './components/GoogleWarmingConsoleTab.vue';
+import GoogleAccountsTab from './components/GoogleAccountsTab.vue';
 
 interface GoogleAccount {
   id: string;
@@ -79,20 +75,17 @@ const openImportDialog = () => {
 // Edit account modal
 const isEditDialogVisible = ref<boolean>(false);
 const editingAccount = ref<Partial<GoogleAccount>>({});
-const isCategoryManagerVisible = ref<boolean>(false);
 
-// Search and status filters
+// Search and status filters (Warming workspace list)
 const searchQuery = ref<string>('');
 const statusFilter = ref<'all' | 'warming' | 'completed' | 'paused'>('all');
 
 // Batch selection
 const selectedAccountIds = ref<string[]>([]);
 
-// Tabs & Categories
+// Tabs
 const activeTab = ref<'warming' | 'manage'>('warming');
-const selectedCategory = ref<string>('all');
 const categoriesListBackend = ref<string[]>([]);
-const newCategoryName = ref<string>('');
 
 // Compute categories list dynamically
 const categoriesList = computed(() => {
@@ -117,20 +110,7 @@ const fetchCategories = async () => {
   }
 };
 
-const handleAddCategory = async () => {
-  if (!newCategoryName.value.trim()) {
-    ElMessage.warning('请输入分类名称');
-    return;
-  }
-  const cat = newCategoryName.value.trim();
-  if (cat === '未分类' || cat === 'all') {
-    ElMessage.warning('无效的分类名称');
-    return;
-  }
-  if (categoriesList.value.includes(cat)) {
-    ElMessage.warning('分类已存在');
-    return;
-  }
+const handleAddCategory = async (cat: string) => {
   try {
     isLoading.value = true;
     const res = await api.post('/api/google-warming/accounts/categories/add', {
@@ -138,7 +118,6 @@ const handleAddCategory = async () => {
     });
     if (res.data && res.data.success) {
       ElMessage.success(`添加分类「${cat}」成功！`);
-      newCategoryName.value = '';
       await fetchCategories();
     }
   } catch (e: any) {
@@ -148,142 +127,8 @@ const handleAddCategory = async () => {
   }
 };
 
-// Category count helper
-const getCategoryCount = (category: string) => {
-  if (category === 'all') return accounts.value.length;
-  if (category === '未分类') {
-    return accounts.value.filter(a => !a.category || a.category === '未分类').length;
-  }
-  return accounts.value.filter(a => a.category === category).length;
-};
-
-// Filtered and categorized accounts for the management table
-const filteredAndCategorizedAccounts = computed(() => {
-  return accounts.value.filter(acc => {
-    // Search query filter
-    const query = searchQuery.value.trim().toLowerCase();
-    const matchQuery = !query ||
-      acc.email.toLowerCase().includes(query) ||
-      (acc.note && acc.note.toLowerCase().includes(query)) ||
-      (acc.country && acc.country.toLowerCase().includes(query)) ||
-      (acc.category && acc.category.toLowerCase().includes(query));
-
-    // Category filter
-    let matchCategory = true;
-    if (selectedCategory.value === '未分类') {
-      matchCategory = !acc.category || acc.category === '未分类';
-    } else if (selectedCategory.value !== 'all') {
-      matchCategory = acc.category === selectedCategory.value;
-    }
-
-    return matchQuery && matchCategory;
-  });
-});
-
-// selection handler for el-table
-const handleSelectionChange = (selection: GoogleAccount[]) => {
-  selectedAccountIds.value = selection.map(item => item.id);
-};
-
-// Drag & Drop account categorization
-const draggedAccount = ref<GoogleAccount | null>(null);
-const draggingOverCategory = ref<string | null>(null);
-
-const handleDragStart = (event: DragEvent, row: GoogleAccount) => {
-  draggedAccount.value = row;
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', row.id);
-  }
-};
-
-const handleDragEnter = (category: string) => {
-  draggingOverCategory.value = category;
-};
-
-const handleDragLeave = () => {
-  draggingOverCategory.value = null;
-};
-
-const handleDrop = async (event: DragEvent, targetCategory: string) => {
-  event.preventDefault();
-  draggingOverCategory.value = null;
-
-  const row = draggedAccount.value;
-  if (!row) return;
-
-  const actualCategory = targetCategory === 'all' ? '未分类' : targetCategory;
-
-  // Determine if we should perform a batch drop or single drop
-  const isBatch = selectedAccountIds.value.includes(row.id);
-  const targetIds = isBatch ? selectedAccountIds.value : [row.id];
-
-  try {
-    isLoading.value = true;
-    const res = await api.post('/api/google-warming/accounts/batch-category', {
-      ids: targetIds,
-      category: actualCategory
-    });
-    if (res.data && res.data.success) {
-      ElMessage.success(`成功移动 ${isBatch ? targetIds.length : 1} 个账号至分类「${actualCategory}」`);
-      selectedAccountIds.value = [];
-      await fetchAccounts();
-    }
-  } catch (e: any) {
-    ElMessage.error(getApiErrorMessage(e, '移动账号分类失败'));
-  } finally {
-    isLoading.value = false;
-    draggedAccount.value = null;
-  }
-};
-
-// Compute selected account
 const selectedAccount = computed(() => {
   return accounts.value.find(a => a.id === selectedAccountId.value) || null;
-});
-
-// Recommended IP sites list
-const ipSites = [
-  {
-    name: 'Whoer.net',
-    url: 'https://whoer.net',
-    descKey: 'tools.googleWarming.whoerDesc',
-    iconColor: 'text-emerald-500 bg-emerald-500/10'
-  },
-  {
-    name: 'Scamalytics',
-    url: 'https://scamalytics.com',
-    descKey: 'tools.googleWarming.scamalyticsDesc',
-    iconColor: 'text-amber-500 bg-amber-500/10'
-  },
-  {
-    name: 'ip.ping0.cc',
-    url: 'https://ip.ping0.cc',
-    descKey: 'tools.googleWarming.ping0Desc',
-    iconColor: 'text-violet-500 bg-violet-500/10'
-  },
-  {
-    name: 'BrowserScan',
-    url: 'https://www.browserscan.net',
-    descKey: 'tools.googleWarming.browserscanDesc',
-    iconColor: 'text-sky-500 bg-sky-500/10'
-  },
-  {
-    name: 'Pixelscan',
-    url: 'https://pixelscan.net',
-    descKey: 'tools.googleWarming.pixelscanDesc',
-    iconColor: 'text-rose-500 bg-rose-500/10'
-  }
-];
-
-// Checklist states for current day
-const dayChecklist = ref<{ [key: string]: boolean }>({
-  action1: false,
-  action2: false,
-  action3: false,
-  action4: false,
-  action5: false,
-  action6: false
 });
 
 // Fetch accounts on mount
@@ -311,21 +156,12 @@ const fetchAccounts = async () => {
 
 const selectAccount = (id: string) => {
   selectedAccountId.value = id;
-  // Reset checklist
-  dayChecklist.value = {
-    action1: false,
-    action2: false,
-    action3: false,
-    action4: false,
-    action5: false,
-    action6: false
-  };
   if (window.innerWidth < 1024) {
     activeMobileView.value = 'detail';
   }
 };
 
-// Filtered accounts computed
+// Filtered accounts computed (Warming workspace list)
 const filteredAccounts = computed(() => {
   return accounts.value.filter(acc => {
     const query = searchQuery.value.trim().toLowerCase();
@@ -339,7 +175,7 @@ const filteredAccounts = computed(() => {
   });
 });
 
-// Batch selection helpers
+// Batch selection helpers (Warming workspace list)
 const isAllSelected = computed(() => {
   const ids = filteredAccounts.value.map(a => a.id);
   return ids.length > 0 && ids.every(id => selectedAccountIds.value.includes(id));
@@ -359,23 +195,26 @@ const toggleSelectAll = () => {
 };
 
 // Batch Action handlers
-const handleBatchWarm = async () => {
-  if (selectedAccountIds.value.length === 0) return;
+const handleBatchWarm = async (customIds?: string[]) => {
+  const targetIds = customIds || selectedAccountIds.value;
+  if (targetIds.length === 0) return;
   try {
-    await ElMessageBox.confirm(
-      `确定要对已选的 ${selectedAccountIds.value.length} 个账号进行一键打卡吗？`,
-      '批量打卡提示',
-      {
-        confirmButtonText: '确定打卡',
-        cancelButtonText: '取消',
-        type: 'success',
-        customClass: 'dark:bg-slate-900 border-none'
-      }
-    );
+    if (!customIds) {
+      await ElMessageBox.confirm(
+        `确定要对已选的 ${targetIds.length} 个账号进行一键打卡吗？`,
+        '批量打卡提示',
+        {
+          confirmButtonText: '确定打卡',
+          cancelButtonText: '取消',
+          type: 'success',
+          customClass: 'dark:bg-slate-900 border-none'
+        }
+      );
+    }
 
     isLoading.value = true;
     const res = await api.post('/api/google-warming/accounts/batch-warm', {
-      ids: selectedAccountIds.value
+      ids: targetIds
     });
 
     if (res.data && res.data.success) {
@@ -392,11 +231,12 @@ const handleBatchWarm = async () => {
   }
 };
 
-const handleBatchDelete = async () => {
-  if (selectedAccountIds.value.length === 0) return;
+const handleBatchDelete = async (customIds?: string[]) => {
+  const targetIds = customIds || selectedAccountIds.value;
+  if (targetIds.length === 0) return;
   try {
     await ElMessageBox.confirm(
-      `确定要删除已选的 ${selectedAccountIds.value.length} 个账号吗？此操作将永久清除养号进度且不可逆！`,
+      `确定要删除已选的 ${targetIds.length} 个账号吗？此操作将永久清除养号进度且不可逆！`,
       '批量删除警告',
       {
         confirmButtonText: '确定删除',
@@ -408,7 +248,7 @@ const handleBatchDelete = async () => {
 
     isLoading.value = true;
     const res = await api.post('/api/google-warming/accounts/batch-delete', {
-      ids: selectedAccountIds.value
+      ids: targetIds
     });
 
     if (res.data && res.data.success) {
@@ -430,12 +270,13 @@ const handleBatchDelete = async () => {
   }
 };
 
-const handleBatchStatus = async (status: 'warming' | 'completed' | 'paused') => {
-  if (selectedAccountIds.value.length === 0) return;
+const handleBatchStatus = async (payload: { ids: string[]; status: 'warming' | 'completed' | 'paused' }) => {
+  const { ids, status } = payload;
+  if (ids.length === 0) return;
   try {
     isLoading.value = true;
     const res = await api.post('/api/google-warming/accounts/batch-status', {
-      ids: selectedAccountIds.value,
+      ids,
       status
     });
 
@@ -457,14 +298,13 @@ const handleBatchCommand = (cmd: string) => {
   } else if (cmd === 'delete') {
     handleBatchDelete();
   } else if (cmd === 'status-warming') {
-    handleBatchStatus('warming');
+    handleBatchStatus({ ids: selectedAccountIds.value, status: 'warming' });
   } else if (cmd === 'status-paused') {
-    handleBatchStatus('paused');
+    handleBatchStatus({ ids: selectedAccountIds.value, status: 'paused' });
   } else if (cmd === 'status-completed') {
-    handleBatchStatus('completed');
+    handleBatchStatus({ ids: selectedAccountIds.value, status: 'completed' });
   }
 };
-
 
 // Client-side auto-delimiter parse
 const handleStandardParse = () => {
@@ -605,7 +445,6 @@ const handleWarmStep = async () => {
   try {
     const res = await api.post(`/api/google-warming/accounts/${account.id}/warm`);
     if (res.data) {
-      // Find and update local account
       const idx = accounts.value.findIndex(a => a.id === account.id);
       if (idx > -1) {
         accounts.value[idx] = res.data;
@@ -656,20 +495,9 @@ const saveAccountEdit = async () => {
 };
 
 // Inline category editing helpers
-const handleInlineCategory = async (row: GoogleAccount, cmd: string) => {
-  if (cmd === 'custom-new-category') {
-    ElMessageBox.prompt('请输入新的分类名称', '修改分类', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputPlaceholder: '请输入新分类名称...',
-      customClass: 'dark:bg-slate-900 border-none'
-    }).then(async ({ value }) => {
-      const newCat = value ? value.trim() : '未分类';
-      await updateAccountCategory(row, newCat);
-    }).catch(() => {});
-  } else {
-    await updateAccountCategory(row, cmd);
-  }
+const handleInlineCategory = async (payload: { row: GoogleAccount; cmd: string }) => {
+  const { row, cmd } = payload;
+  await updateAccountCategory(row, cmd);
 };
 
 const updateAccountCategory = async (row: GoogleAccount, category: string) => {
@@ -694,66 +522,59 @@ const updateAccountCategory = async (row: GoogleAccount, category: string) => {
 };
 
 // Category Management (Rename & Delete)
-const handleRenameCategory = async (oldCat: string) => {
-  ElMessageBox.prompt(`请输入「${oldCat}」的新分类名称`, '重命名分类', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    inputPlaceholder: '新分类名称...',
-    inputValue: oldCat,
-    customClass: 'dark:bg-slate-900 border-none'
-  }).then(async ({ value }) => {
-    const newCat = value ? value.trim() : '未分类';
-    if (newCat === oldCat) return;
-    try {
-      isLoading.value = true;
-      const res = await api.post('/api/google-warming/accounts/category/rename', {
-        oldCategory: oldCat,
-        newCategory: newCat
-      });
-      if (res.data && res.data.success) {
-        ElMessage.success(`重命名分类成功！已更新 ${res.data.count} 个账号。`);
-        if (selectedCategory.value === oldCat) {
-          selectedCategory.value = newCat;
-        }
-        await fetchAccounts();
-      }
-    } catch (e: any) {
-      ElMessage.error(getApiErrorMessage(e, '重命名分类失败'));
-    } finally {
-      isLoading.value = false;
+const handleRenameCategory = async (payload: { oldCategory: string; newCategory: string }) => {
+  const { oldCategory, newCategory } = payload;
+  try {
+    isLoading.value = true;
+    const res = await api.post('/api/google-warming/accounts/category/rename', {
+      oldCategory,
+      newCategory
+    });
+    if (res.data && res.data.success) {
+      ElMessage.success(`重命名分类成功！已更新 ${res.data.count} 个账号。`);
+      await fetchAccounts();
     }
-  }).catch(() => {});
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '重命名分类失败'));
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const handleDeleteCategory = async (cat: string) => {
-  ElMessageBox.confirm(
-    `确定要删除分类「${cat}」吗？该分类下的所有账号将变回「未分类」。`,
-    '删除分类',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-      customClass: 'dark:bg-slate-900 border-none'
+  try {
+    isLoading.value = true;
+    const res = await api.post('/api/google-warming/accounts/category/delete', {
+      category: cat
+    });
+    if (res.data && res.data.success) {
+      ElMessage.success(`删除分类成功！已重置 ${res.data.count} 个账号至「未分类」。`);
+      await fetchAccounts();
     }
-  ).then(async () => {
-    try {
-      isLoading.value = true;
-      const res = await api.post('/api/google-warming/accounts/category/delete', {
-        category: cat
-      });
-      if (res.data && res.data.success) {
-        ElMessage.success(`删除分类成功！已重置 ${res.data.count} 个账号至「未分类」。`);
-        if (selectedCategory.value === cat) {
-          selectedCategory.value = 'all';
-        }
-        await fetchAccounts();
-      }
-    } catch (e: any) {
-      ElMessage.error(getApiErrorMessage(e, '删除分类失败'));
-    } finally {
-      isLoading.value = false;
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '删除分类失败'));
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const handleBatchCategory = async (payload: { ids: string[]; category: string }) => {
+  const { ids, category } = payload;
+  try {
+    isLoading.value = true;
+    const res = await api.post('/api/google-warming/accounts/batch-category', {
+      ids,
+      category
+    });
+    if (res.data && res.data.success) {
+      ElMessage.success(`成功移动 ${ids.length} 个账号至分类「${category}」`);
+      await fetchAccounts();
     }
-  }).catch(() => {});
+  } catch (e: any) {
+    ElMessage.error(getApiErrorMessage(e, '移动账号分类失败'));
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 // Delete account
@@ -783,187 +604,23 @@ const deleteAccount = (account: GoogleAccount) => {
   }).catch(() => {});
 };
 
-// Get step details for dynamic UI rendering
-const getStepDetails = (dayNum: number) => {
-  switch (dayNum) {
-    case 1:
-      return {
-        title: t('tools.googleWarming.questDays.day1'),
-        desc: t('tools.googleWarming.questDays.day1Desc'),
-        actions: [
-          { key: 'action1', text: '在新设备或独立指纹浏览器中完成首次安全登录' },
-          { key: 'action2', text: '进入 Gmail 收件箱，浏览点击 2-3 封未读邮件' }
-        ]
-      };
-    case 2:
-      return {
-        title: t('tools.googleWarming.questDays.day2'),
-        desc: t('tools.googleWarming.questDays.day2Desc'),
-        actions: [
-          { key: 'action1', text: '进入谷歌安全中心，查看并登出所有不认识的陌生设备' },
-          { key: 'action2', text: '打开 Gmail 浏览收件箱垃圾邮件和收信' },
-          { key: 'action3', text: '打开 YouTube 浏览或随机播放视频 10-15 分钟' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Spotify 音乐平台' }
-        ]
-      };
-    case 3:
-      return {
-        title: t('tools.googleWarming.questDays.day3'),
-        desc: t('tools.googleWarming.questDays.day3Desc'),
-        actions: [
-          { key: 'action1', text: '设置并绑定辅助邮箱（恢复邮箱）以增强信誉' },
-          { key: 'action2', text: '正常收发几封 Gmail 邮件' },
-          { key: 'action3', text: '在 YouTube 观看视频并随机点击喜欢或订阅' },
-          { key: 'action4', text: '打开 Gemini AI，随便发送 2-3 句话进行 AI 对话互动' },
-          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Twitter (X) 社交平台' }
-        ]
-      };
-    case 4:
-      return {
-        title: t('tools.googleWarming.questDays.day4'),
-        desc: t('tools.googleWarming.questDays.day4Desc'),
-        actions: [
-          { key: 'action1', text: '管理两步验证 (2FA) 或其他安全辅助设置' },
-          { key: 'action2', text: '阅读 Gmail 邮件，清理垃圾邮件分类' },
-          { key: 'action3', text: '打开 YouTube 观看视频，搜索感兴趣的内容' },
-          { key: 'action4', text: '用 Gemini AI 随机生成一段关于学习路线的文本' },
-          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 TikTok 视频平台' }
-        ]
-      };
-    case 5:
-      return {
-        title: t('tools.googleWarming.questDays.day5'),
-        desc: t('tools.googleWarming.questDays.day5Desc'),
-        actions: [
-          { key: 'action1', text: '绑定密保手机号（建议长期养号使用以防异常风控）' },
-          { key: 'action2', text: '正常浏览接收邮件，向外部发一封邮件' },
-          { key: 'action3', text: '观看 YouTube 视频，建立正常的视频推流推荐' },
-          { key: 'action4', text: '向 Gemini AI 提问一些日常开发或 3D 建模命令' },
-          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Notion 知识库笔记平台' }
-        ]
-      };
-    case 6:
-      return {
-        title: t('tools.googleWarming.questDays.day6'),
-        desc: t('tools.googleWarming.questDays.day6Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail 正常浏览邮件，收发几封日常邮件' },
-          { key: 'action2', text: '打开 YouTube 浏览或随机点赞/评论几个视频' },
-          { key: 'action3', text: '在 Google 搜索引擎中进行少量网页搜索与浏览' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Canva 设计工具平台' }
-        ]
-      };
-    case 7:
-      return {
-        title: t('tools.googleWarming.questDays.day7'),
-        desc: t('tools.googleWarming.questDays.day7Desc'),
-        actions: [
-          { key: 'action1', text: '安全更改谷歌账户的登录密码' },
-          { key: 'action2', text: '浏览收发 Gmail，整理垃圾邮件' },
-          { key: 'action3', text: 'YouTube 观看并对优质内容进行评论/互动' },
-          { key: 'action4', text: '使用 Gemini AI 翻译一小段英文文章' },
-          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Figma 界面设计平台' },
-          { key: 'action6', text: '检查谷歌账号的真实国家/地区，并在系统中更新/修改该账号的“国家/地区”属性' }
-        ]
-      };
-    case 8:
-      return {
-        title: t('tools.googleWarming.questDays.day8'),
-        desc: t('tools.googleWarming.questDays.day8Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
-          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Miro 协作白板平台' }
-        ]
-      };
-    case 9:
-      return {
-        title: t('tools.googleWarming.questDays.day9'),
-        desc: t('tools.googleWarming.questDays.day9Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail 处理信件，清扫不需要的推广邮件' },
-          { key: 'action2', text: '打开 YouTube 观看视频点赞并订阅博主' },
-          { key: 'action3', text: '访问 Gemini AI 进行一些技术问题问答交流' },
-          { key: 'action4', text: '使用当前谷歌账号在 Miro 中创建一个新的画板并绘制基础草图' }
-        ]
-      };
-    case 10:
-      return {
-        title: t('tools.googleWarming.questDays.day10'),
-        desc: t('tools.googleWarming.questDays.day10Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
-          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Slack 团队协同平台' }
-        ]
-      };
-    case 11:
-      return {
-        title: t('tools.googleWarming.questDays.day11'),
-        desc: t('tools.googleWarming.questDays.day11Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail 处理信件，与陌生邮箱做一次日常通信' },
-          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 ChatGPT 开启 AI 问答对话' }
-        ]
-      };
-    case 12:
-      return {
-        title: t('tools.googleWarming.questDays.day12'),
-        desc: t('tools.googleWarming.questDays.day12Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
-          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 GitHub 开发者托管平台' }
-        ]
-      };
-    case 13:
-      return {
-        title: t('tools.googleWarming.questDays.day13'),
-        desc: t('tools.googleWarming.questDays.day13Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail 邮件处理，给自己的备用邮箱发送一封日常日志' },
-          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Replit 云端代码开发平台' }
-        ]
-      };
-    case 14:
-    default:
-      return {
-        title: t('tools.googleWarming.questDays.day14'),
-        desc: t('tools.googleWarming.questDays.day14Desc'),
-        actions: [
-          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
-          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
-          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Reddit 社区交流论坛' }
-        ]
-      };
-  }
-};
-
-// Check if all actions for selected account's current day are checked
-const isAllActionsChecked = computed(() => {
+const saveCountryInline = async (country: string) => {
   const account = selectedAccount.value;
-  if (!account) return false;
-  
-  const step = getStepDetails(account.currentDay);
-  return step.actions.every(act => dayChecklist.value[act.key]);
-});
-
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-    case 'paused':
-      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
-    default:
-      return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
+  if (!account) return;
+  try {
+    const res = await api.put(`/api/google-warming/accounts/${account.id}`, {
+      ...account,
+      country
+    });
+    if (res.data) {
+      const idx = accounts.value.findIndex(a => a.id === account.id);
+      if (idx > -1) {
+        accounts.value[idx] = res.data;
+      }
+      ElMessage.success('国家地址修改成功');
+    }
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '国家地址修改失败'));
   }
 };
 
@@ -975,6 +632,17 @@ const getStatusLabel = (status: string) => {
       return t('tools.googleWarming.statusPaused');
     default:
       return t('tools.googleWarming.statusWarming');
+  }
+};
+
+const getStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    case 'paused':
+      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    default:
+      return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
   }
 };
 
@@ -1111,201 +779,6 @@ watch(
   { immediate: true }
 );
 
-const tempCountry = ref('');
-const isAppealAssistantVisible = ref(false);
-const appealTargetCountry = ref('');
-const appealLanguage = ref('en');
-const appealReasons = ref({
-  liveHere: false,
-  movedHere: false,
-  nearBorder: false,
-  differentRegions: false,
-  frequentTravel: false,
-  paymentMethod: false,
-  familyReside: false,
-  relocating: false
-});
-const isGeneratingAppeal = ref(false);
-const generatedAppealText = ref('');
-let appealAbortCtrl: AbortController | null = null;
-
-watch(
-  () => selectedAccount.value?.id,
-  () => {
-    tempCountry.value = selectedAccount.value?.country || '';
-    appealTargetCountry.value = '';
-    appealLanguage.value = 'en';
-    generatedAppealText.value = '';
-    appealReasons.value = {
-      liveHere: false,
-      movedHere: false,
-      nearBorder: false,
-      differentRegions: false,
-      frequentTravel: false,
-      paymentMethod: false,
-      familyReside: false,
-      relocating: false
-    };
-  },
-  { immediate: true }
-);
-
-const generateAppealText = async () => {
-  if (isGeneratingAppeal.value) {
-    if (appealAbortCtrl) appealAbortCtrl.abort();
-  }
-
-  const country = appealTargetCountry.value.trim();
-  if (!country) {
-    ElMessage.warning('请输入拟更改的目标国家/地区');
-    return;
-  }
-
-  const selectedReasonsList: string[] = [];
-  if (appealReasons.value.liveHere) selectedReasonsList.push('我目前居住在该国家/地区 (I live here)');
-  if (appealReasons.value.movedHere) selectedReasonsList.push('我在过去一年内搬到了这里 (Relocated in the past year)');
-  if (appealReasons.value.nearBorder) selectedReasonsList.push('我的居住/工作/就学地在领土边界附近 (Residence/work near border)');
-  if (appealReasons.value.differentRegions) selectedReasonsList.push('我的工作地/学习地和居住地分属不同地区 (Work and residence in different regions)');
-  if (appealReasons.value.frequentTravel) selectedReasonsList.push('我经常往返于两地进行商务出差或私人旅行 (Frequent travel/commute between regions)');
-  if (appealReasons.value.paymentMethod) selectedReasonsList.push('我的主要支付方式、银行卡及账单寄送地址在该地区 (Payment method/billing address in target region)');
-  if (appealReasons.value.familyReside) selectedReasonsList.push('我的家属、亲人或配偶目前长期居住在该地区 (Family members/spouse reside in target region)');
-  if (appealReasons.value.relocating) selectedReasonsList.push('我计划长期搬迁至该地区，且已签署当地房屋租赁协议或购置房产 (Relocating and rented/purchased property)');
-
-  if (selectedReasonsList.length === 0) {
-    ElMessage.warning('请至少选择一至两个申诉依据');
-    return;
-  }
-
-  isGeneratingAppeal.value = true;
-  generatedAppealText.value = '';
-  appealAbortCtrl = new AbortController();
-
-  const promptText = `请帮我撰写一个 Google 改区/修改账号关联国家地址的申诉陈述（字数在 200-400 字之间，必须严格控制在 500 字以内，不能带任何 Markdown 标签或代码框，只输出最终的陈述文本，且使用第一人称“我”）。
-目标国家/地区：${country}
-生成语言：${appealLanguage.value === 'en' ? '英文 (English)' : '中文 (Chinese)'}
-基于的申诉理由要点：
-${selectedReasonsList.map(r => `- ${r}`).join('\n')}
-
-请写出一段极其自然、符合真实人类生活和迁移场景的文字，可以直接用于填写 Google 'country-association-form' (国家关联表单) 中的“其他原因”输入框。字数在 200-400 字之间，绝对不能超过 500 个字。不要输出任何除了申诉理由正文之外的闲聊或提示词。`;
-
-  try {
-    const response = await fetch('/api/ai/write-assist', {
-      method: 'POST',
-      headers: createJsonHeaders(),
-      body: JSON.stringify({
-        action: 'generate',
-        text: '',
-        prompt: promptText,
-        instruction: '',
-        scope: 'full',
-        tone: 'friendly',
-        length: 'short',
-        format: 'paragraphs'
-      }),
-      signal: appealAbortCtrl.signal
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMsg = 'AI 生成失败';
-      try {
-        const parsed = JSON.parse(errorText);
-        errorMsg = parsed.error || parsed.message || errorMsg;
-      } catch {
-        errorMsg = errorText || errorMsg;
-      }
-      throw new Error(errorMsg);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('浏览器不支持流式读取');
-    }
-
-    await parseSSEStream(
-      reader,
-      (payload) => {
-        if (payload.text) {
-          generatedAppealText.value += payload.text;
-        }
-        if (payload.error) {
-          throw new Error(payload.error);
-        }
-      },
-      () => {
-        isGeneratingAppeal.value = false;
-        appealAbortCtrl = null;
-      },
-      (err) => {
-        if (err.name !== 'AbortError') {
-          ElMessage.error(err.message || 'AI 生成异常');
-        }
-        isGeneratingAppeal.value = false;
-        appealAbortCtrl = null;
-      }
-    );
-  } catch (e: any) {
-    if (e.name !== 'AbortError') {
-      ElMessage.error(e.message || 'AI 生成失败，请重试');
-    }
-    isGeneratingAppeal.value = false;
-    appealAbortCtrl = null;
-  }
-};
-
-const randomizeReasonsAndGenerate = () => {
-  appealReasons.value = {
-    liveHere: false,
-    movedHere: false,
-    nearBorder: false,
-    differentRegions: false,
-    frequentTravel: false,
-    paymentMethod: false,
-    familyReside: false,
-    relocating: false
-  };
-
-  const keys = [
-    'liveHere',
-    'movedHere',
-    'nearBorder',
-    'differentRegions',
-    'frequentTravel',
-    'paymentMethod',
-    'familyReside',
-    'relocating'
-  ] as const;
-  const countToPick = Math.random() < 0.5 ? 1 : 2;
-  const shuffledKeys = [...keys].sort(() => Math.random() - 0.5);
-  
-  for (let i = 0; i < countToPick; i++) {
-    appealReasons.value[shuffledKeys[i]] = true;
-  }
-
-  generateAppealText();
-};
-
-const saveCountryInline = async () => {
-  const account = selectedAccount.value;
-  if (!account) return;
-  try {
-    const res = await api.put(`/api/google-warming/accounts/${account.id}`, {
-      ...account,
-      country: tempCountry.value.trim() || null
-    });
-    if (res.data) {
-      const idx = accounts.value.findIndex(a => a.id === account.id);
-      if (idx > -1) {
-        accounts.value[idx] = res.data;
-      }
-      dayChecklist.value.action6 = true;
-      ElMessage.success('国家地址修改成功');
-    }
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '国家地址修改失败'));
-  }
-};
-
 onUnmounted(() => {
   stopTotpTimer();
 });
@@ -1320,10 +793,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
 };
 
 // ── Password Generator ────────────────────────────────────────────────────────
-const generatedPassword = ref<string>('');
-const passwordLength = ref<number>(12);
-
-const generateRandomPassword = (targetRef?: any) => {
+const generateRandomPassword = (targetRef: any) => {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
   let password = '';
   const poolLower = 'abcdefghijklmnopqrstuvwxyz';
@@ -1331,26 +801,18 @@ const generateRandomPassword = (targetRef?: any) => {
   const poolDigit = '0123456789';
   const poolSymbol = '!@#$%^&*()_+';
   
-  // Ensure we get at least one of each class
   password += poolLower[Math.floor(Math.random() * poolLower.length)];
   password += poolUpper[Math.floor(Math.random() * poolUpper.length)];
   password += poolDigit[Math.floor(Math.random() * poolDigit.length)];
   password += poolSymbol[Math.floor(Math.random() * poolSymbol.length)];
   
-  // Fill the rest up to length
-  const len = targetRef ? 12 : passwordLength.value; // For quick generate in edit dialog, default to 12 chars
-  for (let i = 4; i < len; i++) {
+  for (let i = 4; i < 12; i++) {
     password += chars[Math.floor(Math.random() * chars.length)];
   }
   
-  // Shuffle
   const shuffled = password.split('').sort(() => 0.5 - Math.random()).join('');
-  if (targetRef) {
-    targetRef.password = shuffled;
-    ElMessage.success('已自动生成并填充复杂密码！');
-  } else {
-    generatedPassword.value = shuffled;
-  }
+  targetRef.password = shuffled;
+  ElMessage.success('已自动生成并填充复杂密码！');
 };
 
 // ── Password Generator Dialog States ──────────────────────────────────────────
@@ -1388,7 +850,6 @@ const generateDialogPassword = () => {
     guaranteed.push(poolSymbol[Math.floor(Math.random() * poolSymbol.length)]);
   }
 
-  // If nothing is selected, alert and default to lower + upper + numbers
   if (allowedPool.length === 0) {
     passGenLower.value = true;
     passGenUpper.value = true;
@@ -1406,7 +867,6 @@ const generateDialogPassword = () => {
     password += allowedPool[Math.floor(Math.random() * allowedPool.length)];
   }
 
-  // Shuffle
   passGenResult.value = password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 
@@ -1477,7 +937,6 @@ async function handleImportFile(event: Event) {
     return;
   }
 
-  // Support both {accounts:[]} wrapper and plain array
   const list: any[] = Array.isArray(parsed) ? parsed : (parsed.accounts ?? []);
   if (!list.length) {
     ElMessage.warning('备份文件中没有账号数据');
@@ -1540,26 +999,6 @@ async function handleImportFile(event: Event) {
               {{ t('tools.googleWarming.description') }}
             </p>
           </div>
-          <!-- Integrated Recommended IP Checker Sites -->
-          <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] mt-0.5 text-slate-500">
-            <span class="flex items-center gap-0.5 shrink-0">
-              <Shield class="w-3 h-3 text-violet-500 dark:text-violet-400" />
-              <span>IP 检测:</span>
-            </span>
-            <template v-for="(site, idx) in ipSites" :key="site.name">
-              <a
-                :href="site.url"
-                target="_blank"
-                :title="t(site.descKey)"
-                class="hover:text-violet-500 dark:hover:text-violet-400 transition-all font-medium text-slate-650 dark:text-slate-300 flex items-center gap-0.5"
-                style="text-decoration: none"
-              >
-                <span>{{ site.name }}</span>
-                <ExternalLink class="w-2.5 h-2.5 opacity-60" />
-              </a>
-              <span v-if="idx < ipSites.length - 1" class="text-slate-300 dark:text-slate-700">•</span>
-            </template>
-          </div>
         </div>
         
         <div class="flex items-center justify-between sm:justify-end gap-1.5 w-full md:w-auto shrink-0 flex-wrap">
@@ -1576,7 +1015,7 @@ async function handleImportFile(event: Event) {
               class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
               title="导出全部账号为 JSON（包含密码、辅助邮箱、地区、状态等完整信息）"
             >
-              <Download class="w-3 h-3" />
+              <Download class="w-3.5 h-3.5" />
               <span>导出</span>
             </button>
 
@@ -1586,7 +1025,7 @@ async function handleImportFile(event: Event) {
               class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
               title="从 JSON 备份文件导入，完整还原所有字段"
             >
-              <Upload class="w-3 h-3" />
+              <Upload class="w-3.5 h-3.5" />
               <span>导入</span>
             </button>
             <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="handleImportFile" />
@@ -1597,18 +1036,8 @@ async function handleImportFile(event: Event) {
               class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
               title="生成随机复杂密码"
             >
-              <Key class="w-3 h-3" />
+              <Key class="w-3.5 h-3.5" />
               <span>密码生成</span>
-            </button>
-
-            <!-- AI Appeal Assistant -->
-            <button
-              @click="isAppealAssistantVisible = true"
-              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-650 dark:text-slate-300 cursor-pointer"
-              title="AI 申诉改区理由生成助手"
-            >
-              <Sparkles class="w-3 h-3 text-violet-500" />
-              <span>申诉助手</span>
             </button>
 
             <!-- Add account -->
@@ -1616,7 +1045,7 @@ async function handleImportFile(event: Event) {
               @click="openImportDialog"
               class="bg-violet-600 hover:bg-violet-500 border-none font-semibold px-2.5 py-1.5 rounded transition-all flex items-center gap-0.5 cursor-pointer text-[11px] text-white"
             >
-              <Plus class="w-3 h-3" />
+              <Plus class="w-3.5 h-3.5" />
               <span>{{ t('tools.googleWarming.addAccount') }}</span>
             </button>
           </div>
@@ -1647,17 +1076,16 @@ async function handleImportFile(event: Event) {
         </button>
       </div>
 
-      <!-- Main Section: Left list, Right tracker -->
+      <!-- Tab 1: Interactive Warming Workspace -->
       <div v-if="activeTab === 'warming'" class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
         
-        <!-- Left: Account List -->
+        <!-- Left Account List -->
         <div
           :class="[
             'lg:col-span-4 xl:col-span-3 gw-card !p-3 flex flex-col gap-2 max-h-[800px] w-full',
             activeMobileView === 'list' ? 'flex' : 'hidden lg:flex'
           ]"
         >
-          <!-- Header -->
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold" style="color: var(--text-primary)">{{ t('tools.googleWarming.accountsList') }} <span class="text-slate-500 font-normal">({{ accounts.length }})</span></span>
             <button @click="fetchAccounts" class="gw-icon-btn cursor-pointer !p-1">
@@ -1665,7 +1093,6 @@ async function handleImportFile(event: Event) {
             </button>
           </div>
 
-          <!-- Search -->
           <div class="relative">
             <input
               v-model="searchQuery"
@@ -1676,8 +1103,6 @@ async function handleImportFile(event: Event) {
             <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
 
-
-          <!-- Status Filter Tabs -->
           <div class="flex gap-0.5 p-0.5 rounded-lg text-[11px]" style="background: var(--bg-app)">
             <button
               v-for="status in ['all', 'warming', 'paused', 'completed']"
@@ -1694,7 +1119,6 @@ async function handleImportFile(event: Event) {
             </button>
           </div>
 
-          <!-- Batch toolbar -->
           <div v-if="filteredAccounts.length > 0" class="flex items-center justify-between text-[11px]">
             <label class="flex items-center gap-1.5 cursor-pointer text-slate-500 dark:text-slate-400 select-none">
               <input
@@ -1729,7 +1153,6 @@ async function handleImportFile(event: Event) {
             </el-dropdown>
           </div>
 
-          <!-- Empty state -->
           <div v-if="filteredAccounts.length === 0" class="py-6 text-center flex flex-col items-center justify-center gap-2">
             <FileText class="w-8 h-8 gw-icon-muted" />
             <p class="gw-muted-text text-xs max-w-[180px]">
@@ -1737,9 +1160,7 @@ async function handleImportFile(event: Event) {
             </p>
           </div>
 
-          <!-- Account list -->
           <div v-else class="flex flex-col gap-1.5 overflow-y-auto pr-1">
-
             <div
               v-for="acc in filteredAccounts"
               :key="acc.id"
@@ -1749,7 +1170,6 @@ async function handleImportFile(event: Event) {
                 selectedAccountId === acc.id ? 'gw-account-item--active' : ''
               ]"
             >
-              <!-- Row 1: checkbox + email + status -->
               <div class="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -1764,15 +1184,10 @@ async function handleImportFile(event: Event) {
                 </span>
               </div>
 
-              <!-- Row 2: note + day + 2FA pill + progress bar -->
               <div class="flex items-center gap-2 pl-5">
-                <!-- note tag -->
                 <span v-if="acc.note" class="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0" style="background: var(--bg-app); color: var(--text-muted); border: 1px solid var(--border-base)">{{ acc.note }}</span>
-                <!-- day label -->
                 <span class="text-[10px] shrink-0" style="color: var(--text-muted)">第 {{ acc.currentDay }} 天</span>
-                <!-- spacer -->
                 <div class="flex-1"></div>
-                <!-- 2FA pill -->
                 <span v-if="acc.twoFASecret && listTotpCodes[acc.id]" class="flex items-center gap-1 shrink-0">
                   <span class="font-mono text-[11px] text-violet-600 dark:text-violet-400 font-bold tracking-widest">{{ listTotpCodes[acc.id].code.slice(0, 3) }} {{ listTotpCodes[acc.id].code.slice(3) }}</span>
                   <span class="text-[9px] font-mono" style="color: var(--text-muted)">{{ listTotpCodes[acc.id].timeLeft }}s</span>
@@ -1786,7 +1201,6 @@ async function handleImportFile(event: Event) {
                 </span>
               </div>
 
-              <!-- Row 3: progress bar -->
               <div class="flex items-center gap-2 pl-5">
                 <div class="flex-1 h-1 rounded-full overflow-hidden" style="background: var(--border-base)">
                   <div
@@ -1798,533 +1212,42 @@ async function handleImportFile(event: Event) {
               </div>
             </div>
           </div>
-
         </div>
 
-        <!-- Right: Interactive Warming Tracker -->
-        <div
-          :class="[
-            'lg:col-span-8 xl:col-span-9 space-y-4 lg:space-y-6 w-full',
-            activeMobileView === 'detail' ? 'block' : 'hidden lg:block'
-          ]"
-        >
-          <div v-if="!selectedAccount" class="gw-card gw-empty-state !p-4 lg:!p-6">
-            <!-- Mobile back button in empty state -->
-            <button
-              @click="activeMobileView = 'list'"
-              class="lg:hidden flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-400 py-1.5 px-3 rounded-lg border border-violet-500/30 dark:border-violet-500/20 bg-violet-500/10 dark:bg-violet-500/5 mb-4 cursor-pointer"
-            >
-              <ArrowLeft class="w-3.5 h-3.5" />
-              返回账号列表
-            </button>
-            <Info class="w-10 h-10 gw-icon-muted" />
-            <p class="gw-muted-text text-xs lg:text-sm">
-              请先在左侧选择一个谷歌账号，以查看并执行每日养号打卡任务。
-            </p>
-          </div>
-
-          <div v-else class="gw-card space-y-4 lg:space-y-6 !p-3 lg:!p-6">
-            <!-- Mobile back button -->
-            <div class="lg:hidden flex items-center justify-between mb-2">
-              <button
-                @click="activeMobileView = 'list'"
-                class="flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 py-1 px-2.5 rounded-lg border border-violet-500/30 dark:border-violet-500/20 bg-violet-500/10 dark:bg-violet-500/5 transition-all cursor-pointer"
-              >
-                <ArrowLeft class="w-3.5 h-3.5" />
-                返回账号列表
-              </button>
-            </div>
-            
-            <!-- Selected Account Details & 2FA Display compact row -->
-            <div class="gw-account-detail-card flex items-center gap-4 py-2.5 px-3">
-              <!-- Left: email + meta -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-sm font-bold truncate" style="color: var(--text-primary)" :title="selectedAccount.email">
-                    {{ selectedAccount.email }}
-                  </span>
-                  <button @click="copyText(selectedAccount.email, '账号已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制账号">
-                    <Copy class="w-3.5 h-3.5" />
-                  </button>
-                  <span :class="['text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0', getStatusBadgeClass(selectedAccount.status)]">
-                    {{ getStatusLabel(selectedAccount.status) }}
-                  </span>
-                </div>
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]" style="color: var(--text-secondary)">
-                  <span v-if="selectedAccount.password" class="flex items-center gap-1">
-                    密码: <code class="gw-code">{{ selectedAccount.password }}</code>
-                    <button @click="copyText(selectedAccount.password, '密码已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制密码"><Copy class="w-3 h-3" /></button>
-                  </span>
-                  <span v-if="selectedAccount.recoveryEmail" class="flex items-center gap-1">
-                    辅助邮箱: <code class="gw-code">{{ selectedAccount.recoveryEmail }}</code>
-                    <button @click="copyText(selectedAccount.recoveryEmail, '辅助邮箱已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制辅助邮箱"><Copy class="w-3 h-3" /></button>
-                  </span>
-                  <span class="flex items-center gap-1">
-                    地区: {{ selectedAccount.country || '-' }}
-                    <button
-                      @click="copyText('https://policies.google.com/country-association-form?hl=zh-CN&source=policies-site', '改区链接已复制')"
-                      class="text-violet-600 dark:text-violet-400 hover:text-violet-500 dark:hover:text-violet-300 p-0.5 transition-all cursor-pointer text-[10px] font-semibold underline ml-1"
-                      title="复制谷歌改区关联链接"
-                    >
-                      (复制改区链接)
-                    </button>
-                  </span>
-                  <span v-if="selectedAccount.twoFASecret" class="flex items-center gap-1">
-                    2FA密钥: <code class="gw-code truncate max-w-[100px]" :title="selectedAccount.twoFASecret">{{ selectedAccount.twoFASecret }}</code>
-                    <button @click="copyText(selectedAccount.twoFASecret, '2FA密钥已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制2FA密钥"><Copy class="w-3 h-3" /></button>
-                  </span>
-                  <span v-if="selectedAccount.backupCodes" class="flex items-center gap-1">
-                    备用密码: <code class="gw-code truncate max-w-[120px]" :title="selectedAccount.backupCodes">{{ selectedAccount.backupCodes }}</code>
-                    <button @click="copyText(selectedAccount.backupCodes, '备用密码已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制备用密码"><Copy class="w-3 h-3" /></button>
-                  </span>
-                </div>
-              </div>
-
-              <!-- Middle: 2FA live code (if present) -->
-              <div v-if="selectedAccount.twoFASecret && currentTotpCode" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl shrink-0" style="background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.15)">
-                <Key class="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 shrink-0" />
-                <div class="flex items-baseline gap-1.5">
-                  <span class="text-base font-mono font-bold tracking-widest text-violet-700 dark:text-violet-400">{{ currentTotpCode.slice(0, 3) }} {{ currentTotpCode.slice(3) }}</span>
-                  <button @click="copyText(currentTotpCode, '验证码已复制')" class="p-0.5 text-slate-500 hover:text-violet-600 dark:text-slate-400 dark:hover:text-violet-400 transition-colors cursor-pointer" title="复制验证码"><Copy class="w-3 h-3" /></button>
-                </div>
-                <div class="flex items-center gap-1.5 border-l border-violet-500/20 pl-2.5">
-                  <span class="text-[10px] font-mono text-violet-600 dark:text-violet-400 font-semibold">{{ totpTimeLeft }}s</span>
-                  <div class="w-5 h-5 rounded-full relative" style="border: 1.5px solid rgba(139,92,246,0.3)">
-                    <svg class="w-full h-full transform -rotate-90 absolute inset-0">
-                      <circle cx="10" cy="10" r="8" stroke="currentColor" class="text-violet-500" stroke-width="2" fill="transparent"
-                        :stroke-dasharray="2 * Math.PI * 8"
-                        :stroke-dashoffset="2 * Math.PI * 8 * (1 - totpTimeLeft / 30)"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Right: action buttons -->
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button @click="startEditAccount(selectedAccount)" class="gw-icon-action-btn cursor-pointer" title="编辑">
-                  <Edit class="w-3.5 h-3.5" />
-                </button>
-                <button @click="deleteAccount(selectedAccount)" class="gw-icon-danger-btn cursor-pointer" title="删除">
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-
-
-
-            <!-- 15-Day Golden Quest Timeline header -->
-            <div>
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="gw-section-title flex items-center gap-2">
-                  <Calendar class="w-5 h-5 text-indigo-400" />
-                  {{ t('tools.googleWarming.warmingTimeline') }}
-                </h3>
-                <span class="gw-badge-indigo">
-                  {{ t('tools.googleWarming.currentDayStatus', { day: selectedAccount.currentDay, status: getStatusLabel(selectedAccount.status) }) }}
-                </span>
-              </div>
-
-              <!-- Horizontal scroll day circles -->
-              <div class="flex gap-1.5 overflow-x-auto pb-2 pr-1 scrollbar-thin">
-                <div
-                  v-for="day in 14"
-                  :key="day"
-                  :class="[
-                    'gw-day-circle',
-                    day < selectedAccount.currentDay
-                      ? 'gw-day-done'
-                      : day === selectedAccount.currentDay
-                        ? 'gw-day-current animate-pulse'
-                        : 'gw-day-future'
-                  ]"
-                >
-                  <span class="text-[9px] uppercase tracking-tighter opacity-60">D</span>
-                  <span>{{ day }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Daily Quest Checklist -->
-            <div class="gw-checklist-card">
-              <div class="gw-checklist-header">
-                <h4 class="gw-checklist-title">
-                  {{ getStepDetails(selectedAccount.currentDay).title }}
-                </h4>
-                <p class="gw-muted-text text-xs mt-1">
-                  {{ getStepDetails(selectedAccount.currentDay).desc }}
-                </p>
-              </div>
-
-              <!-- Checkbox items -->
-              <div class="flex flex-col gap-3">
-                <div
-                  v-for="act in getStepDetails(selectedAccount.currentDay).actions"
-                  :key="act.key"
-                  :class="[
-                    'gw-check-item',
-                    dayChecklist[act.key] ? 'gw-check-item--done' : ''
-                  ]"
-                >
-                  <input
-                    type="checkbox"
-                    v-model="dayChecklist[act.key]"
-                    :id="act.key"
-                    :disabled="isWarmedToday"
-                    class="w-4 h-4 mt-0.5 accent-emerald-500 cursor-pointer"
-                  />
-                  <label :for="act.key" class="gw-check-label flex-1">
-                    <div>{{ act.text }}</div>
-                    <div v-if="selectedAccount.currentDay === 7 && act.key === 'action6'" class="mt-2 flex flex-col gap-2" @click.stop.prevent>
-                      <div class="flex items-center gap-2">
-                        <input
-                          v-model="tempCountry"
-                          placeholder="输入当前实际国家(如: 美国, 日本)"
-                          class="gw-input !py-1 !px-2 !text-xs max-w-[200px]"
-                          :disabled="isWarmedToday"
-                          @keyup.enter="saveCountryInline"
-                        />
-                        <button
-                          @click="saveCountryInline"
-                          class="px-2.5 py-1 text-xs bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded transition cursor-pointer"
-                          :disabled="isWarmedToday"
-                        >
-                          保存
-                        </button>
-                      </div>
-                      <div class="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold">
-                        <span>改区链接: </span>
-                        <button
-                          @click="copyText('https://policies.google.com/country-association-form?hl=zh-CN&source=policies-site', '改区链接已复制')"
-                          class="underline hover:text-violet-500 transition-colors cursor-pointer"
-                        >
-                          https://policies.google.com/country-association-form... (点击复制)
-                        </button>
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Action button -->
-              <div class="gw-action-footer">
-                <div class="gw-muted-text text-xs">
-                  <span v-if="selectedAccount.lastWarmedAt">
-                    上次打卡: {{ new Date(selectedAccount.lastWarmedAt).toLocaleString() }}
-                  </span>
-                  <span v-else>首次养号，快开始任务吧！</span>
-                </div>
-
-                <div>
-                  <button
-                    v-if="isWarmedToday"
-                    disabled
-                    class="gw-btn-disabled cursor-not-allowed"
-                  >
-                    <CheckCircle class="w-4 h-4" />
-                    {{ t('tools.googleWarming.alreadyWarmed') }}
-                  </button>
-
-                  <button
-                    v-else
-                    @click="handleWarmStep"
-                    :disabled="!isAllActionsChecked"
-                    :class="[
-                      'flex items-center gap-2 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-md',
-                      isAllActionsChecked
-                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white'
-                        : 'gw-btn-disabled opacity-50 cursor-not-allowed'
-                    ]"
-                  >
-                    <Check class="w-4 h-4" />
-                    {{ t('tools.googleWarming.warmActionBtn', { day: selectedAccount.currentDay }) }}
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
+        <!-- Right Tracking Console Panel -->
+        <GoogleWarmingConsoleTab
+          :selected-account="selectedAccount"
+          :is-warmed-today="isWarmedToday"
+          :current-totp-code="currentTotpCode"
+          :totp-time-left="totpTimeLeft"
+          :test-mode="testMode"
+          :active-mobile-view="activeMobileView"
+          @back-to-list="activeMobileView = 'list'"
+          @warm-step="handleWarmStep"
+          @edit="startEditAccount"
+          @delete="deleteAccount"
+          @update-country="saveCountryInline"
+        />
       </div>
 
-      <!-- Account Management View -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-6 items-start">
-        <!-- Sidebar: Categories -->
-        <div class="lg:col-span-3 gw-card !p-2 sm:!p-3 flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch justify-between lg:justify-start gap-2.5 max-h-[800px] w-full">
-          <div class="flex flex-row lg:flex-row items-center lg:justify-between justify-start pb-0 lg:pb-2 border-b-0 lg:border-b border-slate-200 dark:border-slate-800 shrink-0 gap-1.5 lg:w-full">
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-              <Shield class="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-              <span class="hidden sm:inline lg:inline">{{ t('tools.googleWarming.category') }}</span>
-            </span>
-            <button 
-              @click="isCategoryManagerVisible = true" 
-              class="text-[10px] text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-1"
-              title="管理分类"
-            >
-              <Settings class="w-3 h-3" />
-              <span>管理</span>
-            </button>
-          </div>
-
-          <div class="flex lg:flex-col flex-row overflow-x-auto lg:overflow-x-visible no-scrollbar lg:overflow-y-auto gap-1.5 flex-1 w-full pb-0.5 lg:pb-0 select-none">
-            <button
-              v-for="cat in categoriesList"
-              :key="cat"
-              @click="selectedCategory = cat"
-              @dragover.prevent
-              @dragenter="handleDragEnter(cat)"
-              @dragleave="handleDragLeave"
-              @drop="handleDrop($event, cat)"
-              :class="[
-                'flex items-center justify-between px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer border w-auto lg:w-full shrink-0 lg:shrink',
-                selectedCategory === cat
-                  ? 'bg-violet-600/10 dark:bg-violet-600/15 border-violet-500/30 dark:border-violet-500/40 text-violet-700 dark:text-violet-300 font-semibold shadow-sm'
-                  : (draggingOverCategory === cat
-                     ? 'bg-indigo-600/15 border-indigo-500 text-indigo-600 dark:text-indigo-300 scale-[1.02] shadow-sm font-semibold'
-                     : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/40')
-              ]"
-            >
-              <span class="truncate max-w-[100px] lg:max-w-none">{{ cat === 'all' ? t('tools.googleWarming.allCategories') : (cat === '未分类' ? t('tools.googleWarming.uncategorized') : cat) }}</span>
-              <span 
-                :class="[
-                  'px-1.5 py-0.5 rounded text-[10px] transition-all font-mono ml-1.5 lg:ml-0',
-                  selectedCategory === cat 
-                    ? 'bg-violet-500/20 dark:bg-violet-500/30 text-violet-850 dark:text-violet-200' 
-                    : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                ]"
-              >
-                {{ getCategoryCount(cat) }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Main Account Table -->
-        <div class="lg:col-span-9 gw-card !p-3 sm:!p-4 flex flex-col gap-3 min-h-[500px]">
-          <!-- Actions & Search -->
-          <div class="flex flex-wrap gap-2 items-center justify-between min-h-[32px]">
-            <!-- Batch Actions (visible only when selectedAccountIds.length > 0) -->
-            <transition name="el-zoom-in-top">
-              <div v-if="selectedAccountIds.length > 0" class="flex flex-wrap gap-1.5 items-center">
-                <span class="text-[11px] text-slate-500 dark:text-slate-400 mr-1">已选择 {{ selectedAccountIds.length }} 个:</span>
-                
-                <!-- Batch change status dropdown -->
-                <el-dropdown trigger="click" @command="handleBatchStatus">
-                  <button
-                    class="gw-btn-secondary !py-1 !px-2 !text-[10.5px] flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <span>修改状态</span>
-                    <ExternalLink class="w-3 h-3 opacity-60" />
-                  </button>
-                  <template #dropdown>
-                    <el-dropdown-menu class="dark:bg-slate-900 dark:border-slate-800">
-                      <el-dropdown-item command="warming" class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 养号中</el-dropdown-item>
-                      <el-dropdown-item command="paused" class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 已暂停</el-dropdown-item>
-                      <el-dropdown-item command="completed" class="text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">设为 已毕业</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-
-                <!-- Batch delete button -->
-                <button
-                  @click="handleBatchDelete"
-                  class="gw-btn-secondary !py-1 !px-2 !text-[10.5px] !border-red-500/20 flex items-center gap-0.5 cursor-pointer hover:!bg-red-500/10 hover:!text-red-400"
-                >
-                  <Trash2 class="w-3.5 h-3.5" />
-                  <span>删除</span>
-                </button>
-              </div>
-            </transition>
-
-            <!-- Search (always visible) -->
-            <div class="relative w-full sm:w-64" :class="{ 'sm:ml-auto': selectedAccountIds.length === 0 }">
-              <input
-                v-model="searchQuery"
-                type="text"
-                :placeholder="t('tools.googleWarming.searchPlaceholder')"
-                class="gw-input !py-1 !text-xs !pl-8"
-              />
-              <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-
-          <!-- Table Wrapper -->
-          <div class="overflow-x-auto border rounded-xl" style="border-color: var(--border-base); background: var(--bg-card)">
-            <el-table
-              v-loading="isLoading"
-              :data="filteredAndCategorizedAccounts"
-              @selection-change="handleSelectionChange"
-              style="width: 100%;"
-              class="custom-el-table !text-xs"
-            >
-              <el-table-column type="selection" width="45" align="center" />
-              
-              <!-- Email -->
-              <el-table-column label="邮箱账号" min-width="210">
-                <template #default="{ row }">
-                  <div 
-                    draggable="true" 
-                    @dragstart="handleDragStart($event, row)"
-                    class="flex items-center gap-1.5 cursor-grab active:cursor-grabbing hover:bg-slate-500/5 p-1 rounded transition-all"
-                    title="可拖拽该账号至左侧分类"
-                  >
-                    <GripVertical class="w-3.5 h-3.5 opacity-40 shrink-0 cursor-grab active:cursor-grabbing" style="color: var(--text-muted)" />
-                    <span class="font-medium truncate max-w-[160px]" style="color: var(--text-primary)" :title="row.email">{{ row.email }}</span>
-                    <button @click.stop="copyText(row.email)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制邮箱">
-                      <Copy class="w-3.5 h-3.5" />
-                    </button>
-                    <!-- 2FA indicator if present -->
-                    <el-popover v-if="row.twoFASecret" trigger="click" width="220" placement="top" class="dark:bg-slate-900">
-                      <template #reference>
-                        <button @click.stop class="text-indigo-500 hover:text-indigo-400 p-0.5" title="点击获取2FA验证码">
-                          <Key class="w-3.5 h-3.5" />
-                        </button>
-                      </template>
-                      <div class="p-2 space-y-2 text-xs">
-                        <p class="font-bold text-slate-700 dark:text-slate-200">2FA 实时动态密码</p>
-                        <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-950/50 p-2 rounded border border-slate-200 dark:border-slate-800">
-                          <span class="font-mono text-base font-bold text-indigo-400">
-                            {{ listTotpCodes[row.id]?.code || '------' }}
-                          </span>
-                          <span class="text-[10px] text-slate-500">
-                            {{ listTotpCodes[row.id]?.timeLeft || 30 }}s
-                          </span>
-                        </div>
-                      </div>
-                    </el-popover>
-                  </div>
-                </template>
-              </el-table-column>
-
-              <!-- Password -->
-              <el-table-column label="密码" width="100">
-                <template #default="{ row }">
-                  <div class="flex items-center gap-1 justify-between">
-                    <span class="font-mono truncate max-w-[70px]" style="color: var(--text-muted)">******</span>
-                    <button @click="copyText(row.password)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制密码">
-                      <Copy class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </template>
-              </el-table-column>
-
-              <!-- Recovery Email -->
-              <el-table-column label="辅助邮箱" width="160">
-                <template #default="{ row }">
-                  <div v-if="row.recoveryEmail" class="flex items-center gap-1 justify-between">
-                    <span class="truncate max-w-[120px]" style="color: var(--text-secondary)" :title="row.recoveryEmail">{{ row.recoveryEmail }}</span>
-                    <button @click="copyText(row.recoveryEmail)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制辅助邮箱">
-                      <Copy class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <span v-else style="color: var(--text-muted)">-</span>
-                </template>
-              </el-table-column>
-
-              <!-- Backup Codes -->
-              <el-table-column label="备用密码" width="160">
-                <template #default="{ row }">
-                  <div v-if="row.backupCodes" class="flex items-center gap-1 justify-between">
-                    <span class="truncate max-w-[120px]" style="color: var(--text-secondary)" :title="row.backupCodes">{{ row.backupCodes }}</span>
-                    <button @click="copyText(row.backupCodes)" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5" style="color: var(--text-muted)" title="复制备用密码">
-                      <Copy class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <span v-else style="color: var(--text-muted)">-</span>
-                </template>
-              </el-table-column>
-
-              <!-- Region/Country -->
-              <el-table-column label="地区" width="110" align="center">
-                <template #default="{ row }">
-                  <span style="color: var(--text-primary)">{{ row.country || '-' }}</span>
-                </template>
-              </el-table-column>
-
-              <!-- Status -->
-              <el-table-column label="状态" width="120" align="center">
-                <template #default="{ row }">
-                  <span
-                    v-if="row.status === 'warming'"
-                    class="px-1.5 py-0.5 rounded text-[10px] bg-violet-500/10 text-violet-500 border border-violet-500/20"
-                  >
-                    {{ t('tools.googleWarming.statusWarming') }} (D{{ row.currentDay }})
-                  </span>
-                  <span
-                    v-else-if="row.status === 'completed'"
-                    class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                  >
-                    {{ t('tools.googleWarming.statusCompleted') }}
-                  </span>
-                  <span
-                    v-else
-                    class="px-1.5 py-0.5 rounded text-[10px] bg-slate-500/10 text-slate-500 border border-slate-500/20"
-                  >
-                    {{ t('tools.googleWarming.statusPaused') }}
-                  </span>
-                </template>
-              </el-table-column>
-
-              <!-- Category -->
-              <el-table-column label="分类" width="100">
-                <template #default="{ row }">
-                  <el-dropdown trigger="click" @command="(cmd) => handleInlineCategory(row, cmd)">
-                    <span
-                      class="px-2 py-0.5 rounded text-[10px] font-medium inline-block max-w-[90px] truncate border cursor-pointer hover:opacity-80 transition-opacity"
-                      :style="row.category && row.category !== '未分类' 
-                        ? 'background: rgba(99, 102, 241, 0.1); color: #6366f1; border-color: rgba(99, 102, 241, 0.2);' 
-                        : 'background: var(--bg-app); color: var(--text-muted); border-color: var(--border-base);'"
-                      :title="row.category || '未分类'"
-                    >
-                      {{ row.category || '未分类' }}
-                    </span>
-                    <template #dropdown>
-                      <el-dropdown-menu class="dark:bg-slate-900 dark:border-slate-800">
-                        <el-dropdown-item 
-                          v-for="cat in categoriesList.filter(c => c !== 'all')" 
-                          :key="cat" 
-                          :command="cat"
-                          class="text-xs hover:bg-slate-800 text-slate-700 dark:text-slate-200"
-                          :disabled="row.category === cat || (!row.category && cat === '未分类')"
-                        >
-                          {{ cat === '未分类' ? t('tools.googleWarming.uncategorized') : cat }}
-                        </el-dropdown-item>
-                        <el-dropdown-item divided command="custom-new-category" class="text-xs hover:bg-slate-800 text-slate-700 dark:text-slate-200">
-                          自定义新分类...
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </template>
-              </el-table-column>
-
-              <!-- Note -->
-              <el-table-column label="备注" min-width="110">
-                <template #default="{ row }">
-                  <span class="truncate max-w-[150px] inline-block" style="color: var(--text-muted)" :title="row.note">{{ row.note || '-' }}</span>
-                </template>
-              </el-table-column>
-
-              <!-- Actions -->
-              <el-table-column label="操作" width="90" align="right">
-                <template #default="{ row }">
-                  <div class="flex items-center justify-end gap-1">
-                    <button @click="startEditAccount(row)" class="hover:text-violet-600 dark:hover:text-violet-400 p-1 transition-colors cursor-pointer" style="color: var(--text-muted)">
-                      <Edit class="w-3.5 h-3.5" />
-                    </button>
-                    <button @click="deleteAccount(row)" class="hover:text-red-600 dark:hover:text-red-400 p-1 transition-colors cursor-pointer" style="color: var(--text-muted)">
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-        </div>
+      <!-- Tab 2: Account Management Table -->
+      <div v-else>
+        <GoogleAccountsTab
+          :accounts="accounts"
+          :is-loading="isLoading"
+          :list-totp-codes="listTotpCodes"
+          :categories-list="categoriesList"
+          @edit="startEditAccount"
+          @delete="deleteAccount"
+          @inline-category="handleInlineCategory"
+          @batch-status="handleBatchStatus"
+          @batch-delete="handleBatchDelete"
+          @batch-warm="handleBatchWarm"
+          @batch-category="handleBatchCategory"
+          @add-category="handleAddCategory"
+          @rename-category="handleRenameCategory"
+          @delete-category="handleDeleteCategory"
+        />
       </div>
 
       <!-- Bulk Import dialog -->
@@ -2348,7 +1271,6 @@ async function handleImportFile(event: Event) {
             class="gw-textarea"
           ></textarea>
 
-          <!-- Import settings for Category and AI Translation -->
           <div class="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -2484,13 +1406,11 @@ async function handleImportFile(event: Event) {
         class="gw-dialog"
       >
         <div class="space-y-2.5">
-          <!-- Email (full width) -->
           <div class="gw-field !gap-1">
             <label class="gw-field-label !text-[10px]">邮箱账号</label>
             <input v-model="editingAccount.email" type="text" class="gw-input !py-1.5 !text-xs" />
           </div>
 
-          <!-- Password + Recovery Email (2 columns) -->
           <div class="grid grid-cols-2 gap-2.5">
             <div class="gw-field !gap-1">
               <div class="flex items-center justify-between w-full">
@@ -2511,19 +1431,16 @@ async function handleImportFile(event: Event) {
             </div>
           </div>
 
-          <!-- 2FA Secret (full width) -->
           <div class="gw-field !gap-1">
             <label class="gw-field-label !text-[10px]">2FA 密钥</label>
             <input v-model="editingAccount.twoFASecret" type="text" class="gw-input !py-1.5 !text-xs font-mono" />
           </div>
 
-          <!-- Backup Codes (full width) -->
           <div class="gw-field !gap-1">
             <label class="gw-field-label !text-[10px]">备用密码 (空格分隔的8位验证码)</label>
             <input v-model="editingAccount.backupCodes" type="text" class="gw-input !py-1.5 !text-xs font-mono" placeholder="例如: 3191 6344 6829 7625..." />
           </div>
 
-          <!-- Country + CurrentDay + Status + Note + Category (grid) -->
           <div class="grid grid-cols-2 gap-2.5">
             <div class="gw-field !gap-1">
               <label class="gw-field-label !text-[10px]">国家地区</label>
@@ -2568,96 +1485,6 @@ async function handleImportFile(event: Event) {
         </div>
       </el-dialog>
 
-      <!-- Category Manager Dialog -->
-      <el-dialog
-        v-model="isCategoryManagerVisible"
-        title="分类管理"
-        width="90%"
-        style="max-width: 460px"
-        align-center
-        class="gw-dialog"
-      >
-        <div class="space-y-3">
-          <p class="text-[11px] text-slate-500 dark:text-slate-400">
-            在此处管理您的自定义分类。重命名会批量更新所有属于该分类的账号；删除分类会将该分类下的账号重置为“未分类”。
-          </p>
-
-          <!-- Add category section -->
-          <div class="flex items-center gap-2 pb-1">
-            <input 
-              v-model="newCategoryName" 
-              type="text" 
-              placeholder="新增分类名称，例如: GCP" 
-              class="gw-input flex-1 !py-1.5 !text-xs"
-              @keyup.enter="handleAddCategory"
-            />
-            <button 
-              @click="handleAddCategory"
-              class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs px-3.5 py-1.5 rounded-lg transition-all font-semibold cursor-pointer flex items-center gap-1"
-            >
-              <Plus class="w-3.5 h-3.5" />
-              <span>新增</span>
-            </button>
-          </div>
-
-          <div class="border rounded-xl overflow-hidden max-h-[300px] overflow-y-auto" style="border-color: var(--border-base)">
-            <table class="w-full text-xs text-left">
-              <thead class="text-xs border-b font-medium" style="background: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)">
-                <tr>
-                  <th class="p-2.5">分类名称</th>
-                  <th class="p-2.5 text-center" width="80">账号数量</th>
-                  <th class="p-2.5 text-right" width="120">操作</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y" style="border-color: var(--border-base); background: var(--bg-card)">
-                <tr 
-                  v-for="cat in categoriesList.filter(c => c !== 'all' && c !== '未分类')" 
-                  :key="cat"
-                  class="hover:bg-slate-500/5"
-                  style="border-color: var(--border-base)"
-                >
-                  <td class="p-2.5 font-medium truncate max-w-[180px]" style="color: var(--text-primary)" :title="cat">
-                    {{ cat }}
-                  </td>
-                  <td class="p-2.5 text-center font-semibold font-mono" style="color: var(--text-muted)">
-                    {{ getCategoryCount(cat) }}
-                  </td>
-                  <td class="p-2.5 text-right space-x-2.5">
-                    <button 
-                      @click="handleRenameCategory(cat)"
-                      class="text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer font-medium bg-transparent border-none p-0"
-                    >
-                      重命名
-                    </button>
-                    <button 
-                      @click="handleDeleteCategory(cat)"
-                      class="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 cursor-pointer font-medium bg-transparent border-none p-0"
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="categoriesList.filter(c => c !== 'all' && c !== '未分类').length === 0">
-                  <td colspan="3" class="p-6 text-center italic" style="color: var(--text-muted)">
-                    暂无自定义分类，可以在账号列表的“分类”标签直接创建。
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <template #footer>
-          <div class="flex justify-end pt-1">
-            <button
-              @click="isCategoryManagerVisible = false"
-              class="gw-btn-secondary text-xs cursor-pointer"
-            >
-              关闭
-            </button>
-          </div>
-        </template>
-      </el-dialog>
-
       <!-- Password Generator Dialog -->
       <el-dialog
         v-model="isPasswordGenVisible"
@@ -2668,13 +1495,12 @@ async function handleImportFile(event: Event) {
         class="gw-dialog"
       >
         <div class="space-y-4">
-          <!-- Password Output Area -->
           <div class="flex items-center gap-2 p-3 rounded-xl border relative group" style="border-color: var(--border-base); background: var(--bg-app)">
             <input
               type="text"
               readonly
               :value="passGenResult"
-              class="w-full bg-transparent border-none outline-none font-mono text-base font-semibold tracking-wider text-violet-650 dark:text-violet-400 select-all pr-12"
+              class="w-full bg-transparent border-none outline-none font-mono text-base font-semibold tracking-wider text-violet-655 dark:text-violet-400 select-all pr-12"
             />
             <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <button
@@ -2694,12 +1520,10 @@ async function handleImportFile(event: Event) {
             </div>
           </div>
 
-          <!-- Configuration -->
           <div class="space-y-3.5">
-            <!-- Length -->
             <div class="space-y-1.5">
               <div class="flex items-center justify-between text-xs font-semibold">
-                <span class="text-slate-650 dark:text-slate-300">密码长度 ({{ passGenLength }}位)</span>
+                <span class="text-slate-655 dark:text-slate-300">密码长度 ({{ passGenLength }}位)</span>
               </div>
               <div class="flex items-center gap-3">
                 <input
@@ -2713,7 +1537,6 @@ async function handleImportFile(event: Event) {
               </div>
             </div>
 
-            <!-- Options (Checkboxes) -->
             <div class="grid grid-cols-2 gap-2 text-xs font-medium">
               <label class="flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-slate-500/5 transition-all cursor-pointer" style="border-color: var(--border-base)">
                 <input type="checkbox" v-model="passGenLower" class="w-3.5 h-3.5 rounded accent-violet-500 cursor-pointer" />
@@ -2761,106 +1584,6 @@ async function handleImportFile(event: Event) {
         </template>
       </el-dialog>
 
-      <!-- AI Appeal Assistant Dialog -->
-      <el-dialog
-        v-model="isAppealAssistantVisible"
-        title="AI Google 改区申诉助手"
-        width="90%"
-        style="max-width: 620px"
-        align-center
-        class="gw-dialog"
-      >
-        <div class="space-y-4">
-          <div class="gw-import-hint text-[11px] text-slate-500 dark:text-slate-400">
-            根据所选的申诉依据和目标国家/地区，由 AI 自动生成在 100 字以内的精简、自然陈述，以便直接填写申诉表单。
-          </div>
-
-          <!-- Target Country & Language -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold mb-1" style="color: var(--text-primary)">
-                拟更改的目标国家/地区
-              </label>
-              <input
-                v-model="appealTargetCountry"
-                placeholder="例如: 美国, 日本"
-                class="gw-input w-full !py-1.5 !px-3 !text-xs"
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold mb-1" style="color: var(--text-primary)">
-                生成语言
-              </label>
-              <select
-                v-model="appealLanguage"
-                class="gw-input w-full !py-1.5 !px-3 !text-xs bg-slate-50 dark:bg-slate-900"
-              >
-                <option value="zh">中文 (适合中文申诉)</option>
-                <option value="en">英文 (适合境外账号或英文申诉)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Reason selection (multiselect checkboxes) -->
-          <div>
-            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-primary)">
-              申诉依据 (可多选，AI 将融合生成)
-            </label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 bg-slate-50/50 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
-              <el-checkbox v-model="appealReasons.liveHere" size="small">我住在这里 (I live here)</el-checkbox>
-              <el-checkbox v-model="appealReasons.movedHere" size="small">我在过去一年内搬到了这里</el-checkbox>
-              <el-checkbox v-model="appealReasons.nearBorder" size="small">我工作/居住地在领土边界附近</el-checkbox>
-              <el-checkbox v-model="appealReasons.differentRegions" size="small">工作地/学习地和居住地分属不同地区</el-checkbox>
-              <el-checkbox v-model="appealReasons.frequentTravel" size="small">我经常往返于该地区进行旅行/出差</el-checkbox>
-              <el-checkbox v-model="appealReasons.paymentMethod" size="small">我的主要支付方式/账单地址属于该地区</el-checkbox>
-              <el-checkbox v-model="appealReasons.familyReside" size="small">我的家庭成员/配偶居住在该地区</el-checkbox>
-              <el-checkbox v-model="appealReasons.relocating" size="small">我计划长期搬迁至该地区并已租房/买房</el-checkbox>
-            </div>
-          </div>
-
-          <!-- Generate Button & Random Picker -->
-          <div class="flex items-center gap-2 pt-2">
-            <button
-              @click="generateAppealText"
-              :disabled="isGeneratingAppeal"
-              class="flex items-center gap-1.5 font-semibold text-xs px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl transition cursor-pointer shadow disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Sparkles class="w-3.5 h-3.5" />
-              <span>{{ isGeneratingAppeal ? 'AI 生成中...' : 'AI 一键生成理由' }}</span>
-            </button>
-            <button
-              @click="randomizeReasonsAndGenerate"
-              :disabled="isGeneratingAppeal"
-              class="flex items-center gap-1.5 font-semibold text-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>随机选理由并生成</span>
-            </button>
-          </div>
-
-          <!-- Result Box -->
-          <div v-if="generatedAppealText || isGeneratingAppeal" class="relative bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold text-slate-500 flex items-center gap-1">
-                <FileText class="w-3.5 h-3.5" />
-                生成结果 (字数: {{ generatedAppealText.length }}/500)
-              </span>
-              <button
-                v-if="generatedAppealText"
-                @click="copyText(generatedAppealText, '申诉理由已复制')"
-                class="text-xs text-violet-600 hover:text-violet-500 font-semibold underline flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
-              >
-                <Copy class="w-3.5 h-3.5" />
-                复制申诉理由
-              </button>
-            </div>
-            <div class="text-xs whitespace-pre-wrap leading-relaxed font-mono select-all" style="color: var(--text-primary)">
-              {{ generatedAppealText || 'AI 正在努力思考中...' }}
-            </div>
-          </div>
-        </div>
-      </el-dialog>
-
-
     </div>
   </div>
 </template>
@@ -2898,38 +1621,6 @@ async function handleImportFile(event: Event) {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.gw-subtitle {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-.gw-testmode-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-.gw-btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(to right, #7c3aed, #4f46e5);
-  color: #fff;
-  font-weight: 500;
-  font-size: 0.875rem;
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
-  transition: all 0.2s;
-  cursor: pointer;
-}
-.gw-btn-primary:hover { opacity: 0.9; }
 
 /* Cards */
 .gw-card {
@@ -2939,44 +1630,11 @@ async function handleImportFile(event: Event) {
   padding: 24px;
 }
 
-/* IP site cards */
-.gw-ip-site-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 16px;
-  background: var(--bg-elevated, var(--bg-card));
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-.gw-ip-site-card:hover {
-  border-color: rgba(139, 92, 246, 0.4);
-  background: var(--bg-hover);
-}
-.gw-ip-site-name {
-  font-weight: 700;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  transition: color 0.2s;
-}
-.gw-ip-site-card:hover .gw-ip-site-name { color: #8b5cf6; }
-
 /* Text helpers */
 .gw-muted-text { color: var(--text-muted); }
 .gw-label-bold { font-weight: 700; font-size: 0.875rem; color: var(--text-primary); }
 .gw-section-title { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
 .gw-icon-muted { color: var(--text-muted); }
-
-/* Account list panel */
-.gw-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-base);
-}
 .gw-icon-btn {
   color: var(--text-muted);
   background: none;
@@ -3008,35 +1666,6 @@ async function handleImportFile(event: Event) {
   border-color: rgba(139, 92, 246, 0.5);
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.12);
 }
-.gw-account-email {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.gw-account-note {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.gw-progress-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.gw-progress-track {
-  width: 100%;
-  background: var(--bg-app);
-  height: 6px;
-  border-radius: 9999px;
-  overflow: hidden;
-}
 
 /* Empty state */
 .gw-empty-state {
@@ -3064,23 +1693,6 @@ async function handleImportFile(event: Event) {
 }
 @media (min-width: 640px) {
   .gw-account-detail-card { flex-direction: row; }
-}
-.gw-account-title {
-  font-weight: 700;
-  color: var(--text-primary);
-  font-size: 1.125rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.gw-account-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px 8px;
-  margin-top: 8px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
 }
 .gw-code {
   background: var(--bg-app);
@@ -3299,146 +1911,46 @@ async function handleImportFile(event: Event) {
 .gw-table-head {
   background: var(--bg-app);
   border-bottom: 1px solid var(--border-base);
-  color: var(--text-muted);
-  font-weight: 700;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 .gw-table-row {
   border-bottom: 1px solid var(--border-base);
-  transition: background 0.1s;
+  background: var(--bg-card);
+  transition: background 0.15s;
 }
-.gw-table-row:last-child { border-bottom: none; }
 .gw-table-row:hover { background: var(--bg-hover); }
+.gw-table-row:last-child { border-bottom: none; }
 .gw-table-input {
-  background: transparent;
   width: 100%;
+  background: transparent;
   border: none;
-  color: var(--text-primary);
-  padding: 4px;
-  border-radius: 4px;
-  font-size: 0.75rem;
   outline: none;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-primary);
 }
-.gw-table-input:focus { background: var(--bg-app); }
-
-/* Scrollbar */
-.scrollbar-thin::-webkit-scrollbar { height: 4px; width: 4px; }
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: var(--border-base);
-  border-radius: 9999px;
-}
-.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-
-/* 2FA Card Styling */
-.gw-2fa-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(79, 70, 229, 0.08) 100%);
-  border: 1px solid rgba(124, 58, 237, 0.25);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.05);
+.gw-table-input:focus {
+  background: var(--bg-app);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
 }
 
-.gw-2fa-icon-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.3);
-  border-radius: 10px;
-}
-
-.pl-9 {
-  padding-left: 36px !important;
-}
-
-/* =====================================================
-   Mobile Responsive Adjustments
-   ===================================================== */
-@media (max-width: 1023px) {
-  .gw-page {
-    padding: 8px 10px;
-  }
-}
-@media (max-width: 640px) {
-  .gw-header {
-    padding-bottom: 8px;
-    gap: 10px;
-  }
-  .gw-header > div:last-child {
-    flex-wrap: wrap;
-    gap: 6px;
-    width: 100%;
-  }
-  .gw-btn-primary, .gw-btn-secondary {
-    padding: 6px 10px !important;
-    font-size: 10px !important;
-    border-radius: 8px !important;
-  }
-  .gw-card {
-    padding: 12px !important;
-    border-radius: 12px !important;
-  }
-  .gw-account-detail-card {
-    padding: 10px 12px !important;
-    gap: 10px !important;
-    border-radius: 10px !important;
-  }
-  .gw-day-circle {
-    width: 38px !important;
-    height: 38px !important;
-    border-radius: 8px !important;
-    font-size: 0.75rem !important;
-  }
-  .gw-checklist-card {
-    padding: 12px !important;
-    gap: 10px !important;
-    border-radius: 12px !important;
-  }
-  .gw-checklist-header {
-    padding-bottom: 8px !important;
-  }
-  .gw-checklist-title {
-    font-size: 0.875rem !important;
-  }
-  .gw-check-item {
-    padding: 10px !important;
-    gap: 8px !important;
-    border-radius: 8px !important;
-  }
-  .gw-check-label {
-    font-size: 0.75rem !important;
-  }
-  .gw-action-footer {
-    padding-top: 12px !important;
-    gap: 10px !important;
-  }
-  .gw-empty-state {
-    min-height: 250px !important;
-    padding: 24px !important;
-  }
-}
-
-:deep(.custom-el-table) {
-  --el-table-bg-color: transparent !important;
-  --el-table-tr-bg-color: transparent !important;
-  --el-table-row-hover-bg-color: var(--bg-hover) !important;
-  --el-table-border-color: var(--border-base) !important;
-  --el-table-header-text-color: var(--text-secondary) !important;
-  --el-table-text-color: var(--text-primary) !important;
+.custom-el-table {
+  --el-table-border-color: var(--border-base);
+  --el-table-header-bg-color: var(--bg-app);
+  --el-table-row-hover-bg-color: var(--bg-hover);
   background-color: transparent !important;
 }
-:deep(.custom-el-table th.el-table__cell) {
-  background-color: var(--bg-app) !important;
+.custom-el-table :deep(tr) {
+  background-color: var(--bg-card) !important;
+}
+.custom-el-table :deep(th) {
   color: var(--text-secondary) !important;
-  font-weight: 700 !important;
+  font-weight: 650 !important;
   border-bottom: 1px solid var(--border-base) !important;
 }
-:deep(.custom-el-table td.el-table__cell) {
+.custom-el-table :deep(td) {
   border-bottom: 1px solid var(--border-base) !important;
-  color: var(--text-primary) !important;
 }
 </style>

@@ -28,6 +28,8 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
+import PageHeader from '@/components/PageHeader.vue';
+import FileDropZone from '@/components/FileDropZone.vue';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { formatCompactNumber, formatRelativeTime, parseTags } from './resourceUtils';
@@ -141,8 +143,6 @@ const isDetailDialogOpen = ref(false);
 const selectedPlugin = ref<PluginItem | null>(null);
 const pluginFile = ref<File | null>(null);
 const previewFile = ref<File | null>(null);
-const fileDragActive = ref(false);
-const previewDragActive = ref(false);
 
 const uploadForm = ref({
   title: '',
@@ -385,20 +385,6 @@ const handlePreviewFileChange = (event: Event) => {
   if (file) processPreviewFile(file);
 };
 
-const handleFileDrop = (event: DragEvent) => {
-  event.preventDefault();
-  fileDragActive.value = false;
-  const file = event.dataTransfer?.files?.[0];
-  if (file) processPluginFile(file);
-};
-
-const handlePreviewDrop = (event: DragEvent) => {
-  event.preventDefault();
-  previewDragActive.value = false;
-  const file = event.dataTransfer?.files?.[0];
-  if (file) processPreviewFile(file);
-};
-
 const resetUploadForm = () => {
   uploadForm.value = {
     title: '',
@@ -592,35 +578,28 @@ watch(
 
 <template>
   <div class="plugins-page">
-    <header class="plugins-header">
-      <div>
-        <div class="eyebrow">
-          <ShieldCheck class="icon-sm" />
-          {{ label('已审核插件市场', 'Verified Plugin Marketplace') }}
-        </div>
-        <h1>{{ label('插件库', 'Plugin Library') }}</h1>
-        <p>{{ label('集中管理 Blender、Three.js、Substance、Photoshop 等创作工具插件。', 'Manage Blender, Three.js, Substance, Photoshop, and other creator plugins.') }}</p>
-      </div>
-
-      <div class="header-actions">
-        <button
-          type="button"
-          class="ghost-button"
-          @click="isStatsExpanded = !isStatsExpanded"
-        >
-          <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
-          {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
-        </button>
-        <button type="button" class="ghost-button" :disabled="isLoading" @click="fetchPlugins(); fetchInsights()">
-          <RefreshCw class="icon-sm" :class="{ spinning: isLoading }" />
-          {{ label('刷新', 'Refresh') }}
-        </button>
-        <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
-          <Plus class="icon-sm" />
-          {{ label('上传插件', 'Upload Plugin') }}
-        </button>
-      </div>
-    </header>
+    <PageHeader
+      :title="label('插件库', 'Plugin Library')"
+      :subtitle="label('集中管理 Blender、Three.js、Substance、Photoshop 等创作工具插件。', 'Manage Blender, Three.js, Substance, Photoshop, and other creator plugins.')"
+      :icon="Puzzle"
+    >
+      <button
+        type="button"
+        class="ghost-button"
+        @click="isStatsExpanded = !isStatsExpanded"
+      >
+        <component :is="isStatsExpanded ? EyeOff : Eye" class="icon-sm" />
+        {{ isStatsExpanded ? label('收起指标', 'Hide Stats') : label('数据指标', 'Show Stats') }}
+      </button>
+      <button type="button" class="ghost-button" :disabled="isLoading" @click="fetchPlugins(); fetchInsights()">
+        <RefreshCw class="icon-sm" :class="{ spinning: isLoading }" />
+        {{ label('刷新', 'Refresh') }}
+      </button>
+      <button type="button" class="primary-button" @click="isUploadDialogOpen = true">
+        <Plus class="icon-sm" />
+        {{ label('上传插件', 'Upload Plugin') }}
+      </button>
+    </PageHeader>
 
     <section v-show="isStatsExpanded" class="market-overview">
       <div class="overview-copy">
@@ -1048,30 +1027,26 @@ watch(
           </div>
 
           <div class="file-grid">
-            <div
-              class="drop-zone"
-              :class="{ active: fileDragActive }"
-              @dragover.prevent="fileDragActive = true"
-              @dragleave="fileDragActive = false"
-              @drop="handleFileDrop"
-            >
-              <input type="file" accept=".zip,.py,.js,.jsx,.ts,.tsx,.blend,.addon,.tgz,.tar,.gz" @change="handlePluginFileChange" />
-              <UploadCloud class="drop-icon" />
-              <strong>{{ pluginFile?.name || label('选择插件文件', 'Choose Plugin File') }}</strong>
-              <span>{{ pluginFile ? formatSize(pluginFile.size / 1024 / 1024) : label('支持 ZIP、脚本、插件包等格式', 'Supports ZIP, scripts, and plugin packages') }}</span>
+            <div class="w-full">
+              <FileDropZone
+                v-model="pluginFile"
+                accept=".zip,.py,.js,.jsx,.ts,.tsx,.blend,.addon,.tgz,.tar,.gz"
+                :label="pluginFile?.name || label('选择插件文件', 'Choose Plugin File')"
+                :sublabel="pluginFile ? formatSize(pluginFile.size / 1024 / 1024) : label('支持 ZIP、脚本、插件包等格式', 'Supports ZIP, scripts, and plugin packages')"
+                heightClass="h-28"
+                @change="handlePluginFileChange"
+              />
             </div>
 
-            <div
-              class="drop-zone"
-              :class="{ active: previewDragActive }"
-              @dragover.prevent="previewDragActive = true"
-              @dragleave="previewDragActive = false"
-              @drop="handlePreviewDrop"
-            >
-              <input type="file" accept="image/*" @change="handlePreviewFileChange" />
-              <Eye class="drop-icon" />
-              <strong>{{ previewFile?.name || label('上传预览图', 'Upload Preview') }}</strong>
-              <span>{{ previewFile ? formatSize(previewFile.size / 1024 / 1024) : label('可选，用于插件卡片封面', 'Optional cover for plugin cards') }}</span>
+            <div class="w-full">
+              <FileDropZone
+                v-model="previewFile"
+                accept="image/*"
+                :label="previewFile?.name || label('上传预览图', 'Upload Preview')"
+                :sublabel="previewFile ? formatSize(previewFile.size / 1024 / 1024) : label('可选，用于插件卡片封面', 'Optional cover for plugin cards')"
+                heightClass="h-28"
+                @change="handlePreviewFileChange"
+              />
             </div>
           </div>
 

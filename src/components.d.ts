@@ -66,6 +66,7 @@ declare module 'vue' {
     ShowcaseCard: typeof import('./components/ShowcaseCard.vue')['default']
     SpriteChatArea: typeof import('./components/aiSprite/SpriteChatArea.vue')['default']
     SpriteSidebar: typeof import('./components/aiSprite/SpriteSidebar.vue')['default']
+    SpriteUsageDialog: typeof import('./components/aiSprite/SpriteUsageDialog.vue')['default']
     StatCard: typeof import('./components/StatCard.vue')['default']
     TaskAddDialog: typeof import('./components/TaskAddDialog.vue')['default']
     TaskCard: typeof import('./components/TaskCard.vue')['default']

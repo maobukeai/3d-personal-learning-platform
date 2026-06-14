@@ -18,9 +18,14 @@ export function sanitizeHtml(html: string | null | undefined): string {
         'span', 'div', 'hr', 'sup', 'sub', 'del', 's', 'details', 'summary',
       ],
       allowedAttributes: {
-        a: ['href', 'class'],
+        a: ['href', 'class', 'target', 'rel'],
         img: ['src', 'alt', 'width', 'height', 'class'],
         '*': ['class'],
+      },
+      // Only allow safe URI schemes — blocks javascript:, data:, vbscript:, etc.
+      allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+      allowedSchemesByTag: {
+        img: ['http', 'https', 'data'], // allow data: URIs only for images
       },
       disallowedTagsMode: 'discard',
     });

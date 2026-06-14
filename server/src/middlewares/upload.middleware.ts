@@ -25,47 +25,41 @@ type ImageFieldName = (typeof IMAGE_FIELD_NAMES)[number];
 const isImageField = (fieldname: string): fieldname is ImageFieldName =>
   (IMAGE_FIELD_NAMES as readonly string[]).includes(fieldname);
 
+/** Maps upload field names to their target upload directory. */
+const FIELD_TO_DIR: Record<string, string> = {
+  cover: './uploads/covers',
+  attachment: './uploads/feedback',
+  file: './uploads/feedback',
+  files: './uploads/feedback',
+  message_file: './uploads/messages',
+  asset: './uploads/assets',
+  material: './uploads/materials',
+  preview: './uploads/materials',
+  thumbnail: './uploads/assets',
+  logo: './uploads/branding',
+  favicon: './uploads/branding',
+  images: './uploads/discussions',
+  manual_image: './uploads/manual',
+  mirror_image: './uploads/mirror',
+  image: './uploads/ai',
+  plugin_file: './uploads/plugins',
+  plugin_preview: './uploads/plugins',
+  banner: './uploads/banners',
+  banner_image: './uploads/banners',
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let dir = './uploads/avatars';
+    let dir = './uploads/avatars'; // default
 
-    if (file.fieldname === 'cover') {
-      dir = './uploads/covers';
-    } else if (
-      file.fieldname === 'attachment' ||
-      file.fieldname === 'file' ||
-      file.fieldname === 'files'
-    ) {
-      dir = './uploads/feedback';
-    } else if (file.fieldname === 'message_file') {
-      dir = './uploads/messages';
-    } else if (file.fieldname === 'asset') {
-      dir = './uploads/assets';
-    } else if (file.fieldname === 'material' || file.fieldname === 'preview') {
-      dir = './uploads/materials';
-    } else if (
+    // Showcase context overrides thumbnail/images destination
+    if (
       (file.fieldname === 'thumbnail' || file.fieldname === 'images') &&
       req.baseUrl.includes('showcase')
     ) {
       dir = './uploads/showcase';
-    } else if (file.fieldname === 'thumbnail') {
-      dir = './uploads/assets';
-    } else if (file.fieldname === 'logo' || file.fieldname === 'favicon') {
-      dir = './uploads/branding';
-    } else if (file.fieldname === 'images') {
-      dir = './uploads/discussions';
-    } else if (file.fieldname === 'manual_image') {
-      dir = './uploads/manual';
-    } else if (file.fieldname === 'mirror_image') {
-      dir = './uploads/mirror';
-    } else if (file.fieldname === 'image') {
-      dir = './uploads/ai';
-    } else if (file.fieldname === 'plugin_file') {
-      dir = './uploads/plugins';
-    } else if (file.fieldname === 'plugin_preview') {
-      dir = './uploads/plugins';
-    } else if (file.fieldname === 'banner' || file.fieldname === 'banner_image') {
-      dir = './uploads/banners';
+    } else {
+      dir = FIELD_TO_DIR[file.fieldname] ?? './uploads/avatars';
     }
 
     if (!fs.existsSync(dir)) {
@@ -79,6 +73,7 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(sanitizedOriginalName));
   },
 });
+
 
 const createUploadMiddleware = (config: {
   type: 'single' | 'array' | 'fields';

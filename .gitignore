@@ -7,6 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Server debug logs (may contain stack traces with sensitive data)
+server/error-debug.log
+server/error-debug.old.log
+vite-dashboard.log
+vite-dashboard.err.log
+server/.codex-*.log
+
 node_modules
 dist
 dist-ssr

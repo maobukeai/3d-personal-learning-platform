@@ -1,4 +1,7 @@
 import prisma from '../services/prisma';
+import { redisService } from '../services/redis.service';
+
+const USER_PLAN_CACHE_TTL = 60; // seconds
 
 export interface QuotaStatus {
   allowed: boolean;
@@ -10,14 +13,21 @@ export interface QuotaStatus {
 /**
  * Gets the current subscription plan for a user.
  * Defaults to FREE plan if no active subscription exists.
+ * Result is cached in Redis/memory for 60 seconds to avoid repeated DB queries
+ * on every quota check (asset upload, project creation, etc.).
  */
 async function getUserPlan(userId: string) {
+  const cacheKey = `user_plan:${userId}`;
+  const cached = await redisService.get<{ id: string; name: string; maxAssets: number; maxStorage: number; maxTeams: number; maxProjects: number; priority: number }>(cacheKey);
+  if (cached) return cached;
+
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
     include: { plan: true },
   });
 
   if (subscription && subscription.status === 'ACTIVE') {
+    await redisService.set(cacheKey, subscription.plan, USER_PLAN_CACHE_TTL);
     return subscription.plan;
   }
 
@@ -25,6 +35,10 @@ async function getUserPlan(userId: string) {
   const freePlan = await prisma.subscriptionPlan.findFirst({
     where: { name: 'FREE' },
   });
+
+  if (freePlan) {
+    await redisService.set(cacheKey, freePlan, USER_PLAN_CACHE_TTL);
+  }
 
   return freePlan;
 }

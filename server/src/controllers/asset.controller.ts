@@ -15,7 +15,8 @@ import { AppError } from '../middlewares/error.middleware';
 import { clampLimit, clampPage } from '../utils/pagination';
 import { redisService } from '../services/redis.service';
 
-const tagSearchCounts: Record<string, number> = {};
+const TAG_SEARCH_REDIS_TTL = 7 * 24 * 3600; // 7 days
+const tagSearchKey = (tag: string) => `asset_tag_search:${tag}`;
 
 const splitTagText = (value: string): string[] =>
   value
@@ -42,7 +43,6 @@ const normalizeAssetTags = (tags: unknown): string[] => {
   return splitTagText(tags);
 };
 
-const parseAssetTags = (tags?: string | null) => normalizeAssetTags(tags);
 
 type PerformanceTone = 'pass' | 'notice' | 'warning' | 'danger';
 
@@ -576,7 +576,10 @@ export const getPublicAssets = async (req: AuthRequest, res: Response, next: Nex
     if (search) {
       const trimmed = search.trim();
       if (trimmed) {
-        tagSearchCounts[trimmed] = (tagSearchCounts[trimmed] || 0) + 1;
+        // Fire-and-forget: increment search count in Redis (shared across all instances)
+        redisService.incr(tagSearchKey(trimmed), TAG_SEARCH_REDIS_TTL).catch(() => {
+          /* non-critical, ignore errors */
+        });
       }
       where.OR = [
         { title: { contains: search } },
@@ -686,10 +689,26 @@ export const getAssetInsights = async (req: AuthRequest, res: Response, next: Ne
       if ((asset.faces || 0) > 0 && (asset.faces || 0) < 50000) optimized += 1;
       const type = (asset.type || 'UNKNOWN').toUpperCase();
       typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
-      parseAssetTags(asset.tags).forEach((tag) => {
+      normalizeAssetTags(asset.tags).forEach((tag) => {
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
       });
     });
+
+    // Read search counts from Redis for the top tags (best-effort, non-blocking)
+    const topTagEntries = Array.from(tagCounts.entries());
+    const tagSearchCountValues = await Promise.all(
+      topTagEntries.map(([label]) =>
+        redisService.get<number>(tagSearchKey(label)).then((v) => v ?? 0),
+      ),
+    );
+    const hotTags = topTagEntries
+      .map(([label, count], i) => ({
+        label,
+        count,
+        searchCount: tagSearchCountValues[i] ?? 0,
+      }))
+      .sort((a, b) => b.searchCount - a.searchCount || b.count - a.count)
+      .slice(0, 18);
 
     res.json({
       summary: {
@@ -713,17 +732,11 @@ export const getAssetInsights = async (req: AuthRequest, res: Response, next: Ne
       formats: Array.from(typeCounts.entries())
         .map(([label, count]) => ({ label, count }))
         .sort((a, b) => b.count - a.count),
-      hotTags: Array.from(tagCounts.entries())
-        .map(([label, count]) => ({
-          label,
-          count,
-          searchCount: tagSearchCounts[label] || 0,
-        }))
-        .sort((a, b) => b.searchCount - a.searchCount || b.count - a.count)
-        .slice(0, 18),
+      hotTags,
       topDownloads: [...assets].sort((a, b) => b.downloads - a.downloads).slice(0, 6),
       latest: assets.slice(0, 6),
     });
+
   } catch (error) {
     next(error);
   }
@@ -1511,15 +1524,17 @@ export const getAssetTags = async (req: AuthRequest, res: Response, next: NextFu
     });
 
     const allTags = Array.from(
-      new Set([...Object.keys(tagUsageCounts), ...Object.keys(tagSearchCounts)]),
+      new Set([...Object.keys(tagUsageCounts)]),
     );
-    const result = allTags.map((tag) => {
-      return {
-        label: tag,
-        count: tagUsageCounts[tag] || 0,
-        searchCount: tagSearchCounts[tag] || 0,
-      };
-    });
+    // Batch-read search counts from Redis
+    const searchCounts = await Promise.all(
+      allTags.map((tag) => redisService.get<number>(tagSearchKey(tag)).then((v) => v ?? 0)),
+    );
+    const result = allTags.map((tag, i) => ({
+      label: tag,
+      count: tagUsageCounts[tag] || 0,
+      searchCount: searchCounts[i] ?? 0,
+    }));
 
     // Sort by searchCount descending, then count descending
     result.sort((a, b) => b.searchCount - a.searchCount || b.count - a.count);

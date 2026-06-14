@@ -156,6 +156,31 @@ class RedisService {
     await this.del(key);
   }
 
+  /**
+   * Atomically increments a numeric counter by 1 and (on first creation) sets an expiry.
+   * Falls back to a local-cache get-increment-set when Redis is unavailable.
+   */
+  async incr(key: string, ttlSeconds: number): Promise<void> {
+    if (this.isRedisEnabled && this.redisClient) {
+      try {
+        const newVal = await this.redisClient.incr(key);
+        if (newVal === 1) {
+          // First increment — set expiry so the key eventually cleans itself up
+          await this.redisClient.expire(key, ttlSeconds);
+        }
+        return;
+      } catch (err) {
+        logger.error(`Redis INCR error for key ${key}:`, err);
+      }
+    }
+
+    // Local fallback: read → increment → write
+    const cached = this.localCache.get(key);
+    const current = cached && Date.now() < cached.expiresAt ? (cached.value as number) : 0;
+    const expiresAt = cached?.expiresAt ?? Date.now() + ttlSeconds * 1000;
+    this.localCache.set(key, { value: current + 1, expiresAt });
+  }
+
   async invalidateUserCache(userId: string): Promise<void> {
     const key = `user_auth:${userId}`;
     await this.del(key);

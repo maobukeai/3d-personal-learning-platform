@@ -9,7 +9,6 @@ interface LoginCredentials {
   password: string;
   rememberDevice?: boolean;
   twoFactorCode?: string;
-  [key: string]: unknown;
 }
 
 interface RegisterPayload {
@@ -17,7 +16,6 @@ interface RegisterPayload {
   password: string;
   name?: string;
   verificationCode?: string;
-  [key: string]: unknown;
 }
 
 interface ChangePasswordPayload {

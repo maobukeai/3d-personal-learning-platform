@@ -3,6 +3,19 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
 import { callLLM } from '../services/ai.service';
 import { logger } from '../utils/logger';
+import { encryptSecret, decryptSecret } from '../utils/secret-field';
+import type { GoogleWarmingAccount } from '@prisma/client';
+
+/**
+ * Decrypts sensitive fields before returning account data to the client.
+ * Plaintext values (existing unencrypted rows) are returned as-is by decryptSecret.
+ */
+const toPublicAccount = (account: GoogleWarmingAccount) => ({
+  ...account,
+  password: decryptSecret(account.password) ?? '',
+  twoFASecret: decryptSecret(account.twoFASecret),
+  backupCodes: decryptSecret(account.backupCodes),
+});
 
 export class GoogleWarmingController {
   /**
@@ -15,7 +28,7 @@ export class GoogleWarmingController {
         where: { userId },
         orderBy: { createdAt: 'desc' },
       });
-      res.json(accounts);
+      res.json(accounts.map(toPublicAccount));
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.getAccounts] error:', e);
       res.status(500).json({ error: '获取账号列表失败' });
@@ -42,18 +55,18 @@ export class GoogleWarmingController {
           data: {
             userId,
             email: account.email.trim(),
-            password: (account.password || '').trim(),
+            password: encryptSecret((account.password || '').trim()) ?? '',
             recoveryEmail: account.recoveryEmail ? account.recoveryEmail.trim() : null,
-            twoFASecret: account.twoFASecret ? account.twoFASecret.trim() : null,
+            twoFASecret: account.twoFASecret ? encryptSecret(account.twoFASecret.trim()) : null,
             country: account.country ? account.country.trim() : null,
             note: account.note ? account.note.trim() : null,
-            backupCodes: account.backupCodes ? account.backupCodes.trim() : null,
+            backupCodes: account.backupCodes ? encryptSecret(account.backupCodes.trim()) : null,
             category: account.category ? account.category.trim() : '未分类',
             status: account.status || 'warming',
             currentDay: Number(account.currentDay) || 1,
           },
         });
-        imported.push(created);
+        imported.push(toPublicAccount(created));
       }
       res.json({ success: true, count: imported.length, accounts: imported });
     } catch (e: unknown) {
@@ -148,19 +161,25 @@ If any field is missing or not found, set it to null.`;
         where: { id },
         data: {
           email: email !== undefined ? email.trim() : existing.email,
-          password: password !== undefined ? password.trim() : existing.password,
+          password: password !== undefined
+            ? (encryptSecret(password.trim()) ?? '')
+            : existing.password,
           recoveryEmail: recoveryEmail !== undefined ? (recoveryEmail ? recoveryEmail.trim() : null) : existing.recoveryEmail,
-          twoFASecret: twoFASecret !== undefined ? (twoFASecret ? twoFASecret.trim() : null) : existing.twoFASecret,
+          twoFASecret: twoFASecret !== undefined
+            ? (twoFASecret ? encryptSecret(twoFASecret.trim()) : null)
+            : existing.twoFASecret,
           country: country !== undefined ? (country ? country.trim() : null) : existing.country,
           note: note !== undefined ? (note ? note.trim() : null) : existing.note,
-          backupCodes: backupCodes !== undefined ? (backupCodes ? backupCodes.trim() : null) : existing.backupCodes,
+          backupCodes: backupCodes !== undefined
+            ? (backupCodes ? encryptSecret(backupCodes.trim()) : null)
+            : existing.backupCodes,
           category: category !== undefined ? (category ? category.trim() : '未分类') : existing.category,
           status: status !== undefined ? status : existing.status,
           currentDay: currentDay !== undefined ? Number(currentDay) : existing.currentDay,
         },
       });
 
-      res.json(updated);
+      res.json(toPublicAccount(updated));
     } catch (e: unknown) {
       logger.error('[GoogleWarmingController.updateAccount] error:', e);
       res.status(500).json({ error: '更新账号失败' });

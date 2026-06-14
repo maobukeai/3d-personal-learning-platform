@@ -163,7 +163,7 @@ function handleUserClick() {
     @click="handleCardClick"
   >
     <div class="showcase-card__media">
-      <img v-if="mediaUrl" :src="mediaUrl" :alt="item.title" />
+      <img v-if="mediaUrl" :src="mediaUrl" :alt="item.title" loading="lazy" />
       <div v-else class="showcase-card__text-cover">
         <component :is="typeMeta.icon" class="w-7 h-7" />
         <span>{{ item.title }}</span>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Maximize2, FileArchive, FileCode, Box } from 'lucide-vue-next';
 import { getDefaultThumbnailUrl } from '@/utils/defaultThumbnail';
+import BaseCard from '@/components/BaseCard.vue';
 
 /**
  * AssetCard Component
@@ -47,17 +48,17 @@ const getFormatIcon = (format?: string) => {
 </script>
 
 <template>
-  <div
-    class="asset-card-container group relative flex flex-col overflow-hidden rounded-xl border bg-white/50 backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] hover:border-accent/50 hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-rgb),0.25)] dark:bg-slate-900/50"
-    style="border-color: var(--border-base)"
+  <BaseCard
+    glass
+    class="asset-card-container group relative flex flex-col !overflow-hidden transition-all duration-500 hover:-translate-y-1 hover:scale-[1.01] hover:border-accent/50 hover:shadow-[0_15px_30px_-10px_rgba(var(--accent-rgb),0.25)]"
   >
     <!-- Preview Area -->
     <div
       class="preview-area relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800"
     >
       <!-- Main Thumbnail -->
-      <img v-if="asset.thumbnail" :src="asset.thumbnail" :alt="asset.title" class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
-      <img v-else :src="getDefaultThumbnailUrl(asset.type)" :alt="asset.title" class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105" />
+      <img v-if="asset.thumbnail" :src="asset.thumbnail" :alt="asset.title" loading="lazy" class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+      <img v-else :src="getDefaultThumbnailUrl(asset.type)" :alt="asset.title" loading="lazy" class="h-full w-full object-cover opacity-60 transition-transform duration-700 ease-out group-hover:scale-105" />
 
       <!-- Gradient Overlay for Contrast -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-60 transition-opacity duration-500 group-hover:opacity-80"></div>
@@ -113,7 +114,7 @@ const getFormatIcon = (format?: string) => {
         </div>
       </div>
     </div>
-  </div>
+  </BaseCard>
 
 </template>
 

@@ -21,6 +21,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { usePagedList } from '@/composables/usePagedList';
 
 // Subcomponents
 import NotebookCreateDialog from './components/NotebookCreateDialog.vue';
@@ -56,17 +57,51 @@ interface Note {
 }
 
 const activeTab = ref<'MY' | 'POPULAR' | 'ACTIVITY'>('MY');
-const notes = ref<Note[]>([]);
 const tags = ref<string[]>([]);
 const categories = ref<string[]>([]);
-const loading = ref(false);
-const totalNotes = ref(0);
-const currentPage = ref(1);
-const pageSize = 12;
 const searchQuery = ref('');
 const sortBy = ref('latest');
 const filterTag = ref('');
 const filterCategory = ref('');
+const pageSize = 12;
+
+const getNotesEndpoint = () => {
+  return activeTab.value === 'POPULAR' ? '/api/notes/popular' : '/api/notes';
+};
+
+const getNotesParams = () => {
+  const params: Record<string, any> = {
+    sort: sortBy.value,
+  };
+  if (activeTab.value === 'MY') {
+    params.author = 'me';
+  } else if (activeTab.value === 'ACTIVITY') {
+    params.visibility = 'PUBLIC';
+  }
+  if (searchQuery.value) params.search = searchQuery.value;
+  if (filterTag.value) params.tag = filterTag.value;
+  if (filterCategory.value) params.category = filterCategory.value;
+  return params;
+};
+
+const {
+  data: notes,
+  loading,
+  page: currentPage,
+  total: totalNotes,
+  fetchData: runLoadNotes,
+} = usePagedList<Note>(getNotesEndpoint, getNotesParams, {
+  initialPageSize: 12,
+  listExtractor: (res) => {
+    return activeTab.value === 'POPULAR' ? res : res.notes || [];
+  },
+  totalExtractor: (res) => {
+    return activeTab.value === 'POPULAR' ? res.length : res.pagination?.total ?? 0;
+  },
+  onError: () => {
+    ElMessage.error(t('notes.loadFailed'));
+  }
+});
 
 // Sidebar & Notebook state
 const localNotebooks = ref<string[]>([]);
@@ -225,42 +260,7 @@ type NoteQueryParams = {
   category?: string;
 };
 
-const loadNotes = async () => {
-  loading.value = true;
-  try {
-    let endpoint = '/api/notes';
-    const params: NoteQueryParams = {
-      page: currentPage.value,
-      limit: pageSize,
-      sort: sortBy.value,
-    };
-
-    if (activeTab.value === 'MY') {
-      params.author = 'me';
-    } else if (activeTab.value === 'ACTIVITY') {
-      params.visibility = 'PUBLIC';
-    } else if (activeTab.value === 'POPULAR') {
-      endpoint = '/api/notes/popular';
-    }
-
-    if (searchQuery.value) params.search = searchQuery.value;
-    if (filterTag.value) params.tag = filterTag.value;
-    if (filterCategory.value) params.category = filterCategory.value;
-
-    const res = await api.get(endpoint, { params });
-    if (activeTab.value === 'POPULAR') {
-      notes.value = res.data;
-      totalNotes.value = res.data.length;
-    } else {
-      notes.value = res.data.notes;
-      totalNotes.value = res.data.pagination.total;
-    }
-  } catch {
-    ElMessage.error(t('notes.loadFailed'));
-  } finally {
-    loading.value = false;
-  }
-};
+const loadNotes = () => runLoadNotes(false);
 
 const handleTabChange = () => {
   currentPage.value = 1;

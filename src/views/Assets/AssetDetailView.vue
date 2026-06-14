@@ -1,5 +1,5 @@
-﻿<script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
+<script setup lang="ts">
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
@@ -170,6 +170,7 @@ const isSavingCover = ref(false);
 const isClayMode = ref(false);
 const compareBaseId = ref('current');
 const compareTargetId = ref('');
+let fetchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const viewerConfig = ref({
   autoRotate: false,
@@ -762,13 +763,17 @@ const uploadNewVersion = async () => {
     const input = document.getElementById('version-file-input') as HTMLInputElement | null;
     if (input) input.value = '';
     ElMessage.success('新版本已上传，后台正在解析模型数据');
-    setTimeout(fetchAsset, 1500);
+    fetchTimer = setTimeout(fetchAsset, 1500);
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '版本上传失败');
   } finally {
     isUploadingVersion.value = false;
   }
 };
+
+onUnmounted(() => {
+  if (fetchTimer) clearTimeout(fetchTimer);
+});
 </script>
 
 <template>

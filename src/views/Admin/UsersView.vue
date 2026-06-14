@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
   Activity,
   Ban,
@@ -1029,7 +1029,11 @@ onMounted(() => {
   fetchPlans();
 });
 
-void overviewMetrics;
+onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer);
+});
+
+void overviewMetrics.value;
 </script>
 
 <template>

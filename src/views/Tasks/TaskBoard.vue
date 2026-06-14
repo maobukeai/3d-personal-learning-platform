@@ -36,6 +36,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 
+import { TaskStatus } from '@/types/task';
 import type {
   UserType,
   Team,
@@ -155,7 +156,7 @@ const priorityOptions = computed(() => [
 const newTask = ref({
   title: '',
   description: '',
-  status: 'TODO',
+  status: TaskStatus.TODO as TaskStatus,
   priority: 'MEDIUM',
   tags: [] as string[],
   dueDate: '',
@@ -185,19 +186,19 @@ const teams = ref<Team[]>([]);
 
 const statusColumns = computed(() => [
   {
-    id: 'TODO',
+    id: TaskStatus.TODO,
     title: t('tasks.todo'),
     color: 'bg-slate-500',
     headerBg: 'from-slate-500/10 to-transparent',
   },
   {
-    id: 'IN_PROGRESS',
+    id: TaskStatus.IN_PROGRESS,
     title: t('tasks.inProgress'),
     color: 'bg-accent',
     headerBg: 'from-accent/10 to-transparent',
   },
   {
-    id: 'DONE',
+    id: TaskStatus.DONE,
     title: t('tasks.done'),
     color: 'bg-emerald-500',
     headerBg: 'from-emerald-500/10 to-transparent',
@@ -287,7 +288,7 @@ const filteredTasks = computed(() => {
 
     if (dateFilter.value === 'overdue') {
       filtered = filtered.filter(
-        (t) => t.dueDate && new Date(t.dueDate) < now && t.status !== 'DONE',
+        (t) => t.dueDate && new Date(t.dueDate) < now && t.status !== TaskStatus.DONE,
       );
     } else if (dateFilter.value === 'today') {
       filtered = filtered.filter((t) => {
@@ -325,7 +326,7 @@ const filteredTasks = computed(() => {
   }
 
   if (hideCompleted.value) {
-    filtered = filtered.filter((t) => t.status !== 'DONE');
+    filtered = filtered.filter((t) => t.status !== TaskStatus.DONE);
   }
 
   if (onlyMyTasks.value && authStore.user?.id) {
@@ -402,9 +403,9 @@ const tasksByGroup = computed(() => {
   const filtered = filteredTasks.value;
   const map: Record<string, Task[]> = {};
   if (groupBy.value === 'status') {
-    map['TODO'] = filtered.filter((t) => t.status === 'TODO');
-    map['IN_PROGRESS'] = filtered.filter((t) => t.status === 'IN_PROGRESS');
-    map['DONE'] = filtered.filter((t) => t.status === 'DONE');
+    map[TaskStatus.TODO] = filtered.filter((t) => t.status === TaskStatus.TODO);
+    map[TaskStatus.IN_PROGRESS] = filtered.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+    map[TaskStatus.DONE] = filtered.filter((t) => t.status === TaskStatus.DONE);
   } else {
     map['URGENT'] = filtered.filter((t) => t.priority === 'URGENT');
     map['HIGH'] = filtered.filter((t) => t.priority === 'HIGH');
@@ -418,12 +419,12 @@ const tasksByGroup = computed(() => {
 const completionRate = computed(() => {
   const total = tasks.value.length;
   if (total === 0) return 0;
-  return Math.round((tasks.value.filter((t) => t.status === 'DONE').length / total) * 100);
+  return Math.round((tasks.value.filter((t) => t.status === TaskStatus.DONE).length / total) * 100);
 });
 
 const overdueCount = computed(() => {
   const now = new Date();
-  return tasks.value.filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== 'DONE')
+  return tasks.value.filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== TaskStatus.DONE)
     .length;
 });
 
@@ -515,11 +516,11 @@ const handleAddTaskWithPayload = async (payload: {
 
 const openAddDialogByCol = (payload: { colId: string; projectId?: string | null }) => {
   if (groupBy.value === 'status') {
-    newTask.value.status = payload.colId;
+    newTask.value.status = payload.colId as TaskStatus;
     newTask.value.priority = 'MEDIUM';
   } else {
     newTask.value.priority = payload.colId === 'NONE' ? 'MEDIUM' : payload.colId;
-    newTask.value.status = 'TODO';
+    newTask.value.status = TaskStatus.TODO;
   }
   newTask.value.projectId = payload.projectId || '';
   newTask.value.teamId = workspaceStore.activeTeamId || '';
@@ -529,7 +530,7 @@ const openAddDialogByCol = (payload: { colId: string; projectId?: string | null 
   isAddDialogOpen.value = true;
 };
 
-const openAddDialog = (status: string = 'TODO') => {
+const openAddDialog = (status: string = TaskStatus.TODO) => {
   openAddDialogByCol({ colId: status });
 };
 

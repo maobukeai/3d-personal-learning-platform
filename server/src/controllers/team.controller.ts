@@ -8,6 +8,7 @@ import { createNotification } from '../utils/notification';
 import { checkTeamQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
+import { TaskStatus } from '../types/task';
 
 const TEAM_VISIBILITIES = new Set(['PUBLIC', 'PRIVATE']);
 const MANAGED_MEMBER_ROLES = new Set(['ADMIN', 'MEMBER']);
@@ -508,11 +509,11 @@ export const getTeamOverview = async (req: AuthRequest, res: Response, next: Nex
 
     const projectOverview = projects.map((project) => {
       const projectTasks = tasksByProject.get(project.id) || [];
-      const done = projectTasks.filter((task) => task.status === 'DONE').length;
+      const done = projectTasks.filter((task) => task.status === TaskStatus.DONE).length;
       const overdue = projectTasks.filter(isTaskOverdue).length;
       const dueSoon = projectTasks.filter(isTaskDueSoon).length;
       const unassigned = projectTasks.filter(
-        (task) => !task.assigneeId && task.status !== 'DONE',
+        (task) => !task.assigneeId && task.status !== TaskStatus.DONE,
       ).length;
 
       return {
@@ -531,8 +532,8 @@ export const getTeamOverview = async (req: AuthRequest, res: Response, next: Nex
           .map((member) => member.userId),
         tasks: {
           total: projectTasks.length,
-          todo: projectTasks.filter((task) => task.status === 'TODO').length,
-          inProgress: projectTasks.filter((task) => task.status === 'IN_PROGRESS').length,
+          todo: projectTasks.filter((task) => task.status === TaskStatus.TODO).length,
+          inProgress: projectTasks.filter((task) => task.status === TaskStatus.IN_PROGRESS).length,
           done,
           overdue,
           dueSoon,
@@ -545,7 +546,7 @@ export const getTeamOverview = async (req: AuthRequest, res: Response, next: Nex
 
     const overdueTasks = tasks.filter(isTaskOverdue);
     const dueSoonTasks = tasks.filter(isTaskDueSoon);
-    const doneTasks = tasks.filter((task) => task.status === 'DONE');
+    const doneTasks = tasks.filter((task) => task.status === TaskStatus.DONE);
     const activeProjects = projects.filter((project) => project.status === 'IN_PROGRESS');
     const completedProjects = projects.filter((project) => project.status === 'COMPLETED');
     const projectProgressTotal = projects.reduce(
@@ -593,12 +594,12 @@ export const getTeamOverview = async (req: AuthRequest, res: Response, next: Nex
         activeProjects: activeProjects.length,
         completedProjects: completedProjects.length,
         tasks: tasks.length,
-        todoTasks: tasks.filter((task) => task.status === 'TODO').length,
-        inProgressTasks: tasks.filter((task) => task.status === 'IN_PROGRESS').length,
+        todoTasks: tasks.filter((task) => task.status === TaskStatus.TODO).length,
+        inProgressTasks: tasks.filter((task) => task.status === TaskStatus.IN_PROGRESS).length,
         doneTasks: doneTasks.length,
         overdueTasks: overdueTasks.length,
         dueSoonTasks: dueSoonTasks.length,
-        unassignedTasks: tasks.filter((task) => !task.assigneeId && task.status !== 'DONE').length,
+        unassignedTasks: tasks.filter((task) => !task.assigneeId && task.status !== TaskStatus.DONE).length,
         completedThisWeek: doneTasks.filter((task) => task.updatedAt >= lastSevenDays).length,
         averageProjectProgress: projects.length
           ? Math.round(projectProgressTotal / projects.length)

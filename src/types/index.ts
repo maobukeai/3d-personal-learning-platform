@@ -192,11 +192,13 @@ export interface ProjectMember {
   joinedAt: string;
 }
 
+export { TaskStatus } from './task';
+
 export interface Task {
   id: string;
   title: string;
   description?: string | null;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  status: TaskStatus;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   tags?: string | null;
   dueDate?: string | null;
@@ -249,4 +251,14 @@ export interface Feedback {
   user?: User;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TwoFactorAccount {
+  id: string;
+  label: string;
+  email: string | null;
+  secret: string;
+  note: string | null;
+  category: string | null;
+  createdAt: string;
 }

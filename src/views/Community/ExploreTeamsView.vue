@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '@/utils/error';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -125,6 +125,10 @@ const handleViewTeam = (group: ExploreTeam) => {
 
 onMounted(() => {
   fetchData();
+});
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
 });
 </script>
 

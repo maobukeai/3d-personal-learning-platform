@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import prisma from '../services/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { getShanghaiStartOfDay } from '../utils/date';
+import { TaskStatus } from '../types/task';
 import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
@@ -1330,7 +1331,7 @@ export const importProjectFromJson = async (
             data: {
               title: t.title,
               description: t.description || null,
-              status: 'TODO',
+              status: TaskStatus.TODO,
               priority: t.priority || 'MEDIUM',
               dueDate: t.dueDate ? new Date(t.dueDate) : null,
               projectId: project.id,

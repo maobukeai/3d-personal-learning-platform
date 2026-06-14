@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue';
+import { ref, computed, onUnmounted, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { 
@@ -59,6 +59,10 @@ const { t } = useI18n();
 const visible = ref(false);
 const detailNote = ref<Note | null>(null);
 const isCopying = ref(false);
+let progressInterval: ReturnType<typeof setInterval> | null = null;
+let fillInterval: ReturnType<typeof setInterval> | null = null;
+let copyTimer: ReturnType<typeof setTimeout> | null = null;
+let scrollResetTimer: ReturnType<typeof setTimeout> | null = null;
 
 const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
@@ -169,7 +173,7 @@ const open = async (note: Note) => {
     visible.value = true;
     readProgress.value = 0;
     // reset scroll to top after modal renders
-    setTimeout(() => {
+    scrollResetTimer = setTimeout(() => {
       if (scrollContainer.value) {
         scrollContainer.value.scrollTop = 0;
       }
@@ -231,7 +235,7 @@ const handleCopy = async () => {
     await navigator.clipboard.writeText(detailNote.value.content);
     isCopying.value = true;
     ElMessage.success(t('notes.copiedToClipboard'));
-    setTimeout(() => {
+    copyTimer = setTimeout(() => {
       isCopying.value = false;
     }, 2000);
   } catch {
@@ -289,7 +293,7 @@ const generateAiSummary = async () => {
   summaryProgress.value = 0;
   sessionSummary.value = '';
   
-  const progressInterval = setInterval(() => {
+  progressInterval = setInterval(() => {
     if (summaryProgress.value < 40) {
       summaryProgress.value += Math.floor(Math.random() * 3) + 2; // 2-4%
     } else if (summaryProgress.value < 70) {
@@ -312,11 +316,11 @@ const generateAiSummary = async () => {
       // Smoothly accelerate to 100%
       const fillProgress = () => {
         return new Promise<void>((resolve) => {
-          const fillInterval = setInterval(() => {
+          fillInterval = setInterval(() => {
             if (summaryProgress.value < 100) {
               summaryProgress.value += Math.min(5, 100 - summaryProgress.value);
             } else {
-              clearInterval(fillInterval);
+              if (fillInterval) clearInterval(fillInterval);
               resolve();
             }
           }, 30);
@@ -336,6 +340,13 @@ const generateAiSummary = async () => {
     isSummarizing.value = false;
   }
 };
+
+onUnmounted(() => {
+  if (progressInterval) clearInterval(progressInterval);
+  if (fillInterval) clearInterval(fillInterval);
+  if (copyTimer) clearTimeout(copyTimer);
+  if (scrollResetTimer) clearTimeout(scrollResetTimer);
+});
 
 defineExpose({ open });
 </script>

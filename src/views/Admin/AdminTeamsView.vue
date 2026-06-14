@@ -954,7 +954,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateMobileStatus);
 });
 
-void quickStats;
+void quickStats.value;
 </script>
 
 <template>

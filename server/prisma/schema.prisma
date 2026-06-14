@@ -125,6 +125,9 @@ model Message {
   readBy         MessageRead[]
   reactions      MessageReaction[]
   createdAt      DateTime          @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
 }
 
 model MessageRead {
@@ -178,6 +181,7 @@ model Team {
 
   // Unique constraint for public space to prevent duplicates
   @@unique([name, type])
+  @@index([ownerId])
 }
 
 model TeamMember {
@@ -190,6 +194,7 @@ model TeamMember {
   joinedAt DateTime @default(now())
 
   @@unique([teamId, userId])
+  @@index([userId])
 }
 
 model TeamInvitation {
@@ -517,6 +522,7 @@ model TeamApplication {
   updatedAt DateTime @updatedAt
 
   @@unique([teamId, userId])
+  @@index([userId])
 }
 
 model Feedback {

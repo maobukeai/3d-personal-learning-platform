@@ -7,6 +7,7 @@ import { checkProjectQuota } from '../utils/quota';
 import { auditService, AuditAction, AuditModule } from '../services/audit.service';
 import { AppError } from '../middlewares/error.middleware';
 import { logger } from '../utils/logger';
+import { TaskStatus } from '../types/task';
 
 export const checkTeamProjectPermission = async (
   userId: string,
@@ -525,7 +526,7 @@ export const createProjectTask = async (req: AuthRequest, res: Response, next: N
       data: {
         title,
         description,
-        status: 'TODO',
+        status: TaskStatus.TODO,
         dueDate: dueDate ? new Date(dueDate) : null,
         projectId: id,
         assigneeId: assigneeId || null,
@@ -618,7 +619,7 @@ export const batchCreateProjectTasks = async (
       .map((t: { title: string; description?: string; priority?: string; dueDate?: string; assigneeId?: string; participantIds?: string[] }) => ({
         title: t.title,
         description: t.description || null,
-        status: 'TODO' as const,
+        status: TaskStatus.TODO,
         priority: t.priority || 'MEDIUM',
         dueDate: t.dueDate ? new Date(t.dueDate) : null,
         projectId: id,
@@ -635,7 +636,7 @@ export const batchCreateProjectTasks = async (
       where: {
         projectId: id,
         userId: req.userId as string,
-        status: 'TODO',
+        status: TaskStatus.TODO,
       },
       include: {
         assignee: { select: { id: true, name: true, avatarUrl: true } },
@@ -689,7 +690,7 @@ async function recalcProjectProgress(projectId: string) {
     select: { status: true },
   });
   const total = tasks.length;
-  const done = tasks.filter((t) => t.status === 'DONE').length;
+  const done = tasks.filter((t) => t.status === TaskStatus.DONE).length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
   await prisma.project.update({
     where: { id: projectId },
@@ -754,7 +755,7 @@ export const updateProjectTask = async (req: AuthRequest, res: Response, next: N
         if (targetUserIds.length > 0) {
           const detailMsg =
             status && status !== existingTask.status
-              ? `状态已更新为「${status === 'DONE' ? '已完成' : status === 'IN_PROGRESS' ? '进行中' : '待办'}」`
+              ? `状态已更新为「${status === TaskStatus.DONE ? '已完成' : status === TaskStatus.IN_PROGRESS ? '进行中' : '待办'}」`
               : `内容或属性进行了更新`;
           await createNotificationBatch(
             targetUserIds.map((uid) => ({
@@ -1477,7 +1478,7 @@ export const importProjectFromText = async (
           data: {
             title: t.title,
             description: t.description || null,
-            status: 'TODO',
+            status: TaskStatus.TODO,
             priority: t.priority,
             dueDate: t.dueDate || null,
             projectId: project.id,

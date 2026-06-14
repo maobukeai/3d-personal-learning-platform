@@ -186,7 +186,7 @@ onMounted(() => {
 });
 
 void Gauge;
-void healthDialStyle;
+void healthDialStyle.value;
 </script>
 
 <template>

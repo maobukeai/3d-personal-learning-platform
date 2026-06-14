@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { TaskStatus } from '@/types';
 import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -188,16 +189,16 @@ const activeSlide = computed(() => activeBanners.value[activeSlideIndex.value] |
 const taskSummary = computed(() => {
   if (workbench.value) return workbench.value.work;
   const total = recentTasks.value.length;
-  const done = recentTasks.value.filter((task) => task.status === 'DONE').length;
+  const done = recentTasks.value.filter((task) => task.status === TaskStatus.DONE).length;
   return {
     total,
-    todo: recentTasks.value.filter((task) => task.status === 'TODO').length,
-    inProgress: recentTasks.value.filter((task) => task.status === 'IN_PROGRESS').length,
+    todo: recentTasks.value.filter((task) => task.status === TaskStatus.TODO).length,
+    inProgress: recentTasks.value.filter((task) => task.status === TaskStatus.IN_PROGRESS).length,
     done,
     overdue: recentTasks.value.filter(isOverdue).length,
     dueToday: recentTasks.value.filter(isDueToday).length,
     urgent: recentTasks.value.filter((task) => ['HIGH', 'URGENT'].includes(task.priority || '')).length,
-    assignedToMe: recentTasks.value.filter((task) => task.status !== 'DONE').length,
+    assignedToMe: recentTasks.value.filter((task) => task.status !== TaskStatus.DONE).length,
     completionRate: total ? Math.round((done / total) * 100) : 0,
     recentDone: done,
   };
@@ -453,7 +454,7 @@ function formatTime(date: string) {
 }
 
 function isOverdue(task: DashboardTask) {
-  if (!task.dueDate || task.status === 'DONE') return false;
+  if (!task.dueDate || task.status === TaskStatus.DONE) return false;
   const due = new Date(task.dueDate);
   due.setHours(0, 0, 0, 0);
   const today = new Date();
@@ -462,7 +463,7 @@ function isOverdue(task: DashboardTask) {
 }
 
 function isDueToday(task: DashboardTask) {
-  if (!task.dueDate || task.status === 'DONE') return false;
+  if (!task.dueDate || task.status === TaskStatus.DONE) return false;
   const due = new Date(task.dueDate);
   const today = new Date();
   return due.getFullYear() === today.getFullYear() && due.getMonth() === today.getMonth() && due.getDate() === today.getDate();
@@ -474,14 +475,14 @@ function isProjectAtRisk(project: ProjectSummary) {
 }
 
 function getTaskStatusLabel(status: string) {
-  if (status === 'DONE') return '已完成';
-  if (status === 'IN_PROGRESS') return '进行中';
+  if (status === TaskStatus.DONE) return '已完成';
+  if (status === TaskStatus.IN_PROGRESS) return '进行中';
   return '待办';
 }
 
 function getTaskStatusClass(status: string) {
-  if (status === 'DONE') return 'status-green';
-  if (status === 'IN_PROGRESS') return 'status-blue';
+  if (status === TaskStatus.DONE) return 'status-green';
+  if (status === TaskStatus.IN_PROGRESS) return 'status-blue';
   return 'status-muted';
 }
 
@@ -560,11 +561,11 @@ function getDateParam() {
 }
 
 async function completeTask(task: DashboardTask) {
-  if (task.status === 'DONE' || isCompletingTask(task.id)) return;
+  if (task.status === TaskStatus.DONE || isCompletingTask(task.id)) return;
   setTaskCompleting(task.id, true);
   try {
-    await api.put(`/api/tasks/${task.id}`, { status: 'DONE' });
-    recentTasks.value = recentTasks.value.map((item) => (item.id === task.id ? { ...item, status: 'DONE' } : item));
+    await api.put(`/api/tasks/${task.id}`, { status: TaskStatus.DONE });
+    recentTasks.value = recentTasks.value.map((item) => (item.id === task.id ? { ...item, status: TaskStatus.DONE } : item));
     await fetchDashboardData();
   } catch (error) {
     console.error('Complete task failed:', error);

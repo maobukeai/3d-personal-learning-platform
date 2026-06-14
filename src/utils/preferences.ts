@@ -15,6 +15,13 @@ const storageKeys = {
   theme: 'theme',
   token: 'token',
   user: 'user',
+  aiSpriteModelId: 'ai_sprite_model_id',
+  aiSpriteWidth: 'ai_sprite_width',
+  aiSpriteHeight: 'ai_sprite_height',
+  aiSpritePosX: 'ai_sprite_pos_x',
+  aiSpritePosY: 'ai_sprite_pos_y',
+  aiSpriteSessionId: 'ai_sprite_session_id',
+  aiPendingRunsIndex: 'ai_pending_run_index',
 } as const;
 
 const fallbackStorage = new Map<string, string>();
@@ -128,4 +135,33 @@ export const preferences = {
     removeItem(storageKeys.token);
     removeItem(storageKeys.refreshToken);
   },
+
+  getAiSpriteModelId: () => getItem(storageKeys.aiSpriteModelId) || '',
+  setAiSpriteModelId: (id: string) => setItem(storageKeys.aiSpriteModelId, id),
+  removeAiSpriteModelId: () => removeItem(storageKeys.aiSpriteModelId),
+
+  getAiSpriteWidth: () => parseInt(getItem(storageKeys.aiSpriteWidth) || '1000', 10),
+  getAiSpriteHeight: () => parseInt(getItem(storageKeys.aiSpriteHeight) || '720', 10),
+  setAiSpriteDimensions: (width: number, height: number) => {
+    setItem(storageKeys.aiSpriteWidth, width.toString());
+    setItem(storageKeys.aiSpriteHeight, height.toString());
+  },
+
+  getAiSpritePosX: () => getItem(storageKeys.aiSpritePosX),
+  getAiSpritePosY: () => getItem(storageKeys.aiSpritePosY),
+  setAiSpritePosition: (x: number, y: number) => {
+    setItem(storageKeys.aiSpritePosX, x.toString());
+    setItem(storageKeys.aiSpritePosY, y.toString());
+  },
+
+  getAiSpriteSessionId: () => getItem(storageKeys.aiSpriteSessionId),
+  setAiSpriteSessionId: (id: string) => setItem(storageKeys.aiSpriteSessionId, id),
+  removeAiSpriteSessionId: () => removeItem(storageKeys.aiSpriteSessionId),
+
+  getAiPendingRunsIndex: () => parseJson<string[]>(getItem(storageKeys.aiPendingRunsIndex), []),
+  setAiPendingRunsIndex: (index: string[]) => setItem(storageKeys.aiPendingRunsIndex, JSON.stringify(index)),
+
+  getAiPendingRun: (sessionId: string) => getItem(`ai_pending_run_${sessionId}`),
+  setAiPendingRun: (sessionId: string, data: string) => setItem(`ai_pending_run_${sessionId}`, data),
+  removeAiPendingRun: (sessionId: string) => removeItem(`ai_pending_run_${sessionId}`),
 };

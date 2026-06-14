@@ -8,6 +8,7 @@ import { ElMessageBox } from 'element-plus';
 const props = defineProps<{
   settings: {
     PLATFORM_NAME: string;
+    PLATFORM_SUBTITLE: string;
     DEFAULT_USER_ROLE: string;
     ALLOW_REGISTRATION: boolean;
     MAINTENANCE_MODE: boolean;
@@ -79,6 +80,22 @@ const handleToggleMaintenance = async (val: string | number | boolean) => {
           >
           <input
             v-model="localSettings.PLATFORM_NAME"
+            type="text"
+            class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-primary);
+            "
+          />
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-xs font-bold px-1" style="color: var(--text-secondary)">{{
+            $t('admin.platform_subtitle')
+          }}</label>
+          <input
+            v-model="localSettings.PLATFORM_SUBTITLE"
             type="text"
             class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-accent/20 outline-none transition-all"
             style="

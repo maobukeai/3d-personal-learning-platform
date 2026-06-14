@@ -30,6 +30,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
+import { TaskStatus } from '@/types/task';
 import type { Project, Task, UserType } from '@/types/task';
 import ProjectDetailPanel from './components/ProjectDetailPanel.vue';
 import ProjectFormPanel from './components/ProjectFormPanel.vue';
@@ -289,26 +290,26 @@ const projectTaskMap = computed(() => {
 const nowTime = () => Date.now();
 
 const isOverdue = (task: Task) => {
-  return task.status !== 'DONE' && !!task.dueDate && new Date(task.dueDate).getTime() < nowTime();
+  return task.status !== TaskStatus.DONE && !!task.dueDate && new Date(task.dueDate).getTime() < nowTime();
 };
 
 const isDueSoon = (task: Task) => {
-  if (task.status === 'DONE' || !task.dueDate) return false;
+  if (task.status === TaskStatus.DONE || !task.dueDate) return false;
   const dueTime = new Date(task.dueDate).getTime();
   return dueTime >= nowTime() && dueTime <= nowTime() + 7 * 24 * 60 * 60 * 1000;
 };
 
 const getProjectTaskStats = (projectId: string) => {
   const list = projectTaskMap.value.get(projectId) || [];
-  const done = list.filter((task) => task.status === 'DONE').length;
+  const done = list.filter((task) => task.status === TaskStatus.DONE).length;
   const overdue = list.filter(isOverdue).length;
   const dueSoon = list.filter(isDueSoon).length;
-  const unassigned = list.filter((task) => task.status !== 'DONE' && !task.assigneeId).length;
+  const unassigned = list.filter((task) => task.status !== TaskStatus.DONE && !task.assigneeId).length;
   return {
     total: list.length,
     done,
-    todo: list.filter((task) => task.status === 'TODO').length,
-    inProgress: list.filter((task) => task.status === 'IN_PROGRESS').length,
+    todo: list.filter((task) => task.status === TaskStatus.TODO).length,
+    inProgress: list.filter((task) => task.status === TaskStatus.IN_PROGRESS).length,
     overdue,
     dueSoon,
     unassigned,
@@ -698,7 +699,7 @@ const createQuickTask = async () => {
   try {
     await api.post('/api/tasks', {
       title: quickTaskTitle.value.trim(),
-      status: 'TODO',
+      status: TaskStatus.TODO,
       priority: quickTaskPriority.value,
       projectId: quickTaskProjectId.value || null,
       assigneeId: quickTaskAssigneeId.value || null,
@@ -729,7 +730,7 @@ const createSeedTasks = async (template: (typeof quickSeedTemplates)[number]) =>
       tasks: template.tasks.map((task) => ({
         title: task.title,
         description: `${template.label} · ${template.hint}`,
-        status: 'TODO',
+        status: TaskStatus.TODO,
         priority: task.priority,
         projectId: quickTaskProjectId.value,
         assigneeId,

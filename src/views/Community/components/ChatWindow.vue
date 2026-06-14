@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   ChevronLeft,
@@ -519,6 +519,15 @@ watch(() => props.messages, () => {
     scrollToBottom();
   }
 }, { deep: true });
+
+onUnmounted(() => {
+  if (isRecording.value) {
+    stopRecording();
+  }
+  if (recordingTimer) {
+    clearInterval(recordingTimer);
+  }
+});
 
 defineExpose({
   scrollToBottom,

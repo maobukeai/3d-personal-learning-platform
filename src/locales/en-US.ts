@@ -1736,7 +1736,7 @@ export default {
         day6: 'Day 6: Daily Active Warming & Register Canva',
         day6Desc: 'Browse and send/receive emails in Gmail. Watch/comment on YouTube videos. Do a few web searches, and register Canva.',
         day7: 'Day 7: Change Password & Register Figma',
-        day7Desc: 'Change your main Google account password. Send/receive Gmail, watch YouTube, translate text with Gemini, and register Figma.',
+        day7Desc: 'Change your main Google account password. Check and modify the account\'s registered country address. Send/receive Gmail, watch YouTube, translate text with Gemini, and register Figma.',
         day8: 'Day 8: Register Miro & Daily Warm-up',
         day8Desc: 'Read and reply to a Gmail message, watch YouTube, chat with Gemini, and register Miro.',
         day9: 'Day 9: Register Miro (Board Creation) & Daily Warm-up',

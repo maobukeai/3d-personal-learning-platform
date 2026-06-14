@@ -1733,7 +1733,7 @@ export default {
         day6: '第六天：日常养号活跃与注册 Canva',
         day6Desc: '正常浏览并收发邮件，点赞/评论 YouTube 视频，进行少量搜索；使用谷歌账号注册并登录 Canva。',
         day7: '第七天：核心登录密码修改与注册 Figma',
-        day7Desc: '更改谷歌账号的核心登录密码；正常浏览收发邮件，观看 YouTube 点赞，使用 Gemini；使用谷歌账号注册并登录 Figma。',
+        day7Desc: '更改谷歌账号的核心登录密码；检查并修改账号的国家地址；正常浏览收发邮件，观看 YouTube 点赞，使用 Gemini；使用谷歌账号注册并登录 Figma。',
         day8: '第八天：注册 Miro 与日常活跃',
         day8Desc: '处理 Gmail 收件并回复，观看 YouTube，访问 Gemini 互动；使用谷歌账号注册并登录 Miro。',
         day9: '第九天：注册 Miro (画板) 与日常活跃',

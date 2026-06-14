@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue';
-// import { useI18n } from 'vue-i18n';
+
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   KeyRound,
@@ -15,7 +15,6 @@ import {
   FileText,
   Clock,
   Sparkles,
-  Info,
   Pin,
   PinOff,
   Upload,
@@ -33,30 +32,24 @@ import {
   Cpu,
   TrendingUp,
   Globe,
-  Briefcase,
-  Shield
+  Briefcase
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { generateTOTP } from '@/utils/totp';
-import QRCode from 'qrcode';
-
-interface TwoFactorAccount {
-  id: string;
-  label: string;
-  email: string | null;
-  secret: string;
-  note: string | null;
-  category: string | null;
-  createdAt: string;
-}
+import TwoFactorAddDialog from './components/TwoFactorAddDialog.vue';
+import TwoFactorEditDialog from './components/TwoFactorEditDialog.vue';
+import TwoFactorExportDialog from './components/TwoFactorExportDialog.vue';
+import TwoFactorBatchImportDialog from './components/TwoFactorBatchImportDialog.vue';
+import TwoFactorQrDialog from './components/TwoFactorQrDialog.vue';
+import type { TwoFactorAccount } from '@/types';
 
 interface LiveTotp {
   code: string;
   timeLeft: number;
 }
 
-// const { t } = useI18n();
+
 const accounts = ref<TwoFactorAccount[]>([]);
 const liveCodes = ref<Record<string, LiveTotp>>({});
 const isLoading = ref<boolean>(false);
@@ -71,33 +64,8 @@ const isQrDialogVisible = ref<boolean>(false);
 const isExportDialogVisible = ref<boolean>(false);
 const isImportPasswordDialogVisible = ref<boolean>(false);
 const isCategoryManagerVisible = ref<boolean>(false);
-// const isAuditPanelExpanded = ref<boolean>(false);
 
-const addForm = ref({
-  label: '',
-  email: '',
-  secret: '',
-  note: '',
-  category: ''
-});
-
-const editForm = ref({
-  id: '',
-  label: '',
-  email: '',
-  note: '',
-  category: ''
-});
-
-const exportForm = ref({
-  encrypt: false,
-  password: '',
-  confirmPassword: ''
-});
-
-const importForm = ref({
-  password: ''
-});
+const selectedEditAccount = ref<TwoFactorAccount | null>(null);
 
 // Drag & drop states
 const draggingAccountId = ref<string | null>(null);
@@ -128,14 +96,6 @@ const uncategorizedCount = computed(() => {
   return accounts.value.filter(a => !a.category || !a.category.trim()).length;
 });
 
-function getSecretStrength(secret: string): { label: string; color: string; percent: number } {
-  const clean = secret.replace(/[\s=]/g, '');
-  if (!clean) return { label: '无', color: '#94a3b8', percent: 0 };
-  if (clean.length < 16) return { label: '弱', color: '#ef4444', percent: 33 };
-  if (clean.length === 16) return { label: '中 (标准)', color: '#eab308', percent: 66 };
-  return { label: '强 (高安全)', color: '#10b981', percent: 100 };
-}
-
 // Secrets visibility map
 const revealedSecrets = ref<Record<string, boolean>>({});
 
@@ -158,15 +118,9 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 // QR code generation state
 const qrCodeAccount = ref<TwoFactorAccount | null>(null);
-const qrCodeDataUrl = ref<string>('');
 
 // Timer for dynamic code refresh
 let totpTimer: NodeJS.Timeout | null = null;
-
-// Real-time secret verification for Add Dialog
-const addSecretPreview = ref<string>('------');
-const addSecretTimeLeft = ref<number>(0);
-const secretValidationError = ref<string>('');
 
 // Load saved 2FA accounts
 async function fetchAccounts() {
@@ -197,25 +151,12 @@ async function updateAllCodes() {
 // Start second-interval timer to refresh codes and sync progress ring
 function startTotpTimer() {
   totpTimer = setInterval(async () => {
-    // 1. Update list codes
+    // Update list codes
     const promises = accounts.value.map(async (acc) => {
       const result = await generateTOTP(acc.secret);
       liveCodes.value[acc.id] = result;
     });
     await Promise.all(promises);
-
-    // 2. Update real-time preview in dialog if visible
-    if (isAddDialogVisible.value && addForm.value.secret) {
-      try {
-        const preview = await generateTOTP(addForm.value.secret);
-        addSecretPreview.value = preview.code;
-        addSecretTimeLeft.value = preview.timeLeft;
-        secretValidationError.value = '';
-      } catch (err) {
-        addSecretPreview.value = '------';
-        addSecretTimeLeft.value = 0;
-      }
-    }
   }, 1000);
 }
 
@@ -226,101 +167,10 @@ function stopTotpTimer() {
   }
 }
 
-// Handle dialog preview checks when secret input changes
-async function checkFormSecret() {
-  const secretInput = addForm.value.secret.trim();
-  if (!secretInput) {
-    addSecretPreview.value = '------';
-    addSecretTimeLeft.value = 0;
-    secretValidationError.value = '';
-    return;
-  }
-
-  const cleanSecret = secretInput.replace(/[\s=]/g, '').toUpperCase();
-  const base32Regex = /^[A-Z2-7]+$/;
-  if (!base32Regex.test(cleanSecret)) {
-    secretValidationError.value = '无效的密钥格式（只允许 A-Z 和 2-7 的 Base32 编码字符）';
-    addSecretPreview.value = '------';
-    addSecretTimeLeft.value = 0;
-    return;
-  }
-
-  secretValidationError.value = '';
-  try {
-    const preview = await generateTOTP(cleanSecret);
-    addSecretPreview.value = preview.code;
-    addSecretTimeLeft.value = preview.timeLeft;
-  } catch (err) {
-    addSecretPreview.value = '------';
-    addSecretTimeLeft.value = 0;
-  }
-}
-
-// Save a new 2FA account
-async function submitAddAccount() {
-  if (!addForm.value.label.trim()) {
-    ElMessage.warning('请输入账号名称/标签');
-    return;
-  }
-  if (!addForm.value.secret.trim()) {
-    ElMessage.warning('请输入2FA密钥');
-    return;
-  }
-  if (secretValidationError.value) {
-    ElMessage.warning('2FA密钥格式有误，请修改后提交');
-    return;
-  }
-
-  try {
-    await api.post('/api/two-factor/accounts', addForm.value);
-    ElMessage.success('2FA账号保存成功');
-    isAddDialogVisible.value = false;
-    resetAddForm();
-    await fetchAccounts();
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '保存2FA账号失败'));
-  }
-}
-
-function resetAddForm() {
-  addForm.value = {
-    label: '',
-    email: '',
-    secret: '',
-    note: '',
-    category: ''
-  };
-  addSecretPreview.value = '------';
-  addSecretTimeLeft.value = 0;
-  secretValidationError.value = '';
-}
-
 // Edit accounts
 function openEditDialog(acc: TwoFactorAccount) {
-  editForm.value = {
-    id: acc.id,
-    label: acc.label,
-    email: acc.email || '',
-    note: acc.note || '',
-    category: acc.category || ''
-  };
+  selectedEditAccount.value = acc;
   isEditDialogVisible.value = true;
-}
-
-async function submitEditAccount() {
-  if (!editForm.value.label.trim()) {
-    ElMessage.warning('名称不能为空');
-    return;
-  }
-
-  try {
-    await api.put(`/api/two-factor/accounts/${editForm.value.id}`, editForm.value);
-    ElMessage.success('2FA记录更新成功');
-    isEditDialogVisible.value = false;
-    await fetchAccounts();
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '更新2FA记录失败'));
-  }
 }
 
 // Delete account
@@ -347,29 +197,9 @@ async function deleteAccount(acc: TwoFactorAccount) {
 }
 
 // Show standard QR Code for Authenticator App scanning
-async function showQrCode(acc: TwoFactorAccount) {
+function showQrCode(acc: TwoFactorAccount) {
   qrCodeAccount.value = acc;
-  const label = acc.label;
-  const email = acc.email || 'account';
-  const secret = acc.secret;
-  
-  // Format: otpauth://totp/Label:email?secret=Secret&issuer=3DPlatform
-  const otpauthUrl = `otpauth://totp/${encodeURIComponent(label)}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent('3D Learning Platform')}`;
-  
-  try {
-    qrCodeDataUrl.value = await QRCode.toDataURL(otpauthUrl, {
-      width: 250,
-      margin: 2,
-      color: {
-        dark: '#1e293b',
-        light: '#ffffff'
-      }
-    });
-    isQrDialogVisible.value = true;
-  } catch (err) {
-    console.error('Failed to generate QR Code:', err);
-    ElMessage.error('生成二维码失败');
-  }
+  isQrDialogVisible.value = true;
 }
 
 // Secrets toggles
@@ -415,169 +245,6 @@ function copyCode(id: string) {
   }
 }
 
-// WebCrypto Helper Functions (AES-GCM Encryption)
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
-
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryString = window.atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-async function getEncryptionKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  const enc = new TextEncoder();
-  const keyMaterial = await window.crypto.subtle.importKey(
-    'raw',
-    enc.encode(password),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits', 'deriveKey']
-  );
-  return window.crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: salt.buffer as ArrayBuffer,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
-}
-
-async function encryptData(data: string, password: string): Promise<string> {
-  const salt = window.crypto.getRandomValues(new Uint8Array(16));
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const key = await getEncryptionKey(password, salt);
-  const enc = new TextEncoder();
-  const ciphertextBuffer = await window.crypto.subtle.encrypt(
-    {
-      name: 'AES-GCM',
-      iv: iv.buffer as ArrayBuffer
-    },
-    key,
-    enc.encode(data)
-  );
-
-  const payload = {
-    encrypted: true,
-    salt: arrayBufferToBase64(salt.buffer as ArrayBuffer),
-    iv: arrayBufferToBase64(iv.buffer as ArrayBuffer),
-    ciphertext: arrayBufferToBase64(ciphertextBuffer)
-  };
-  return JSON.stringify(payload, null, 2);
-}
-
-async function decryptData(encryptedJsonStr: string, password: string): Promise<string> {
-  const payload = JSON.parse(encryptedJsonStr);
-  if (!payload.encrypted || !payload.salt || !payload.iv || !payload.ciphertext) {
-    throw new Error('无效的加密备份格式');
-  }
-
-  const salt = new Uint8Array(base64ToArrayBuffer(payload.salt));
-  const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
-  const ciphertext = base64ToArrayBuffer(payload.ciphertext);
-
-  const key = await getEncryptionKey(password, salt);
-  const dec = new TextDecoder();
-  const decryptedBuffer = await window.crypto.subtle.decrypt(
-    {
-      name: 'AES-GCM',
-      iv: iv
-    },
-    key,
-    ciphertext
-  );
-  return dec.decode(decryptedBuffer);
-}
-
-// JSON Backup Actions
-function openExportModal() {
-  exportForm.value = {
-    encrypt: false,
-    password: '',
-    confirmPassword: ''
-  };
-  isExportDialogVisible.value = true;
-}
-
-async function submitExportBackup() {
-  if (accounts.value.length === 0) {
-    ElMessage.warning('没有可导出的2FA账号');
-    return;
-  }
-
-  if (exportForm.value.encrypt) {
-    if (!exportForm.value.password) {
-      ElMessage.warning('请输入加密密码');
-      return;
-    }
-    if (exportForm.value.password !== exportForm.value.confirmPassword) {
-      ElMessage.warning('两次输入的密码不一致');
-      return;
-    }
-  }
-
-  const backupData = accounts.value.map(acc => ({
-    label: acc.label,
-    email: acc.email,
-    secret: acc.secret,
-    note: acc.note,
-    category: acc.category
-  }));
-
-  const jsonString = JSON.stringify(backupData, null, 2);
-  let finalContent = jsonString;
-  let filename = `2fa_accounts_backup_${new Date().toISOString().slice(0, 10)}.json`;
-
-  if (exportForm.value.encrypt) {
-    try {
-      isLoading.value = true;
-      finalContent = await encryptData(jsonString, exportForm.value.password);
-      filename = `2fa_accounts_encrypted_${new Date().toISOString().slice(0, 10)}.json`;
-      ElMessage.success('已成功生成高强度加密备份');
-    } catch (err) {
-      console.error(err);
-      ElMessage.error('加密备份失败');
-      isLoading.value = false;
-      return;
-    } finally {
-      isLoading.value = false;
-    }
-  } else {
-    ElMessage.success('已成功导出明文备份 JSON');
-  }
-
-  const blob = new Blob([finalContent], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  const nowStr = new Date().toISOString();
-  lastBackupTime.value = nowStr;
-  localStorage.setItem('two_factor_last_backup', nowStr);
-  isExportDialogVisible.value = false;
-}
-
 // Trigger file select dialog for importing
 function triggerImport() {
   fileInput.value?.click();
@@ -595,7 +262,6 @@ async function handleImportFile(event: Event) {
       const parsed = JSON.parse(content);
       if (parsed.encrypted && parsed.ciphertext) {
         tempImportedJson.value = content;
-        importForm.value.password = '';
         isImportPasswordDialogVisible.value = true;
       } else {
         if (!Array.isArray(parsed)) {
@@ -610,30 +276,6 @@ async function handleImportFile(event: Event) {
     }
   };
   reader.readAsText(file);
-}
-
-async function submitDecryptAndImport() {
-  if (!importForm.value.password) {
-    ElMessage.warning('请输入解密密码');
-    return;
-  }
-
-  try {
-    isLoading.value = true;
-    const decryptedStr = await decryptData(tempImportedJson.value, importForm.value.password);
-    const parsed = JSON.parse(decryptedStr);
-    if (!Array.isArray(parsed)) {
-      throw new Error('解密后的数据格式有误');
-    }
-    await submitImportPayload(parsed);
-    isImportPasswordDialogVisible.value = false;
-    tempImportedJson.value = '';
-  } catch (err: any) {
-    ElMessage.error('解密失败：解密密码错误或数据文件已损坏');
-    console.error(err);
-  } finally {
-    isLoading.value = false;
-  }
 }
 
 async function submitImportPayload(accountsList: any[]) {
@@ -1175,15 +817,24 @@ function getBrandIconComponent(acc: TwoFactorAccount) {
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Search highlight helper
 function highlightText(text: string | null, query: string): string {
   if (!text) return '';
-  if (!query) return text;
+  const escapedText = escapeHtml(text);
+  if (!query) return escapedText;
   
-  const src = text;
   const escapedQuery = query.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const regex = new RegExp(`(${escapedQuery})`, 'gi');
-  return src.replace(regex, '<mark class="bg-violet-500/35 text-white rounded px-0.5 font-semibold">$1</mark>');
+  return escapedText.replace(regex, '<mark class="bg-violet-500/35 text-white rounded px-0.5 font-semibold">$1</mark>');
 }
 
 onMounted(() => {
@@ -1249,7 +900,7 @@ onUnmounted(() => {
             class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:text-indigo-400"
             style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
             title="导出全部数据（账号 + 分组 + 备注），支持密码加密"
-            @click="openExportModal"
+            @click="isExportDialogVisible = true"
           >
             <Download class="h-3 w-3" />
             <span>导出</span>
@@ -1789,122 +1440,18 @@ onUnmounted(() => {
     </div>
 
     <!-- Modal Dialog: Export Options -->
-    <el-dialog
+    <TwoFactorExportDialog
       v-model="isExportDialogVisible"
-      title="导出安全备份"
-      width="90%"
-      style="max-width: 400px"
-      destroy-on-close
-      class="custom-el-dialog"
-    >
-      <div class="space-y-4">
-        <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2">
-          <Shield class="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
-          <p class="text-xs leading-normal text-slate-300">
-            导出您的 2FA 账户数据。为了数据安全，强烈建议启用密码加密，防止密钥在本地或传输中泄漏。
-          </p>
-        </div>
-
-        <div class="flex items-center justify-between border-b pb-3" style="border-color: var(--border-base)">
-          <span class="text-xs font-bold text-slate-300">启用密码加密</span>
-          <el-switch v-model="exportForm.encrypt" active-color="#6366f1" />
-        </div>
-
-        <div v-if="exportForm.encrypt" class="space-y-3 animate-fade-in">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-bold text-slate-400">设置加密密码</label>
-            <el-input
-              v-model="exportForm.password"
-              type="password"
-              show-password
-              placeholder="请输入加密密码"
-              class="custom-dialog-input"
-            />
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-bold text-slate-400">确认加密密码</label>
-            <el-input
-              v-model="exportForm.confirmPassword"
-              type="password"
-              show-password
-              placeholder="请再次输入密码"
-              class="custom-dialog-input"
-            />
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-3 pt-2">
-          <el-button
-            style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
-            class="px-4 py-2 rounded-xl"
-            @click="isExportDialogVisible = false"
-          >
-            取消
-          </el-button>
-          <el-button
-            type="primary"
-            class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
-            @click="submitExportBackup"
-          >
-            开始导出
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
+      :accounts="accounts"
+      @exported="(dateStr) => lastBackupTime = dateStr"
+    />
 
     <!-- Modal Dialog: Import Password Decrypt -->
-    <el-dialog
+    <TwoFactorBatchImportDialog
       v-model="isImportPasswordDialogVisible"
-      title="解密并导入备份"
-      width="90%"
-      style="max-width: 380px"
-      destroy-on-close
-      class="custom-el-dialog"
-      :close-on-click-modal="false"
-    >
-      <div class="space-y-4">
-        <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
-          <Lock class="h-4.5 w-4.5 text-amber-400 shrink-0 mt-0.5" />
-          <p class="text-xs leading-normal text-slate-300">
-            检测到该备份文件已被高强度加密保护。请输入正确的解密密码以还原 2FA 凭据列表。
-          </p>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-slate-400">解密密码</label>
-          <el-input
-            v-model="importForm.password"
-            type="password"
-            show-password
-            placeholder="请输入备份文件密码"
-            class="custom-dialog-input"
-            @keyup.enter="submitDecryptAndImport"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-3 pt-2">
-          <el-button
-            style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
-            class="px-4 py-2 rounded-xl"
-            @click="isImportPasswordDialogVisible = false"
-          >
-            取消
-          </el-button>
-          <el-button
-            type="primary"
-            class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
-            @click="submitDecryptAndImport"
-          >
-            解密导入
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
+      :encrypted-json="tempImportedJson"
+      @imported="fetchAccounts"
+    />
 
     <!-- Modal Dialog: Category Manager -->
     <el-dialog
@@ -2006,264 +1553,25 @@ onUnmounted(() => {
     </el-dialog>
 
     <!-- Modal Dialog: Add 2FA Account -->
-    <el-dialog
+    <TwoFactorAddDialog
       v-model="isAddDialogVisible"
-      title="安全添加 2FA 账号"
-      width="90%"
-      style="max-width: 480px"
-      destroy-on-close
-      class="custom-el-dialog"
-      @close="resetAddForm"
-    >
-      <div class="space-y-4">
-        <!-- Dialog instruction -->
-        <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 flex items-start gap-2.5 mb-2">
-          <Sparkles class="h-5 w-5 text-indigo-400 mt-0.5 shrink-0" />
-          <p class="text-xs leading-normal" style="color: var(--text-secondary)">
-            请输入您的 2FA 密钥。系统会在输入框下方即时生成验证码预览。添加成功后，将能够生成对应的手机端扫码图像。
-          </p>
-        </div>
-
-        <!-- Form fields -->
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">账号名称 / 标签 *</label>
-          <el-input
-            v-model="addForm.label"
-            placeholder="如: Github, Google, ChatGPT"
-            class="custom-dialog-input"
-          />
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">账号邮箱 / 用户名</label>
-          <el-input
-            v-model="addForm.email"
-            placeholder="如: user@example.com (可选)"
-            class="custom-dialog-input"
-          />
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <div class="flex justify-between items-center">
-            <label class="text-xs font-bold" style="color: var(--text-secondary)">分类 / 分组</label>
-            <span class="text-[9px] text-slate-500">用于分类过滤</span>
-          </div>
-          <el-select
-            v-model="addForm.category"
-            placeholder="点击选择分组，或输入新分组名称"
-            class="custom-dialog-input w-full"
-            filterable
-            allow-create
-            clearable
-            default-first-option
-          >
-            <el-option
-              v-for="cat in allCategories"
-              :key="cat"
-              :label="cat"
-              :value="cat"
-            />
-          </el-select>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">2FA 密匙 (Base32 Key) *</label>
-          <el-input
-            v-model="addForm.secret"
-            placeholder="支持包含空格，如: JBSW Y3DP EHPK 3PXP"
-            class="custom-dialog-input"
-            @input="checkFormSecret"
-          />
-          <span v-if="secretValidationError" class="text-[10px] text-rose-400 font-bold px-1 mt-0.5">
-            {{ secretValidationError }}
-          </span>
-          <!-- Strength Indicator -->
-          <div v-if="addForm.secret && !secretValidationError" class="flex items-center gap-2 px-1 mt-1">
-            <span class="text-[10px] text-slate-400">密钥强度:</span>
-            <div class="h-1 w-20 bg-slate-800 rounded-full overflow-hidden flex">
-              <div 
-                class="h-full transition-all duration-300" 
-                :style="{ 
-                  width: `${getSecretStrength(addForm.secret).percent}%`, 
-                  backgroundColor: getSecretStrength(addForm.secret).color 
-                }"
-              ></div>
-            </div>
-            <span class="text-[10px] font-bold" :style="{ color: getSecretStrength(addForm.secret).color }">
-              {{ getSecretStrength(addForm.secret).label }}
-            </span>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">备注说明</label>
-          <el-input
-            v-model="addForm.note"
-            type="textarea"
-            :rows="2"
-            placeholder="如: 此处用于保存第三方网站认证备份密钥... (可选)"
-            class="custom-dialog-input"
-          />
-        </div>
-
-        <!-- Live Preview Code Block in Add modal -->
-        <div
-          v-if="addForm.secret && !secretValidationError"
-          class="rounded-xl p-3.5 flex items-center justify-between border"
-          style="background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <div class="flex flex-col">
-            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--text-muted)">密钥格式正常 • 动态码预览</span>
-            <span class="text-2xl font-black font-mono text-indigo-400 tracking-wider mt-0.5">
-              {{ addSecretPreview.slice(0, 3) + ' ' + addSecretPreview.slice(3) }}
-            </span>
-          </div>
-          <div 
-            class="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border"
-            style="color: var(--text-secondary); background-color: var(--bg-card); border-color: var(--border-base)"
-          >
-            <Clock class="h-3.5 w-3.5 text-indigo-400" />
-            更新倒计时: {{ addSecretTimeLeft }}秒
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-3 pt-2">
-          <el-button
-            style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
-            class="px-4 py-2 rounded-xl"
-            @click="isAddDialogVisible = false"
-          >
-            取消
-          </el-button>
-          <el-button
-            type="primary"
-            class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
-            @click="submitAddAccount"
-          >
-            保存账号
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
+      :all-categories="allCategories"
+      @saved="fetchAccounts"
+    />
 
     <!-- Modal Dialog: Edit 2FA Account -->
-    <el-dialog
+    <TwoFactorEditDialog
       v-model="isEditDialogVisible"
-      title="修改 2FA 备注信息"
-      width="90%"
-      style="max-width: 440px"
-      destroy-on-close
-      class="custom-el-dialog"
-    >
-      <div class="space-y-4">
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">账号名称 / 标签 *</label>
-          <el-input
-            v-model="editForm.label"
-            placeholder="如: Github, Google"
-            class="custom-dialog-input"
-          />
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">账号邮箱 / 用户名</label>
-          <el-input
-            v-model="editForm.email"
-            placeholder="如: user@example.com (可选)"
-            class="custom-dialog-input"
-          />
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <div class="flex justify-between items-center">
-            <label class="text-xs font-bold" style="color: var(--text-secondary)">分类 / 分组</label>
-            <span class="text-[9px] text-slate-500">用于分类过滤</span>
-          </div>
-          <el-select
-            v-model="editForm.category"
-            placeholder="点击选择分组，或输入新分组名称"
-            class="custom-dialog-input w-full"
-            filterable
-            allow-create
-            clearable
-            default-first-option
-          >
-            <el-option
-              v-for="cat in allCategories"
-              :key="cat"
-              :label="cat"
-              :value="cat"
-            />
-          </el-select>
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold" style="color: var(--text-secondary)">备注说明</label>
-          <el-input
-            v-model="editForm.note"
-            type="textarea"
-            :rows="3"
-            placeholder="在此添加账号备注描述..."
-            class="custom-dialog-input"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-3 pt-2">
-          <el-button
-            style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
-            class="px-4 py-2 rounded-xl"
-            @click="isEditDialogVisible = false"
-          >
-            取消
-          </el-button>
-          <el-button
-            type="primary"
-            class="bg-indigo-600 hover:bg-indigo-500 border-none font-semibold px-5 py-2.5 rounded-xl transition-all"
-            @click="submitEditAccount"
-          >
-            保存修改
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
+      :account="selectedEditAccount"
+      :all-categories="allCategories"
+      @saved="fetchAccounts"
+    />
 
     <!-- Modal Dialog: Mobile QR Code Scanner View -->
-    <el-dialog
+    <TwoFactorQrDialog
       v-model="isQrDialogVisible"
-      title="手机扫码导入"
-      width="90%"
-      style="max-width: 340px"
-      destroy-on-close
-      class="custom-el-dialog"
-    >
-      <div class="flex flex-col items-center justify-center p-2 text-center">
-        <!-- Big title info -->
-        <h4 class="text-base font-bold mb-1" style="color: var(--text-primary)">
-          {{ qrCodeAccount?.label }}
-        </h4>
-        <p class="text-xs mb-4 truncate w-full max-w-[240px]" style="color: var(--text-secondary)">
-          {{ qrCodeAccount?.email || '无邮箱/用户名绑定' }}
-        </p>
-
-        <!-- QR Code Rendering Image Canvas Box -->
-        <div class="bg-white p-3 rounded-2xl shadow-inner mb-4 flex items-center justify-center border border-slate-200/10">
-          <img :src="qrCodeDataUrl" alt="Two-Factor Authenticator QR Code" class="w-48 h-48 block" />
-        </div>
-
-        <!-- Instructions -->
-        <div 
-          class="text-[11px] leading-normal max-w-[250px] rounded-xl p-3 flex gap-2 items-start text-left border"
-          style="color: var(--text-secondary); background-color: var(--bg-app); border-color: var(--border-base)"
-        >
-          <Info class="h-4 w-4 text-indigo-400 mt-0.5 shrink-0" />
-          <span>请使用手机端常用的两步验证 App（如 **谷歌身份验证器 (Google Authenticator)** 或 **微软 Authenticator**）的扫码功能，扫描上方二维码直接导入该安全账号。</span>
-        </div>
-      </div>
-    </el-dialog>
+      :account="qrCodeAccount"
+    />
   </div>
 </template>
 

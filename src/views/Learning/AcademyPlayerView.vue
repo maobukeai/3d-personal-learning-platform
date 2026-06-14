@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -101,6 +101,7 @@ const isSavingNote = ref(false);
 const isTogglingComplete = ref(false);
 const autoPlayNext = ref(true);
 const showCompletionModal = ref(false);
+let autoPlayTimer: ReturnType<typeof setTimeout> | null = null;
 
 const currentLesson = computed<Lesson | undefined>(() => lessons.value[currentLessonIndex.value]);
 
@@ -235,7 +236,7 @@ const handleVideoEnded = () => {
     toggleLessonComplete();
   }
   if (autoPlayNext.value && currentLessonIndex.value < lessons.value.length - 1) {
-    setTimeout(() => {
+    autoPlayTimer = setTimeout(() => {
       nextLesson();
     }, 1500);
   }
@@ -318,6 +319,10 @@ const selectTab = (tabId: 'content' | 'notes' | 'discussion') => {
 };
 
 onMounted(fetchCourseData);
+
+onUnmounted(() => {
+  if (autoPlayTimer) clearTimeout(autoPlayTimer);
+});
 </script>
 
 <template>

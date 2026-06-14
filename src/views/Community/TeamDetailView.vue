@@ -36,6 +36,10 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import SafeHtml from '@/components/SafeHtml.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
+import TeamPeopleTab from './components/TeamPeopleTab.vue';
+import TeamInsightsTab from './components/TeamInsightsTab.vue';
+import TeamApplicationsTab from './components/TeamApplicationsTab.vue';
+import TeamSettingsTab from './components/TeamSettingsTab.vue';
 import api from '@/utils/api';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -264,24 +268,6 @@ interface MemberInsightDetail {
   }[];
 }
 
-type PendingItem =
-  | {
-      id: string;
-      kind: 'invite';
-      title: string;
-      subtitle: string;
-      createdAt: string;
-      invitation: DetailedInvitation;
-    }
-  | {
-      id: string;
-      kind: 'application';
-      title: string;
-      subtitle: string;
-      createdAt: string;
-      application: DetailedApplication;
-    };
-
 const { t: i18nT, locale } = useI18n();
 const t = (key: string, ...args: any[]) => {
   const prefixes = ['showcase.', 'teams.', 'members.', 'teamDetail.', 'discussions.', 'chat.'];
@@ -301,12 +287,8 @@ const overview = ref<TeamOverview | null>(null);
 const insights = ref<TeamCollaborationInsights | null>(null);
 const isLoading = ref(false);
 const activeTab = ref('people'); // 'people', 'insights', 'applications', 'settings'
-const memberSearchQuery = ref('');
-
 const isProfileDialogOpen = ref(false);
 const selectedUserId = ref<string | null>(null);
-
-const activeFilter = ref<MemberFilter>('all');
 const isRefreshing = ref(false);
 const lastSyncedAt = ref<Date | null>(null);
 
@@ -399,15 +381,6 @@ const canLeaveTeam = computed(() => {
 
 const pendingApplications = computed(() => team.value?.applications || []);
 
-const filters = [
-  { value: 'all', label: '全部', icon: Users },
-  { value: 'admins', label: '管理组', icon: ShieldCheck },
-  { value: 'members', label: '成员', icon: UserCog },
-  { value: 'busy', label: '高负载', icon: Briefcase },
-  { value: 'risk', label: '有风险', icon: AlertTriangle },
-  { value: 'pending', label: '待处理', icon: Clock },
-] as const;
-
 const defaultMetrics = (): MemberMetrics => ({
   projects: 0,
   assignedTasks: 0,
@@ -435,9 +408,15 @@ const memberRows = computed<MemberRow[]>(() => {
   }));
 });
 
-const pendingInvitationsList = computed(() => overview.value?.invitations || team.value?.invitations || []);
-const pendingApplicationsList = computed(() => overview.value?.applications || team.value?.applications || []);
-const pendingTotal = computed(() => pendingInvitationsList.value.length + pendingApplicationsList.value.length);
+const pendingInvitationsList = computed(
+  () => overview.value?.invitations || team.value?.invitations || [],
+);
+const pendingApplicationsList = computed(
+  () => overview.value?.applications || team.value?.applications || [],
+);
+const pendingTotal = computed(
+  () => pendingInvitationsList.value.length + pendingApplicationsList.value.length,
+);
 const insightSummary = computed(() => insights.value?.summary || null);
 const healthScore = computed(() => insightSummary.value?.healthScore ?? 100);
 const actionItems = computed(() => insights.value?.actionItems || []);
@@ -496,7 +475,9 @@ const opsKpis = computed(() => [
   {
     key: 'tasks',
     label: '任务总量',
-    value: overview.value?.counts.tasks ?? (teamOverviewStats.value.activeTasks + teamOverviewStats.value.doneTasks),
+    value:
+      overview.value?.counts.tasks ??
+      teamOverviewStats.value.activeTasks + teamOverviewStats.value.doneTasks,
     helper: `${insightSummary.value?.dueSoonTasks ?? 0} 近到期`,
     icon: Briefcase,
     tone: 'tone-purple',
@@ -534,80 +515,6 @@ const opsKpis = computed(() => [
     tone: 'tone-rose',
   },
 ]);
-
-const filterCount = (val: MemberFilter) => {
-  if (val === 'all') return memberRows.value.length;
-  if (val === 'admins') return memberRows.value.filter((row) => row.role !== 'MEMBER').length;
-  if (val === 'members') return memberRows.value.filter((row) => row.role === 'MEMBER').length;
-  if (val === 'busy') {
-    return memberRows.value.filter(
-      (row) => (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 80,
-    ).length;
-  }
-  if (val === 'risk') {
-    return memberRows.value.filter(
-      (row) =>
-        row.metrics.overdueTasks > 0 ||
-        (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 90,
-    ).length;
-  }
-  if (val === 'pending') {
-    return visiblePendingItems.value.length;
-  }
-  return 0;
-};
-
-const visiblePendingItems = computed<PendingItem[]>(() => {
-  const invites = pendingInvitationsList.value.map((inv) => ({
-    id: inv.id,
-    kind: 'invite' as const,
-    title: inv.inviteeEmail,
-    subtitle: '受邀加入空间',
-    createdAt: inv.createdAt,
-    invitation: inv,
-  }));
-  const apps = pendingApplicationsList.value.map((app) => ({
-    id: app.id,
-    kind: 'application' as const,
-    title: app.user.name || app.user.email || '申请人',
-    subtitle: app.message || '申请加入空间',
-    createdAt: app.createdAt,
-    application: app,
-  }));
-  return [...invites, ...apps];
-});
-
-const filteredRows = computed(() => {
-  let list = memberRows.value;
-  if (memberSearchQuery.value) {
-    const query = memberSearchQuery.value.toLowerCase();
-    list = list.filter(
-      (row) =>
-        row.user.name?.toLowerCase().includes(query) ||
-        row.user.email?.toLowerCase().includes(query),
-    );
-  }
-
-  if (activeFilter.value === 'admins') {
-    return list.filter((row) => row.role !== 'MEMBER');
-  }
-  if (activeFilter.value === 'members') {
-    return list.filter((row) => row.role === 'MEMBER');
-  }
-  if (activeFilter.value === 'busy') {
-    return list.filter(
-      (row) => (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 80,
-    );
-  }
-  if (activeFilter.value === 'risk') {
-    return list.filter(
-      (row) =>
-        row.metrics.overdueTasks > 0 ||
-        (capacityByUserId.value.get(row.userId)?.capacityScore ?? 0) >= 90,
-    );
-  }
-  return list;
-});
 
 const selectedMember = computed(() => {
   const uid = selectedPanelUserId.value;
@@ -1360,675 +1267,47 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- People & Collaboration View -->
-        <div
+        <TeamPeopleTab
           v-if="activeTab === 'people'"
-          class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
-        >
-          <!-- KPIs Stats Dashboard Bar for TEAM type -->
-          <div v-if="team.type === 'TEAM'" class="grid grid-cols-2 lg:grid-cols-6 gap-3">
-            <div
-              v-for="kpi in opsKpis"
-              :key="kpi.key"
-              class="flex items-center gap-3 backdrop-blur-md bg-white/40 dark:bg-slate-900/30 border border-white/15 dark:border-slate-800/50 rounded-xl p-3 shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-left"
-            >
-              <div
-                class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                :class="kpi.tone"
-              >
-                <component :is="kpi.icon" class="w-4 h-4" />
-              </div>
-              <div class="min-w-0">
-                <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{{ kpi.label }}</span>
-                <strong class="block text-base lg:text-lg font-black tracking-tight mt-1 leading-none" style="color: var(--text-primary)">{{ kpi.value }}</strong>
-                <span class="block text-[9px] font-bold text-slate-400 mt-1 leading-none">{{ kpi.helper }}</span>
-              </div>
-            </div>
-          </div>
+          :team="team"
+          :overview="overview"
+          :ops-kpis="opsKpis"
+          :is-refreshing="isRefreshing"
+          :can-manage-team="canManageTeam"
+          :capacity-by-user-id="capacityByUserId"
+          :member-rows="memberRows"
+          @manual-refresh="handleManualRefresh"
+          @invite-member="isAddModalOpen = true"
+          @cancel-invitation="handleCancelInvitation"
+          @respond-application="handleRespondApplication"
+          @open-profile="openUserProfile"
+          @open-workbench="openMemberWorkbench"
+          @update-role="handleUpdateRole"
+          @start-chat="handleStartChat"
+          @remove-member="handleRemoveMember"
+        />
 
-          <!-- Header & Actions -->
-          <div
-            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3.5"
-            style="border-color: var(--border-base)"
-          >
-            <div class="flex items-center gap-3">
-              <h2 class="text-base sm:text-lg font-black" style="color: var(--text-primary)">
-                {{ t('teamDetail.boardTitle') }}
-              </h2>
-              <button
-                v-if="team.type === 'TEAM'"
-                type="button"
-                class="p-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-md text-slate-400 transition-all cursor-pointer"
-                :class="isRefreshing ? 'animate-spin' : ''"
-                title="同步数据"
-                @click="handleManualRefresh"
-              >
-                <RefreshCw class="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
-              <div class="relative w-full sm:w-56 md:w-64">
-                <Search
-                  class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"
-                />
-                <input
-                  v-model="memberSearchQuery"
-                  type="text"
-                  :placeholder="t('teamDetail.searchPlaceholder')"
-                  class="w-full pl-9 pr-4 py-2 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-lg text-xs focus:ring-4 focus:ring-accent/10 outline-none transition-all placeholder-slate-400"
-                  style="color: var(--text-primary)"
-                />
-              </div>
-              <button
-                v-if="canManageTeam"
-                type="button"
-                class="w-full sm:w-auto flex items-center justify-center gap-1 px-3.5 py-2 bg-accent text-white rounded-lg font-bold text-xs hover:scale-105 active:scale-95 hover:shadow-md hover:shadow-accent/20 transition-all cursor-pointer whitespace-nowrap"
-                @click="isAddModalOpen = true"
-              >
-                <Plus class="w-3.5 h-3.5" />
-                {{ t('teamDetail.inviteNewMember') }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Filter Chips for TEAM type -->
-          <div
-            v-if="team.type === 'TEAM'"
-            class="flex items-center justify-between border-b py-2 px-1"
-            style="border-color: var(--border-base)"
-          >
-            <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide min-w-0">
-              <button
-                v-for="filter in filters"
-                :key="filter.value"
-                type="button"
-                class="filter-chip"
-                :class="activeFilter === filter.value ? 'is-active' : ''"
-                @click="activeFilter = filter.value"
-              >
-                <component :is="filter.icon" class="w-3.5 h-3.5" />
-                <span>{{ filter.label }}</span>
-                <b>{{ filterCount(filter.value) }}</b>
-              </button>
-            </div>
-            <div class="hidden lg:flex items-center gap-2 text-[10px] font-black text-slate-400 shrink-0">
-              <span>{{ activeFilter === 'pending' ? visiblePendingItems.length : filteredRows.length }} 条结果</span>
-              <span>·</span>
-              <span>容量按风险优先排序</span>
-            </div>
-          </div>
-
-          <!-- Pending invitations / applications content list -->
-          <div v-if="activeFilter === 'pending'" class="space-y-3">
-            <div v-if="visiblePendingItems.length === 0" class="text-center py-12 text-slate-400 text-xs italic font-bold">
-              无待处理邀请或申请
-            </div>
-            <div
-              v-for="item in visiblePendingItems"
-              :key="item.id"
-              class="flex items-center justify-between p-4 bg-white/40 dark:bg-slate-900/20 border border-white/20 dark:border-slate-800/50 rounded-xl"
-            >
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-amber-500/10 text-amber-500 shrink-0">
-                  <Clock class="w-4 h-4" />
-                </div>
-                <div class="text-left">
-                  <p class="text-xs font-black" style="color: var(--text-primary)">{{ item.title }}</p>
-                  <p class="text-[10px] text-slate-400">{{ item.subtitle }} · {{ formatDate(item.createdAt) }}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <template v-if="item.kind === 'invite'">
-                  <button
-                    v-if="canManageTeam"
-                    type="button"
-                    class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg text-[10px] font-black transition-all cursor-pointer"
-                    @click="handleCancelInvitation(item.id)"
-                  >
-                    撤销邀请
-                  </button>
-                </template>
-                <template v-else>
-                  <div class="flex gap-2">
-                    <button
-                      type="button"
-                      class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500 hover:text-white rounded-lg text-[10px] font-black transition-all cursor-pointer"
-                      @click="handleRespondApplication(item.id, false, item.title)"
-                    >
-                      拒绝
-                    </button>
-                    <button
-                      type="button"
-                      class="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all cursor-pointer"
-                      @click="handleRespondApplication(item.id, true, item.title)"
-                    >
-                      同意
-                    </button>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
-
-          <!-- Active Members Table View -->
-          <div v-else class="overflow-x-auto scrollbar-hide">
-            <table class="member-table">
-              <thead>
-                <tr>
-                  <th>成员</th>
-                  <th>角色</th>
-                  <th>状态</th>
-                  <th v-if="team.type === 'TEAM'">负载</th>
-                  <th v-if="team.type === 'TEAM'">项目</th>
-                  <th>最近协作</th>
-                  <th class="text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="member in filteredRows" :key="member.id">
-                  <td>
-                    <div class="flex items-center gap-2.5 min-w-0">
-                      <UserAvatar
-                        :user="member.user"
-                        size="sm"
-                        class="cursor-pointer hover:ring-2 hover:ring-accent transition-all"
-                        @click="openUserProfile(member.userId)"
-                      />
-                      <div class="min-w-0 text-left">
-                        <button
-                          type="button"
-                          class="block text-xs font-black truncate bg-transparent border-none p-0 cursor-pointer hover:text-accent max-w-[190px] text-left outline-none"
-                          style="color: var(--text-primary)"
-                          @click="team.type === 'TEAM' ? openMemberWorkbench(member.userId) : openUserProfile(member.userId)"
-                        >
-                          {{ memberNameStr(member) }}
-                        </button>
-                        <p class="text-[10px] text-slate-400 truncate max-w-[210px]">{{ member.user.email }}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <el-select
-                      v-if="canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'"
-                      :model-value="member.role"
-                      class="role-select"
-                      @change="(role: unknown) => handleUpdateRole(member.userId, String(role))"
-                    >
-                      <el-option label="管理员" value="ADMIN" />
-                      <el-option label="成员" value="MEMBER" />
-                    </el-select>
-                    <span v-else class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black" :class="roleBadgeClass(member.role)">
-                      <Crown v-if="member.role === 'OWNER'" class="w-3 h-3" />
-                      <ShieldCheck v-else-if="member.role === 'ADMIN'" class="w-3 h-3" />
-                      {{ roleLabel(member.role) }}
-                    </span>
-                  </td>
-                  <td>
-                    <div class="space-y-1 text-left">
-                      <div class="flex items-center gap-1.5">
-                        <Circle
-                          class="w-2 h-2 fill-current"
-                          :class="authStore.isUserOnline(member.userId) ? 'text-emerald-500' : 'text-slate-300'"
-                        />
-                        <span class="text-[10px] font-black text-slate-500">
-                          {{ authStore.isUserOnline(member.userId) ? '在线' : '离线' }}
-                        </span>
-                      </div>
-                      <span
-                        v-if="team.type === 'TEAM'"
-                        class="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black"
-                        :class="capacityClass(capacityByUserId.get(member.userId)?.capacityScore)"
-                      >
-                        {{ capacityLabel(member.userId) }}
-                      </span>
-                    </div>
-                  </td>
-                  <td v-if="team.type === 'TEAM'">
-                    <div class="w-36 text-left">
-                      <div class="flex justify-between text-[10px] font-black mb-1">
-                        <span class="text-slate-400">进行 {{ member.metrics.activeTasks }}</span>
-                        <span :class="member.metrics.overdueTasks > 0 ? 'text-rose-500' : 'text-accent'">
-                          {{ member.metrics.completionRate }}%
-                        </span>
-                      </div>
-                      <div class="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          class="h-full rounded-full"
-                          :class="member.metrics.overdueTasks > 0 ? 'bg-rose-500' : member.metrics.activeTasks >= 5 ? 'bg-amber-500' : 'bg-accent'"
-                          :style="{ width: progressWidthStr(member.metrics.activeTasks) }"
-                        ></div>
-                      </div>
-                      <p class="mt-1 text-[9px] font-bold text-slate-400">
-                        已完 {{ member.metrics.doneTasks }} · 本周 {{ capacityByUserId.get(member.userId)?.completedThisWeek ?? member.metrics.recentlyCompleted }} · 逾期 {{ member.metrics.overdueTasks }}
-                      </p>
-                    </div>
-                  </td>
-                  <td v-if="team.type === 'TEAM'" class="text-xs font-black text-slate-500 text-left">
-                    {{ member.metrics.projects }}
-                  </td>
-                  <td class="text-xs font-bold text-slate-500 text-left">
-                    {{ formatDate(member.metrics.lastTaskAt || member.joinedAt) }}
-                  </td>
-                  <td class="text-right">
-                    <div class="inline-flex items-center gap-1.5">
-                      <button
-                        v-if="team.type === 'TEAM'"
-                        type="button"
-                        class="h-7 px-2 rounded-lg bg-accent/10 text-accent text-[10px] font-black border-none cursor-pointer hover:bg-accent hover:text-white transition-colors"
-                        @click="openMemberWorkbench(member.userId)"
-                      >
-                        画像
-                      </button>
-                      <el-dropdown trigger="click" placement="bottom-end">
-                        <button type="button" class="p-1.5 rounded-lg bg-slate-100 dark:bg-white/5 border-none cursor-pointer text-slate-400 hover:text-accent transition-colors" style="color: var(--text-secondary)">
-                          <MoreHorizontal class="w-4 h-4" />
-                        </button>
-                        <template #dropdown>
-                          <el-dropdown-menu class="!rounded-xl !p-2">
-                            <el-dropdown-item v-if="team.type === 'TEAM'" class="!rounded-lg !font-bold" @click="openMemberWorkbench(member.userId)">
-                              打开画像
-                            </el-dropdown-item>
-                            <el-dropdown-item class="!rounded-lg !font-bold" @click="openUserProfile(member.userId)">
-                              查看资料
-                            </el-dropdown-item>
-                            <el-dropdown-item
-                              v-if="member.userId !== authStore.user?.id"
-                              class="!rounded-lg !font-bold"
-                              @click="handleStartChat(member.user)"
-                            >
-                              发起私聊
-                            </el-dropdown-item>
-                            <template v-if="canManageTeam && member.userId !== authStore.user?.id && member.role !== 'OWNER'">
-                              <el-divider class="!my-1" />
-                              <el-dropdown-item
-                                class="!rounded-lg !font-bold !text-rose-500"
-                                @click="handleRemoveMember(member.userId, member.user.name)"
-                              >
-                                移出空间
-                              </el-dropdown-item>
-                            </template>
-                          </el-dropdown-menu>
-                        </template>
-                      </el-dropdown>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Collaboration Insights Tab -->
-        <div
+        <TeamInsightsTab
           v-if="activeTab === 'insights' && !isPersonalSpace"
-          class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
-        >
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left Panel: Health Gauge & KPI Summary -->
-            <div class="space-y-6">
-              <section class="rail-card flex flex-col items-center py-6 text-center">
-                <h3 class="rail-title mb-4">空间健康度</h3>
-                <div class="relative w-36 h-36 flex items-center justify-center">
-                  <!-- Circular Gauge Indicator -->
-                  <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="var(--border-base)"
-                      stroke-width="8"
-                      fill="transparent"
-                      class="text-slate-200 dark:text-slate-800"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="currentColor"
-                      stroke-width="8"
-                      fill="transparent"
-                      stroke-dasharray="251.2"
-                      :stroke-dashoffset="251.2 - (251.2 * healthScore) / 100"
-                      :class="healthToneClass"
-                    />
-                  </svg>
-                  <div class="absolute flex flex-col items-center">
-                    <span class="text-3xl font-black" style="color: var(--text-primary)">{{ healthScore }}</span>
-                    <span
-                      class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mt-1"
-                      :class="healthToneClass"
-                    >
-                      {{ healthLabel }}
-                    </span>
-                  </div>
-                </div>
-                <p class="text-xs text-slate-400 mt-4 px-6">
-                  该得分基于任务逾期率、成员高负载比例以及项目风险综合计算。
-                </p>
-              </section>
+          :team="team"
+          :insights="insights"
+        />
 
-              <!-- Capacity load list -->
-              <section class="rail-card">
-                <div class="rail-title">
-                  <span>成员容量排行</span>
-                  <span class="text-[9px] text-slate-400 font-bold">工作负荷百分比</span>
-                </div>
-                <div v-if="!insights || insights.memberCapacity.length === 0" class="compact-empty">暂无负荷记录</div>
-                <div v-else class="space-y-3 mt-2">
-                  <div
-                    v-for="cap in insights.memberCapacity.slice(0, 5)"
-                    :key="cap.userId"
-                    class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-white/5"
-                  >
-                    <div class="flex items-center gap-2 min-w-0">
-                      <UserAvatar
-                        v-if="team?.members.find(m => m.userId === cap.userId)"
-                        :user="team.members.find(m => m.userId === cap.userId)!.user"
-                        size="xs"
-                      />
-                      <span class="text-xs font-black truncate text-slate-700 dark:text-slate-200">
-                        {{ team?.members.find(m => m.userId === cap.userId)?.user.name || '团队成员' }}
-                      </span>
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-[10px] font-black" :class="capacityClass(cap.capacityScore)">
-                        {{ cap.capacityScore }}%
-                      </span>
-                      <span
-                        class="px-1.5 py-0.2 rounded text-[8px] font-bold"
-                        :class="capacityClass(cap.capacityScore)"
-                      >
-                        {{ cap.focus }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            <!-- Middle Panel: Project Health Risk & Action Items -->
-            <div class="space-y-6 lg:col-span-2">
-              <section class="rail-card">
-                <h3 class="rail-title">高风险项目</h3>
-                <div v-if="highRiskProjects.length === 0" class="compact-empty">暂无风险项目，运行良好</div>
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                  <div
-                    v-for="proj in highRiskProjects"
-                    :key="proj.id"
-                    class="p-3 bg-rose-500/5 border border-rose-500/15 rounded-xl flex flex-col justify-between text-left"
-                  >
-                    <div>
-                      <div class="flex items-center justify-between mb-1.5">
-                        <strong class="text-xs font-black text-rose-500 truncate">{{ proj.title }}</strong>
-                        <span class="text-[10px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded">
-                          {{ proj.healthScore }}分
-                        </span>
-                      </div>
-                      <ul class="space-y-1">
-                        <li
-                          v-for="(reason, idx) in proj.reasons"
-                          :key="idx"
-                          class="text-[9px] font-bold text-slate-500 flex items-start gap-1 text-left"
-                        >
-                          <span class="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1 shrink-0"></span>
-                          <span>{{ reason }}</span>
-                        </li>
-                      </ul>
-                    </div>
-                    <button
-                      type="button"
-                      class="mt-3 w-full py-1 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg text-[10px] font-black transition-colors cursor-pointer"
-                      @click="navigateInsight(`/project/${proj.id}`)"
-                    >
-                      处理项目风险
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Action items list -->
-              <section class="rail-card">
-                <h3 class="rail-title">建议处理动作</h3>
-                <div v-if="actionItems.length === 0" class="compact-empty">当前无待办建议</div>
-                <div v-else class="space-y-2 mt-2">
-                  <button
-                    v-for="item in actionItems.slice(0, 6)"
-                    :key="item.id"
-                    type="button"
-                    class="drawer-action hover:bg-accent/5"
-                    @click="navigateInsight(item.targetRoute)"
-                  >
-                    <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black shrink-0" :class="severityClass(item.severity)">
-                      {{ severityLabel(item.severity) }}
-                    </span>
-                    <span class="min-w-0 flex-1 text-left">
-                      <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ item.title }}</span>
-                      <span class="block text-[9px] font-bold text-slate-400 truncate">{{ item.description }}</span>
-                    </span>
-                    <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                  </button>
-                </div>
-              </section>
-
-              <!-- Activity Feed Timeline -->
-              <section class="rail-card">
-                <h3 class="rail-title">团队活动记录</h3>
-                <div v-if="activityItems.length === 0" class="compact-empty">暂无新动态</div>
-                <div v-else class="space-y-2.5 mt-2">
-                  <button
-                    v-for="item in activityItems.slice(0, 6)"
-                    :key="item.id"
-                    type="button"
-                    class="activity-row"
-                    @click="navigateInsight(item.targetRoute)"
-                  >
-                    <span class="w-2 h-2 rounded-full mt-1.5 shrink-0" :class="activityDotClass(item.type)"></span>
-                    <span class="min-w-0 flex-1 text-left">
-                      <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ item.title }}</span>
-                      <span class="block text-[9px] font-bold text-slate-400 truncate">{{ item.description }}</span>
-                    </span>
-                    <span class="text-[9px] font-black text-slate-400 shrink-0">{{ formatRelativeTime(item.createdAt) }}</span>
-                  </button>
-                </div>
-              </section>
-            </div>
-          </div>
-        </div>
-
-        <!-- Applications Tab -->
-        <div
+        <TeamApplicationsTab
           v-if="activeTab === 'applications' && isOwnerOrAdmin"
-          class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
-        >
-          <div>
-            <h2 class="text-2xl font-black mb-1" style="color: var(--text-primary)">
-              {{ t('teamDetail.applicationsReview') }}
-            </h2>
-            <p class="text-xs text-slate-400 font-medium">
-              {{ t('teamDetail.applicationsReviewDesc') }}
-            </p>
-          </div>
+          :pending-applications="pendingApplications"
+          @respond-application="handleRespondApplication"
+        />
 
-          <div
-            v-if="pendingApplications.length === 0"
-            class="flex flex-col items-center justify-center py-20 rounded-[2rem] border-2 border-dashed"
-            style="border-color: var(--border-base)"
-          >
-            <ClipboardList class="w-12 h-12 mb-4 opacity-10" style="color: var(--text-muted)" />
-            <p class="text-slate-400 font-bold">{{ t('teamDetail.noApplications') }}</p>
-          </div>
-
-          <div v-else class="space-y-4">
-            <div
-              v-for="app in pendingApplications"
-              :key="app.id"
-              class="flex items-center gap-6 p-6 bg-white dark:bg-slate-900 rounded-2xl border transition-all hover:shadow-lg"
-              style="border-color: var(--border-base)"
-            >
-              <UserAvatar :user="app.user" size="lg" />
-              <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-base" style="color: var(--text-primary)">
-                  {{ app.user.name || app.user.email }}
-                </h4>
-                <p class="text-xs text-slate-400">{{ app.user.email }}</p>
-                <p v-if="app.message" class="text-xs text-slate-500 mt-2 italic">
-                  "{{ app.message }}"
-                </p>
-                <p class="text-[10px] text-slate-300 mt-1">
-                  {{
-                    t('teamDetail.appliedAt', {
-                      date: new Date(app.createdAt).toLocaleString(
-                        locale === 'zh' ? 'zh-CN' : 'en-US',
-                      ),
-                    })
-                  }}
-                </p>
-              </div>
-              <div class="flex items-center gap-3 shrink-0">
-                <button
-                  type="button"
-                  class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-500 rounded-xl font-bold text-sm hover:bg-rose-50 hover:text-rose-600 transition-all"
-                  @click="handleRespondApplication(app.id, false, app.user.name)"
-                >
-                  <XCircle class="w-4 h-4" /> {{ t('teamDetail.reject') }}
-                </button>
-                <button
-                  type="button"
-                  class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                  @click="handleRespondApplication(app.id, true, app.user.name)"
-                >
-                  <CheckCheck class="w-4 h-4" /> {{ t('teamDetail.approve') }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Settings Tab -->
-        <div
+        <TeamSettingsTab
           v-if="activeTab === 'settings' && isOwnerOrAdmin"
-          class="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500"
-        >
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <div class="lg:col-span-1">
-              <h3 class="text-xl font-black mb-3" style="color: var(--text-primary)">
-                {{ t('teamDetail.basicProfile') }}
-              </h3>
-              <p class="text-sm text-slate-500 leading-relaxed">
-                {{ t('teamDetail.basicProfileDesc') }}
-              </p>
-            </div>
-            <div
-              class="lg:col-span-2 space-y-8 bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] border shadow-sm"
-              style="border-color: var(--border-base)"
-            >
-              <div class="space-y-3">
-                <label
-                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                  >{{ t('teamDetail.teamNameLabel') }}</label
-                >
-                <input
-                  v-model="editForm.name"
-                  type="text"
-                  class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl focus:ring-4 focus:ring-accent/10 outline-none transition-all"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
-                />
-              </div>
-              <div class="space-y-3">
-                <label
-                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                  >{{ t('teamDetail.teamDescLabel') }}</label
-                >
-                <textarea
-                  v-model="editForm.description"
-                  rows="4"
-                  class="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border rounded-2xl focus:ring-4 focus:ring-accent/10 outline-none transition-all resize-none"
-                  style="border-color: var(--border-base); color: var(--text-primary)"
-                ></textarea>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-3">
-                  <label
-                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                    >{{ t('team.category') }}</label
-                  >
-                  <el-select
-                    v-model="editForm.category"
-                    class="w-full custom-select"
-                    :placeholder="t('team.categoryPlaceholder')"
-                  >
-                    <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
-                  </el-select>
-                </div>
-                <div v-if="!isPersonalSpace" class="space-y-3">
-                  <label
-                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
-                    >{{ t('teamDetail.privacyLabel') }}</label
-                  >
-                  <el-select
-                    v-model="editForm.visibility"
-                    class="w-full custom-select"
-                    :placeholder="t('teamDetail.visibilityPlaceholder')"
-                  >
-                    <el-option :label="t('teamDetail.visibilityPublic')" value="PUBLIC" />
-                    <el-option :label="t('teamDetail.visibilityPrivate')" value="PRIVATE" />
-                  </el-select>
-                </div>
-              </div>
-              <div class="flex justify-end pt-4">
-                <button
-                  type="button"
-                  :disabled="isSaving"
-                  class="px-10 py-4 bg-accent text-white rounded-2xl font-bold shadow-xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                  @click="handleUpdateTeam"
-                >
-                  {{ isSaving ? t('teamDetail.syncing') : t('teamDetail.saveChanges') }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-if="!isPersonalSpace"
-            class="pt-12 border-t"
-            style="border-color: var(--border-base)"
-          >
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-              <div class="lg:col-span-1">
-                <h3 class="text-xl font-black mb-3 text-rose-500">
-                  {{ t('teamDetail.dangerZone') }}
-                </h3>
-                <p class="text-sm text-slate-500 leading-relaxed">
-                  {{ t('teamDetail.dangerZoneDesc') }}
-                </p>
-              </div>
-              <div
-                class="lg:col-span-2 bg-rose-50/50 dark:bg-rose-500/5 p-10 rounded-[2.5rem] border border-rose-100 dark:border-rose-500/20 flex flex-col md:flex-row items-center justify-between gap-6"
-              >
-                <div>
-                  <h4 class="text-lg font-black text-rose-600 mb-1">
-                    {{ t('teamDetail.dissolveTitle') }}
-                  </h4>
-                  <p class="text-sm text-rose-500 opacity-80">
-                    {{ t('teamDetail.dissolveDesc') }}
-                  </p>
-                </div>
-                <button
-                  v-if="isOwner"
-                  type="button"
-                  class="px-10 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-xl shadow-rose-600/20 hover:bg-rose-700 active:scale-95 transition-all whitespace-nowrap"
-                  @click="handleDeleteTeam"
-                >
-                  {{ t('teamDetail.dissolveBtn') }}
-                </button>
-                <div v-else class="flex items-center gap-2 text-rose-400 font-bold text-sm italic">
-                  <Shield class="w-4 h-4" /> {{ t('teamDetail.dissolveOwnerOnly') }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          v-model:edit-form="editForm"
+          :is-personal-space="isPersonalSpace"
+          :is-owner="isOwner"
+          :is-saving="isSaving"
+          @update-team="handleUpdateTeam"
+          @delete-team="handleDeleteTeam"
+        />
       </div>
     </div>
 
@@ -2242,8 +1521,13 @@ onUnmounted(() => {
       class="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-[2px]"
       @click.self="closeMemberPanel"
     >
-      <aside class="member-drawer flex flex-col h-full bg-slate-900 border-l border-white/10 shadow-2xl relative">
-        <div class="drawer-head flex items-center justify-between p-4 border-b" style="border-color: var(--border-base)">
+      <aside
+        class="member-drawer flex flex-col h-full bg-slate-900 border-l border-white/10 shadow-2xl relative"
+      >
+        <div
+          class="drawer-head flex items-center justify-between p-4 border-b"
+          style="border-color: var(--border-base)"
+        >
           <div class="flex items-center gap-3 min-w-0">
             <UserAvatar v-if="selectedMember" :user="selectedMember.user" size="md" />
             <div class="min-w-0 text-left">
@@ -2260,50 +1544,111 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div v-if="isMemberInsightLoading" class="flex-1 flex flex-col items-center justify-center text-slate-400 p-6">
-          <div class="w-9 h-9 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"></div>
+        <div
+          v-if="isMemberInsightLoading"
+          class="flex-1 flex flex-col items-center justify-center text-slate-400 p-6"
+        >
+          <div
+            class="w-9 h-9 border-4 border-accent border-t-transparent rounded-full animate-spin mb-3"
+          ></div>
           <p class="text-xs font-black">正在生成成员画像</p>
         </div>
 
-        <div v-else-if="memberInsight" class="drawer-body flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
-          <section class="drawer-section p-3 rounded-xl border animate-in fade-in duration-300" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
+        <div
+          v-else-if="memberInsight"
+          class="drawer-body flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4"
+        >
+          <section
+            class="drawer-section p-3 rounded-xl border animate-in fade-in duration-300"
+            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
+          >
             <div class="drawer-score flex justify-between items-center">
               <div class="text-left">
                 <p class="text-[10px] font-black text-slate-400 leading-none">容量分</p>
-                <strong class="text-3xl font-black mt-1 block leading-none" style="color: var(--text-primary)">
+                <strong
+                  class="text-3xl font-black mt-1 block leading-none"
+                  style="color: var(--text-primary)"
+                >
                   {{ memberInsight.stats.capacityScore }}
                 </strong>
               </div>
-              <span class="px-2.5 py-1 rounded-md text-[10px] font-black" :class="capacityClass(memberInsight.stats.capacityScore)">
+              <span
+                class="px-2.5 py-1 rounded-md text-[10px] font-black"
+                :class="capacityClass(memberInsight.stats.capacityScore)"
+              >
                 {{ selectedMemberCapacity?.focus || '工作节奏' }}
               </span>
             </div>
             <div class="drawer-stat-grid grid grid-cols-4 gap-2 mt-3 text-center">
-              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">项目</span>
-                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.projects }}</strong>
+              <div
+                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+                style="border-color: var(--border-base)"
+              >
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                  >项目</span
+                >
+                <strong
+                  class="block text-base font-black mt-1 leading-none"
+                  style="color: var(--text-primary)"
+                  >{{ memberInsight.stats.projects }}</strong
+                >
               </div>
-              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">进行</span>
-                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.activeTasks }}</strong>
+              <div
+                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+                style="border-color: var(--border-base)"
+              >
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                  >进行</span
+                >
+                <strong
+                  class="block text-base font-black mt-1 leading-none"
+                  style="color: var(--text-primary)"
+                  >{{ memberInsight.stats.activeTasks }}</strong
+                >
               </div>
-              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">逾期</span>
-                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.overdueTasks }}</strong>
+              <div
+                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+                style="border-color: var(--border-base)"
+              >
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                  >逾期</span
+                >
+                <strong
+                  class="block text-base font-black mt-1 leading-none"
+                  style="color: var(--text-primary)"
+                  >{{ memberInsight.stats.overdueTasks }}</strong
+                >
               </div>
-              <div class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg" style="border-color: var(--border-base)">
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">完成率</span>
-                <strong class="block text-base font-black mt-1 leading-none" style="color: var(--text-primary)">{{ memberInsight.stats.completionRate }}%</strong>
+              <div
+                class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
+                style="border-color: var(--border-base)"
+              >
+                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                  >完成率</span
+                >
+                <strong
+                  class="block text-base font-black mt-1 leading-none"
+                  style="color: var(--text-primary)"
+                  >{{ memberInsight.stats.completionRate }}%</strong
+                >
               </div>
             </div>
           </section>
 
-          <section class="drawer-section p-3 rounded-xl border text-left" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
-            <div class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200">
+          <section
+            class="drawer-section p-3 rounded-xl border text-left"
+            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
+          >
+            <div
+              class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
+            >
               <ClipboardCheck class="w-4 h-4 text-amber-500" />
               <span>建议动作</span>
             </div>
-            <div v-if="memberInsight.recommendations.length === 0" class="text-center py-4 text-slate-400 text-xs italic">
+            <div
+              v-if="memberInsight.recommendations.length === 0"
+              class="text-center py-4 text-slate-400 text-xs italic"
+            >
               无特别建议动作
             </div>
             <div v-else class="space-y-2">
@@ -2315,24 +1660,43 @@ onUnmounted(() => {
                 style="border-color: var(--border-base)"
                 @click="navigateInsight(item.targetRoute)"
               >
-                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0" :class="severityClass(item.severity)">
+                <span
+                  class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0"
+                  :class="severityClass(item.severity)"
+                >
                   {{ severityLabel(item.severity) }}
                 </span>
                 <span class="min-w-0 flex-1">
-                  <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ item.title }}</span>
-                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{ item.description }}</span>
+                  <span
+                    class="block text-[11px] font-black truncate"
+                    style="color: var(--text-primary)"
+                    >{{ item.title }}</span
+                  >
+                  <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
+                    item.description
+                  }}</span>
                 </span>
                 <ArrowRight class="w-3.5 h-3.5 text-slate-300 shrink-0" />
               </button>
             </div>
           </section>
 
-          <section class="drawer-section p-3 rounded-xl border text-left" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
-            <div class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200">
+          <section
+            class="drawer-section p-3 rounded-xl border text-left"
+            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
+          >
+            <div
+              class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
+            >
               <Briefcase class="w-4 h-4 text-accent" />
               <span>{{ drawerTaskTitle }}</span>
             </div>
-            <div v-if="drawerTasks.length === 0" class="text-center py-4 text-slate-400 text-xs italic">暂无任务记录</div>
+            <div
+              v-if="drawerTasks.length === 0"
+              class="text-center py-4 text-slate-400 text-xs italic"
+            >
+              暂无任务记录
+            </div>
             <div v-else class="space-y-2">
               <button
                 v-for="task in drawerTasks"
@@ -2343,24 +1707,42 @@ onUnmounted(() => {
                 @click="navigateInsight(task.targetRoute)"
               >
                 <span class="min-w-0 flex-1">
-                  <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ task.title }}</span>
+                  <span
+                    class="block text-[11px] font-black truncate"
+                    style="color: var(--text-primary)"
+                    >{{ task.title }}</span
+                  >
                   <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
-                    {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} · {{ formatDate(task.dueDate || task.updatedAt) }}
+                    {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} ·
+                    {{ formatDate(task.dueDate || task.updatedAt) }}
                   </span>
                 </span>
-                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2" :class="priorityClass(task.priority)">
+                <span
+                  class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2"
+                  :class="priorityClass(task.priority)"
+                >
                   {{ task.priority || 'NONE' }}
                 </span>
               </button>
             </div>
           </section>
 
-          <section class="drawer-section p-3 rounded-xl border text-left" style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)">
-            <div class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200">
+          <section
+            class="drawer-section p-3 rounded-xl border text-left"
+            style="border-color: var(--border-base); background: rgb(148 163 184 / 0.04)"
+          >
+            <div
+              class="drawer-title flex items-center gap-1.5 mb-2 font-black text-xs text-slate-700 dark:text-slate-200"
+            >
               <BarChart3 class="w-4 h-4 text-emerald-500" />
               <span>参与项目</span>
             </div>
-            <div v-if="memberInsight.projects.length === 0" class="text-center py-4 text-slate-400 text-xs italic">暂未参与项目</div>
+            <div
+              v-if="memberInsight.projects.length === 0"
+              class="text-center py-4 text-slate-400 text-xs italic"
+            >
+              暂未参与项目
+            </div>
             <div v-else class="space-y-2">
               <button
                 v-for="project in memberInsight.projects.slice(0, 6)"
@@ -2371,15 +1753,27 @@ onUnmounted(() => {
                 @click="navigateInsight(project.targetRoute)"
               >
                 <span class="min-w-0 flex-1">
-                  <span class="block text-[11px] font-black truncate" style="color: var(--text-primary)">{{ project.title }}</span>
+                  <span
+                    class="block text-[11px] font-black truncate"
+                    style="color: var(--text-primary)"
+                    >{{ project.title }}</span
+                  >
                   <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
-                    {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 · {{ project.overdueTasks }} 逾期
+                    {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 ·
+                    {{ project.overdueTasks }} 逾期
                   </span>
                 </span>
                 <span class="w-14 shrink-0 ml-2">
-                  <span class="block text-right text-[9px] font-black text-slate-400">{{ project.progress }}%</span>
-                  <span class="block h-1 mt-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <span class="block h-full rounded-full bg-accent" :style="{ width: progressWidth(project.progress) }"></span>
+                  <span class="block text-right text-[9px] font-black text-slate-400"
+                    >{{ project.progress }}%</span
+                  >
+                  <span
+                    class="block h-1 mt-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"
+                  >
+                    <span
+                      class="block h-full rounded-full bg-accent"
+                      :style="{ width: progressWidth(project.progress) }"
+                    ></span>
                   </span>
                 </span>
               </button>
@@ -2387,9 +1781,25 @@ onUnmounted(() => {
           </section>
         </div>
 
-        <div v-if="memberInsight" class="drawer-foot p-4 border-t grid grid-cols-2 gap-3 shrink-0" style="border-color: var(--border-base)">
-          <button type="button" class="drawer-secondary cursor-pointer" @click="openUserProfile(memberInsight.member.userId)">查看资料</button>
-          <button type="button" class="drawer-primary cursor-pointer" @click="handleChatWithUser(memberInsight.member.user)">发起私聊</button>
+        <div
+          v-if="memberInsight"
+          class="drawer-foot p-4 border-t grid grid-cols-2 gap-3 shrink-0"
+          style="border-color: var(--border-base)"
+        >
+          <button
+            type="button"
+            class="drawer-secondary cursor-pointer"
+            @click="openUserProfile(memberInsight.member.userId)"
+          >
+            查看资料
+          </button>
+          <button
+            type="button"
+            class="drawer-primary cursor-pointer"
+            @click="handleChatWithUser(memberInsight.member.user)"
+          >
+            发起私聊
+          </button>
         </div>
       </aside>
     </div>

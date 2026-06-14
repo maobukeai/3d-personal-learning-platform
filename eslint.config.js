@@ -52,6 +52,8 @@ export default [
       "no-useless-catch": "off",
       "no-empty": "off",
       "vue/no-parsing-error": "off",
+      "no-undef": "off",
+      "no-redeclare": "off",
     },
   },
 ];

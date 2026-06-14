@@ -387,7 +387,11 @@ async function handleExtract(link: { name: string; type: string }) {
 
     const res = await api.post(`/api/mirror/resources/${resourceId.value}/extract`);
 
-    const key = import.meta.env.VITE_EXTRACT_ENCRYPTION_KEY || '3d_learning_platform_secure_extract_key_2026';
+    const envKey = import.meta.env.VITE_EXTRACT_ENCRYPTION_KEY;
+    if (!envKey && import.meta.env.PROD) {
+      throw new Error('System configuration error: Missing extraction encryption key in production.');
+    }
+    const key = envKey || '3d_learning_platform_secure_extract_key_2026';
 
     
 

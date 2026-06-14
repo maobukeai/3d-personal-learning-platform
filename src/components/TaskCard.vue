@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { TaskStatus } from '@/types';
 import {
   Calendar,
   User,
@@ -233,7 +234,7 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
           class="relative cursor-pointer hover:ring-1 hover:ring-accent rounded-md transition-all"
           @click.stop="emit('user-click', task.assignee.id)"
         >
-          <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover" :alt="task.assignee.name" />
+          <img v-if="task.assignee.avatarUrl" :src="task.assignee.avatarUrl" loading="lazy" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md object-cover" :alt="task.assignee.name" />
           <div
             v-else
             class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-md bg-accent/10 flex items-center justify-center"
@@ -264,14 +265,14 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
       <span
         class="shrink-0 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold"
         :class="
-          task.status === 'TODO'
+          task.status === TaskStatus.TODO
             ? 'bg-slate-500/10 text-slate-500'
-            : task.status === 'IN_PROGRESS'
+            : task.status === TaskStatus.IN_PROGRESS
               ? 'bg-accent/10 text-accent'
               : 'bg-emerald-500/10 text-emerald-500'
         "
       >
-        {{ task.status === 'TODO' ? '待办' : task.status === 'IN_PROGRESS' ? '进行中' : '已完成' }}
+        {{ task.status === TaskStatus.TODO ? '待办' : task.status === TaskStatus.IN_PROGRESS ? '进行中' : '已完成' }}
       </span>
 
       <span
@@ -321,7 +322,7 @@ const isOverdue = (dateStr: string | null | undefined, status: string) => {
         class="flex items-center gap-1.5 cursor-pointer group/as"
         @click.stop="emit('user-click', task.assignee.id)"
       >
-        <img v-if="task.assignee.avatarUrl" alt="" :src="task.assignee.avatarUrl" class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
+        <img v-if="task.assignee.avatarUrl" alt="" :src="task.assignee.avatarUrl" loading="lazy" class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg object-cover group-hover/as:ring-2 group-hover/as:ring-accent transition-all" />
         <div
           v-else
           class="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-accent/10 flex items-center justify-center group-hover/as:bg-accent group-hover/as:text-white transition-all"

@@ -1,6 +1,7 @@
 import { logger } from './utils/logger';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { TaskStatus } from './types/task';
 
 const prisma = new PrismaClient();
 
@@ -145,8 +146,8 @@ async function main() {
   // 6. Create some tasks for the user
   await prisma.task.createMany({
     data: [
-      { title: '完成 Blender 第一章', status: 'TODO', userId: user.id },
-      { title: '上传个人第一件作品', status: 'IN_PROGRESS', userId: user.id },
+      { title: '完成 Blender 第一章', status: TaskStatus.TODO, userId: user.id },
+      { title: '上传个人第一件作品', status: TaskStatus.IN_PROGRESS, userId: user.id },
     ],
   });
   logger.info('Created Sample Tasks.');

@@ -7,6 +7,7 @@ import { auditService, AuditAction, AuditModule } from '../services/audit.servic
 import { createNotification, createNotificationBatch } from '../utils/notification';
 import { awardPoints, deductPoints, PointsAction } from '../services/points.service';
 import logger from '../utils/logger';
+import { TaskStatus } from '../types/task';
 
 interface BatchCreateTaskInput {
   title?: string;
@@ -143,7 +144,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
       data: {
         title,
         description,
-        status: status || 'TODO',
+        status: status || TaskStatus.TODO,
         priority: priority || 'MEDIUM',
         tags: tags || null,
         subtasks: subtasks || null,
@@ -200,7 +201,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
       req,
     });
 
-    if (task.status === 'DONE') {
+    if (task.status === TaskStatus.DONE) {
       await awardPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
     }
 
@@ -210,7 +211,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         select: { status: true },
       });
       const total = projectTasks.length;
-      const done = projectTasks.filter((t) => t.status === 'DONE').length;
+      const done = projectTasks.filter((t) => t.status === TaskStatus.DONE).length;
       const progress = total > 0 ? Math.round((done / total) * 100) : 0;
       await prisma.project.update({
         where: { id: task.projectId },
@@ -274,7 +275,7 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response) => {
     return {
       title: task.title!.trim(),
       description: task.description || null,
-      status: task.status || 'TODO',
+      status: task.status || TaskStatus.TODO,
       priority: task.priority || 'MEDIUM',
       tags: task.tags || null,
       subtasks: task.subtasks || null,
@@ -400,7 +401,7 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response) => {
           select: { status: true },
         });
         const total = projectTasks.length;
-        const done = projectTasks.filter((task) => task.status === 'DONE').length;
+        const done = projectTasks.filter((task) => task.status === TaskStatus.DONE).length;
         const progress = total > 0 ? Math.round((done / total) * 100) : 0;
         await prisma.project.update({
           where: { id: projectId },
@@ -411,7 +412,7 @@ export const batchCreateTasks = async (req: AuthRequest, res: Response) => {
 
     await Promise.all(
       createdTasks
-        .filter((task) => task.status === 'DONE')
+        .filter((task) => task.status === TaskStatus.DONE)
         .map((task) => awardPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK)),
     );
 
@@ -588,8 +589,8 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
     });
 
     const isStatusChanged = status !== undefined && status !== existingTask.status;
-    const transitioningToDone = isStatusChanged && status === 'DONE';
-    const transitioningFromDone = isStatusChanged && existingTask.status === 'DONE';
+    const transitioningToDone = isStatusChanged && status === TaskStatus.DONE;
+    const transitioningFromDone = isStatusChanged && existingTask.status === TaskStatus.DONE;
 
     if (transitioningToDone) {
       await awardPoints(task.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
@@ -643,7 +644,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
           select: { status: true },
         });
         const total = projectTasks.length;
-        const done = projectTasks.filter((t) => t.status === 'DONE').length;
+        const done = projectTasks.filter((t) => t.status === TaskStatus.DONE).length;
         const progress = total > 0 ? Math.round((done / total) * 100) : 0;
         await prisma.project.update({
           where: { id: task.projectId },
@@ -657,7 +658,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
           select: { status: true },
         });
         const total = oldProjectTasks.length;
-        const done = oldProjectTasks.filter((t) => t.status === 'DONE').length;
+        const done = oldProjectTasks.filter((t) => t.status === TaskStatus.DONE).length;
         const progress = total > 0 ? Math.round((done / total) * 100) : 0;
         await prisma.project.update({
           where: { id: existingTask.projectId },
@@ -680,7 +681,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         if (targetUserIds.length > 0) {
           const detailMsg =
             status && status !== existingTask.status
-              ? `状态已更新为「${status === 'DONE' ? '已完成' : status === 'IN_PROGRESS' ? '进行中' : '待办'}」`
+              ? `状态已更新为「${status === TaskStatus.DONE ? '已完成' : status === TaskStatus.IN_PROGRESS ? '进行中' : '待办'}」`
               : `内容或属性进行了更新`;
           await createNotificationBatch(
             targetUserIds.map((uid) => ({
@@ -731,7 +732,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 
     await prisma.task.delete({ where: { id } });
 
-    if (existingTask.status === 'DONE') {
+    if (existingTask.status === TaskStatus.DONE) {
       await deductPoints(existingTask.assigneeId || req.userId!, PointsAction.COMPLETE_TASK);
     }
 
@@ -750,7 +751,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
         select: { status: true },
       });
       const total = projectTasks.length;
-      const done = projectTasks.filter((t) => t.status === 'DONE').length;
+      const done = projectTasks.filter((t) => t.status === TaskStatus.DONE).length;
       const progress = total > 0 ? Math.round((done / total) * 100) : 0;
       await prisma.project.update({
         where: { id: existingTask.projectId },
@@ -810,13 +811,13 @@ export const getTaskStats = async (req: AuthRequest, res: Response) => {
 
     const [total, todo, inProgress, done, overdue] = await Promise.all([
       prisma.task.count({ where }),
-      prisma.task.count({ where: { ...where, status: 'TODO' } }),
-      prisma.task.count({ where: { ...where, status: 'IN_PROGRESS' } }),
-      prisma.task.count({ where: { ...where, status: 'DONE' } }),
+      prisma.task.count({ where: { ...where, status: TaskStatus.TODO } }),
+      prisma.task.count({ where: { ...where, status: TaskStatus.IN_PROGRESS } }),
+      prisma.task.count({ where: { ...where, status: TaskStatus.DONE } }),
       prisma.task.count({
         where: {
           ...where,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           dueDate: { lt: new Date() },
         },
       }),

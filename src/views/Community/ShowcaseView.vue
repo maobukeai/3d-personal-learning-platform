@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -50,12 +50,7 @@ import PublishWorkDialog from '@/components/PublishWorkDialog.vue';
 import ShowcaseCard from '@/components/ShowcaseCard.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UserProfileDialog from '@/components/UserProfileDialog.vue';
-
-const MdPreview = defineAsyncComponent(async () => {
-  await import('md-editor-v3/lib/style.css');
-  return (await import('md-editor-v3')).MdPreview;
-});
-const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
+import ShowcaseDetail from './components/ShowcaseDetail.vue';
 
 type ShowcaseType = 'IMAGE' | 'VIDEO' | 'MODEL' | 'TEXT' | 'OTHER';
 type ShowcaseSortKey = 'popular' | 'newest' | 'trending' | 'viewed' | 'discussed' | 'featured';
@@ -165,28 +160,6 @@ const stats = ref<ShowcaseStats | null>(null);
 
 const isDetailOpen = ref(false);
 const detailItem = ref<ShowcaseItem | null>(null);
-const detailLoading = ref(false);
-const comments = ref<CommentItem[]>([]);
-const commentsLoading = ref(false);
-const newComment = ref('');
-const isSubmittingComment = ref(false);
-const shareCopied = ref(false);
-const currentImageIndex = ref(0);
-const relatedShowcases = ref<ShowcaseItem[]>([]);
-const relatedLoading = ref(false);
-const isEditingDetail = ref(false);
-const isSavingDetail = ref(false);
-const isDeletingDetail = ref(false);
-const editThumbnail = ref<File | null>(null);
-const editImages = ref<File[]>([]);
-const editForm = ref({
-  title: '',
-  description: '',
-  tags: '',
-  type: 'IMAGE' as ShowcaseType,
-  videoUrl: '',
-  isVideo: false,
-});
 
 const sortOptions: Array<{
   value: ShowcaseSortKey;
@@ -220,7 +193,9 @@ const typeOptions: Array<{ value: ShowcaseType | 'all'; label: string; icon: Com
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const formatNumber = (value: number) =>
-  new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(value || 0);
+  new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(
+    value || 0,
+  );
 
 const parseTags = (tags: string | null | undefined): string[] => {
   if (!tags) return [];
@@ -304,7 +279,8 @@ const smartFilterOptions = computed<
     label: '可下载',
     hint: '含关联资源',
     metric: formatNumber(
-      stats.value?.downloadableWorks ?? showcases.value.filter((item) => item.assetId || item.asset).length,
+      stats.value?.downloadableWorks ??
+        showcases.value.filter((item) => item.assetId || item.asset).length,
     ),
     icon: Download,
   },
@@ -313,7 +289,8 @@ const smartFilterOptions = computed<
     label: '有讨论',
     hint: '已产生评论',
     metric: formatNumber(
-      stats.value?.discussedWorks ?? showcases.value.filter((item) => item.commentsCount > 0).length,
+      stats.value?.discussedWorks ??
+        showcases.value.filter((item) => item.commentsCount > 0).length,
     ),
     icon: MessageCircle,
   },
@@ -325,24 +302,6 @@ const smartFilterOptions = computed<
     icon: ShieldCheck,
   },
 ]);
-
-
-
-const canManageDetail = computed(() => {
-  if (!detailItem.value) return false;
-  return detailItem.value.user.id === authStore.user?.id || isAdmin.value;
-});
-
-const detailStatusMeta = computed(() => {
-  const status = detailItem.value?.status ?? 'APPROVED';
-  if (status === 'PENDING') {
-    return { label: '审核中', tone: 'status-pending', hint: '仅你和管理员可见，审核通过后进入全站作品流。' };
-  }
-  if (status === 'REJECTED') {
-    return { label: '已驳回', tone: 'status-rejected', hint: '修改后重新提交审核。' };
-  }
-  return { label: '已发布', tone: 'status-approved', hint: '全站可见' };
-});
 
 const resetFilters = () => {
   searchInput.value = '';
@@ -382,7 +341,8 @@ const typeBreakdown = computed(() => {
     .filter((option) => option.value !== 'all')
     .map((option) => {
       const group = groups.find((item) => item.type === option.value);
-      const count = group?.count ?? showcases.value.filter((item) => item.type === option.value).length;
+      const count =
+        group?.count ?? showcases.value.filter((item) => item.type === option.value).length;
       return {
         ...option,
         count,
@@ -391,51 +351,11 @@ const typeBreakdown = computed(() => {
     });
 });
 
-
 const resultSummary = computed(() => {
   const shown = showcases.value.length;
   const count = total.value || shown;
   if (searchQuery.value) return `搜索「${searchQuery.value}」共 ${formatNumber(count)} 个结果`;
   return `已展示 ${formatNumber(shown)} / ${formatNumber(count)} 个作品`;
-});
-
-const detailImages = computed(() => {
-  if (!detailItem.value) return [];
-  const images: string[] = [];
-  if (detailItem.value.thumbnailUrl) images.push(getAssetUrl(detailItem.value.thumbnailUrl));
-  if (detailItem.value.images) {
-    try {
-      const parsed = JSON.parse(detailItem.value.images);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((url) => {
-          const normalized = getAssetUrl(String(url));
-          if (normalized) images.push(normalized);
-        });
-      }
-    } catch {
-      // Ignore malformed gallery payloads from old records.
-    }
-  }
-  return Array.from(new Set(images.filter(Boolean)));
-});
-
-const currentDetailImage = computed(() => detailImages.value[currentImageIndex.value] ?? '');
-
-const similarShowcases = computed(() => {
-  if (relatedShowcases.value.length) return relatedShowcases.value;
-  if (!detailItem.value) return [];
-  const tags = new Set(parseTags(detailItem.value.tags));
-  return showcases.value
-    .filter((item) => item.id !== detailItem.value?.id)
-    .map((item) => {
-      const tagScore = parseTags(item.tags).filter((tag) => tags.has(tag)).length;
-      const typeScore = item.type === detailItem.value?.type ? 2 : 0;
-      return { item, score: tagScore + typeScore };
-    })
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
-    .map((entry) => entry.item);
 });
 
 const fetchStats = async () => {
@@ -447,31 +367,6 @@ const fetchStats = async () => {
     console.error('Failed to fetch showcase stats');
   } finally {
     statsLoading.value = false;
-  }
-};
-
-const hydrateEditForm = (item: ShowcaseItem) => {
-  editForm.value = {
-    title: item.title,
-    description: item.description ?? '',
-    tags: parseTags(item.tags).join(', '),
-    type: item.type,
-    videoUrl: item.videoUrl ?? '',
-    isVideo: item.isVideo || item.type === 'VIDEO',
-  };
-  editThumbnail.value = null;
-  editImages.value = [];
-};
-
-const fetchRelatedShowcases = async (id: string) => {
-  relatedLoading.value = true;
-  try {
-    const response = await api.get(`/api/showcase/${id}/related`);
-    relatedShowcases.value = response.data;
-  } catch (_error) {
-    relatedShowcases.value = [];
-  } finally {
-    relatedLoading.value = false;
   }
 };
 
@@ -496,7 +391,7 @@ const fetchShowcases = async (append = false) => {
       },
     });
     const payload = response.data;
-    const items: ShowcaseItem[] = Array.isArray(payload) ? payload : payload.items ?? [];
+    const items: ShowcaseItem[] = Array.isArray(payload) ? payload : (payload.items ?? []);
     showcases.value = append ? [...showcases.value, ...items] : items;
     page.value = payload.meta?.page ?? nextPage;
     total.value = payload.meta?.total ?? showcases.value.length;
@@ -547,13 +442,10 @@ const handleStartChat = async (user: ShowcaseUser) => {
 const loadDetail = async (id: string, syncQuery = true) => {
   if (syncQuery) setWorkQuery(id);
   isDetailOpen.value = true;
-  detailLoading.value = true;
-  currentImageIndex.value = 0;
+  detailItem.value = null;
   try {
     const response = await api.get(`/api/showcase/${id}`);
     detailItem.value = response.data;
-    hydrateEditForm(response.data);
-    isEditingDetail.value = false;
     const idx = showcases.value.findIndex((item) => item.id === id);
     if (idx !== -1) {
       showcases.value[idx] = {
@@ -564,12 +456,9 @@ const loadDetail = async (id: string, syncQuery = true) => {
         commentsCount: response.data.commentsCount,
       };
     }
-    await Promise.all([fetchComments(id), fetchRelatedShowcases(id)]);
   } catch (_error) {
     ElMessage.error('作品详情加载失败');
     closeDetail();
-  } finally {
-    detailLoading.value = false;
   }
 };
 
@@ -580,35 +469,7 @@ const openDetail = async (item: ShowcaseItem, syncQuery = true) => {
 const closeDetail = () => {
   isDetailOpen.value = false;
   detailItem.value = null;
-  comments.value = [];
-  relatedShowcases.value = [];
-  newComment.value = '';
-  currentImageIndex.value = 0;
-  shareCopied.value = false;
-  isEditingDetail.value = false;
-  editThumbnail.value = null;
-  editImages.value = [];
   setWorkQuery(null);
-};
-
-const nextImage = () => {
-  if (currentImageIndex.value < detailImages.value.length - 1) currentImageIndex.value++;
-};
-
-const prevImage = () => {
-  if (currentImageIndex.value > 0) currentImageIndex.value--;
-};
-
-const fetchComments = async (showcaseId: string) => {
-  commentsLoading.value = true;
-  try {
-    const response = await api.get(`/api/showcase/${showcaseId}/comments`);
-    comments.value = response.data;
-  } catch (_error) {
-    console.error('Failed to fetch showcase comments');
-  } finally {
-    commentsLoading.value = false;
-  }
 };
 
 const updateLikeState = (id: string, liked: boolean, likesCount?: number) => {
@@ -635,56 +496,12 @@ const toggleLike = async (item: ShowcaseItem) => {
   }
 };
 
-const submitComment = async () => {
-  if (!newComment.value.trim() || !detailItem.value) return;
-  isSubmittingComment.value = true;
-  try {
-    const response = await api.post(`/api/showcase/${detailItem.value.id}/comment`, {
-      content: newComment.value,
-    });
-    comments.value.unshift(response.data);
-    detailItem.value.commentsCount += 1;
-    const target = showcases.value.find((item) => item.id === detailItem.value?.id);
-    if (target) target.commentsCount += 1;
-    newComment.value = '';
-    void fetchStats();
-  } catch (_error) {
-    ElMessage.error('评论发布失败');
-  } finally {
-    isSubmittingComment.value = false;
-  }
-};
-
-const deleteComment = async (comment: CommentItem) => {
-  if (!detailItem.value) return;
-  try {
-    await ElMessageBox.confirm('删除后这条讨论将无法恢复。', '删除评论', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    });
-    await api.delete(`/api/showcase/${detailItem.value.id}/comment/${comment.id}`);
-    comments.value = comments.value.filter((item) => item.id !== comment.id);
-    detailItem.value.commentsCount = Math.max(0, detailItem.value.commentsCount - 1);
-    const target = showcases.value.find((item) => item.id === detailItem.value?.id);
-    if (target) target.commentsCount = Math.max(0, target.commentsCount - 1);
-    ElMessage.success('评论已删除');
-    void fetchStats();
-  } catch {
-    // User cancelled or request failed after the confirmation dialog closed.
-  }
-};
-
 const handleShare = async (item?: ShowcaseItem | null) => {
   const workId = item?.id ?? detailItem.value?.id;
   const url = new URL(window.location.href);
   if (workId) url.searchParams.set('work', workId);
   try {
     await navigator.clipboard.writeText(url.toString());
-    shareCopied.value = true;
-    window.setTimeout(() => {
-      shareCopied.value = false;
-    }, 1800);
     ElMessage.success('链接已复制');
   } catch (_error) {
     ElMessage.error('复制失败，请手动复制浏览器地址');
@@ -693,88 +510,6 @@ const handleShare = async (item?: ShowcaseItem | null) => {
 
 const handleCardShare = async (item: ShowcaseItem) => {
   await handleShare(item);
-};
-
-const handleEditThumbnailChange = (event: Event) => {
-  editThumbnail.value = (event.target as HTMLInputElement).files?.[0] ?? null;
-};
-
-const handleEditImagesChange = (event: Event) => {
-  editImages.value = Array.from((event.target as HTMLInputElement).files ?? []);
-};
-
-const setEditType = (type: ShowcaseType | 'all') => {
-  if (type !== 'all') editForm.value.type = type;
-};
-
-const startEditDetail = () => {
-  if (!detailItem.value) return;
-  hydrateEditForm(detailItem.value);
-  isEditingDetail.value = true;
-};
-
-const cancelEditDetail = () => {
-  if (detailItem.value) hydrateEditForm(detailItem.value);
-  isEditingDetail.value = false;
-};
-
-const saveDetail = async () => {
-  if (!detailItem.value) return;
-  if (!editForm.value.title.trim()) {
-    ElMessage.warning('请填写作品标题');
-    return;
-  }
-
-  isSavingDetail.value = true;
-  try {
-    const formData = new FormData();
-    formData.append('title', editForm.value.title.trim());
-    formData.append('description', editForm.value.description);
-    formData.append('tags', editForm.value.tags);
-    formData.append('type', editForm.value.type);
-    formData.append('videoUrl', editForm.value.videoUrl);
-    formData.append('isVideo', String(editForm.value.isVideo || editForm.value.type === 'VIDEO'));
-    if (editThumbnail.value) formData.append('thumbnail', editThumbnail.value);
-    editImages.value.forEach((image) => formData.append('images', image));
-
-    const response = await api.put(`/api/showcase/${detailItem.value.id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const updatedDetail = { ...detailItem.value, ...response.data } as ShowcaseItem;
-    detailItem.value = updatedDetail;
-    hydrateEditForm(updatedDetail);
-    isEditingDetail.value = false;
-    if (response.data.status === 'PENDING') activeScope.value = 'my';
-    await Promise.all([fetchShowcases(), fetchStats(), fetchRelatedShowcases(updatedDetail.id)]);
-    ElMessage.success(response.data.status === 'PENDING' ? '已保存，等待审核通过后进入全站' : '作品已更新');
-  } catch (_error) {
-    ElMessage.error('保存失败，请稍后重试');
-  } finally {
-    isSavingDetail.value = false;
-  }
-};
-
-const deleteDetail = async () => {
-  if (!detailItem.value) return;
-  try {
-    await ElMessageBox.confirm(`确定删除《${detailItem.value.title}》吗？删除后无法恢复。`, '删除作品', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    });
-    isDeletingDetail.value = true;
-    const deletedId = detailItem.value.id;
-    await api.delete(`/api/showcase/${deletedId}`);
-    showcases.value = showcases.value.filter((item) => item.id !== deletedId);
-    total.value = Math.max(0, total.value - 1);
-    closeDetail();
-    await fetchStats();
-    ElMessage.success('作品已删除');
-  } catch (_error) {
-    // User cancelled or request failed after the confirmation dialog closed.
-  } finally {
-    isDeletingDetail.value = false;
-  }
 };
 
 const handlePublished = async () => {
@@ -807,12 +542,22 @@ watch(searchInput, () => {
   }, 260);
 });
 
+watch(isDetailOpen, (val) => {
+  if (!val) {
+    setWorkQuery(null);
+  }
+});
+
 watch([activeSort, activeType, activeScope, activeBucket, searchQuery, viewMode], () => {
   void fetchShowcases();
 });
 
 onMounted(() => {
   void refreshAll();
+});
+
+onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer);
 });
 </script>
 
@@ -844,11 +589,12 @@ onMounted(() => {
 
     <div class="showcase-layout" :class="{ 'showcase-layout--with-rail': showInsights }">
       <main class="showcase-main">
-
         <section class="showcase-controls">
           <!-- Row 1: Scope & Smart Filters (Scrollable on mobile) -->
           <div class="controls-row controls-row--primary">
-            <div class="flex flex-row lg:justify-between items-center overflow-x-auto lg:overflow-x-visible no-scrollbar gap-2 flex-1 w-full pb-0.5 lg:pb-0 select-none">
+            <div
+              class="flex flex-row lg:justify-between items-center overflow-x-auto lg:overflow-x-visible no-scrollbar gap-2 flex-1 w-full pb-0.5 lg:pb-0 select-none"
+            >
               <div class="scope-strip shrink-0" aria-label="范围">
                 <button
                   v-for="option in scopeOptions"
@@ -950,7 +696,10 @@ onMounted(() => {
               </div>
 
               <!-- Compact Result Summary -->
-              <span class="text-[10px] text-slate-550 dark:text-slate-400 font-semibold hidden sm:inline select-none">{{ resultSummary }}</span>
+              <span
+                class="text-[10px] text-slate-550 dark:text-slate-400 font-semibold hidden sm:inline select-none"
+                >{{ resultSummary }}</span
+              >
             </div>
           </div>
         </section>
@@ -1024,7 +773,12 @@ onMounted(() => {
             热门标签
           </div>
           <div v-if="topTags.length" class="tag-cloud">
-            <button v-for="tag in topTags" :key="tag.name" type="button" @click="selectTag(tag.name)">
+            <button
+              v-for="tag in topTags"
+              :key="tag.name"
+              type="button"
+              @click="selectTag(tag.name)"
+            >
               #{{ tag.name }}
               <span>{{ tag.count }}</span>
             </button>
@@ -1076,304 +830,15 @@ onMounted(() => {
       </aside>
     </div>
 
-    <Transition name="detail-fade">
-      <div v-if="isDetailOpen" class="detail-layer">
-        <div class="detail-backdrop" @click="closeDetail"></div>
-        <aside class="detail-drawer">
-          <header class="detail-header">
-            <div>
-              <span>作品详情</span>
-              <strong v-if="detailItem">{{ detailItem.title }}</strong>
-            </div>
-            <div class="detail-header-actions">
-              <button
-                v-if="detailItem && canManageDetail && !isEditingDetail"
-                type="button"
-                title="编辑作品"
-                @click="startEditDetail"
-              >
-                <Edit3 class="w-4 h-4" />
-              </button>
-              <button
-                v-if="detailItem && canManageDetail"
-                type="button"
-                class="danger"
-                :disabled="isDeletingDetail"
-                title="删除作品"
-                @click="deleteDetail"
-              >
-                <Trash2 class="w-4 h-4" />
-              </button>
-              <button type="button" title="关闭" @click="closeDetail">
-                <X class="w-5 h-5" />
-              </button>
-            </div>
-          </header>
-
-          <div v-if="detailLoading" class="detail-loading">
-            <RefreshCw class="w-6 h-6 animate-spin" />
-            正在加载作品...
-          </div>
-
-          <template v-else-if="detailItem">
-            <div class="detail-content">
-              <section class="detail-media-panel">
-                <div v-if="currentDetailImage" class="detail-media">
-                  <img :src="currentDetailImage" :alt="detailItem.title" />
-                  <button
-                    v-if="currentImageIndex > 0"
-                    type="button"
-                    class="gallery-button left"
-                    title="上一张"
-                    @click="prevImage"
-                  >
-                    <ChevronLeft class="w-5 h-5" />
-                  </button>
-                  <button
-                    v-if="currentImageIndex < detailImages.length - 1"
-                    type="button"
-                    class="gallery-button right"
-                    title="下一张"
-                    @click="nextImage"
-                  >
-                    <ChevronRight class="w-5 h-5" />
-                  </button>
-                </div>
-                <div v-else class="detail-media detail-media--empty">
-                  <Type class="w-10 h-10" />
-                  <span>文本作品</span>
-                </div>
-
-                <div v-if="detailImages.length > 1" class="thumbnail-strip">
-                  <button
-                    v-for="(image, idx) in detailImages"
-                    :key="image"
-                    type="button"
-                    :class="{ active: currentImageIndex === idx }"
-                    @click="currentImageIndex = idx"
-                  >
-                    <img :src="image" :alt="`${detailItem.title} ${idx + 1}`" />
-                  </button>
-                </div>
-              </section>
-
-              <section class="detail-info-panel">
-                <div class="detail-title-row">
-                  <span :class="['detail-type', getTypeClass(detailItem.type)]">
-                    {{ getTypeLabel(detailItem.type) }}
-                  </span>
-                  <span :class="['detail-status', detailStatusMeta.tone]">
-                    {{ detailStatusMeta.label }}
-                  </span>
-                </div>
-
-                <div v-if="isEditingDetail" class="detail-edit-form">
-                  <label>
-                    <span>标题</span>
-                    <input v-model="editForm.title" type="text" placeholder="作品标题" />
-                  </label>
-
-                  <div class="detail-edit-types">
-                    <button
-                      v-for="option in typeOptions.filter((item) => item.value !== 'all')"
-                      :key="option.value"
-                      type="button"
-                      :class="[{ active: editForm.type === option.value }, getTypeClass(option.value)]"
-                      @click="setEditType(option.value)"
-                    >
-                      <component :is="option.icon" class="w-3.5 h-3.5" />
-                      {{ option.label }}
-                    </button>
-                  </div>
-
-                  <label>
-                    <span>标签</span>
-                    <input v-model="editForm.tags" type="text" placeholder="Render, Cycles, Retro" />
-                  </label>
-
-                  <label v-if="editForm.type === 'VIDEO' || editForm.isVideo">
-                    <span>视频链接</span>
-                    <input v-model="editForm.videoUrl" type="url" placeholder="https://..." />
-                  </label>
-
-                  <label>
-                    <span>作品说明</span>
-                    <MarkdownEditor v-model="editForm.description" height="240px" simple />
-                  </label>
-
-                  <div class="detail-file-row">
-                    <label>
-                      <span>替换封面</span>
-                      <input type="file" accept="image/*" @change="handleEditThumbnailChange" />
-                      <small>{{ editThumbnail?.name || '保持当前封面' }}</small>
-                    </label>
-                    <label>
-                      <span>补充图集</span>
-                      <input type="file" accept="image/*" multiple @change="handleEditImagesChange" />
-                      <small>{{ editImages.length ? `已选择 ${editImages.length} 张` : '可一次追加多张' }}</small>
-                    </label>
-                  </div>
-
-                  <div class="detail-edit-actions">
-                    <button type="button" class="primary" :disabled="isSavingDetail" @click="saveDetail">
-                      <RefreshCw v-if="isSavingDetail" class="w-4 h-4 animate-spin" />
-                      <Save v-else class="w-4 h-4" />
-                      {{ isSavingDetail ? '保存中' : '保存修改' }}
-                    </button>
-                    <button type="button" @click="cancelEditDetail">取消</button>
-                  </div>
-                  <p class="detail-status-hint">{{ detailStatusMeta.hint }}</p>
-                </div>
-
-                <template v-else>
-                  <h1>{{ detailItem.title }}</h1>
-
-                  <div class="detail-author">
-                    <UserAvatar :user="detailItem.user" size="md" />
-                    <button type="button" class="detail-author-profile" @click="openUserProfile(detailItem.user.id)">
-                      <strong>{{ detailItem.user.name || detailItem.user.email || '匿名创作者' }}</strong>
-                      <span>{{ detailItem.user.bio || '查看创作者主页与更多作品' }}</span>
-                    </button>
-                    <button
-                      v-if="detailItem.user.id !== authStore.user?.id"
-                      type="button"
-                      class="detail-author-chat"
-                      title="私信创作者"
-                      @click="handleStartChat(detailItem.user)"
-                    >
-                      <MessageCircle class="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div v-if="parseTags(detailItem.tags).length" class="detail-tags">
-                    <button
-                      v-for="tag in parseTags(detailItem.tags)"
-                      :key="tag"
-                      type="button"
-                      @click="selectTag(tag)"
-                    >
-                      #{{ tag }}
-                    </button>
-                  </div>
-
-                  <div class="detail-actions">
-                    <button
-                      type="button"
-                      :class="{ liked: detailItem.isLiked }"
-                      @click="toggleLike(detailItem)"
-                    >
-                      <Heart class="w-4 h-4" :class="{ 'fill-current': detailItem.isLiked }" />
-                      {{ formatNumber(detailItem.likesCount) }}
-                    </button>
-                    <span><Eye class="w-4 h-4" />{{ formatNumber(detailItem.views) }}</span>
-                    <span><MessageCircle class="w-4 h-4" />{{ formatNumber(detailItem.commentsCount) }}</span>
-                    <span><Clock class="w-4 h-4" />{{ formatTime(detailItem.createdAt) }}</span>
-                    <button type="button" @click="handleShare(detailItem)">
-                      <component :is="shareCopied ? Check : Share2" class="w-4 h-4" />
-                      {{ shareCopied ? '已复制' : '分享' }}
-                    </button>
-                  </div>
-
-                  <a
-                    v-if="detailItem.videoUrl"
-                    :href="detailItem.videoUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="detail-link"
-                  >
-                    <Play class="w-4 h-4" />
-                    打开视频源
-                  </a>
-
-                  <a
-                    v-if="detailItem.asset?.url"
-                    :href="getAssetUrl(detailItem.asset.url)"
-                    download
-                    class="detail-link"
-                  >
-                    <Download class="w-4 h-4" />
-                    下载关联模型：{{ detailItem.asset.title }}
-                  </a>
-
-                  <div v-if="detailItem.description" class="detail-description">
-                    <MdPreview :model-value="detailItem.description" class="md-preview-showcase" />
-                  </div>
-                  <p v-else class="detail-description-empty">创作者还没有填写详细说明。</p>
-
-                  <div v-if="relatedLoading" class="comments-empty">
-                    <RefreshCw class="w-4 h-4 animate-spin" />
-                    正在匹配相关作品
-                  </div>
-                  <div v-else-if="similarShowcases.length" class="similar-strip">
-                    <h3>相关作品</h3>
-                    <button
-                      v-for="item in similarShowcases"
-                      :key="item.id"
-                      type="button"
-                      @click="openDetail(item)"
-                    >
-                      <img v-if="item.thumbnailUrl" :src="getAssetUrl(item.thumbnailUrl)" :alt="item.title" />
-                      <span>{{ item.title }}</span>
-                    </button>
-                  </div>
-                </template>
-              </section>
-            </div>
-
-            <section class="comments-panel">
-              <header>
-                <h2>讨论区</h2>
-                <span>{{ formatNumber(detailItem.commentsCount) }} 条评论</span>
-              </header>
-
-              <div class="comment-composer">
-                <UserAvatar :user="authStore.user" size="sm" />
-                <input
-                  v-model="newComment"
-                  type="text"
-                  placeholder="写下反馈、问题或制作建议..."
-                  @keyup.enter="submitComment"
-                />
-                <button
-                  type="button"
-                  :disabled="isSubmittingComment || !newComment.trim()"
-                  title="发送评论"
-                  @click="submitComment"
-                >
-                  <Send class="w-4 h-4" />
-                </button>
-              </div>
-
-              <div v-if="commentsLoading" class="comments-empty">
-                <RefreshCw class="w-5 h-5 animate-spin" />
-                正在加载评论
-              </div>
-              <div v-else-if="!comments.length" class="comments-empty">还没有评论，来开第一句。</div>
-              <div v-else class="comment-list">
-                <article v-for="comment in comments" :key="comment.id" class="comment-item">
-                  <UserAvatar :user="comment.user" size="sm" />
-                  <div>
-                    <header>
-                      <strong>{{ comment.user.name || comment.user.email || '匿名用户' }}</strong>
-                      <span>{{ formatTime(comment.createdAt) }}</span>
-                      <button
-                        v-if="comment.user.id === authStore.user?.id || isAdmin"
-                        type="button"
-                        title="删除评论"
-                        @click="deleteComment(comment)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </header>
-                    <p>{{ comment.content }}</p>
-                  </div>
-                </article>
-              </div>
-            </section>
-          </template>
-        </aside>
-      </div>
-    </Transition>
+    <ShowcaseDetail
+      v-model:is-open="isDetailOpen"
+      v-model:item="detailItem"
+      :is-admin="isAdmin"
+      :showcases="showcases"
+      @select-tag="selectTag"
+      @refresh-list="fetchShowcases"
+      @user-profile="openUserProfile"
+    />
 
     <PublishWorkDialog v-model="isPublishDialogOpen" @published="handlePublished" />
 
@@ -1440,7 +905,9 @@ onMounted(() => {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 850;
-  transition: transform 0.16s ease, background-color 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background-color 0.16s ease;
 }
 
 .icon-button {
@@ -1534,9 +1001,7 @@ onMounted(() => {
   display: grid;
   min-height: 320px;
   place-items: center;
-  background:
-    linear-gradient(135deg, rgb(17 24 39 / 0.88), rgb(36 54 72 / 0.92)),
-    #111827;
+  background: linear-gradient(135deg, rgb(17 24 39 / 0.88), rgb(36 54 72 / 0.92)), #111827;
 }
 
 .hero-feature__fallback svg {
@@ -1766,8 +1231,8 @@ onMounted(() => {
 }
 /* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .showcase-controls {
@@ -2174,18 +1639,29 @@ onMounted(() => {
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background:
-    linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-muted) 8%, transparent), transparent),
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--text-muted) 8%, transparent),
+      transparent
+    ),
     var(--bg-card);
-  background-size: 220px 100%, auto;
+  background-size:
+    220px 100%,
+    auto;
   animation: shimmer 1.2s infinite linear;
 }
 
 @keyframes shimmer {
   from {
-    background-position: -220px 0, 0 0;
+    background-position:
+      -220px 0,
+      0 0;
   }
   to {
-    background-position: calc(100% + 220px) 0, 0 0;
+    background-position:
+      calc(100% + 220px) 0,
+      0 0;
   }
 }
 

@@ -26,6 +26,7 @@ import {
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
+import { createJsonHeaders, parseSSEStream } from '@/utils/aiHelpers';
 
 interface GoogleAccount {
   id: string;
@@ -280,7 +281,9 @@ const dayChecklist = ref<{ [key: string]: boolean }>({
   action1: false,
   action2: false,
   action3: false,
-  action4: false
+  action4: false,
+  action5: false,
+  action6: false
 });
 
 // Fetch accounts on mount
@@ -313,7 +316,9 @@ const selectAccount = (id: string) => {
     action1: false,
     action2: false,
     action3: false,
-    action4: false
+    action4: false,
+    action5: false,
+    action6: false
   };
   if (window.innerWidth < 1024) {
     activeMobileView.value = 'detail';
@@ -857,7 +862,8 @@ const getStepDetails = (dayNum: number) => {
           { key: 'action2', text: '浏览收发 Gmail，整理垃圾邮件' },
           { key: 'action3', text: 'YouTube 观看并对优质内容进行评论/互动' },
           { key: 'action4', text: '使用 Gemini AI 翻译一小段英文文章' },
-          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Figma 界面设计平台' }
+          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Figma 界面设计平台' },
+          { key: 'action6', text: '检查谷歌账号的真实国家/地区，并在系统中更新/修改该账号的“国家/地区”属性' }
         ]
       };
     case 8:
@@ -1104,6 +1110,201 @@ watch(
   },
   { immediate: true }
 );
+
+const tempCountry = ref('');
+const isAppealAssistantVisible = ref(false);
+const appealTargetCountry = ref('');
+const appealLanguage = ref('en');
+const appealReasons = ref({
+  liveHere: false,
+  movedHere: false,
+  nearBorder: false,
+  differentRegions: false,
+  frequentTravel: false,
+  paymentMethod: false,
+  familyReside: false,
+  relocating: false
+});
+const isGeneratingAppeal = ref(false);
+const generatedAppealText = ref('');
+let appealAbortCtrl: AbortController | null = null;
+
+watch(
+  () => selectedAccount.value?.id,
+  () => {
+    tempCountry.value = selectedAccount.value?.country || '';
+    appealTargetCountry.value = '';
+    appealLanguage.value = 'en';
+    generatedAppealText.value = '';
+    appealReasons.value = {
+      liveHere: false,
+      movedHere: false,
+      nearBorder: false,
+      differentRegions: false,
+      frequentTravel: false,
+      paymentMethod: false,
+      familyReside: false,
+      relocating: false
+    };
+  },
+  { immediate: true }
+);
+
+const generateAppealText = async () => {
+  if (isGeneratingAppeal.value) {
+    if (appealAbortCtrl) appealAbortCtrl.abort();
+  }
+
+  const country = appealTargetCountry.value.trim();
+  if (!country) {
+    ElMessage.warning('请输入拟更改的目标国家/地区');
+    return;
+  }
+
+  const selectedReasonsList: string[] = [];
+  if (appealReasons.value.liveHere) selectedReasonsList.push('我目前居住在该国家/地区 (I live here)');
+  if (appealReasons.value.movedHere) selectedReasonsList.push('我在过去一年内搬到了这里 (Relocated in the past year)');
+  if (appealReasons.value.nearBorder) selectedReasonsList.push('我的居住/工作/就学地在领土边界附近 (Residence/work near border)');
+  if (appealReasons.value.differentRegions) selectedReasonsList.push('我的工作地/学习地和居住地分属不同地区 (Work and residence in different regions)');
+  if (appealReasons.value.frequentTravel) selectedReasonsList.push('我经常往返于两地进行商务出差或私人旅行 (Frequent travel/commute between regions)');
+  if (appealReasons.value.paymentMethod) selectedReasonsList.push('我的主要支付方式、银行卡及账单寄送地址在该地区 (Payment method/billing address in target region)');
+  if (appealReasons.value.familyReside) selectedReasonsList.push('我的家属、亲人或配偶目前长期居住在该地区 (Family members/spouse reside in target region)');
+  if (appealReasons.value.relocating) selectedReasonsList.push('我计划长期搬迁至该地区，且已签署当地房屋租赁协议或购置房产 (Relocating and rented/purchased property)');
+
+  if (selectedReasonsList.length === 0) {
+    ElMessage.warning('请至少选择一至两个申诉依据');
+    return;
+  }
+
+  isGeneratingAppeal.value = true;
+  generatedAppealText.value = '';
+  appealAbortCtrl = new AbortController();
+
+  const promptText = `请帮我撰写一个 Google 改区/修改账号关联国家地址的申诉陈述（字数在 200-400 字之间，必须严格控制在 500 字以内，不能带任何 Markdown 标签或代码框，只输出最终的陈述文本，且使用第一人称“我”）。
+目标国家/地区：${country}
+生成语言：${appealLanguage.value === 'en' ? '英文 (English)' : '中文 (Chinese)'}
+基于的申诉理由要点：
+${selectedReasonsList.map(r => `- ${r}`).join('\n')}
+
+请写出一段极其自然、符合真实人类生活和迁移场景的文字，可以直接用于填写 Google 'country-association-form' (国家关联表单) 中的“其他原因”输入框。字数在 200-400 字之间，绝对不能超过 500 个字。不要输出任何除了申诉理由正文之外的闲聊或提示词。`;
+
+  try {
+    const response = await fetch('/api/ai/write-assist', {
+      method: 'POST',
+      headers: createJsonHeaders(),
+      body: JSON.stringify({
+        action: 'generate',
+        text: '',
+        prompt: promptText,
+        instruction: '',
+        scope: 'full',
+        tone: 'friendly',
+        length: 'short',
+        format: 'paragraphs'
+      }),
+      signal: appealAbortCtrl.signal
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMsg = 'AI 生成失败';
+      try {
+        const parsed = JSON.parse(errorText);
+        errorMsg = parsed.error || parsed.message || errorMsg;
+      } catch {
+        errorMsg = errorText || errorMsg;
+      }
+      throw new Error(errorMsg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('浏览器不支持流式读取');
+    }
+
+    await parseSSEStream(
+      reader,
+      (payload) => {
+        if (payload.text) {
+          generatedAppealText.value += payload.text;
+        }
+        if (payload.error) {
+          throw new Error(payload.error);
+        }
+      },
+      () => {
+        isGeneratingAppeal.value = false;
+        appealAbortCtrl = null;
+      },
+      (err) => {
+        if (err.name !== 'AbortError') {
+          ElMessage.error(err.message || 'AI 生成异常');
+        }
+        isGeneratingAppeal.value = false;
+        appealAbortCtrl = null;
+      }
+    );
+  } catch (e: any) {
+    if (e.name !== 'AbortError') {
+      ElMessage.error(e.message || 'AI 生成失败，请重试');
+    }
+    isGeneratingAppeal.value = false;
+    appealAbortCtrl = null;
+  }
+};
+
+const randomizeReasonsAndGenerate = () => {
+  appealReasons.value = {
+    liveHere: false,
+    movedHere: false,
+    nearBorder: false,
+    differentRegions: false,
+    frequentTravel: false,
+    paymentMethod: false,
+    familyReside: false,
+    relocating: false
+  };
+
+  const keys = [
+    'liveHere',
+    'movedHere',
+    'nearBorder',
+    'differentRegions',
+    'frequentTravel',
+    'paymentMethod',
+    'familyReside',
+    'relocating'
+  ] as const;
+  const countToPick = Math.random() < 0.5 ? 1 : 2;
+  const shuffledKeys = [...keys].sort(() => Math.random() - 0.5);
+  
+  for (let i = 0; i < countToPick; i++) {
+    appealReasons.value[shuffledKeys[i]] = true;
+  }
+
+  generateAppealText();
+};
+
+const saveCountryInline = async () => {
+  const account = selectedAccount.value;
+  if (!account) return;
+  try {
+    const res = await api.put(`/api/google-warming/accounts/${account.id}`, {
+      ...account,
+      country: tempCountry.value.trim() || null
+    });
+    if (res.data) {
+      const idx = accounts.value.findIndex(a => a.id === account.id);
+      if (idx > -1) {
+        accounts.value[idx] = res.data;
+      }
+      dayChecklist.value.action6 = true;
+      ElMessage.success('国家地址修改成功');
+    }
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '国家地址修改失败'));
+  }
+};
 
 onUnmounted(() => {
   stopTotpTimer();
@@ -1400,6 +1601,16 @@ async function handleImportFile(event: Event) {
               <span>密码生成</span>
             </button>
 
+            <!-- AI Appeal Assistant -->
+            <button
+              @click="isAppealAssistantVisible = true"
+              class="flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700/50 text-[11px] font-semibold hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-slate-650 dark:text-slate-300 cursor-pointer"
+              title="AI 申诉改区理由生成助手"
+            >
+              <Sparkles class="w-3 h-3 text-violet-500" />
+              <span>申诉助手</span>
+            </button>
+
             <!-- Add account -->
             <button
               @click="openImportDialog"
@@ -1648,7 +1859,16 @@ async function handleImportFile(event: Event) {
                     辅助邮箱: <code class="gw-code">{{ selectedAccount.recoveryEmail }}</code>
                     <button @click="copyText(selectedAccount.recoveryEmail, '辅助邮箱已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制辅助邮箱"><Copy class="w-3 h-3" /></button>
                   </span>
-                  <span v-if="selectedAccount.country">地区: {{ selectedAccount.country }}</span>
+                  <span class="flex items-center gap-1">
+                    地区: {{ selectedAccount.country || '-' }}
+                    <button
+                      @click="copyText('https://policies.google.com/country-association-form?hl=zh-CN&source=policies-site', '改区链接已复制')"
+                      class="text-violet-600 dark:text-violet-400 hover:text-violet-500 dark:hover:text-violet-300 p-0.5 transition-all cursor-pointer text-[10px] font-semibold underline ml-1"
+                      title="复制谷歌改区关联链接"
+                    >
+                      (复制改区链接)
+                    </button>
+                  </span>
                   <span v-if="selectedAccount.twoFASecret" class="flex items-center gap-1">
                     2FA密钥: <code class="gw-code truncate max-w-[100px]" :title="selectedAccount.twoFASecret">{{ selectedAccount.twoFASecret }}</code>
                     <button @click="copyText(selectedAccount.twoFASecret, '2FA密钥已复制')" class="hover:text-violet-600 dark:hover:text-violet-400 p-0.5 transition-colors cursor-pointer" title="复制2FA密钥"><Copy class="w-3 h-3" /></button>
@@ -1755,8 +1975,35 @@ async function handleImportFile(event: Event) {
                     :disabled="isWarmedToday"
                     class="w-4 h-4 mt-0.5 accent-emerald-500 cursor-pointer"
                   />
-                  <label :for="act.key" class="gw-check-label">
-                    {{ act.text }}
+                  <label :for="act.key" class="gw-check-label flex-1">
+                    <div>{{ act.text }}</div>
+                    <div v-if="selectedAccount.currentDay === 7 && act.key === 'action6'" class="mt-2 flex flex-col gap-2" @click.stop.prevent>
+                      <div class="flex items-center gap-2">
+                        <input
+                          v-model="tempCountry"
+                          placeholder="输入当前实际国家(如: 美国, 日本)"
+                          class="gw-input !py-1 !px-2 !text-xs max-w-[200px]"
+                          :disabled="isWarmedToday"
+                          @keyup.enter="saveCountryInline"
+                        />
+                        <button
+                          @click="saveCountryInline"
+                          class="px-2.5 py-1 text-xs bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded transition cursor-pointer"
+                          :disabled="isWarmedToday"
+                        >
+                          保存
+                        </button>
+                      </div>
+                      <div class="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold">
+                        <span>改区链接: </span>
+                        <button
+                          @click="copyText('https://policies.google.com/country-association-form?hl=zh-CN&source=policies-site', '改区链接已复制')"
+                          class="underline hover:text-violet-500 transition-colors cursor-pointer"
+                        >
+                          https://policies.google.com/country-association-form... (点击复制)
+                        </button>
+                      </div>
+                    </div>
                   </label>
                 </div>
               </div>
@@ -1800,8 +2047,8 @@ async function handleImportFile(event: Event) {
             </div>
 
           </div>
-        </div>
 
+        </div>
       </div>
 
       <!-- Account Management View -->
@@ -2512,6 +2759,105 @@ async function handleImportFile(event: Event) {
             </div>
           </div>
         </template>
+      </el-dialog>
+
+      <!-- AI Appeal Assistant Dialog -->
+      <el-dialog
+        v-model="isAppealAssistantVisible"
+        title="AI Google 改区申诉助手"
+        width="90%"
+        style="max-width: 620px"
+        align-center
+        class="gw-dialog"
+      >
+        <div class="space-y-4">
+          <div class="gw-import-hint text-[11px] text-slate-500 dark:text-slate-400">
+            根据所选的申诉依据和目标国家/地区，由 AI 自动生成在 100 字以内的精简、自然陈述，以便直接填写申诉表单。
+          </div>
+
+          <!-- Target Country & Language -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-primary)">
+                拟更改的目标国家/地区
+              </label>
+              <input
+                v-model="appealTargetCountry"
+                placeholder="例如: 美国, 日本"
+                class="gw-input w-full !py-1.5 !px-3 !text-xs"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-primary)">
+                生成语言
+              </label>
+              <select
+                v-model="appealLanguage"
+                class="gw-input w-full !py-1.5 !px-3 !text-xs bg-slate-50 dark:bg-slate-900"
+              >
+                <option value="zh">中文 (适合中文申诉)</option>
+                <option value="en">英文 (适合境外账号或英文申诉)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Reason selection (multiselect checkboxes) -->
+          <div>
+            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-primary)">
+              申诉依据 (可多选，AI 将融合生成)
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 bg-slate-50/50 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
+              <el-checkbox v-model="appealReasons.liveHere" size="small">我住在这里 (I live here)</el-checkbox>
+              <el-checkbox v-model="appealReasons.movedHere" size="small">我在过去一年内搬到了这里</el-checkbox>
+              <el-checkbox v-model="appealReasons.nearBorder" size="small">我工作/居住地在领土边界附近</el-checkbox>
+              <el-checkbox v-model="appealReasons.differentRegions" size="small">工作地/学习地和居住地分属不同地区</el-checkbox>
+              <el-checkbox v-model="appealReasons.frequentTravel" size="small">我经常往返于该地区进行旅行/出差</el-checkbox>
+              <el-checkbox v-model="appealReasons.paymentMethod" size="small">我的主要支付方式/账单地址属于该地区</el-checkbox>
+              <el-checkbox v-model="appealReasons.familyReside" size="small">我的家庭成员/配偶居住在该地区</el-checkbox>
+              <el-checkbox v-model="appealReasons.relocating" size="small">我计划长期搬迁至该地区并已租房/买房</el-checkbox>
+            </div>
+          </div>
+
+          <!-- Generate Button & Random Picker -->
+          <div class="flex items-center gap-2 pt-2">
+            <button
+              @click="generateAppealText"
+              :disabled="isGeneratingAppeal"
+              class="flex items-center gap-1.5 font-semibold text-xs px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl transition cursor-pointer shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles class="w-3.5 h-3.5" />
+              <span>{{ isGeneratingAppeal ? 'AI 生成中...' : 'AI 一键生成理由' }}</span>
+            </button>
+            <button
+              @click="randomizeReasonsAndGenerate"
+              :disabled="isGeneratingAppeal"
+              class="flex items-center gap-1.5 font-semibold text-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>随机选理由并生成</span>
+            </button>
+          </div>
+
+          <!-- Result Box -->
+          <div v-if="generatedAppealText || isGeneratingAppeal" class="relative bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-500 flex items-center gap-1">
+                <FileText class="w-3.5 h-3.5" />
+                生成结果 (字数: {{ generatedAppealText.length }}/500)
+              </span>
+              <button
+                v-if="generatedAppealText"
+                @click="copyText(generatedAppealText, '申诉理由已复制')"
+                class="text-xs text-violet-600 hover:text-violet-500 font-semibold underline flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+              >
+                <Copy class="w-3.5 h-3.5" />
+                复制申诉理由
+              </button>
+            </div>
+            <div class="text-xs whitespace-pre-wrap leading-relaxed font-mono select-all" style="color: var(--text-primary)">
+              {{ generatedAppealText || 'AI 正在努力思考中...' }}
+            </div>
+          </div>
+        </div>
       </el-dialog>
 
 

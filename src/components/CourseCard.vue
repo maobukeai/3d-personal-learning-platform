@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import BaseCard from '@/components/BaseCard.vue';
 import {
   Star,
   Users,
@@ -83,15 +84,18 @@ function handleBookmarkClick(event: Event) {
 
 <template>
   <!-- layout == 'row-simple' (e.g. Continue Learning) -->
-  <div
+  <BaseCard
     v-if="layout === 'row-simple'"
-    class="group flex gap-3 p-2.5 sm:p-3 glass-card glass-card-hover overflow-hidden cursor-pointer"
+    glass
+    clickable
+    padding="none"
+    class="group flex gap-3 p-2.5 sm:p-3 !overflow-hidden"
     @click="handleCardClick"
   >
     <div
       class="w-20 sm:w-24 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
       <div>
@@ -120,18 +124,21 @@ function handleBookmarkClick(event: Event) {
         </div>
       </div>
     </div>
-  </div>
+  </BaseCard>
 
   <!-- layout == 'row-detailed' (e.g. Featured Recommended) -->
-  <div
+  <BaseCard
     v-else-if="layout === 'row-detailed'"
-    class="group flex flex-col sm:flex-row gap-3 sm:gap-3.5 p-3 sm:p-3.5 glass-card glass-card-hover overflow-hidden cursor-pointer"
+    glass
+    clickable
+    padding="none"
+    class="group flex flex-col sm:flex-row gap-3 sm:gap-3.5 p-3 sm:p-3.5 !overflow-hidden"
     @click="handleCardClick"
   >
     <div
       class="w-full sm:w-36 lg:w-44 aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0"
     >
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
     </div>
     <div class="flex-1 min-w-0 flex flex-col justify-between py-1">
       <div>
@@ -174,16 +181,19 @@ function handleBookmarkClick(event: Event) {
         >
       </div>
     </div>
-  </div>
+  </BaseCard>
 
   <!-- layout == 'card-simple' (e.g. Recommended Courses) -->
-  <div
+  <BaseCard
     v-else-if="layout === 'card-simple'"
-    class="group glass-card glass-card-hover overflow-hidden cursor-pointer"
+    glass
+    clickable
+    padding="none"
+    class="group !overflow-hidden"
     @click="handleCardClick"
   >
     <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       <div
         class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
       >
@@ -218,17 +228,20 @@ function handleBookmarkClick(event: Event) {
         >
       </div>
     </div>
-  </div>
+  </BaseCard>
 
   <!-- layout == 'card' (e.g. Standard Filtered Course Grid) -->
-  <div
+  <BaseCard
     v-else
-    class="group glass-card glass-card-hover overflow-hidden cursor-pointer"
+    glass
+    clickable
+    padding="none"
+    class="group !overflow-hidden"
     @click="handleCardClick"
   >
     <!-- Course Cover -->
     <div class="aspect-video relative overflow-hidden bg-slate-100 dark:bg-white/5">
-      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <img alt="" :src="course.thumbnail || defaultThumbnail" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       <div
         class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
       >
@@ -336,7 +349,7 @@ function handleBookmarkClick(event: Event) {
         />
       </div>
     </div>
-  </div>
+  </BaseCard>
 </template>
 
 <style scoped>

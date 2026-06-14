@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../services/prisma';
 import { logger } from '../utils/logger';
@@ -7,7 +7,7 @@ export class TwoFactorController {
   /**
    * Get all 2FA accounts for the logged-in user
    */
-  public static async getAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async getAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     try {
       const accounts = await prisma.twoFactorAccount.findMany({
@@ -17,14 +17,14 @@ export class TwoFactorController {
       res.json(accounts);
     } catch (e: unknown) {
       logger.error('[TwoFactorController.getAccounts] error:', e);
-      res.status(500).json({ error: '获取2FA账号列表失败' });
+      next(e);
     }
   }
 
   /**
    * Create a new 2FA account record
    */
-  public static async createAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async createAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { label, email, secret, note, category } = req.body;
 
@@ -62,14 +62,14 @@ export class TwoFactorController {
       res.status(201).json(newAccount);
     } catch (e: unknown) {
       logger.error('[TwoFactorController.createAccount] error:', e);
-      res.status(500).json({ error: '保存2FA账号失败' });
+      next(e);
     }
   }
 
   /**
    * Update an existing 2FA account's details
    */
-  public static async updateAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async updateAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
     const { label, email, note, category } = req.body;
@@ -103,14 +103,14 @@ export class TwoFactorController {
       res.json(updated);
     } catch (e: unknown) {
       logger.error('[TwoFactorController.updateAccount] error:', e);
-      res.status(500).json({ error: '更新2FA账号失败' });
+      next(e);
     }
   }
 
   /**
    * Delete a 2FA account record
    */
-  public static async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+  public static async deleteAccount(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const id = req.params.id as string;
 
@@ -132,14 +132,14 @@ export class TwoFactorController {
       res.json({ message: '2FA账号删除成功' });
     } catch (e: unknown) {
       logger.error('[TwoFactorController.deleteAccount] error:', e);
-      res.status(500).json({ error: '删除2FA账号失败' });
+      next(e);
     }
   }
 
   /**
    * Bulk import 2FA accounts
    */
-  public static async importAccounts(req: AuthRequest, res: Response): Promise<void> {
+  public static async importAccounts(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.userId as string;
     const { accounts } = req.body;
 
@@ -172,7 +172,7 @@ export class TwoFactorController {
       res.json({ success: true, count: imported.length, accounts: imported });
     } catch (e: unknown) {
       logger.error('[TwoFactorController.importAccounts] error:', e);
-      res.status(500).json({ error: '批量导入2FA账号失败' });
+      next(e);
     }
   }
 }

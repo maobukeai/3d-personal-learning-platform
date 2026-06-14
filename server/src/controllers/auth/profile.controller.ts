@@ -11,6 +11,7 @@ import { auditService, AuditModule, AuditAction } from '../../services/audit.ser
 import { AppError } from '../../middlewares/error.middleware';
 import { redisService } from '../../services/redis.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
+import { TaskStatus } from '../../types/task';
 
 const ACCOUNT_EXPORT_ITEM_LIMIT = 200;
 
@@ -1043,21 +1044,21 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       urgentTasks,
     ] = await Promise.all([
       prisma.asset.count({ where: assetWhere }),
-      prisma.task.count({ where: { ...taskAccessWhere, status: 'TODO' } }),
+      prisma.task.count({ where: { ...taskAccessWhere, status: TaskStatus.TODO } }),
       prisma.task.count({ where: taskAccessWhere }),
-      prisma.task.count({ where: { ...taskAccessWhere, status: 'IN_PROGRESS' } }),
-      prisma.task.count({ where: { ...taskAccessWhere, status: 'DONE' } }),
+      prisma.task.count({ where: { ...taskAccessWhere, status: TaskStatus.IN_PROGRESS } }),
+      prisma.task.count({ where: { ...taskAccessWhere, status: TaskStatus.DONE } }),
       prisma.task.count({
         where: {
           ...taskAccessWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           dueDate: { lt: todayStart },
         },
       }),
       prisma.task.count({
         where: {
           ...taskAccessWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           dueDate: { gte: todayStart, lte: todayEnd },
         },
       }),
@@ -1070,7 +1071,7 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       prisma.task.count({
         where: {
           ...taskAccessWhere,
-          status: 'DONE',
+          status: TaskStatus.DONE,
           updatedAt: { gte: todayStart, lte: todayEnd },
         },
       }),
@@ -1104,7 +1105,7 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
         take: 4,
       }),
       prisma.task.findMany({
-        where: { ...taskAccessWhere, status: { not: 'DONE' } },
+        where: { ...taskAccessWhere, status: { not: TaskStatus.DONE } },
         select: {
           id: true,
           title: true,
@@ -1162,7 +1163,7 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       where: { userId },
     });
     if (allTasks.length > 0) {
-      const completedTasks = allTasks.filter((t) => t.status === 'DONE').length;
+      const completedTasks = allTasks.filter((t) => t.status === TaskStatus.DONE).length;
       const taskProgress = (completedTasks / allTasks.length) * 100;
       activeProgresses.push(taskProgress);
     }
@@ -1182,12 +1183,12 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
 
     const [recentTasks, prevTasks] = await Promise.all([
       prisma.task.count({
-        where: { ...taskAccessWhere, status: { not: 'DONE' }, createdAt: { gte: sevenDaysAgo } },
+        where: { ...taskAccessWhere, status: { not: TaskStatus.DONE }, createdAt: { gte: sevenDaysAgo } },
       }),
       prisma.task.count({
         where: {
           ...taskAccessWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
         },
       }),
@@ -1233,7 +1234,7 @@ export const getStats = async (req: AuthRequest, res: Response, next: NextFuncti
       prisma.lessonProgress.count({
         where: { userId, completed: true, completedAt: { gte: sevenDaysAgo } },
       }),
-      prisma.task.count({ where: { userId, status: 'DONE', updatedAt: { gte: sevenDaysAgo } } }),
+      prisma.task.count({ where: { userId, status: TaskStatus.DONE, updatedAt: { gte: sevenDaysAgo } } }),
       prisma.showcase.count({ where: { userId, createdAt: { gte: sevenDaysAgo } } }),
     ]);
 
@@ -1550,44 +1551,44 @@ export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFu
         },
       }),
       prisma.task.count({ where: taskWhere }),
-      prisma.task.count({ where: { ...taskWhere, status: 'TODO' } }),
-      prisma.task.count({ where: { ...taskWhere, status: 'IN_PROGRESS' } }),
-      prisma.task.count({ where: { ...taskWhere, status: 'DONE' } }),
+      prisma.task.count({ where: { ...taskWhere, status: TaskStatus.TODO } }),
+      prisma.task.count({ where: { ...taskWhere, status: TaskStatus.IN_PROGRESS } }),
+      prisma.task.count({ where: { ...taskWhere, status: TaskStatus.DONE } }),
       prisma.task.count({
         where: {
           ...taskWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           dueDate: { lt: todayStart },
         },
       }),
       prisma.task.count({
         where: {
           ...taskWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           dueDate: { gte: todayStart, lte: todayEnd },
         },
       }),
       prisma.task.count({
         where: {
           ...taskWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           priority: { in: ['HIGH', 'URGENT'] },
         },
       }),
       prisma.task.count({
         where: {
           ...taskWhere,
-          status: { not: 'DONE' },
+          status: { not: TaskStatus.DONE },
           assigneeId: userId,
         },
       }),
       prisma.task.count({
-        where: { ...taskWhere, status: 'DONE', updatedAt: { gte: sevenDaysAgo } },
+        where: { ...taskWhere, status: TaskStatus.DONE, updatedAt: { gte: sevenDaysAgo } },
       }),
       prisma.task.count({
         where: {
           ...taskWhere,
-          status: 'DONE',
+          status: TaskStatus.DONE,
           updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
         },
       }),
@@ -1749,7 +1750,7 @@ export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFu
     recentTaskRows.forEach((task) => {
       const bucket = bucketByKey.get(formatDayKey(task.updatedAt));
       if (bucket) {
-        bucket.tasks += task.status === 'DONE' ? 2 : 1;
+        bucket.tasks += task.status === TaskStatus.DONE ? 2 : 1;
       }
     });
 
@@ -1810,12 +1811,12 @@ export const getWorkbench = async (req: AuthRequest, res: Response, next: NextFu
 
     const projectHealth = projects.map((project) => {
       const projectTotalTasks = project.tasks.length;
-      const projectDoneTasks = project.tasks.filter((task) => task.status === 'DONE').length;
+      const projectDoneTasks = project.tasks.filter((task) => task.status === TaskStatus.DONE).length;
       const projectOverdueTasks = project.tasks.filter(
-        (task) => task.status !== 'DONE' && task.dueDate && task.dueDate < todayStart,
+        (task) => task.status !== TaskStatus.DONE && task.dueDate && task.dueDate < todayStart,
       ).length;
       const projectUrgentTasks = project.tasks.filter(
-        (task) => task.status !== 'DONE' && ['HIGH', 'URGENT'].includes(task.priority),
+        (task) => task.status !== TaskStatus.DONE && ['HIGH', 'URGENT'].includes(task.priority),
       ).length;
       const dueSoon =
         !!project.dueDate && project.dueDate >= todayStart && project.dueDate <= nextSevenDays;

@@ -200,7 +200,7 @@ function handleTagClick(tagName: string, event: Event) {
         </div>
 
         <div v-if="coverImages.length > 0" class="discussion-card__media" aria-hidden="true">
-          <img :src="coverImages[0]" alt="" />
+          <img :src="coverImages[0]" alt="" loading="lazy" />
           <span v-if="parsedImages.length > 1">+{{ parsedImages.length - 1 }}</span>
         </div>
       </div>

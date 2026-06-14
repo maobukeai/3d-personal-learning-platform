@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import { TrendingUp } from 'lucide-vue-next';
+import BaseCard from '@/components/BaseCard.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -47,15 +48,18 @@ function handleClick() {
 </script>
 
 <template>
-  <div
-    class="blender-stat-card transition-all"
+  <BaseCard
+    :clickable="isClickable"
+    :hoverable="isClickable"
+    padding="none"
+    class="blender-stat-card"
     :class="[
-      isClickable ? 'cursor-pointer group' : '',
+      isClickable ? 'group' : '',
       horizontal
-        ? 'p-3 rounded-lg border flex items-center gap-3'
+        ? 'p-3 flex items-center gap-3'
         : compact
-          ? 'p-3 sm:p-5 rounded-lg border'
-          : 'p-3 md:p-4 rounded-lg'
+          ? 'p-3 sm:p-5'
+          : 'p-3 md:p-4'
     ]"
     @click="handleClick"
   >
@@ -150,5 +154,5 @@ function handleClick() {
         {{ value }}
       </h2>
     </template>
-  </div>
+  </BaseCard>
 </template>

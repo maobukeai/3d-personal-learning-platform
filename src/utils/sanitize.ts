@@ -33,7 +33,6 @@ export const sanitizeHtml = (html: string): string => {
       'figure',
       'hr',
       'li',
-      'main',
       'ol',
       'p',
       'pre',

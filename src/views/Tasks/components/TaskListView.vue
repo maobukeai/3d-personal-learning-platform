@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 
+import { TaskStatus } from '@/types/task';
 import type {
   UserType,
   Team,
@@ -228,7 +229,7 @@ const handleSubtaskAssigneeCommand = (
 };
 
 const toggleTaskCompletion = async (task: Task) => {
-  const nextStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
+  const nextStatus = task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE;
   await quickStatusChange(task, nextStatus);
 };
 
@@ -355,7 +356,7 @@ const handleInlineAddInProject = async (columnId: string, projectId: string | nu
   try {
     const payload = {
       title,
-      status: props.groupBy === 'status' ? columnId : 'TODO',
+      status: props.groupBy === 'status' ? columnId : TaskStatus.TODO,
       priority: props.groupBy === 'priority' ? columnId : 'MEDIUM',
       teamId: workspaceStore.activeTeamId || null,
       subtasks: '[]',
@@ -588,17 +589,17 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                           <span
                             class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded font-bold"
                             :class="
-                              task.status === 'TODO'
+                              task.status === TaskStatus.TODO
                                 ? 'bg-slate-500/10 text-slate-500'
-                                : task.status === 'IN_PROGRESS'
+                                : task.status === TaskStatus.IN_PROGRESS
                                   ? 'bg-blue-500/10 text-blue-500'
                                   : 'bg-emerald-500/10 text-emerald-500'
                             "
                           >
                             {{
-                              task.status === 'TODO'
+                              task.status === TaskStatus.TODO
                                 ? t('tasks.todo')
-                                : task.status === 'IN_PROGRESS'
+                                : task.status === TaskStatus.IN_PROGRESS
                                   ? t('tasks.inProgress')
                                   : t('tasks.done')
                             }}
@@ -606,9 +607,9 @@ type="button" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 rounded-full border flex item
                         </span>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item command="TODO">{{ t('tasks.todo') }}</el-dropdown-item>
-                            <el-dropdown-item command="IN_PROGRESS">{{ t('tasks.inProgress') }}</el-dropdown-item>
-                            <el-dropdown-item command="DONE">{{ t('tasks.done') }}</el-dropdown-item>
+                            <el-dropdown-item :command="TaskStatus.TODO">{{ t('tasks.todo') }}</el-dropdown-item>
+                            <el-dropdown-item :command="TaskStatus.IN_PROGRESS">{{ t('tasks.inProgress') }}</el-dropdown-item>
+                            <el-dropdown-item :command="TaskStatus.DONE">{{ t('tasks.done') }}</el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
                       </el-dropdown>

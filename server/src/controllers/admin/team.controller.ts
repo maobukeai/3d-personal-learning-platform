@@ -6,6 +6,7 @@ import { AppError } from '../../middlewares/error.middleware';
 import { createNotification } from '../../utils/notification';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
+import { TaskStatus } from '../../types/task';
 
 type TeamRiskFilter = 'ALL' | 'PENDING' | 'OVERDUE' | 'UNASSIGNED' | 'EMPTY';
 type SortDirection = 'asc' | 'desc';
@@ -81,13 +82,13 @@ const buildTeamWhere = (query: Record<string, unknown>, now: Date): Prisma.TeamW
 
   if (risk === 'OVERDUE') {
     and.push({
-      tasks: { some: { status: { not: 'DONE' }, dueDate: { lt: now } } },
+      tasks: { some: { status: { not: TaskStatus.DONE }, dueDate: { lt: now } } },
     });
   }
 
   if (risk === 'UNASSIGNED') {
     and.push({
-      tasks: { some: { status: { not: 'DONE' }, assigneeId: null } },
+      tasks: { some: { status: { not: TaskStatus.DONE }, assigneeId: null } },
     });
   }
 
@@ -186,7 +187,7 @@ export const getAllTeams = async (req: AuthRequest, res: Response, next: NextFun
       prisma.team.count({
         where: {
           type: 'TEAM',
-          tasks: { some: { status: { not: 'DONE' }, dueDate: { lt: now } } },
+          tasks: { some: { status: { not: TaskStatus.DONE }, dueDate: { lt: now } } },
         },
       }),
       prisma.team.count({
@@ -299,8 +300,8 @@ export const getAllTeams = async (req: AuthRequest, res: Response, next: NextFun
 
     const data = teams.map((team) => {
       const tasks = tasksByTeamId.get(team.id) || [];
-      const activeTasks = tasks.filter((task) => task.status !== 'DONE');
-      const doneTasks = tasks.filter((task) => task.status === 'DONE');
+      const activeTasks = tasks.filter((task) => task.status !== TaskStatus.DONE);
+      const doneTasks = tasks.filter((task) => task.status === TaskStatus.DONE);
       const overdueTasks = activeTasks.filter((task) => task.dueDate && task.dueDate < now).length;
       const dueSoonTasks = activeTasks.filter((task) => {
         if (!task.dueDate || task.dueDate < now) return false;
@@ -505,9 +506,9 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
     ]);
 
     const isOverdue = (task: (typeof tasks)[number]) =>
-      task.status !== 'DONE' && !!task.dueDate && task.dueDate < now;
+      task.status !== TaskStatus.DONE && !!task.dueDate && task.dueDate < now;
     const isDueSoon = (task: (typeof tasks)[number]) =>
-      task.status !== 'DONE' &&
+      task.status !== TaskStatus.DONE &&
       !!task.dueDate &&
       task.dueDate >= now &&
       task.dueDate <= nextSevenDays;
@@ -539,16 +540,16 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
 
     const overdueTasks = tasks.filter(isOverdue);
     const dueSoonTasks = tasks.filter(isDueSoon);
-    const unassignedTasks = tasks.filter((task) => task.status !== 'DONE' && !task.assigneeId);
-    const doneTasks = tasks.filter((task) => task.status === 'DONE');
-    const activeTasks = tasks.filter((task) => task.status !== 'DONE');
+    const unassignedTasks = tasks.filter((task) => task.status !== TaskStatus.DONE && !task.assigneeId);
+    const doneTasks = tasks.filter((task) => task.status === TaskStatus.DONE);
+    const activeTasks = tasks.filter((task) => task.status !== TaskStatus.DONE);
     const completedThisWeek = doneTasks.filter((task) => task.updatedAt >= lastSevenDays);
 
     const members = team.members.map((member) => {
       const assignedTasks = tasksByAssignee.get(member.userId) || [];
       const memberProjects = projectsByMember.get(member.userId) || [];
-      const memberDoneTasks = assignedTasks.filter((task) => task.status === 'DONE');
-      const memberActiveTasks = assignedTasks.filter((task) => task.status !== 'DONE');
+      const memberDoneTasks = assignedTasks.filter((task) => task.status === TaskStatus.DONE);
+      const memberActiveTasks = assignedTasks.filter((task) => task.status !== TaskStatus.DONE);
       const memberOverdueTasks = assignedTasks.filter(isOverdue);
       const memberDueSoonTasks = assignedTasks.filter(isDueSoon);
       const lastTask = assignedTasks
@@ -582,11 +583,11 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
 
     const projectHealth = projects.map((project) => {
       const projectTasks = tasksByProject.get(project.id) || [];
-      const projectDoneTasks = projectTasks.filter((task) => task.status === 'DONE');
+      const projectDoneTasks = projectTasks.filter((task) => task.status === TaskStatus.DONE);
       const projectOverdueTasks = projectTasks.filter(isOverdue);
       const projectDueSoonTasks = projectTasks.filter(isDueSoon);
       const projectUnassignedTasks = projectTasks.filter(
-        (task) => task.status !== 'DONE' && !task.assigneeId,
+        (task) => task.status !== TaskStatus.DONE && !task.assigneeId,
       );
       const healthScore = clampScore(
         100 -
@@ -610,7 +611,7 @@ export const getTeamDetail = async (req: AuthRequest, res: Response, next: NextF
         counts: project._count,
         tasks: {
           total: projectTasks.length,
-          active: projectTasks.filter((task) => task.status !== 'DONE').length,
+          active: projectTasks.filter((task) => task.status !== TaskStatus.DONE).length,
           done: projectDoneTasks.length,
           overdue: projectOverdueTasks.length,
           dueSoon: projectDueSoonTasks.length,

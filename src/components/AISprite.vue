@@ -1,39 +1,20 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
-  Brain,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Cloud,
-  Copy,
-  Cpu,
-  Database,
-  Globe,
-  Image,
-  Maximize2,
-  Menu,
-  Minimize2,
-  Plus,
-  RefreshCw,
-  Search,
-  Send,
-  Settings,
   Sparkles,
-  Square,
-  Trash2,
   X,
 } from 'lucide-vue-next';
-import UserAvatar from '@/components/UserAvatar.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers';
-import api, { getAssetUrl } from '@/utils/api';
+import api from '@/utils/api';
 import { ElMessage } from 'element-plus';
+import SpriteSidebar from './aiSprite/SpriteSidebar.vue';
+import SpriteChatArea from './aiSprite/SpriteChatArea.vue';
+import { preferences } from '@/utils/preferences';
 
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3/lib/es/MdPreview.mjs'));
 import('md-editor-v3/lib/style.css');
 
 const authStore = useAuthStore();
@@ -43,7 +24,7 @@ const router = useRouter();
 
 const isVip = computed(() => {
   const sub = authStore.user?.subscription;
-  return sub && sub.plan?.name !== 'FREE' && sub.status === 'ACTIVE';
+  return !!(sub && sub.plan?.name !== 'FREE' && sub.status === 'ACTIVE');
 });
 
 const vipPlanName = computed(() => {
@@ -69,10 +50,8 @@ const streamMetaMap = ref<
   Record<string, { provider?: string; model?: string; requestId?: string } | null>
 >({});
 const copiedIndex = ref<string | null>(null);
-const selectedModelId = ref(localStorage.getItem('ai_sprite_model_id') || '');
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const chatContainer = ref<HTMLDivElement | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
+const selectedModelId = ref(preferences.getAiSpriteModelId());
+const chatAreaRef = ref<InstanceType<typeof SpriteChatArea> | null>(null);
 const uploadError = ref('');
 const isUploading = ref(false);
 const isDark = ref(document.documentElement.classList.contains('dark'));
@@ -125,12 +104,12 @@ const handleUpgradeClick = () => {
 };
 
 const isFullscreen = ref(false);
-const width = ref(parseInt(localStorage.getItem('ai_sprite_width') || '1000'));
-const height = ref(parseInt(localStorage.getItem('ai_sprite_height') || '720'));
+const width = ref(preferences.getAiSpriteWidth());
+const height = ref(preferences.getAiSpriteHeight());
 const offsetX = ref(0);
 const offsetY = ref(0);
-const savedPosX = localStorage.getItem('ai_sprite_pos_x');
-const savedPosY = localStorage.getItem('ai_sprite_pos_y');
+const savedPosX = preferences.getAiSpritePosX();
+const savedPosY = preferences.getAiSpritePosY();
 const spriteX = ref<number | null>(savedPosX ? parseFloat(savedPosX) : null);
 const spriteY = ref<number | null>(savedPosY ? parseFloat(savedPosY) : null);
 const showMobileSidebar = ref(false);
@@ -244,8 +223,7 @@ const stopDragSprite = () => {
   document.removeEventListener('mouseup', stopDragSprite);
   
   if (spriteX.value !== null && spriteY.value !== null) {
-    localStorage.setItem('ai_sprite_pos_x', spriteX.value.toString());
-    localStorage.setItem('ai_sprite_pos_y', spriteY.value.toString());
+    preferences.setAiSpritePosition(spriteX.value, spriteY.value);
   }
 };
 
@@ -295,8 +273,7 @@ const stopDragSpriteTouch = () => {
   document.removeEventListener('touchend', stopDragSpriteTouch);
   
   if (spriteX.value !== null && spriteY.value !== null) {
-    localStorage.setItem('ai_sprite_pos_x', spriteX.value.toString());
-    localStorage.setItem('ai_sprite_pos_y', spriteY.value.toString());
+    preferences.setAiSpritePosition(spriteX.value, spriteY.value);
   }
 };
 
@@ -331,17 +308,10 @@ const handleResize = (event: MouseEvent) => {
 
 const stopResize = () => {
   isResizing = false;
-  localStorage.setItem('ai_sprite_width', width.value.toString());
-  localStorage.setItem('ai_sprite_height', height.value.toString());
+  preferences.setAiSpriteDimensions(width.value, height.value);
   document.removeEventListener('mousemove', handleResize);
   document.removeEventListener('mouseup', stopResize);
 };
-
-const chatModeOptions = [
-  { value: 'default', label: '普通对话', icon: Sparkles },
-  { value: 'search', label: '联网搜索', icon: Globe },
-  { value: 'research', label: '深度研究', icon: Brain },
-] as const;
 
 const uploadedImages = ref<{ url: string; name: string }[]>([]);
 
@@ -380,9 +350,9 @@ const generateSessionId = () => {
   return 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
 };
 
-const currentSessionId = ref(localStorage.getItem('ai_sprite_session_id') || generateSessionId());
-if (!localStorage.getItem('ai_sprite_session_id')) {
-  localStorage.setItem('ai_sprite_session_id', currentSessionId.value);
+const currentSessionId = ref(preferences.getAiSpriteSessionId() || generateSessionId());
+if (!preferences.getAiSpriteSessionId()) {
+  preferences.setAiSpriteSessionId(currentSessionId.value);
 }
 
 const createMessage = (
@@ -472,7 +442,7 @@ const activeSessionMessages = computed(() => {
 
 const selectSession = (sessionId: string) => {
   currentSessionId.value = sessionId;
-  localStorage.setItem('ai_sprite_session_id', sessionId);
+  preferences.setAiSpriteSessionId(sessionId);
   showMobileSidebar.value = false;
   scrollToBottom();
 };
@@ -480,7 +450,7 @@ const selectSession = (sessionId: string) => {
 const startNewChat = () => {
   const newSessId = generateSessionId();
   currentSessionId.value = newSessId;
-  localStorage.setItem('ai_sprite_session_id', newSessId);
+  preferences.setAiSpriteSessionId(newSessId);
   messages.value.push(
     createMessage('assistant', '你好！已开启新对话，请问有什么可以帮您的？', {
       sessionId: newSessId,
@@ -524,62 +494,9 @@ const deleteSession = async (sessionId: string) => {
   }
 };
 
-const providerMeta: Record<
-  string,
-  { color: string; bg: string; border: string; label: string; lucideIcon: any }
-> = {
-  DEEPSEEK: {
-    color: '#2563eb',
-    bg: 'rgba(37,99,235,0.08)',
-    border: 'rgba(37,99,235,0.2)',
-    label: 'DeepSeek',
-    lucideIcon: Cpu,
-  },
-  OPENAI: {
-    color: '#10a37f',
-    bg: 'rgba(16,163,127,0.08)',
-    border: 'rgba(16,163,127,0.2)',
-    label: 'OpenAI',
-    lucideIcon: Sparkles,
-  },
-  OLLAMA: {
-    color: '#7c3aed',
-    bg: 'rgba(124,58,237,0.08)',
-    border: 'rgba(124,58,237,0.2)',
-    label: 'Ollama',
-    lucideIcon: Database,
-  },
-  QWEN: {
-    color: '#ea580c',
-    bg: 'rgba(234,88,12,0.08)',
-    border: 'rgba(234,88,12,0.2)',
-    label: 'Qwen',
-    lucideIcon: Globe,
-  },
-  GEMINI: {
-    color: '#db2777',
-    bg: 'rgba(219,39,119,0.08)',
-    border: 'rgba(219,39,119,0.2)',
-    label: 'Gemini',
-    lucideIcon: Sparkles,
-  },
-  AZURE: {
-    color: '#0284c7',
-    bg: 'rgba(2,132,199,0.08)',
-    border: 'rgba(2,132,199,0.2)',
-    label: 'Azure',
-    lucideIcon: Cloud,
-  },
-  CUSTOM: {
-    color: '#64748b',
-    bg: 'rgba(100,116,139,0.08)',
-    border: 'rgba(100,116,139,0.2)',
-    label: 'Custom',
-    lucideIcon: Settings,
-  },
-};
 
-const getProviderMeta = (provider: string) => providerMeta[provider] || providerMeta.CUSTOM;
+
+
 
 const availableAiModels = computed(() =>
   (systemStore.settings.AI_MODEL_OPTIONS || []).filter((model) => model.enabled),
@@ -609,9 +526,9 @@ watch(
 
 watch(selectedModelId, (value) => {
   if (value) {
-    localStorage.setItem('ai_sprite_model_id', value);
+    preferences.setAiSpriteModelId(value);
   } else {
-    localStorage.removeItem('ai_sprite_model_id');
+    preferences.removeAiSpriteModelId();
   }
 });
 
@@ -709,21 +626,8 @@ const shouldShowLandingState = computed(
     activeSessionMessages.value.every((message) => message.role === 'assistant'),
 );
 
-const messageRefs = new Map<string, HTMLElement>();
-
-const setMessageRef = (id: string, element: Element | null) => {
-  if (element instanceof HTMLElement) {
-    messageRefs.set(id, element);
-  } else {
-    messageRefs.delete(id);
-  }
-};
-
 const scrollToBottom = async () => {
-  await nextTick();
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-  }
+  chatAreaRef.value?.scrollToBottom();
 };
 
 const syncActiveHistory = () => {
@@ -800,7 +704,7 @@ const loadGuestHistory = () => {
       const latestMsg = messages.value[messages.value.length - 1];
       if (latestMsg && latestMsg.sessionId) {
         currentSessionId.value = latestMsg.sessionId;
-        localStorage.setItem('ai_sprite_session_id', latestMsg.sessionId);
+        preferences.setAiSpriteSessionId(latestMsg.sessionId);
       }
       syncActiveHistory();
       return;
@@ -860,12 +764,12 @@ const loadHistory = async () => {
 
       // Do not overwrite the user's active session if they already have one in localStorage.
       // This prevents a newly created (but not yet saved) session from disappearing on refresh.
-      const storedSessId = localStorage.getItem('ai_sprite_session_id');
+      const storedSessId = preferences.getAiSpriteSessionId();
       if (!storedSessId) {
         const latestMsg = messages.value[messages.value.length - 1];
         if (latestMsg && latestMsg.sessionId) {
           currentSessionId.value = latestMsg.sessionId;
-          localStorage.setItem('ai_sprite_session_id', latestMsg.sessionId);
+          preferences.setAiSpriteSessionId(latestMsg.sessionId);
         }
       } else {
         currentSessionId.value = storedSessId;
@@ -890,16 +794,8 @@ const loadHistory = async () => {
 // localStorage key format: ai_pending_run_{sessionId}  =>  JSON string with
 // { runId, userContent, sessionTitle, mode, assistantMsgId, createdAt }
 
-const PENDING_RUN_KEY_PREFIX = 'ai_pending_run_';
-const PENDING_RUN_INDEX_KEY = 'ai_pending_run_index';
-
 const getPendingRunIndex = (): string[] => {
-  try {
-    const raw = localStorage.getItem(PENDING_RUN_INDEX_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return preferences.getAiPendingRunsIndex();
 };
 
 const addToPendingRunIndex = (sessionId: string) => {
@@ -907,7 +803,7 @@ const addToPendingRunIndex = (sessionId: string) => {
     const index = getPendingRunIndex();
     if (!index.includes(sessionId)) {
       index.push(sessionId);
-      localStorage.setItem(PENDING_RUN_INDEX_KEY, JSON.stringify(index));
+      preferences.setAiPendingRunsIndex(index);
     }
   } catch { /* ignore */ }
 };
@@ -915,7 +811,7 @@ const addToPendingRunIndex = (sessionId: string) => {
 const removeFromPendingRunIndex = (sessionId: string) => {
   try {
     const index = getPendingRunIndex().filter((id) => id !== sessionId);
-    localStorage.setItem(PENDING_RUN_INDEX_KEY, JSON.stringify(index));
+    preferences.setAiPendingRunsIndex(index);
   } catch { /* ignore */ }
 };
 
@@ -928,8 +824,8 @@ const savePendingRun = (
   assistantMsgId: string,
 ) => {
   try {
-    localStorage.setItem(
-      PENDING_RUN_KEY_PREFIX + sessionId,
+    preferences.setAiPendingRun(
+      sessionId,
       JSON.stringify({ runId, userContent, sessionTitle, mode, assistantMsgId, createdAt: Date.now() }),
     );
     addToPendingRunIndex(sessionId);
@@ -938,7 +834,7 @@ const savePendingRun = (
 
 const clearPendingRun = (sessionId: string) => {
   try {
-    localStorage.removeItem(PENDING_RUN_KEY_PREFIX + sessionId);
+    preferences.removeAiPendingRun(sessionId);
     removeFromPendingRunIndex(sessionId);
   } catch { /* ignore */ }
 };
@@ -955,7 +851,7 @@ const getAllPendingRuns = (): Array<{
   const result = [];
   const sessionIds = getPendingRunIndex();
   for (const sessionId of sessionIds) {
-    const raw = localStorage.getItem(PENDING_RUN_KEY_PREFIX + sessionId);
+    const raw = preferences.getAiPendingRun(sessionId);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -1115,7 +1011,7 @@ const resumePendingRuns = () => {
     isGeneratingMap.value[sessionId] = true;
 
     // Switch to that session if it is the most recent one
-    const storedSessId = localStorage.getItem('ai_sprite_session_id');
+    const storedSessId = preferences.getAiSpriteSessionId();
     if (!storedSessId || storedSessId === sessionId) {
       currentSessionId.value = sessionId;
     }
@@ -1141,21 +1037,13 @@ watch(isOpen, (open) => {
     offsetY.value = 0;
     showMobileSidebar.value = false;
     nextTick(() => {
-      textareaRef.value?.focus();
+      chatAreaRef.value?.focusTextarea();
       scrollToBottom();
     });
   } else {
     showModelDropdown.value = false;
     showMobileSidebar.value = false;
   }
-});
-
-watch(inputMessage, async () => {
-  await nextTick();
-  const textarea = textareaRef.value;
-  if (!textarea) return;
-  textarea.style.height = 'auto';
-  textarea.style.height = `${Math.min(160, textarea.scrollHeight)}px`;
 });
 
 const canAttachImage = (file: File) => {
@@ -1172,10 +1060,6 @@ const canAttachImage = (file: File) => {
     return false;
   }
   return true;
-};
-
-const triggerFileInput = () => {
-  fileInputRef.value?.click();
 };
 
 const uploadAndAppendImage = async (file: File) => {
@@ -1220,21 +1104,17 @@ const uploadAndAppendImage = async (file: File) => {
   }
 };
 
-const handleFileChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  if (!target.files?.length) return;
-
+const handleUploadFiles = async (files: FileList) => {
   isUploading.value = true;
   try {
-    for (let index = 0; index < target.files.length; index += 1) {
-      const file = target.files[index];
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
       if (file.type.startsWith('image/')) {
         await uploadAndAppendImage(file);
       }
     }
   } finally {
     isUploading.value = false;
-    target.value = '';
   }
 };
 
@@ -1273,13 +1153,6 @@ const handleDocumentClick = (event: MouseEvent) => {
   }
 };
 
-const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    handleSend();
-  }
-};
-
 const startTypewriter = (messageId: string, sId: string) => {
   if (typewriterTimerMap[sId]) return;
   typewriterTargetIdMap.value[sId] = messageId;
@@ -1311,8 +1184,8 @@ const startTypewriter = (messageId: string, sId: string) => {
       }
     }
 
-    if (hasReasoning) {
-      const msgEl = messageRefs.get(currentMessage.id);
+    if (hasReasoning && chatAreaRef.value) {
+      const msgEl = chatAreaRef.value.messageRefs.get(currentMessage.id);
       if (msgEl) {
         const thinkingContentEl = msgEl.querySelector('.thinking-content');
         if (thinkingContentEl) {
@@ -1321,8 +1194,8 @@ const startTypewriter = (messageId: string, sId: string) => {
       }
     }
 
-    if (sId === currentSessionId.value) {
-      const container = chatContainer.value;
+    if (sId === currentSessionId.value && chatAreaRef.value) {
+      const container = chatAreaRef.value.chatContainer;
       if (!container) return;
 
       const threshold = 80;
@@ -1442,9 +1315,7 @@ const handleSend = async () => {
   saveHistory();
 
   await nextTick();
-  if (textareaRef.value) {
-    textareaRef.value.style.height = 'auto';
-  }
+  chatAreaRef.value?.resetTextareaHeight();
   await scrollToBottom();
 
   const chatHistory = activeSessionMessages.value.slice(-10).map((message) => ({
@@ -1628,7 +1499,7 @@ const clearHistory = async () => {
 
   const newSessId = generateSessionId();
   currentSessionId.value = newSessId;
-  localStorage.setItem('ai_sprite_session_id', newSessId);
+  preferences.setAiSpriteSessionId(newSessId);
 
   if (authStore.isAuthenticated) {
     try {
@@ -1665,8 +1536,7 @@ const regenerateResponse = async () => {
       new Date(message.createdAt).getTime() < new Date(lastUserMessage.createdAt).getTime(),
   );
   inputMessage.value = sanitizePreviewText(lastUserMessage.content);
-  await nextTick();
-  textareaRef.value?.focus();
+  chatAreaRef.value?.focusTextarea();
   await handleSend();
 };
 
@@ -1728,6 +1598,14 @@ onUnmounted(() => {
   // Abort all active stream readers across every session
   Object.keys(activeAbortControllers).forEach((sId) => {
     handleStop(sId);
+  });
+  // Clear all active typewriter timers
+  Object.values(typewriterTimerMap).forEach((timer) => {
+    if (timer) clearInterval(timer);
+  });
+  // Clear all pending run pollers
+  Object.values(pendingRunPollers).forEach((timer) => {
+    if (timer) clearTimeout(timer);
   });
   // Remove global drag/resize document listeners to prevent leaks when the
   // component unmounts while the user is mid-drag or mid-resize
@@ -1796,664 +1674,57 @@ onUnmounted(() => {
                 }
           "
         >
-          <!-- Mobile Sidebar Backdrop -->
-          <div
-            v-if="isMobile && showMobileSidebar"
-            class="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs pointer-events-auto"
-            @click="showMobileSidebar = false"
-          ></div>
+          <SpriteSidebar
+            v-model:showMobileSidebar="showMobileSidebar"
+            v-model:historySearch="historySearch"
+            :is-mobile="isMobile"
+            :current-session-id="currentSessionId"
+            :recent-prompts="recentPrompts"
+            :chat-sessions="chatSessions"
+            :is-vip="isVip"
+            :vip-plan-name="vipPlanName"
+            @new-session="startNewChat"
+            @select-session="selectSession"
+            @delete-session="deleteSession"
+            @fetch-usage="fetchUsageLimit"
+            @go-to-billing="goToBilling"
+          />
 
-          <aside
-            :class="[
-              'ai-sidebar shrink-0 border-r border-slate-200 dark:border-slate-800 md:flex md:flex-col',
-              isMobile
-                ? showMobileSidebar
-                  ? 'fixed inset-y-0 left-0 z-50 flex flex-col w-[280px] transition-transform duration-300 shadow-2xl pointer-events-auto'
-                  : 'hidden'
-                : 'hidden w-[300px]',
-            ]"
-          >
-            <div class="border-b border-slate-200 dark:border-slate-800 px-5 pb-4 pt-5">
-              <div class="flex items-center gap-3">
-                <div class="ai-logo">
-                  <Sparkles class="h-4 w-4" />
-                </div>
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                    AI 助手
-                  </p>
-                  <p class="truncate text-xs text-slate-500">智能学习与项目协作</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-400/10 dark:border-pink-400/5 bg-white/75 dark:bg-white/5 text-slate-800 dark:text-slate-200 px-3 py-3 text-sm font-medium transition hover:-translate-y-0.5 hover:bg-white/95 dark:hover:bg-white/10"
-                @click="startNewChat"
-              >
-                <Plus class="h-4 w-4 text-accent" />
-                <span>新建对话</span>
-              </button>
-            </div>
-
-            <div class="px-5 pt-4">
-              <div
-                class="flex items-center gap-2 rounded-2xl border border-slate-400/10 dark:border-slate-400/5 bg-white/70 dark:bg-white/5 px-3 py-2.5"
-              >
-                <Search class="h-4 w-4 text-slate-400" />
-                <input
-                  v-model="historySearch"
-                  type="text"
-                  class="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200"
-                  placeholder="搜索历史会话"
-                />
-              </div>
-            </div>
-
-            <div class="min-h-0 flex-1 px-3 pb-3 pt-4">
-              <div class="mb-2 px-2 text-xs font-medium text-slate-400">历史会话</div>
-              <div class="h-full space-y-1 overflow-y-auto pr-1 ai-scrollbar">
-                <div
-                  v-for="item in recentPrompts"
-                  :key="item.id"
-                  role="button"
-                  tabindex="0"
-                  class="group relative w-full rounded-2xl px-3 py-3 text-left transition border focus:outline-none cursor-pointer"
-                  :class="
-                    currentSessionId === item.id
-                      ? 'bg-white dark:bg-white/10 border-slate-200/50 dark:border-white/10 shadow-[0_16px_38px_rgba(244,114,182,0.06)]'
-                      : 'border-transparent hover:bg-white/60 dark:hover:bg-white/5'
-                  "
-                  @click="selectSession(item.id)"
-                  @keydown.enter="selectSession(item.id)"
-                  @keydown.space.prevent="selectSession(item.id)"
-                >
-                  <div class="flex items-start justify-between gap-3">
-                    <p class="line-clamp-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-                      {{ item.title }}
-                    </p>
-                    <span class="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{{
-                      item.time
-                    }}</span>
-                  </div>
-                  <p
-                    class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400 pr-6"
-                  >
-                    {{ item.preview }}
-                  </p>
-                  <button
-                    type="button"
-                    class="absolute bottom-3 right-3 hidden group-hover:block p-1 text-slate-400 hover:text-rose-500 rounded transition focus:outline-none"
-                    title="删除会话"
-                    @click.stop="deleteSession(item.id)"
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                <div
-                  v-if="chatSessions.length === 0"
-                  class="rounded-2xl border border-dashed px-4 py-6 text-center text-xs text-slate-400"
-                  style="border-color: rgba(148, 163, 184, 0.18)"
-                >
-                  还没有历史对话，开始发起聊天吧。
-                </div>
-
-                <div
-                  v-else-if="recentPrompts.length === 0"
-                  class="rounded-2xl border border-dashed px-4 py-6 text-center text-xs text-slate-400"
-                  style="border-color: rgba(148, 163, 184, 0.18)"
-                >
-                  没有找到匹配的会话。
-                </div>
-              </div>
-            </div>
-
-            <div class="border-t px-4 pb-4 pt-3" style="border-color: rgba(148, 163, 184, 0.14)">
-              <div class="subscription-card rounded-[24px] border p-4">
-                <p class="text-sm font-semibold text-slate-900 dark:text-white">
-                  {{ isVip ? `当前订阅：${vipPlanName}` : '升级专业版' }}
-                </p>
-                <p class="subscription-desc mt-1 text-xs leading-5">
-                  {{
-                    isVip
-                      ? '您已解锁更长上下文、更强模型和更多协作能力。'
-                      : '解锁更长上下文、更强模型和更多协作能力。'
-                  }}
-                </p>
-                <button
-                  type="button"
-                  class="subscription-btn mt-3 w-full rounded-2xl px-3 py-2.5 text-sm font-medium transition hover:opacity-90"
-                  @click="goToBilling"
-                >
-                  {{ isVip ? '管理订阅' : '立即升级' }}
-                </button>
-              </div>
-
-              <div
-                class="mt-3 flex items-center gap-3 rounded-2xl bg-white/60 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 px-3 py-3 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all select-none"
-                title="查看 AI 使用额度"
-                @click="fetchUsageLimit"
-              >
-                <UserAvatar :user="authStore.user ?? undefined" size="sm" />
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {{ authStore.user?.name || '访客用户' }}
-                  </p>
-                  <p class="truncate text-xs text-slate-400 dark:text-slate-500">
-                    {{ authStore.user?.email || '当前会话' }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <section class="ai-main flex min-w-0 flex-1 flex-col">
-            <header
-              class="flex items-center justify-between gap-3 border-b px-4 py-4 md:px-6 select-none cursor-move"
-              style="border-color: rgba(148, 163, 184, 0.14)"
-              @mousedown="startDrag"
-            >
-              <div class="min-w-0">
-                <div class="flex items-center gap-3">
-                  <!-- Mobile Sidebar Toggle -->
-                  <button
-                    v-if="isMobile"
-                    type="button"
-                    class="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 transition"
-                    title="历史会话"
-                    @click="showMobileSidebar = !showMobileSidebar"
-                  >
-                    <Menu class="h-4 w-4" />
-                  </button>
-
-                  <div class="ai-logo ai-logo--small md:hidden">
-                    <Sparkles class="h-3.5 w-3.5" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                      {{ currentConversationTitle }}
-                    </p>
-                    <p class="text-xs text-slate-400">{{ currentConversationMeta }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2">
-                <!-- Mobile New Chat Button -->
-                <button
-                  type="button"
-                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700 md:hidden"
-                  title="新建对话"
-                  @click="startNewChat"
-                >
-                  <Plus class="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-rose-500"
-                  title="清空历史"
-                  @click="clearHistory"
-                >
-                  <Trash2 class="h-4 w-4" />
-                </button>
-                <!-- Fullscreen Toggle (Desktop Only) -->
-                <button
-                  v-if="!isMobile"
-                  type="button"
-                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
-                  :title="isFullscreen ? '退出全屏' : '全屏'"
-                  @click="isFullscreen = !isFullscreen"
-                >
-                  <component :is="isFullscreen ? Minimize2 : Maximize2" class="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  class="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
-                  title="关闭"
-                  @click="isOpen = false"
-                >
-                  <X class="h-4 w-4" />
-                </button>
-              </div>
-            </header>
-
-            <div
-              ref="chatContainer"
-              class="ai-chat-content relative min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-6 ai-scrollbar"
-            >
-              <div class="pointer-events-none absolute inset-0 overflow-hidden">
-                <div
-                  class="absolute left-[-120px] top-[10%] h-72 w-72 rounded-full bg-rose-200/30 blur-3xl"
-                ></div>
-                <div
-                  class="absolute right-[-120px] top-[38%] h-72 w-72 rounded-full bg-amber-100/45 blur-3xl"
-                ></div>
-              </div>
-
-              <div class="relative mx-auto w-full max-w-4xl space-y-5">
-                <div
-                  v-if="shouldShowLandingState"
-                  class="flex min-h-[260px] flex-col items-center justify-center gap-4 px-4 text-center"
-                >
-                  <div class="ai-empty-badge">
-                    <Sparkles class="h-7 w-7" />
-                  </div>
-                  <div>
-                    <p class="text-lg font-semibold text-slate-700 dark:text-slate-200">
-                      有什么可以帮忙的吗？
-                    </p>
-                    <p class="mt-2 text-sm leading-6 text-slate-400">
-                      你可以让我整理学习路线、分析项目、解释代码，或者继续处理当前任务。
-                    </p>
-                  </div>
-                </div>
-
-                <div
-                  v-for="(msg, index) in activeSessionMessages"
-                  :key="msg.id"
-                  :ref="(el) => setMessageRef(msg.id, el as Element | null)"
-                  class="flex gap-3"
-                  :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
-                >
-                  <template v-if="msg.role === 'assistant'">
-                    <div class="ai-logo ai-logo--small mt-1 hidden shrink-0 md:flex">
-                      <Sparkles class="h-3.5 w-3.5" />
-                    </div>
-                  </template>
-
-                  <div class="group max-w-[92%] md:max-w-[78%]">
-                    <div
-                      class="rounded-[24px] px-4 py-3.5 shadow-sm"
-                      :class="
-                        msg.role === 'user' ? 'ai-user-bubble ml-auto' : 'ai-assistant-bubble'
-                      "
-                    >
-                      <div
-                        v-if="msg.role === 'assistant' && (msg.reasoning || msg.isThinking)"
-                        class="mb-3 border-b border-dashed border-slate-200/80 pb-3 text-xs text-slate-500"
-                      >
-                        <button
-                          type="button"
-                          class="flex w-full items-center gap-2 text-left font-medium transition hover:text-slate-700 dark:hover:text-slate-300"
-                          @click="msg.isThinkingExpanded = !msg.isThinkingExpanded"
-                        >
-                          <Brain
-                            class="h-3.5 w-3.5"
-                            :class="msg.isThinking ? 'animate-pulse text-rose-400' : ''"
-                          />
-                          <span>{{ msg.isThinking ? '思考中...' : '思考过程' }}</span>
-                          <component
-                            :is="msg.isThinkingExpanded ? ChevronUp : ChevronDown"
-                            class="ml-auto h-3.5 w-3.5 text-slate-400"
-                          />
-                        </button>
-                        <div
-                          v-show="msg.isThinkingExpanded"
-                          class="thinking-content mt-2 max-h-[150px] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 px-3 py-2 leading-6 ai-scrollbar border border-slate-100 dark:border-slate-800"
-                        >
-                          <span
-                            v-if="!msg.reasoning && msg.isThinking"
-                            class="inline-flex items-center gap-1.5 text-slate-400 dark:text-slate-500"
-                          >
-                            <span
-                              class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 dark:bg-slate-600"
-                            ></span>
-                            <span
-                              class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 dark:bg-slate-600 [animation-delay:0.15s]"
-                            ></span>
-                            <span
-                              class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 dark:bg-slate-600 [animation-delay:0.3s]"
-                            ></span>
-                          </span>
-                          <span v-else>{{ msg.reasoning }}</span>
-                        </div>
-                      </div>
-
-                      <!-- Collapsible Reference Sources -->
-                      <div
-                        v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0"
-                        class="mb-3 border-b border-dashed border-slate-200/80 pb-3 text-xs text-slate-500"
-                      >
-                        <button
-                          type="button"
-                          class="flex w-full items-center gap-2 text-left font-medium transition hover:text-slate-700 dark:hover:text-slate-300"
-                          @click="msg.isSourcesExpanded = !msg.isSourcesExpanded"
-                        >
-                          <Globe class="h-3.5 w-3.5 text-blue-500" />
-                          <span>参考来源 ({{ msg.sources.length }})</span>
-                          <component
-                            :is="msg.isSourcesExpanded ? ChevronUp : ChevronDown"
-                            class="ml-auto h-3.5 w-3.5 text-slate-400"
-                          />
-                        </button>
-                        <div
-                          v-show="msg.isSourcesExpanded"
-                          class="mt-2 max-h-[220px] overflow-y-auto rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 p-2.5 leading-6 ai-scrollbar border border-slate-100 dark:border-slate-800"
-                        >
-                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <a
-                              v-for="(source, sIdx) in msg.sources"
-                              :key="sIdx"
-                              :href="source.link"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="flex flex-col gap-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 p-2.5 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xs transition"
-                            >
-                              <div class="flex items-center justify-between gap-1.5">
-                                <span
-                                  class="shrink-0 rounded-md bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
-                                >
-                                  [{{ sIdx + 1 }}]
-                                </span>
-                                <span
-                                  class="flex min-w-0 items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500"
-                                >
-                                  <span class="truncate">
-                                    {{ source.domain || 'unknown' }}
-                                  </span>
-                                  <span
-                                    v-if="source.publishedAt"
-                                    class="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-                                  >
-                                    {{ source.publishedAt.slice(0, 10) }}
-                                  </span>
-                                </span>
-                              </div>
-                              <p
-                                class="line-clamp-2 text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-normal hover:text-blue-500 dark:hover:text-blue-400 transition"
-                                :title="source.title"
-                              >
-                                {{ source.title }}
-                              </p>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-
-                      <MdPreview
-                        :model-value="msg.content"
-                        :theme="isDark ? 'dark' : 'light'"
-                        class="ai-preview"
-                      />
-                    </div>
-
-                    <div
-                      class="mt-2 flex items-center gap-3 px-1 text-[11px] text-slate-400 opacity-0 transition group-hover:opacity-100"
-                      :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
-                    >
-                      <button
-                        type="button"
-                        class="flex items-center gap-1 transition hover:text-slate-700"
-                        @click="copyMessage(msg.content, msg.id)"
-                      >
-                        <component
-                          :is="copiedIndex === msg.id ? Check : Copy"
-                          class="h-3.5 w-3.5"
-                        />
-                        <span>{{ copiedIndex === msg.id ? '已复制' : '复制内容' }}</span>
-                      </button>
-                      <button
-                        v-if="
-                          msg.role === 'assistant' &&
-                          index === activeSessionMessages.length - 1 &&
-                          !isGeneratingMap[currentSessionId] &&
-                          !isTypingMap[currentSessionId]
-                        "
-                        type="button"
-                        class="flex items-center gap-1 transition hover:text-slate-700"
-                        @click="regenerateResponse"
-                      >
-                        <RefreshCw class="h-3.5 w-3.5" />
-                        <span>重新生成</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <footer
-              class="border-t px-4 pb-4 pt-3 md:px-6 md:pb-5"
-              style="border-color: rgba(148, 163, 184, 0.14)"
-            >
-              <div class="mx-auto max-w-4xl">
-                <input
-                  ref="fileInputRef"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  multiple
-                  class="hidden"
-                  @change="handleFileChange"
-                />
-
-                <div
-                  v-if="uploadedImages.length > 0 || isUploading"
-                  class="mb-3 flex flex-wrap gap-2 rounded-[22px] border border-slate-200/80 bg-white/70 p-3"
-                >
-                  <div
-                    v-for="(image, index) in uploadedImages"
-                    :key="image.url"
-                    class="group relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-200/80"
-                  >
-                    <img
-                      :src="getAssetUrl(image.url)"
-                      :alt="image.name"
-                      class="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      class="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
-                      @click="removeUploadedImage(index)"
-                    >
-                      <X class="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  <div
-                    v-if="isUploading"
-                    class="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white"
-                  >
-                    <span
-                      class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"
-                    ></span>
-                  </div>
-                </div>
-
-                <p v-if="uploadError" class="mb-2 px-1 text-xs text-rose-500">{{ uploadError }}</p>
-
-                <div
-                  class="rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl"
-                >
-                  <textarea
-                    ref="textareaRef"
-                    v-model="inputMessage"
-                    class="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-1 text-sm leading-7 text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    placeholder="输入你的问题或需求，按 Enter 发送，Shift + Enter 换行"
-                    :disabled="isGeneratingMap[currentSessionId] || isTypingMap[currentSessionId]"
-                    rows="1"
-                    @keydown="handleKeydown"
-                    @paste="handlePaste"
-                  />
-
-                  <div class="mt-2.5 flex items-center justify-between gap-2">
-                    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                      <button
-                        type="button"
-                        class="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 transition hover:bg-white dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200"
-                        title="上传图片"
-                        @click="triggerFileInput"
-                      >
-                        <Image class="h-3.5 w-3.5" />
-                      </button>
-
-                      <div
-                        class="flex items-center rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-0.5"
-                      >
-                        <button
-                          v-for="option in chatModeOptions"
-                          :key="option.value"
-                          type="button"
-                          class="flex h-7 items-center justify-center rounded-md px-2 text-[10px] sm:text-xs font-medium transition"
-                          :class="
-                            chatMode === option.value
-                              ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
-                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                          "
-                          :title="option.label"
-                          @click="chatMode = option.value"
-                        >
-                          <component :is="option.icon" class="h-3.5 w-3.5" />
-                          <span class="hidden sm:inline ml-1">{{ option.label }}</span>
-                        </button>
-                      </div>
-
-                      <div
-                        v-if="availableAiModels.length > 0"
-                        class="model-select-dropdown-container relative"
-                      >
-                        <button
-                          type="button"
-                          class="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] sm:text-xs font-medium transition hover:bg-slate-50"
-                          :style="{
-                            background: getProviderMeta(currentModel?.provider || '').bg,
-                            color: getProviderMeta(currentModel?.provider || '').color,
-                            borderColor: getProviderMeta(currentModel?.provider || '').border,
-                          }"
-                          @click.stop="showModelDropdown = !showModelDropdown"
-                        >
-                          <component
-                            :is="getProviderMeta(currentModel?.provider || '').lucideIcon"
-                            class="h-3.5 w-3.5"
-                          />
-                          <span class="hidden sm:inline">{{
-                            currentModel?.name || '默认模型'
-                          }}</span>
-                          <ChevronDown class="h-3.5 w-3.5" />
-                        </button>
-
-                        <Transition name="fade">
-                          <div
-                            v-if="showModelDropdown"
-                            class="absolute bottom-[calc(100%+10px)] left-0 z-20 min-w-[280px] overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-700/60 bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl"
-                            style="box-shadow: 0 20px 48px rgba(15,23,42,0.14), 0 0 0 1px rgba(148,163,184,0.08);"
-                          >
-                            <!-- Header -->
-                            <div class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-4 py-2.5">
-                              <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">选择 AI 模型</span>
-                              <span class="ml-auto rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                                {{ availableAiModels.length }} 个可用
-                              </span>
-                            </div>
-
-                            <!-- Model List -->
-                            <div class="max-h-72 overflow-y-auto py-1.5 ai-scrollbar">
-                              <button
-                                v-for="model in availableAiModels"
-                                :key="model.id"
-                                type="button"
-                                class="group relative flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-all duration-150"
-                                :class="
-                                  model.id === selectedModelId
-                                    ? 'bg-gradient-to-r from-rose-50 to-pink-50/60 dark:from-rose-950/30 dark:to-pink-950/20'
-                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                "
-                                @click.stop="
-                                  selectedModelId = model.id;
-                                  showModelDropdown = false;
-                                "
-                              >
-                                <!-- Provider Icon with colored background -->
-                                <div
-                                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105"
-                                  :style="{
-                                    background: getProviderMeta(model.provider).bg,
-                                    border: `1px solid ${getProviderMeta(model.provider).border}`,
-                                  }"
-                                >
-                                  <component
-                                    :is="getProviderMeta(model.provider).lucideIcon"
-                                    class="h-4 w-4"
-                                    :style="{ color: getProviderMeta(model.provider).color }"
-                                  />
-                                </div>
-
-                                <!-- Model Info -->
-                                <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-                                  <div class="flex items-center gap-1.5">
-                                    <span
-                                      class="text-[13px] font-semibold leading-tight text-slate-800 dark:text-slate-100"
-                                      :title="model.name"
-                                    >
-                                      {{ model.name }}
-                                    </span>
-                                    <span
-                                      v-if="model.isDefault"
-                                      class="shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"
-                                    >
-                                      默认
-                                    </span>
-                                  </div>
-                                  <span class="block text-[11px] leading-tight text-slate-400 dark:text-slate-500" :title="model.modelName">
-                                    {{ model.modelName }}
-                                  </span>
-                                </div>
-
-                                <!-- Selected checkmark -->
-                                <div
-                                  v-if="model.id === selectedModelId"
-                                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 shadow-sm shadow-rose-200 dark:shadow-rose-900"
-                                >
-                                  <Check class="h-3 w-3 text-white" />
-                                </div>
-                              </button>
-                            </div>
-                          </div>
-                        </Transition>
-                      </div>
-
-                      <span
-                        v-else
-                        class="rounded-lg bg-slate-100 px-2 py-1.5 text-xs text-slate-500"
-                      >
-                        {{ streamMetaMap[currentSessionId]?.model || '默认模型' }}
-                      </span>
-                    </div>
-
-                    <button
-                      v-if="isGeneratingMap[currentSessionId] || isTypingMap[currentSessionId]"
-                      type="button"
-                      class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-500 px-3 py-1.5 text-xs sm:text-sm font-medium text-white transition hover:bg-rose-600"
-                      @click="handleStop()"
-                    >
-                      <Square class="h-3.5 w-3.5 fill-current" />
-                      <span class="hidden sm:inline">停止生成</span>
-                    </button>
-                    <button
-                      v-else
-                      type="button"
-                      :disabled="!inputMessage.trim() && uploadedImages.length === 0"
-                      class="ai-send-btn inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium text-white transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
-                      @click="handleSend"
-                    >
-                      <Send class="h-3.5 w-3.5" />
-                      <span class="hidden sm:inline">发送</span>
-                    </button>
-                  </div>
-
-                  <p class="mt-2 px-1 text-xs text-slate-400 dark:text-slate-500">
-                    {{
-                      chatMode === 'research'
-                        ? '深度研究会自动规划多轮检索并整理来源，适合做方案调研、竞品分析和技术选型。'
-                        : chatMode === 'search'
-                          ? '联网搜索会补充实时网页结果，适合查询最新信息。'
-                          : '普通对话更适合继续当前上下文、代码协作和日常提问。'
-                    }}
-                  </p>
-                </div>
-              </div>
-            </footer>
-          </section>
+          <SpriteChatArea
+            ref="chatAreaRef"
+            v-model:showMobileSidebar="showMobileSidebar"
+            v-model:isFullscreen="isFullscreen"
+            v-model:isOpen="isOpen"
+            v-model:inputMessage="inputMessage"
+            v-model:chatMode="chatMode"
+            v-model:showModelDropdown="showModelDropdown"
+            :is-mobile="isMobile"
+            :current-conversation-title="currentConversationTitle"
+            :current-conversation-meta="currentConversationMeta"
+            :should-show-landing-state="shouldShowLandingState"
+            :active-session-messages="activeSessionMessages"
+            :current-session-id="currentSessionId"
+            :is-generating="isGeneratingMap[currentSessionId]"
+            :is-typing="isTypingMap[currentSessionId]"
+            :uploaded-images="uploadedImages"
+            :is-uploading="isUploading"
+            :upload-error="uploadError"
+            :available-ai-models="availableAiModels"
+            :current-model="currentModel"
+            :is-dark="isDark"
+            :copied-index="copiedIndex"
+            @select-model="selectedModelId = $event"
+            @start-new-chat="startNewChat"
+            @clear-history="clearHistory"
+            @copy-message="copyMessage"
+            @regenerate-response="regenerateResponse"
+            @drag-start="startDrag"
+            @upload-files="handleUploadFiles"
+            @remove-image="removeUploadedImage"
+            @handle-send="handleSend"
+            @handle-stop="handleStop()"
+            @paste="handlePaste"
+          />
 
           <!-- Resize Handle (Desktop floating window only) -->
           <div

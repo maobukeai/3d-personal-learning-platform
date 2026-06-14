@@ -184,8 +184,8 @@ If any field is missing or not found, set it to null.`;
         return;
       }
 
-      const nextDay = Math.min(account.currentDay + 1, 15);
-      const newStatus = nextDay >= 15 ? 'completed' : account.status;
+      const nextDay = Math.min(account.currentDay + 1, 14);
+      const newStatus = nextDay >= 14 ? 'completed' : account.status;
 
       const updated = await prisma.googleWarmingAccount.update({
         where: { id },
@@ -254,8 +254,8 @@ If any field is missing or not found, set it to null.`;
       }
 
       const updates = accounts.map((account) => {
-        const nextDay = Math.min(account.currentDay + 1, 15);
-        const newStatus = nextDay >= 15 ? 'completed' : account.status;
+        const nextDay = Math.min(account.currentDay + 1, 14);
+        const newStatus = nextDay >= 14 ? 'completed' : account.status;
         return prisma.googleWarmingAccount.update({
           where: { id: account.id },
           data: {

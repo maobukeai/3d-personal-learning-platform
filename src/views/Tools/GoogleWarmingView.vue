@@ -797,7 +797,8 @@ const getStepDetails = (dayNum: number) => {
         actions: [
           { key: 'action1', text: '进入谷歌安全中心，查看并登出所有不认识的陌生设备' },
           { key: 'action2', text: '打开 Gmail 浏览收件箱垃圾邮件和收信' },
-          { key: 'action3', text: '打开 YouTube 浏览或随机播放视频 10-15 分钟' }
+          { key: 'action3', text: '打开 YouTube 浏览或随机播放视频 10-15 分钟' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Spotify 音乐平台' }
         ]
       };
     case 3:
@@ -808,7 +809,8 @@ const getStepDetails = (dayNum: number) => {
           { key: 'action1', text: '设置并绑定辅助邮箱（恢复邮箱）以增强信誉' },
           { key: 'action2', text: '正常收发几封 Gmail 邮件' },
           { key: 'action3', text: '在 YouTube 观看视频并随机点击喜欢或订阅' },
-          { key: 'action4', text: '打开 Gemini AI，随便发送 2-3 句话进行 AI 对话互动' }
+          { key: 'action4', text: '打开 Gemini AI，随便发送 2-3 句话进行 AI 对话互动' },
+          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Twitter (X) 社交平台' }
         ]
       };
     case 4:
@@ -819,7 +821,8 @@ const getStepDetails = (dayNum: number) => {
           { key: 'action1', text: '管理两步验证 (2FA) 或其他安全辅助设置' },
           { key: 'action2', text: '阅读 Gmail 邮件，清理垃圾邮件分类' },
           { key: 'action3', text: '打开 YouTube 观看视频，搜索感兴趣的内容' },
-          { key: 'action4', text: '用 Gemini AI 随机生成一段关于学习路线的文本' }
+          { key: 'action4', text: '用 Gemini AI 随机生成一段关于学习路线的文本' },
+          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 TikTok 视频平台' }
         ]
       };
     case 5:
@@ -830,7 +833,19 @@ const getStepDetails = (dayNum: number) => {
           { key: 'action1', text: '绑定密保手机号（建议长期养号使用以防异常风控）' },
           { key: 'action2', text: '正常浏览接收邮件，向外部发一封邮件' },
           { key: 'action3', text: '观看 YouTube 视频，建立正常的视频推流推荐' },
-          { key: 'action4', text: '向 Gemini AI 提问一些日常开发或 3D 建模命令' }
+          { key: 'action4', text: '向 Gemini AI 提问一些日常开发或 3D 建模命令' },
+          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Notion 知识库笔记平台' }
+        ]
+      };
+    case 6:
+      return {
+        title: t('tools.googleWarming.questDays.day6'),
+        desc: t('tools.googleWarming.questDays.day6Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail 正常浏览邮件，收发几封日常邮件' },
+          { key: 'action2', text: '打开 YouTube 浏览或随机点赞/评论几个视频' },
+          { key: 'action3', text: '在 Google 搜索引擎中进行少量网页搜索与浏览' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Canva 设计工具平台' }
         ]
       };
     case 7:
@@ -841,17 +856,86 @@ const getStepDetails = (dayNum: number) => {
           { key: 'action1', text: '安全更改谷歌账户的登录密码' },
           { key: 'action2', text: '浏览收发 Gmail，整理垃圾邮件' },
           { key: 'action3', text: 'YouTube 观看并对优质内容进行评论/互动' },
-          { key: 'action4', text: '使用 Gemini AI 翻译一小段英文文章' }
+          { key: 'action4', text: '使用 Gemini AI 翻译一小段英文文章' },
+          { key: 'action5', text: '使用当前谷歌账号一键注册并登录 Figma 界面设计平台' }
         ]
       };
-    default:
+    case 8:
       return {
-        title: t('tools.googleWarming.questDays.day8_15'),
-        desc: t('tools.googleWarming.questDays.day8_15Desc'),
+        title: t('tools.googleWarming.questDays.day8'),
+        desc: t('tools.googleWarming.questDays.day8Desc'),
         actions: [
           { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
           { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
-          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' }
+          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Miro 协作白板平台' }
+        ]
+      };
+    case 9:
+      return {
+        title: t('tools.googleWarming.questDays.day9'),
+        desc: t('tools.googleWarming.questDays.day9Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail 处理信件，清扫不需要的推广邮件' },
+          { key: 'action2', text: '打开 YouTube 观看视频点赞并订阅博主' },
+          { key: 'action3', text: '访问 Gemini AI 进行一些技术问题问答交流' },
+          { key: 'action4', text: '使用当前谷歌账号在 Miro 中创建一个新的画板并绘制基础草图' }
+        ]
+      };
+    case 10:
+      return {
+        title: t('tools.googleWarming.questDays.day10'),
+        desc: t('tools.googleWarming.questDays.day10Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
+          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
+          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Slack 团队协同平台' }
+        ]
+      };
+    case 11:
+      return {
+        title: t('tools.googleWarming.questDays.day11'),
+        desc: t('tools.googleWarming.questDays.day11Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail 处理信件，与陌生邮箱做一次日常通信' },
+          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
+          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 ChatGPT 开启 AI 问答对话' }
+        ]
+      };
+    case 12:
+      return {
+        title: t('tools.googleWarming.questDays.day12'),
+        desc: t('tools.googleWarming.questDays.day12Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
+          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
+          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 GitHub 开发者托管平台' }
+        ]
+      };
+    case 13:
+      return {
+        title: t('tools.googleWarming.questDays.day13'),
+        desc: t('tools.googleWarming.questDays.day13Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail 邮件处理，给自己的备用邮箱发送一封日常日志' },
+          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
+          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Replit 云端代码开发平台' }
+        ]
+      };
+    case 14:
+    default:
+      return {
+        title: t('tools.googleWarming.questDays.day14'),
+        desc: t('tools.googleWarming.questDays.day14Desc'),
+        actions: [
+          { key: 'action1', text: '进入 Gmail，阅读最新收件，回复 1 封常规邮件' },
+          { key: 'action2', text: '打开 YouTube 累计观看至少 10-15 分钟视频' },
+          { key: 'action3', text: '访问 Gemini AI 体验聊天互动' },
+          { key: 'action4', text: '使用当前谷歌账号一键注册并登录 Reddit 社区交流论坛' }
         ]
       };
   }
@@ -1496,10 +1580,10 @@ async function handleImportFile(event: Event) {
                 <div class="flex-1 h-1 rounded-full overflow-hidden" style="background: var(--border-base)">
                   <div
                     class="bg-gradient-to-r from-violet-500 to-indigo-500 h-full rounded-full transition-all duration-500"
-                    :style="{ width: `${(acc.currentDay / 15) * 100}%` }"
+                    :style="{ width: `${(acc.currentDay / 14) * 100}%` }"
                   ></div>
                 </div>
-                <span class="text-[9px] font-mono shrink-0 w-6 text-right" style="color: var(--text-muted)">{{ Math.round((acc.currentDay / 15) * 100) }}%</span>
+                <span class="text-[9px] font-mono shrink-0 w-6 text-right" style="color: var(--text-muted)">{{ Math.round((acc.currentDay / 14) * 100) }}%</span>
               </div>
             </div>
           </div>
@@ -1626,7 +1710,7 @@ async function handleImportFile(event: Event) {
               <!-- Horizontal scroll day circles -->
               <div class="flex gap-1.5 overflow-x-auto pb-2 pr-1 scrollbar-thin">
                 <div
-                  v-for="day in 15"
+                  v-for="day in 14"
                   :key="day"
                   :class="[
                     'gw-day-circle',
@@ -2200,7 +2284,7 @@ async function handleImportFile(event: Event) {
             </div>
             <div class="gw-field !gap-1">
               <label class="gw-field-label !text-[10px]">当前天数</label>
-              <input v-model.number="editingAccount.currentDay" type="number" min="1" max="15" class="gw-input !py-1.5 !text-xs" />
+              <input v-model.number="editingAccount.currentDay" type="number" min="1" max="14" class="gw-input !py-1.5 !text-xs" />
             </div>
             <div class="gw-field !gap-1">
               <label class="gw-field-label !text-[10px]">分类</label>

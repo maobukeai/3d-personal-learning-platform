@@ -33,22 +33,24 @@ import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
+import AdminTeamDetailDrawer from './components/AdminTeamDetailDrawer.vue';
+import AdminTeamFormDialog from './components/AdminTeamFormDialog.vue';
 
-type TeamVisibility = 'PUBLIC' | 'PRIVATE';
+export type TeamVisibility = 'PUBLIC' | 'PRIVATE';
 type VisibilityFilter = 'ALL' | TeamVisibility;
-type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type TeamRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 type RiskFilter = 'ALL' | 'PENDING' | 'OVERDUE' | 'UNASSIGNED' | 'EMPTY';
 type SortBy = 'createdAt' | 'updatedAt' | 'name' | 'health';
 type SortOrder = 'asc' | 'desc';
 
-interface AdminTeamUser {
+export interface AdminTeamUser {
   id: string;
   name?: string | null;
   email?: string | null;
   avatarUrl?: string | null;
 }
 
-interface AdminTeamMember {
+export interface AdminTeamMember {
   id?: string;
   userId: string;
   role: TeamRole;
@@ -68,7 +70,7 @@ interface AdminTeamMember {
   };
 }
 
-interface AdminTeamCounts {
+export interface AdminTeamCounts {
   members?: number;
   assets?: number;
   projects?: number;
@@ -79,7 +81,7 @@ interface AdminTeamCounts {
   applications?: number;
 }
 
-interface AdminTeamMetrics {
+export interface AdminTeamMetrics {
   healthScore: number;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   activeTasks: number;
@@ -96,7 +98,7 @@ interface AdminTeamMetrics {
   lastActivityAt?: string | null;
 }
 
-interface AdminTeam {
+export interface AdminTeam {
   id: string;
   name: string;
   description?: string | null;
@@ -152,7 +154,7 @@ interface AdminUsersResponse {
   data?: AdminTeamUser[];
 }
 
-interface TeamApplication {
+export interface TeamApplication {
   id: string;
   teamId: string;
   userId: string;
@@ -162,7 +164,7 @@ interface TeamApplication {
   user: AdminTeamUser;
 }
 
-interface TeamInvitation {
+export interface TeamInvitation {
   id: string;
   teamId: string;
   inviterId: string;
@@ -172,7 +174,7 @@ interface TeamInvitation {
   createdAt: string;
 }
 
-interface TeamProjectHealth {
+export interface TeamProjectHealth {
   id: string;
   title: string;
   description?: string | null;
@@ -196,7 +198,7 @@ interface TeamProjectHealth {
   };
 }
 
-interface TeamActionItem {
+export interface TeamActionItem {
   id: string;
   type: string;
   severity: 'critical' | 'high' | 'medium';
@@ -207,7 +209,7 @@ interface TeamActionItem {
   application?: TeamApplication;
 }
 
-interface TeamActivityItem {
+export interface TeamActivityItem {
   id: string;
   type: string;
   title: string;
@@ -216,7 +218,7 @@ interface TeamActivityItem {
   createdAt: string;
 }
 
-interface TeamDetailResponse {
+export interface TeamDetailResponse {
   team: AdminTeam & {
     invitations?: TeamInvitation[];
     applications?: TeamApplication[];
@@ -1329,414 +1331,32 @@ void quickStats.value;
       </aside>
     </main>
 
-    <el-drawer
+    <AdminTeamDetailDrawer
       v-model="detailDrawerVisible"
-      :size="isMobile ? '100%' : '760px'"
-      :with-header="false"
-    >
-      <div class="drawer-shell">
-        <div v-if="isDetailLoading" class="loading-state drawer-loading">
-          <RefreshCw class="spinning" />
-          <span>正在加载团队洞察</span>
-        </div>
+      :team="selectedTeam"
+      :detail="selectedTeamDetail"
+      :is-detail-loading="isDetailLoading"
+      :is-mobile="isMobile"
+      @edit="openEditModal"
+      @add-member="openAddMemberDialog"
+      @delete="deleteTeam"
+      @update-member-role="(payload) => updateMemberRole(payload.teamId, payload.userId, payload.role)"
+      @remove-member="(payload) => removeMember(payload.teamId, payload.userId, payload.label)"
+      @handle-application="(payload) => handleApplication(payload.application, payload.accept)"
+      @cancel-invitation="cancelInvitation"
+    />
 
-        <template v-else-if="detailTeam">
-          <header class="drawer-header">
-            <div class="drawer-title">
-              <div class="team-avatar large">
-                <img v-if="detailTeam.avatarUrl" :src="detailTeam.avatarUrl" alt="" />
-                <Briefcase v-else />
-              </div>
-              <div>
-                <h2>{{ detailTeam.name }}</h2>
-                <p>{{ detailTeam.description || detailTeam.category || '暂无团队描述' }}</p>
-                <div class="drawer-pills">
-                  <span class="pill" :class="visibilityClass(detailTeam.visibility)">
-                    <Globe v-if="detailTeam.visibility === 'PUBLIC'" />
-                    <Lock v-else />
-                    {{ visibilityLabel(detailTeam.visibility) }}
-                  </span>
-                  <span class="pill" :class="riskClass(detailTeam.metrics?.riskLevel)">
-                    {{ riskLabel(detailTeam.metrics?.riskLevel) }}
-                  </span>
-                  <span class="pill tone-slate">{{ formatDate(detailTeam.createdAt) }} 创建</span>
-                </div>
-              </div>
-            </div>
-            <button type="button" class="icon-btn" @click="detailDrawerVisible = false">
-              <X />
-            </button>
-          </header>
-
-          <div class="drawer-actions">
-            <button type="button" @click="openEditModal(detailTeam)"><Edit3 />编辑</button>
-            <button type="button" @click="openAddMemberDialog(detailTeam)">
-              <UserPlus />添加成员
-            </button>
-            <button type="button" class="danger-action" @click="deleteTeam(detailTeam)">
-              <Trash2 />解散
-            </button>
-          </div>
-
-          <section class="drawer-scoreboard">
-            <div
-              class="score-hero"
-              :class="scoreClass(detailCounts?.healthScore || detailTeam.metrics?.healthScore)"
-            >
-              <span>健康分</span>
-              <strong>{{
-                detailCounts?.healthScore ?? detailTeam.metrics?.healthScore ?? 100
-              }}</strong>
-            </div>
-            <div>
-              <span>成员</span>
-              <strong>{{ detailCounts?.members ?? detailTeam._count?.members ?? 0 }}</strong>
-            </div>
-            <div>
-              <span>项目</span>
-              <strong>{{ detailCounts?.projects ?? detailTeam._count?.projects ?? 0 }}</strong>
-            </div>
-            <div>
-              <span>任务</span>
-              <strong>{{ detailCounts?.tasks ?? detailTeam._count?.tasks ?? 0 }}</strong>
-            </div>
-            <div>
-              <span>资源</span>
-              <strong>{{
-                (detailCounts?.assets || 0) +
-                (detailCounts?.materials || 0) +
-                (detailCounts?.showcases || 0)
-              }}</strong>
-            </div>
-            <div>
-              <span>待处理</span>
-              <strong>{{
-                (detailCounts?.pendingApplications || 0) + (detailCounts?.pendingInvitations || 0)
-              }}</strong>
-            </div>
-          </section>
-
-          <nav class="drawer-tabs">
-            <button
-              type="button"
-              :class="{ active: detailTab === 'overview' }"
-              @click="detailTab = 'overview'"
-            >
-              <Activity />概览
-            </button>
-            <button
-              type="button"
-              :class="{ active: detailTab === 'members' }"
-              @click="detailTab = 'members'"
-            >
-              <Users />成员
-            </button>
-            <button
-              type="button"
-              :class="{ active: detailTab === 'pending' }"
-              @click="detailTab = 'pending'"
-            >
-              <AlertTriangle />申请与邀请
-            </button>
-            <button
-              type="button"
-              :class="{ active: detailTab === 'activity' }"
-              @click="detailTab = 'activity'"
-            >
-              <Clock />活动
-            </button>
-          </nav>
-
-          <section v-if="detailTab === 'overview'" class="drawer-content">
-            <div class="detail-section">
-              <div class="detail-head">
-                <h3>优先处理</h3>
-                <span>{{ selectedTeamDetail?.actionItems.length || 0 }}</span>
-              </div>
-              <article
-                v-for="item in selectedTeamDetail?.actionItems || []"
-                :key="item.id"
-                class="action-row"
-              >
-                <span class="severity-dot" :class="`severity-${item.severity}`" />
-                <div>
-                  <strong>{{ item.title }}</strong>
-                  <small
-                    >{{ actionItemLabel(item.type) }} ·
-                    {{ item.project?.title || '团队事项' }}</small
-                  >
-                </div>
-                <button
-                  v-if="item.application"
-                  type="button"
-                  class="mini-btn"
-                  @click="handleApplication(item.application, true)"
-                >
-                  <Check />通过
-                </button>
-              </article>
-              <div v-if="!selectedTeamDetail?.actionItems.length" class="quiet-state inline">
-                <CheckCircle2 />
-                <span>暂无高优先级事项</span>
-              </div>
-            </div>
-
-            <div class="detail-section">
-              <div class="detail-head">
-                <h3>项目健康</h3>
-                <span>{{ selectedTeamDetail?.projectHealth.length || 0 }}</span>
-              </div>
-              <article
-                v-for="project in selectedTeamDetail?.projectHealth || []"
-                :key="project.id"
-                class="project-row"
-              >
-                <div>
-                  <strong>{{ project.title }}</strong>
-                  <small>
-                    {{ project.membersCount }} 人 · {{ project.tasks.active }} 活跃任务 ·
-                    {{ project.tasks.overdue }} 逾期
-                  </small>
-                </div>
-                <div class="project-progress">
-                  <span>{{ project.progress }}%</span>
-                  <i><b :style="{ width: `${project.progress}%` }" /></i>
-                </div>
-                <span class="pill" :class="riskClass(project.riskLevel)">{{
-                  project.healthScore
-                }}</span>
-              </article>
-              <div v-if="!selectedTeamDetail?.projectHealth.length" class="quiet-state inline">
-                <Layers />
-                <span>暂无项目</span>
-              </div>
-            </div>
-
-            <div class="detail-section">
-              <div class="detail-head">
-                <h3>最近资源</h3>
-                <span>
-                  {{
-                    (selectedTeamDetail?.resources.assets.length || 0) +
-                    (selectedTeamDetail?.resources.materials.length || 0) +
-                    (selectedTeamDetail?.resources.showcases.length || 0)
-                  }}
-                </span>
-              </div>
-              <div class="resource-columns">
-                <article
-                  v-for="resource in [
-                    ...(selectedTeamDetail?.resources.assets || []).slice(0, 3),
-                    ...(selectedTeamDetail?.resources.materials || []).slice(0, 3),
-                    ...(selectedTeamDetail?.resources.showcases || []).slice(0, 3),
-                  ]"
-                  :key="resource.id"
-                  class="resource-row"
-                >
-                  <Boxes />
-                  <span>
-                    <strong>{{ resource.title }}</strong>
-                    <small>{{ resource.status }} · {{ relativeTime(resource.updatedAt) }}</small>
-                  </span>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          <section v-else-if="detailTab === 'members'" class="drawer-content">
-            <article v-for="member in detailMembers" :key="member.userId" class="member-row">
-              <div class="owner-cell">
-                <UserAvatar :user="member.user" size="sm" />
-                <span>
-                  <strong>{{ ownerName(member.user) }}</strong>
-                  <small>{{ member.user?.email || '未记录邮箱' }}</small>
-                </span>
-              </div>
-              <div class="member-metrics">
-                <span>{{ member.metrics?.activeTasks || 0 }} 活跃</span>
-                <span>{{ member.metrics?.completionRate || 0 }}% 完成</span>
-                <span>{{ relativeTime(member.metrics?.lastActiveAt || member.joinedAt) }}</span>
-              </div>
-              <div class="member-actions">
-                <span class="pill" :class="roleClass(member.role)">{{
-                  roleLabel(member.role)
-                }}</span>
-                <el-dropdown v-if="member.role !== 'OWNER'" trigger="click">
-                  <button type="button" class="icon-btn"><MoreHorizontal /></button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item
-                        v-if="member.role !== 'ADMIN'"
-                        @click="updateMemberRole(detailTeam.id, member.userId, 'ADMIN')"
-                      >
-                        <Shield class="dropdown-icon" /> 设为管理员
-                      </el-dropdown-item>
-                      <el-dropdown-item
-                        v-if="member.role !== 'MEMBER'"
-                        @click="updateMemberRole(detailTeam.id, member.userId, 'MEMBER')"
-                      >
-                        <Users class="dropdown-icon" /> 设为成员
-                      </el-dropdown-item>
-                      <el-dropdown-item
-                        divided
-                        @click="removeMember(detailTeam.id, member.userId, ownerName(member.user))"
-                      >
-                        <UserMinus class="dropdown-icon danger" /> 移除成员
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </article>
-          </section>
-
-          <section v-else-if="detailTab === 'pending'" class="drawer-content">
-            <div class="detail-section">
-              <div class="detail-head">
-                <h3>加入申请</h3>
-                <span>{{ detailApplications.length }}</span>
-              </div>
-              <article
-                v-for="application in detailApplications"
-                :key="application.id"
-                class="pending-row"
-              >
-                <div class="owner-cell">
-                  <UserAvatar :user="application.user" size="sm" />
-                  <span>
-                    <strong>{{ ownerName(application.user) }}</strong>
-                    <small>{{ application.message || '没有留言' }}</small>
-                  </span>
-                </div>
-                <div class="pending-actions">
-                  <button
-                    type="button"
-                    class="mini-btn"
-                    @click="handleApplication(application, true)"
-                  >
-                    <Check />通过
-                  </button>
-                  <button
-                    type="button"
-                    class="mini-btn danger-action"
-                    @click="handleApplication(application, false)"
-                  >
-                    <Ban />拒绝
-                  </button>
-                </div>
-              </article>
-              <div v-if="detailApplications.length === 0" class="quiet-state inline">
-                <CheckCircle2 />
-                <span>暂无加入申请</span>
-              </div>
-            </div>
-
-            <div class="detail-section">
-              <div class="detail-head">
-                <h3>待确认邀请</h3>
-                <span>{{ detailInvitations.length }}</span>
-              </div>
-              <article
-                v-for="invitation in detailInvitations"
-                :key="invitation.id"
-                class="pending-row"
-              >
-                <div>
-                  <strong>{{ invitation.inviteeEmail }}</strong>
-                  <small>过期时间 {{ formatDate(invitation.expiresAt) }}</small>
-                </div>
-                <button
-                  type="button"
-                  class="mini-btn danger-action"
-                  @click="cancelInvitation(invitation)"
-                >
-                  <X />撤销
-                </button>
-              </article>
-              <div v-if="detailInvitations.length === 0" class="quiet-state inline">
-                <CheckCircle2 />
-                <span>暂无待确认邀请</span>
-              </div>
-            </div>
-          </section>
-
-          <section v-else class="drawer-content">
-            <article
-              v-for="item in selectedTeamDetail?.activity || []"
-              :key="item.id"
-              class="activity-row"
-            >
-              <span class="activity-icon">
-                <Activity />
-              </span>
-              <div>
-                <strong>{{ item.title }}</strong>
-                <small>
-                  {{ activityTypeLabel(item.type) }} ·
-                  {{ item.actor ? ownerName(item.actor) : '系统' }} ·
-                  {{ formatDateTime(item.createdAt) }}
-                </small>
-              </div>
-            </article>
-            <div v-if="!selectedTeamDetail?.activity.length" class="quiet-state inline">
-              <Clock />
-              <span>暂无活动记录</span>
-            </div>
-          </section>
-        </template>
-      </div>
-    </el-drawer>
-
-    <el-dialog
+    <AdminTeamFormDialog
       v-model="teamDialogVisible"
-      :title="modalMode === 'create' ? '新建团队' : '编辑团队'"
-      width="560px"
-      destroy-on-close
-    >
-      <div class="form-stack">
-        <label>团队名称<input v-model="form.name" placeholder="例如：角色资产制作组" /></label>
-        <label>
-          负责人
-          <select v-model="form.ownerId">
-            <option v-for="user in users" :key="user.id" :value="user.id">
-              {{ ownerName(user) }}（{{ user.email }}）
-            </option>
-          </select>
-        </label>
-        <div class="form-grid">
-          <label>
-            可见性
-            <select v-model="form.visibility">
-              <option value="PRIVATE">私有</option>
-              <option value="PUBLIC">公开</option>
-            </select>
-          </label>
-          <label>分类<input v-model="form.category" placeholder="建模 / 材质 / 教学" /></label>
-        </div>
-        <label>头像 URL<input v-model="form.avatarUrl" placeholder="https://..." /></label>
-        <label>封面 URL<input v-model="form.coverUrl" placeholder="https://..." /></label>
-        <label
-          >描述<textarea
-            v-model="form.description"
-            rows="4"
-            placeholder="团队职责、协作范围、审核要求"
-          />
-        </label>
-      </div>
-      <template #footer>
-        <button type="button" class="ghost-btn dialog-btn" @click="teamDialogVisible = false">
-          取消
-        </button>
-        <button
-          type="button"
-          class="primary-btn dialog-btn"
-          :disabled="isSubmitting"
-          @click="handleSubmit"
-        >
-          保存
-        </button>
-      </template>
-    </el-dialog>
+      :mode="modalMode"
+      :team="selectedTeam"
+      :users="users"
+      :is-submitting="isSubmitting"
+      @submit="async (formData) => {
+        form = formData;
+        await handleSubmit();
+      }"
+    />
 
     <el-dialog v-model="addMemberDialogVisible" title="添加团队成员" width="440px" destroy-on-close>
       <div class="form-stack">

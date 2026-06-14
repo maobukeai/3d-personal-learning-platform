@@ -35,15 +35,17 @@ import { getApiErrorMessage } from '@/utils/error';
 import UserAvatar from '@/components/UserAvatar.vue';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights, formatCompactNumber } from './adminManagementInsights';
+import UserDetailDrawer from './components/UserDetailDrawer.vue';
+import UserQuotaDialog from './components/UserQuotaDialog.vue';
 
-type UserRole = 'USER' | 'ADMIN' | 'INSTRUCTOR';
-type UserStatus = 'ACTIVE' | 'BANNED';
+export type UserRole = 'USER' | 'ADMIN' | 'INSTRUCTOR';
+export type UserStatus = 'ACTIVE' | 'BANNED';
 type RoleFilter = 'ALL' | UserRole;
 type StatusFilter = 'ALL' | UserStatus;
 type ActivityFilter = 'ALL' | 'RECENT' | 'DORMANT' | 'NEVER' | 'SESSIONS' | 'RISK';
 type SmartFilter = 'ALL' | 'SUBSCRIBED' | 'NEW';
 
-interface AdminSubscriptionPlan {
+export interface AdminSubscriptionPlan {
   id: string;
   name?: string;
   displayName?: string;
@@ -51,7 +53,7 @@ interface AdminSubscriptionPlan {
   badgeColor?: string;
 }
 
-interface AdminUserSubscription {
+export interface AdminUserSubscription {
   id: string;
   planId: string;
   interval: 'MONTHLY' | 'YEARLY' | string;
@@ -60,7 +62,7 @@ interface AdminUserSubscription {
   plan: AdminSubscriptionPlan & { name: string };
 }
 
-interface AdminUserCounts {
+export interface AdminUserCounts {
   assets?: number;
   materials?: number;
   showcases?: number;
@@ -73,7 +75,14 @@ interface AdminUserCounts {
   auditLogs?: number;
 }
 
-interface AdminUser {
+export interface AdminUserRisk {
+  score: number;
+  level: 'high' | 'medium' | 'low';
+  reason: string;
+  reasons?: string[];
+}
+
+export interface AdminUser {
   id: string;
   name?: string | null;
   email: string;
@@ -116,13 +125,6 @@ interface RiskInfo {
   label: string;
   tone: 'green' | 'amber' | 'red' | 'slate' | 'blue';
   priority: number;
-}
-
-interface AdminUserRisk {
-  score: number;
-  level: 'high' | 'medium' | 'low';
-  reason: string;
-  reasons?: string[];
 }
 
 interface DistributionItem {
@@ -1442,176 +1444,16 @@ void overviewMetrics.value;
       </div>
     </section>
 
-    <el-drawer v-model="detailDrawerVisible" :size="560" :with-header="false" class="user-drawer">
-      <div v-if="detailUser" class="drawer-body">
-        <div class="drawer-hero">
-          <UserAvatar :user="detailUser" size="xl" />
-          <div>
-            <h2>{{ detailUser.name || '未命名用户' }}</h2>
-            <p>{{ detailUser.email }}</p>
-            <div class="drawer-pills">
-              <span class="pill" :class="roleClass(detailUser.role)">
-                {{ roleLabel(detailUser.role) }}
-              </span>
-              <span class="pill" :class="statusClass(detailUser.status)">
-                {{ statusLabel(detailUser.status) }}
-              </span>
-              <span class="pill" :class="riskClass(detailUser)">
-                {{ riskLabel(detailUser) }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="drawer-actions">
-          <el-button @click="openEditDialog(detailUser)">
-            <UserCog :size="15" />
-            编辑
-          </el-button>
-          <el-button @click="openSubDialog(detailUser)">
-            <CreditCard :size="15" />
-            订阅
-          </el-button>
-          <el-button @click="handleResetPassword(detailUser)">
-            <KeyRound :size="15" />
-            密码
-          </el-button>
-          <el-button type="danger" plain @click="handleRevokeSessions(detailUser)">
-            <TimerReset :size="15" />
-            清退
-          </el-button>
-        </div>
-
-        <section class="detail-section">
-          <h3>账号状态</h3>
-          <div class="detail-grid">
-            <div>
-              <span>积分</span>
-              <strong>{{ detailUser.points || 0 }}</strong>
-            </div>
-            <div>
-              <span>订阅</span>
-              <strong>{{ planLabel(detailUser) }}</strong>
-            </div>
-            <div>
-              <span>邮箱验证</span>
-              <strong>{{ detailUser.emailVerified ? '已验证' : '未验证' }}</strong>
-            </div>
-            <div>
-              <span>双因素认证</span>
-              <strong>{{ detailUser.twoFactorEnabled ? '已开启' : '未开启' }}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <h3>登录与活跃</h3>
-          <div class="detail-list">
-            <div>
-              <Clock :size="16" />
-              <span>最后登录</span>
-              <strong>{{ formatDate(detailUser.lastLoginAt) }}</strong>
-            </div>
-            <div>
-              <Activity :size="16" />
-              <span>最后活动</span>
-              <strong>{{ activityText(detailUser) }}</strong>
-            </div>
-            <div>
-              <MonitorSmartphone :size="16" />
-              <span>活跃会话</span>
-              <strong>{{ detailUser.activeSessions || 0 }} 个</strong>
-            </div>
-            <div>
-              <Fingerprint :size="16" />
-              <span>可信设备</span>
-              <strong>{{ detailUser.trustedDevices || 0 }} 台</strong>
-            </div>
-            <div>
-              <Mail :size="16" />
-              <span>登录 IP</span>
-              <strong>{{ detailUser.lastLoginIp || '未记录' }}</strong>
-            </div>
-            <div>
-              <ShieldCheck :size="16" />
-              <span>设备环境</span>
-              <strong>{{ shortUserAgent(detailUser.lastLoginUserAgent) }}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <h3>平台贡献</h3>
-          <div class="detail-grid three">
-            <div>
-              <span>资产</span>
-              <strong>{{ detailUser._count?.assets || 0 }}</strong>
-            </div>
-            <div>
-              <span>素材</span>
-              <strong>{{ detailUser._count?.materials || 0 }}</strong>
-            </div>
-            <div>
-              <span>作品</span>
-              <strong>{{ detailUser._count?.showcases || 0 }}</strong>
-            </div>
-            <div>
-              <span>团队</span>
-              <strong>{{ detailUser._count?.teamMemberships || 0 }}</strong>
-            </div>
-            <div>
-              <span>项目</span>
-              <strong>{{ detailUser._count?.projects || 0 }}</strong>
-            </div>
-            <div>
-              <span>任务</span>
-              <strong>{{ detailUser._count?.tasks || 0 }}</strong>
-            </div>
-            <div>
-              <span>反馈</span>
-              <strong>{{ detailUser._count?.feedbacks || 0 }}</strong>
-            </div>
-            <div>
-              <span>审计记录</span>
-              <strong>{{ detailUser._count?.auditLogs || 0 }}</strong>
-            </div>
-            <div>
-              <span>累计登录</span>
-              <strong>{{ detailUser.loginCount || 0 }}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <h3>时间线</h3>
-          <div class="timeline-list">
-            <div>
-              <span>注册</span>
-              <strong>{{ formatDate(detailUser.createdAt) }}</strong>
-            </div>
-            <div>
-              <span>资料更新</span>
-              <strong>{{ formatDate(detailUser.updatedAt) }}</strong>
-            </div>
-            <div>
-              <span>最后活动 IP</span>
-              <strong>{{ detailUser.lastActivityIp || '未记录' }}</strong>
-            </div>
-          </div>
-        </section>
-
-        <div class="drawer-danger">
-          <el-button plain @click="handleToggleStatus(detailUser)">
-            <Ban :size="15" />
-            {{ detailUser.status === 'BANNED' ? '恢复账号' : '封禁账号' }}
-          </el-button>
-          <el-button type="danger" plain @click="handleDeleteUser(detailUser)">
-            <Trash2 :size="15" />
-            永久删除
-          </el-button>
-        </div>
-      </div>
-    </el-drawer>
+    <UserDetailDrawer
+      v-model="detailDrawerVisible"
+      :user="detailUser"
+      @edit="openEditDialog"
+      @subscription="openSubDialog"
+      @reset-password="handleResetPassword"
+      @revoke-sessions="handleRevokeSessions"
+      @toggle-status="handleToggleStatus"
+      @delete="handleDeleteUser"
+    />
 
     <el-dialog v-model="createDialogVisible" title="新建用户" width="520px">
       <el-form label-position="top">
@@ -1670,55 +1512,17 @@ void overviewMetrics.value;
       </template>
     </el-dialog>
 
-    <el-dialog v-model="subDialogVisible" title="订阅管理" width="520px">
-      <el-form label-position="top">
-        <el-form-item label="用户">
-          <el-input :model-value="selectedUser?.email || ''" disabled />
-        </el-form-item>
-        <el-form-item label="订阅计划">
-          <el-select v-model="subForm.planId" class="full-width" placeholder="选择订阅计划">
-            <el-option
-              v-for="plan in plans"
-              :key="plan.id"
-              :label="plan.displayName || plan.name"
-              :value="plan.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="周期">
-          <el-select v-model="subForm.interval" class="full-width">
-            <el-option label="月付" value="MONTHLY" />
-            <el-option label="年付" value="YEARLY" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="subForm.status" class="full-width">
-            <el-option label="生效中" value="ACTIVE" />
-            <el-option label="已暂停" value="PAUSED" />
-            <el-option label="已取消" value="CANCELED" />
-            <el-option label="已过期" value="EXPIRED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="到期日期">
-          <el-date-picker
-            v-model="subForm.endDate"
-            class="full-width"
-            placeholder="不填则长期有效"
-            type="date"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button v-if="selectedUser?.subscription" type="danger" plain @click="handleCancelSub">
-          取消订阅
-        </el-button>
-        <el-button @click="subDialogVisible = false">关闭</el-button>
-        <el-button type="primary" :loading="isSubLoading" @click="handleManageSub">
-          保存订阅
-        </el-button>
-      </template>
-    </el-dialog>
+    <UserQuotaDialog
+      v-model="subDialogVisible"
+      :user="selectedUser"
+      :plans="plans"
+      :is-sub-loading="isSubLoading"
+      @submit="async (formData) => {
+        subForm = formData;
+        await handleManageSub();
+      }"
+      @cancel-sub="handleCancelSub"
+    />
   </div>
 </template>
 

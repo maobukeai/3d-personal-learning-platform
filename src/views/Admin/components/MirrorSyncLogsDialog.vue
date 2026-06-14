@@ -1,67 +1,43 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
-const { t } = useI18n();
 import { ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { ElMessage } from 'element-plus';
+import { Loader2, X } from 'lucide-vue-next';
 import api from '@/utils/api';
+import type { MirrorSource, SyncLog } from '../AdminMirrorView.vue';
 
-interface MirrorSource {
-  id: string;
-  name: string;
-  displayName: string;
-}
-
-interface SyncLog {
-  id: string;
-  type: string;
-  status: string;
-  startedAt: string;
-  finishedAt: string | null;
-  duration: number | null;
-  resourcesFound: number;
-  resourcesCreated: number;
-  resourcesUpdated: number;
-  resourcesDeleted: number;
-  error: string | null;
-}
+const visible = defineModel<boolean>({ default: false });
 
 const props = defineProps<{
-  modelValue: boolean;
-  source: MirrorSource | null;
-}>();
-
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void;
+  source?: MirrorSource | null;
 }>();
 
 const syncLogs = ref<SyncLog[]>([]);
 const isLoadingLogs = ref(false);
 
-const fetchSyncLogs = async () => {
+async function loadLogs() {
   if (!props.source) return;
   isLoadingLogs.value = true;
   try {
     const res = await api.get(`/api/admin/mirror/sources/${props.source.id}/sync-logs?limit=30`);
     syncLogs.value = res.data;
-  } catch (e) {
-    console.error('Fetch logs error:', e);
+  } catch (_e) {
+    ElMessage.error('加载日志失败');
   } finally {
     isLoadingLogs.value = false;
   }
-};
+}
 
 watch(
-  () => props.modelValue,
-  (val) => {
-    if (val) {
-      fetchSyncLogs();
+  [() => props.source, visible],
+  ([newSource, isVisible]) => {
+    if (newSource && isVisible) {
+      loadLogs();
+    } else if (!isVisible) {
+      syncLogs.value = [];
     }
   },
+  { immediate: true },
 );
-
-const handleClose = () => {
-  emit('update:modelValue', false);
-};
 
 function formatTime(date: string | null) {
   if (!date) return '-';
@@ -70,16 +46,16 @@ function formatTime(date: string | null) {
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return '-';
-  if (seconds < 60) return t('admin.seconds_seconds', { seconds: seconds });
-  return t('admin.math_floor_seconds_60', { Mathfloorseconds60: Math.floor(seconds / 60), seconds60: seconds % 60 });
+  if (seconds < 60) return `${seconds}秒`;
+  return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
 }
 </script>
 
 <template>
   <div
-    v-if="modelValue"
+    v-if="visible"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-    @click.self="handleClose"
+    @click.self="visible = false"
   >
     <div
       class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-2xl mx-4 shadow-2xl max-h-[80vh] flex flex-col"
@@ -90,19 +66,23 @@ function formatDuration(seconds: number | null) {
         <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
           同步日志 - {{ source?.displayName }}
         </h2>
-        <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer" @click="handleClose">
+        <button
+          type="button"
+          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          @click="visible = false"
+        >
           <X class="w-5 h-5" />
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-5 scrollbar-hide">
+      <div class="flex-1 overflow-y-auto p-5">
         <div v-if="isLoadingLogs" class="flex items-center justify-center py-10">
           <Loader2 class="w-5 h-5 animate-spin text-blue-500" />
-          <span class="ml-2 text-sm text-slate-500">{{ $t('admin.loading_logs') }}</span>
+          <span class="ml-2 text-sm text-slate-500">加载日志...</span>
         </div>
 
         <div v-else-if="syncLogs.length === 0" class="text-center py-10">
-          <p class="text-slate-500">{{ $t('admin.no_sync_records_yet') }}</p>
+          <p class="text-slate-500">暂无同步记录</p>
         </div>
 
         <div v-else class="space-y-3">
@@ -116,9 +96,7 @@ function formatDuration(seconds: number | null) {
                 : 'bg-slate-50 dark:bg-slate-800/30'
             "
           >
-            <div
-              class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2"
-            >
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
               <div class="flex items-center gap-2">
                 <span
                   class="px-2 py-0.5 text-xs rounded-full font-medium"
@@ -128,7 +106,7 @@ function formatDuration(seconds: number | null) {
                       : 'bg-green-100 dark:bg-green-500/20 text-green-600'
                   "
                 >
-                  {{ log.type === 'FULL' ? t('admin.full_synchronization') : $t('admin.incremental_synchronization') }}
+                  {{ log.type === 'FULL' ? '全量同步' : '增量同步' }}
                 </span>
                 <span
                   class="px-2 py-0.5 text-xs rounded-full font-medium"
@@ -141,9 +119,7 @@ function formatDuration(seconds: number | null) {
                   "
                 >
                   {{
-                    log.status === 'SUCCESS'
-                      ? t('admin.success') : log.status === 'FAILED'
-                        ? t('admin.failed') : $t('admin.in_progress')
+                    log.status === 'SUCCESS' ? '成功' : log.status === 'FAILED' ? '失败' : '进行中'
                   }}
                 </span>
               </div>
@@ -161,11 +137,11 @@ function formatDuration(seconds: number | null) {
               v-if="log.status !== 'RUNNING'"
               class="flex flex-wrap gap-3 text-xs text-slate-500"
             >
-              <span>{{ t('admin.log_resourcesfound_found', { count: log.resourcesFound }) }}</span>
-              <span class="text-emerald-500">{{ t('admin.added_log_resourcescreated', { count: log.resourcesCreated }) }}</span>
-              <span class="text-amber-500">{{ t('admin.update_log_resourcesupdated', { count: log.resourcesUpdated }) }}</span>
-              <span class="text-red-400">{{ t('admin.delete_log_resourcesdeleted', { count: log.resourcesDeleted }) }}</span>
-              <span v-if="log.duration">{{ t('admin.time_consuming_formatduration_log', { duration: formatDuration(log.duration) }) }}</span>
+              <span>发现 {{ log.resourcesFound }} 个</span>
+              <span class="text-emerald-500">新增 {{ log.resourcesCreated }}</span>
+              <span class="text-amber-500">更新 {{ log.resourcesUpdated }}</span>
+              <span class="text-red-400">删除 {{ log.resourcesDeleted }}</span>
+              <span v-if="log.duration">耗时 {{ formatDuration(log.duration) }}</span>
             </div>
           </div>
         </div>

@@ -32,23 +32,21 @@ import {
   Cpu,
   TrendingUp,
   Globe,
-  Briefcase
+  Briefcase,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { generateTOTP } from '@/utils/totp';
 import TwoFactorAddDialog from './components/TwoFactorAddDialog.vue';
 import TwoFactorEditDialog from './components/TwoFactorEditDialog.vue';
-import TwoFactorExportDialog from './components/TwoFactorExportDialog.vue';
-import TwoFactorBatchImportDialog from './components/TwoFactorBatchImportDialog.vue';
 import TwoFactorQrDialog from './components/TwoFactorQrDialog.vue';
+import TwoFactorSecurityDialog from './components/TwoFactorSecurityDialog.vue';
 import type { TwoFactorAccount } from '@/types';
 
 interface LiveTotp {
   code: string;
   timeLeft: number;
 }
-
 
 const accounts = ref<TwoFactorAccount[]>([]);
 const liveCodes = ref<Record<string, LiveTotp>>({});
@@ -60,9 +58,15 @@ const isAddDialogVisible = ref<boolean>(false);
 const isEditDialogVisible = ref<boolean>(false);
 const isQrDialogVisible = ref<boolean>(false);
 
-// New premium dialog states
-const isExportDialogVisible = ref<boolean>(false);
-const isImportPasswordDialogVisible = ref<boolean>(false);
+// Security Dialog state
+const isSecurityDialogVisible = ref<boolean>(false);
+const securityDialogTab = ref<'calibration' | 'export' | 'import'>('calibration');
+
+function openSecurityCenter(tab: 'calibration' | 'export' | 'import') {
+  securityDialogTab.value = tab;
+  isSecurityDialogVisible.value = true;
+}
+
 const isCategoryManagerVisible = ref<boolean>(false);
 
 const selectedEditAccount = ref<TwoFactorAccount | null>(null);
@@ -70,7 +74,6 @@ const selectedEditAccount = ref<TwoFactorAccount | null>(null);
 // Drag & drop states
 const draggingAccountId = ref<string | null>(null);
 const dragOverCategory = ref<string | null>(null);
-const tempImportedJson = ref<string>('');
 
 // Add ref states for grouping, privacy and sorting
 const selectedCategory = ref<string>('all');
@@ -84,7 +87,7 @@ const lastBackupTime = ref<string | null>(localStorage.getItem('two_factor_last_
 
 const categories = computed(() => {
   const set = new Set<string>();
-  accounts.value.forEach(acc => {
+  accounts.value.forEach((acc) => {
     if (acc.category && acc.category.trim()) {
       set.add(acc.category.trim());
     }
@@ -93,7 +96,7 @@ const categories = computed(() => {
 });
 
 const uncategorizedCount = computed(() => {
-  return accounts.value.filter(a => !a.category || !a.category.trim()).length;
+  return accounts.value.filter((a) => !a.category || !a.category.trim()).length;
 });
 
 // Secrets visibility map
@@ -103,7 +106,9 @@ const revealedSecrets = ref<Record<string, boolean>>({});
 const pinnedAccountIds = ref<string[]>(JSON.parse(localStorage.getItem('two_factor_pins') || '[]'));
 
 // Layout Mode state
-const layoutMode = ref<'grid' | 'list'>((localStorage.getItem('2fa_layout_mode') as any) === 'list' ? 'list' : 'grid');
+const layoutMode = ref<'grid' | 'list'>(
+  (localStorage.getItem('2fa_layout_mode') as any) === 'list' ? 'list' : 'grid',
+);
 
 function changeLayoutMode(mode: 'grid' | 'list') {
   layoutMode.value = mode;
@@ -144,7 +149,7 @@ async function updateCode(id: string, secret: string) {
 
 // Update all codes in the list
 async function updateAllCodes() {
-  const promises = accounts.value.map(acc => updateCode(acc.id, acc.secret));
+  const promises = accounts.value.map((acc) => updateCode(acc.id, acc.secret));
   await Promise.all(promises);
 }
 
@@ -182,8 +187,8 @@ async function deleteAccount(acc: TwoFactorAccount) {
       {
         confirmButtonText: '确认删除',
         cancelButtonText: '取消',
-        type: 'warning'
-      }
+        type: 'warning',
+      },
     );
 
     await api.delete(`/api/two-factor/accounts/${acc.id}`);
@@ -245,73 +250,40 @@ function copyCode(id: string) {
   }
 }
 
-// Trigger file select dialog for importing
-function triggerImport() {
-  fileInput.value?.click();
-}
-
-async function handleImportFile(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (!target.files || target.files.length === 0) return;
-
-  const file = target.files[0];
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const content = e.target?.result as string;
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed.encrypted && parsed.ciphertext) {
-        tempImportedJson.value = content;
-        isImportPasswordDialogVisible.value = true;
-      } else {
-        if (!Array.isArray(parsed)) {
-          throw new Error('备份文件格式有误，必须为 JSON 数组');
-        }
-        await submitImportPayload(parsed);
-      }
-    } catch (err: any) {
-      ElMessage.error(`读取备份失败: ${err.message || '文件格式不正确'}`);
-    } finally {
-      target.value = '';
-    }
-  };
-  reader.readAsText(file);
-}
-
-async function submitImportPayload(accountsList: any[]) {
-  isLoading.value = true;
-  try {
-    const res = await api.post('/api/two-factor/accounts/import', { accounts: accountsList });
-    if (res.data && res.data.success) {
-      ElMessage.success(`成功导入 ${res.data.count} 个 2FA 账号！`);
-      await fetchAccounts();
-    }
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '导入账号失败'));
-  } finally {
-    isLoading.value = false;
-  }
-}
+// No-op for files import since they are handled inside security dialog
 
 // Clock Drift Checker
 const clockSyncStatus = computed(() => {
-  if (clockDrift.value === null) return { text: '未检测', color: 'text-slate-400', status: 'unknown' };
+  if (clockDrift.value === null)
+    return { text: '未检测', color: 'text-slate-400', status: 'unknown' };
   const absDrift = Math.abs(clockDrift.value);
-  if (absDrift < 1500) return { text: '时间同步: 良好', color: 'text-emerald-400', status: 'perfect' };
-  if (absDrift < 3000) return { text: `时间微偏 (${(absDrift / 1000).toFixed(1)}秒)`, color: 'text-amber-400', status: 'warning' };
-  return { text: `时间漂移 (${(absDrift / 1000).toFixed(1)}秒)`, color: 'text-rose-400', status: 'critical' };
+  if (absDrift < 1500)
+    return { text: '时间同步: 良好', color: 'text-emerald-400', status: 'perfect' };
+  if (absDrift < 3000)
+    return {
+      text: `时间微偏 (${(absDrift / 1000).toFixed(1)}秒)`,
+      color: 'text-amber-400',
+      status: 'warning',
+    };
+  return {
+    text: `时间漂移 (${(absDrift / 1000).toFixed(1)}秒)`,
+    color: 'text-rose-400',
+    status: 'critical',
+  };
 });
 
 async function checkClockSync() {
   try {
     const startTime = Date.now();
-    const res = await api.get('/api/two-factor/accounts', { headers: { 'Cache-Control': 'no-cache' } });
+    const res = await api.get('/api/two-factor/accounts', {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
     const endTime = Date.now();
     const roundTripTime = endTime - startTime;
     const serverDateHeader = res.headers?.date || res.headers?.Date;
     if (serverDateHeader) {
       const serverTime = new Date(serverDateHeader).getTime();
-      const estimatedServerTime = serverTime + (roundTripTime / 2);
+      const estimatedServerTime = serverTime + roundTripTime / 2;
       clockDrift.value = endTime - estimatedServerTime;
     } else {
       clockDrift.value = 0;
@@ -499,12 +471,15 @@ async function onDrop(event: DragEvent, targetCategory: string) {
   const accId = event.dataTransfer?.getData('text/plain') || draggingAccountId.value;
   if (!accId) return;
 
-  const account = accounts.value.find(a => a.id === accId);
+  const account = accounts.value.find((a) => a.id === accId);
   if (!account) return;
 
   const categoryValue = targetCategory === 'uncategorized' ? '' : targetCategory;
 
-  if (account.category === categoryValue || (targetCategory === 'uncategorized' && (!account.category || !account.category.trim()))) {
+  if (
+    account.category === categoryValue ||
+    (targetCategory === 'uncategorized' && (!account.category || !account.category.trim()))
+  ) {
     dragOverCategory.value = null;
     draggingAccountId.value = null;
     return;
@@ -516,10 +491,12 @@ async function onDrop(event: DragEvent, targetCategory: string) {
       label: account.label,
       email: account.email,
       note: account.note,
-      category: categoryValue
+      category: categoryValue,
     });
-    
-    ElMessage.success(`已成功将 "${account.label}" 移动到 "${targetCategory === 'uncategorized' ? '未分类' : targetCategory}" 分组`);
+
+    ElMessage.success(
+      `已成功将 "${account.label}" 移动到 "${targetCategory === 'uncategorized' ? '未分类' : targetCategory}" 分组`,
+    );
     await fetchAccounts();
   } catch (err) {
     ElMessage.error('移动分组失败');
@@ -556,16 +533,18 @@ async function createCategory() {
   pendingCategories.value = pending;
 }
 
-const pendingCategories = ref<string[]>(JSON.parse(localStorage.getItem('two_factor_pending_categories') || '[]'));
+const pendingCategories = ref<string[]>(
+  JSON.parse(localStorage.getItem('two_factor_pending_categories') || '[]'),
+);
 
 const allCategories = computed(() => {
   const set = new Set<string>(categories.value);
-  pendingCategories.value.forEach(p => set.add(p));
+  pendingCategories.value.forEach((p) => set.add(p));
   return Array.from(set);
 });
 
 function removePendingCategory(name: string) {
-  pendingCategories.value = pendingCategories.value.filter(p => p !== name);
+  pendingCategories.value = pendingCategories.value.filter((p) => p !== name);
   localStorage.setItem('two_factor_pending_categories', JSON.stringify(pendingCategories.value));
 }
 
@@ -579,21 +558,21 @@ async function renameCategory(oldName: string) {
         cancelButtonText: '取消',
         inputValue: oldName,
         inputPattern: /\S+/,
-        inputErrorMessage: '分组名称不能为空'
-      }
+        inputErrorMessage: '分组名称不能为空',
+      },
     );
 
     if (!newName || newName.trim() === oldName) return;
 
     isLoading.value = true;
-    const targets = accounts.value.filter(a => a.category === oldName);
-    const promises = targets.map(acc =>
+    const targets = accounts.value.filter((a) => a.category === oldName);
+    const promises = targets.map((acc) =>
       api.put(`/api/two-factor/accounts/${acc.id}`, {
         label: acc.label,
         email: acc.email,
         note: acc.note,
-        category: newName.trim()
-      })
+        category: newName.trim(),
+      }),
     );
     await Promise.all(promises);
     ElMessage.success(`成功将分组 "${oldName}" 重命名为 "${newName.trim()}"`);
@@ -618,19 +597,19 @@ async function deleteCategory(categoryName: string) {
       {
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',
-        type: 'warning'
-      }
+        type: 'warning',
+      },
     );
 
     isLoading.value = true;
-    const targets = accounts.value.filter(a => a.category === categoryName);
-    const promises = targets.map(acc =>
+    const targets = accounts.value.filter((a) => a.category === categoryName);
+    const promises = targets.map((acc) =>
       api.put(`/api/two-factor/accounts/${acc.id}`, {
         label: acc.label,
         email: acc.email,
         note: acc.note,
-        category: ''
-      })
+        category: '',
+      }),
     );
     await Promise.all(promises);
     ElMessage.success(`分组 "${categoryName}" 已删除，相关账号已变更为未分类`);
@@ -651,7 +630,7 @@ async function deleteCategory(categoryName: string) {
 // Brand recognition helper
 function getBrandInfo(label: string, email?: string | null) {
   const name = (label + ' ' + (email || '')).toLowerCase();
-  
+
   if (name.includes('github')) {
     return {
       name: 'GitHub',
@@ -659,7 +638,7 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-slate-200',
       accentColor: '#24292f',
       tagBg: 'bg-white/10 text-white border-white/5',
-      icon: 'Github'
+      icon: 'Github',
     };
   }
   if (name.includes('google') || name.includes('gmail') || name.includes('chrome')) {
@@ -669,17 +648,22 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-rose-400',
       accentColor: '#ea4335',
       tagBg: 'bg-rose-500/15 text-rose-400 border-rose-500/10',
-      icon: 'Chrome'
+      icon: 'Chrome',
     };
   }
-  if (name.includes('microsoft') || name.includes('outlook') || name.includes('azure') || name.includes('office')) {
+  if (
+    name.includes('microsoft') ||
+    name.includes('outlook') ||
+    name.includes('azure') ||
+    name.includes('office')
+  ) {
     return {
       name: 'Microsoft',
       gradient: 'from-blue-600/10 via-indigo-600/5 to-transparent border-blue-500/20',
       text: 'text-blue-400',
       accentColor: '#00a4ef',
       tagBg: 'bg-blue-500/15 text-blue-400 border-blue-500/10',
-      icon: 'Lock'
+      icon: 'Lock',
     };
   }
   if (name.includes('aws') || name.includes('amazon')) {
@@ -689,7 +673,7 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-amber-500',
       accentColor: '#ff9900',
       tagBg: 'bg-amber-500/15 text-amber-500 border-amber-500/10',
-      icon: 'Cpu'
+      icon: 'Cpu',
     };
   }
   if (name.includes('openai') || name.includes('chatgpt')) {
@@ -699,7 +683,7 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-emerald-400',
       accentColor: '#10a37f',
       tagBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/10',
-      icon: 'Sparkles'
+      icon: 'Sparkles',
     };
   }
   if (name.includes('apple') || name.includes('icloud')) {
@@ -709,7 +693,7 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-neutral-300',
       accentColor: '#a3a3a3',
       tagBg: 'bg-white/10 text-neutral-300 border-white/5',
-      icon: 'ShieldCheck'
+      icon: 'ShieldCheck',
     };
   }
   if (name.includes('steam')) {
@@ -719,17 +703,24 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-cyan-400',
       accentColor: '#171a21',
       tagBg: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/10',
-      icon: 'Lock'
+      icon: 'Lock',
     };
   }
-  if (name.includes('binance') || name.includes('crypto') || name.includes('okx') || name.includes('coinbase') || name.includes('wallet') || name.includes('metamask')) {
+  if (
+    name.includes('binance') ||
+    name.includes('crypto') ||
+    name.includes('okx') ||
+    name.includes('coinbase') ||
+    name.includes('wallet') ||
+    name.includes('metamask')
+  ) {
     return {
       name: 'Crypto',
       gradient: 'from-yellow-600/15 via-amber-500/10 to-transparent border-yellow-500/20',
       text: 'text-yellow-400',
       accentColor: '#f3ba2f',
       tagBg: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/10',
-      icon: 'TrendingUp'
+      icon: 'TrendingUp',
     };
   }
   if (name.includes('facebook') || name.includes('meta') || name.includes('instagram')) {
@@ -739,7 +730,7 @@ function getBrandInfo(label: string, email?: string | null) {
       text: 'text-blue-400',
       accentColor: '#0668e1',
       tagBg: 'bg-blue-500/15 text-blue-400 border-blue-500/10',
-      icon: 'Globe'
+      icon: 'Globe',
     };
   }
 
@@ -752,7 +743,7 @@ function getBrandInfo(label: string, email?: string | null) {
     text: `text-slate-350`,
     accentColor: `hsl(${hue},50%,50%)`,
     tagBg: `bg-slate-800 text-slate-400 border-slate-700/40`,
-    icon: 'KeyRound'
+    icon: 'KeyRound',
   };
 }
 
@@ -764,21 +755,21 @@ const filteredAccounts = computed(() => {
   // 1. Filter by category
   if (selectedCategory.value !== 'all') {
     if (selectedCategory.value === 'uncategorized') {
-      list = list.filter(acc => !acc.category || !acc.category.trim());
+      list = list.filter((acc) => !acc.category || !acc.category.trim());
     } else {
       // Also clean pending categories that now have real accounts
-      list = list.filter(acc => acc.category === selectedCategory.value);
+      list = list.filter((acc) => acc.category === selectedCategory.value);
     }
   }
 
   // 2. Filter by search query
   if (query) {
     list = list.filter(
-      acc =>
+      (acc) =>
         acc.label.toLowerCase().includes(query) ||
         (acc.email && acc.email.toLowerCase().includes(query)) ||
         (acc.note && acc.note.toLowerCase().includes(query)) ||
-        (acc.category && acc.category.toLowerCase().includes(query))
+        (acc.category && acc.category.toLowerCase().includes(query)),
     );
   }
 
@@ -790,7 +781,7 @@ const filteredAccounts = computed(() => {
     if (sortBy.value === 'created_desc') {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
-    
+
     // Default: pinned_first
     const aPinned = pinnedAccountIds.value.includes(a.id) ? 1 : 0;
     const bPinned = pinnedAccountIds.value.includes(b.id) ? 1 : 0;
@@ -804,16 +795,26 @@ const filteredAccounts = computed(() => {
 function getBrandIconComponent(acc: TwoFactorAccount) {
   const brand = getBrandInfo(acc.label, acc.email);
   switch (brand.icon) {
-    case 'Github': return Github;
-    case 'Chrome': return Chrome;
-    case 'Lock': return Lock;
-    case 'Cpu': return Cpu;
-    case 'TrendingUp': return TrendingUp;
-    case 'Globe': return Globe;
-    case 'Briefcase': return Briefcase;
-    case 'ShieldCheck': return ShieldCheck;
-    case 'Sparkles': return Sparkles;
-    default: return KeyRound;
+    case 'Github':
+      return Github;
+    case 'Chrome':
+      return Chrome;
+    case 'Lock':
+      return Lock;
+    case 'Cpu':
+      return Cpu;
+    case 'TrendingUp':
+      return TrendingUp;
+    case 'Globe':
+      return Globe;
+    case 'Briefcase':
+      return Briefcase;
+    case 'ShieldCheck':
+      return ShieldCheck;
+    case 'Sparkles':
+      return Sparkles;
+    default:
+      return KeyRound;
   }
 }
 
@@ -831,10 +832,13 @@ function highlightText(text: string | null, query: string): string {
   if (!text) return '';
   const escapedText = escapeHtml(text);
   if (!query) return escapedText;
-  
+
   const escapedQuery = query.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const regex = new RegExp(`(${escapedQuery})`, 'gi');
-  return escapedText.replace(regex, '<mark class="bg-violet-500/35 text-white rounded px-0.5 font-semibold">$1</mark>');
+  return escapedText.replace(
+    regex,
+    '<mark class="bg-violet-500/35 text-white rounded px-0.5 font-semibold">$1</mark>',
+  );
 }
 
 onMounted(() => {
@@ -849,11 +853,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="two-fa-container min-h-screen p-4 sm:p-6" style="background-color: var(--bg-app); color: var(--text-primary)">
+  <div
+    class="two-fa-container min-h-screen p-4 sm:p-6"
+    style="background-color: var(--bg-app); color: var(--text-primary)"
+  >
     <!-- Unified Compact Header -->
-    <div class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-3 mb-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 animate-fade-in" style="border-color: var(--border-base)">
+    <div
+      class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-3 mb-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 animate-fade-in"
+      style="border-color: var(--border-base)"
+    >
       <div class="flex items-center gap-2.5 w-full lg:w-auto">
-        <div class="p-1.5 rounded-lg shrink-0" style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent, #6366f1)">
+        <div
+          class="p-1.5 rounded-lg shrink-0"
+          style="background-color: rgba(99, 102, 241, 0.1); color: var(--accent, #6366f1)"
+        >
           <KeyRound class="h-4 w-4" />
         </div>
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
@@ -861,35 +874,81 @@ onUnmounted(() => {
             2FA 验证码管理器
           </h1>
           <!-- Compact Stats Capsule -->
-          <div class="flex items-center gap-1.5 text-[10.5px] bg-slate-100 dark:bg-slate-800/60 border px-2 py-0.5 rounded-full select-none w-max max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="border-color: var(--border-base)">
-            <span class="text-slate-600 dark:text-slate-350">账号 <b class="text-indigo-600 dark:text-indigo-300 font-bold ml-0.5">{{ accounts.length }}</b></span>
+          <div
+            class="flex items-center gap-1.5 text-[10.5px] bg-slate-100 dark:bg-slate-800/60 border px-2 py-0.5 rounded-full select-none w-max max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
+            style="border-color: var(--border-base)"
+          >
+            <span class="text-slate-600 dark:text-slate-350"
+              >账号
+              <b class="text-indigo-600 dark:text-indigo-300 font-bold ml-0.5">{{
+                accounts.length
+              }}</b></span
+            >
             <span class="text-slate-350 dark:text-slate-650">|</span>
-            <span class="text-slate-600 dark:text-slate-350">分组 <b class="text-emerald-600 dark:text-emerald-300 font-bold ml-0.5">{{ allCategories.length }}</b></span>
+            <span class="text-slate-600 dark:text-slate-350"
+              >分组
+              <b class="text-emerald-600 dark:text-emerald-300 font-bold ml-0.5">{{
+                allCategories.length
+              }}</b></span
+            >
             <span class="text-slate-350 dark:text-slate-650">|</span>
-            <span v-if="lastBackupTime" class="text-emerald-600 dark:text-emerald-300 font-semibold flex items-center gap-0.5 animate-fade-in" :title="'上次备份时间: ' + new Date(lastBackupTime).toLocaleString()">
+            <span
+              v-if="lastBackupTime"
+              class="text-emerald-600 dark:text-emerald-300 font-semibold flex items-center gap-0.5 animate-fade-in"
+              :title="'上次备份时间: ' + new Date(lastBackupTime).toLocaleString()"
+            >
               <Clock class="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-400" />
-              <span>{{ new Date(lastBackupTime).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) }}</span>
+              <span>{{
+                new Date(lastBackupTime).toLocaleDateString('zh-CN', {
+                  month: 'numeric',
+                  day: 'numeric',
+                })
+              }}</span>
             </span>
-            <span v-else class="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-0.5" title="尚未进行数据备份">
+            <span
+              v-else
+              class="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-0.5"
+              title="尚未进行数据备份"
+            >
               <ShieldAlert class="h-2.5 w-2.5 text-amber-500 dark:text-amber-400" />
               <span>未备份</span>
             </span>
           </div>
         </div>
       </div>
-      
+
       <!-- Actions Group -->
-      <div class="flex items-center justify-between sm:justify-end gap-1.5 w-full lg:w-auto shrink-0 flex-wrap">
+      <div
+        class="flex items-center justify-between sm:justify-end gap-1.5 w-full lg:w-auto shrink-0 flex-wrap"
+      >
         <!-- Time Sync status check -->
         <button
           class="hover:bg-slate-700/40 border font-semibold px-2 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer text-[10px] bg-transparent"
           style="border-color: var(--border-base)"
-          @click="checkClockSync"
           title="点击校对本地时钟与服务器时间"
+          @click="openSecurityCenter('calibration')"
         >
           <span class="relative flex h-1.5 w-1.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="clockSyncStatus.status === 'perfect' ? 'bg-emerald-400' : clockSyncStatus.status === 'warning' ? 'bg-amber-400' : 'bg-rose-400'"></span>
-            <span class="relative inline-flex rounded-full h-1.5 w-1.5" :class="clockSyncStatus.status === 'perfect' ? 'bg-emerald-500' : clockSyncStatus.status === 'warning' ? 'bg-amber-500' : 'bg-rose-500'"></span>
+            <span
+              class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+              :class="
+                clockSyncStatus.status === 'perfect'
+                  ? 'bg-emerald-400'
+                  : clockSyncStatus.status === 'warning'
+                    ? 'bg-amber-400'
+                    : 'bg-rose-400'
+              "
+            ></span>
+            <span
+              class="relative inline-flex rounded-full h-1.5 w-1.5"
+              :class="
+                clockSyncStatus.status === 'perfect'
+                  ? 'bg-emerald-500'
+                  : clockSyncStatus.status === 'warning'
+                    ? 'bg-amber-500'
+                    : 'bg-rose-500'
+              "
+            ></span>
           </span>
           <span :class="clockSyncStatus.color" class="text-[10px]">{{ clockSyncStatus.text }}</span>
         </button>
@@ -898,9 +957,13 @@ onUnmounted(() => {
           <!-- Export button -->
           <button
             class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:text-indigo-400"
-            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-secondary);
+            "
             title="导出全部数据（账号 + 分组 + 备注），支持密码加密"
-            @click="isExportDialogVisible = true"
+            @click="openSecurityCenter('export')"
           >
             <Download class="h-3 w-3" />
             <span>导出</span>
@@ -909,9 +972,13 @@ onUnmounted(() => {
           <!-- Import button -->
           <button
             class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border hover:bg-emerald-550/10 hover:border-emerald-550/40 hover:text-emerald-450"
-            style="background-color: var(--bg-app); border-color: var(--border-base); color: var(--text-secondary)"
+            style="
+              background-color: var(--bg-app);
+              border-color: var(--border-base);
+              color: var(--text-secondary);
+            "
             title="从备份 JSON 文件导入，自动还原账号与分组"
-            @click="triggerImport"
+            @click="openSecurityCenter('import')"
           >
             <Upload class="h-3 w-3" />
             <span>导入</span>
@@ -929,9 +996,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- hidden file input for import -->
-    <input type="file" ref="fileInput" @change="handleImportFile" accept=".json" class="hidden" />
-
     <!-- Filters & Search Toolbar -->
     <div class="flex flex-wrap items-center justify-between gap-2 mb-2 w-full">
       <div class="flex items-center gap-2 w-full sm:w-auto flex-1 sm:flex-initial">
@@ -946,11 +1010,11 @@ onUnmounted(() => {
               <Search class="h-3.5 w-3.5 text-slate-400" />
             </template>
           </el-input>
-          
+
           <!-- Floating Filter Result Badge (compact & only visible when filtered) -->
           <transition name="el-fade-in-linear">
-            <span 
-              v-if="filteredAccounts.length !== accounts.length" 
+            <span
+              v-if="filteredAccounts.length !== accounts.length"
               class="absolute -top-2 -right-1.5 px-1.5 py-0.5 text-[8.5px] font-bold rounded bg-indigo-650 text-white border border-slate-900 shadow-md select-none shrink-0"
             >
               已过滤 {{ filteredAccounts.length }}
@@ -959,11 +1023,7 @@ onUnmounted(() => {
         </div>
 
         <div class="shrink-0 w-24 sm:w-28">
-          <el-select
-            v-model="sortBy"
-            placeholder="排序方式"
-            class="custom-sort-select"
-          >
+          <el-select v-model="sortBy" placeholder="排序方式" class="custom-sort-select">
             <el-option label="默认排序" value="pinned_first" />
             <el-option label="名称 A-Z" value="label_asc" />
             <el-option label="最新添加" value="created_desc" />
@@ -972,24 +1032,35 @@ onUnmounted(() => {
       </div>
 
       <!-- Layout Switcher & Privacy Buttons -->
-      <div class="flex items-center gap-1 bg-slate-800/20 border border-slate-700/60 p-0.5 rounded-lg shrink-0" style="border-color: var(--border-base)">
+      <div
+        class="flex items-center gap-1 bg-slate-800/20 border border-slate-700/60 p-0.5 rounded-lg shrink-0"
+        style="border-color: var(--border-base)"
+      >
         <button
           type="button"
-          @click="changeLayoutMode('grid')"
           class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-          :class="layoutMode === 'grid' ? '!bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+          :class="
+            layoutMode === 'grid'
+              ? '!bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          "
           title="网格视图"
+          @click="changeLayoutMode('grid')"
         >
           <LayoutGrid class="h-3.5 w-3.5" />
           <span class="hidden md:inline">网格</span>
         </button>
-        
+
         <button
           type="button"
-          @click="changeLayoutMode('list')"
           class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-          :class="layoutMode === 'list' ? '!bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+          :class="
+            layoutMode === 'list'
+              ? '!bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          "
           title="列表排布"
+          @click="changeLayoutMode('list')"
         >
           <List class="h-3.5 w-3.5" />
           <span class="hidden md:inline">列表</span>
@@ -999,10 +1070,14 @@ onUnmounted(() => {
 
         <button
           type="button"
-          @click="isPrivacyMode = !isPrivacyMode"
           class="p-1 px-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-semibold cursor-pointer border-none bg-transparent"
-          :class="isPrivacyMode ? '!bg-amber-600/25 !text-amber-400 border border-amber-500/20' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'"
+          :class="
+            isPrivacyMode
+              ? '!bg-amber-600/25 !text-amber-400 border border-amber-500/20'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          "
           :title="isPrivacyMode ? '关闭隐私遮罩' : '开启隐私遮罩'"
+          @click="isPrivacyMode = !isPrivacyMode"
         >
           <ShieldAlert v-if="isPrivacyMode" class="h-3.5 w-3.5 text-amber-400" />
           <ShieldCheck v-else class="h-3.5 w-3.5 text-emerald-400" />
@@ -1012,22 +1087,30 @@ onUnmounted(() => {
     </div>
 
     <!-- Droppable Category Tabs Filter Bar -->
-    <div class="flex items-center justify-between gap-2 mb-3 px-1 border-b pb-2 animate-fade-in" style="border-color: var(--border-base)">
-      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 -mr-2 pr-2 py-0.5 select-none">
-        <span class="text-[10px] uppercase font-bold tracking-wider mr-1 text-slate-500 flex items-center gap-1 shrink-0">
+    <div
+      class="flex items-center justify-between gap-2 mb-3 px-1 border-b pb-2 animate-fade-in"
+      style="border-color: var(--border-base)"
+    >
+      <div
+        class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 -mr-2 pr-2 py-0.5 select-none"
+      >
+        <span
+          class="text-[10px] uppercase font-bold tracking-wider mr-1 text-slate-500 flex items-center gap-1 shrink-0"
+        >
           <Tag class="h-3 w-3" style="color: var(--accent, #6366f1)" />
           <span>分组:</span>
         </span>
-        
+
         <!-- All accounts pill -->
         <button
-          @click="selectedCategory = 'all'"
           class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold shrink-0"
           :style="{
-            backgroundColor: selectedCategory === 'all' ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
+            backgroundColor:
+              selectedCategory === 'all' ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
             borderColor: selectedCategory === 'all' ? 'transparent' : 'transparent',
-            color: selectedCategory === 'all' ? '#fff' : 'var(--text-secondary)'
+            color: selectedCategory === 'all' ? '#fff' : 'var(--text-secondary)',
           }"
+          @click="selectedCategory = 'all'"
         >
           全部 ({{ accounts.length }})
         </button>
@@ -1036,23 +1119,31 @@ onUnmounted(() => {
         <button
           v-for="cat in allCategories"
           :key="cat"
+          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold relative shrink-0"
+          :class="{
+            'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === cat,
+          }"
+          :style="{
+            backgroundColor:
+              selectedCategory === cat ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
+            borderColor: selectedCategory === cat ? 'transparent' : 'transparent',
+            color: selectedCategory === cat ? '#fff' : 'var(--text-secondary)',
+          }"
           @click="selectedCategory = cat"
           @dragover.prevent="onDragOver($event, cat)"
           @dragleave="onDragLeave"
           @drop="onDrop($event, cat)"
-          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold relative shrink-0"
-          :class="{ 'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === cat }"
-          :style="{
-            backgroundColor: selectedCategory === cat ? 'var(--accent, #6366f1)' : 'rgba(148, 163, 184, 0.08)',
-            borderColor: selectedCategory === cat ? 'transparent' : 'transparent',
-            color: selectedCategory === cat ? '#fff' : 'var(--text-secondary)'
-          }"
         >
           {{ cat }}
-          <span class="ml-0.5 opacity-70">{{ accounts.filter(a => a.category === cat).length }}</span>
+          <span class="ml-0.5 opacity-70">{{
+            accounts.filter((a) => a.category === cat).length
+          }}</span>
           <!-- indicator that category is empty/pending -->
           <span
-            v-if="pendingCategories.includes(cat) && accounts.filter(a => a.category === cat).length === 0"
+            v-if="
+              pendingCategories.includes(cat) &&
+              accounts.filter((a) => a.category === cat).length === 0
+            "
             class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 border border-slate-900"
             title="空分组（可拖入账号激活）"
           ></span>
@@ -1061,17 +1152,21 @@ onUnmounted(() => {
         <!-- Uncategorized pill -->
         <button
           v-if="uncategorizedCount > 0"
+          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold shrink-0"
+          :class="{
+            'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg':
+              dragOverCategory === 'uncategorized',
+          }"
+          :style="{
+            backgroundColor:
+              selectedCategory === 'uncategorized' ? '#f59e0b' : 'rgba(245,158,11,0.10)',
+            borderColor: 'transparent',
+            color: selectedCategory === 'uncategorized' ? '#fff' : '#f59e0b',
+          }"
           @click="selectedCategory = 'uncategorized'"
           @dragover.prevent="onDragOver($event, 'uncategorized')"
           @dragleave="onDragLeave"
           @drop="onDrop($event, 'uncategorized')"
-          class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border font-semibold shrink-0"
-          :class="{ 'scale-105 !border-indigo-500 !bg-indigo-500/25 shadow-lg': dragOverCategory === 'uncategorized' }"
-          :style="{
-            backgroundColor: selectedCategory === 'uncategorized' ? '#f59e0b' : 'rgba(245,158,11,0.10)',
-            borderColor: 'transparent',
-            color: selectedCategory === 'uncategorized' ? '#fff' : '#f59e0b'
-          }"
         >
           未分类 ({{ uncategorizedCount }})
         </button>
@@ -1079,9 +1174,9 @@ onUnmounted(() => {
 
       <!-- Manage groups button -->
       <button
-        @click="isCategoryManagerVisible = true"
         class="px-2.5 py-0.5 text-[11px] rounded-full cursor-pointer transition-all border border-dashed border-slate-300 dark:border-slate-600 bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-400 font-semibold flex items-center gap-0.5 shrink-0 ml-2"
         title="新建分组 / 重命名 / 删除"
+        @click="isCategoryManagerVisible = true"
       >
         <Edit class="h-3 w-3" />
         <span>管理</span>
@@ -1103,87 +1198,119 @@ onUnmounted(() => {
       <div class="p-4 bg-slate-800/30 text-slate-500 rounded-full mb-4">
         <FolderOpen class="h-10 w-10 text-indigo-400" />
       </div>
-      <p class="text-sm font-semibold mb-1" style="color: var(--text-primary)">未找到任何 2FA 安全账号</p>
-      <p class="text-xs" style="color: var(--text-secondary)">可尝试更换筛选分组或修改搜索条件后再试</p>
+      <p class="text-sm font-semibold mb-1" style="color: var(--text-primary)">
+        未找到任何 2FA 安全账号
+      </p>
+      <p class="text-xs" style="color: var(--text-secondary)">
+        可尝试更换筛选分组或修改搜索条件后再试
+      </p>
     </div>
 
     <!-- Main Content Layouts -->
     <div v-else class="animate-fade-in">
       <!-- 1. Grid View (Compact Cards) -->
-      <div v-if="layoutMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+      <div
+        v-if="layoutMode === 'grid'"
+        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+      >
         <div
           v-for="acc in filteredAccounts"
           :key="acc.id"
           draggable="true"
-          @dragstart="onDragStart($event, acc)"
-          @dragend="onDragEnd"
           class="acc-card rounded-xl p-3 border transition-all duration-300 flex flex-col justify-between shadow-sm group/item relative overflow-hidden cursor-grab active:cursor-grabbing"
-          :class="{ 'animate-border-pulse border-rose-500/50 shadow-rose-950/20': liveCodes[acc.id]?.timeLeft <= 5 }"
+          :class="{
+            'animate-border-pulse border-rose-500/50 shadow-rose-950/20':
+              liveCodes[acc.id]?.timeLeft <= 5,
+          }"
           :style="{
             backgroundColor: 'var(--bg-card)',
-            borderColor: pinnedAccountIds.includes(acc.id) ? 'var(--accent, #6366f1)' : (liveCodes[acc.id]?.timeLeft <= 5 ? '#f43f5e' : 'var(--border-base)'),
-            boxShadow: pinnedAccountIds.includes(acc.id) ? '0 2px 8px rgba(99, 102, 241, 0.12)' : 'none'
+            borderColor: pinnedAccountIds.includes(acc.id)
+              ? 'var(--accent, #6366f1)'
+              : liveCodes[acc.id]?.timeLeft <= 5
+                ? '#f43f5e'
+                : 'var(--border-base)',
+            boxShadow: pinnedAccountIds.includes(acc.id)
+              ? '0 2px 8px rgba(99, 102, 241, 0.12)'
+              : 'none',
           }"
+          @dragstart="onDragStart($event, acc)"
+          @dragend="onDragEnd"
         >
           <!-- Background light effect -->
-          <div class="absolute -right-16 -top-16 w-32 h-32 rounded-full blur-3xl group-hover/item:bg-indigo-500/10 transition-all duration-500 pointer-events-none" style="background-color: rgba(99, 102, 241, 0.02)"></div>
+          <div
+            class="absolute -right-16 -top-16 w-32 h-32 rounded-full blur-3xl group-hover/item:bg-indigo-500/10 transition-all duration-500 pointer-events-none"
+            style="background-color: rgba(99, 102, 241, 0.02)"
+          ></div>
 
           <div class="flex flex-col gap-2">
             <!-- Header: Label & Email & Category tag -->
             <div class="flex justify-between items-start gap-1.5">
               <!-- Avatar or Dynamic Brand Logo icon -->
-              <div 
+              <div
                 class="w-6.5 h-6.5 rounded-lg shrink-0 flex items-center justify-center border text-[10px] font-bold bg-gradient-to-br"
-                :class="[getBrandInfo(acc.label, acc.email).gradient, getBrandInfo(acc.label, acc.email).text]"
+                :class="[
+                  getBrandInfo(acc.label, acc.email).gradient,
+                  getBrandInfo(acc.label, acc.email).text,
+                ]"
               >
                 <component :is="getBrandIconComponent(acc)" class="h-3.5 w-3.5" />
               </div>
 
               <div class="min-w-0 flex-1 ml-0.5">
-                <h3 class="text-xs font-bold truncate flex items-center gap-1" :title="acc.label" style="color: var(--text-primary)">
+                <h3
+                  class="text-xs font-bold truncate flex items-center gap-1"
+                  :title="acc.label"
+                  style="color: var(--text-primary)"
+                >
                   <span v-html="highlightText(acc.label, searchQuery)"></span>
-                  <span 
-                    v-if="acc.category" 
+                  <span
+                    v-if="acc.category"
                     class="text-[7.5px] font-black uppercase tracking-wider px-1 py-0.25 rounded shrink-0"
                     :class="getBrandInfo(acc.label, acc.email).tagBg"
                   >
                     {{ acc.category }}
                   </span>
                 </h3>
-                <p class="text-[9px] truncate mt-0.25" :title="acc.email || ''" style="color: var(--text-secondary)">
+                <p
+                  class="text-[9px] truncate mt-0.25"
+                  :title="acc.email || ''"
+                  style="color: var(--text-secondary)"
+                >
                   <span v-html="highlightText(acc.email || '未绑定账号', searchQuery)"></span>
                 </p>
               </div>
-              
+
               <!-- Hover Actions -->
-              <div class="flex items-center gap-0.5 shrink-0 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity duration-200">
+              <div
+                class="flex items-center gap-0.5 shrink-0 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity duration-200"
+              >
                 <button
-                  @click="togglePin(acc.id)"
                   class="p-0.5 rounded transition-colors cursor-pointer bg-transparent border-none text-slate-500 hover:text-amber-400"
                   :class="pinnedAccountIds.includes(acc.id) ? '!text-amber-400 !opacity-100' : ''"
                   :title="pinnedAccountIds.includes(acc.id) ? '取消置顶' : '置顶'"
+                  @click="togglePin(acc.id)"
                 >
                   <Pin v-if="pinnedAccountIds.includes(acc.id)" class="h-3 w-3 fill-amber-400" />
                   <PinOff v-else class="h-3 w-3" />
                 </button>
                 <button
-                  @click="showQrCode(acc)"
                   class="p-0.5 text-slate-500 hover:text-indigo-400 rounded transition-colors cursor-pointer bg-transparent border-none"
                   title="二维码"
+                  @click="showQrCode(acc)"
                 >
                   <QrCode class="h-3 w-3" />
                 </button>
                 <button
-                  @click="openEditDialog(acc)"
                   class="p-0.5 text-slate-500 hover:text-amber-400 rounded transition-colors cursor-pointer bg-transparent border-none"
                   title="编辑"
+                  @click="openEditDialog(acc)"
                 >
                   <Edit class="h-3 w-3" />
                 </button>
                 <button
-                  @click="deleteAccount(acc)"
                   class="p-0.5 text-slate-500 hover:text-rose-500 rounded transition-colors cursor-pointer bg-transparent border-none"
                   title="删除"
+                  @click="deleteAccount(acc)"
                 >
                   <Trash2 class="h-3 w-3" />
                 </button>
@@ -1191,16 +1318,27 @@ onUnmounted(() => {
             </div>
 
             <!-- OTP Code Display (with Privacy Blur option) -->
-            <div class="code-box border rounded-lg p-1.5 px-2 flex items-center justify-between gap-1.5" style="background-color: var(--bg-app); border-color: var(--border-base)">
+            <div
+              class="code-box border rounded-lg p-1.5 px-2 flex items-center justify-between gap-1.5"
+              style="background-color: var(--bg-app); border-color: var(--border-base)"
+            >
               <div class="flex flex-col min-w-0 w-full">
                 <div class="flex items-center gap-1">
-                  <span class="text-[8px] font-bold tracking-wider uppercase text-slate-500">动态码</span>
-                  <span v-if="copiedStates[acc.id]" class="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-0.5 rounded animate-pulse">已复制</span>
+                  <span class="text-[8px] font-bold tracking-wider uppercase text-slate-500"
+                    >动态码</span
+                  >
+                  <span
+                    v-if="copiedStates[acc.id]"
+                    class="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-0.5 rounded animate-pulse"
+                    >已复制</span
+                  >
                 </div>
                 <div
                   class="text-base font-extrabold tracking-widest font-mono cursor-pointer select-all transition-colors flex items-center gap-1.5 hover:text-indigo-400"
                   style="color: var(--accent, #6366f1)"
-                  :class="{ 'blur-[5px] hover:blur-none transition-all duration-300': isPrivacyMode }"
+                  :class="{
+                    'blur-[5px] hover:blur-none transition-all duration-300': isPrivacyMode,
+                  }"
                   @click="copyCode(acc.id)"
                 >
                   <span class="truncate">
@@ -1210,29 +1348,46 @@ onUnmounted(() => {
                         : '------'
                     }}
                   </span>
-                  <Copy class="h-3 w-3 text-slate-500 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                  <Copy
+                    class="h-3 w-3 text-slate-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                  />
                 </div>
               </div>
 
               <!-- SVG Progress Ring -->
               <div class="flex items-center justify-center relative shrink-0">
                 <svg class="w-6 h-6 transform -rotate-90">
-                  <circle cx="12" cy="12" r="9" stroke="rgba(71, 85, 105, 0.15)" stroke-width="2" fill="transparent" />
                   <circle
                     cx="12"
                     cy="12"
                     r="9"
-                    :stroke="liveCodes[acc.id]?.timeLeft <= 5 ? '#ef4444' : 'var(--accent, #6366f1)'"
+                    stroke="rgba(71, 85, 105, 0.15)"
+                    stroke-width="2"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    :stroke="
+                      liveCodes[acc.id]?.timeLeft <= 5 ? '#ef4444' : 'var(--accent, #6366f1)'
+                    "
                     stroke-width="2"
                     fill="transparent"
                     :stroke-dasharray="2 * Math.PI * 9"
-                    :stroke-dashoffset="2 * Math.PI * 9 * (1 - (liveCodes[acc.id]?.timeLeft || 30) / 30)"
+                    :stroke-dashoffset="
+                      2 * Math.PI * 9 * (1 - (liveCodes[acc.id]?.timeLeft || 30) / 30)
+                    "
                     class="transition-all duration-1000 ease-linear"
                   />
                 </svg>
                 <span
                   class="absolute text-[7px] font-bold font-mono"
-                  :class="liveCodes[acc.id]?.timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-400'"
+                  :class="
+                    liveCodes[acc.id]?.timeLeft <= 5
+                      ? 'text-rose-500 animate-pulse'
+                      : 'text-slate-400'
+                  "
                 >
                   {{ liveCodes[acc.id]?.timeLeft ?? 30 }}
                 </span>
@@ -1241,27 +1396,41 @@ onUnmounted(() => {
           </div>
 
           <!-- Secret Key & Notes -->
-          <div class="border-t pt-1.5 mt-2 flex flex-col gap-1" style="border-color: var(--border-base)">
-            <div class="flex items-center justify-between text-[10px] px-1.5 py-0.5 rounded border" style="background-color: var(--bg-app); border-color: var(--border-base)">
-              <span class="font-mono flex items-center gap-1 truncate max-w-[70%]" style="color: var(--text-secondary)">
+          <div
+            class="border-t pt-1.5 mt-2 flex flex-col gap-1"
+            style="border-color: var(--border-base)"
+          >
+            <div
+              class="flex items-center justify-between text-[10px] px-1.5 py-0.5 rounded border"
+              style="background-color: var(--bg-app); border-color: var(--border-base)"
+            >
+              <span
+                class="font-mono flex items-center gap-1 truncate max-w-[70%]"
+                style="color: var(--text-secondary)"
+              >
                 <KeyRound class="h-2.5 w-2.5 shrink-0" style="color: var(--accent, #6366f1)" />
-                <span class="truncate" :class="{ 'blur-[4px] hover:blur-none transition-all duration-300': isPrivacyMode }">
+                <span
+                  class="truncate"
+                  :class="{
+                    'blur-[4px] hover:blur-none transition-all duration-300': isPrivacyMode,
+                  }"
+                >
                   {{ revealedSecrets[acc.id] ? acc.secret : '••••••••••••' }}
                 </span>
               </span>
               <div class="flex items-center gap-0.5 shrink-0">
                 <button
-                  @click="toggleSecret(acc.id)"
                   class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent p-0.5"
                   title="隐藏/显示"
+                  @click="toggleSecret(acc.id)"
                 >
                   <EyeOff v-if="revealedSecrets[acc.id]" class="h-3 w-3" />
                   <Eye v-else class="h-3 w-3" />
                 </button>
                 <button
-                  @click="copyToClipboard(acc.secret, acc.id, '密钥已复制')"
                   class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent p-0.5"
                   title="复制"
+                  @click="copyToClipboard(acc.secret, acc.id, '密钥已复制')"
                 >
                   <Copy class="h-3 w-3" />
                 </button>
@@ -1269,7 +1438,11 @@ onUnmounted(() => {
             </div>
 
             <!-- Notes -->
-            <div v-if="acc.note" class="flex items-center gap-1 text-[9px] px-0.5" style="color: var(--text-secondary)">
+            <div
+              v-if="acc.note"
+              class="flex items-center gap-1 text-[9px] px-0.5"
+              style="color: var(--text-secondary)"
+            >
               <FileText class="h-2.5 w-2.5 shrink-0 text-slate-500" />
               <span class="truncate text-slate-500" :title="acc.note">
                 <span v-html="highlightText(acc.note, searchQuery)"></span>
@@ -1282,7 +1455,10 @@ onUnmounted(() => {
       <!-- 2. Column List View -->
       <div v-else class="flex flex-col gap-2">
         <!-- List Header -->
-        <div class="hidden lg:flex items-center justify-between px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b" style="border-color: var(--border-base)">
+        <div
+          class="hidden lg:flex items-center justify-between px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b"
+          style="border-color: var(--border-base)"
+        >
           <div class="w-[260px]">账号信息</div>
           <div class="w-[180px]">双重验证动态码</div>
           <div class="w-[220px]">安全密钥</div>
@@ -1295,47 +1471,67 @@ onUnmounted(() => {
           v-for="acc in filteredAccounts"
           :key="acc.id"
           draggable="true"
-          @dragstart="onDragStart($event, acc)"
-          @dragend="onDragEnd"
           class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 px-4 border rounded-xl hover:shadow-md transition-all duration-300 relative overflow-hidden group/listitem cursor-grab active:cursor-grabbing"
           :class="{ 'border-rose-500/40 shadow-rose-950/10': liveCodes[acc.id]?.timeLeft <= 5 }"
           :style="{
             backgroundColor: 'var(--bg-card)',
-            borderColor: pinnedAccountIds.includes(acc.id) ? 'var(--accent, #6366f1)' : (liveCodes[acc.id]?.timeLeft <= 5 ? '#f43f5e' : 'var(--border-base)'),
-            boxShadow: pinnedAccountIds.includes(acc.id) ? '0 2px 8px rgba(99, 102, 241, 0.08)' : 'none'
+            borderColor: pinnedAccountIds.includes(acc.id)
+              ? 'var(--accent, #6366f1)'
+              : liveCodes[acc.id]?.timeLeft <= 5
+                ? '#f43f5e'
+                : 'var(--border-base)',
+            boxShadow: pinnedAccountIds.includes(acc.id)
+              ? '0 2px 8px rgba(99, 102, 241, 0.08)'
+              : 'none',
           }"
+          @dragstart="onDragStart($event, acc)"
+          @dragend="onDragEnd"
         >
           <!-- Column 1: Info (Label / User Email / Category tag) -->
           <div class="flex items-center gap-3 w-full lg:w-[260px] shrink-0 min-w-0">
             <button
-              @click="togglePin(acc.id)"
               class="p-1 rounded transition-colors cursor-pointer bg-transparent border-none text-slate-500 hover:text-slate-350 shrink-0"
               :title="pinnedAccountIds.includes(acc.id) ? '取消置顶' : '置顶'"
+              @click="togglePin(acc.id)"
             >
-              <Pin v-if="pinnedAccountIds.includes(acc.id)" class="h-4 w-4 fill-amber-400 text-amber-400" />
+              <Pin
+                v-if="pinnedAccountIds.includes(acc.id)"
+                class="h-4 w-4 fill-amber-400 text-amber-400"
+              />
               <PinOff v-else class="h-4 w-4" />
             </button>
 
             <!-- Brand Icon representation -->
-            <div 
+            <div
               class="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center border text-sm font-bold bg-gradient-to-br"
-              :class="[getBrandInfo(acc.label, acc.email).gradient, getBrandInfo(acc.label, acc.email).text]"
+              :class="[
+                getBrandInfo(acc.label, acc.email).gradient,
+                getBrandInfo(acc.label, acc.email).text,
+              ]"
             >
               <component :is="getBrandIconComponent(acc)" class="h-4 w-4" />
             </div>
-            
+
             <div class="min-w-0">
-              <h4 class="text-sm font-bold truncate flex items-center gap-1.5" :title="acc.label" style="color: var(--text-primary)">
+              <h4
+                class="text-sm font-bold truncate flex items-center gap-1.5"
+                :title="acc.label"
+                style="color: var(--text-primary)"
+              >
                 <span v-html="highlightText(acc.label, searchQuery)"></span>
-                <span 
-                  v-if="acc.category" 
+                <span
+                  v-if="acc.category"
                   class="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
                   :class="getBrandInfo(acc.label, acc.email).tagBg"
                 >
                   {{ acc.category }}
                 </span>
               </h4>
-              <p class="text-[11px] truncate mt-0.5" :title="acc.email || ''" style="color: var(--text-secondary)">
+              <p
+                class="text-[11px] truncate mt-0.5"
+                :title="acc.email || ''"
+                style="color: var(--text-secondary)"
+              >
                 <span v-html="highlightText(acc.email || '未绑定邮箱/账号', searchQuery)"></span>
               </p>
             </div>
@@ -1343,12 +1539,17 @@ onUnmounted(() => {
 
           <!-- Column 2: Dynamic Code & Countdown (with Privacy Blur) -->
           <div class="flex items-center gap-3 w-full lg:w-[180px] shrink-0">
-            <div class="border rounded-lg px-3 py-1.5 flex items-center justify-between gap-2.5 w-full" style="background-color: var(--bg-app); border-color: var(--border-base)">
+            <div
+              class="border rounded-lg px-3 py-1.5 flex items-center justify-between gap-2.5 w-full"
+              style="background-color: var(--bg-app); border-color: var(--border-base)"
+            >
               <div class="flex items-center gap-2 cursor-pointer w-full" @click="copyCode(acc.id)">
-                <span 
-                  class="text-base font-extrabold font-mono tracking-wider" 
+                <span
+                  class="text-base font-extrabold font-mono tracking-wider"
                   style="color: var(--accent, #6366f1)"
-                  :class="{ 'blur-[5px] hover:blur-none transition-all duration-300': isPrivacyMode }"
+                  :class="{
+                    'blur-[5px] hover:blur-none transition-all duration-300': isPrivacyMode,
+                  }"
                 >
                   {{
                     liveCodes[acc.id]
@@ -1356,26 +1557,46 @@ onUnmounted(() => {
                       : '------'
                   }}
                 </span>
-                <Copy class="h-3 w-3 text-slate-500 opacity-0 group-hover/listitem:opacity-100 transition-opacity ml-auto" />
+                <Copy
+                  class="h-3 w-3 text-slate-500 opacity-0 group-hover/listitem:opacity-100 transition-opacity ml-auto"
+                />
               </div>
-              
+
               <!-- SVG Progress Ring (Very Small) -->
               <div class="flex items-center justify-center relative shrink-0">
                 <svg class="w-6 h-6 transform -rotate-90">
-                  <circle cx="12" cy="12" r="9" stroke="rgba(71, 85, 105, 0.15)" stroke-width="2" fill="transparent" />
                   <circle
                     cx="12"
                     cy="12"
                     r="9"
-                    :stroke="liveCodes[acc.id]?.timeLeft <= 5 ? '#ef4444' : 'var(--accent, #6366f1)'"
+                    stroke="rgba(71, 85, 105, 0.15)"
+                    stroke-width="2"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    :stroke="
+                      liveCodes[acc.id]?.timeLeft <= 5 ? '#ef4444' : 'var(--accent, #6366f1)'
+                    "
                     stroke-width="2"
                     fill="transparent"
                     :stroke-dasharray="2 * Math.PI * 9"
-                    :stroke-dashoffset="2 * Math.PI * 9 * (1 - (liveCodes[acc.id]?.timeLeft || 30) / 30)"
+                    :stroke-dashoffset="
+                      2 * Math.PI * 9 * (1 - (liveCodes[acc.id]?.timeLeft || 30) / 30)
+                    "
                     class="transition-all duration-1000 ease-linear"
                   />
                 </svg>
-                <span class="absolute text-[7px] font-bold font-mono" :class="liveCodes[acc.id]?.timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-400'">
+                <span
+                  class="absolute text-[7px] font-bold font-mono"
+                  :class="
+                    liveCodes[acc.id]?.timeLeft <= 5
+                      ? 'text-rose-500 animate-pulse'
+                      : 'text-slate-400'
+                  "
+                >
                   {{ liveCodes[acc.id]?.timeLeft ?? 30 }}
                 </span>
               </div>
@@ -1383,27 +1604,38 @@ onUnmounted(() => {
           </div>
 
           <!-- Column 3: Secret Key (with Privacy Blur) -->
-          <div class="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border w-full lg:w-[220px] shrink-0" style="background-color: var(--bg-app); border-color: var(--border-base)">
-            <span 
-              class="font-mono truncate" 
-              style="color: var(--text-secondary); max-width: 130px;"
+          <div
+            class="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border w-full lg:w-[220px] shrink-0"
+            style="background-color: var(--bg-app); border-color: var(--border-base)"
+          >
+            <span
+              class="font-mono truncate"
+              style="color: var(--text-secondary); max-width: 130px"
               :class="{ 'blur-[4px] hover:blur-none transition-all duration-300': isPrivacyMode }"
             >
               {{ revealedSecrets[acc.id] ? acc.secret : '••••••••••••••••' }}
             </span>
             <div class="flex items-center gap-1.5 shrink-0 ml-1">
-              <button @click="toggleSecret(acc.id)" class="text-slate-500 hover:text-slate-350 transition-colors cursor-pointer border-none bg-transparent">
+              <button
+                class="text-slate-500 hover:text-slate-350 transition-colors cursor-pointer border-none bg-transparent"
+                @click="toggleSecret(acc.id)"
+              >
                 <EyeOff v-if="revealedSecrets[acc.id]" class="h-3.5 w-3.5" />
                 <Eye v-else class="h-3.5 w-3.5" />
               </button>
-              <button @click="copyToClipboard(acc.secret, acc.id, '密钥已复制')" class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent">
+              <button
+                class="text-slate-500 hover:text-slate-355 transition-colors cursor-pointer border-none bg-transparent"
+                @click="copyToClipboard(acc.secret, acc.id, '密钥已复制')"
+              >
                 <Copy class="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
           <!-- Column 4: Notes/Remark -->
-          <div class="flex items-center gap-1.5 text-xs min-w-0 w-full lg:w-auto flex-1 px-1 lg:px-2">
+          <div
+            class="flex items-center gap-1.5 text-xs min-w-0 w-full lg:w-auto flex-1 px-1 lg:px-2"
+          >
             <FileText v-if="acc.note" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
             <span class="truncate text-slate-400 italic" :title="acc.note || ''">
               <span v-if="acc.note" v-html="highlightText(acc.note, searchQuery)"></span>
@@ -1414,23 +1646,23 @@ onUnmounted(() => {
           <!-- Column 5: Action Buttons -->
           <div class="flex items-center gap-0.5 shrink-0 ml-auto lg:ml-0">
             <button
-              @click="showQrCode(acc)"
               class="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
               title="手机扫码添加"
+              @click="showQrCode(acc)"
             >
               <QrCode class="h-4 w-4" />
             </button>
             <button
-              @click="openEditDialog(acc)"
               class="p-1.5 text-slate-400 hover:text-amber-400 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
               title="编辑"
+              @click="openEditDialog(acc)"
             >
               <Edit class="h-4 w-4" />
             </button>
             <button
-              @click="deleteAccount(acc)"
               class="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer bg-transparent border-none"
               title="删除"
+              @click="deleteAccount(acc)"
             >
               <Trash2 class="h-4 w-4" />
             </button>
@@ -1439,17 +1671,12 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Modal Dialog: Export Options -->
-    <TwoFactorExportDialog
-      v-model="isExportDialogVisible"
+    <!-- Unified Security Dialog -->
+    <TwoFactorSecurityDialog
+      v-model="isSecurityDialogVisible"
       :accounts="accounts"
-      @exported="(dateStr) => lastBackupTime = dateStr"
-    />
-
-    <!-- Modal Dialog: Import Password Decrypt -->
-    <TwoFactorBatchImportDialog
-      v-model="isImportPasswordDialogVisible"
-      :encrypted-json="tempImportedJson"
+      :initial-tab="securityDialogTab"
+      @exported="(dateStr) => (lastBackupTime = dateStr)"
       @imported="fetchAccounts"
     />
 
@@ -1464,15 +1691,18 @@ onUnmounted(() => {
     >
       <div class="space-y-4">
         <!-- Create new category -->
-        <div class="rounded-xl border p-3.5 space-y-2.5" style="background-color: var(--bg-app); border-color: var(--border-base)">
+        <div
+          class="rounded-xl border p-3.5 space-y-2.5"
+          style="background-color: var(--bg-app); border-color: var(--border-base)"
+        >
           <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">新建分组</p>
           <div class="flex items-center gap-2">
             <el-input
               v-model="newCategoryName"
               placeholder="输入新分组名称，如: 工作、金融、游戏..."
               class="custom-dialog-input flex-1"
-              @keyup.enter="createCategory"
               clearable
+              @keyup.enter="createCategory"
             />
             <el-button
               type="primary"
@@ -1483,12 +1713,17 @@ onUnmounted(() => {
               创建
             </el-button>
           </div>
-          <p class="text-[10px] text-slate-500">创建后可在添加/编辑账号时选择，或直接将账号卡片拖入分组标签来分配。</p>
+          <p class="text-[10px] text-slate-500">
+            创建后可在添加/编辑账号时选择，或直接将账号卡片拖入分组标签来分配。
+          </p>
         </div>
 
         <!-- Existing categories list -->
         <div class="rounded-xl border overflow-hidden" style="border-color: var(--border-base)">
-          <div class="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b" style="border-color: var(--border-base); background-color: rgba(15,23,42,0.3)">
+          <div
+            class="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b"
+            style="border-color: var(--border-base); background-color: rgba(15, 23, 42, 0.3)"
+          >
             <span>分组名称</span>
             <span>账号数</span>
             <span>操作</span>
@@ -1499,9 +1734,13 @@ onUnmounted(() => {
             <p>暂无分组，在上方输入框创建第一个分组</p>
           </div>
 
-          <div v-else class="divide-y max-h-72 overflow-y-auto" style="border-color: var(--border-base)">
-            <div 
-              v-for="cat in allCategories" 
+          <div
+            v-else
+            class="divide-y max-h-72 overflow-y-auto"
+            style="border-color: var(--border-base)"
+          >
+            <div
+              v-for="cat in allCategories"
               :key="cat"
               class="flex items-center justify-between px-3 py-2.5 text-xs hover:bg-slate-800/20 transition-colors group"
             >
@@ -1509,21 +1748,25 @@ onUnmounted(() => {
                 <div class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></div>
                 <span class="font-bold text-slate-800 dark:text-slate-200 truncate">{{ cat }}</span>
                 <span
-                  v-if="pendingCategories.includes(cat) && accounts.filter(a => a.category === cat).length === 0"
+                  v-if="
+                    pendingCategories.includes(cat) &&
+                    accounts.filter((a) => a.category === cat).length === 0
+                  "
                   class="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full font-bold shrink-0"
-                >空</span>
+                  >空</span
+                >
               </div>
               <span class="text-slate-500 font-mono text-[11px] shrink-0 mx-4">
-                {{ accounts.filter(a => a.category === cat).length }} 个账号
+                {{ accounts.filter((a) => a.category === cat).length }} 个账号
               </span>
               <div class="flex items-center gap-1 shrink-0">
-                <button 
+                <button
                   class="px-2 py-1 rounded-lg bg-transparent border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/15 hover:text-indigo-300 cursor-pointer font-bold text-[10px] transition-colors"
                   @click="renameCategory(cat)"
                 >
                   重命名
                 </button>
-                <button 
+                <button
                   class="px-2 py-1 rounded-lg bg-transparent border border-rose-500/20 text-rose-500 hover:bg-rose-500/15 hover:text-rose-400 cursor-pointer font-bold text-[10px] transition-colors"
                   @click="deleteCategory(cat)"
                 >
@@ -1542,7 +1785,11 @@ onUnmounted(() => {
       <template #footer>
         <div class="flex justify-end pt-2">
           <el-button
-            style="background-color: var(--bg-app); border: 1px solid var(--border-base); color: var(--text-secondary)"
+            style="
+              background-color: var(--bg-app);
+              border: 1px solid var(--border-base);
+              color: var(--text-secondary);
+            "
             class="px-4 py-1.5 rounded-xl text-xs font-bold"
             @click="isCategoryManagerVisible = false"
           >
@@ -1568,10 +1815,7 @@ onUnmounted(() => {
     />
 
     <!-- Modal Dialog: Mobile QR Code Scanner View -->
-    <TwoFactorQrDialog
-      v-model="isQrDialogVisible"
-      :account="qrCodeAccount"
-    />
+    <TwoFactorQrDialog v-model="isQrDialogVisible" :account="qrCodeAccount" />
   </div>
 </template>
 
@@ -1608,7 +1852,9 @@ onUnmounted(() => {
 }
 
 .custom-search-input .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 1px var(--accent, #6366f1) inset, 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
 .custom-dialog-input .el-input__wrapper,
@@ -1626,7 +1872,9 @@ onUnmounted(() => {
 
 .custom-dialog-input .el-input__wrapper.is-focus,
 .custom-dialog-input .el-textarea__inner:focus {
-  box-shadow: 0 0 0 1px var(--accent, #6366f1) inset, 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
 /* Scrollbars */
@@ -1670,7 +1918,9 @@ onUnmounted(() => {
 }
 
 .custom-sort-select .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 1px var(--accent, #6366f1) inset, 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
 /* Dark theme for el-select inside dialogs */
@@ -1686,7 +1936,9 @@ onUnmounted(() => {
 }
 
 .custom-dialog-input.el-select .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 1px var(--accent, #6366f1) inset, 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  box-shadow:
+    0 0 0 1px var(--accent, #6366f1) inset,
+    0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
 
 .animate-border-pulse {
@@ -1713,8 +1965,8 @@ onUnmounted(() => {
 }
 /* Hide scrollbar for IE, Edge and Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 @media (max-width: 640px) {
@@ -1726,7 +1978,7 @@ onUnmounted(() => {
     gap: 8px !important;
     margin-bottom: 10px !important;
   }
-  
+
   /* Filters & search adjustments */
   .two-fa-container .custom-search-input {
     width: 100% !important;

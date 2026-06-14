@@ -32,8 +32,10 @@ import { getPlanName } from '@/utils/plans';
 import { getApiErrorMessage } from '@/utils/error';
 import AdminOpsPanel from './components/AdminOpsPanel.vue';
 import { fetchManagementInsights } from './adminManagementInsights';
+import MirrorSourceDialog from './components/MirrorSourceDialog.vue';
+import MirrorSyncLogsDialog from './components/MirrorSyncLogsDialog.vue';
 
-interface MirrorSource {
+export interface MirrorSource {
   id: string;
   name: string;
   displayName: string;
@@ -78,7 +80,7 @@ interface SyncProgress {
   estimatedProgress: number;
 }
 
-interface SyncLog {
+export interface SyncLog {
   id: string;
   type: string;
   status: string;
@@ -122,14 +124,11 @@ const route = useRoute();
 const sources = ref<MirrorSource[]>([]);
 const progressMap = ref<Record<string, SyncProgress>>({});
 const isLoading = ref(false);
-const showCreateDialog = ref(false);
-const showEditDialog = ref(false);
+const showSourceDialog = ref(false);
 const showSyncLogsDialog = ref(false);
 const showMatchDialog = ref(false);
 const editingSource = ref<MirrorSource | null>(null);
 const selectedSource = ref<MirrorSource | null>(null);
-const syncLogs = ref<SyncLog[]>([]);
-const isLoadingLogs = ref(false);
 const excelFiles = ref<File[]>([]);
 const isUploading = ref(false);
 const matchResult = ref<{ totalLinks: number; matchedCount: number } | null>(null);
@@ -173,118 +172,24 @@ const categoryForm = ref({
   childExternalIds: [] as string[],
 });
 
-const adapterTypes = [
-  { label: 'Zycku (资源酷)', value: 'ZYCKU' },
-  { label: '通用 WordPress', value: 'GENERIC_WP' },
-  { label: '手动上传 (资产站)', value: 'MANUAL' },
-];
-
 const statusLabels: Record<string, { label: string; color: string }> = {
   ACTIVE: { label: '启用', color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
   PAUSED: { label: '暂停', color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' },
   ERROR: { label: '异常', color: 'text-red-500 bg-red-50 dark:bg-red-500/10' },
 };
 
-const formData = ref({
-  name: '',
-  displayName: '',
-  baseUrl: '',
-  adapterType: 'ZYCKU',
-  syncInterval: 3600,
-  minPlanPriority: 1,
-  description: '',
-  iconUrl: '',
-  syncConfig: '',
-});
-
-function resetForm() {
-  formData.value = {
-    name: '',
-    displayName: '',
-    baseUrl: '',
-    adapterType: 'ZYCKU',
-    syncInterval: 3600,
-    minPlanPriority: 1,
-    description: '',
-    iconUrl: '',
-    syncConfig: '',
-  };
-}
-
-const isUploadingIcon = ref(false);
-const handleIconUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-
-  if (file.size > 5 * 1024 * 1024) {
-    return ElMessage.warning('图标图片大小不能超过 5MB');
-  }
-
-  try {
-    isUploadingIcon.value = true;
-    const formDataObj = new FormData();
-    formDataObj.append('mirror_image', file);
-    const { data } = await api.post('/api/admin/mirror/upload', formDataObj);
-    formData.value.iconUrl = data.url;
-    ElMessage.success('图标上传成功');
-  } catch (error: unknown) {
-    console.error('Icon upload error:', error);
-    ElMessage.error(getApiErrorMessage(error, '图标上传失败'));
-  } finally {
-    isUploadingIcon.value = false;
-    target.value = '';
-  }
-};
-
 function openCreate() {
-  resetForm();
-  showCreateDialog.value = true;
+  editingSource.value = null;
+  showSourceDialog.value = true;
 }
 
 function openEdit(source: MirrorSource) {
   editingSource.value = source;
-  formData.value = {
-    name: source.name,
-    displayName: source.displayName,
-    baseUrl: source.baseUrl,
-    adapterType: source.adapterType,
-    syncInterval: source.syncInterval,
-    minPlanPriority: source.minPlanPriority,
-    description: source.description || '',
-    iconUrl: source.iconUrl || '',
-    syncConfig: source.syncConfig || '',
-  };
-  showEditDialog.value = true;
+  showSourceDialog.value = true;
 }
 
-async function createSource() {
-  try {
-    await api.post('/api/admin/mirror/sources', {
-      ...formData.value,
-      syncConfig: formData.value.syncConfig ? JSON.parse(formData.value.syncConfig) : undefined,
-    });
-    ElMessage.success('镜像源创建成功');
-    showCreateDialog.value = false;
-    await fetchSources();
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '创建失败'));
-  }
-}
-
-async function updateSource() {
-  if (!editingSource.value) return;
-  try {
-    await api.put(`/api/admin/mirror/sources/${editingSource.value.id}`, {
-      ...formData.value,
-      syncConfig: formData.value.syncConfig ? JSON.parse(formData.value.syncConfig) : undefined,
-    });
-    ElMessage.success('更新成功');
-    showEditDialog.value = false;
-    await fetchSources();
-  } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, '更新失败'));
-  }
+async function onSourceSaved() {
+  await fetchSources();
 }
 
 async function deleteSource(source: MirrorSource) {
@@ -330,18 +235,9 @@ async function cancelSync(sourceId: string) {
   }
 }
 
-async function viewSyncLogs(source: MirrorSource) {
+function viewSyncLogs(source: MirrorSource) {
   editingSource.value = source;
   showSyncLogsDialog.value = true;
-  isLoadingLogs.value = true;
-  try {
-    const res = await api.get(`/api/admin/mirror/sources/${source.id}/sync-logs?limit=30`);
-    syncLogs.value = res.data;
-  } catch (_e) {
-    ElMessage.error('加载日志失败');
-  } finally {
-    isLoadingLogs.value = false;
-  }
 }
 
 function openMatchLinks(source: MirrorSource) {
@@ -486,7 +382,10 @@ async function toggleResourcePanel(source: MirrorSource) {
 async function fetchResources(sourceId: string) {
   isLoadingResources.value = true;
   try {
-    const params: ResourceQueryParams = { page: resourcePage.value, pageSize: resourcePageSize.value };
+    const params: ResourceQueryParams = {
+      page: resourcePage.value,
+      pageSize: resourcePageSize.value,
+    };
     if (resourceSearch.value) params.search = resourceSearch.value;
     if (resourceCategoryFilter.value) params.categoryId = resourceCategoryFilter.value;
     const res = await api.get(`/api/admin/mirror/sources/${sourceId}/resources`, { params });
@@ -906,14 +805,18 @@ const closeImportDialog = () => {
 };
 
 const triggerExportDownload = (source: any, full: boolean) => {
-  ElMessage.info(full ? '正在生成完整备份 (2.4GB)，文件将通过流式传输下载，请耐心等待浏览器弹出下载进度...' : '正在生成轻量备份，请稍候...');
-  
+  ElMessage.info(
+    full
+      ? '正在生成完整备份 (2.4GB)，文件将通过流式传输下载，请耐心等待浏览器弹出下载进度...'
+      : '正在生成轻量备份，请稍候...',
+  );
+
   // Use a relative /api URL (same-origin through Vite proxy) so that:
   // 1. Cookies are sent automatically (backend uses cookie-based auth)
   // 2. link.download attribute works (only works for same-origin URLs in Chrome)
   // The Vite proxy has a 30-min timeout configured for this path, so large downloads won't be cut off.
   const exportUrl = `/api/admin/mirror/sources/${source.id}/export?full=${full}`;
-  
+
   const link = document.createElement('a');
   link.href = exportUrl;
   // download attribute forces browser file-save instead of navigation (only works for same-origin)
@@ -940,7 +843,7 @@ const exportSource = (source: any) => {
       distinguishCancelAndClose: true,
       type: 'info',
       dangerouslyUseHTMLString: true,
-    }
+    },
   )
     .then(() => {
       triggerExportDownload(source, true);
@@ -960,7 +863,7 @@ const cleanupSource = (source: any) => {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
-    }
+    },
   )
     .then(async () => {
       ElMessage.info('正在深度分析并清理存储空间，请稍候...');
@@ -973,7 +876,7 @@ const cleanupSource = (source: any) => {
           {
             confirmButtonText: '好的',
             type: 'success',
-          }
+          },
         );
       } catch (error: any) {
         ElMessage.error(getApiErrorMessage(error, '清理存储空间失败'));
@@ -1022,15 +925,29 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2.5">
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer" @click="openCreate">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            @click="openCreate"
+          >
             <Plus class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">添加镜像源</span>
           </button>
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="triggerImportFile">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="triggerImportFile"
+          >
             <Upload class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">导入镜像源</span>
           </button>
-          <button type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap" style="border-color: var(--border-base); color: var(--text-secondary)" @click="fetchSources">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-[11px] font-bold shadow-sm cursor-pointer whitespace-nowrap"
+            style="border-color: var(--border-base); color: var(--text-secondary)"
+            @click="fetchSources"
+          >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
             <span class="hidden sm:inline">刷新</span>
           </button>
@@ -1045,7 +962,7 @@ onUnmounted(() => {
         <div class="flex flex-nowrap items-center gap-1 sm:gap-3 max-w-full shrink-0">
           <div class="flex flex-nowrap items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
-v-for="filter in [
+              v-for="filter in [
                 {
                   key: 'ALL',
                   label: '所有镜像源',
@@ -1074,7 +991,11 @@ v-for="filter in [
                   color: 'rose',
                   icon: X,
                 },
-              ]" :key="filter.key" type="button" class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0" :class="[
+              ]"
+              :key="filter.key"
+              type="button"
+              class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+              :class="[
                 statusFilter === filter.key
                   ? filter.key === 'ACTIVE'
                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 ring-1 ring-emerald-500/20 font-extrabold shadow-sm'
@@ -1084,7 +1005,9 @@ v-for="filter in [
                         ? 'bg-rose-500/10 text-rose-500 border-rose-500/30 ring-1 ring-rose-500/20 font-extrabold shadow-sm'
                         : 'bg-blue-500/10 text-blue-500 border-blue-500/30 ring-1 ring-blue-500/20 font-extrabold shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5',
-              ]" @click="setStatusFilter(filter.key)">
+              ]"
+              @click="setStatusFilter(filter.key)"
+            >
               <component :is="filter.icon" class="w-2 h-2 sm:w-3 sm:h-3" />
               <span>{{ filter.label }}</span>
               <span class="opacity-60">({{ filter.count }})</span>
@@ -1198,7 +1121,11 @@ v-for="filter in [
           </div>
 
           <div class="text-center">
-            <button type="button" class="relative inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 duration-200" @click="openCreate">
+            <button
+              type="button"
+              class="relative inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 duration-200"
+              @click="openCreate"
+            >
               <Plus class="w-5 h-5" />
               配置首个镜像同步源
             </button>
@@ -1217,7 +1144,12 @@ v-for="filter in [
                   <div
                     class="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950/20 text-violet-500 flex items-center justify-center shrink-0 border border-violet-100 dark:border-violet-950/50 overflow-hidden"
                   >
-                    <img v-if="source.iconUrl" alt="" :src="getAssetUrl(source.iconUrl)" class="w-full h-full object-cover" />
+                    <img
+                      v-if="source.iconUrl"
+                      alt=""
+                      :src="getAssetUrl(source.iconUrl)"
+                      class="w-full h-full object-cover"
+                    />
                     <Globe v-else class="w-6 h-6" />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -1267,9 +1199,14 @@ v-for="filter in [
 
                   <template v-if="source.adapterType !== 'MANUAL'">
                     <button
-type="button" class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" :class="
+                      type="button"
+                      class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+                      :class="
                         source.syncStatus === 'SYNCING' ? 'opacity-50 pointer-events-none' : ''
-                      " title="全量同步" @click="triggerSync(source.id, 'FULL')">
+                      "
+                      title="全量同步"
+                      @click="triggerSync(source.id, 'FULL')"
+                    >
                       <RefreshCw
                         class="w-4 h-4"
                         :class="source.syncStatus === 'SYNCING' ? 'animate-spin' : ''"
@@ -1277,38 +1214,85 @@ type="button" class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-
                     </button>
 
                     <!-- Start / Stop Button -->
-                    <button v-if="source.syncStatus === 'SYNCING'" type="button" class="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="停止同步" @click="cancelSync(source.id)">
+                    <button
+                      v-if="source.syncStatus === 'SYNCING'"
+                      type="button"
+                      class="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                      title="停止同步"
+                      @click="cancelSync(source.id)"
+                    >
                       <Square class="w-4 h-4" />
                     </button>
-                    <button v-else type="button" class="p-2 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors" title="增量同步" @click="triggerSync(source.id, 'INCREMENTAL')">
+                    <button
+                      v-else
+                      type="button"
+                      class="p-2 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors"
+                      title="增量同步"
+                      @click="triggerSync(source.id, 'INCREMENTAL')"
+                    >
                       <Play class="w-4 h-4" />
                     </button>
-                    <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors" title="同步日志" @click="viewSyncLogs(source)">
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors"
+                      title="同步日志"
+                      @click="viewSyncLogs(source)"
+                    >
                       <History class="w-4 h-4" />
                     </button>
-                    <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors" title="匹配提取链接" @click="openMatchLinks(source)">
+                    <button
+                      type="button"
+                      class="p-2 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                      title="匹配提取链接"
+                      @click="openMatchLinks(source)"
+                    >
                       <Link2 class="w-4 h-4" />
                     </button>
                   </template>
 
                   <button
-type="button" class="p-2 rounded-lg transition-colors" :class="
+                    type="button"
+                    class="p-2 rounded-lg transition-colors"
+                    :class="
                       expandedSourceId === source.id
                         ? 'text-cyan-500 bg-cyan-50 dark:bg-cyan-500/10'
                         : 'text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10'
-                    " title="管理资源" @click="toggleResourcePanel(source)">
+                    "
+                    title="管理资源"
+                    @click="toggleResourcePanel(source)"
+                  >
                     <Database class="w-4 h-4" />
                   </button>
-                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors" title="清理空间" @click="cleanupSource(source)">
+                  <button
+                    type="button"
+                    class="p-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                    title="清理空间"
+                    @click="cleanupSource(source)"
+                  >
                     <Eraser class="w-4 h-4" />
                   </button>
-                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" title="导出" @click="exportSource(source)">
+                  <button
+                    type="button"
+                    class="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+                    title="导出"
+                    @click="exportSource(source)"
+                  >
                     <Download class="w-4 h-4" />
                   </button>
-                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEdit(source)">
+                  <button
+                    type="button"
+                    class="p-2 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                    title="编辑"
+                    @click="openEdit(source)"
+                  >
                     <Edit3 class="w-4 h-4" />
                   </button>
-                  <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="删除" @click="deleteSource(source)">
+                  <button
+                    type="button"
+                    class="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                    title="删除"
+                    @click="deleteSource(source)"
+                  >
                     <Trash2 class="w-4 h-4" />
                   </button>
                 </div>
@@ -1392,20 +1376,28 @@ type="button" class="p-2 rounded-lg transition-colors" :class="
                 <!-- Tab Navigation for Mirror Sources -->
                 <div class="flex border-b border-slate-200 dark:border-slate-700/60 mb-5 gap-6">
                   <button
-type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5" :class="
+                    type="button"
+                    class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5"
+                    :class="
                       expandedTab === 'resources'
                         ? 'text-cyan-500 border-cyan-500'
                         : 'text-slate-400 border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                    " @click="expandedTab = 'resources'">
+                    "
+                    @click="expandedTab = 'resources'"
+                  >
                     <FileText class="w-4 h-4" />
                     资源管理
                   </button>
                   <button
-type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5" :class="
+                    type="button"
+                    class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1 focus:outline-none flex items-center gap-1.5"
+                    :class="
                       expandedTab === 'categories'
                         ? 'text-cyan-500 border-cyan-500'
                         : 'text-slate-400 border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                    " @click="expandedTab = 'categories'">
+                    "
+                    @click="expandedTab = 'categories'"
+                  >
                     <Layers class="w-4 h-4" />
                     分类管理
                   </button>
@@ -1451,7 +1443,11 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                           {{ cat.name }}
                         </option>
                       </select>
-                      <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors" @click="openCreateResource">
+                      <button
+                        type="button"
+                        class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors"
+                        @click="openCreateResource"
+                      >
                         <Plus class="w-3.5 h-3.5" />
                         新增资源
                       </button>
@@ -1507,7 +1503,12 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                         >
                           <td class="py-2.5 px-2">
                             <div class="flex items-center gap-2 max-w-xs">
-                              <img v-if="res.thumbnailUrl" alt="" :src="res.thumbnailUrl" class="w-8 h-8 rounded object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-700" />
+                              <img
+                                v-if="res.thumbnailUrl"
+                                alt=""
+                                :src="res.thumbnailUrl"
+                                class="w-8 h-8 rounded object-cover flex-shrink-0 bg-slate-100 dark:bg-slate-700"
+                              />
                               <div
                                 v-else
                                 class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0"
@@ -1538,10 +1539,20 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                           </td>
                           <td class="py-2.5 px-2">
                             <div class="flex items-center justify-end gap-1">
-                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEditResource(res)">
+                              <button
+                                type="button"
+                                class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                                title="编辑"
+                                @click="openEditResource(res)"
+                              >
                                 <Edit3 class="w-3.5 h-3.5" />
                               </button>
-                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="删除" @click="deleteResource(res)">
+                              <button
+                                type="button"
+                                class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                title="删除"
+                                @click="deleteResource(res)"
+                              >
                                 <Trash2 class="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -1560,10 +1571,20 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                         {{ resourceTotal }} 条</span
                       >
                       <div class="flex items-center gap-1">
-                        <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none" :disabled="resourcePage <= 1" @click="changeResourcePage(resourcePage - 1)">
+                        <button
+                          type="button"
+                          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                          :disabled="resourcePage <= 1"
+                          @click="changeResourcePage(resourcePage - 1)"
+                        >
                           <ChevronLeft class="w-4 h-4" />
                         </button>
-                        <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none" :disabled="resourcePage >= resourceTotalPages" @click="changeResourcePage(resourcePage + 1)">
+                        <button
+                          type="button"
+                          class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                          :disabled="resourcePage >= resourceTotalPages"
+                          @click="changeResourcePage(resourcePage + 1)"
+                        >
                           <ChevronRight class="w-4 h-4" />
                         </button>
                       </div>
@@ -1583,7 +1604,11 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                         >共 {{ sourceCategories.length }} 个分类</span
                       >
                     </h4>
-                    <button type="button" class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors" @click="openCreateCategory">
+                    <button
+                      type="button"
+                      class="flex items-center gap-1 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium rounded-lg transition-colors"
+                      @click="openCreateCategory"
+                    >
                       <Plus class="w-3.5 h-3.5" />
                       新增分类
                     </button>
@@ -1627,10 +1652,20 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
                           </td>
                           <td class="py-2.5 px-2">
                             <div class="flex items-center justify-end gap-1">
-                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors" title="编辑" @click="openEditCategory(cat)">
+                              <button
+                                type="button"
+                                class="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                                title="编辑"
+                                @click="openEditCategory(cat)"
+                              >
                                 <Edit3 class="w-3.5 h-3.5" />
                               </button>
-                              <button type="button" class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="删除" @click="deleteCategory(cat)">
+                              <button
+                                type="button"
+                                class="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                title="删除"
+                                @click="deleteCategory(cat)"
+                              >
                                 <Trash2 class="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -1654,323 +1689,13 @@ type="button" class="pb-2.5 text-sm font-semibold transition-all border-b-2 px-1
             class="hidden"
             @change="handleImportFile"
           />
+          <MirrorSourceDialog
+            v-model="showSourceDialog"
+            :source="editingSource"
+            @saved="onSourceSaved"
+          />
 
-          <!-- Import Progress Dialog -->
-          <div
-            v-if="showImportProgressDialog"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          >
-            <div
-              class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md mx-4 shadow-2xl overflow-hidden p-6 text-center"
-            >
-              <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">
-                导入镜像源
-              </h3>
-
-              <!-- Progress Circle or Bar -->
-              <div class="mb-4">
-                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3.5 overflow-hidden relative">
-                  <div
-                    class="bg-blue-600 h-full rounded-full transition-all duration-300"
-                    :style="{ width: `${importProgress}%` }"
-                  ></div>
-                </div>
-                <div class="flex justify-between text-[11px] text-slate-400 mt-2 font-bold">
-                  <span>{{ importStatusText }}</span>
-                  <span class="text-blue-600 dark:text-blue-400 font-extrabold">{{ importProgress }}%</span>
-                </div>
-              </div>
-
-              <!-- Details or errors -->
-              <div v-if="importError" class="p-3 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-lg text-xs text-left mb-4 break-all border border-red-200 dark:border-red-900/50">
-                <strong>导入失败:</strong> {{ importError }}
-              </div>
-              
-              <div v-else class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                请勿关闭当前窗口，系统正在将数据及文件导入本地镜像站...
-              </div>
-
-              <div class="flex justify-center gap-3">
-                <button
-                  v-if="importTaskStatus === 'completed' || importTaskStatus === 'failed'"
-                  type="button"
-                  class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-lg text-xs transition-colors cursor-pointer"
-                  @click="closeImportDialog"
-                >
-                  关闭
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-if="showCreateDialog || showEditDialog"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            @click.self="
-              showCreateDialog = false;
-              showEditDialog = false;
-            "
-          >
-            <div
-              class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <div
-                class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
-              >
-                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
-                  {{ showEditDialog ? '编辑镜像源' : '添加镜像源' }}
-                </h2>
-                <button
-type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="
-                    showCreateDialog = false;
-                    showEditDialog = false;
-                  ">
-                  <X class="w-5 h-5" />
-                </button>
-              </div>
-
-              <div class="p-5 space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                    >名称（英文标识）</label
-                  >
-                  <input
-                    v-model="formData.name"
-                    type="text"
-                    placeholder="例如: zycku"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                    >显示名称</label
-                  >
-                  <input
-                    v-model="formData.displayName"
-                    type="text"
-                    placeholder="例如: 资源酷"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                    >站点图标 (推荐 1:1 比例)</label
-                  >
-                  <div class="flex items-center gap-4">
-                    <div
-                      class="w-16 h-16 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 group relative bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"
-                    >
-                      <img v-if="formData.iconUrl" alt="" :src="getAssetUrl(formData.iconUrl)" class="w-full h-full object-cover" />
-                      <Globe v-else class="w-6 h-6 text-slate-400" />
-
-                      <label
-                        class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity"
-                      >
-                        <Upload v-if="!isUploadingIcon" class="w-5 h-5 text-white" />
-                        <Loader2 v-else class="w-5 h-5 text-white animate-spin" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          class="hidden"
-                          @change="handleIconUpload"
-                        />
-                      </label>
-                    </div>
-                    <div class="flex-1 space-y-1.5">
-                      <input
-                        v-model="formData.iconUrl"
-                        type="text"
-                        placeholder="或者输入网络图标 URL"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                      />
-                      <p class="text-[10px] text-slate-400 dark:text-slate-500 leading-none">
-                        推荐尺寸 128x128px，支持 PNG/JPG/WebP，大小不超过 5MB
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                    >网站地址</label
-                  >
-                  <input
-                    v-model="formData.baseUrl"
-                    type="text"
-                    placeholder="https://www.zycku.com"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                    >适配器类型</label
-                  >
-                  <select
-                    v-model="formData.adapterType"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                  >
-                    <option v-for="opt in adapterTypes" :key="opt.value" :value="opt.value">
-                      {{ opt.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                      >访问权限</label
-                    >
-                    <select
-                      v-model="formData.minPlanPriority"
-                      class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    >
-                      <option :value="0">免费版及以上</option>
-                      <option :value="1">VIP及以上</option>
-                      <option :value="2">SVIP及以上</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                      >同步间隔(秒)</label
-                    >
-                    <input
-                      v-model.number="formData.syncInterval"
-                      type="number"
-                      min="600"
-                      step="600"
-                      class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-                    >描述</label
-                  >
-                  <textarea
-                    v-model="formData.description"
-                    rows="2"
-                    placeholder="简要描述该镜像源..."
-                    class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
-                  ></textarea>
-                </div>
-              </div>
-
-              <div
-                class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700"
-              >
-                <button
-type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" @click="
-                    showCreateDialog = false;
-                    showEditDialog = false;
-                  ">
-                  取消
-                </button>
-                <button v-if="showCreateDialog" type="button" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors" @click="createSource">
-                  创建
-                </button>
-                <button v-else type="button" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors" @click="updateSource">
-                  保存
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-if="showSyncLogsDialog"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            @click.self="showSyncLogsDialog = false"
-          >
-            <div
-              class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-2xl mx-4 shadow-2xl max-h-[80vh] flex flex-col"
-            >
-              <div
-                class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700"
-              >
-                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
-                  同步日志 - {{ editingSource?.displayName }}
-                </h2>
-                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showSyncLogsDialog = false">
-                  <X class="w-5 h-5" />
-                </button>
-              </div>
-
-              <div class="flex-1 overflow-y-auto p-5">
-                <div v-if="isLoadingLogs" class="flex items-center justify-center py-10">
-                  <Loader2 class="w-5 h-5 animate-spin text-blue-500" />
-                  <span class="ml-2 text-sm text-slate-500">加载日志...</span>
-                </div>
-
-                <div v-else-if="syncLogs.length === 0" class="text-center py-10">
-                  <p class="text-slate-500">暂无同步记录</p>
-                </div>
-
-                <div v-else class="space-y-3">
-                  <div
-                    v-for="log in syncLogs"
-                    :key="log.id"
-                    class="p-4 rounded-lg border border-slate-200 dark:border-slate-700"
-                    :class="
-                      log.status === 'FAILED'
-                        ? 'bg-red-50 dark:bg-red-500/5 border-red-200 dark:border-red-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800/30'
-                    "
-                  >
-                    <div
-                      class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2"
-                    >
-                      <div class="flex items-center gap-2">
-                        <span
-                          class="px-2 py-0.5 text-xs rounded-full font-medium"
-                          :class="
-                            log.type === 'FULL'
-                              ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600'
-                              : 'bg-green-100 dark:bg-green-500/20 text-green-600'
-                          "
-                        >
-                          {{ log.type === 'FULL' ? '全量同步' : '增量同步' }}
-                        </span>
-                        <span
-                          class="px-2 py-0.5 text-xs rounded-full font-medium"
-                          :class="
-                            log.status === 'SUCCESS'
-                              ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600'
-                              : log.status === 'FAILED'
-                                ? 'bg-red-100 dark:bg-red-500/20 text-red-600'
-                                : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
-                          "
-                        >
-                          {{
-                            log.status === 'SUCCESS'
-                              ? '成功'
-                              : log.status === 'FAILED'
-                                ? '失败'
-                                : '进行中'
-                          }}
-                        </span>
-                      </div>
-                      <span class="text-xs text-slate-400">{{ formatTime(log.startedAt) }}</span>
-                    </div>
-
-                    <div
-                      v-if="log.error"
-                      class="text-xs text-red-500 mb-2 p-2 bg-red-50 dark:bg-red-500/10 rounded"
-                    >
-                      {{ log.error }}
-                    </div>
-
-                    <div
-                      v-if="log.status !== 'RUNNING'"
-                      class="flex flex-wrap gap-3 text-xs text-slate-500"
-                    >
-                      <span>发现 {{ log.resourcesFound }} 个</span>
-                      <span class="text-emerald-500">新增 {{ log.resourcesCreated }}</span>
-                      <span class="text-amber-500">更新 {{ log.resourcesUpdated }}</span>
-                      <span class="text-red-400">删除 {{ log.resourcesDeleted }}</span>
-                      <span v-if="log.duration">耗时 {{ formatDuration(log.duration) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <MirrorSyncLogsDialog v-model="showSyncLogsDialog" :source="editingSource" />
 
           <!-- Match Links Dialog -->
           <div
@@ -1990,7 +1715,11 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
                   <Link2 class="w-5 h-5 text-indigo-500" />
                   匹配提取链接 - {{ selectedSource?.displayName }}
                 </h2>
-                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showMatchDialog = false">
+                <button
+                  type="button"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  @click="showMatchDialog = false"
+                >
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -2052,7 +1781,11 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
                     class="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between px-1"
                   >
                     <span>已选择的文件 ({{ excelFiles.length }})</span>
-                    <button type="button" class="text-indigo-500 hover:text-indigo-600 transition-colors" @click="excelFiles = []">
+                    <button
+                      type="button"
+                      class="text-indigo-500 hover:text-indigo-600 transition-colors"
+                      @click="excelFiles = []"
+                    >
                       清空全部
                     </button>
                   </div>
@@ -2072,7 +1805,11 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
                         >({{ (file.size / 1024).toFixed(1) }} KB)</span
                       >
                     </div>
-                    <button type="button" class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0" @click="removeFile(index)">
+                    <button
+                      type="button"
+                      class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex-shrink-0"
+                      @click="removeFile(index)"
+                    >
                       <Trash2 class="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -2111,10 +1848,20 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
               <div
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
               >
-                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" :disabled="isUploading" @click="showMatchDialog = false">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  :disabled="isUploading"
+                  @click="showMatchDialog = false"
+                >
                   关闭
                 </button>
-                <button type="button" class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5" :disabled="excelFiles.length === 0 || isUploading" @click="uploadAndMatch">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors flex items-center gap-1.5"
+                  :disabled="excelFiles.length === 0 || isUploading"
+                  @click="uploadAndMatch"
+                >
                   <Loader2 v-if="isUploading" class="w-4 h-4 animate-spin" />
                   {{ isUploading ? '匹配中...' : '开始匹配' }}
                 </button>
@@ -2139,7 +1886,11 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
                   <FileText class="w-5 h-5 text-cyan-500" />
                   {{ isEditingResource ? '编辑资源' : '新增资源' }}
                 </h2>
-                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showResourceDialog = false">
+                <button
+                  type="button"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  @click="showResourceDialog = false"
+                >
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -2247,10 +1998,18 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
               <div
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700"
               >
-                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" @click="showResourceDialog = false">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  @click="showResourceDialog = false"
+                >
                   取消
                 </button>
-                <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors" @click="saveResource">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
+                  @click="saveResource"
+                >
                   {{ isEditingResource ? '保存' : '创建' }}
                 </button>
               </div>
@@ -2275,7 +2034,11 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
                   <Layers class="w-5 h-5 text-cyan-500" />
                   {{ isEditingCategory ? '编辑分类' : '新增分类' }}
                 </h2>
-                <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" @click="showCategoryDialog = false">
+                <button
+                  type="button"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  @click="showCategoryDialog = false"
+                >
                   <X class="w-5 h-5" />
                 </button>
               </div>
@@ -2382,10 +2145,18 @@ type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-sl
               <div
                 class="flex justify-end gap-2 p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
               >
-                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" @click="showCategoryDialog = false">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  @click="showCategoryDialog = false"
+                >
                   取消
                 </button>
-                <button type="button" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors" @click="saveCategory">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium transition-colors"
+                  @click="saveCategory"
+                >
                   {{ isEditingCategory ? '保存' : '创建' }}
                 </button>
               </div>

@@ -1805,7 +1805,7 @@ async function handleImportFile(event: Event) {
   </div>
 </template>
 
-<style scoped>
+<style>
 /* =====================================================
    Google Warming View — Theme-Aware Styles
    Uses CSS variables so light/dark themes both work
@@ -2198,15 +2198,15 @@ async function handleImportFile(event: Event) {
   --el-table-row-hover-bg-color: var(--bg-hover);
   background-color: transparent !important;
 }
-.custom-el-table :deep(tr) {
+.custom-el-table tr {
   background-color: var(--bg-card) !important;
 }
-.custom-el-table :deep(th) {
+.custom-el-table th {
   color: var(--text-secondary) !important;
   font-weight: 650 !important;
   border-bottom: 1px solid var(--border-base) !important;
 }
-.custom-el-table :deep(td) {
+.custom-el-table td {
   border-bottom: 1px solid var(--border-base) !important;
 }
 </style>

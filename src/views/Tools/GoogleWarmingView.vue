@@ -1805,7 +1805,7 @@ async function handleImportFile(event: Event) {
   </div>
 </template>
 
-<style>
+<style scoped>
 /* =====================================================
    Google Warming View — Theme-Aware Styles
    Uses CSS variables so light/dark themes both work

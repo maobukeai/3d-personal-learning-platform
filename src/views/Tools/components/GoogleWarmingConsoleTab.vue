@@ -664,14 +664,23 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
             <Calendar class="w-5 h-5 text-indigo-400" />
             {{ t('tools.googleWarming.warmingTimeline') }}
           </h3>
-          <span class="gw-badge-indigo">
-            {{
-              t('tools.googleWarming.currentDayStatus', {
-                day: selectedAccount.currentDay,
-                status: getStatusLabel(selectedAccount.status),
-              })
-            }}
-          </span>
+          <div class="flex items-center gap-2">
+            <button
+              class="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400 font-bold hover:bg-violet-500/20 transition-all text-xs cursor-pointer"
+              @click="isAppealAssistantVisible = true"
+            >
+              <Sparkles class="w-3.5 h-3.5 text-violet-500" />
+              <span>打开改区申诉助手</span>
+            </button>
+            <span class="gw-badge-indigo">
+              {{
+                t('tools.googleWarming.currentDayStatus', {
+                  day: selectedAccount.currentDay,
+                  status: getStatusLabel(selectedAccount.status),
+                })
+              }}
+            </span>
+          </div>
         </div>
 
         <div class="flex gap-1.5 overflow-x-auto pb-2 pr-1 scrollbar-thin">
@@ -792,21 +801,6 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
         </div>
       </div>
 
-      <!-- AI Appeal Assistant section button and popup trigger -->
-      <div
-        class="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center"
-      >
-        <div class="text-[11px] text-slate-500">
-          遇到谷歌关联地区风控？可以使用改区申诉理由助手生成专业的中英文陈述。
-        </div>
-        <button
-          class="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400 font-bold hover:bg-violet-500/20 transition-all text-xs cursor-pointer"
-          @click="isAppealAssistantVisible = true"
-        >
-          <Sparkles class="w-3.5 h-3.5 text-violet-500" />
-          <span>打开改区申诉助手</span>
-        </button>
-      </div>
     </div>
   </div>
 

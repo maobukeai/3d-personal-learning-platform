@@ -65,7 +65,7 @@ async function checkFormSecret() {
     const preview = await generateTOTP(cleanSecret);
     addSecretPreview.value = preview.code;
     addSecretTimeLeft.value = preview.timeLeft;
-  } catch (err) {
+  } catch {
     addSecretPreview.value = '------';
     addSecretTimeLeft.value = 0;
   }
@@ -119,7 +119,7 @@ function startPreviewTimer() {
         const preview = await generateTOTP(addForm.value.secret);
         addSecretPreview.value = preview.code;
         addSecretTimeLeft.value = preview.timeLeft;
-      } catch (err) {
+      } catch {
         addSecretPreview.value = '------';
         addSecretTimeLeft.value = 0;
       }

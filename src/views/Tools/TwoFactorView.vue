@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -110,16 +110,12 @@ const layoutMode = ref<'grid' | 'list'>(
   (localStorage.getItem('2fa_layout_mode') as any) === 'list' ? 'list' : 'grid',
 );
 
-function changeLayoutMode(mode: 'grid' | 'list') {
-  layoutMode.value = mode;
-  localStorage.setItem('2fa_layout_mode', mode);
-}
+watch(layoutMode, (newMode) => {
+  localStorage.setItem('2fa_layout_mode', newMode);
+});
 
 // Copy feedback states
 const copiedStates = ref<Record<string, boolean>>({});
-
-// File input ref for backup importing
-const fileInput = ref<HTMLInputElement | null>(null);
 
 // QR code generation state
 const qrCodeAccount = ref<TwoFactorAccount | null>(null);
@@ -237,7 +233,7 @@ async function copyToClipboard(text: string, id: string, successMessage: string)
     await navigator.clipboard.writeText(text);
     ElMessage.success(successMessage);
     triggerCopyFeedback(id);
-  } catch (err) {
+  } catch {
     ElMessage.error('复制失败，请手动选择复制');
   }
 }
@@ -498,7 +494,7 @@ async function onDrop(event: DragEvent, targetCategory: string) {
       `已成功将 "${account.label}" 移动到 "${targetCategory === 'uncategorized' ? '未分类' : targetCategory}" 分组`,
     );
     await fetchAccounts();
-  } catch (err) {
+  } catch {
     ElMessage.error('移动分组失败');
   } finally {
     isLoading.value = false;

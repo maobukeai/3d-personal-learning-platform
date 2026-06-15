@@ -37,7 +37,6 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import Button from '@/components/ui/Button.vue';
 import { getTaskDayIndex, getTaskTime } from '@/utils/taskSort';
 import Dropdown from '@/components/ui/Dropdown.vue';
-import { User } from 'lucide-vue-next';
 
 const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();

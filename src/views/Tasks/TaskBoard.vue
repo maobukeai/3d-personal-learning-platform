@@ -8,21 +8,16 @@ import {
   Search,
   CheckCircle2,
   AlertCircle,
-  X,
   LayoutGrid,
   List,
   Flame,
   ArrowUp,
   Minus,
   ArrowDown,
-  User,
-  FolderOpen,
   FolderPlus,
   TrendingUp,
   BarChart3,
   RotateCcw,
-  EyeOff,
-  Eye,
   SlidersHorizontal,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -256,11 +251,6 @@ const resetAllFilters = () => {
   priorityFilter.value = 'all';
   hideCompleted.value = false;
   onlyMyTasks.value = false;
-};
-
-const toggleColumnVisibility = (col: keyof typeof visibleColumns.value) => {
-  visibleColumns.value[col] = !visibleColumns.value[col];
-  localStorage.setItem(`task_visible_col_${col}`, String(visibleColumns.value[col]));
 };
 
 const filteredTasks = computed(() => {

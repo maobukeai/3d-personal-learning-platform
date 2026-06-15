@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Globe,
   Edit,
+  Copy,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -70,7 +71,16 @@ interface MailMessage {
 }
 
 // State variables
-const { t } = useI18n();
+const { t, locale } = useI18n();
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success(locale.value === 'en-US' ? 'Copied to clipboard' : '已复制到剪贴板');
+  }).catch(() => {
+    ElMessage.error(locale.value === 'en-US' ? 'Copy failed' : '复制失败');
+  });
+};
+
 const accounts = ref<EmailAccount[]>([]);
 const selectedAccountId = ref<string>('');
 const currentFolder = ref<string>('inbox');
@@ -786,6 +796,15 @@ const formatDate = (dateStr: string) => {
                     >
                       {{ acc.email }}
                     </span>
+                    <el-tooltip :content="locale === 'en-US' ? 'Copy Email' : '复制邮箱'" placement="top">
+                      <button
+                        type="button"
+                        class="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded transition-colors shrink-0 opacity-0 group-hover:opacity-100 duration-200 ml-auto cursor-pointer"
+                        @click.stop="copyToClipboard(acc.email)"
+                      >
+                        <Copy class="w-3.5 h-3.5" />
+                      </button>
+                    </el-tooltip>
                   </div>
 
                   <!-- Status Dot -->

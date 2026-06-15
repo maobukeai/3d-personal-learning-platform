@@ -700,7 +700,7 @@ html.dark.theme-glass .hover\:shadow-2xl:hover {
   border: 1px solid rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04) !important;
   border-radius: var(--radius-lg) !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .dark .glass-card {
@@ -744,4 +744,16 @@ html body .dark .subscription-btn {
 
 html body .dark .subscription-btn:hover {
   background-color: #e0661b !important;
+}
+
+/* GPU Hardware Acceleration for Glassmorphism & Transition Elements */
+.glass-card,
+.glass-sidebar,
+.glass-header,
+article[class*="backdrop-blur-"],
+div[class*="backdrop-blur-"] {
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
